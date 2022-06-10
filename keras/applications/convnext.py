@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-docstring
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
+
 """ConvNeXt models for Keras.
 
 References:
@@ -734,7 +732,7 @@ ConvNeXtXLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtXLarge")
 
 
 @keras_export("keras.applications.convnext.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the convnext model

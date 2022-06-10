@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras base class for convolution layers."""
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 
@@ -185,13 +185,12 @@ class Conv(Layer):
             )
 
         if self.padding == "causal":
-            # pylint: disable=g-import-not-at-top
+
             from keras.layers.convolutional.conv1d import Conv1D
             from keras.layers.convolutional.separable_conv1d import (
                 SeparableConv1D,
             )
 
-            # pylint: enable=g-import-not-at-top
             if not isinstance(self, (Conv1D, SeparableConv1D)):
                 raise ValueError(
                     "Causal padding is only supported for `Conv1D`"
@@ -354,7 +353,7 @@ class Conv(Layer):
                 f"dimension."
             )
 
-    def _recreate_conv_op(self, inputs):  # pylint: disable=unused-argument
+    def _recreate_conv_op(self, inputs):
         return False
 
     def get_config(self):

@@ -226,9 +226,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
                     )
                 )
             else:
-                from scipy.stats import (
-                    norm,  # pylint: disable=g-import-not-at-top
-                )
+                from scipy.stats import norm
 
                 return x * norm.cdf(x)
 

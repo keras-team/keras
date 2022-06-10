@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras abstract base layer for separable nD convolution."""
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 

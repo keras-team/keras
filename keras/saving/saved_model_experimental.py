@@ -36,11 +36,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
-# pylint:disable=g-inconsistent-quotes
+
 metrics_lib = LazyLoader("metrics_lib", globals(), "keras.metrics")
 models_lib = LazyLoader("models_lib", globals(), "keras.models")
 sequential = LazyLoader("sequential", globals(), "keras.engine.sequential")
-# pylint:enable=g-inconsistent-quotes
 
 
 # File name for json format of SavedModel.
@@ -64,7 +63,7 @@ def export_saved_model(
     The exported `SavedModel` is a standalone serialization of Tensorflow
     objects, and is supported by TF language APIs and the Tensorflow Serving
     system.  To load the model, use the function
-    `tf.keras.experimental.load_from_saved_model`.
+    `tf.compat.v1.keras.experimental.load_from_saved_model`.
 
     The `SavedModel` contains:
 
@@ -88,10 +87,10 @@ def export_saved_model(
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 
@@ -165,7 +164,7 @@ def _export_model_variables(model, saved_model_path):
 
 def _save_v1_format(model, path, custom_objects, as_text, input_signature):
     """Exports model to v1 SavedModel format."""
-    if not model._is_graph_network:  # pylint: disable=protected-access
+    if not model._is_graph_network:
         if isinstance(model, sequential.Sequential):
             # If input shape is not directly set in the model, the exported
             # model will infer the expected shapes of the input from the model.
@@ -185,9 +184,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
                 "set argument serving_only=True."
             )
 
-    builder = tf.__internal__.saved_model.SavedModelBuilder(
-        path
-    )  # pylint: disable=protected-access
+    builder = tf.__internal__.saved_model.SavedModelBuilder(path)
 
     # Manually save variables to export them in an object-based checkpoint. This
     # skips the `builder.add_meta_graph_and_variables()` step, which saves a
@@ -315,12 +312,12 @@ def _export_mode(
         # Extract update and train ops from train/test/predict functions.
         train_op = None
         if mode == mode_keys.ModeKeys.TRAIN:
-            clone._make_train_function()  # pylint: disable=protected-access
+            clone._make_train_function()
             train_op = clone.train_function.updates_op
         elif mode == mode_keys.ModeKeys.TEST:
-            clone._make_test_function()  # pylint: disable=protected-access
+            clone._make_test_function()
         else:
-            clone._make_predict_function()  # pylint: disable=protected-access
+            clone._make_predict_function()
         g.get_collection_ref(tf.compat.v1.GraphKeys.UPDATE_OPS).extend(
             clone.state_updates
         )
@@ -348,9 +345,7 @@ def _export_mode(
                 clone.save_weights(
                     checkpoint_path, save_format="tf", overwrite=True
                 )
-                builder._has_saved_variables = (
-                    True  # pylint: disable=protected-access
-                )
+                builder._has_saved_variables = True
 
             # Add graph to the SavedModel builder.
             builder.add_meta_graph(
@@ -374,7 +369,7 @@ def _create_signature_def_map(model, mode):
     if model.optimizer:
         targets_dict = {
             x.name.split(":")[0]: x for x in model._targets if x is not None
-        }  # pylint: disable=protected-access
+        }
         inputs_dict.update(targets_dict)
     outputs_dict = {
         name: x for name, x in zip(model.output_names, model.outputs)
@@ -414,9 +409,7 @@ def _create_signature_def_map(model, mode):
     )
 
 
-def _assert_same_non_optimizer_objects(
-    model, model_graph, clone, clone_graph
-):  # pylint: disable=unused-argument
+def _assert_same_non_optimizer_objects(model, model_graph, clone, clone_graph):
     """Asserts model and clone contain the same trackable objects."""
 
     # TODO(fchollet, kathywu): make sure this works in eager mode.
@@ -444,10 +437,10 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 

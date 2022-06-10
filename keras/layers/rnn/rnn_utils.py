@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for RNN cells and layers."""
-# pylint: disable=protected-access
+
 
 import tensorflow.compat.v2 as tf
 

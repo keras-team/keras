@@ -28,12 +28,11 @@ from keras.utils.io_utils import path_to_string
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-import-not-at-top
+
 try:
     import h5py
 except ImportError:
     h5py = None
-# pylint: enable=g-import-not-at-top
 
 
 @keras_export("keras.models.save_model")
@@ -48,7 +47,7 @@ def save_model(
     options=None,
     save_traces=True,
 ):
-    # pylint: disable=line-too-long
+
     """Saves a model as a TensorFlow SavedModel or HDF5 file.
 
     See the [Serialization and Saving
@@ -129,8 +128,8 @@ def save_model(
     Raises:
         ImportError: If save format is hdf5, and h5py is not available.
     """
-    # pylint: enable=line-too-long
-    from keras.engine import sequential  # pylint: disable=g-import-not-at-top
+
+    from keras.engine import sequential
 
     default_format = "tf" if tf.__internal__.tf2.enabled() else "h5"
     save_format = save_format or default_format
@@ -148,11 +147,8 @@ def save_model(
         or saving_utils.is_hdf5_filepath(filepath)
     ):
         # TODO(b/130258301): add utility method for detecting model type.
-        if (
-            not model._is_graph_network
-            and not isinstance(  # pylint:disable=protected-access
-                model, sequential.Sequential
-            )
+        if not model._is_graph_network and not isinstance(
+            model, sequential.Sequential
         ):
             raise NotImplementedError(
                 "Saving the model to HDF5 format requires the model to be a "
@@ -180,9 +176,7 @@ def save_model(
 
 @keras_export("keras.models.load_model")
 @traceback_utils.filter_traceback
-def load_model(
-    filepath, custom_objects=None, compile=True, options=None
-):  # pylint: disable=redefined-builtin
+def load_model(filepath, custom_objects=None, compile=True, options=None):
     """Loads a model saved via `model.save()`.
 
     Usage:

@@ -961,7 +961,7 @@ class VariableScopeModule(tf.Module):
         return {
             name: regularizer()
             for name, regularizer in self._tf1_style_var_store._regularizers.items()  # noqa: E501
-        }  # pylint: disable=protected-access
+        }
 
 
 @test_combinations.generate(test_combinations.combine(mode=["eager"]))
@@ -1151,7 +1151,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                 return {
                     name: regularizer()
                     for name, regularizer in self._variable_store._regularizers.items()  # noqa: E501
-                }  # pylint: disable=protected-access
+                }
 
             def __call__(self, inputs, training=None):
                 with self._variable_store.scope():

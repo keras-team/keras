@@ -169,9 +169,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
     def test_failing_different_ragged_and_dense_ranks(self, x_list, y_list):
         x = tf.ragged.constant(x_list)
         y = tf.ragged.constant(y_list)
-        with self.assertRaises(
-            ValueError
-        ):  # pylint: disable=g-error-prone-assert-raises
+        with self.assertRaises(ValueError):
             [
                 x,
                 y,
@@ -188,9 +186,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
         x = tf.ragged.constant(x_list)
         y = tf.ragged.constant(y_list)
         mask = tf.ragged.constant(mask_list)
-        with self.assertRaises(
-            ValueError
-        ):  # pylint: disable=g-error-prone-assert-raises
+        with self.assertRaises(ValueError):
             [
                 x,
                 y,
@@ -206,9 +202,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
         # adding a ragged dimension
         x = tf.RaggedTensor.from_row_splits(dt, row_splits=[0, 1])
         y = tf.ragged.constant([[[[1, 2]]]])
-        with self.assertRaises(
-            ValueError
-        ):  # pylint: disable=g-error-prone-assert-raises
+        with self.assertRaises(ValueError):
             [
                 x,
                 y,

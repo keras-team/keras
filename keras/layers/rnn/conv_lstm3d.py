@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """3D Convolutional LSTM layer."""
-# pylint: disable=g-classes-have-attributes,disable=g-direct-tensorflow-import
+
 
 from keras.layers.rnn.base_conv_lstm import ConvLSTM
 

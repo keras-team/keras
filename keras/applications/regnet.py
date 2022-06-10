@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-docstring
-# pylint: disable=g-classes-have-attributes
+
 
 """RegNet models for Keras.
 
@@ -1811,7 +1809,7 @@ RegNetY320.__doc__ = BASE_DOCSTRING.format(name="RegNetY320")
 
 
 @keras_export("keras.applications.regnet.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the regnet model

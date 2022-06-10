@@ -3,11 +3,8 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras.datasets import mnist
 from keras.testing_infra import test_utils
 from keras.utils import dataset_utils
-
-# pylint: disable=g-classes-have-attributes
 
 
 @test_utils.run_v2_only

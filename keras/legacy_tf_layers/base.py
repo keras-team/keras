@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Contains the base Layer class, from which all layers inherit."""
 from __future__ import absolute_import
 from __future__ import division
@@ -320,7 +320,7 @@ class Layer(base_layer.Layer):
                 new_losses, tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES
             )
 
-    def _name_scope(self):  # pylint: disable=method-hidden
+    def _name_scope(self):
         """Determines op naming for the Layer."""
         if self._keras_style:
             return super()._name_scope()
@@ -477,9 +477,7 @@ class Layer(base_layer.Layer):
             self._scope, reuse=reuse, auxiliary_name_scope=False
         ) as scope:
             self._current_scope = scope
-            with backend.name_scope(
-                self._name_scope()
-            ):  # pylint: disable=not-callable
+            with backend.name_scope(self._name_scope()):
                 use_resource = (
                     use_resource
                     or self._use_resource_variables
@@ -510,9 +508,7 @@ class Layer(base_layer.Layer):
                         self._handle_weight_regularization(
                             name, variable, regularizer
                         )
-                        var_store = (
-                            vs._get_default_variable_store()
-                        )  # pylint: disable=protected-access
+                        var_store = vs._get_default_variable_store()
                         # When the shim to get variable scope working in TF2 is
                         # used, We need to explicitly make the shim track the
                         # regularization losses as the collections will not be
@@ -585,9 +581,7 @@ class Layer(base_layer.Layer):
                 # Some classes which inherit from Layer do not use its
                 # constructor, so rather than initializing to None we check for
                 # an AttributeError.
-                scope_context_manager = (
-                    self._always_reuse_variable_scope
-                )  # pylint: disable=access-member-before-definition
+                scope_context_manager = self._always_reuse_variable_scope
             except AttributeError:
                 scope_context_manager = None
 
@@ -654,9 +648,7 @@ class Layer(base_layer.Layer):
     def __setattr__(self, value, name):
         # By-pass the automatic dependency tracking performed by the parent
         # Layer.
-        super(tf.__internal__.tracking.Trackable, self).__setattr__(
-            value, name
-        )  # pylint: disable=bad-super-call
+        super(tf.__internal__.tracking.Trackable, self).__setattr__(value, name)
 
     @property
     def _is_legacy_layer(self):

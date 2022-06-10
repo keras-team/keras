@@ -26,8 +26,6 @@ import tensorflow.compat.v2 as tf
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
-
 
 @keras_export("keras.utils.split_dataset", v1=[])
 def split_dataset(
@@ -475,7 +473,7 @@ def is_batched(tf_dataset):
 def get_batch_size(tf_dataset):
     """Get the batch size of the dataset."""
     if is_batched(tf_dataset):
-        return tf_dataset._batch_size  # pylint: disable=protected-access
+        return tf_dataset._batch_size
     else:
         return None
 

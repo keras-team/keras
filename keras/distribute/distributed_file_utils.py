@@ -50,7 +50,7 @@ import tensorflow.compat.v2 as tf
 
 
 def _get_base_dirpath(strategy):
-    task_id = strategy.extended._task_id  # pylint: disable=protected-access
+    task_id = strategy.extended._task_id
     return "workertemp_" + str(task_id)
 
 
@@ -86,9 +86,7 @@ def write_dirpath(dirpath, strategy):
         # If strategy is still not available, this is not in distributed
         # training.  Fallback to original dirpath.
         return dirpath
-    if (
-        not strategy.extended._in_multi_worker_mode()
-    ):  # pylint: disable=protected-access
+    if not strategy.extended._in_multi_worker_mode():
         return dirpath
     if strategy.extended.should_checkpoint:
         return dirpath

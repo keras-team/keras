@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based einsum dense layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import re
 

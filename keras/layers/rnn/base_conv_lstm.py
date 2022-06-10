@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for N-D convolutional LSTM layers."""
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 

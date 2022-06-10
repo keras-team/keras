@@ -2,7 +2,6 @@
 
 import tensorflow as tf
 
-from keras.initializers import GlorotUniform as V2GlorotUniform
 from keras.legacy_tf_layers import migration_utils
 
 
@@ -15,8 +14,7 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
         """
 
         # Generate three random tensors to show how the stateful random number
-        # generation and glorot_uniform_initializer match between sessions and
-        # eager execution.
+        # generation match between sessions and eager execution.
         random_tool = migration_utils.DeterministicRandomTestTool()
         with random_tool.scope():
             graph = tf.Graph()
@@ -29,10 +27,7 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
                 b = b * 3
                 c = tf.compat.v1.random.uniform(shape=(3, 3))
                 c = c * 3
-                d = tf.compat.v1.glorot_uniform_initializer()(
-                    shape=(6, 6), dtype=tf.float32
-                )
-                graph_a, graph_b, graph_c, graph_d = sess.run([a, b, c, d])
+                graph_a, graph_b, graph_c = sess.run([a, b, c])
 
             a = tf.compat.v2.random.uniform(shape=(3, 1))
             a = a * 3
@@ -40,12 +35,10 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
             b = b * 3
             c = tf.compat.v2.random.uniform(shape=(3, 3))
             c = c * 3
-            d = V2GlorotUniform()(shape=(6, 6), dtype=tf.float32)
         # validate that the generated random tensors match
         self.assertAllClose(graph_a, a)
         self.assertAllClose(graph_b, b)
         self.assertAllClose(graph_c, c)
-        self.assertAllClose(graph_d, d)
         # In constant mode, because b and c were generated with the same seed
         # within the same scope and have the same shape, they will have exactly
         # the same values.
@@ -69,20 +62,15 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
                 a = a * 3
                 b = tf.compat.v1.random.uniform(shape=(3, 3), seed=1234)
                 b = b * 3
-                c = tf.compat.v1.glorot_uniform_initializer(seed=1234)(
-                    shape=(6, 6), dtype=tf.float32
-                )
-                graph_a, graph_b, graph_c = sess.run([a, b, c])
+                graph_a, graph_b = sess.run([a, b])
             a = tf.compat.v2.random.uniform(shape=(3, 1), seed=1234)
             a = a * 3
             b = tf.compat.v2.random.uniform(shape=(3, 3), seed=1234)
             b = b * 3
-            c = V2GlorotUniform(seed=1234)(shape=(6, 6), dtype=tf.float32)
 
         # validate that the generated random tensors match
         self.assertAllClose(graph_a, a)
         self.assertAllClose(graph_b, b)
-        self.assertAllClose(graph_c, c)
 
     def test_num_rand_ops(self):
         """Test random tensor generation consistancy in num_random_ops mode.
@@ -105,10 +93,7 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
                 b = b * 3
                 c = tf.compat.v1.random.uniform(shape=(3, 3))
                 c = c * 3
-                d = tf.compat.v1.glorot_uniform_initializer()(
-                    shape=(6, 6), dtype=tf.float32
-                )
-                graph_a, graph_b, graph_c, graph_d = sess.run([a, b, c, d])
+                graph_a, graph_b, graph_c = sess.run([a, b, c])
 
         random_tool = migration_utils.DeterministicRandomTestTool(
             mode="num_random_ops"
@@ -120,12 +105,10 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
             b = b * 3
             c = tf.compat.v2.random.uniform(shape=(3, 3))
             c = c * 3
-            d = V2GlorotUniform()(shape=(6, 6), dtype=tf.float32)
         # validate that the generated random tensors match
         self.assertAllClose(graph_a, a)
         self.assertAllClose(graph_b, b)
         self.assertAllClose(graph_c, c)
-        self.assertAllClose(graph_d, d)
         # validate that the tensors differ based on ops ordering
         self.assertNotAllClose(b, c)
         self.assertNotAllClose(graph_b, graph_c)
@@ -209,9 +192,8 @@ class DeterministicRandomTestToolTest(tf.test.TestCase):
             a_prime = tf.random.uniform(shape=(3, 1))
             a_prime = a_prime * 3
             error_string = "An exception should have been raised before this"
-            error_raised = "An exception should have been raised before this"
             try:
-                c = tf.random.uniform(shape=(3, 1))
+                tf.random.uniform(shape=(3, 1))
                 raise RuntimeError(error_string)
 
             except ValueError as err:

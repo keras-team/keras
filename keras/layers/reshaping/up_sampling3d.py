@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras upsampling layer for 3D inputs."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
 

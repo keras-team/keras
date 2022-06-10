@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras merging layers."""
-# pylint: disable=g-bad-import-order
+
 
 # Merging functions.
 # Merging layers.

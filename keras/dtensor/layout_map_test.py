@@ -14,16 +14,18 @@
 # ==============================================================================
 """Tests for layout_map."""
 
+import os
+import shutil
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-# TODO(scottzhu): Fix the layout map test with keras/dtensor/test_util
-from keras.dtensor.tests import test_util
-
 from keras import backend
 from keras import layers
+from keras import models
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
+from keras.dtensor import test_util
 from keras.utils import tf_utils
 
 
@@ -136,7 +138,7 @@ class LayoutMapTest(test_util.DTensorBaseTest):
 
 
 # Class used for testing.
-class SubclassModel(tf.keras.Model):
+class SubclassModel(models.Model):
     def __init__(self, name=None):
         super().__init__(name=name)
         self.d1 = layers.Dense(1000)
@@ -147,6 +149,21 @@ class SubclassModel(tf.keras.Model):
         x = self.d1(inputs)
         x = self.dropout(x, training=training)
         return self.d2(x)
+
+
+class SubclassLayer(layers.Layer):
+    def __init__(self, unit):
+        super().__init__()
+        self.unit = unit
+
+    def build(self, input_shape):
+        weight_shape = (input_shape[-1], self.unit)
+        # Note that the variable name is "kernel", but assigned to "_weight"
+        # This will cause the checkpoint to record 2 dependencies.
+        self._weight = self.add_weight(shape=weight_shape, name="kernel")
+
+    def call(self, inputs):
+        return tf.matmul(inputs, self._weight)
 
 
 class ObjectPathMappingTest(test_util.DTensorBaseTest):
@@ -196,13 +213,29 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        self.assertIs(d1.kernel, d1._trainable_weights[0])
-        self.assertIs(d1.bias, d1._trainable_weights[1])
-        self.assertIs(d2.kernel, d2._trainable_weights[0])
-        self.assertIs(d2.bias, d2._trainable_weights[1])
+        # TODO(b/234770465): Check the order of trainable_weights.
+        self.assertLen(d1.trainable_weights, 2)
+        self.assertIsInstance(
+            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
+        self.assertLen(d2.trainable_weights, 2)
+        self.assertIsInstance(
+            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
 
         result = model(inputs, training=True)
-        self.assertAllClose(result, tf.zeros((10, 1000), layout=self.layout_2d))
+        self.assertAllClose(
+            result,
+            tf.experimental.dtensor.copy_to_mesh(
+                tf.zeros((10, 1000)), self.layout_2d
+            ),
+        )
 
     def test_init_functional_model_variable_with_layout(self):
         # Note that the functional model is using layers name + attribute name
@@ -216,12 +249,12 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.bias"] = self.layout_1d
 
         with layout_map_lib.layout_map_scope(layout_map):
-            inputs = tf.keras.Input((10,), batch_size=10)
+            inputs = layers.Input((10,), batch_size=10)
             x = layers.Dense(20, name="d1")(inputs)
             x = layers.Dropout(0.1)(x)
             output = layers.Dense(30, name="d2")(x)
 
-            model = tf.keras.Model(inputs, output)
+            model = models.Model(inputs, output)
 
         # It includes input layer as well.
         self.assertLen(model.layers, 4)
@@ -235,10 +268,21 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        self.assertIs(d1.kernel, d1._trainable_weights[0])
-        self.assertIs(d1.bias, d1._trainable_weights[1])
-        self.assertIs(d2.kernel, d2._trainable_weights[0])
-        self.assertIs(d2.bias, d2._trainable_weights[1])
+        # TODO(b/234770465): Check the order of trainable_weights.
+        self.assertLen(d1.trainable_weights, 2)
+        self.assertIsInstance(
+            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
+        self.assertLen(d2.trainable_weights, 2)
+        self.assertIsInstance(
+            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
 
         inputs = tf.zeros((10, 10))
         inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
@@ -261,7 +305,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         layout_map["d2.bias"] = self.layout_1d
 
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
@@ -280,10 +324,21 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        self.assertIs(d1.kernel, d1._trainable_weights[0])
-        self.assertIs(d1.bias, d1._trainable_weights[1])
-        self.assertIs(d2.kernel, d2._trainable_weights[0])
-        self.assertIs(d2.bias, d2._trainable_weights[1])
+        # TODO(b/234770465): Check the order of trainable_weights.
+        self.assertLen(d1.trainable_weights, 2)
+        self.assertIsInstance(
+            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
+        self.assertLen(d2.trainable_weights, 2)
+        self.assertIsInstance(
+            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
+        )
+        self.assertIsInstance(
+            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
+        )
 
         inputs = tf.zeros((10, 10))
         inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
@@ -299,7 +354,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         # all replicated.
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
@@ -319,7 +374,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     def test_weight_regularization(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(
                         20,
@@ -347,7 +402,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
     def test_dvariable_name(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map_lib.layout_map_scope(layout_map):
-            model = tf.keras.Sequential(
+            model = models.Sequential(
                 [
                     layers.Dense(20, name="d1", input_shape=(10,)),
                     layers.Dropout(0.1),
@@ -358,6 +413,23 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         self.assertLen(model.layers, 3)
         self.assertEqual(model.layers[0].kernel.name, "d1/kernel:0")
         self.assertEqual(model.layers[0].bias.name, "d1/bias:0")
+
+    def test_checkpoint(self):
+        layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+        with layout_map_lib.layout_map_scope(layout_map):
+            model = models.Sequential(
+                [
+                    layers.Dense(20, name="d1", input_shape=(10,)),
+                    SubclassLayer(10),
+                ]
+            )
+        cpt = tf.experimental.dtensor.DTensorCheckpoint(
+            mesh=self.mesh, root=model
+        )
+        tmpdir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
+        saved_path = cpt.save(os.path.join(tmpdir, "checkpoint"))
+        cpt.restore(saved_path)
 
 
 if __name__ == "__main__":

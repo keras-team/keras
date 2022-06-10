@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras Applications are premade architectures with pre-trained weights."""
-# pylint: disable=g-bad-import-order
+
 
 from keras.applications.convnext import ConvNeXtBase
 from keras.applications.convnext import ConvNeXtLarge

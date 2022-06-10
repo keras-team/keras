@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras depthwise 2D convolution."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv

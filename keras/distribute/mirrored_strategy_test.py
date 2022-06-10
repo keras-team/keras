@@ -75,7 +75,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
             optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.25)
             update_ops = optimizer._distributed_apply(
                 distribution, grads_and_vars
-            )  # pylint: disable=protected-access
+            )
 
             if not tf.executing_eagerly():
                 self.evaluate(tf.compat.v1.global_variables_initializer())

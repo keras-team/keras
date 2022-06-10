@@ -35,7 +35,7 @@ class AddingPreprocessingLayer(base_preprocessing_layer.PreprocessingLayer):
     def update_state(self, data):
         self.sum.assign_add(tf.reduce_sum(tf.cast(data, tf.float32)))
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         self.sum.assign(0.0)
 
     def set_total(self, sum_value):

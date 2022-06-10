@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Lambda layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 import sys
 import textwrap
 import types as python_types

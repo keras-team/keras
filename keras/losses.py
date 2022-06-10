@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Built-in loss functions."""
 
 
@@ -273,7 +273,7 @@ class LossFunctionWrapper(Loss):
                 backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
             )
 
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             config["fn"] = generic_utils.get_registered_name(self.fn)
 
         base_config = super().get_config()
@@ -289,7 +289,7 @@ class LossFunctionWrapper(Loss):
         Returns:
             A `keras.losses.Loss` instance.
         """
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             fn_name = config.pop("fn", None)
             if fn_name and cls is LossFunctionWrapper:
                 config["fn"] = get(fn_name)

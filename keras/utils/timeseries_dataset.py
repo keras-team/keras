@@ -20,8 +20,6 @@ import tensorflow.compat.v2 as tf
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
-
 
 @keras_export(
     "keras.utils.timeseries_dataset_from_array",
@@ -236,7 +234,7 @@ def timeseries_dataset_from_array(
     indices = tf.data.Dataset.zip(
         (tf.data.Dataset.range(len(start_positions)), positions_ds)
     ).map(
-        lambda i, positions: tf.range(  # pylint: disable=g-long-lambda
+        lambda i, positions: tf.range(
             positions[i],
             positions[i] + sequence_length * sampling_rate,
             sampling_rate,
@@ -271,9 +269,7 @@ def timeseries_dataset_from_array(
 def sequences_from_indices(array, indices_ds, start_index, end_index):
     dataset = tf.data.Dataset.from_tensors(array[start_index:end_index])
     dataset = tf.data.Dataset.zip((dataset.repeat(), indices_ds)).map(
-        lambda steps, inds: tf.gather(
-            steps, inds
-        ),  # pylint: disable=unnecessary-lambda
+        lambda steps, inds: tf.gather(steps, inds),
         num_parallel_calls=tf.data.AUTOTUNE,
     )
     return dataset

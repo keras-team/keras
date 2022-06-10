@@ -32,8 +32,6 @@ from keras.utils.mode_keys import ModeKeys
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 
-# pylint: disable=protected-access
-
 
 def model_iteration(
     model,
@@ -590,9 +588,7 @@ def _make_execution_function(model, mode, class_weight=None):
     else:
         # Match signature of other modes to allow
         # 1, 2, or 3-tuples from generator
-        def predict_on_batch(
-            x, y=None, sample_weights=None
-        ):  # pylint: disable=unused-argument
+        def predict_on_batch(x, y=None, sample_weights=None):
             return model.predict_on_batch(x)
 
         f = predict_on_batch

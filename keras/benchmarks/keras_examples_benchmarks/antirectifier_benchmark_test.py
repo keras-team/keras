@@ -169,7 +169,7 @@ class Antirectifier(tf.keras.layers.Layer):
             trainable=True,
         )
 
-    def call(self, inputs):  # pylint: disable=arguments-differ
+    def call(self, inputs):
         inputs -= tf.reduce_mean(inputs, axis=-1, keepdims=True)
         pos = tf.nn.relu(inputs)
         neg = tf.nn.relu(-inputs)

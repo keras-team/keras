@@ -24,7 +24,6 @@ from keras.utils import generic_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-# pylint: disable=g-classes-have-attributes
 @generic_utils.register_keras_serializable()
 @keras_export("keras.optimizers.experimental.Adagrad", v1=[])
 class Adagrad(optimizer.Optimizer):

@@ -23,8 +23,6 @@ from keras.layers.preprocessing import index_lookup
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
-
 
 @keras_export(
     "keras.layers.StringLookup",

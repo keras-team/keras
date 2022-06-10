@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-import-not-at-top
+
 """Utilities for file download and caching."""
 
 import functools
@@ -37,13 +37,13 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from six.moves.urllib.parse import urlsplit
 
-from six.moves.urllib.request import urlopen
 from keras.utils import io_utils
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
+from six.moves.urllib.request import urlopen
 
 # Required to support google internal urlretrieve
 if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.
@@ -87,7 +87,7 @@ if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.
                 fd.write(chunk)
 
 else:
-    from urllib.request import urlretrieve  # pylint: disable=g-importing-member
+    from urllib.request import urlretrieve
 
 
 def is_generator_or_sequence(x):
@@ -298,7 +298,7 @@ def get_file(
                 raise Exception(error_msg.format(origin, e.code, e.msg))
             except urllib.error.URLError as e:
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
-        except (Exception, KeyboardInterrupt) as e:
+        except (Exception, KeyboardInterrupt):
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
@@ -327,9 +327,7 @@ def get_file(
 
 
 def _makedirs_exist_ok(datadir):
-    os.makedirs(
-        datadir, exist_ok=True
-    )  # pylint: disable=unexpected-keyword-arg
+    os.makedirs(datadir, exist_ok=True)
 
 
 def _resolve_hasher(algorithm, file_hash=None):
@@ -423,7 +421,7 @@ class ThreadsafeIter:
     def __next__(self):
         with self.lock:
             if self._exception:
-                raise self._exception  # pylint: disable=raising-bad-type
+                raise self._exception
 
             try:
                 return next(self.it)
@@ -816,7 +814,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     yield inputs
             except queue.Empty:
                 pass
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 self.stop()
                 raise e
 
@@ -946,7 +944,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             for inputs in last_ones:
                 if inputs is not None:
                     yield inputs
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.stop()
             if "generator already executing" in str(e):
                 raise RuntimeError(
@@ -1067,10 +1065,10 @@ def pad_sequences(
 
     x = np.full((num_samples, maxlen) + sample_shape, value, dtype=dtype)
     for idx, s in enumerate(sequences):
-        if not len(s):  # pylint: disable=g-explicit-length-test
+        if not len(s):
             continue  # empty list/array was found
         if truncating == "pre":
-            trunc = s[-maxlen:]  # pylint: disable=invalid-unary-operand-type
+            trunc = s[-maxlen:]
         elif truncating == "post":
             trunc = s[:maxlen]
         else:

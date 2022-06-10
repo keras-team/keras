@@ -257,7 +257,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 def loss():
                     pred = tf.matmul(
                         tf.compat.v1.nn.embedding_lookup([var0], [0]), x
-                    )  # pylint: disable=cell-var-from-loop
+                    )
                     return pred * pred
 
                 sgd_op = adagrad.Adagrad(1.0).minimize(loss, var_list=[var0])
@@ -463,18 +463,13 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         with tf.Graph().as_default():
             for dtype in _DATA_TYPES:
                 var_repeated = tf.Variable([1.0, 2.0], dtype=dtype)
-                loss_repeated = (
-                    lambda: tf.reduce_sum(  # pylint: disable=g-long-lambda
-                        tf.compat.v1.nn.embedding_lookup(var_repeated, [0, 0])
-                    )
-                )  # pylint: disable=cell-var-from-loop
+                loss_repeated = lambda: tf.reduce_sum(
+                    tf.compat.v1.nn.embedding_lookup(var_repeated, [0, 0])
+                )
                 var_aggregated = tf.Variable([1.0, 2.0], dtype=dtype)
-                loss_aggregated = (
-                    lambda: 2
-                    * tf.reduce_sum(  # pylint: disable=g-long-lambda
-                        tf.compat.v1.nn.embedding_lookup(var_aggregated, [0])
-                    )
-                )  # pylint: disable=cell-var-from-loop
+                loss_aggregated = lambda: 2 * tf.reduce_sum(
+                    tf.compat.v1.nn.embedding_lookup(var_aggregated, [0])
+                )
                 update_op_repeated = adagrad.Adagrad(2.0).minimize(
                     loss_repeated, var_list=[var_repeated]
                 )

@@ -256,9 +256,7 @@ class ForwardpropTest(tf.test.TestCase, parameterized.TestCase):
                 output, [input_value] + layer.trainable_variables
             )
             jac_forward = _jacfwd(
-                lambda *args: layer(
-                    args[0], training=training
-                ),  # pylint:disable=cell-var-from-loop
+                lambda *args: layer(args[0], training=training),
                 [input_value] + layer.trainable_variables,
             )
             for backward, forward in zip(jac_back, jac_forward):
@@ -322,16 +320,14 @@ class ForwardpropTest(tf.test.TestCase, parameterized.TestCase):
                 return self.proj(self.embed(x))
 
         model = M()
-        model(tf.zeros([3, 3], dtype=tf.int32))  # pylint: disable=not-callable
+        model(tf.zeros([3, 3], dtype=tf.int32))
         parameters = model.embed.variables
         tangents = [tf.ones_like(v) for v in parameters]
         with tf.autodiff.ForwardAccumulator(parameters, tangents):
             # Note that forwardprop runs alongside the original computation.
             # This test is just checking that it doesn't crash; correctness is
             # tested in core TF.
-            model(
-                tf.zeros([3, 3], dtype=tf.int32)
-            )  # pylint: disable=not-callable
+            model(tf.zeros([3, 3], dtype=tf.int32))
 
 
 class HessianTests(tf.test.TestCase, parameterized.TestCase):

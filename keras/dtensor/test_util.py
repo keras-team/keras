@@ -42,7 +42,7 @@ class DTensorBaseTest(tf.test.TestCase, parameterized.TestCase):
         reset_dtensor()
 
     @staticmethod
-    def configTestMesh(device_type_mesh_map):  # pylint: disable=invalid-name
+    def configTestMesh(device_type_mesh_map):
         """Configs corresponding mesh given test context.
 
         If runs on a CPU mesh, set virtual device on CPU.
@@ -84,7 +84,7 @@ def create_device_array(shape, device_type):
     device_count = np.prod(shape)
     return np.asarray(
         [
-            tf.DeviceSpec(  # pylint: disable=g-complex-comprehension
+            tf.DeviceSpec(
                 job="localhost/replica:0/task:0",
                 device_type=device_type,
                 device_index=i,
@@ -105,7 +105,7 @@ def create_device_ids_array(shape):
 
 
 def reset_context():
-    context._reset_context()  # pylint: disable=protected-access
+    context._reset_context()
 
 
 def reset_logical_devices(device_type, count):
@@ -147,4 +147,4 @@ def reset_logical_devices(device_type, count):
 
 
 def reset_dtensor():
-    dtensor_api._reset()  # pylint: disable=protected-access
+    dtensor_api._reset()

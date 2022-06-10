@@ -22,8 +22,6 @@ from keras.engine import functional
 from keras.engine import sequential
 from keras.utils import tf_utils
 
-# pylint: disable=g-classes-have-attributes
-
 
 # Sequential methods should take precedence.
 class PreprocessingStage(
@@ -84,13 +82,9 @@ class PreprocessingStage(
                   Batch of inputs to be processed by layer
                     `self.layers[current_layer_index]`
                 """
-                if (
-                    current_layer_index == 0
-                ):  # pylint: disable=cell-var-from-loop
+                if current_layer_index == 0:
                     return x
-                for i in range(
-                    current_layer_index
-                ):  # pylint: disable=cell-var-from-loop
+                for i in range(current_layer_index):
                     x = self.layers[i](x)
                 return x
 

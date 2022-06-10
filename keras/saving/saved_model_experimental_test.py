@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Tests for saving/loading function for keras Model."""
 
 import os
@@ -213,9 +213,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
             training, lambda: x * 0, lambda: tf.identity(x)
         )
         if not tf.executing_eagerly():
-            output._uses_learning_phase = (
-                True  # pylint: disable=protected-access
-            )
+            output._uses_learning_phase = True
         return output
 
     def compute_output_shape(self, input_shape):

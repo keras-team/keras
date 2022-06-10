@@ -23,8 +23,6 @@ the [text loading tutorial]
 and [preprocessing layer guide]
 (https://www.tensorflow.org/guide/keras/preprocessing_layers).
 """
-# pylint: disable=invalid-name
-# pylint: disable=g-classes-have-attributes
 
 
 import collections

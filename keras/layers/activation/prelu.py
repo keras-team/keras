@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Parametric Rectified Linear Unit activation layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import backend
 from keras import constraints

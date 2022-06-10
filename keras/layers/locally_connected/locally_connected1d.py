@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 """Locally-connected layer for 1D input."""
 
 from keras import activations

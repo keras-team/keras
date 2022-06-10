@@ -88,13 +88,25 @@ class TestCustomObjectScope(tf.test.TestCase):
         class CustomClass:
             pass
 
-        with keras.utils.generic_utils.custom_object_scope(
-            {"CustomClass": CustomClass, "custom_fn": custom_fn}
-        ):
-            act = keras.activations.get("custom_fn")
-            self.assertEqual(act, custom_fn)
-            cl = keras.regularizers.get("CustomClass")
-            self.assertEqual(cl.__class__, CustomClass)
+        def check_get_in_thread():
+            with keras.utils.generic_utils.custom_object_scope(
+                {"CustomClass": CustomClass, "custom_fn": custom_fn}
+            ):
+                actual_custom_fn = keras.activations.get("custom_fn")
+                self.assertEqual(actual_custom_fn, custom_fn)
+                actual_custom_class = keras.regularizers.get("CustomClass")
+                self.assertEqual(actual_custom_class.__class__, CustomClass)
+
+            with keras.utils.generic_utils.custom_object_scope(
+                {"CustomClass": CustomClass, "custom_fn": custom_fn}
+            ):
+                actual_custom_fn = keras.activations.get("custom_fn")
+                self.assertEqual(actual_custom_fn, custom_fn)
+                actual_custom_class = keras.regularizers.get("CustomClass")
+                self.assertEqual(actual_custom_class.__class__, CustomClass)
+                checked_thread = self.checkedThread(check_get_in_thread)
+                checked_thread.start()
+                checked_thread.join()
 
 
 class SerializeKerasObjectTest(tf.test.TestCase):
@@ -132,7 +144,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
         ):
 
             @keras.utils.generic_utils.register_keras_serializable()
-            class TestClass:  # pylint: disable=function-redefined
+            class TestClass:
                 def __init__(self, value):
                     self._value = value
 

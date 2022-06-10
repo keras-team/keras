@@ -152,12 +152,8 @@ class RespectCompiledTrainableState:
         self._should_set_trainable = False
 
     def __enter__(self):
-        self._current_trainable_state = (
-            self._model._get_trainable_state()
-        )  # pylint: disable=protected-access
-        self._compiled_trainable_state = (
-            self._model._compiled_trainable_state
-        )  # pylint: disable=protected-access
+        self._current_trainable_state = self._model._get_trainable_state()
+        self._compiled_trainable_state = self._model._compiled_trainable_state
 
         # Check to see if any layer's trainable state has changed since
         # `compile`.
@@ -171,22 +167,19 @@ class RespectCompiledTrainableState:
 
         # If so, restore the model to its compiled state.
         if self._should_set_trainable:
-            self._model._set_trainable_state(
-                self._compiled_trainable_state
-            )  # pylint: disable=protected-access
+            self._model._set_trainable_state(self._compiled_trainable_state)
 
     def __exit__(self, type_arg, value_arg, traceback_arg):
         # If we set the values to their compiled state in __enter__, we need to
         # restore the original values before leaving the scope.
         if self._should_set_trainable:
-            self._model._set_trainable_state(
-                self._current_trainable_state
-            )  # pylint: disable=protected-access
+            self._model._set_trainable_state(self._current_trainable_state)
         return False  # False values do not suppress exceptions
 
 
 # Allow use of methods not exposed to the user.
-# pylint: disable=protected-access
+
+
 def get_input_shape_and_dtype(layer):
     """Retrieves input shape and input dtype of layer if applicable.
 
@@ -217,9 +210,6 @@ def get_input_shape_and_dtype(layer):
     if getattr(layer, "_batch_input_shape", None):
         return layer._batch_input_shape, layer.dtype
     return None, None
-
-
-# pylint: enable=protected-access
 
 
 def get_static_batch_size(layer):

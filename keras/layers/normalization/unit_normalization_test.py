@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Unit Normalization layer."""
-# pylint: disable=g-bad-import-order
+
 
 import tensorflow.compat.v2 as tf
 

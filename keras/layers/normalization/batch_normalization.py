@@ -567,9 +567,7 @@ class BatchNormalizationBase(Layer):
             if tf.compat.v1.executing_eagerly_outside_functions():
                 return variable.assign_sub(calculate_update_delta(), name=scope)
             else:
-                with tf.compat.v1.colocate_with(
-                    variable
-                ):  # pylint: disable=protected-access
+                with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign_sub(
                         variable, calculate_update_delta(), name=scope
                     )
@@ -579,9 +577,7 @@ class BatchNormalizationBase(Layer):
             if tf.compat.v1.executing_eagerly_outside_functions():
                 return variable.assign(value, name=scope)
             else:
-                with tf.compat.v1.colocate_with(
-                    variable
-                ):  # pylint: disable=protected-access
+                with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign(variable, value, name=scope)
 
     def _fused_batch_norm(self, inputs, training):
@@ -898,9 +894,7 @@ class BatchNormalizationBase(Layer):
         # Determine a boolean value for `training`: could be True, False, or
         # None.
         training_value = control_flow_util.constant_value(training)
-        if (
-            training_value == False
-        ):  # pylint: disable=singleton-comparison,g-explicit-bool-comparison
+        if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
             if self.adjustment:
@@ -1091,7 +1085,6 @@ class BatchNormalizationBase(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-# pylint: disable=g-classes-have-attributes
 @keras_export("keras.layers.experimental.SyncBatchNormalization", v1=[])
 class SyncBatchNormalization(BatchNormalizationBase):
     r"""Normalize and scale inputs or activations synchronously across replicas.

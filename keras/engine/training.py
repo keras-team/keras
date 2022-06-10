@@ -181,7 +181,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             ),
             base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES,
         )
-    )  # pylint: disable=protected-access
+    )
     _SCALAR_UPRANKING_ON = False
 
     def __new__(cls, *args, **kwargs):
@@ -836,7 +836,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 metrics += self.compiled_metrics.metrics
 
         for l in self._flatten_layers():
-            metrics.extend(l._metrics)  # pylint: disable=protected-access
+            metrics.extend(l._metrics)
         return metrics
 
     @property
@@ -898,9 +898,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Returns:
           Boolean, whether the model should run eagerly.
         """
-        if (
-            self.dynamic and self._run_eagerly is False
-        ):  # pylint:disable=g-bool-id-comparison
+        if self.dynamic and self._run_eagerly == False:
             # TODO(fchollet): consider using py_func to enable this.
             raise ValueError(
                 "Your model contains layers that can only be "
@@ -968,7 +966,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         This method can be overridden to support custom training logic.
         For concrete examples of how to override this method see
-        [Customizing what happends in fit](
+        [Customizing what happens in fit](
         https://www.tensorflow.org/guide/keras/customizing_what_happens_in_fit).
         This method is called by `Model.make_train_function`.
 
@@ -1137,9 +1135,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.train_step(data)
                 # Ensure counter is updated only if `train_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._train_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._train_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -1491,9 +1487,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 val_sample_weight,
             ) = data_adapter.unpack_x_y_sample_weight(validation_data)
 
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             self._cluster_coordinator = (
                 tf.distribute.experimental.coordinator.ClusterCoordinator(
                     self.distribute_strategy
@@ -1541,17 +1535,23 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Handle fault-tolerance for multi-worker.
             # TODO(omalleyt): Fix the ordering issues that mean this has to
             # happen after `callbacks.on_train_begin`.
-            data_handler._initial_epoch = (  # pylint: disable=protected-access
-                self._maybe_load_initial_epoch_from_ckpt(initial_epoch)
+            steps_per_epoch_inferred = (
+                steps_per_epoch or data_handler.inferred_steps
+            )
+            (
+                data_handler._initial_epoch,
+                data_handler._initial_step,
+            ) = self._maybe_load_initial_counters_from_ckpt(
+                steps_per_epoch_inferred, initial_epoch
             )
             logs = None
             for epoch, iterator in data_handler.enumerate_epochs():
                 self.reset_metrics()
                 callbacks.on_epoch_begin(epoch)
                 with data_handler.catch_stop_iteration():
-                    data_handler._initial_step = (
+                    data_handler._initial_step = data_handler._initial_step or (
                         self._maybe_load_initial_step_from_ckpt()
-                    )  # pylint: disable=protected-access
+                    )
                     for step in data_handler.steps():
                         with tf.profiler.experimental.Trace(
                             "train",
@@ -1701,9 +1701,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.test_step(data)
                 # Ensure counter is updated only if `test_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._test_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._test_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -1889,9 +1887,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if kwargs:
             raise TypeError(f"Invalid keyword arguments: {list(kwargs.keys())}")
 
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             self._cluster_coordinator = (
                 tf.distribute.experimental.coordinator.ClusterCoordinator(
                     self.distribute_strategy
@@ -2019,9 +2015,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 outputs = model.predict_step(data)
                 # Ensure counter is updated only if `test_step` succeeds.
                 with tf.control_dependencies(_minimum_control_deps(outputs)):
-                    model._predict_counter.assign_add(
-                        1
-                    )  # pylint: disable=protected-access
+                    model._predict_counter.assign_add(1)
                 return outputs
 
             if self._jit_compile:
@@ -2188,9 +2182,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # prediction.  If running under PSS, then swap it with OneDeviceStrategy
         # so that execution will run on the coordinator.
         original_pss_strategy = None
-        if (
-            self.distribute_strategy._should_use_with_coordinator
-        ):  # pylint: disable=protected-access
+        if self.distribute_strategy._should_use_with_coordinator:
             original_pss_strategy = self.distribute_strategy
             self._distribution_strategy = None
 
@@ -2659,7 +2651,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         options=None,
         save_traces=True,
     ):
-        # pylint: disable=line-too-long
+
         """Saves the model to Tensorflow SavedModel or a single HDF5 file.
 
         Please see `tf.keras.models.save_model` or the
@@ -2702,7 +2694,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         model = load_model('my_model.h5')
         ```
         """
-        # pylint: enable=line-too-long
+
         save.save_model(
             self,
             filepath,
@@ -2997,7 +2989,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # as a result.
         config = {}
 
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             if self.optimizer:
                 config["optimizer"] = saving_lib.serialize_keras_object(
                     self.optimizer
@@ -3013,6 +3005,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
+
+        # Grab the optimizer and loss from the `config` for `compile()` and
+        # `build()`.
+        optimizer, loss = None, None
+        optimizer_dict = config.pop("optimizer", {})
+        if optimizer_dict:
+            optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
+        loss_dict = config.pop("loss", {})
+        if loss_dict:
+            loss = saving_lib.deserialize_keras_object(loss_dict)
+        input_shape = config.pop("input_shape", {})
+
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
         # class of `Functional` but only inherits from the `Model` class, we
@@ -3034,40 +3038,29 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     inputs=inputs, outputs=outputs, name=config.get("name")
                 )
                 functional.connect_ancillary_layers(model, layers)
-                return model
 
-            # The config does not contain all the information necessary to
-            # revive a Functional model. This happens when the user creates
-            # subclassed models where `get_config()` is returning insufficient
-            # information to be considered a Functional model. In this case, we
-            # fall back to provide all config into the constructor of the class.
-            optimizer, loss = None, None
+            else:
+                # The config does not contain all the information necessary to
+                # revive a Functional model. This happens when the user creates
+                # subclassed models where `get_config()` is returning
+                # insufficient information to be considered a Functional model.
+                # In this case, we fall back to provide all config into the
+                # constructor of the class.
+                try:
+                    model = cls(**config)
+                except TypeError as e:
+                    raise TypeError(
+                        "Unable to revive model from config. When overriding "
+                        "the `get_config()`, make sure that the returned "
+                        "config contains all items used as arguments in the "
+                        f"constructor to {cls}, which is the default behavior. "
+                        "You can override this default behavior by defining a "
+                        "`from_config` method to specify how to create an "
+                        f"instance of {cls.__name__} from the config. \n\n"
+                        f"Error encountered during deserialization:\n{e}"
+                    )
 
-            optimizer_dict = config.pop("optimizer", {})
-            if optimizer_dict:
-                optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
-
-            loss_dict = config.pop("loss", {})
-            if loss_dict:
-                loss = saving_lib.deserialize_keras_object(loss_dict)
-
-            input_shape = config.pop("input_shape", {})
-
-            try:
-                model = cls(**config)
-            except TypeError as e:
-                raise TypeError(
-                    "Unable to revive model from config. When overriding "
-                    "the `get_config()`, make sure that the returned "
-                    "config contains all items used as arguments in the "
-                    f"constructor to {cls}, which is the default behavior. "
-                    "You can override this default behavior by defining a "
-                    "`from_config` method to specify how to create an "
-                    f"instance of {cls.__name__} from the config. \n\n"
-                    f"Error encountered during deserialization:\n{e}"
-                )
-
-            if saving_lib._ENABLED:  # pylint: disable=protected-access
+            if saving_lib._ENABLED:
 
                 if optimizer or loss:
                     model.compile(optimizer=optimizer, loss=loss)
@@ -3186,6 +3179,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         print_fn=None,
         expand_nested=False,
         show_trainable=False,
+        layer_range=None,
     ):
         """Prints a string summary of the network.
 
@@ -3204,6 +3198,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 If not provided, defaults to `False`.
             show_trainable: Whether to show if a layer is trainable.
                 If not provided, defaults to `False`.
+            layer_range: a list or tuple of 2 strings,
+                which is the starting layer name and ending layer name
+                (both inclusive) indicating the range of layers to be printed
+                in summary. It also accepts regex patterns instead of exact
+                name. In such case, start predicate will be the first element
+                it matches to `layer_range[0]` and the end predicate will be
+                the last element it matches to `layer_range[1]`.
+                By default `None` which considers all layers of model.
 
         Raises:
             ValueError: if `summary()` is called before the model is built.
@@ -3221,6 +3223,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             print_fn=print_fn,
             expand_nested=expand_nested,
             show_trainable=show_trainable,
+            layer_range=layer_range,
         )
 
     @property
@@ -3501,26 +3504,31 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "distribution strategy scope."
                     )
 
-    def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch):
+    def _maybe_load_initial_counters_from_ckpt(
+        self, steps_per_epoch, initial_epoch
+    ):
         """Maybe load initial epoch from ckpt considering possible worker recovery.
 
         Refer to tensorflow/python/keras/distribute/worker_training_state.py
         for more information.
 
         Args:
-          initial_epoch: The original initial_epoch user passes in in `fit()`.
+          steps_per_epoch: The number of step per epoch.
+          initial_epoch: The original initial_epoch user passes in `fit()`.
+          mode: The mode for running `model.fit()`.
 
         Returns:
           If the training is recovering from previous failure under multi-worker
-          training setting, return the epoch the training is supposed to
-          continue at. Otherwise, return the `initial_epoch` the user passes in.
+          training setting, return the (epoch, step) the training is supposed to
+          continue at. Otherwise, return the `initial_epoch, initial_step` the
+          user passes in.
         """
+        initial_step = 0
         if self._training_state is not None:
-            return self._training_state.maybe_load_initial_epoch_from_ckpt(
-                initial_epoch, mode=ModeKeys.TRAIN
+            return self._training_state.maybe_load_initial_counters_from_ckpt(
+                steps_per_epoch, initial_epoch, mode=ModeKeys.TRAIN
             )
-
-        return initial_epoch
+        return (initial_epoch, initial_step)
 
     def _maybe_load_initial_step_from_ckpt(self):
         if getattr(self, "_callback_step", 0) > 0:
@@ -3549,7 +3557,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             and len(x.element_spec) == 3
         )
 
-        # pylint: disable=protected-access
         if (
             sample_weight_present
             and self.compiled_metrics._user_weighted_metrics is None
@@ -3621,7 +3628,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           Dictionary of arguments that were used when compiling the model.
         """
         self._assert_compile_was_called()
-        # pylint: disable=protected-access
 
         saved_metrics = self.compiled_metrics._user_metrics
         saved_weighted_metrics = self.compiled_metrics._user_weighted_metrics
@@ -3639,16 +3645,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "weighted_metrics": saved_weighted_metrics,
             "loss_weights": self.compiled_loss._user_loss_weights,
         }
-        # pylint: enable=protected-access
+
         return compile_args
 
     def _get_callback_model(self):
         return self
 
     def _in_multi_worker_mode(self):
-        return (
-            self.distribute_strategy.extended._in_multi_worker_mode()
-        )  # pylint: disable=protected-access
+        return self.distribute_strategy.extended._in_multi_worker_mode()
 
     @property
     def _compile_was_called(self):
@@ -3746,9 +3750,7 @@ def potentially_ragged_concat(tensors):
 
 def _get_verbosity(verbose, distribute_strategy):
     """Find the right verbosity value for 'auto'."""
-    if (
-        verbose == 1 and distribute_strategy._should_use_with_coordinator
-    ):  # pylint: disable=protected-access
+    if verbose == 1 and distribute_strategy._should_use_with_coordinator:
         raise ValueError(
             "`verbose=1` is not allowed with `ParameterServerStrategy` for "
             f"performance reasons. Received: verbose={verbose}"
@@ -3920,7 +3922,7 @@ def disable_multi_worker(method):
     """Decorator that disallows multi-worker use of `method`."""
 
     def _method_wrapper(self, *args, **kwargs):
-        if self._in_multi_worker_mode():  # pylint: disable=protected-access
+        if self._in_multi_worker_mode():
             raise ValueError(
                 f"{method.__name__} is not supported in multi-worker "
                 "mode. Please use a non-multi-worker "

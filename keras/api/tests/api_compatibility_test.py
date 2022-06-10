@@ -244,7 +244,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
                 verbose_diff_message = diff_message
             else:
                 # Do not truncate diff
-                self.maxDiff = None  # pylint: disable=invalid-name
+                self.maxDiff = None
                 # Now we can run an actual proto diff.
                 try:
                     self.assertProtoEquals(expected_dict[key], actual_dict[key])

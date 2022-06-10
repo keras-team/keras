@@ -30,11 +30,11 @@ from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 # isort: off
+from tensorflow.python.checkpoint import (
+    checkpoint as trackable_util,
+)
 from tensorflow.python.framework import (
     test_util as tf_test_util,
-)
-from tensorflow.python.training.tracking import (
-    util as trackable_util,
 )
 
 
@@ -943,7 +943,6 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         )
         x = tf.cast(x, "float32")
 
-        # pylint: disable=g-long-lambda
         with self.cached_session():
             if merge_mode == "ave":
                 merge_func = lambda y, y_rev: (y + y_rev) / 2
@@ -951,7 +950,6 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
                 merge_func = lambda y, y_rev: tf.concat((y, y_rev), axis=-1)
             elif merge_mode == "mul":
                 merge_func = lambda y, y_rev: (y * y_rev)
-                # pylint: enable=g-long-lambda
 
             inputs = keras.Input(
                 shape=(None, 3), batch_size=4, dtype="float32", ragged=True

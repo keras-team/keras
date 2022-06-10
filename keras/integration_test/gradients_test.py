@@ -58,7 +58,7 @@ class GradientsTest(tf.test.TestCase):
         test_model = TestKerasModelClass(10)
         test_input = tf.constant(tf.zeros((10, 10), dtype=np.float32))
         # Ensures keras model is initialized.
-        test_model(test_input)  # pylint: disable=not-callable
+        test_model(test_input)
         grads_re, grads = self._TestVariablesGradient(
             test_input, test_model, test_input
         )
@@ -92,7 +92,7 @@ class GradientsTest(tf.test.TestCase):
         def jacobian(x):
             with tf.GradientTape() as tape:
                 tape.watch(x)
-                y = m(x)  # pylint: disable=not-callable
+                y = m(x)
             return tape.batch_jacobian(y, x)
 
         inp = tf.nn.l2_normalize(tf.ones([1, 2, 3]), axis=[1, 2])

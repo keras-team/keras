@@ -63,7 +63,7 @@ def filter_traceback(fn):
         filtered_tb = None
         try:
             return fn(*args, **kwargs)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             filtered_tb = _process_traceback_frames(e.__traceback__)
             # To get the full stack trace, call:
             # `tf.debugging.disable_traceback_filtering()`
@@ -94,7 +94,7 @@ def inject_argument_info_in_traceback(fn, object_name=None):
         bound_signature = None
         try:
             return fn(*args, **kwargs)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             if hasattr(e, "_keras_call_info_injected"):
                 # Only inject info for the innermost failing call
                 raise e
@@ -149,9 +149,7 @@ def inject_argument_info_in_traceback(fn, object_name=None):
                         # For any custom error that doesn't have a standard
                         # signature.
                         new_e = RuntimeError(message)
-                new_e._keras_call_info_injected = (
-                    True  # pylint: disable=protected-access
-                )
+                new_e._keras_call_info_injected = True
             else:
                 new_e = e
             raise new_e.with_traceback(e.__traceback__) from None

@@ -272,7 +272,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
     def test_can_handle_pandas(self):
         try:
-            import pandas as pd  # pylint: disable=g-import-not-at-top
+            import pandas as pd
         except ImportError:
             self.skipTest("Skipping test because pandas is not installed.")
         self.assertTrue(
@@ -291,7 +291,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_training_pandas(self):
         try:
-            import pandas as pd  # pylint: disable=g-import-not-at-top
+            import pandas as pd
         except ImportError:
             self.skipTest("Skipping test because pandas is not installed.")
         input_a = keras.Input(shape=(3,), name="input_a")

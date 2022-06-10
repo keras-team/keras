@@ -180,7 +180,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
                 )
 
                 train_dataset = raw_dataset.map(
-                    lambda x: (  # pylint: disable=g-long-lambda
+                    lambda x: (
                         {"features": feature_ps(x["features"])},
                         label_ps(x["label"]),
                     )

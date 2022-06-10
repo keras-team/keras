@@ -16,7 +16,7 @@
 
 Wrappers are layers that augment the functionality of another layer.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import copy
 

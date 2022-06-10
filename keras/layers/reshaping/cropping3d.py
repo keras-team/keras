@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras cropping layer for 3D input."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
 
@@ -120,7 +120,7 @@ class Cropping3D(Layer):
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
-        # pylint: disable=invalid-unary-operand-type
+
         if self.data_format == "channels_first":
             if input_shape[2] is not None:
                 dim1 = (
@@ -165,10 +165,9 @@ class Cropping3D(Layer):
             return tf.TensorShape(
                 [input_shape[0], dim1, dim2, dim3, input_shape[4]]
             )
-        # pylint: enable=invalid-unary-operand-type
 
     def call(self, inputs):
-        # pylint: disable=invalid-unary-operand-type
+
         if self.data_format == "channels_first":
             if (
                 self.cropping[0][1]
@@ -306,8 +305,7 @@ class Cropping3D(Layer):
                 self.cropping[1][0] : -self.cropping[1][1],
                 self.cropping[2][0] : -self.cropping[2][1],
                 :,
-            ]  # pylint: disable=invalid-unary-operand-type
-        # pylint: enable=invalid-unary-operand-type
+            ]
 
     def get_config(self):
         config = {"cropping": self.cropping, "data_format": self.data_format}

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 """NASNet-A models for Keras.
 
 NASNet refers to Neural Architecture Search Network, a family of models

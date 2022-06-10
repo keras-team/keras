@@ -27,8 +27,6 @@ from keras.utils import losses_utils
 from tensorflow.python.eager.backprop import GradientTape
 from tensorflow.python.platform import tf_logging as logging
 
-# pylint: disable=protected-access
-
 
 def _eager_loss_fn(outputs, targets, loss_fn, output_name):
     with backend.name_scope(output_name + "_loss"):

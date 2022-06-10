@@ -47,6 +47,8 @@ _SKIP_FAILED_SERIALIZATION = False
 # If a layer does not have a defined config, then the returned config will be a
 # dictionary with the below key.
 _LAYER_UNDEFINED_CONFIG_KEY = "layer was saved without config"
+# Thread-local custom objects set by custom_object_scope.
+_THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
 
 
 @keras_export(
@@ -84,23 +86,23 @@ class CustomObjectScope:
         self.backup = None
 
     def __enter__(self):
-        self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
+        self.backup = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.copy()
         for objects in self.custom_objects:
-            _GLOBAL_CUSTOM_OBJECTS.update(objects)
+            _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(objects)
         return self
 
     def __exit__(self, *args, **kwargs):
-        _GLOBAL_CUSTOM_OBJECTS.clear()
-        _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
+        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.clear()
+        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
 
 
 @keras_export("keras.utils.get_custom_objects")
 def get_custom_objects():
     """Retrieves a live reference to the global dictionary of custom objects.
 
-    Updating and clearing custom objects using `custom_object_scope`
-    is preferred, but `get_custom_objects` can
-    be used to directly access the current collection of custom objects.
+    Custom objects set using using `custom_object_scope` are not added to the
+    global dictionary of custom objects, and will not appear in the returned
+    dictionary.
 
     Example:
 
@@ -479,7 +481,9 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
       An instantiable class associated with 'name', or None if no such class
         exists.
     """
-    if name in _GLOBAL_CUSTOM_OBJECTS:
+    if name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[name]
+    elif name in _GLOBAL_CUSTOM_OBJECTS:
         return _GLOBAL_CUSTOM_OBJECTS[name]
     elif custom_objects and name in custom_objects:
         return custom_objects[name]
@@ -488,12 +492,8 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
     return None
 
 
-# pylint: disable=g-bad-exception-name
 class CustomMaskWarning(Warning):
     pass
-
-
-# pylint: enable=g-bad-exception-name
 
 
 @keras_export("keras.utils.serialize_keras_object")
@@ -515,7 +515,6 @@ def serialize_keras_object(instance):
     if instance is None:
         return None
 
-    # pylint: disable=protected-access
     #
     # For v1 layers, checking supports_masking is not enough. We have to also
     # check whether compute_mask has been overridden.
@@ -531,7 +530,6 @@ def serialize_keras_object(instance):
             category=CustomMaskWarning,
             stacklevel=2,
         )
-    # pylint: enable=protected-access
 
     if hasattr(instance, "get_config"):
         name = get_registered_name(instance.__class__)
@@ -575,7 +573,9 @@ def serialize_keras_object(instance):
 
 def get_custom_objects_by_name(item, custom_objects=None):
     """Returns the item if it is in either local or global custom objects."""
-    if item in _GLOBAL_CUSTOM_OBJECTS:
+    if item in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[item]
+    elif item in _GLOBAL_CUSTOM_OBJECTS:
         return _GLOBAL_CUSTOM_OBJECTS[item]
     elif custom_objects and item in custom_objects:
         return custom_objects[item]
@@ -722,9 +722,7 @@ def deserialize_keras_object(
         # If this object has already been loaded (i.e. it's shared between
         # multiple objects), return the already-loaded object.
         shared_object_id = config.get(SHARED_OBJECT_KEY)
-        shared_object = _shared_object_loading_scope().get(
-            shared_object_id
-        )  # pylint: disable=assignment-from-none
+        shared_object = _shared_object_loading_scope().get(shared_object_id)
         if shared_object is not None:
             return shared_object
 
@@ -737,6 +735,7 @@ def deserialize_keras_object(
                     cls_config,
                     custom_objects=dict(
                         list(_GLOBAL_CUSTOM_OBJECTS.items())
+                        + list(_THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.items())
                         + list(custom_objects.items())
                     ),
                 )
@@ -760,6 +759,8 @@ def deserialize_keras_object(
         object_name = identifier
         if custom_objects and object_name in custom_objects:
             obj = custom_objects.get(object_name)
+        elif object_name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+            obj = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[object_name]
         elif object_name in _GLOBAL_CUSTOM_OBJECTS:
             obj = _GLOBAL_CUSTOM_OBJECTS[object_name]
         else:
@@ -839,7 +840,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         """
 
         def dummy_fn():
-            # pylint: disable=pointless-statement
+
             value  # just access it so it gets captured in .__closure__
 
         cell_value = dummy_fn.__closure__[0]
@@ -1277,7 +1278,7 @@ def validate_config(config):
 
 def default(method):
     """Decorates a method to detect overrides in subclasses."""
-    method._is_default = True  # pylint: disable=protected-access
+    method._is_default = True
     return method
 
 
@@ -1320,4 +1321,4 @@ class LazyLoader(python_types.ModuleType):
 
 # Aliases
 
-custom_object_scope = CustomObjectScope  # pylint: disable=invalid-name
+custom_object_scope = CustomObjectScope

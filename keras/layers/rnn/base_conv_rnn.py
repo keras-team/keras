@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for convolutional-recurrent layers."""
-# pylint: disable=g-classes-have-attributes
+
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -210,9 +210,7 @@ class ConvRNN(RNN):
         # Note input_shape will be list of shapes of initial states and
         # constants if these are passed in __call__.
         if self._num_constants is not None:
-            constants_shape = input_shape[
-                -self._num_constants :
-            ]  # pylint: disable=invalid-unary-operand-type
+            constants_shape = input_shape[-self._num_constants :]
         else:
             constants_shape = None
 
@@ -315,12 +313,8 @@ class ConvRNN(RNN):
                 )
 
             def step(inputs, states):
-                constants = states[
-                    -self._num_constants :
-                ]  # pylint: disable=invalid-unary-operand-type
-                states = states[
-                    : -self._num_constants
-                ]  # pylint: disable=invalid-unary-operand-type
+                constants = states[-self._num_constants :]
+                states = states[: -self._num_constants]
                 return self.cell.call(
                     inputs, states, constants=constants, **kwargs
                 )

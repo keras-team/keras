@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=g-bad-import-order
+
+
 """Built-in optimizer classes.
 
 For more examples see the base class `tf.keras.optimizers.Optimizer`.
@@ -120,7 +120,7 @@ def deserialize(config, custom_objects=None):
     # loss_scale_optimizer has a direct dependency of optimizer, import here
     # rather than top to avoid the cyclic dependency.
     from keras.mixed_precision import (
-        loss_scale_optimizer,  # pylint: disable=g-import-not-at-top
+        loss_scale_optimizer,
     )
 
     all_classes = {

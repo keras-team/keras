@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras text vectorization preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -474,7 +472,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     def finalize_state(self):
         self._lookup_layer.finalize_state()
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         self._lookup_layer.reset_state()
 
     def get_vocabulary(self, include_special_tokens=True):

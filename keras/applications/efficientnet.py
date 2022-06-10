@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-docstring
+
+
 """EfficientNet models for Keras.
 
 Reference:
@@ -840,7 +840,7 @@ EfficientNetB7.__doc__ = BASE_DOCSTRING.format(name="EfficientNetB7")
 
 
 @keras_export("keras.applications.efficientnet.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the efficientnet model

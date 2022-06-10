@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """InputSpec tests."""
-# pylint: disable=g-bad-import-order
+
 
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
@@ -235,7 +235,7 @@ class KerasTensorTest(test_combinations.TestCase):
             AttributeError,
             "KerasTensor wraps TypeSpec .* which does not have a dtype.",
         ):
-            kt.dtype  # pylint: disable=pointless-statement
+            kt.dtype
 
     def test_wrong_dtype_type_error(self):
         spec = CustomTypeSpec(None, tf.int32)
@@ -245,7 +245,7 @@ class KerasTensorTest(test_combinations.TestCase):
             TypeError,
             "KerasTensor requires that wrapped TypeSpec's dtype is a DType; .*",
         ):
-            kt.dtype  # pylint: disable=pointless-statement
+            kt.dtype
 
 
 if __name__ == "__main__":

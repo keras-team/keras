@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras hashed crossing preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import tensorflow.compat.v2 as tf
 

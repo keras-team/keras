@@ -119,9 +119,7 @@ def load_data(
         origin=origin_folder + "reuters.npz",
         file_hash="d6586e694ee56d7a4e65172e12b3e987c03096cb01eab99753921ef915959916",  # noqa: E501
     )
-    with np.load(
-        path, allow_pickle=True
-    ) as f:  # pylint: disable=unexpected-keyword-arg
+    with np.load(path, allow_pickle=True) as f:
         xs, labels = f["x"], f["y"]
 
     rng = np.random.RandomState(seed)

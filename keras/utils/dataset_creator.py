@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Input dataset creator for `model.fit`."""
 
 import tensorflow.compat.v2 as tf

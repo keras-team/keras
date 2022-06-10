@@ -27,7 +27,7 @@ from absl import flags
 from absl import logging
 
 try:
-    import memory_profiler  # pylint:disable=g-import-not-at-top
+    import memory_profiler
 except ImportError:
     memory_profiler = None
 

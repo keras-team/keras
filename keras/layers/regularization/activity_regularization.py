@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the ActivityRegularization layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import regularizers
 from keras.engine.base_layer import Layer

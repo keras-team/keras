@@ -22,8 +22,6 @@ from keras.utils import dataset_utils
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
-
 
 try:
     import tensorflow_io as tfio

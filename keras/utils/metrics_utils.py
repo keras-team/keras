@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Utils related to keras metrics."""
 
 import functools
@@ -909,9 +909,7 @@ def _assert_splits_match(nested_splits_lists):
         if len(splits_list) != len(nested_splits_lists[0]):
             raise ValueError(error_msg)
     return [
-        tf.debugging.assert_equal(
-            s1, s2, message=error_msg
-        )  # pylint: disable=g-complex-comprehension
+        tf.debugging.assert_equal(s1, s2, message=error_msg)
         for splits_list in nested_splits_lists[1:]
         for (s1, s2) in zip(nested_splits_lists[0], splits_list)
     ]

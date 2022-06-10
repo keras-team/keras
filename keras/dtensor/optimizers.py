@@ -30,7 +30,6 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
 
-# pylint: disable=protected-access,missing-class-docstring
 class Optimizer(optimizer_lib._BaseOptimizer):
     """DTensor specific optimizers.
 

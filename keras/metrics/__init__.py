@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """All Keras metrics."""
-# pylint: disable=g-bad-import-order
+
 
 # Utilities
 # Base classes

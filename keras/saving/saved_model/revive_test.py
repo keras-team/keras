@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Tests reviving models from config and SavedModel.
 
 These tests ensure that a model revived from a combination of config and

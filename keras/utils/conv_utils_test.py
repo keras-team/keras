@@ -274,7 +274,7 @@ class TestConvUtils(tf.test.TestCase, parameterized.TestCase):
         output_shape = _get_const_output_shape(input_shape, dim=1)
 
         mask = np.zeros(input_shape + output_shape, np.bool)
-        if all(d > 0 for d in mask.shape):  # pylint: disable=not-an-iterable
+        if all(d > 0 for d in mask.shape):
             mask[(0,) * len(output_shape)] = True
 
         self.assertAllEqual(
@@ -292,7 +292,7 @@ class TestConvUtils(tf.test.TestCase, parameterized.TestCase):
         output_shape = _get_const_output_shape(input_shape, dim=2)
 
         mask = np.zeros(input_shape + output_shape, np.bool)
-        if all(d > 0 for d in mask.shape):  # pylint: disable=not-an-iterable
+        if all(d > 0 for d in mask.shape):
             for in_position in itertools.product(
                 *[[0, d - 1] for d in input_shape]
             ):

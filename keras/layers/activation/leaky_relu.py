@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Leaky version of a Rectified Linear Unit activation layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from keras import backend
 from keras.engine.base_layer import Layer

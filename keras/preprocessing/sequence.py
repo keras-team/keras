@@ -20,8 +20,6 @@ the `tf.data` APIs which provide a much more flexible mechanisms for dealing
 with sequences. See the [tf.data guide](https://www.tensorflow.org/guide/data)
 for more details.
 """
-# pylint: disable=invalid-name
-# pylint: disable=g-classes-have-attributes
 
 
 import json

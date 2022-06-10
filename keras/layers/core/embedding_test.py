@@ -107,11 +107,11 @@ class EmbeddingTest(test_combinations.TestCase):
         inputs = keras.layers.Input(
             shape=(None,), dtype=tf.float32, ragged=True
         )
-        # pylint: disable=unnecessary-lambda
+
         outputs = keras.layers.Lambda(
             lambda args: keras.backend.identity(args)
         )(inputs)
-        # pylint: enable=unnecessary-lambda
+
         outputs = layer(outputs)
 
         model = keras.Model(inputs, outputs)

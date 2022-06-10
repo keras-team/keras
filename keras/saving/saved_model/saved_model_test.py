@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Tests for saving and loading Keras models and layers from SavedModel.
 
 These should ensure that all layer properties are correctly assigned after
@@ -61,9 +61,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
             training, lambda: x * 0, lambda: tf.identity(x)
         )
         if not tf.executing_eagerly():
-            output._uses_learning_phase = (
-                True  # pylint: disable=protected-access
-            )
+            output._uses_learning_phase = True
         return output
 
     def compute_output_shape(self, input_shape):
@@ -1125,7 +1123,7 @@ class TestSavedModelFormat(tf.test.TestCase):
         class Model(keras.models.Model):
             def __init__(self):
                 super().__init__()
-                self.layer = CustomLayer()
+                self.layer = CustomLayer()  # noqa: F821
 
             @tf.function(input_signature=[tf.TensorSpec([None, 1])])
             def call(self, inputs):
@@ -1328,7 +1326,7 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
 
 @generic_utils.register_keras_serializable("Testing")
 class CustomMeanMetric(keras.metrics.Mean):
-    def update_state(self, *args):  # pylint: disable=useless-super-delegation
+    def update_state(self, *args):
         # Sometimes built-in metrics return an op in update_state. Custom
         # metrics don't support returning ops, so wrap the update_state method
         # while returning nothing.
@@ -1431,9 +1429,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
     )
     def test_custom_metric(self, base_cls, num_tensor_args, requires_build):
         class CustomMetric(base_cls):
-            def update_state(
-                self, *args
-            ):  # pylint: disable=useless-super-delegation
+            def update_state(self, *args):
                 # Sometimes built-in metrics return an op in update_state.
                 # Custom metrics don't support returning ops, so wrap the
                 # update_state method while returning nothing.
@@ -1444,9 +1440,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
             save_dir = self._save_model_dir("first_save")
 
             if requires_build:
-                metric(
-                    *self.generate_inputs(num_tensor_args)
-                )  # pylint: disable=not-callable
+                metric(*self.generate_inputs(num_tensor_args))
 
             self.evaluate([v.initializer for v in metric.variables])
 
@@ -1549,7 +1543,7 @@ class TestUpdateMetadata(tf.test.TestCase):
             ),
             identifier="_tf_keras_model",
             metadata=node_metadata,
-        )  # pylint: disable=protected-access
+        )
 
         new_metadata = keras_load._update_to_current_version(metadata)
         node_metadata = json_utils.decode(new_metadata.nodes[0].metadata)

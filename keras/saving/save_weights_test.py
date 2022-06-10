@@ -30,7 +30,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
@@ -454,7 +454,7 @@ class TestWeightSavingAndLoadingTFFormat(
 
             x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
             executing_eagerly = tf.executing_eagerly()
-            model(x)  # pylint: disable=not-callable
+            model(x)
             if not executing_eagerly:
                 session.run([v.initializer for v in model.variables])
             model.save_weights(prefix, save_format="tensorflow")
@@ -498,7 +498,7 @@ class TestWeightSavingAndLoadingTFFormat(
                 prefix = os.path.join(temp_dir, "ckpt")
 
                 x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
-                model(x)  # pylint: disable=not-callable
+                model(x)
                 session.run([v.initializer for v in model.variables])
                 model.save_weights(prefix, save_format="tensorflow")
                 op_count = len(graph.get_operations())

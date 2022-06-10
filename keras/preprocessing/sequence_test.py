@@ -181,7 +181,7 @@ class TestSequence(tf.test.TestCase):
 
             self.assertEqual(expected, actual)
 
-            if len(g) > 0:  # pylint: disable=g-explicit-length-test
+            if len(g) > 0:
                 # All elements in range(length, 10) should be used as current
                 # step
                 expected = np.arange(length, 10).reshape(-1, 1)

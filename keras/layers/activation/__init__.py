@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that act as activation functions."""
-# pylint: disable=g-bad-import-order
+
 
 from keras.layers.activation.elu import ELU
 from keras.layers.activation.leaky_relu import LeakyReLU

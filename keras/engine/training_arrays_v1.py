@@ -31,11 +31,9 @@ from keras.utils.mode_keys import ModeKeys
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 
-# pylint: disable=protected-access
-
 
 try:
-    from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
+    from scipy.sparse import issparse
 except ImportError:
     issparse = None
 

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
-# pylint: disable=g-bad-import-order
+
+
 """Contains the base Layer class, from which all layers inherit."""
 
 import functools
@@ -41,19 +41,14 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 
 # A module that only depends on `keras.layers` import these from here.
-from keras.utils.generic_utils import (
-    to_snake_case,  # pylint: disable=unused-import
-)
-from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,  # pylint: disable=unused-import
-)
+from keras.utils.generic_utils import to_snake_case  # noqa: F401
+from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 
 # isort: off
 from tensorflow.python.platform import tf_logging
 from tensorflow.tools.docs import doc_controls
 
 
-# pylint: disable=g-classes-have-attributes
 class Layer(base_layer.Layer):
     """Base layer class.
 
@@ -277,7 +272,7 @@ class Layer(base_layer.Layer):
         self.built = True
 
     @doc_controls.for_subclass_implementers
-    def call(self, inputs, **kwargs):  # pylint: disable=unused-argument
+    def call(self, inputs, **kwargs):
         """This is where the layer's logic lives.
 
         Args:
@@ -447,7 +442,7 @@ class Layer(base_layer.Layer):
             # Wrap 'getter' with a version that returns an AutoCastVariable.
             old_getter = getter
 
-            def getter(*args, **kwargs):  # pylint: disable=function-redefined
+            def getter(*args, **kwargs):
                 variable = old_getter(*args, **kwargs)
                 return autocast_variable.create_autocast_variable(variable)
 
@@ -653,9 +648,7 @@ class Layer(base_layer.Layer):
         )
 
     @generic_utils.default
-    def compute_mask(
-        self, inputs, mask=None
-    ):  # pylint: disable=unused-argument
+    def compute_mask(self, inputs, mask=None):
         """Computes an output mask tensor.
 
         Args:
@@ -815,9 +808,7 @@ class Layer(base_layer.Layer):
                     self.input_spec, inputs, self.name
                 )
                 graph = backend.get_graph()
-                with graph.as_default(), backend.name_scope(
-                    self._name_scope()
-                ):  # pylint: disable=not-callable
+                with graph.as_default(), backend.name_scope(self._name_scope()):
                     # Build layer if applicable (if the `build` method has been
                     # overridden).
                     self._maybe_build(inputs)
@@ -898,9 +889,7 @@ class Layer(base_layer.Layer):
                         self._set_inputs(inputs, outputs)
             else:
                 # Eager execution on data tensors.
-                with backend.name_scope(
-                    self._name_scope()
-                ):  # pylint: disable=not-callable
+                with backend.name_scope(self._name_scope()):
                     self._maybe_build(inputs)
                     cast_inputs = self._maybe_cast_inputs(inputs)
                     with autocast_variable.enable_auto_cast_variables(
@@ -1127,9 +1116,7 @@ class Layer(base_layer.Layer):
                 return None
             if not tf.is_tensor(loss):
                 loss = tf.convert_to_tensor(loss, dtype=backend.floatx())
-            loss._unconditional_loss = (
-                inputs is None
-            )  # pylint: disable=protected-access
+            loss._unconditional_loss = inputs is None
             return loss
 
         losses = tf.nest.flatten(losses)
@@ -1283,10 +1270,9 @@ class Layer(base_layer.Layer):
         if (
             tf.distribute.has_strategy()
             and tf.distribute.in_cross_replica_context()
-            and
             # When saving the model, the distribution strategy context should be
             # ignored, following the default path for adding updates.
-            not call_context.saving
+            and not call_context.saving
         ):
             # Updates don't need to be run in a cross-replica context.
             return
@@ -1965,7 +1951,7 @@ class Layer(base_layer.Layer):
         value = tf.as_dtype(value).name
         self._set_dtype_policy(policy.Policy(value))
 
-    def _name_scope(self):  # pylint: disable=method-hidden
+    def _name_scope(self):
         return self.name
 
     def _init_set_name(self, name, zero_based=True):
@@ -2279,7 +2265,7 @@ class Layer(base_layer.Layer):
         if existing_value not in reference_counts:
             super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
                 name
-            )  # pylint: disable=bad-super-call
+            )
             return
 
         reference_count = reference_counts[existing_value]
@@ -2289,22 +2275,18 @@ class Layer(base_layer.Layer):
             reference_counts[existing_value] = reference_count - 1
             super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
                 name
-            )  # pylint: disable=bad-super-call
+            )
             return
         else:
             # This is the last remaining reference.
             del reference_counts[existing_value]
 
-        super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
-            name
-        )  # pylint: disable=bad-super-call
+        super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
 
         if isinstance(existing_value, Layer) or base_layer_utils.has_weights(
             existing_value
         ):
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_self_tracked_trackables",
                 [
                     l
@@ -2313,15 +2295,11 @@ class Layer(base_layer.Layer):
                 ],
             )
         if isinstance(existing_value, tf.Variable):
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_trainable_weights",
                 [w for w in self._trainable_weights if w is not existing_value],
             )
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_non_trainable_weights",
                 [
                     w
@@ -2334,14 +2312,13 @@ class Layer(base_layer.Layer):
         if (
             name == "_self_setattr_tracking"
             or not getattr(self, "_self_setattr_tracking", True)
-            or
             # Exclude @property.setters from tracking
-            hasattr(self.__class__, name)
+            or hasattr(self.__class__, name)
         ):
             try:
                 super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                     name, value
-                )  # pylint: disable=bad-super-call
+                )
             except AttributeError:
                 raise AttributeError(
                     (
@@ -2421,7 +2398,7 @@ class Layer(base_layer.Layer):
         # status quo. See the comment at __delattr__.
         super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
             name, value
-        )  # pylint: disable=bad-super-call
+        )
 
     # This is a hack so that the is_layer (within
     # training/trackable/layer_utils.py) check doesn't get the weights attr.

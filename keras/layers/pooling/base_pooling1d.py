@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Private base class for pooling 1D layers."""
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 

@@ -20,7 +20,7 @@ operators that allow adding dropouts, projections, or embeddings for inputs.
 Constructing multi-layer cells is supported by the class `MultiRNNCell`, or by
 calling the `rnn` ops several times.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from __future__ import absolute_import
 from __future__ import division
@@ -327,7 +327,7 @@ class RNNCell(base_layer.Layer):
         return output
 
     # TODO(b/134773139): Remove when contrib RNN cells implement `get_config`
-    def get_config(self):  # pylint: disable=useless-super-delegation
+    def get_config(self):
         return super().get_config()
 
     @property
@@ -1147,9 +1147,9 @@ class LSTMCell(LayerRNNCell):
             ) * self._activation(j)
 
         if self._cell_clip is not None:
-            # pylint: disable=invalid-unary-operand-type
+
             c = tf.clip_by_value(c, -self._cell_clip, self._cell_clip)
-            # pylint: enable=invalid-unary-operand-type
+
         if self._use_peepholes:
             m = sigmoid(o + self._w_o_diag * c) * self._activation(c)
         else:
@@ -1159,9 +1159,8 @@ class LSTMCell(LayerRNNCell):
             m = tf.matmul(m, self._proj_kernel)
 
             if self._proj_clip is not None:
-                # pylint: disable=invalid-unary-operand-type
+
                 m = tf.clip_by_value(m, -self._proj_clip, self._proj_clip)
-                # pylint: enable=invalid-unary-operand-type
 
         new_state = (
             LSTMStateTuple(c, m)

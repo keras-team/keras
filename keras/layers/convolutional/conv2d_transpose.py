@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras 2D transposed convolution layer (sometimes called deconvolution)."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
 

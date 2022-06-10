@@ -43,7 +43,7 @@ def tensor_gen(batch, num_elements):
 def get_vocab():
     vocab = list(
         set([a + b for a in string.ascii_letters for b in string.ascii_letters])
-    )  # pylint:disable=g-complex-comprehension
+    )
     vocab.sort()
     return vocab
 

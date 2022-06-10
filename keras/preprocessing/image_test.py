@@ -32,7 +32,7 @@ from keras.testing_infra import test_utils
 from keras.utils import image_utils
 
 try:
-    import PIL  # pylint:disable=g-import-not-at-top
+    import PIL
 except ImportError:
     PIL = None
 

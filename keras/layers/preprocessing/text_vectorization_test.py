@@ -1788,9 +1788,9 @@ class TextVectorizationOutputTest(
         )
 
         # pyformat: disable
-        # pylint: disable=bad-whitespace
+
         expected_output = [[0, 0.8, 0.25, 0.75, 0, 0], [1, 0.4, 0, 0, 0.6, 0]]
-        # pylint: enable=bad-whitespace
+
         # pyformat: enable
         max_tokens = 6
         expected_output_shape = [None, max_tokens]
@@ -1831,9 +1831,9 @@ class TextVectorizationOutputTest(
         )
 
         # pyformat: disable
-        # pylint: disable=bad-whitespace
+
         expected_output = [[0, 0.8, 0.25, 0.75, 0], [1, 0.4, 0, 0, 0.6]]
-        # pylint: enable=bad-whitespace
+
         # pyformat: enable
         max_tokens = 5
         expected_output_shape = [None, max_tokens]
@@ -1873,9 +1873,9 @@ class TextVectorizationOutputTest(
         )
 
         # pyformat: disable
-        # pylint: disable=bad-whitespace
+
         expected_output = [[0, 0.8, 0.25, 0.75, 0], [0.2, 0.4, 0, 0, 0.6]]
-        # pylint: enable=bad-whitespace
+
         # pyformat: enable
         max_tokens = 5
         expected_output_shape = [None, max_tokens]
@@ -2349,10 +2349,10 @@ class TextVectorizationSavingTest(
         )
 
         # pyformat: disable
-        # pylint: disable=bad-whitespace
+
         expected_output = [[0, 0.8, 0.25, 0.75, 0], [1, 0.4, 0, 0, 0.6]]
         vocab_data = ["earth", "wind", "and", "fire"]
-        # pylint: enable=bad-whitespace
+
         # pyformat: enable
 
         # Build and validate a golden model.

@@ -18,7 +18,6 @@ import keras
 from keras.testing_infra import test_utils
 
 
-# pylint: disable=missing-docstring,not-callable
 class SimpleConvTestModel(keras.Model):
     def __init__(self, num_classes=10):
         super().__init__(name="test_model")
@@ -47,10 +46,8 @@ def get_multi_io_subclass_model(use_bn=False, use_dp=False, num_classes=(2, 3)):
         branch_b.append(keras.layers.BatchNormalization())
     branch_b.append(keras.layers.Dense(num_classes[1], activation="softmax"))
 
-    model = (
-        test_utils._MultiIOSubclassModel(  # pylint: disable=protected-access
-            branch_a, branch_b, name="test_model"
-        )
+    model = test_utils._MultiIOSubclassModel(
+        branch_a, branch_b, name="test_model"
     )
     return model
 

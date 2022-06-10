@@ -268,23 +268,21 @@ class LayerUtilsTest(tf.test.TestCase):
             lines = reader.readlines()
             reader.close()
             check_str = (
-                "Model: "
-                '"trainable"\n____________________________________________________________________________\n'  # noqa: E501
-                " Layer (type)                Output Shape              Param #   "  # noqa: E501
-                "Trainable  "
-                "\n============================================================================\n"  # noqa: E501
-                " conv (Conv2D)               (None, 2, 3, 2)           62        N"  # noqa: E501
-                "          \n"
-                "                                                                            "  # noqa: E501
-                "\n flat (Flatten)              (None, 12)                0         "  # noqa: E501
-                "Y          \n"
-                "                                                                            "  # noqa: E501
-                "\n dense (Dense)               (None, 5)                 65        "  # noqa: E501
-                "Y          \n"
-                "                                                                            "  # noqa: E501
-                "\n============================================================================\nTotal"  # noqa: E501
-                " params: 127\nTrainable params: 65\nNon-trainable params: "
-                "62\n____________________________________________________________________________\n"  # noqa: E501
+                'Model: "trainable"\n'
+                "____________________________________________________________________________\n"  # noqa: E501
+                " Layer (type)                Output Shape              Param #   Trainable  \n"  # noqa: E501
+                "============================================================================\n"  # noqa: E501
+                " conv (Conv2D)               (None, 2, 3, 2)           62        N          \n"  # noqa: E501
+                "                                                                            \n"  # noqa: E501
+                " flat (Flatten)              (None, 12)                0         Y          \n"  # noqa: E501
+                "                                                                            \n"  # noqa: E501
+                " dense (Dense)               (None, 5)                 65        Y          \n"  # noqa: E501
+                "                                                                            \n"  # noqa: E501
+                "============================================================================\n"  # noqa: E501
+                "Total params: 127\n"
+                "Trainable params: 65\n"
+                "Non-trainable params: 62\n"
+                "____________________________________________________________________________\n"  # noqa: E501
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
@@ -337,35 +335,30 @@ class LayerUtilsTest(tf.test.TestCase):
             lines = reader.readlines()
             reader.close()
             check_str = (
-                "Model: "
-                '"model_2"\n____________________________________________________________________________\n'  # noqa: E501
-                " Layer (type)                Output Shape              Param #   "  # noqa: E501
-                "Trainable  "
-                "\n============================================================================\n"  # noqa: E501
-                " input3 (InputLayer)         [(None, None, None, 3)]   0         Y"  # noqa: E501
-                "          \n"
-                "                                                                            "  # noqa: E501
-                "\n model_1 (Functional)        (None, None, None, 3)     24        "  # noqa: E501
-                "Y          "
-                "\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n|"  # noqa: E501
-                " input1 (InputLayer)       [(None, None, None, 3)]   0         Y"  # noqa: E501
-                "          |\n|"
-                "                                                                          "  # noqa: E501
-                "|\n| model (Functional)        (None, None, None, 3)     24        "  # noqa: E501
-                "Y          "
-                "|\n||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n||"  # noqa: E501
-                " input2 (InputLayer)     [(None, None, None, 3)]   0         Y"  # noqa: E501
-                "          ||\n||"
-                "                                                                        "  # noqa: E501
-                "||\n|| conv2d (Conv2D)         (None, None, None, 3)     12        "  # noqa: E501
-                "N          ||\n||"
-                "                                                                        "  # noqa: E501
-                "||\n|| batch_normalization (BatchN  (None, None, None, 3)  12      "  # noqa: E501
-                "Y          ||\n|| ormalization)"
-                "                                                          "
-                "||\n|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n============================================================================\nTotal"  # noqa: E501
-                " params: 24\nTrainable params: 6\nNon-trainable params: "
-                "18\n____________________________________________________________________________\n"  # noqa: E501
+                'Model: "model_2"\n'
+                "____________________________________________________________________________\n"  # noqa: E501
+                " Layer (type)                Output Shape              Param #   Trainable  \n"  # noqa: E501
+                "============================================================================\n"  # noqa: E501
+                " input3 (InputLayer)         [(None, None, None, 3)]   0         Y          \n"  # noqa: E501
+                "                                                                            \n"  # noqa: E501
+                " model_1 (Functional)        (None, None, None, 3)     24        Y          \n"  # noqa: E501
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
+                "| input1 (InputLayer)       [(None, None, None, 3)]   0         Y          |\n"  # noqa: E501
+                "|                                                                          |\n"  # noqa: E501
+                "| model (Functional)        (None, None, None, 3)     24        Y          |\n"  # noqa: E501
+                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
+                "|| input2 (InputLayer)     [(None, None, None, 3)]   0         Y          ||\n"  # noqa: E501
+                "||                                                                        ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)         (None, None, None, 3)     12        N          ||\n"  # noqa: E501
+                "||                                                                        ||\n"  # noqa: E501
+                "|| batch_normalization (BatchN  (None, None, None, 3)  12      Y          ||\n"  # noqa: E501
+                "|| ormalization)                                                          ||\n"  # noqa: E501
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
+                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
+                "============================================================================\n"  # noqa: E501
+                "Total params: 24\n"
+                "Trainable params: 6\n"
+                "Non-trainable params: 18\n"
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
@@ -375,6 +368,121 @@ class LayerUtilsTest(tf.test.TestCase):
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
+        except ImportError:
+            pass
+
+    def test_print_summary_layer_range(self):
+        model = keras.Sequential()
+        model.add(
+            keras.layers.Conv2D(
+                filters=2,
+                kernel_size=(2, 3),
+                input_shape=(3, 5, 5),
+                name="conv",
+            )
+        )
+        model.add(keras.layers.Flatten(name="flat"))
+        model.add(keras.layers.Dense(5, name="dense"))
+
+        file_name = "model_7.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        try:
+            layer_utils.print_summary(
+                model, print_fn=print_to_file, layer_range=["conv", "flat"]
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            # The expected lenght with no layer filter is 15
+            # we filtered out 2 lines by excluding the layer 'dense'
+            self.assertEqual(len(lines), 15 - 2)
+        except ImportError:
+            pass
+
+    def test_print_summary_layer_range_with_expand_nested(self):
+        shape = (None, None, 3)
+
+        def make_model():
+            x = inputs = keras.Input(shape, name="input_2")
+            x = keras.layers.Conv2D(3, 1)(x)
+            x = keras.layers.BatchNormalization()(x)
+            return keras.Model(inputs, x, name="2nd_inner")
+
+        x = inner_inputs = keras.Input(shape, name="input_1")
+        x = make_model()(x)
+        inner_model = keras.Model(inner_inputs, x, name="1st_inner")
+
+        inputs = keras.Input(shape, name="input_3")
+        model = keras.Model(inputs, inner_model(inputs))
+
+        file_name = "model_8.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        try:
+            layer_utils.print_summary(
+                model,
+                print_fn=print_to_file,
+                expand_nested=True,
+                layer_range=["1st_inner", "1st_inner"],
+            )
+            layer_utils.print_summary(
+                model,
+                expand_nested=True,
+                layer_range=["1st_inner", "1st_inner"],
+            )
+            self.assertTrue(tf.io.gfile.exists(fpath))
+            writer.close()
+            reader = open(fpath, "r")
+            lines = reader.readlines()
+            reader.close()
+            check_str = (
+                'Model: "model"\n'
+                "_________________________________________________________________\n"  # noqa: E501
+                " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
+                "=================================================================\n"  # noqa: E501
+                " 1st_inner (Functional)      (None, None, None, 3)     24        \n"  # noqa: E501
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
+                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"  # noqa: E501
+                "|                                                               |\n"  # noqa: E501
+                "| 2nd_inner (Functional)    (None, None, None, 3)     24        |\n"  # noqa: E501
+                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
+                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"  # noqa: E501
+                "||                                                             ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"  # noqa: E501
+                "||                                                             ||\n"  # noqa: E501
+                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"  # noqa: E501
+                "|| ormalization)                                               ||\n"  # noqa: E501
+                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
+                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
+                "=================================================================\n"  # noqa: E501
+                "Total params: 24\n"
+                "Trainable params: 18\n"
+                "Non-trainable params: 6\n"
+                "_________________________________________________________________\n"  # noqa: E501
+            )
+
+            check_lines = check_str.split("\n")[
+                :-1
+            ]  # Removing final empty string which is not a line
+
+            fin_str = "".join(lines)
+            self.assertIn(fin_str, check_str)
+            self.assertEqual(len(lines), len(check_lines))
         except ImportError:
             pass
 

@@ -58,9 +58,7 @@ class _Merge(Layer):
         if None in [shape1, shape2]:
             return None
         elif len(shape1) < len(shape2):
-            return self._compute_elemwise_op_output_shape(
-                shape2, shape1
-            )  # pylint: disable=arguments-out-of-order
+            return self._compute_elemwise_op_output_shape(shape2, shape1)
         elif not shape2:
             return shape1
         output_shape = list(shape1[: -len(shape2)])
@@ -240,5 +238,5 @@ class _Merge(Layer):
             backend.concatenate(masks, axis=0), axis=0, keepdims=False
         )
 
-    def get_config(self):  # pylint: disable=useless-super-delegation
+    def get_config(self):
         return super().get_config()

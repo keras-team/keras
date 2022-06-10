@@ -1050,7 +1050,7 @@ def for_all_test_methods(decorator, *args, **kwargs):
 
 
 # The description is just for documentation purposes.
-def run_without_tensor_float_32(description):  # pylint: disable=unused-argument
+def run_without_tensor_float_32(description):
     """Execute test with TensorFloat-32 disabled.
 
     While almost every real-world deep learning model runs fine with
@@ -1084,7 +1084,7 @@ def run_without_tensor_float_32(description):  # pylint: disable=unused-argument
 # The description is just for documentation purposes.
 def run_all_without_tensor_float_32(
     description,
-):  # pylint: disable=unused-argument
+):
     """Execute all tests in a class with TensorFloat-32 disabled."""
     return for_all_test_methods(run_without_tensor_float_32, description)
 

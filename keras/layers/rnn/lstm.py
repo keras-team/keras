@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Long Short-Term Memory layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import uuid
 

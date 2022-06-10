@@ -17,8 +17,6 @@ import collections
 import warnings
 
 import numpy as np
-
-# pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
 
 from keras import backend
@@ -51,7 +49,7 @@ from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
 
 try:
-    from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
+    from scipy.sparse import issparse
 except ImportError:
     issparse = None
 
@@ -216,7 +214,7 @@ class Model(training_lib.Model):
         if backend.is_tpu_strategy(self._distribution_strategy):
             if self._distribution_strategy.extended.steps_per_run > 1 and (
                 not saving_utils.is_hdf5_filepath(filepath)
-            ):  # pylint: disable=protected-access
+            ):
                 raise ValueError(
                     "Load weights is not yet supported with TPUStrategy "
                     "with steps_per_run greater than 1."
@@ -1077,9 +1075,7 @@ class Model(training_lib.Model):
 
         # Reset metrics on all the distributed (cloned) models.
         if self._distribution_strategy:
-            distributed_training_utils_v1._reset_metrics(
-                self
-            )  # pylint: disable=protected-access
+            distributed_training_utils_v1._reset_metrics(self)
 
     def train_on_batch(
         self,
@@ -1171,9 +1167,7 @@ class Model(training_lib.Model):
                 + output_dict["output_losses"]
                 + output_dict["metrics"]
             )
-            outputs = [
-                _non_none_constant_value(v) for v in outputs
-            ]  # pylint: disable=protected-access
+            outputs = [_non_none_constant_value(v) for v in outputs]
         else:
             x = training_utils_v1.ModelInputs(x).as_list()
             ins = x + list(y or []) + list(sample_weights or [])
@@ -1183,7 +1177,7 @@ class Model(training_lib.Model):
 
             self._update_sample_weight_modes(sample_weights=sample_weights)
             self._make_train_function()
-            outputs = self.train_function(ins)  # pylint: disable=not-callable
+            outputs = self.train_function(ins)
 
         if reset_metrics:
             self.reset_metrics()
@@ -1262,16 +1256,14 @@ class Model(training_lib.Model):
                 + output_dict["output_losses"]
                 + output_dict["metrics"]
             )
-            outputs = [
-                _non_none_constant_value(v) for v in outputs
-            ]  # pylint: disable=protected-access
+            outputs = [_non_none_constant_value(v) for v in outputs]
         else:
             x = training_utils_v1.ModelInputs(x).as_list()
             inputs = x + list(y or []) + list(sample_weights or [])
 
             self._update_sample_weight_modes(sample_weights=sample_weights)
             self._make_test_function()
-            outputs = self.test_function(inputs)  # pylint: disable=not-callable
+            outputs = self.test_function(inputs)
 
         if reset_metrics:
             self.reset_metrics()
@@ -1322,7 +1314,7 @@ class Model(training_lib.Model):
                 if len(inputs) == 1:
                     inputs = inputs[0]
 
-            return self(inputs)  # pylint: disable=not-callable
+            return self(inputs)
 
         self._make_predict_function()
         outputs = self.predict_function(inputs)
@@ -1563,7 +1555,7 @@ class Model(training_lib.Model):
 
         if target_tensors is not None and not (
             isinstance(target_tensors, list) and target_tensors == []
-        ):  # pylint: disable=g-explicit-bool-comparison
+        ):
             if isinstance(target_tensors, list):
                 if len(target_tensors) != len(self.outputs):
                     raise ValueError(
@@ -2099,7 +2091,7 @@ class Model(training_lib.Model):
 
             # Update the name on the metric class to be the unique generated
             # name.
-            metric_fn._name = metric_name  # pylint: disable=protected-access
+            metric_fn._name = metric_name
             updated_metrics_dict[metric_name] = metric_fn
             # Keep track of metric name and function.
             self._compile_metric_functions.append(metric_fn)
@@ -2299,9 +2291,7 @@ class Model(training_lib.Model):
                 metrics_tensors = [
                     m._call_result
                     for m in metrics
-                    if hasattr(
-                        m, "_call_result"
-                    )  # pylint: disable=protected-access
+                    if hasattr(m, "_call_result")
                 ]
 
             with backend.name_scope("training"):
@@ -2335,9 +2325,7 @@ class Model(training_lib.Model):
                 metrics_tensors = [
                     m._call_result
                     for m in metrics
-                    if hasattr(
-                        m, "_call_result"
-                    )  # pylint: disable=protected-access
+                    if hasattr(m, "_call_result")
                 ]
 
             with backend.name_scope("evaluation"):
@@ -2734,7 +2722,7 @@ class Model(training_lib.Model):
             def _type_spec_from_value(value):
                 """Grab type_spec without converting array-likes to tensors."""
                 if tf_utils.is_extension_type(value):
-                    return value._type_spec  # pylint: disable=protected-access
+                    return value._type_spec
                 # Get a TensorSpec for array-like data without
                 # converting the data to a Tensor
                 if hasattr(value, "shape") and hasattr(value, "dtype"):
@@ -3213,9 +3201,7 @@ class Model(training_lib.Model):
         # Otherwise, use the strategy whose scope this is in.
         if not strategy and tf.distribute.has_strategy():
             strategy = tf.distribute.get_strategy()
-        return (
-            strategy and strategy.extended._in_multi_worker_mode()
-        )  # pylint: disable=protected-access
+        return strategy and strategy.extended._in_multi_worker_mode()
 
     @property
     def _trackable_saved_model_saver(self):
@@ -3270,7 +3256,7 @@ class DistributedCallbackModel(Model):
         orig_model_weights = self._original_model.get_weights()
         distributed_training_utils_v1.set_weights(
             self._original_model._distribution_strategy,
-            self,  # pylint: disable=protected-access
+            self,
             orig_model_weights,
         )
 
@@ -3637,7 +3623,7 @@ def _get_metrics_from_layers(layers):
             # We cannot call 'metrics' on the model because we do not want to
             # include the metrics that were added in compile API of a nested
             # model.
-            metrics.extend(layer._metrics)  # pylint: disable=protected-access
+            metrics.extend(layer._metrics)
             metrics.extend(_get_metrics_from_layers(layer.layers))
         else:
             metrics.extend(layer.metrics)

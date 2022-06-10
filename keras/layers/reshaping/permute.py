@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Permute layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import copy
 

@@ -64,9 +64,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with test_utils.use_gpu():
                 var0 = tf.Variable([1.0, 2.0], dtype=dtype)
                 var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-                loss = (
-                    lambda: 5 * var0 + 3 * var1
-                )  # pylint: disable=cell-var-from-loop
+                loss = lambda: 5 * var0 + 3 * var1
                 sgd = gradient_descent.SGD(3.0)
 
                 self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -91,9 +89,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 var1 = tf.Variable([3.0, 4.0], dtype=dtype)
 
                 def loss():
-                    return (
-                        5 * var0 + 3 * var1
-                    )  # pylint: disable=cell-var-from-loop
+                    return 5 * var0 + 3 * var1
 
                 sgd = gradient_descent.SGD(1.0)
 
@@ -138,9 +134,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with test_utils.use_gpu():
                 var0 = tf.Variable([1.0, 2.0], dtype=dtype)
                 var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-                loss = (
-                    lambda: 5 * var0 + 3 * var1
-                )  # pylint: disable=cell-var-from-loop
+                loss = lambda: 5 * var0 + 3 * var1
                 grad_loss = tf.constant([42, -42], dtype=dtype)
                 sgd = gradient_descent.SGD(3.0)
 
@@ -172,7 +166,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with test_utils.use_gpu():
                 var0 = tf.Variable([1.0, 2.0], dtype=dtype)
                 var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-                loss = lambda: 5 * var0  # pylint: disable=cell-var-from-loop
+                loss = lambda: 5 * var0
                 sgd_op = gradient_descent.SGD(3.0)
                 with self.assertRaisesRegex(ValueError, "No gradients"):
                     # var1 has no gradient
@@ -216,9 +210,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             with test_utils.use_gpu():
                 var0 = tf.Variable([1.0, 2.0], dtype=dtype)
                 var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-                loss = (
-                    lambda: 5 * var0 + 3 * var1
-                )  # pylint: disable=cell-var-from-loop
+                loss = lambda: 5 * var0 + 3 * var1
 
                 sgd = gradient_descent.SGD(3.0)
                 grads_and_vars = sgd._compute_gradients(loss, [var0, var1])
@@ -811,9 +803,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             # Simulate an all-reduce where the other replica has zeros for
             # gradients, by dividing each gradient by 2.
             grads = [g for g, _ in grads_and_vars]
-            vars = [
-                v for _, v in grads_and_vars
-            ]  # pylint: disable=redefined-builtin
+            vars = [v for _, v in grads_and_vars]
             all_reduced_grads = [g / 2 for g in grads]
             return list(zip(all_reduced_grads, vars))
 
@@ -834,9 +824,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # Simulate an all-reduce where the other replica has zeros for
                 # gradients, by dividing each gradient by 2.
                 grads = [g for g, _ in grads_and_vars]
-                vars = [
-                    v for _, v in grads_and_vars
-                ]  # pylint: disable=redefined-builtin
+                vars = [v for _, v in grads_and_vars]
                 all_reduced_grads = [g / 2 for g in grads]
                 return list(zip(all_reduced_grads, vars))
 
@@ -1451,14 +1439,10 @@ class OptimizerCoefficientTest(test_combinations.TestCase):
         """Ensure that subclassed optimizers without apply_state still work."""
 
         class SubclassedOptimizer(optimizer_class):
-            def _resource_apply_dense(
-                self, grad, var
-            ):  # pylint: disable=useless-super-delegation
+            def _resource_apply_dense(self, grad, var):
                 return super()._resource_apply_dense(grad, var)
 
-            def _resource_apply_sparse(
-                self, grad, var, indices
-            ):  # pylint: disable=useless-super-delegation
+            def _resource_apply_sparse(self, grad, var, indices):
                 return super()._resource_apply_sparse(grad, var, indices)
 
         init_kwargs = init_kwargs or {}

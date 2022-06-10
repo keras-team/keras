@@ -41,7 +41,7 @@ _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 class Encoder(json.JSONEncoder):
     """JSON encoder and decoder that handles TensorShapes and tuples."""
 
-    def default(self, obj):  # pylint: disable=method-hidden
+    def default(self, obj):
         """Encodes objects for types that aren't handled by the default
         encoder."""
         if isinstance(obj, tf.TensorShape):
@@ -108,9 +108,7 @@ def _decode_helper(
         if obj["class_name"] == "TensorShape":
             return tf.TensorShape(obj["items"])
         elif obj["class_name"] == "TypeSpec":
-            return type_spec.lookup(
-                obj["type_spec"]
-            )._deserialize(  # pylint: disable=protected-access
+            return type_spec.lookup(obj["type_spec"])._deserialize(
                 _decode_helper(obj["serialized"])
             )
         elif obj["class_name"] == "CompositeTensor":
@@ -200,7 +198,7 @@ def get_json_type(obj):
                 "class_name": "TypeSpec",
                 "type_spec": type_spec_name,
                 "serialized": obj._serialize(),
-            }  # pylint: disable=protected-access
+            }
         except ValueError:
             raise ValueError(
                 f"Unable to serialize {obj} to JSON, because the TypeSpec "

@@ -113,9 +113,7 @@ def load_data(
         origin=origin_folder + "imdb.npz",
         file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",  # noqa: E501
     )
-    with np.load(
-        path, allow_pickle=True
-    ) as f:  # pylint: disable=unexpected-keyword-arg
+    with np.load(path, allow_pickle=True) as f:
         x_train, labels_train = f["x_train"], f["y_train"]
         x_test, labels_test = f["x_test"], f["y_test"]
 

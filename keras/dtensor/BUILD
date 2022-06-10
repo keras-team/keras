@@ -65,12 +65,13 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":layout_map",
+        ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/layers",
+        "//keras/models",
         "//keras/utils:tf_utils",
-        "//learning/brain/experimental/dtensor/tests:test_util",
     ],
 )
 

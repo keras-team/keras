@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Contains the pooling layer classes and their functional aliases."""
 from __future__ import absolute_import
 from __future__ import division

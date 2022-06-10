@@ -14,8 +14,6 @@
 # ==============================================================================
 """Keras image preprocessing layers."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -457,7 +455,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
         bounding_box = inputs.get(BOUNDING_BOXES, None)
         transformation = self.get_random_transformation(
             image=image, label=label, bounding_box=bounding_box
-        )  # pylint: disable=assignment-from-none
+        )
         image = self.augment_image(image, transformation=transformation)
         result = {IMAGES: image}
         if label is not None:
@@ -1480,9 +1478,7 @@ class RandomZoom(BaseImageAugmentationLayer):
                 self.width_lower = width_factor[0]
                 self.width_upper = width_factor[1]
             else:
-                self.width_lower = (
-                    -width_factor
-                )  # pylint: disable=invalid-unary-operand-type
+                self.width_lower = -width_factor
                 self.width_upper = width_factor
 
             if self.width_lower < -1.0 or self.width_upper < -1.0:

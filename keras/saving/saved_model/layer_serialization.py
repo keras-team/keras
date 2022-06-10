@@ -45,12 +45,11 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             name=self.obj.name,
             trainable=self.obj.trainable,
             expects_training_arg=self.obj._expects_training_arg,
-            dtype=policy.serialize(
-                self.obj._dtype_policy
-            ),  # pylint: disable=protected-access
+            dtype=policy.serialize(self.obj._dtype_policy),
             batch_input_shape=getattr(self.obj, "_batch_input_shape", None),
             stateful=self.obj.stateful,
             must_restore_from_config=self.obj._must_restore_from_config,
+            preserve_input_structure_in_config=self.obj._preserve_input_structure_in_config,  # noqa: E501
         )
 
         metadata.update(get_serialized(self.obj))
@@ -71,12 +70,8 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             ] = generic_utils.serialize_keras_object(
                 self.obj.activity_regularizer
             )
-        if (
-            self.obj._build_input_shape is not None
-        ):  # pylint: disable=protected-access
-            metadata[
-                "build_input_shape"
-            ] = self.obj._build_input_shape  # pylint: disable=protected-access
+        if self.obj._build_input_shape is not None:
+            metadata["build_input_shape"] = self.obj._build_input_shape
         return metadata
 
     def objects_to_serialize(self, serialization_cache):
@@ -104,7 +99,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
         if (
             save_impl.should_skip_serialization(self.obj)
             or self.obj._must_restore_from_config
-        ):  # pylint: disable=protected-access
+        ):
             return serialized_attr
 
         object_dict, function_dict = self._get_serialized_attributes_internal(
@@ -211,5 +206,5 @@ class VocabularySavedModelSaver(LayerSavedModelSaver):
         # construction.
         metadata["config"][
             "has_input_vocabulary"
-        ] = self.obj._has_input_vocabulary  # pylint: disable=protected-access
+        ] = self.obj._has_input_vocabulary
         return metadata

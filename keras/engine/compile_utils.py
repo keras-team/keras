@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Utilities for `Model.compile`."""
 
 
@@ -356,9 +356,7 @@ class LossesContainer(Container):
             if loss_name is None:
                 raise ValueError(f"Loss should be a callable, received: {loss}")
             loss = losses_mod.LossFunctionWrapper(loss, name=loss_name)
-        loss._allow_sum_over_batch_size = (
-            True  # pylint: disable=protected-access
-        )
+        loss._allow_sum_over_batch_size = True
         return loss
 
     def _should_broadcast(self, obj):
@@ -518,7 +516,7 @@ class MetricsContainer(Container):
         # For multi-output models, prepend the output name to the metric name.
         # For weighted metrics, prepend "weighted_" if the name would be
         # non-unique.
-        # pylint: disable=protected-access
+
         metric_names = set()
         is_multi_output = len(self._output_names) > 1
         zip_args = (self._output_names, self._metrics, self._weighted_metrics)
@@ -556,7 +554,6 @@ class MetricsContainer(Container):
                         "to have unique names."
                     )
                 metric_names.add(wm._name)
-        # pylint: enable=protected-access
 
     def _create_ordered_metrics(self):
         """Cache the flat order needed when return metrics, for backcompat."""
@@ -678,9 +675,7 @@ class MetricsContainer(Container):
                     metric_obj = metrics_mod.categorical_crossentropy
 
         if isinstance(metric_obj, losses_mod.Loss):
-            metric_obj._allow_sum_over_batch_size = (
-                True  # pylint: disable=protected-access
-            )
+            metric_obj._allow_sum_over_batch_size = True
 
         if not isinstance(metric_obj, metrics_mod.Metric):
             if isinstance(metric, str):

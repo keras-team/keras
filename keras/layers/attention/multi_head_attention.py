@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based multi-head attention layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import collections
 import math
@@ -313,9 +313,7 @@ class MultiHeadAttention(Layer):
                 str(cls),
             )
         else:
-            layer._build_from_signature(
-                query_shape, value_shape, key_shape
-            )  # pylint: disable=protected-access
+            layer._build_from_signature(query_shape, value_shape, key_shape)
         return layer
 
     def _build_from_signature(self, query, value, key=None):

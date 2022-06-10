@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Home of the `Sequential` model."""
 
 import copy
@@ -111,11 +111,7 @@ class Sequential(functional.Functional):
         """
         # Skip the init in FunctionalModel since model doesn't have input/output
         # yet
-        super(
-            functional.Functional, self
-        ).__init__(  # pylint: disable=bad-super-call
-            name=name, autocast=False
-        )
+        super(functional.Functional, self).__init__(name=name, autocast=False)
         base_layer.keras_api_gauge.get_cell("Sequential").set(True)
         self.supports_masking = True
         self._compute_output_and_mask_jointly = True
@@ -333,7 +329,7 @@ class Sequential(functional.Functional):
                             # Create Functional API connection by calling the
                             # current layer
                             layer_output = layer(layer_input)
-                        except:  # pylint:disable=bare-except
+                        except:  # noqa: E722
                             # Functional API calls may fail for a number of
                             # reasons: 1) The layer may be buggy. In this case
                             # it will be easier for the user to debug if we fail
@@ -367,7 +363,7 @@ class Sequential(functional.Functional):
                         # not be supporting such layers.
                         self._init_graph_network(inputs, outputs)
                         self._graph_initialized = True
-                    except:  # pylint:disable=bare-except
+                    except:  # noqa: E722
                         self._use_legacy_deferred_behavior = True
                 self._inferred_input_shape = new_shape
 
@@ -385,9 +381,7 @@ class Sequential(functional.Functional):
                 super().build(input_shape)
         self.built = True
 
-    def call(
-        self, inputs, training=None, mask=None
-    ):  # pylint: disable=redefined-outer-name
+    def call(self, inputs, training=None, mask=None):
         # If applicable, update the static input shape of the model.
         if not self._has_explicit_input_shape:
             if not tf.is_tensor(inputs) and not isinstance(inputs, tf.Tensor):
@@ -447,9 +441,7 @@ class Sequential(functional.Functional):
         # TODO(omalleyt): b/123540974 This function is not really safe to call
         # by itself because it will duplicate any updates and losses in graph
         # mode by `call`ing the Layers again.
-        outputs = self.call(
-            inputs, mask=mask
-        )  # pylint: disable=unexpected-keyword-arg
+        outputs = self.call(inputs, mask=mask)
         return getattr(outputs, "_keras_mask", None)
 
     def get_config(self):
@@ -516,9 +508,7 @@ class Sequential(functional.Functional):
             return
         # When the graph has not been initialized, use the Model's
         # implementation to to check if the weights has been created.
-        super(
-            functional.Functional, self
-        )._assert_weights_created()  # pylint: disable=bad-super-call
+        super(functional.Functional, self)._assert_weights_created()
 
 
 def _get_shape_tuple(t):
