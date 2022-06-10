@@ -146,6 +146,52 @@ class TrainingTest(test_combinations.TestCase):
         model.predict(x)
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_distribution_reduction_method_sum(self):
+
+        strategy = tf.distribute.MirroredStrategy(["/cpu:1", "/cpu:2"])
+        BATCH_SIZE = 10
+
+        class MyModel(training_module.Model):
+            @staticmethod
+            def reduce_loss(loss_value, global_batch_size):
+                REDUCTION_AXES = range(1, backend.ndim(loss_value))
+                loss_value = tf.reduce_mean(loss_value, axis=REDUCTION_AXES)
+                return tf.nn.compute_average_loss(
+                    loss_value, global_batch_size=global_batch_size
+                )
+
+            def train_step(self, data):
+                loss_value = tf.ones_like(data[0])
+                return {
+                    "loss": MyModel.reduce_loss(
+                        loss_value, global_batch_size=BATCH_SIZE
+                    )
+                }
+
+            def test_step(self, data):
+                loss_value = tf.ones_like(data[0])
+                return {
+                    "metric": MyModel.reduce_loss(
+                        loss_value, global_batch_size=BATCH_SIZE
+                    )
+                }
+
+        with strategy.scope():
+            inputs = layers_module.Input(shape=(1,), name="my_input")
+            outputs = layers_module.Dense(1)(inputs)
+            model = MyModel(inputs, outputs)
+
+        model.distribute_reduction_method = "sum"
+        model.compile()
+
+        x, y = np.ones((40, 1)), np.ones((40, 1))
+        history = model.fit(x, y, epochs=2, batch_size=BATCH_SIZE)
+        self.assertAllClose(history.history["loss"][-1], 1.0)
+
+        eval_output = model.evaluate(x, y, batch_size=BATCH_SIZE)
+        self.assertAllClose(eval_output, 1.0)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_verify_xla_compile_with_jit_compile(self):
         vocab_data = ["earth", "wind", "and", "fire"]
         input_array = np.array(
