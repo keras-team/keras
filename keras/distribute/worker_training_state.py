@@ -22,6 +22,19 @@ from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.utils import mode_keys
 
+# isort: off
+from keras.distribute.distributed_file_utils import (
+    support_on_demand_checkpoint_callback,
+)  # noqa: E501
+
+
+def _enable_preemption_checkpoint(preemption_checkpoint_arg, strategy):
+    return (
+        preemption_checkpoint_arg
+        and isinstance(strategy, tf.distribute.MultiWorkerMirroredStrategy)
+        and support_on_demand_checkpoint_callback()
+    )
+
 
 class WorkerTrainingState:
     """Training state management class.

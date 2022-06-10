@@ -46,7 +46,11 @@ Experimental. API is subject to change.
 
 import os
 
+import requests
 import tensorflow.compat.v2 as tf
+
+GCP_METADATA_HEADER = {"Metadata-Flavor": "Google"}
+_GCE_METADATA_URL_ENV_VARIABLE = "GCE_METADATA_IP"
 
 
 def _get_base_dirpath(strategy):
@@ -145,3 +149,31 @@ def remove_temp_dir_with_filepath(filepath, strategy):
       strategy: The tf.distribute strategy object currently used.
     """
     remove_temp_dirpath(os.path.dirname(filepath), strategy)
+
+
+def _on_gcp():
+    """Detect whether the current running environment is on GCP."""
+    gce_metadata_endpoint = "http://" + os.environ.get(
+        _GCE_METADATA_URL_ENV_VARIABLE, "metadata.google.internal"
+    )
+
+    try:
+        # Timeout in 5 seconds, in case the test environment has connectivity
+        # issue. There is not default timeout, which means it might block
+        # forever.
+        response = requests.get(
+            "%s/computeMetadata/v1/%s"
+            % (gce_metadata_endpoint, "instance/hostname"),
+            headers=GCP_METADATA_HEADER,
+            timeout=5,
+        )
+        return response.status_code
+    except requests.exceptions.RequestException:
+        return False
+
+
+def support_on_demand_checkpoint_callback():
+    if _on_gcp() and not tf.config.list_physical_devices("TPU"):
+        return True
+
+    return False
