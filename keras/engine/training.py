@@ -3820,7 +3820,7 @@ def reduce_per_replica(values, strategy, reduction="first"):
             return tf.reduce_sum(values)
         else:
             raise ValueError(
-                '`reduction` must be "first" or "concat" or "sum". Received: '
+                '`reduction` must be "first", "concat", or "sum". Received: '
                 f"reduction={reduction}."
             )
 
