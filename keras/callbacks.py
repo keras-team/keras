@@ -1305,6 +1305,8 @@ class ModelCheckpoint(Callback):
           epochs, the monitored metric may potentially be less reliable (it
           could reflect as little as 1 batch, since the metrics get reset every
           epoch). Defaults to `'epoch'`.
+        start_save: integer that represent the epoch on which we want to start 
+          the backups
         options: Optional `tf.train.CheckpointOptions` object if
           `save_weights_only` is true or optional `tf.saved_model.SaveOptions`
           object if `save_weights_only` is false.
@@ -1325,6 +1327,7 @@ class ModelCheckpoint(Callback):
         save_weights_only=False,
         mode="auto",
         save_freq="epoch",
+        start_save = 0,
         options=None,
         initial_value_threshold=None,
         **kwargs,
@@ -1337,6 +1340,7 @@ class ModelCheckpoint(Callback):
         self.save_best_only = save_best_only
         self.save_weights_only = save_weights_only
         self.save_freq = save_freq
+        self.start_save = start_save
         self.epochs_since_last_save = 0
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
@@ -1459,7 +1463,7 @@ class ModelCheckpoint(Callback):
     def on_epoch_end(self, epoch, logs=None):
         self.epochs_since_last_save += 1
 
-        if self.save_freq == "epoch":
+        if self.save_freq == "epoch" and self.epochs_since_last_save >= self.start_save :
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
     def _should_save_on_batch(self, batch):
