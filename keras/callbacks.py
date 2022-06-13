@@ -1327,7 +1327,7 @@ class ModelCheckpoint(Callback):
         save_weights_only=False,
         mode="auto",
         save_freq="epoch",
-        start_save = 0,
+        start_save=0,
         options=None,
         initial_value_threshold=None,
         **kwargs,
@@ -1463,7 +1463,7 @@ class ModelCheckpoint(Callback):
     def on_epoch_end(self, epoch, logs=None):
         self.epochs_since_last_save += 1
 
-        if self.save_freq == "epoch" and self.epochs_since_last_save >= self.start_save :
+        if self.save_freq == "epoch" and epoch >= self.start_save :
             self._save_model(epoch=epoch, batch=None, logs=logs)
 
     def _should_save_on_batch(self, batch):
