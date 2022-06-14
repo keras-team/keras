@@ -1305,7 +1305,7 @@ class ModelCheckpoint(Callback):
           epochs, the monitored metric may potentially be less reliable (it
           could reflect as little as 1 batch, since the metrics get reset every
           epoch). Defaults to `'epoch'`.
-        start_save: integer that represent the epoch on which we want to start 
+        start_save: integer that represent the epoch on which we want to start
           the backups
         options: Optional `tf.train.CheckpointOptions` object if
           `save_weights_only` is true or optional `tf.saved_model.SaveOptions`
