@@ -1662,7 +1662,8 @@ def prepare_loss_functions(loss, output_names):
 
     Args:
         loss: String (name of objective function), objective function or
-          `tf.losses.Loss` instance. See `tf.losses`. If the model has multiple
+          `tf.keras.losses.Loss` instance. See `tf.keras.losses`.
+          If the model has multiple
           outputs, you can use a different loss on each output by passing a
           dictionary or a list of losses. The loss value that will be minimized
           by the model will then be the sum of all individual losses.
