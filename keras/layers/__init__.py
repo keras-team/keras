@@ -113,6 +113,7 @@ from keras.layers.preprocessing.hashing import Hashing
 
 # Image preprocessing layers.
 from keras.layers.preprocessing.image_preprocessing import CenterCrop
+from keras.layers.preprocessing.image_preprocessing import RandomBrightness
 from keras.layers.preprocessing.image_preprocessing import RandomContrast
 from keras.layers.preprocessing.image_preprocessing import RandomCrop
 from keras.layers.preprocessing.image_preprocessing import RandomFlip
