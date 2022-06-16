@@ -408,7 +408,7 @@ def _update_confusion_matrix_variables_optimized(
         )
         if not multi_label:
             label_weights = tf.reshape(label_weights, [-1])
-    weights = tf.multiply(sample_weights, label_weights)
+    weights = tf.cast(tf.multiply(sample_weights, label_weights), y_true.dtype)
 
     # We shouldn't need this, but in case there are predict value that is out of
     # the range of [0.0, 1.0]

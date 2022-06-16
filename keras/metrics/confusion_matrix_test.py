@@ -1307,9 +1307,11 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
     def setup(self):
         self.num_thresholds = 3
         self.y_pred = tf.constant([0, 0.5, 0.3, 0.9], dtype=tf.float32)
+        self.y_pred_multi_label = tf.constant([[0., 0.4], [0.5, 0.7], [0.3, 0.2], [0.9, 0.3]], dtype=tf.float32)
         epsilon = 1e-12
         self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
         self.y_true = tf.constant([0, 0, 1, 1])
+        self.y_true_multi_label = tf.constant([[0, 0], [1, 1], [1, 1], [1, 0]])
         self.sample_weight = [1, 2, 3, 4]
 
         # threshold values are [0 - 1e-7, 0.5, 1 + 1e-7]
@@ -1340,22 +1342,30 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             curve="PR",
             summation_method="majoring",
             name="auc_1",
+            dtype=tf.float64,
+            multi_label=True,
+            num_labels=2,
+            from_logits=True
         )
-        auc_obj.update_state(self.y_true, self.y_pred)
+        auc_obj.update_state(self.y_true_multi_label, self.y_pred_multi_label)
         self.assertEqual(auc_obj.name, "auc_1")
+        self.assertEqual(auc_obj._dtype, tf.float64)
         self.assertLen(auc_obj.variables, 4)
         self.assertEqual(auc_obj.num_thresholds, 100)
         self.assertEqual(auc_obj.curve, metrics_utils.AUCCurve.PR)
         self.assertEqual(
             auc_obj.summation_method, metrics_utils.AUCSummationMethod.MAJORING
         )
+        self.assertTrue(auc_obj.multi_label)
+        self.assertEqual(auc_obj.num_labels, 2)
+        self.assertTrue(auc_obj._from_logits)
         old_config = auc_obj.get_config()
         self.assertNotIn("thresholds", old_config)
         self.assertDictEqual(old_config, json.loads(json.dumps(old_config)))
 
         # Check save and restore config.
         auc_obj2 = metrics.AUC.from_config(auc_obj.get_config())
-        auc_obj2.update_state(self.y_true, self.y_pred)
+        auc_obj2.update_state(self.y_true_multi_label, self.y_pred_multi_label)
         self.assertEqual(auc_obj2.name, "auc_1")
         self.assertLen(auc_obj2.variables, 4)
         self.assertEqual(auc_obj2.num_thresholds, 100)
@@ -1363,6 +1373,9 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(
             auc_obj2.summation_method, metrics_utils.AUCSummationMethod.MAJORING
         )
+        self.assertTrue(auc_obj2.multi_label)
+        self.assertEqual(auc_obj2.num_labels, 2)
+        self.assertTrue(auc_obj2._from_logits)
         new_config = auc_obj2.get_config()
         self.assertNotIn("thresholds", new_config)
         self.assertDictEqual(old_config, new_config)
@@ -2076,5 +2089,5 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose(v1, v2)
 
 
-if __name__ == "__main__":
-    tf.test.main()
+if __name__ == '__main__':
+  tf.test.main()
