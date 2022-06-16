@@ -665,7 +665,7 @@ def keras_tensor_from_tensor(tensor):
 
     out = keras_tensor_cls.from_tensor(tensor)
 
-    if hasattr(tensor, "_keras_mask"):
+    if getattr(tensor, "_keras_mask", None) is not None:
         out._keras_mask = keras_tensor_from_tensor(tensor._keras_mask)
     return out
 

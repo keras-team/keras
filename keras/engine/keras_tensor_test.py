@@ -247,6 +247,17 @@ class KerasTensorTest(test_combinations.TestCase):
         ):
             kt.dtype
 
+    def test_from_tensor_mask_tensor_is_none(self):
+        tensor = tf.constant([1.0])
+        kt = keras_tensor.keras_tensor_from_tensor(tensor)
+        self.assertIsNone(getattr(kt, "_keras_mask", None))
+
+    def test_from_tensor_mask_tensor_is_not_none(self):
+        tensor = tf.constant([1.0])
+        tensor._keras_mask = tf.constant([1.0])
+        kt = keras_tensor.keras_tensor_from_tensor(tensor)
+        self.assertIsInstance(kt._keras_mask, keras_tensor.KerasTensor)
+
 
 if __name__ == "__main__":
     tf.test.main()
