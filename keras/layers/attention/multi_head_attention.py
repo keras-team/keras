@@ -499,8 +499,8 @@ class MultiHeadAttention(Layer):
 
         Args:
           query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
-          key: Projected key `Tensor` of shape `(B, T, N, key_dim)`.
-          value: Projected value `Tensor` of shape `(B, T, N, value_dim)`.
+          key: Projected key `Tensor` of shape `(B, S, N, key_dim)`.
+          value: Projected value `Tensor` of shape `(B, S, N, value_dim)`.
           attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
             attention to certain positions.
           training: Python boolean indicating whether the layer should behave in
