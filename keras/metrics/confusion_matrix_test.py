@@ -1307,7 +1307,9 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
     def setup(self):
         self.num_thresholds = 3
         self.y_pred = tf.constant([0, 0.5, 0.3, 0.9], dtype=tf.float32)
-        self.y_pred_multi_label = tf.constant([[0., 0.4], [0.5, 0.7], [0.3, 0.2], [0.9, 0.3]], dtype=tf.float32)
+        self.y_pred_multi_label = tf.constant(
+            [[0.0, 0.4], [0.5, 0.7], [0.3, 0.2], [0.9, 0.3]], dtype=tf.float32
+        )
         epsilon = 1e-12
         self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
         self.y_true = tf.constant([0, 0, 1, 1])
@@ -1345,7 +1347,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             dtype=tf.float64,
             multi_label=True,
             num_labels=2,
-            from_logits=True
+            from_logits=True,
         )
         auc_obj.update_state(self.y_true_multi_label, self.y_pred_multi_label)
         self.assertEqual(auc_obj.name, "auc_1")

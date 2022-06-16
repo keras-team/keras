@@ -2126,9 +2126,9 @@ class AUC(base_metric.Metric):
             "curve": self.curve.value,
             "summation_method": self.summation_method.value,
             "multi_label": self.multi_label,
-            'num_labels': self.num_labels,
+            "num_labels": self.num_labels,
             "label_weights": label_weights,
-            'from_logits': self._from_logits,
+            "from_logits": self._from_logits,
         }
         # optimization to avoid serializing a large number of generated
         # thresholds
