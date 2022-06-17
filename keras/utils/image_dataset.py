@@ -120,7 +120,7 @@ def image_dataset_from_directory(
       interpolation: String, the interpolation method used when resizing images.
         Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
         `area`, `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
-      follow_links: Whether to visits subdirectories pointed to by symlinks.
+      follow_links: Whether to visit subdirectories pointed to by symlinks.
           Defaults to False.
       crop_to_aspect_ratio: If True, resize the images without aspect
         ratio distortion. When the original aspect ratio differs from the target
@@ -152,9 +152,9 @@ def image_dataset_from_directory(
       - if `color_mode` is `grayscale`,
         there's 1 channel in the image tensors.
       - if `color_mode` is `rgb`,
-        there are 3 channel in the image tensors.
+        there are 3 channels in the image tensors.
       - if `color_mode` is `rgba`,
-        there are 4 channel in the image tensors.
+        there are 4 channels in the image tensors.
     """
     if "smart_resize" in kwargs:
         crop_to_aspect_ratio = kwargs.pop("smart_resize")
