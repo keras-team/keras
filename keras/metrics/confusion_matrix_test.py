@@ -2091,5 +2091,5 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose(v1, v2)
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()
