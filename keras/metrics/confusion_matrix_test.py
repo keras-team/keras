@@ -2092,4 +2092,4 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.test.main()
+    tf.test.main()
