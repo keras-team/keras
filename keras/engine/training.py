@@ -114,7 +114,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     Note that the `backbone` and `activations` models are not
     created with `keras.Input` objects, but with the tensors that are originated
-    from `keras.Inputs` objects. Under the hood, the layers and weights will
+    from `keras.Input` objects. Under the hood, the layers and weights will
     be shared across these models, so that user can train the `full_model`, and
     use `backbone` or `activations` to do feature extraction.
     The inputs and outputs of the model can be nested structures of tensors as
