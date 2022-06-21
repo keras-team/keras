@@ -14,6 +14,8 @@
 # ==============================================================================
 """AdamW optimizer implementation."""
 
+import re
+
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
@@ -129,7 +131,7 @@ class AdamW(optimizer.Optimizer):
                 " must be a float value."
             )
 
-    def build(self, var_list, exclude_from_weight_decay=None):
+    def build(self, var_list):
         """Initialize optimizer variables.
 
         AdamW optimizer has 3 types of variables: momentums, velocities and
@@ -137,15 +139,11 @@ class AdamW(optimizer.Optimizer):
 
         Args:
           var_list: list of model variables to build AdamW variables on.
-          exclude_from_weight_decay: list of model variables that will be
-            excluded from weight decay.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
             return
         self._built = True
-        if not hasattr(self, "_exclude_from_weight_decay"):
-            self._exclude_from_weight_decay = exclude_from_weight_decay or []
         self._momentums = []
         self._velocities = []
         for var in var_list:
@@ -168,6 +166,20 @@ class AdamW(optimizer.Optimizer):
                     )
                 )
 
+    def _use_weight_decay(self, variable):
+        exclude_from_weight_decay = getattr(
+            self, "_exclude_from_weight_decay", []
+        )
+        exclude_from_weight_decay_names = getattr(
+            self, "_exclude_from_weight_decay_names", []
+        )
+        if variable in exclude_from_weight_decay:
+            return False
+        for name in exclude_from_weight_decay_names:
+            if re.search(name, variable.name) is not None:
+                return False
+        return True
+
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
         beta_1_power = None
@@ -184,12 +196,9 @@ class AdamW(optimizer.Optimizer):
         alpha = lr * tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)
 
         # Apply step weight decay
-        if (
-            self.weight_decay != 0
-            and variable not in self._exclude_from_weight_decay
-        ):
+        if self._use_weight_decay(variable):
             wd = tf.cast(self.weight_decay, variable.dtype)
-            variable.assign_sub(variable * wd)
+            variable.assign_sub(variable * wd * lr)
 
         if isinstance(gradient, tf.IndexedSlices):
             # Sparse gradients.
@@ -238,7 +247,21 @@ class AdamW(optimizer.Optimizer):
         )
         return config
 
-    def exclude_from_weight_decay(self, var_list):
+    def exclude_from_weight_decay(self, var_list=None, var_names=None):
+        """Exclude variables from weight decays.
+
+        This method must be called before the optimizer's `build` method is
+        called. You can set specific variables to exclude out, or set a list of
+        strings as the anchor words, if any of which appear in a variable's
+        name, then the variable is excluded.
+
+        Args:
+            var_list: A list of `tf.Variable`s to exclude from weight decay.
+            var_names: A list of strings. If any string in `var_names` appear
+                in the model variable's name, then this model variable is
+                excluded from weight decay. For example, `var_names=['bias']`
+                excludes all bias variables from weight decay.
+        """
         if hasattr(self, "_built") and self._built:
             raise ValueError(
                 "`exclude_from_weight_decay()` can only be configued before "
@@ -246,6 +269,7 @@ class AdamW(optimizer.Optimizer):
             )
 
         self._exclude_from_weight_decay = var_list or []
+        self._exclude_from_weight_decay_names = var_names or []
 
 
 AdamW.__doc__ = AdamW.__doc__.replace(
