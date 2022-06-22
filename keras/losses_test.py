@@ -161,6 +161,34 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
             atol=1e-5,
         )
 
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    def test_sparse_categorical_crossentropy_loss_with_ignore_index(self):
+        ignore_index = 255
+        target = backend.variable(np.random.randint(0, 1, (5, 1)))
+        logits = backend.variable(np.random.random((5, 1)))
+        softmax_output = backend.softmax(logits)
+
+        valid_entries = tf.reshape(
+            tf.constant([0, 1, 0, 1, 1], target.dtype), (5, 1)
+        )
+        target.assign(
+            target * valid_entries + (1 - valid_entries) * ignore_index
+        )
+
+        output_from_logit = losses.sparse_categorical_crossentropy(
+            target, logits, ignore_index=ignore_index, from_logits=True
+        )
+        output_from_softmax = losses.sparse_categorical_crossentropy(
+            target, softmax_output, ignore_index=ignore_index
+        )
+        np.testing.assert_allclose(
+            backend.eval(output_from_logit),
+            backend.eval(output_from_softmax),
+            atol=1e-5,
+        )
+
     @test_combinations.generate(test_combinations.combine(mode=["graph"]))
     def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(
         self,

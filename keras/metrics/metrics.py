@@ -18,6 +18,7 @@
 
 import abc
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -2645,11 +2646,36 @@ class _IoUBase(base_metric.Metric):
         `(num_classes, num_classes)` will be allocated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      sparse_labels: Wether labels are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      sparse_preds: Wether predictions are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      axis: (Optional) Defaults to -1. The dimension containing the logits.
+
     """
 
-    def __init__(self, num_classes, name=None, dtype=None):
+    def __init__(
+        self,
+        num_classes: int,
+        name: Optional[str] = None,
+        dtype: Optional[Union[str, tf.dtypes.DType]] = None,
+        ignore_index: Optional[int] = None,
+        sparse_labels: bool = True,
+        sparse_preds: bool = True,
+        axis: int = -1,
+    ):
         super().__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
+        self.ignore_index = ignore_index
+        self.sparse_labels = sparse_labels
+        self.sparse_preds = sparse_preds
+        self.axis = axis
 
         # Variable to accumulate the predictions in the confusion matrix.
         self.total_cm = self.add_weight(
@@ -2672,6 +2698,11 @@ class _IoUBase(base_metric.Metric):
           Update op.
         """
 
+        if not self.sparse_labels:
+            y_true = tf.argmax(y_true, axis=self.axis)
+        if not self.sparse_preds:
+            y_pred = tf.argmax(y_pred, axis=self.axis)
+
         y_true = tf.cast(y_true, self._dtype)
         y_pred = tf.cast(y_pred, self._dtype)
 
@@ -2681,6 +2712,11 @@ class _IoUBase(base_metric.Metric):
 
         if y_true.shape.ndims > 1:
             y_true = tf.reshape(y_true, [-1])
+
+        if self.ignore_index is not None:
+            valid_mask = tf.not_equal(y_true, self.ignore_index)
+            y_true = y_true[valid_mask]
+            y_pred = y_pred[valid_mask]
 
         if sample_weight is not None:
             sample_weight = tf.cast(sample_weight, self._dtype)
@@ -2738,6 +2774,17 @@ class IoU(_IoUBase):
         single id value should be provided.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      sparse_labels: Wether labels are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      sparse_preds: Wether predictions are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      axis: (Optional) Defaults to -1. The dimension containing the logits.
 
     Standalone usage:
 
@@ -2777,12 +2824,20 @@ class IoU(_IoUBase):
         self,
         num_classes: int,
         target_class_ids: Union[List[int], Tuple[int, ...]],
-        name=None,
-        dtype=None,
+        name: Optional[str] = None,
+        dtype: Optional[Union[str, tf.dtypes.DType]] = None,
+        ignore_index: Optional[int] = None,
+        sparse_labels: bool = True,
+        sparse_preds: bool = True,
+        axis: int = -1,
     ):
         super().__init__(
             name=name,
             num_classes=num_classes,
+            ignore_index=ignore_index,
+            sparse_labels=sparse_labels,
+            sparse_preds=sparse_preds,
+            axis=axis,
             dtype=dtype,
         )
         if max(target_class_ids) >= num_classes:
@@ -2828,6 +2883,10 @@ class IoU(_IoUBase):
         config = {
             "num_classes": self.num_classes,
             "target_class_ids": self.target_class_ids,
+            "ignore_index": self.ignore_index,
+            "sparse_labels": self.sparse_labels,
+            "sparse_preds": self.sparse_preds,
+            "axis": self.axis,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -2983,6 +3042,17 @@ class MeanIoU(IoU):
         [num_classes, num_classes] will be allocated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      sparse_labels: Wether labels are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      sparse_preds: Wether predictions are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      axis: (Optional) Defaults to -1. The dimension containing the logits.
 
     Standalone usage:
 
@@ -3013,13 +3083,26 @@ class MeanIoU(IoU):
     """
 
     @dtensor_utils.inject_mesh
-    def __init__(self, num_classes, name=None, dtype=None):
+    def __init__(
+        self,
+        num_classes: int,
+        name: Optional[str] = None,
+        dtype: Optional[Union[str, tf.dtypes.DType]] = None,
+        ignore_index: Optional[int] = None,
+        sparse_labels: bool = True,
+        sparse_preds: bool = True,
+        axis: int = -1,
+    ):
         target_class_ids = list(range(num_classes))
         super().__init__(
             name=name,
             num_classes=num_classes,
             target_class_ids=target_class_ids,
+            axis=axis,
             dtype=dtype,
+            ignore_index=ignore_index,
+            sparse_labels=sparse_labels,
+            sparse_preds=sparse_preds,
         )
 
     def get_config(self):
@@ -3027,6 +3110,10 @@ class MeanIoU(IoU):
             "num_classes": self.num_classes,
             "name": self.name,
             "dtype": self._dtype,
+            "ignore_index": self.ignore_index,
+            "sparse_labels": self.sparse_labels,
+            "sparse_preds": self.sparse_preds,
+            "axis": self.axis,
         }
 
 
@@ -3074,6 +3161,14 @@ class OneHotIoU(IoU):
         single id value should be provided.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      sparse_preds: Wether predictions are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      axis: (Optional) Defaults to -1. The dimension containing the logits.
 
     Standalone usage:
 
@@ -3111,32 +3206,31 @@ class OneHotIoU(IoU):
         target_class_ids: Union[List[int], Tuple[int, ...]],
         name=None,
         dtype=None,
+        ignore_index: Optional[int] = None,
+        sparse_preds: bool = False,
+        axis: int = -1,
     ):
         super().__init__(
             num_classes=num_classes,
             target_class_ids=target_class_ids,
             name=name,
             dtype=dtype,
+            ignore_index=ignore_index,
+            sparse_labels=False,
+            sparse_preds=sparse_preds,
+            axis=axis,
         )
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        """Accumulates the confusion matrix statistics.
-
-        Args:
-          y_true: The ground truth values.
-          y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
-            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
-
-        Returns:
-          Update op.
-        """
-        # Select max hot-encoding channels to convert into all-class format
-        y_true = tf.argmax(y_true, axis=-1, output_type=tf.int32)
-        y_pred = tf.argmax(y_pred, axis=-1, output_type=tf.int32)
-
-        return super().update_state(y_true, y_pred, sample_weight)
+    def get_config(self):
+        return {
+            "num_classes": self.num_classes,
+            "target_class_ids": self.target_class_ids,
+            "name": self.name,
+            "dtype": self._dtype,
+            "ignore_index": self.ignore_index,
+            "sparse_preds": self.sparse_preds,
+            "axis": self.axis,
+        }
 
 
 @keras_export("keras.metrics.OneHotMeanIoU")
@@ -3181,6 +3275,14 @@ class OneHotMeanIoU(MeanIoU):
         allocated to accumulate predictions from which the metric is calculated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      sparse_preds: Wether predictions are encoded using natural numbers or
+        probability distribution vectors. If `False`, the `tf.argmax` function
+        will be used to determine each sample's most likely associated label.
+      axis: (Optional) Defaults to -1. The dimension containing the logits.
 
     Standalone usage:
 
@@ -3215,33 +3317,31 @@ class OneHotMeanIoU(MeanIoU):
     def __init__(
         self,
         num_classes: int,
-        name=None,
-        dtype=None,
+        name: str = None,
+        dtype: Optional[Union[str, tf.dtypes.DType]] = None,
+        ignore_index: Optional[int] = None,
+        sparse_preds: bool = False,
+        axis: int = -1,
     ):
         super().__init__(
             num_classes=num_classes,
+            axis=axis,
             name=name,
             dtype=dtype,
+            ignore_index=ignore_index,
+            sparse_labels=False,
+            sparse_preds=sparse_preds,
         )
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        """Accumulates the confusion matrix statistics.
-
-        Args:
-          y_true: The ground truth values.
-          y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
-            be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
-
-        Returns:
-          Update op.
-        """
-        # Select max hot-encoding channels to convert into all-class format
-        y_true = tf.argmax(y_true, axis=-1, output_type=tf.int32)
-        y_pred = tf.argmax(y_pred, axis=-1, output_type=tf.int32)
-
-        return super().update_state(y_true, y_pred, sample_weight)
+    def get_config(self):
+        return {
+            "num_classes": self.num_classes,
+            "name": self.name,
+            "dtype": self._dtype,
+            "ignore_index": self.ignore_index,
+            "sparse_preds": self.sparse_preds,
+            "axis": self.axis,
+        }
 
 
 @keras_export("keras.metrics.BinaryCrossentropy")
@@ -3319,6 +3419,8 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
         smoothed, meaning the confidence on label values are relaxed. e.g.
         `label_smoothing=0.2` means that we will use a value of `0.1` for label
         `0` and `0.9` for label `1`"
+      axis: (Optional) Defaults to -1. The dimension along which entropy is
+        computed.
 
     Standalone usage:
 
@@ -3359,6 +3461,7 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
         dtype=None,
         from_logits=False,
         label_smoothing=0,
+        axis=-1,
     ):
         super().__init__(
             categorical_crossentropy,
@@ -3366,6 +3469,7 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
             dtype=dtype,
             from_logits=from_logits,
             label_smoothing=label_smoothing,
+            axis=axis,
         )
 
 
@@ -3389,7 +3493,11 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
       dtype: (Optional) data type of the metric result.
       from_logits: (Optional) Whether output is expected to be a logits tensor.
         By default, we consider that output encodes a probability distribution.
-      axis: (Optional) Defaults to -1. The dimension along which the metric is
+      ignore_index: Optional integer, the id of a label that will not be
+        included in the metric computation. This is useful in segmentation
+        problems containing the *void* label (commonly -1 or 255) in its
+        annotated segmentation maps. By default, all label ids are considered.
+      axis: (Optional) Defaults to -1. The dimension along which entropy is
         computed.
 
     Standalone usage:
@@ -3430,16 +3538,18 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
     @dtensor_utils.inject_mesh
     def __init__(
         self,
-        name="sparse_categorical_crossentropy",
-        dtype=None,
-        from_logits=False,
-        axis=-1,
+        name: str = "sparse_categorical_crossentropy",
+        dtype: Optional[Union[str, tf.dtypes.DType]] = None,
+        from_logits: bool = False,
+        ignore_index: Optional[int] = None,
+        axis: int = -1,
     ):
         super().__init__(
             sparse_categorical_crossentropy,
             name,
             dtype=dtype,
             from_logits=from_logits,
+            ignore_index=ignore_index,
             axis=axis,
         )
 

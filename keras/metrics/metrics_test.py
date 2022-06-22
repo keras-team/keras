@@ -1282,6 +1282,44 @@ class MeanIoUTest(tf.test.TestCase):
         expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
         self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
+    def test_unweighted_ignore_index_255(self):
+        y_pred = [0, 1, 1, 1]
+        y_true = [0, 1, 2, 255]
+
+        m_obj = metrics.MeanIoU(num_classes=3, ignore_index=255)
+        self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[1, 0, 0],
+        #       [0, 1, 0],
+        #       [0, 1, 0]]
+        # sum_row = [1, 1, 1], sum_col = [1, 2, 0], true_positives = [1, 1, 0]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (
+            1 / (1 + 1 - 1) + 1 / (2 + 1 - 1) + 0 / (0 + 1 - 0)
+        ) / 3
+        self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+    def test_unweighted_ignore_index_1(self):
+        y_pred = [0, 1, 1, 1]
+        y_true = [0, 1, 2, -1]
+
+        m_obj = metrics.MeanIoU(num_classes=3, ignore_index=-1)
+        self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[1, 0, 0],
+        #       [0, 1, 0],
+        #       [0, 1, 0]]
+        # sum_row = [1, 1, 1], sum_col = [1, 2, 0], true_positives = [1, 1, 0]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (
+            1 / (1 + 1 - 1) + 1 / (2 + 1 - 1) + 0 / (0 + 1 - 0)
+        ) / 3
+        self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
     def test_weighted(self):
         y_pred = tf.constant([0, 1, 0, 1], dtype=tf.float32)
         y_true = tf.constant([0, 0, 1, 1])
@@ -1299,6 +1337,26 @@ class MeanIoUTest(tf.test.TestCase):
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (
             0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)
+        ) / 2
+        self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
+
+    def test_weighted_ignore_index_1(self):
+        y_pred = tf.constant([0, 1, 0, 1], dtype=tf.float32)
+        y_true = tf.constant([0, 0, 1, -1])
+        sample_weight = tf.constant([0.2, 0.3, 0.4, 0.1])
+
+        m_obj = metrics.MeanIoU(num_classes=2, ignore_index=-1)
+        self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+
+        result = m_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        # cm = [[0.2, 0.3],
+        #       [0.4, 0.0]]
+        # sum_row = [0.6, 0.3], sum_col = [0.5, 0.4], true_positives = [0.2,
+        # 0.0]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (
+            0.2 / (0.6 + 0.5 - 0.2) + 0.0 / (0.3 + 0.4 - 0.0)
         ) / 2
         self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
