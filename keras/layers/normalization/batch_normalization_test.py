@@ -273,6 +273,25 @@ class BatchNormalizationTest(test_combinations.TestCase):
         # variance is 2 * 0.5 == 1.
         self.assertAllEqual(self.evaluate(layer.moving_variance), [1.0])
 
+    @test_combinations.run_all_keras_modes
+    def test_can_be_used_in_multiple_graphs(self):
+        norm = keras.layers.BatchNormalization(
+            scale=False, center=False, fused=True
+        )
+
+        @tf.function
+        def fn1(x):
+            return norm(x, training=True)
+
+        @tf.function
+        def fn2(x):
+            return norm(x, training=True)
+
+        x = np.array([-1000.0, 1000.0]).reshape((2, 1, 1, 1))
+        y = norm(fn2(fn1(x)), training=True)
+        expected_y = np.array([-0.9995, 0.9995]).reshape((2, 1, 1, 1))
+        self.assertAllClose(keras.backend.eval(y), expected_y)
+
 
 class BatchNormalizationV1Test(test_combinations.TestCase):
     @test_combinations.generate(
