@@ -2708,33 +2708,25 @@ class Model(training_lib.Model):
                 # here.
                 x_shapes = x_shapes[0]
         else:
-            flat_inputs = tf.nest.flatten(x, expand_composites=False)
-            flat_expected_inputs = tf.nest.flatten(
-                self.inputs, expand_composites=False
-            )
+            flat_inputs = tf.nest.flatten(x)
+            flat_expected_inputs = tf.nest.flatten(self.inputs)
             converted_x = []
             for (a, b) in zip(flat_inputs, flat_expected_inputs):
                 converted_x.append(_convert_scipy_sparse_tensor(a, b))
-            x = tf.nest.pack_sequence_as(
-                x, converted_x, expand_composites=False
+            x = tf.nest.pack_sequence_as(x, converted_x)
+
+            # Convert ResourceVariables to tensors so nest.assert_same_structure
+            # below won't fail with Variable and Tensor.
+            x_tensors = tf_utils.convert_variables_to_tensors(x)
+            x_shapes = tf.nest.map_structure(
+                tf_utils.type_spec_from_value, x_tensors
             )
 
-            def _type_spec_from_value(value):
-                """Grab type_spec without converting array-likes to tensors."""
-                if tf_utils.is_extension_type(value):
-                    return value._type_spec
-                # Get a TensorSpec for array-like data without
-                # converting the data to a Tensor
-                if hasattr(value, "shape") and hasattr(value, "dtype"):
-                    return tf.TensorSpec(value.shape, value.dtype)
-                else:
-                    return tf.type_spec_from_value(value)
-
-            x_shapes = tf.nest.map_structure(_type_spec_from_value, x)
-
-        flat_inputs = tf.nest.flatten(x_shapes, expand_composites=False)
+        flat_inputs = tf.nest.flatten(x_shapes)
+        # Convert ResourceVariables to tensors so nest.assert_same_structure
+        # below won't fail with Variable and Tensor.
         flat_expected_inputs = tf.nest.flatten(
-            self.inputs, expand_composites=False
+            tf_utils.convert_variables_to_tensors(self.inputs)
         )
         for (a, b) in zip(flat_inputs, flat_expected_inputs):
             tf.nest.assert_same_structure(a, b, expand_composites=True)
@@ -2850,7 +2842,9 @@ class Model(training_lib.Model):
         # don't try - users should explicitly add composite tensor inputs to
         # their subclassed models.
         for input_tensor in processed_inputs:
-            if training_utils_v1.is_composite_or_composite_value(input_tensor):
+            if training_utils_v1.is_composite_or_composite_value(
+                input_tensor
+            ) and not isinstance(input_tensor, tf.Variable):
                 # TODO(b/132691975): Document subclass-model CT input handling.
                 raise ValueError(
                     "All SparseTensor and RaggedTensor inputs must be "
