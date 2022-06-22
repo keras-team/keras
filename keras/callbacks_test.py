@@ -651,6 +651,28 @@ class KerasCallbacksTest(test_combinations.TestCase):
         warning_msg = "***Handling interruption at Nth step***"
         self.assertIn(warning_msg, "\n".join(warning_messages))
 
+    def test_backup_and_restore_steps_clean_up(self):
+        if not tf.executing_eagerly():
+            self.skipTest(
+                "BackupAndRestore only available when eager execution is "
+                "enabled."
+            )
+        path = self.get_temp_dir()
+        callback = BackupAndRestore(path, delete_checkpoint=True)
+        model = keras.Sequential([keras.layers.Dense(10)])
+        optimizer = gradient_descent.SGD()
+        model.compile(optimizer, loss="mse")
+
+        x = tf.random.uniform((24, 10))
+        y = tf.random.uniform((24,))
+        dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(2)
+        model.fit(dataset, epochs=1, callbacks=[callback])
+        self.assertEmpty(os.listdir(path))
+
+        callback = BackupAndRestore(path, delete_checkpoint=False)
+        model.fit(dataset, epochs=1, callbacks=[callback])
+        self.assertNotEmpty(os.listdir(path))
+
     @test_combinations.run_all_keras_modes
     def test_callback_warning(self):
         class SleepCallback(keras.callbacks.Callback):
