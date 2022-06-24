@@ -86,6 +86,7 @@ def model_to_dot(
     subgraph=False,
     layer_range=None,
     show_layer_activations=False,
+    show_kernel_size=False,
 ):
     """Convert a Keras model to dot format.
 
@@ -112,6 +113,8 @@ def model_to_dot(
           must be complete.
       show_layer_activations: Display layer activations (only for layers that
           have an `activation` property).
+      show_kernel_size: Display layer kernel_size attribute (only for layers that
+        have it)
 
     Returns:
       A `pydot.Dot` instance representing the Keras model or
@@ -253,6 +256,14 @@ def model_to_dot(
                 activation_name = str(layer.activation)
             label = "{%s|%s}" % (label, activation_name)
 
+        # Rebuild the label as a table including the layer's kernel size.
+        if (
+            show_kernel_size
+            and hasattr(layer, "kernel_size")
+            and layer.kernel_size is not None
+        ):
+            label = "{%s|%s}" % (label, str(layer.kernel_size))
+
         # Rebuild the label as a table including the layer's name.
         if show_layer_names:
             label = "%s|%s" % (layer_name, label)
@@ -370,6 +381,7 @@ def plot_model(
     dpi=96,
     layer_range=None,
     show_layer_activations=False,
+    show_kernel_size=False,
 ):
     """Converts a Keras model to dot format and save to a file.
 
@@ -411,6 +423,8 @@ def plot_model(
         complete.
       show_layer_activations: Display layer activations (only for layers that
         have an `activation` property).
+      show_kernel_size: Display layer kernel_size attribute (only for layers that
+        have it)
 
     Raises:
       ImportError: if graphviz or pydot are not available.
@@ -453,6 +467,7 @@ def plot_model(
         dpi=dpi,
         layer_range=layer_range,
         show_layer_activations=show_layer_activations,
+        show_kernel_size=show_kernel_size,
     )
     to_file = io_utils.path_to_string(to_file)
     if dot is None:
