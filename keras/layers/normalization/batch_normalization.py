@@ -420,7 +420,7 @@ class BatchNormalizationBase(Layer):
                 param_shape.insert(1, 1)
                 for idx, x in enumerate(self.axis):
                     self.axis[idx] = x + 1  # Account for added dimension
-
+        self._param_shape = param_shape
         if self.scale:
             self.gamma = self.add_weight(
                 name="gamma",
@@ -434,10 +434,6 @@ class BatchNormalizationBase(Layer):
             )
         else:
             self.gamma = None
-            if self.fused:
-                self._gamma_const = backend.constant(
-                    1.0, dtype=self._param_dtype, shape=param_shape
-                )
 
         if self.center:
             self.beta = self.add_weight(
@@ -452,10 +448,6 @@ class BatchNormalizationBase(Layer):
             )
         else:
             self.beta = None
-            if self.fused:
-                self._beta_const = backend.constant(
-                    0.0, dtype=self._param_dtype, shape=param_shape
-                )
 
         try:
             # Disable variable partitioning when creating the moving mean and
@@ -582,8 +574,18 @@ class BatchNormalizationBase(Layer):
 
     def _fused_batch_norm(self, inputs, training):
         """Returns the output of fused batch norm."""
-        beta = self.beta if self.center else self._beta_const
-        gamma = self.gamma if self.scale else self._gamma_const
+        if self.center:
+            beta = self.beta
+        else:
+            beta = backend.constant(
+                0.0, dtype=self._param_dtype, shape=self._param_shape
+            )
+        if self.scale:
+            gamma = self.gamma
+        else:
+            gamma = backend.constant(
+                1.0, dtype=self._param_dtype, shape=self._param_shape
+            )
 
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
