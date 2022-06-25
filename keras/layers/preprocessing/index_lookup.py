@@ -769,7 +769,8 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
     def _lookup_dense(self, inputs):
         """Lookup table values for a dense Tensor, handling masking and OOV."""
-        # When executing eagerly and tracing keras.Inputs, do not call lookup.
+        # When executing eagerly and tracing keras.Input objects,
+        # do not call lookup.
         # This is critical for restoring SavedModel, which will first trace
         # layer.call and then attempt to restore the table. We need the table to
         # be uninitialized for the restore to work, but calling the table

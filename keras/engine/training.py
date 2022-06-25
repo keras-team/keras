@@ -114,7 +114,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     Note that the `backbone` and `activations` models are not
     created with `keras.Input` objects, but with the tensors that are originated
-    from `keras.Inputs` objects. Under the hood, the layers and weights will
+    from `keras.Input` objects. Under the hood, the layers and weights will
     be shared across these models, so that user can train the `full_model`, and
     use `backbone` or `activations` to do feature extraction.
     The inputs and outputs of the model can be nested structures of tensors as
@@ -3663,16 +3663,46 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
 
 def reduce_per_replica(values, strategy, reduction="first"):
-    """Reduce PerReplica objects.
+    """Attempt to reduce the structure `values` to single values.
+
+    Given `values` (a `tf.Tensor` or a `PerReplica` structure),
+    which represents the values across all the replicas, `reduce_per_replica`
+    attempts to "reduce" those values and returns the corresponding structure
+    that represents only single values.
+
+    Currently, `reduce_per_replica` is only used for reducing the metric results
+    from `tf.distribute.Strategy.run()`. Depending on the underlying
+    `Strategy` implementation, `values` may be a `PerReplica` object,
+     which can be thought of as a collection of values across the replicas,
+    or a `tf.Tensor`, if the strategy has already conducted the reduction
+    for the downstream library.
+
+    There are three possible outcomes of reduction:
+
+    1) if the `values` is a structure of simple `tf.Tensor`s, meaning that
+       reduction is not actually needed, `reduce_per_replica` returns the
+       structure as-is.
+    2) else, if `reduction="first"`, then `reduce_per_replica`
+       returns the values of the first replica. This is used in the case of
+       training and evaluation, where `values` is expected to hold the same
+       value across the replicas as a result of `Strategy`'s synchronization
+       across the replicas.
+       `reduce_per_replica` does not synchronize the values.
+    3) else, if `reduction="concat"`, then `reduce_per_replica`
+       returns the concatenation of the values across the replicas, along the
+       axis of dimension 0. This is used in the inference case (`predict()`).
 
     Args:
-      values: Structure of `PerReplica` objects or `Tensor`s. `Tensor`s are
-        returned as-is.
+      values: Structure of `PerReplica` objects or `tf.Tensor`s. `tf.Tensor`s
+        are returned as-is.
       strategy: `tf.distribute.Strategy` object.
-      reduction: One of 'first', 'concat'.
+      reduction: One of `"first"`, `"concat"`.
 
     Returns:
-      Structure of `Tensor`s.
+      Structure of `Tensor`s, representing the result of reduction.
+
+    Raises:
+      ValueError: if the reduction method is not supported.
     """
 
     def _reduce(v):
