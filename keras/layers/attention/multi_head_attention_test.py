@@ -371,6 +371,24 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         )
         self.assertAllClose(output, output_with_manual_mask)
 
+    def test_masks_are_cast_to_bool(self):
+        """Test that the implicit and explicit masks are cast to bool."""
+        test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
+        masked_query._keras_mask = tf.cast(masked_query._keras_mask, tf.float32)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = keras.layers.Embedding(6, 8, mask_zero=True)(value)
+        masked_value._keras_mask = tf.cast(masked_value._keras_mask, tf.float32)
+        float_mask = tf.constant([[[1.0]]])
+        # if all works well, the following should not raise any exception:
+        _ = test_layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=True,
+            attention_mask=float_mask,
+        )
+
 
 class SubclassAttention(keras.layers.MultiHeadAttention):
     def _build_attention(self, qkv_rank):

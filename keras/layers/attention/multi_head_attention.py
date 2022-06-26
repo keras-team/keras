@@ -548,7 +548,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         return_attention_scores=False,
         training=None,
-        use_causal_mask=False
+        use_causal_mask=False,
     ):
         attention_mask = self._compute_attention_mask(
             query,
@@ -645,13 +645,16 @@ class MultiHeadAttention(Layer):
         key_mask = getattr(key, "_keras_mask", None)
         auto_mask = None
         if query_mask is not None:
+            query_mask = tf.cast(query_mask, tf.bool)  # defensive casting
             # B = batch size, T = max query length
             auto_mask = query_mask[:, :, tf.newaxis]  # shape is [B, T, 1]
         if value_mask is not None:
+            value_mask = tf.cast(value_mask, tf.bool)  # defensive casting
             # B = batch size, S == max value length
             mask = value_mask[:, tf.newaxis, :]  # shape is [B, 1, S]
             auto_mask = mask if auto_mask is None else auto_mask & mask
         if key_mask is not None:
+            key_mask = tf.cast(key_mask, tf.bool)  # defensive casting
             # B == batch size, S == max key length == max value length
             mask = key_mask[:, tf.newaxis, :]  # shape is [B, 1, S]
             auto_mask = mask if auto_mask is None else auto_mask & mask
@@ -664,7 +667,7 @@ class MultiHeadAttention(Layer):
             attention_mask = (
                 auto_mask
                 if attention_mask is None
-                else attention_mask & auto_mask
+                else tf.cast(attention_mask, bool) & auto_mask
             )
         return attention_mask
 
