@@ -17,7 +17,6 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.ops.losses import losses_impl
 
 import keras
 from keras import optimizers
@@ -26,6 +25,9 @@ from keras.datasets import fashion_mnist
 from keras.distribute import optimizer_combinations
 from keras.distribute import strategy_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.ops.losses import losses_impl
 
 _NUM_SAMPLES = 66
 _BATCH_SIZE = 32
@@ -271,7 +273,7 @@ class TestDistributionStrategyDnnCorrectness(
         + tf.__internal__.test.combinations.combine(
             distribution=[
                 tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
             ],
             optimizer_fn=[
                 optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
@@ -351,7 +353,7 @@ class TestDistributionStrategyDnnCorrectness(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["eager"],
         )

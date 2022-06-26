@@ -14,9 +14,7 @@
 # ==============================================================================
 """Keras model mode constants."""
 
-# pylint: disable=unused-import
-from tensorflow.python.saved_model.model_utils.mode_keys import (
+# isort: off
+from tensorflow.python.saved_model.model_utils.mode_keys import (  # noqa: F401,E501
     KerasModeKeys as ModeKeys,
 )
-
-# pylint: enable=unused-import

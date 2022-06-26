@@ -393,9 +393,9 @@ class TokenClassificationIntegrationTest(test_combinations.TestCase):
     """Tests a very simple token classification model.
 
     The main purpose of this test is to verify that everything works as expected
-    when input sequences have variable length, and batches are padded only to the
-    maximum length of each batch. This is very common in NLP, and results in the
-    sequence dimension varying with each batch step for both the features
+    when input sequences have variable length, and batches are padded only to
+    the maximum length of each batch. This is very common in NLP, and results in
+    the sequence dimension varying with each batch step for both the features
     and the labels.
     """
 

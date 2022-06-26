@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-import-not-at-top
+
 """Utilities for file download and caching."""
 
 import functools
@@ -35,18 +35,18 @@ from contextlib import closing
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 from six.moves.urllib.parse import urlsplit
 
-from six.moves.urllib.request import urlopen
 from keras.utils import io_utils
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from six.moves.urllib.request import urlopen
+
 # Required to support google internal urlretrieve
-if (
-    True
-):  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.  # pylint: disable=using-constant-test
+if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.
 
     def urlretrieve(url, filename, reporthook=None, data=None):
         """Replacement for `urlretrieve` for Python 2.
@@ -57,10 +57,11 @@ if (
         Args:
             url: url to retrieve.
             filename: where to store the retrieved data locally.
-            reporthook: a hook function that will be called once on establishment of
-              the network connection and once after each block read thereafter. The
-              hook will be passed three arguments; a count of blocks transferred so
-              far, a block size in bytes, and the total size of the file.
+            reporthook: a hook function that will be called once on
+              establishment of the network connection and once after each block
+              read thereafter. The hook will be passed three arguments; a count
+              of blocks transferred so far, a block size in bytes, and the total
+              size of the file.
             data: `data` argument passed to `urlopen`.
         """
 
@@ -86,7 +87,7 @@ if (
                 fd.write(chunk)
 
 else:
-    from urllib.request import urlretrieve  # pylint: disable=g-importing-member
+    from urllib.request import urlretrieve
 
 
 def is_generator_or_sequence(x):
@@ -234,7 +235,8 @@ def get_file(
         fname = os.path.basename(urlsplit(origin).path)
         if not fname:
             raise ValueError(
-                f"Can't parse the file name from the origin provided: '{origin}'."
+                "Can't parse the file name from the origin provided: "
+                f"'{origin}'."
                 "Please specify the `fname` as the input param."
             )
 
@@ -258,7 +260,8 @@ def get_file(
                 io_utils.print_msg(
                     "A local file was found, but it seems to be "
                     f"incomplete or outdated because the {hash_algorithm} "
-                    f"file hash does not match the original value of {file_hash} "
+                    f"file hash does not match the original value of "
+                    f"{file_hash} "
                     "so we will re-download the data."
                 )
                 download = True
@@ -295,19 +298,21 @@ def get_file(
                 raise Exception(error_msg.format(origin, e.code, e.msg))
             except urllib.error.URLError as e:
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
-        except (Exception, KeyboardInterrupt) as e:
+        except (Exception, KeyboardInterrupt):
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
 
         # Validate download if succeeded and user provided an expected hash
-        # Security conscious users would get the hash of the file from a separate
-        # channel and pass it to this API to prevent MITM / corruption:
+        # Security conscious users would get the hash of the file from a
+        # separate channel and pass it to this API to prevent MITM / corruption:
         if os.path.exists(fpath) and file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
                 raise ValueError(
-                    f"Incomplete or corrupted file detected. The {hash_algorithm} "
-                    f"file hash does not match the provided value of {file_hash}."
+                    f"Incomplete or corrupted file detected. "
+                    f"The {hash_algorithm} "
+                    f"file hash does not match the provided value "
+                    f"of {file_hash}."
                 )
 
     if untar:
@@ -322,9 +327,7 @@ def get_file(
 
 
 def _makedirs_exist_ok(datadir):
-    os.makedirs(
-        datadir, exist_ok=True
-    )  # pylint: disable=unexpected-keyword-arg
+    os.makedirs(datadir, exist_ok=True)
 
 
 def _resolve_hasher(algorithm, file_hash=None):
@@ -399,13 +402,14 @@ class ThreadsafeIter:
         self.it = it
         self.lock = threading.Lock()
 
-        # After a generator throws an exception all subsequent next() calls raise a
-        # StopIteration Exception. This, however, presents an issue when mixing
-        # generators and threading because it means the order of retrieval need not
-        # match the order in which the generator was called. This can make it appear
-        # that a generator exited normally when in fact the terminating exception is
-        # just in a different thread. In order to provide thread safety, once
-        # self.it has thrown an exception we continue to throw the same exception.
+        # After a generator throws an exception all subsequent next() calls
+        # raise a StopIteration Exception. This, however, presents an issue when
+        # mixing generators and threading because it means the order of
+        # retrieval need not match the order in which the generator was called.
+        # This can make it appear that a generator exited normally when in fact
+        # the terminating exception is just in a different thread. In order to
+        # provide thread safety, once self.it has thrown an exception we
+        # continue to throw the same exception.
         self._exception = None
 
     def __iter__(self):
@@ -417,7 +421,7 @@ class ThreadsafeIter:
     def __next__(self):
         with self.lock:
             if self._exception:
-                raise self._exception  # pylint: disable=raising-bad-type
+                raise self._exception
 
             try:
                 return next(self.it)
@@ -810,7 +814,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     yield inputs
             except queue.Empty:
                 pass
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 self.stop()
                 raise e
 
@@ -830,8 +834,8 @@ def init_pool_generator(gens, random_seed=None, id_queue=None):
 
     worker_proc = multiprocessing.current_process()
 
-    # name isn't used for anything, but setting a more descriptive name is helpful
-    # when diagnosing orphaned processes.
+    # name isn't used for anything, but setting a more descriptive name is
+    # helpful when diagnosing orphaned processes.
     worker_proc.name = "Keras_worker_{}".format(worker_proc.name)
 
     if random_seed is not None:
@@ -940,7 +944,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             for inputs in last_ones:
                 if inputs is not None:
                     yield inputs
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.stop()
             if "generator already executing" in str(e):
                 raise RuntimeError(
@@ -1061,10 +1065,10 @@ def pad_sequences(
 
     x = np.full((num_samples, maxlen) + sample_shape, value, dtype=dtype)
     for idx, s in enumerate(sequences):
-        if not len(s):  # pylint: disable=g-explicit-length-test
+        if not len(s):
             continue  # empty list/array was found
         if truncating == "pre":
-            trunc = s[-maxlen:]  # pylint: disable=invalid-unary-operand-type
+            trunc = s[-maxlen:]
         elif truncating == "post":
             trunc = s[:maxlen]
         else:

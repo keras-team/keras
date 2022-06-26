@@ -17,13 +17,15 @@
 import abc
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import version_utils
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/layers/preprocessing",
@@ -77,7 +79,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @doc_controls.do_not_generate_docs
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         """Resets the statistics of the preprocessing layer."""
         raise NotImplementedError
 
@@ -236,9 +238,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
         """
         _disallow_inside_tf_function("adapt")
         if not version_utils.should_use_v2():
-            raise RuntimeError(
-                "`adapt` is only supported in tensorflow v2."
-            )  # pylint: disable=g-doc-exception
+            raise RuntimeError("`adapt` is only supported in tensorflow v2.")
         if not self._is_compiled:
             self.compile()  # Compile with defaults.
         if self.built:

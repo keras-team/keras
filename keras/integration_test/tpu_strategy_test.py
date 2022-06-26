@@ -19,6 +19,8 @@ import tempfile
 
 import tensorflow.compat.v2 as tf
 from absl import flags
+
+# isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
@@ -166,7 +168,7 @@ class TpuStrategyTest(tf.test.TestCase):
                 )
 
                 train_dataset = raw_dataset.map(
-                    lambda x: (  # pylint: disable=g-long-lambda
+                    lambda x: (
                         {"features": feature_mapper(x["features"])},
                         label_mapper(x["label"]),
                     )

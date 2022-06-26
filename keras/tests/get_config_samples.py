@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Sample `get_config` results for testing backwards compatibility."""
 
 # inputs = tf.keras.Input(10)

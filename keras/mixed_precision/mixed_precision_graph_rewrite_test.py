@@ -164,7 +164,7 @@ class MixedPrecisionTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError, "the global Keras dtype Policy has been set"
             ):
-                tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+                tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(  # noqa: E501
                     gradient_descent_v2.SGD(1.0)
                 )
         # Test no error is thrown when the policy is currently the default.

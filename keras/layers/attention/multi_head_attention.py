@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based multi-head attention layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import collections
 import math
@@ -21,8 +21,6 @@ import string
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import constraints
 from keras import initializers
@@ -32,6 +30,10 @@ from keras.layers import activation
 from keras.layers import core
 from keras.layers import regularization
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 _CHR_IDX = string.ascii_lowercase
 
@@ -315,9 +317,7 @@ class MultiHeadAttention(Layer):
                 str(cls),
             )
         else:
-            layer._build_from_signature(
-                query_shape, value_shape, key_shape
-            )  # pylint: disable=protected-access
+            layer._build_from_signature(query_shape, value_shape, key_shape)
         return layer
 
     def _build_from_signature(self, query, value, key=None):
@@ -503,8 +503,8 @@ class MultiHeadAttention(Layer):
 
         Args:
           query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
-          key: Projected key `Tensor` of shape `(B, T, N, key_dim)`.
-          value: Projected value `Tensor` of shape `(B, T, N, value_dim)`.
+          key: Projected key `Tensor` of shape `(B, S, N, key_dim)`.
+          value: Projected value `Tensor` of shape `(B, S, N, value_dim)`.
           attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
             attention to certain positions. It is generally not needed if the
             `query` and `value` (and/or `key`) are masked.

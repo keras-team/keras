@@ -13,14 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Keras depthwise 2D convolution."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv
 from keras.utils import conv_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.DepthwiseConv2D")

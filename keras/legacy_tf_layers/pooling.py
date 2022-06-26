@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Contains the pooling layer classes and their functional aliases."""
 from __future__ import absolute_import
 from __future__ import division
@@ -20,11 +20,12 @@ from __future__ import print_function
 
 import warnings
 
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
-
 from keras import layers as keras_layers
 from keras.legacy_tf_layers import base
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
 
 
 @keras_export(v1=["keras.__internal__.legacy.layers.AveragePooling1D"])

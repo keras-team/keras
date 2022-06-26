@@ -18,9 +18,11 @@ import gzip
 import os
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils.data_utils import get_file
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.fashion_mnist.load_data")

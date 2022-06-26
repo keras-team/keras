@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-bad-import-order
+
+
 """Contains the base Layer class, from which all layers inherit."""
 
 import collections
@@ -28,13 +27,6 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from google.protobuf import json_format
-from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import (
-    get_canonical_name_for_symbol,
-)
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras import constraints
@@ -58,18 +50,23 @@ from keras.utils import traceback_utils
 from keras.utils import version_utils
 
 # A module that only depends on `keras.layers` import these from here.
-from keras.utils.generic_utils import (
-    to_snake_case,  # pylint: disable=unused-import
-)
-from keras.utils.tf_utils import (
-    is_tensor_or_tensor_list,  # pylint: disable=unused-import
-)
+from keras.utils.generic_utils import to_snake_case  # noqa: F401
+from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 
-# pylint: disable=g-inconsistent-quotes
+# isort: off
+from google.protobuf import json_format
+from tensorflow.python.platform import tf_logging
+from tensorflow.python.util.tf_export import (
+    get_canonical_name_for_symbol,
+)
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
+
+
 metrics_mod = generic_utils.LazyLoader(
     "metrics_mod", globals(), "keras.metrics"
 )
-# pylint: enable=g-inconsistent-quotes
+
 
 # Prefix that is added to the TF op layer names.
 _TF_OP_LAYER_NAME_PREFIX = "tf_op_layer_"
@@ -498,7 +495,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         self.built = True
 
     @doc_controls.for_subclass_implementers
-    def call(self, inputs, *args, **kwargs):  # pylint: disable=unused-argument
+    def call(self, inputs, *args, **kwargs):
         """This is where the layer's logic lives.
 
         The `call()` method may not create state (except in its first
@@ -687,8 +684,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             and dtype.is_floating
         ):
             old_getter = getter
+
             # Wrap variable constructor to return an AutoCastVariable.
-            def getter(*args, **kwargs):  # pylint: disable=function-redefined
+            def getter(*args, **kwargs):
                 variable = old_getter(*args, **kwargs)
                 return autocast_variable.create_autocast_variable(variable)
 
@@ -765,7 +763,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
             Python dictionary.
         """
-        all_args = tf_inspect.getfullargspec(self.__init__).args
+        all_args = tf_inspect.getfullargspec(self.__init__).args[1:]
         config = {
             "name": self.name,
             "trainable": self.trainable,
@@ -784,7 +782,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         extra_args = [arg for arg in all_args if arg not in expected_args]
         # Check that either the only argument in the `__init__` is  `self`,
         # or that `get_config` has been overridden:
-        if len(extra_args) > 1 and hasattr(self.get_config, "_is_default"):
+        if extra_args and hasattr(self.get_config, "_is_default"):
             raise NotImplementedError(
                 textwrap.dedent(
                     f"""
@@ -929,9 +927,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         )
 
     @generic_utils.default
-    def compute_mask(
-        self, inputs, mask=None
-    ):  # pylint: disable=unused-argument
+    def compute_mask(self, inputs, mask=None):
         """Computes an output mask tensor.
 
         Args:
@@ -1128,9 +1124,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 if current_name_scope == "/":
                     current_name_scope = self._name_scope_on_declaration
                 with tf.name_scope(current_name_scope):
-                    name_scope = (
-                        self._name_scope()
-                    )  # Avoid autoincrementing.  # pylint: disable=not-callable
+                    name_scope = self._name_scope()  # Avoid autoincrementing.
         else:
             name_scope = self._name_scope()
 
@@ -1459,7 +1453,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 return None
             if not tf.is_tensor(loss):
                 loss = tf.convert_to_tensor(loss, dtype=backend.floatx())
-            loss._unconditional_loss = True  # pylint: disable=protected-access
+            loss._unconditional_loss = True
             return loss
 
         losses = tf.nest.flatten(losses)
@@ -1694,7 +1688,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if not call_context.frozen:
             for update in tf.nest.flatten(updates):
                 if callable(update):
-                    update()  # pylint: disable=not-callable
+                    update()
 
     def set_weights(self, weights):
         """Sets the weights of the layer, from NumPy arrays.
@@ -2397,9 +2391,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 keras_tensor.keras_tensor_to_placeholder, input_masks
             )
 
-            with backend.name_scope(
-                self._name_scope()
-            ):  # pylint: disable=not-callable
+            with backend.name_scope(self._name_scope()):
                 with autocast_variable.enable_auto_cast_variables(
                     self._compute_dtype_object
                 ):
@@ -2718,7 +2710,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         value = tf.as_dtype(value).name
         self._set_dtype_policy(policy.Policy(value))
 
-    def _name_scope(self):  # pylint: disable=method-hidden
+    def _name_scope(self):
         if not tf.__internal__.tf2.enabled():
             return self.name
         name_scope = self.name
@@ -2954,7 +2946,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 # `init_scope` to avoid creating symbolic Tensors that will
                 # later pollute any eager operations.
                 with tf_utils.maybe_init_scope(self):
-                    self.build(input_shapes)  # pylint:disable=not-callable
+                    self.build(input_shapes)
             # We must set also ensure that the layer is marked as built, and the
             # build shape is stored since user defined build functions may not
             # be calling `super.build()`
@@ -3029,7 +3021,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if existing_value not in reference_counts:
             super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
                 name
-            )  # pylint: disable=bad-super-call
+            )
             return
 
         reference_count = reference_counts[existing_value]
@@ -3039,22 +3031,18 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             reference_counts[existing_value] = reference_count - 1
             super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
                 name
-            )  # pylint: disable=bad-super-call
+            )
             return
         else:
             # This is the last remaining reference.
             del reference_counts[existing_value]
 
-        super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(
-            name
-        )  # pylint: disable=bad-super-call
+        super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
 
         if isinstance(existing_value, Layer) or base_layer_utils.has_weights(
             existing_value
         ):
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_self_tracked_trackables",
                 [
                     l
@@ -3063,15 +3051,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 ],
             )
         if isinstance(existing_value, tf.Variable):
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_trainable_weights",
                 [w for w in self._trainable_weights if w is not existing_value],
             )
-            super(
-                tf.__internal__.tracking.AutoTrackable, self
-            ).__setattr__(  # pylint: disable=bad-super-call
+            super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                 "_non_trainable_weights",
                 [
                     w
@@ -3084,14 +3068,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if (
             name == "_self_setattr_tracking"
             or not getattr(self, "_self_setattr_tracking", True)
-            or
             # Exclude @property.setters from tracking
-            hasattr(self.__class__, name)
+            or hasattr(self.__class__, name)
         ):
             try:
                 super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
                     name, value
-                )  # pylint: disable=bad-super-call
+                )
             except AttributeError:
                 raise AttributeError(
                     (
@@ -3166,7 +3149,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # status quo. See the comment at __delattr__.
         super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
             name, value
-        )  # pylint: disable=bad-super-call
+        )
 
     def _gather_children_attribute(self, attribute):
         assert attribute in {
@@ -3577,9 +3560,7 @@ class AddMetric(Layer):
         return config
 
 
-def _in_functional_construction_mode(
-    layer, inputs, args, kwargs, input_list
-):  # pylint: disable=unused-argument
+def _in_functional_construction_mode(layer, inputs, args, kwargs, input_list):
     """Check the arguments to see if we are constructing a functional model."""
     # We are constructing a functional model if any of the inputs
     # are KerasTensors

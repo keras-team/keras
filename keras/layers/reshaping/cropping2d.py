@@ -13,14 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Keras cropping layer for 2D input."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Cropping2D")
@@ -105,7 +107,7 @@ class Cropping2D(Layer):
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
-        # pylint: disable=invalid-unary-operand-type
+
         if self.data_format == "channels_first":
             return tf.TensorShape(
                 [
@@ -132,10 +134,9 @@ class Cropping2D(Layer):
                     input_shape[3],
                 ]
             )
-        # pylint: enable=invalid-unary-operand-type
 
     def call(self, inputs):
-        # pylint: disable=invalid-unary-operand-type
+
         if self.data_format == "channels_first":
             if (
                 inputs.shape[2] is not None
@@ -209,8 +210,7 @@ class Cropping2D(Layer):
                 self.cropping[0][0] : -self.cropping[0][1],
                 self.cropping[1][0] : -self.cropping[1][1],
                 :,
-            ]  # pylint: disable=invalid-unary-operand-type
-        # pylint: enable=invalid-unary-operand-type
+            ]
 
     def get_config(self):
         config = {"cropping": self.cropping, "data_format": self.data_format}

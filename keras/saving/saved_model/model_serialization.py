@@ -31,9 +31,7 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
         metadata = super()._python_properties_internal()
         # Network stateful property is dependent on the child layers.
         metadata.pop("stateful")
-        metadata[
-            "is_graph_network"
-        ] = self.obj._is_graph_network  # pylint: disable=protected-access
+        metadata["is_graph_network"] = self.obj._is_graph_network
         spec = self.obj.save_spec(dynamic_batch=False)
         metadata["full_save_spec"] = spec
         # save_spec is saved for forward compatibility on older TF versions.
@@ -54,8 +52,8 @@ class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):
         if len(serialization_cache[constants.KERAS_CACHE_KEY]) == 1:
             default_signature = save_impl.default_save_signature(self.obj)
 
-        # Other than the default signature function, all other attributes match with
-        # the ones serialized by Layer.
+        # Other than the default signature function, all other attributes match
+        # with the ones serialized by Layer.
         objects, functions = super()._get_serialized_attributes_internal(
             serialization_cache
         )

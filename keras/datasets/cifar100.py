@@ -17,11 +17,13 @@
 import os
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.datasets.cifar import load_batch
 from keras.utils.data_utils import get_file
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.cifar100.load_data")
@@ -77,7 +79,7 @@ def load_data(label_mode="fine"):
         dirname,
         origin=origin,
         untar=True,
-        file_hash="85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7",
+        file_hash="85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7",  # noqa: E501
     )
 
     fpath = os.path.join(path, "train")

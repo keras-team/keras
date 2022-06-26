@@ -32,8 +32,6 @@ from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map as layout_map_lib
 from keras.utils import np_utils
 
-# pylint: disable=missing-function-docstring
-
 NUM_CLASS = 10  # MNIST has 10 digits
 
 

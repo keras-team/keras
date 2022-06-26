@@ -18,6 +18,8 @@ import time
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_executor
 
@@ -143,7 +145,7 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
         model = SubclassedKerasModel()
         data = tf.random.uniform((10, 10))
 
-        func = lambda: model(data)  # pylint: disable=not-callable
+        func = lambda: model(data)
         # First call is more expensive (creates variables etc.), discount that.
         func()
 
@@ -157,12 +159,10 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
     def benchmark_keras_model_functional(self):
         model = make_keras_model()
         data = tf.random.uniform((10, 10))
-        func = lambda: model(data)  # pylint: disable=not-callable
+        func = lambda: model(data)
         # Symmetry with benchmark_keras_model_subclassed
         func()
-        assert np.equal(
-            func(), SubclassedKerasModel()(data)
-        ).all()  # pylint: disable=not-callable
+        assert np.equal(func(), SubclassedKerasModel()(data)).all()
         self._run(func, 30000)
 
     def benchmark_keras_model_sequential(self):

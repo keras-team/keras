@@ -30,7 +30,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
@@ -388,8 +388,8 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
             )
             with self.assertRaises(
                 ValueError,
-                msg="Shape mismatch in layer #0 (named d1) for weight d1_1/kernel:0. "
-                "Weight expects shape (3, 10). "
+                msg="Shape mismatch in layer #0 (named d1) for weight "
+                "d1_1/kernel:0. Weight expects shape (3, 10). "
                 "Received saved weight with shape (3, 5)",
             ):
                 hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
@@ -454,7 +454,7 @@ class TestWeightSavingAndLoadingTFFormat(
 
             x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
             executing_eagerly = tf.executing_eagerly()
-            model(x)  # pylint: disable=not-callable
+            model(x)
             if not executing_eagerly:
                 session.run([v.initializer for v in model.variables])
             model.save_weights(prefix, save_format="tensorflow")
@@ -498,7 +498,7 @@ class TestWeightSavingAndLoadingTFFormat(
                 prefix = os.path.join(temp_dir, "ckpt")
 
                 x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
-                model(x)  # pylint: disable=not-callable
+                model(x)
                 session.run([v.initializer for v in model.variables])
                 model.save_weights(prefix, save_format="tensorflow")
                 op_count = len(graph.get_operations())
@@ -537,8 +537,8 @@ class TestWeightSavingAndLoadingTFFormat(
             model.load_weights(prefix)
             self.assertAllClose(ref_y_before_train, self.evaluate(model(x)))
 
-            # Test restore-on-create if this is a subclassed Model (graph Networks
-            # will have already created their variables).
+            # Test restore-on-create if this is a subclassed Model (graph
+            # Networks will have already created their variables).
             load_model = make_model_fn()
             load_model.load_weights(prefix)
             self.assertAllClose(
@@ -602,7 +602,8 @@ class TestWeightSavingAndLoadingTFFormat(
             second_model(x)
             status.run_restore_ops()
             second_model.save_weights(prefix)
-            # Check that the second model's checkpoint loads into the original model
+            # Check that the second model's checkpoint loads into the original
+            # model
             status = model.load_weights(prefix)
             status.run_restore_ops(session)
             y = self.evaluate(model(x))

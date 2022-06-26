@@ -20,8 +20,6 @@ import time
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras.layers.rnn import lstm
@@ -29,6 +27,10 @@ from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
+
+# isort: off
+from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.platform import tf_logging as logging
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()

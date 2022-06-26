@@ -183,7 +183,7 @@ class ApplicationsLoadWeightTest(tf.test.TestCase, parameterized.TestCase):
         for app in apps:
             try:
                 model = app(weights="imagenet")
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.skipTest("TODO(b/227700184): Re-enable.")
             self.assertShapeEqual(model.output_shape, (None, _IMAGENET_CLASSES))
             x = _get_elephant(model.input_shape[1:3])

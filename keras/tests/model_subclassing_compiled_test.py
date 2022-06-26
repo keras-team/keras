@@ -25,7 +25,7 @@ from keras.testing_infra import test_utils
 from keras.tests import model_subclassing_test_util as model_util
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 
@@ -101,7 +101,8 @@ class ModelSubclassCompiledTest(test_combinations.TestCase):
             _ = model.evaluate(dataset, steps=10, verbose=0)
 
     def test_attributes(self):
-        # layers, weights, trainable_weights, non_trainable_weights, inputs, outputs
+        # layers, weights, trainable_weights, non_trainable_weights, inputs,
+        # outputs
 
         num_classes = (2, 3)
         num_samples = 100

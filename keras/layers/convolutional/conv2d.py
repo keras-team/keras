@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras 2D convolution layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import constraints
@@ -23,6 +21,9 @@ from keras import initializers
 from keras import regularizers
 from keras.dtensor import utils
 from keras.layers.convolutional.base_conv import Conv
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Conv2D", "keras.layers.Convolution2D")

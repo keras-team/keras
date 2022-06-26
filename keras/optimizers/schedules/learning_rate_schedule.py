@@ -18,10 +18,12 @@ import abc
 import math
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.schedules.LearningRateSchedule")

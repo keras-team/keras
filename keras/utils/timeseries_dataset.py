@@ -16,9 +16,9 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(
@@ -115,7 +115,8 @@ def timeseries_dataset_from_array(
     for batch in dataset:
       inputs, targets = batch
       assert np.array_equal(inputs[0], data[:10])  # First sequence: steps [0-9]
-      assert np.array_equal(targets[0], data[10])  # Corresponding target: step 10
+      # Corresponding target: step 10
+      assert np.array_equal(targets[0], data[10])
       break
     ```
 
@@ -206,7 +207,8 @@ def timeseries_dataset_from_array(
     if end_index is None:
         end_index = len(data)
 
-    # Determine the lowest dtype to store start positions (to lower memory usage).
+    # Determine the lowest dtype to store start positions (to lower memory
+    # usage).
     num_seqs = end_index - start_index - (sequence_length * sampling_rate) + 1
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))
@@ -232,7 +234,7 @@ def timeseries_dataset_from_array(
     indices = tf.data.Dataset.zip(
         (tf.data.Dataset.range(len(start_positions)), positions_ds)
     ).map(
-        lambda i, positions: tf.range(  # pylint: disable=g-long-lambda
+        lambda i, positions: tf.range(
             positions[i],
             positions[i] + sequence_length * sampling_rate,
             sampling_rate,
@@ -267,9 +269,7 @@ def timeseries_dataset_from_array(
 def sequences_from_indices(array, indices_ds, start_index, end_index):
     dataset = tf.data.Dataset.from_tensors(array[start_index:end_index])
     dataset = tf.data.Dataset.zip((dataset.repeat(), indices_ds)).map(
-        lambda steps, inds: tf.gather(
-            steps, inds
-        ),  # pylint: disable=unnecessary-lambda
+        lambda steps, inds: tf.gather(steps, inds),
         num_parallel_calls=tf.data.AUTOTUNE,
     )
     return dataset

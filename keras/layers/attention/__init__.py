@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras attention layers."""
-# pylint: disable=g-bad-import-order
+
 
 from keras.layers.attention.additive_attention import AdditiveAttention
 from keras.layers.attention.attention import Attention

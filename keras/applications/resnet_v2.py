@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
+
 """ResNet v2 models for Keras.
 
 Reference:
@@ -20,10 +20,11 @@ Reference:
     (https://arxiv.org/abs/1603.05027) (CVPR 2016)
 """
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras.applications import imagenet_utils
 from keras.applications import resnet
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

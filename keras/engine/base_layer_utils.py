@@ -14,20 +14,20 @@
 # ==============================================================================
 """Contains private utilities used mainly by the base Layer class."""
 
-import tensorflow.compat.v2 as tf
-import tensorflow.compat.v1 as tf1
-
 import functools
 import threading
 
+import tensorflow.compat.v1 as tf1
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.utils import control_flow_util
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 _call_context = threading.local()
 
@@ -54,7 +54,7 @@ def make_variable(
     collections=None,
     synchronization=tf.VariableSynchronization.AUTO,
     aggregation=tf.VariableAggregation.NONE,
-    partitioner=None,  # pylint: disable=unused-argument
+    partitioner=None,
     layout=None,
 ):
     """Temporary util to create a variable (relies on `variable_scope.variable`).
@@ -449,7 +449,7 @@ def mark_checked(tensors):
     """
 
     def _mark_checked(tensor):
-        tensor._keras_history_checked = True  # pylint: disable=protected-access
+        tensor._keras_history_checked = True
 
     tf.nest.map_structure(_mark_checked, tensors)
 
@@ -751,7 +751,6 @@ def mark_as_return(outputs, acd):
         if not tf.is_tensor(tensor):
             return tensor
 
-        # pylint: disable=protected-access
         return_tensor = acd.mark_as_return(tensor)
         if getattr(tensor, "_keras_mask", None) is not None:
             return_tensor._keras_mask = acd.mark_as_return(tensor._keras_mask)
@@ -764,7 +763,6 @@ def mark_as_return(outputs, acd):
             return_tensor._tfp_distribution = tensor._tfp_distribution
 
         return return_tensor
-        # pylint: enable=protected-access
 
     return tf.nest.map_structure(_mark_as_return, outputs)
 

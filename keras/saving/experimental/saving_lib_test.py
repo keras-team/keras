@@ -18,6 +18,7 @@ import sys
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras import backend
@@ -67,14 +68,15 @@ class CustomModelX(keras.Model):
     package="my_custom_package"
 )
 def my_mean_squared_error(y_true, y_pred):
-    """Identical to built-in `mean_squared_error`, added here as a custom func."""
+    """Identical to built-in `mean_squared_error`, added here as a custom
+    func."""
     return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
 
 
 module_my_mean_squared_error = my_mean_squared_error
 
 
-class NewSavingTest(tf.test.TestCase):
+class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
     def setUp(self):
         super().setUp()
         saving_lib._ENABLED = True
@@ -111,9 +113,7 @@ class NewSavingTest(tf.test.TestCase):
         @keras.utils.generic_utils.register_keras_serializable(
             package="my_custom_package"
         )
-        def my_mean_squared_error(
-            y_true, y_pred
-        ):  # pylint: disable=redefined-outer-name
+        def my_mean_squared_error(y_true, y_pred):
             """Function-local `mean_squared_error`."""
             return backend.mean(
                 tf.math.squared_difference(y_pred, y_true), axis=-1
@@ -145,8 +145,8 @@ class NewSavingTest(tf.test.TestCase):
                 keras.metrics.base_metric.Mean,
             )
 
-        # Except for a custom function used because the loaded model is supposed to
-        # be using the newly registered custom function.
+        # Except for a custom function used because the loaded model is supposed
+        # to be using the newly registered custom function.
         self.assertIs(
             subclassed_model.compiled_loss._losses[3],
             module_my_mean_squared_error,
@@ -167,8 +167,8 @@ class NewSavingTest(tf.test.TestCase):
         loaded_model = saving_lib.load(temp_dir)
 
         io_utils.enable_interactive_logging()
-        # `tf.print` writes to stderr. This is to make sure the custom training step
-        # is used.
+        # `tf.print` writes to stderr. This is to make sure the custom training
+        # step is used.
         with self.captureWritesToStream(sys.stderr) as printed:
             loaded_model.fit(x, y, epochs=1)
             self.assertRegex(printed.contents(), train_step_message)
@@ -265,7 +265,12 @@ class NewSavingTest(tf.test.TestCase):
             config_dict["config"]["loss"]["class_name"], "LossesContainer"
         )
 
-    def test_functional_model_with_tf_op_lambda_layer(self):
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            layer=["tf_op_lambda", "lambda"],
+        )
+    )
+    def test_functional_model_with_tf_op_lambda_layer(self, layer):
         class ToString:
             def __init__(self):
                 self.contents = ""
@@ -275,9 +280,17 @@ class NewSavingTest(tf.test.TestCase):
 
         temp_dir = os.path.join(self.get_temp_dir(), "my_model")
 
-        inputs = keras.layers.Input(shape=(32,))
-        outputs = keras.layers.Dense(1)(inputs)
-        outputs = outputs + inputs
+        if layer == "lambda":
+            func = tf.function(lambda x: tf.math.cos(x) + tf.math.sin(x))
+            inputs = keras.layers.Input(shape=(32,))
+            outputs = keras.layers.Dense(1)(inputs)
+            outputs = keras.layers.Lambda(func._python_function)(outputs)
+
+        elif layer == "tf_op_lambda":
+            inputs = keras.layers.Input(shape=(32,))
+            outputs = keras.layers.Dense(1)(inputs)
+            outputs = outputs + inputs
+
         functional_model = keras.Model(inputs, outputs)
         functional_to_string = ToString()
         functional_model.summary(print_fn=functional_to_string)
@@ -288,9 +301,11 @@ class NewSavingTest(tf.test.TestCase):
         functional_model.fit(x, y, epochs=3)
         functional_model._save_new(temp_dir)
         loaded_model = saving_lib.load(temp_dir)
+        loaded_model.fit(x, y, epochs=3)
         loaded_to_string = ToString()
         loaded_model.summary(print_fn=loaded_to_string)
 
+        # Confirming the original and saved/loaded model have same structure.
         self.assertEqual(
             functional_to_string.contents, loaded_to_string.contents
         )

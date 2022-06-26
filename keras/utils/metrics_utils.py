@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Utils related to keras metrics."""
 
 import functools
@@ -69,7 +69,8 @@ def update_state_wrapper(update_state_fn):
                 raise ValueError(
                     "Trying to run metric.update_state in replica context when "
                     "the metric was not created in TPUStrategy scope. "
-                    "Make sure the keras Metric is created in TPUstrategy scope. "
+                    "Make sure the keras Metric is created in TPUstrategy "
+                    "scope. "
                 )
 
         with tf_utils.graph_context_for_symbolic_tensors(*args, **kwargs):
@@ -104,28 +105,30 @@ def result_wrapper(result_fn):
         """Decorated function with merge_call."""
         replica_context = tf.distribute.get_replica_context()
 
-        # The purpose of using `merge_call` to call `result()` is to trigger cross
-        # replica aggregation of metric state variables (SyncOnReadVariable). After
-        # we introduced `variable_sync_on_read_context`, in principle there is no
-        # need to use `merge_call` here. However the branch still exists because:
+        # The purpose of using `merge_call` to call `result()` is to trigger
+        # cross replica aggregation of metric state variables
+        # (SyncOnReadVariable). After we introduced
+        # `variable_sync_on_read_context`, in principle there is no need to use
+        # `merge_call` here. However the branch still exists because:
         #
-        # 1. Keras V1 training code sometimes assumes `result_t` is the same tensor
-        #    across replicas (achieved by `merge_call`). With
+        # 1. Keras V1 training code sometimes assumes `result_t` is the same
+        #    tensor across replicas (achieved by `merge_call`). With
         #    `variable_sync_on_read_context` each replica gets their own tensors
         #    residing on replica's device, thus breaking the assumption.
-        # 2. Keras c/fit creates a tf.function (a.k.a, train_function) that returns
-        #    the metric values of the first replica. With
+        # 2. Keras c/fit creates a tf.function (a.k.a, train_function) that
+        #    returns the metric values of the first replica. With
         #    `variable_sync_on_read_context` since each replica gets their own
-        #    tensors, the metric result tensors on the non-first replicas are not in
-        #    the return value of train_function, making TF graph optimizer prune the
-        #    branch that computes and aggregates those metric results. As a result,
-        #    if NCCL is used to do the aggregation, the program will hang because
-        #    NCCL ops are only launched on the non-pruned first replica.
+        #    tensors, the metric result tensors on the non-first replicas are
+        #    not in the return value of train_function, making TF graph
+        #    optimizer prune the branch that computes and aggregates those
+        #    metric results. As a result, if NCCL is used to do the aggregation,
+        #    the program will hang because NCCL ops are only launched on the
+        #    non-pruned first replica.
         #
-        # We condition on strategy_supports_no_merge_call() since we know if it is
-        # True, the program uses `jit_compile` to compile replica fn, meaning it is
-        # not V1 training (hence #1 is okay), and no pruning will happen as
-        # compiled functions are not inlined (hence #2 is okay).
+        # We condition on strategy_supports_no_merge_call() since we know if it
+        # is True, the program uses `jit_compile` to compile replica fn, meaning
+        # it is not V1 training (hence #1 is okay), and no pruning will happen
+        # as compiled functions are not inlined (hence #2 is okay).
         if (
             replica_context is None
             or tf.__internal__.distribute.strategy_supports_no_merge_call()
@@ -146,38 +149,42 @@ def result_wrapper(result_fn):
                         result_t = tf.identity(raw_result)
                     except (ValueError, TypeError):
                         raise RuntimeError(
-                            "The output of `metric.result()` can only be a single "
-                            "Tensor/Variable, or a dict of Tensors/Variables. "
-                            f"For metric {metric_obj.name}, got result {raw_result}."
+                            "The output of `metric.result()` can only be a "
+                            "single Tensor/Variable, or a dict of "
+                            "Tensors/Variables. "
+                            f"For metric {metric_obj.name}, "
+                            f"got result {raw_result}."
                         )
         else:
-            # TODO(psv): Test distribution of metrics using different distribution
-            # strategies.
+            # TODO(psv): Test distribution of metrics using different
+            # distribution strategies.
 
-            # Creating a wrapper for merge_fn. merge_call invokes the given merge_fn
-            # with distribution object as the first parameter. We create a wrapper
-            # here so that the result function need not have that parameter.
+            # Creating a wrapper for merge_fn. merge_call invokes the given
+            # merge_fn with distribution object as the first parameter. We
+            # create a wrapper here so that the result function need not have
+            # that parameter.
             def merge_fn_wrapper(distribution, merge_fn, *args):
-                # We will get `PerReplica` merge function. Taking the first one as all
-                # are identical copies of the function that we had passed below.
+                # We will get `PerReplica` merge function. Taking the first one
+                # as all are identical copies of the function that we had passed
+                # below.
                 result = distribution.experimental_local_results(merge_fn)[0](
                     *args
                 )
 
                 # Wrapping result in identity so that control dependency between
-                # update_op from `update_state` and result works in case result returns
-                # a tensor.
+                # update_op from `update_state` and result works in case result
+                # returns a tensor.
                 return tf.identity(result)
 
-            # Wrapping result in merge_call. merge_call is used when we want to leave
-            # replica mode and compute a value in cross replica mode.
+            # Wrapping result in merge_call. merge_call is used when we want to
+            # leave replica mode and compute a value in cross replica mode.
             result_t = replica_context.merge_call(
                 merge_fn_wrapper, args=(result_fn,) + args
             )
 
         # We are saving the result op here to be used in train/test execution
-        # functions. This basically gives the result op that was generated with a
-        # control dep to the updates for these workflows.
+        # functions. This basically gives the result op that was generated with
+        # a control dep to the updates for these workflows.
         metric_obj._call_result = result_t
         return result_t
 
@@ -206,7 +213,8 @@ def assert_thresholds_range(thresholds):
         ]
         if invalid_thresholds:
             raise ValueError(
-                f"Threshold values must be in [0, 1]. Received: {invalid_thresholds}"
+                f"Threshold values must be in [0, 1]. "
+                f"Received: {invalid_thresholds}"
             )
 
 
@@ -337,10 +345,10 @@ def _update_confusion_matrix_variables_optimized(
     tp_bucket_value = tf.math.unsorted_segment_sum(true_labels, bucket_indices,
                                                    num_segments=num_thresholds)
                     = [1, 1, 0]
-    # For [1, 1, 0] here, it means there is 1 true value contributed by bucket 0,
-    # and 1 value contributed by bucket 1. When we aggregate them to together,
-    # the result become [a + b + c, b + c, c], since large thresholds will always
-    # contribute to the value for smaller thresholds.
+    # For [1, 1, 0] here, it means there is 1 true value contributed by bucket
+    # 0, and 1 value contributed by bucket 1. When we aggregate them to
+    # together, the result become [a + b + c, b + c, c], since large thresholds
+    # will always contribute to the value for smaller thresholds.
     true_positive = tf.math.cumsum(tp_bucket_value, reverse=True)
                   = [2, 1, 0]
 
@@ -352,27 +360,31 @@ def _update_confusion_matrix_variables_optimized(
     Args:
       variables_to_update: Dictionary with 'tp', 'fn', 'tn', 'fp' as valid keys
         and corresponding variables to update as values.
-      y_true: A floating point `Tensor` whose shape matches `y_pred`. Will be cast
-        to `bool`.
-      y_pred: A floating point `Tensor` of arbitrary shape and whose values are in
-        the range `[0, 1]`.
+      y_true: A floating point `Tensor` whose shape matches `y_pred`. Will be
+        cast to `bool`.
+      y_pred: A floating point `Tensor` of arbitrary shape and whose values are
+        in the range `[0, 1]`.
       thresholds: A sorted floating point `Tensor` with value in `[0, 1]`.
-        It need to be evenly distributed (the diff between each element need to be
-        the same).
+        It need to be evenly distributed (the diff between each element need to
+        be the same).
       multi_label: Optional boolean indicating whether multidimensional
-        prediction/labels should be treated as multilabel responses, or flattened
-        into a single label. When True, the valus of `variables_to_update` must
-        have a second dimension equal to the number of labels in y_true and
-        y_pred, and those tensors must not be RaggedTensors.
+        prediction/labels should be treated as multilabel responses, or
+        flattened into a single label. When True, the valus of
+        `variables_to_update` must have a second dimension equal to the number
+        of labels in y_true and y_pred, and those tensors must not be
+        RaggedTensors.
       sample_weights: Optional `Tensor` whose rank is either 0, or the same rank
         as `y_true`, and must be broadcastable to `y_true` (i.e., all dimensions
-        must be either `1`, or the same as the corresponding `y_true` dimension).
+        must be either `1`, or the same as the corresponding `y_true`
+        dimension).
       label_weights: Optional tensor of non-negative weights for multilabel
-        data. The weights are applied when calculating TP, FP, FN, and TN without
-        explicit multilabel handling (i.e. when the data is to be flattened).
-      thresholds_with_epsilon: Optional boolean indicating whether the leading and
-        tailing thresholds has any epsilon added for floating point imprecisions.
-        It will change how we handle the leading and tailing bucket.
+        data. The weights are applied when calculating TP, FP, FN, and TN
+        without explicit multilabel handling (i.e. when the data is to be
+        flattened).
+      thresholds_with_epsilon: Optional boolean indicating whether the leading
+        and tailing thresholds has any epsilon added for floating point
+        imprecisions.  It will change how we handle the leading and tailing
+        bucket.
 
     Returns:
       Update op.
@@ -396,7 +408,7 @@ def _update_confusion_matrix_variables_optimized(
         )
         if not multi_label:
             label_weights = tf.reshape(label_weights, [-1])
-    weights = tf.multiply(sample_weights, label_weights)
+    weights = tf.cast(tf.multiply(sample_weights, label_weights), y_true.dtype)
 
     # We shouldn't need this, but in case there are predict value that is out of
     # the range of [0.0, 1.0]
@@ -427,7 +439,8 @@ def _update_confusion_matrix_variables_optimized(
     if multi_label:
         # We need to run bucket segment sum for each of the label class. In the
         # multi_label case, the rank of the label is 2. We first transpose it so
-        # that the label dim becomes the first and we can parallel run though them.
+        # that the label dim becomes the first and we can parallel run though
+        # them.
         true_labels = tf.transpose(true_labels)
         false_labels = tf.transpose(false_labels)
         bucket_indices = tf.transpose(bucket_indices)
@@ -504,8 +517,8 @@ def is_evenly_distributed_thresholds(thresholds):
     evaluated.
 
     Args:
-      thresholds: A python list or tuple, or 1D numpy array whose value is ranged
-        in [0, 1].
+      thresholds: A python list or tuple, or 1D numpy array whose value is
+        ranged in [0, 1].
 
     Returns:
       boolean, whether the values in the inputs are evenly distributed.
@@ -541,11 +554,11 @@ def update_confusion_matrix_variables(
     true_negatives: y_true == False and y_pred <= thresholds
     false_positive: y_true == False and y_pred > thresholds
 
-    The results will be weighted and added together. When multiple thresholds are
-    provided, we will repeat the same for every threshold.
+    The results will be weighted and added together. When multiple thresholds
+    are provided, we will repeat the same for every threshold.
 
-    For estimation of these metrics over a stream of data, the function creates an
-    `update_op` operation that updates the given variables.
+    For estimation of these metrics over a stream of data, the function creates
+    an `update_op` operation that updates the given variables.
 
     If `sample_weight` is `None`, weights default to 1.
     Use weights of 0 to mask values.
@@ -554,25 +567,28 @@ def update_confusion_matrix_variables(
       variables_to_update: Dictionary with 'tp', 'fn', 'tn', 'fp' as valid keys
         and corresponding variables to update as values.
       y_true: A `Tensor` whose shape matches `y_pred`. Will be cast to `bool`.
-      y_pred: A floating point `Tensor` of arbitrary shape and whose values are in
-        the range `[0, 1]`.
+      y_pred: A floating point `Tensor` of arbitrary shape and whose values are
+        in the range `[0, 1]`.
       thresholds: A float value, float tensor, python list, or tuple of float
         thresholds in `[0, 1]`, or NEG_INF (used when top_k is set).
-      top_k: Optional int, indicates that the positive labels should be limited to
-        the top k predictions.
+      top_k: Optional int, indicates that the positive labels should be limited
+        to the top k predictions.
       class_id: Optional int, limits the prediction and labels to the class
         specified by this argument.
-      sample_weight: Optional `Tensor` whose rank is either 0, or the same rank as
-        `y_true`, and must be broadcastable to `y_true` (i.e., all dimensions must
-        be either `1`, or the same as the corresponding `y_true` dimension).
+      sample_weight: Optional `Tensor` whose rank is either 0, or the same rank
+        as `y_true`, and must be broadcastable to `y_true` (i.e., all dimensions
+        must be either `1`, or the same as the corresponding `y_true`
+        dimension).
       multi_label: Optional boolean indicating whether multidimensional
-        prediction/labels should be treated as multilabel responses, or flattened
-        into a single label. When True, the valus of `variables_to_update` must
-        have a second dimension equal to the number of labels in y_true and
-        y_pred, and those tensors must not be RaggedTensors.
+        prediction/labels should be treated as multilabel responses, or
+        flattened into a single label. When True, the valus of
+        `variables_to_update` must have a second dimension equal to the number
+        of labels in y_true and y_pred, and those tensors must not be
+        RaggedTensors.
       label_weights: (optional) tensor of non-negative weights for multilabel
-        data. The weights are applied when calculating TP, FP, FN, and TN without
-        explicit multilabel handling (i.e. when the data is to be flattened).
+        data. The weights are applied when calculating TP, FP, FN, and TN
+        without explicit multilabel handling (i.e. when the data is to be
+        flattened).
       thresholds_distributed_evenly: Boolean, whether the thresholds are evenly
         distributed within the list. An optimized method will be used if this is
         the case. See _update_confusion_matrix_variables_optimized() for more
@@ -583,8 +599,8 @@ def update_confusion_matrix_variables(
 
     Raises:
       ValueError: If `y_pred` and `y_true` have mismatched shapes, or if
-        `sample_weight` is not `None` and its shape doesn't match `y_pred`, or if
-        `variables_to_update` contains invalid keys.
+        `sample_weight` is not `None` and its shape doesn't match `y_pred`, or
+        if `variables_to_update` contains invalid keys.
     """
     if multi_label and label_weights is not None:
         raise ValueError(
@@ -600,7 +616,8 @@ def update_confusion_matrix_variables(
         raise ValueError(
             "Please provide at least one valid confusion matrix "
             "variable to update. Valid variable key options are: "
-            f'"{list(ConfusionMatrix)}". Received: "{variables_to_update.keys()}"'
+            f'"{list(ConfusionMatrix)}". '
+            f'Received: "{variables_to_update.keys()}"'
         )
 
     variable_dtype = list(variables_to_update.values())[0].dtype
@@ -610,10 +627,10 @@ def update_confusion_matrix_variables(
 
     if thresholds_distributed_evenly:
         # Check whether the thresholds has any leading or tailing epsilon added
-        # for floating point imprecision. The leading and tailing threshold will be
-        # handled bit differently as the corner case.
-        # At this point, thresholds should be a list/array with more than 2 items,
-        # and ranged between [0, 1]. See is_evenly_distributed_thresholds() for more
+        # for floating point imprecision. The leading and tailing threshold will
+        # be handled bit differently as the corner case.  At this point,
+        # thresholds should be a list/array with more than 2 items, and ranged
+        # between [0, 1]. See is_evenly_distributed_thresholds() for more
         # details.
         thresholds_with_epsilon = thresholds[0] < 0.0 or thresholds[-1] > 1.0
 
@@ -782,8 +799,8 @@ def update_confusion_matrix_variables(
 def _filter_top_k(x, k):
     """Filters top-k values in the last dim of x and set the rest to NEG_INF.
 
-    Used for computing top-k prediction values in dense labels (which has the same
-    shape as predictions) for recall and precision top-k metrics.
+    Used for computing top-k prediction values in dense labels (which has the
+    same shape as predictions) for recall and precision top-k metrics.
 
     Args:
       x: tensor with any dimensions.
@@ -814,7 +831,8 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
     Returns:
        A tuple in which the first element is the list of tensors and the second
        is the mask tensor. ([Values], mask). Mask and the element in Values
-       are equal to the flat_values of the input arguments (if they were ragged).
+       are equal to the flat_values of the input arguments (if they were
+       ragged).
     """
     if isinstance(values, list):
         is_all_ragged = all(isinstance(rt, tf.RaggedTensor) for rt in values)
@@ -829,12 +847,13 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
             to_be_stripped = True
 
         # NOTE: we leave the flat_values compatibility to
-        # tf.TensorShape `assert_is_compatible_with`
-        # check if both dynamic dimensions are equal and then use the flat_values.
+        # tf.TensorShape `assert_is_compatible_with` check if both dynamic
+        # dimensions are equal and then use the flat_values.
         nested_row_split_list = [rt.nested_row_splits for rt in values]
         assertion_list = _assert_splits_match(nested_row_split_list)
 
-        # if both are ragged sample_weights also should be ragged with same dims.
+        # if both are ragged sample_weights also should be ragged with same
+        # dims.
         if isinstance(mask, tf.RaggedTensor):
             assertion_list_for_mask = _assert_splits_match(
                 [nested_row_split_list[0], mask.nested_row_splits]
@@ -873,9 +892,9 @@ def _assert_splits_match(nested_splits_lists):
     fully identical.
 
     Args:
-      nested_splits_lists: A list of nested_splits_lists, where each split_list is
-        a list of `splits` tensors from a `RaggedTensor`, ordered from outermost
-        ragged dimension to innermost ragged dimension.
+      nested_splits_lists: A list of nested_splits_lists, where each split_list
+        is a list of `splits` tensors from a `RaggedTensor`, ordered from
+        outermost ragged dimension to innermost ragged dimension.
 
     Returns:
       A list of control dependency op tensors.
@@ -890,9 +909,7 @@ def _assert_splits_match(nested_splits_lists):
         if len(splits_list) != len(nested_splits_lists[0]):
             raise ValueError(error_msg)
     return [
-        tf.debugging.assert_equal(
-            s1, s2, message=error_msg
-        )  # pylint: disable=g-complex-comprehension
+        tf.debugging.assert_equal(s1, s2, message=error_msg)
         for splits_list in nested_splits_lists[1:]
         for (s1, s2) in zip(nested_splits_lists[0], splits_list)
     ]
@@ -904,8 +921,8 @@ def binary_matches(y_true, y_pred, threshold=0.5):
     Args:
       y_true: Ground truth values, of shape (batch_size, d0, .. dN).
       y_pred: The predicted values, of shape (batch_size, d0, .. dN).
-      threshold: (Optional) Float representing the threshold for deciding whether
-        prediction values are 1 or 0.
+      threshold: (Optional) Float representing the threshold for deciding
+        whether prediction values are 1 or 0.
 
     Returns:
       Binary matches, of shape (batch_size, d0, .. dN).
@@ -946,8 +963,8 @@ def sparse_categorical_matches(y_true, y_pred):
         reshape_matches = True
     y_pred = tf.math.argmax(y_pred, axis=-1)
 
-    # If the predicted output and actual output types don't match, force cast them
-    # to match.
+    # If the predicted output and actual output types don't match, force cast
+    # them to match.
     if backend.dtype(y_pred) != backend.dtype(y_true):
         y_pred = tf.cast(y_pred, backend.dtype(y_true))
     matches = tf.cast(tf.equal(y_true, y_pred), backend.floatx())
@@ -957,7 +974,8 @@ def sparse_categorical_matches(y_true, y_pred):
 
 
 def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
-    """Creates float Tensor, 1.0 for label-TopK_prediction match, 0.0 for mismatch.
+    """Creates float Tensor, 1.0 for label-TopK_prediction match, 0.0 for
+    mismatch.
 
     Args:
       y_true: tensor of true targets.

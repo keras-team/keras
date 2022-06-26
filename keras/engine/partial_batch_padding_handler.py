@@ -19,8 +19,6 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 
-# pylint: disable=protected-access
-
 
 class PartialBatchPaddingHandler:
     """A container that holds info about partial batches for `predict()`."""

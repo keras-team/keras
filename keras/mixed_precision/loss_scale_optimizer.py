@@ -15,11 +15,6 @@
 """Contains the loss scaling optimizer class."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.keras.optimizer_v2 import (
-    optimizer_v2 as legacy_optimizer,
-)
-from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import optimizers
@@ -29,6 +24,13 @@ from keras.optimizers.optimizer_experimental import (
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.keras.optimizer_v2 import (
+    optimizer_v2 as legacy_optimizer,
+)
+from tensorflow.python.platform import tf_logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 class _UnwrapPreventer:
@@ -106,7 +108,7 @@ def _maybe_warn_about_scaling(
             "LossScaleOptimizer.apply_gradients(). This will likely result in "
             "worse model quality, so please call them in the correct places! "
             f"For example:{example_code}\nFor more information, see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
     elif not loss_has_been_scaled:
         tf_logging.warning(
@@ -116,7 +118,7 @@ def _maybe_warn_about_scaling(
             "worse model quality, so please call get_scaled_loss() in the "
             f"correct place! For example:{example_code}\nFor more information, "
             "see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
     elif not gradients_have_been_unscaled:
         tf_logging.warning(
@@ -126,7 +128,7 @@ def _maybe_warn_about_scaling(
             "model quality, so please call get_unscaled_gradients() in the "
             f"correct place! For example:{example_code}\nFor more information, "
             "see "
-            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"
+            "https://www.tensorflow.org/api_docs/python/tf/keras/mixed_precision/LossScaleOptimizer"  # noqa: E501
         )
 
 
@@ -181,7 +183,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
             graph_key = None
         else:
             graph = tf.compat.v1.get_default_graph()
-            graph_key = graph._graph_key  # pylint: disable=protected-access
+            graph_key = graph._graph_key
 
         key = (name, graph_key)
         self._weights[key] = variable
@@ -195,7 +197,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
             graph_key = None
         else:
             graph = tf.compat.v1.get_default_graph()
-            graph_key = graph._graph_key  # pylint: disable=protected-access
+            graph_key = graph._graph_key
         weights = {}
         for (name, g), v in sorted(
             self._weights.items(), key=lambda i: i[0][0]
@@ -214,7 +216,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
             graph_key = None
         else:
             graph = tf.compat.v1.get_default_graph()
-            graph_key = graph._graph_key  # pylint: disable=protected-access
+            graph_key = graph._graph_key
         return self._weights.get((name, graph_key), None)
 
     @property
@@ -354,7 +356,8 @@ class LossScaleOptimizerMetaclass(type):
 
 
 # TODO(b/215389169): Delete this class after `OptimizerV2` is deprecated.
-# pylint: disable=g-classes-have-attributes
+
+
 @keras_export("keras.mixed_precision.LossScaleOptimizer")
 class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
     """An optimizer that applies loss scaling to prevent numeric underflow.
@@ -583,7 +586,6 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
         raise NotImplementedError
 
 
-# pylint: disable=g-classes-have-attributes
 class LossScaleOptimizer(
     tf.__internal__.tracking.DelegatingTrackableMixin,
     optimizer_v2.OptimizerV2,
@@ -772,9 +774,7 @@ class LossScaleOptimizer(
         return self.get_unscaled_gradients(grads)
 
     def _create_all_weights(self, var_list):
-        self._optimizer._create_all_weights(
-            var_list
-        )  # pylint: disable=protected-access
+        self._optimizer._create_all_weights(var_list)
 
     def apply_gradients(
         self, grads_and_vars, name=None, experimental_aggregate_gradients=True
@@ -804,7 +804,6 @@ class LossScaleOptimizer(
             grads_and_vars = self._optimizer._aggregate_gradients(
                 grads_and_vars
             )
-            # pylint: enable=protected-access
 
         grads_and_vars = tuple(grads_and_vars)
         grads = [g for g, _ in grads_and_vars]
@@ -899,8 +898,8 @@ class LossScaleOptimizer(
             loss_scale = generic_utils.deserialize_keras_object(
                 config.pop("loss_scale"),
                 module_objects={
-                    "FixedLossScale": tf.compat.v1.mixed_precision.FixedLossScale,
-                    "DynamicLossScale": tf.compat.v1.mixed_precision.DynamicLossScale,
+                    "FixedLossScale": tf.compat.v1.mixed_precision.FixedLossScale,  # noqa: E501
+                    "DynamicLossScale": tf.compat.v1.mixed_precision.DynamicLossScale,  # noqa: E501
                 },
                 printable_module_name="loss scale",
             )
@@ -909,11 +908,7 @@ class LossScaleOptimizer(
                 loss_scale, tf.compat.v1.mixed_precision.FixedLossScale
             ):
                 config["dynamic"] = False
-                config[
-                    "initial_scale"
-                ] = (
-                    loss_scale._loss_scale_value
-                )  # pylint: disable=protected-access
+                config["initial_scale"] = loss_scale._loss_scale_value
             elif isinstance(
                 loss_scale, tf.compat.v1.mixed_precision.DynamicLossScale
             ):
@@ -991,14 +986,12 @@ class LossScaleOptimizer(
         self._optimizer.clipvalue = val
 
     def _aggregate_gradients(self, grads_and_vars):
-        return self._optimizer._aggregate_gradients(
-            grads_and_vars
-        )  # pylint: disable=protected-access
+        return self._optimizer._aggregate_gradients(grads_and_vars)
 
     def _restore_slot_variable(self, slot_name, variable, slot_variable):
         return self._optimizer._restore_slot_variable(
             slot_name,
-            variable,  # pylint: disable=protected-access
+            variable,
             slot_variable,
         )
 
@@ -1394,6 +1387,22 @@ class LossScaleOptimizerV3(
     def learning_rate(self, learning_rate):
         self._optimizer.learning_rate = learning_rate
 
+    @property
+    def use_ema(self):
+        return self._optimizer.use_ema
+
+    @use_ema.setter
+    def use_ema(self, use_ema):
+        self._optimizer.use_ema = use_ema
+
+    @property
+    def ema_momentum(self):
+        return self._optimizer.ema_momentum
+
+    @ema_momentum.setter
+    def ema_momentum(self, ema_momentum):
+        self._optimizer.ema_momentum = ema_momentum
+
 
 class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
     """A fake optimizer used to support restoring TensorFlow 2.2 checkpoints.
@@ -1460,9 +1469,7 @@ def _create_loss_scale_optimizer_from_v1_loss_scale(optimizer, loss_scale):
             optimizer, dynamic=False, initial_scale=loss_scale
         )
     elif isinstance(loss_scale, tf.compat.v1.mixed_precision.FixedLossScale):
-        ls_val = (
-            loss_scale._loss_scale_value
-        )  # pylint: disable=protected-access
+        ls_val = loss_scale._loss_scale_value
         return LossScaleOptimizer(
             optimizer, dynamic=False, initial_scale=ls_val
         )

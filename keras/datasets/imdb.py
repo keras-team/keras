@@ -17,11 +17,13 @@
 import json
 
 import numpy as np
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.preprocessing.sequence import _remove_long_seq
 from keras.utils.data_utils import get_file
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.imdb.load_data")
@@ -48,7 +50,7 @@ def load_data(
     common words, but eliminate the top 20 most common words".
 
     As a convention, "0" does not stand for a specific word, but instead is used
-    to encode any unknown word.
+    to encode the pad token.
 
     Args:
       path: where to cache the data (relative to `~/.keras/dataset`).
@@ -109,11 +111,9 @@ def load_data(
     path = get_file(
         path,
         origin=origin_folder + "imdb.npz",
-        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",
+        file_hash="69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f",  # noqa: E501
     )
-    with np.load(
-        path, allow_pickle=True
-    ) as f:  # pylint: disable=unexpected-keyword-arg
+    with np.load(path, allow_pickle=True) as f:
         x_train, labels_train = f["x_train"], f["y_train"]
         x_test, labels_test = f["x_test"], f["y_test"]
 
@@ -181,12 +181,24 @@ def get_word_index(path="imdb_word_index.json"):
     Example:
 
     ```python
+    # Use the default parameters to keras.datasets.imdb.load_data
+    start_char = 1
+    oov_char = 2
+    index_from = 3
     # Retrieve the training sequences.
-    (x_train, _), _ = keras.datasets.imdb.load_data()
+    (x_train, _), _ = keras.datasets.imdb.load_data(
+        start_char=start_char, oov_char=oov_char, index_from=index_from
+    )
     # Retrieve the word index file mapping words to indices
     word_index = keras.datasets.imdb.get_word_index()
     # Reverse the word index to obtain a dict mapping indices to words
-    inverted_word_index = dict((i, word) for (word, i) in word_index.items())
+    # And add `index_from` to indices to sync with `x_train`
+    inverted_word_index = dict(
+        (i + index_from, word) for (word, i) in word_index.items()
+    )
+    # Update `inverted_word_index` to include `start_char` and `oov_char`
+    inverted_word_index[start_char] = "[START]"
+    inverted_word_index[oov_char] = "[OOV]"
     # Decode the first sequence in the dataset
     decoded_sequence = " ".join(inverted_word_index[i] for i in x_train[0])
     ```

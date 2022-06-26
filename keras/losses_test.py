@@ -17,15 +17,17 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.autograph.impl import (
-    api as autograph,
-)
 
 from keras import activations
 from keras import backend
 from keras import losses
 from keras.testing_infra import test_combinations
 from keras.utils import losses_utils
+
+# isort: off
+from tensorflow.python.autograph.impl import (
+    api as autograph,
+)
 
 ALL_LOSSES = [
     losses.mean_squared_error,

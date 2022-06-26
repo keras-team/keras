@@ -23,13 +23,6 @@ import tempfile
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
 
 import keras
 from keras import backend
@@ -42,6 +35,7 @@ from keras.engine import sequential
 from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
+from keras.mixed_precision import policy
 from keras.optimizers import optimizer_v2
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
@@ -50,8 +44,17 @@ from keras.utils import data_utils
 from keras.utils import io_utils
 from keras.utils import np_utils
 
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.training.rmsprop import (
+    RMSPropOptimizer,
+)
+
 try:
-    import scipy.sparse as scipy_sparse  # pylint: disable=g-import-not-at-top
+    import scipy.sparse as scipy_sparse
 except ImportError:
     scipy_sparse = None
 
@@ -1708,6 +1711,21 @@ class TrainingTest(test_combinations.TestCase):
         history = model.fit(x, y, epochs=2)
         self.assertIsInstance(history.history["my_metric"][0], int)
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    @test_utils.enable_v2_dtype_behavior
+    def test_mixed_precision(self):
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        policy.set_global_policy("mixed_float16")
+        model = sequential.Sequential([layers_module.Dense(1)])
+        optimizer = sgd_experimental.SGD()
+        model.compile(
+            optimizer,
+            "mse",
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+        model.fit(x, y, epochs=2)
+        policy.set_global_policy("float32")
+
     @test_combinations.run_all_keras_modes
     def test_calling_aggregate_gradient(self):
         class _Optimizer(optimizer_v2.gradient_descent.SGD):
@@ -1744,9 +1762,7 @@ class TrainingTest(test_combinations.TestCase):
 
             _HAS_AGGREGATE_GRAD = False
 
-            def apply_gradients(
-                self, grads_and_vars, name=None
-            ):  # pylint: disable=useless-super-delegation
+            def apply_gradients(self, grads_and_vars, name=None):
                 return super().apply_gradients(grads_and_vars, name)
 
         mock_optimizer = _OptimizerOverrideApplyGradients()
@@ -2350,10 +2366,8 @@ class LossWeightingTest(test_combinations.TestCase):
             y_train[:batch_size],
             class_weight=class_weight,
         )
-        ref_score = model.evaluate(
-            x_test, y_test, verbose=0
-        )  # pylint: disable=unused-variable
-        score = model.evaluate(  # pylint: disable=unused-variable
+        ref_score = model.evaluate(x_test, y_test, verbose=0)  # noqa: F841
+        score = model.evaluate(  # noqa: F841
             x_test[test_ids, :], y_test[test_ids, :], verbose=0
         )
         # TODO(b/152990697): Fix the class weights test here.

@@ -14,16 +14,16 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(
@@ -329,7 +329,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         self.adapt_variance.assign(total_variance)
         self.count.assign(total_count)
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self.input_mean is not None or not self.built:
             return
 

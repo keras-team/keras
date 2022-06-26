@@ -24,8 +24,6 @@ from keras.layers.preprocessing import preprocessing_stage
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 
-# pylint: disable=g-classes-have-attributes
-
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class PreprocessingStageTest(

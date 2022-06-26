@@ -13,20 +13,22 @@
 # limitations under the License.
 # ==============================================================================
 """Wrapper for using the Scikit-Learn API with Keras models."""
-# pylint: disable=g-classes-have-attributes
+
 
 import copy
 import types
 import warnings
 
 import numpy as np
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import losses
 from keras.models import Sequential
 from keras.utils.generic_utils import has_arg
 from keras.utils.np_utils import to_categorical
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 class BaseWrapper:
@@ -108,7 +110,7 @@ class BaseWrapper:
                         "{} is not a legal parameter".format(params_name)
                     )
 
-    def get_params(self, **params):  # pylint: disable=unused-argument
+    def get_params(self, **params):
         """Gets parameters for this estimator.
 
         Args:

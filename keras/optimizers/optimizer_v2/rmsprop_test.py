@@ -21,14 +21,16 @@ import math
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 
@@ -115,7 +117,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1, 0.2], dtype=dtype.as_numpy_dtype)
@@ -438,7 +440,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 def loss():
                     pred = tf.matmul(
                         tf.compat.v1.nn.embedding_lookup([var0], [0]), x
-                    )  # pylint: disable=cell-var-from-loop
+                    )
                     return pred * pred
 
                 sgd_op = rmsprop.RMSprop(
@@ -470,10 +472,10 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 def loss():
                     pred = tf.matmul(
                         tf.compat.v1.nn.embedding_lookup([var0], [0]), x
-                    )  # pylint: disable=cell-var-from-loop
+                    )
                     return pred * pred
 
-                # loss = lambda: pred * pred  # pylint:
+                # loss = lambda: pred * pred
                 # disable=cell-var-from-loop
                 sgd_op = rmsprop.RMSprop(
                     learning_rate=1.0,
@@ -504,7 +506,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon,
             centered,
         ) in _TESTPARAMS:
-            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():
+            with tf.compat.v1.get_default_graph().as_default(), test_utils.use_gpu():  # noqa: E501
                 # Initialize variables for numpy implementation.
                 var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
                 grads0_np = np.array([0.1], dtype=dtype.as_numpy_dtype)

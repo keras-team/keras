@@ -18,13 +18,15 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.training.tracking import (
-    util as trackable_util,
-)
 
 import keras
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.checkpoint import (
+    checkpoint as trackable_util,
+)
 
 
 class TimeDistributedTest(test_combinations.TestCase):

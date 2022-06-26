@@ -16,14 +16,16 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
 from keras.distribute import strategy_combinations
 from keras.testing_infra import test_utils
 from keras.utils import dataset_creator
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 # TODO(rchao): Investigate why there cannot be single worker and multi worker

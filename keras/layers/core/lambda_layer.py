@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Lambda layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 import sys
 import textwrap
 import types as python_types
@@ -21,13 +21,15 @@ import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Lambda")

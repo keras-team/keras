@@ -22,12 +22,12 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 
-# pylint: disable=protected-access
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.experimental.SequenceFeatures")
@@ -101,7 +101,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
             feature_columns=feature_columns,
             trainable=trainable,
             name=name,
-            expected_column_type=tf.__internal__.feature_column.SequenceDenseColumn,
+            expected_column_type=tf.__internal__.feature_column.SequenceDenseColumn,  # noqa: E501
             **kwargs
         )
 

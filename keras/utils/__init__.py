@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Public Keras utilities."""
-# pylint: disable=g-bad-import-order
+
 
 # Audio related
 from keras.utils.audio_dataset import audio_dataset_from_directory

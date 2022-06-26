@@ -13,12 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Max pooling 3D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.layers.pooling.base_pooling3d import Pooling3D
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.MaxPool3D", "keras.layers.MaxPooling3D")

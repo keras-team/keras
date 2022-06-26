@@ -388,15 +388,15 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
             tf.__internal__.test.combinations.times(
                 tf.__internal__.test.combinations.combine(
                     distribution=[
-                        tf.__internal__.distribute.combinations.one_device_strategy,
-                        tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-                        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+                        tf.__internal__.distribute.combinations.one_device_strategy,  # noqa: E501
+                        tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
+                        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,  # noqa: E501
+                        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,  # noqa: E501
                     ]
                 ),
                 tf.__internal__.test.combinations.times(
                     tf.__internal__.test.combinations.combine(
-                        optimizer_fn=optimizer_combinations.gradient_descent_optimizer_v1_fn
+                        optimizer_fn=optimizer_combinations.gradient_descent_optimizer_v1_fn  # noqa: E501
                     ),
                     tf.__internal__.test.combinations.combine(
                         mode=["graph"], use_callable_loss=[True, False]
@@ -407,7 +407,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
                 )
                 + tf.__internal__.test.combinations.times(
                     tf.__internal__.test.combinations.combine(
-                        optimizer_fn=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn
+                        optimizer_fn=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn  # noqa: E501
                     ),
                     tf.__internal__.test.combinations.combine(
                         mode=["graph", "eager"], use_callable_loss=[True]
@@ -418,7 +418,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
                 distribution=[
                     tf.__internal__.distribute.combinations.tpu_strategy
                 ],
-                optimizer_fn=optimizer_combinations.gradient_descent_optimizer_v1_fn,
+                optimizer_fn=optimizer_combinations.gradient_descent_optimizer_v1_fn,  # noqa: E501
                 mode=["graph"],
                 use_callable_loss=[True, False],
             )
@@ -426,7 +426,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
                 distribution=[
                     tf.__internal__.distribute.combinations.tpu_strategy
                 ],
-                optimizer_fn=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
+                optimizer_fn=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,  # noqa: E501
                 mode=["graph"],
                 use_callable_loss=[True],
             ),

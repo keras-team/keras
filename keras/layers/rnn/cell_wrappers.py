@@ -28,12 +28,14 @@ import types as python_types
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import tf_export
 
 from keras.layers.rnn import lstm
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import tf_export
 
 
 class _RNNCellWrapper(AbstractRNNCell):
@@ -452,9 +454,7 @@ class DropoutWrapper(_RNNCellWrapper):
             "input_size": self._input_size,
             "seed": self._seed,
         }
-        if (
-            self._dropout_state_filter != _default_dropout_state_filter_visitor
-        ):  # pylint: disable=comparison-with-callable
+        if self._dropout_state_filter != _default_dropout_state_filter_visitor:
             (
                 function,
                 function_type,

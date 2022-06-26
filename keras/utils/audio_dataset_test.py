@@ -89,8 +89,8 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         return temp_dir
 
     def test_audio_dataset_from_directory_standalone(self):
-        # Test retrieving audio samples withouts labels from a directory and its subdirs.
-
+        # Test retrieving audio samples withouts labels from a directory and its
+        # subdirs.
         # Save a few extra audio in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
         for i, audio in enumerate(self._get_audio_samples(3)):
@@ -292,14 +292,15 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
     def test_audio_dataset_from_directory_no_output_sequence_length_no_ragged(
         self,
     ):
-        # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
-        # are not passed while the input sequence lengths are different.
+        # This test case tests `audio_dataset_from_directory` when `ragged` and
+        # `output_sequence_length` are not passed while the input sequence
+        # lengths are different.
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=True
         )
         # The tensor shapes are different and output_sequence_length is None
-        # should work fine and pad each sequence to the length of the longest sequence
-        # in it's batch
+        # should work fine and pad each sequence to the length of the longest
+        # sequence in it's batch
         min_sequence_length, max_sequence_length = 10, 30
         possible_sequence_lengths = [
             i for i in range(min_sequence_length, max_sequence_length + 1)
@@ -311,17 +312,18 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         for seq_len in sequence_lengths:
             self.assertIn(seq_len, possible_sequence_lengths)
 
-    def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(
+    def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(  # noqa: E501
         self,
     ):
-        # This test case tests `audio_dataset_from_directory` when `ragged` and `output_sequence_length`
-        # are not passed while the input sequence lengths are the same
+        # This test case tests `audio_dataset_from_directory` when `ragged` and
+        # `output_sequence_length` are not passed while the input sequence
+        # lengths are the same
         directory = self._prepare_directory(
             num_classes=2, count=16, different_sequence_lengths=False
         )
         # The tensor shapes are different and output_sequence_length is None
-        # should work fine and pad each sequence to the length of the longest sequence
-        # in it's batch
+        # should work fine and pad each sequence to the length of the longest
+        # sequence in it's batch
         dataset = audio_dataset.audio_dataset_from_directory(
             directory, batch_size=2
         )

@@ -48,9 +48,9 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         embedding_layer = TokenAndPositionEmbedding(
             self.max_len, self.max_feature, embed_dim
         )
-        x = embedding_layer(inputs)  # pylint: disable=not-callable
+        x = embedding_layer(inputs)
         transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
-        x = transformer_block(x)  # pylint: disable=not-callable
+        x = transformer_block(x)
         x = tf.keras.layers.GlobalAvgPool1D()(x)
         x = tf.keras.layers.Dropout(0.1)(x)
         x = tf.keras.layers.Dense(20, activation="relu")(x)
@@ -189,7 +189,7 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
         x = tf.reshape(x, (batch_size, -1, self.num_heads, self.projection_dim))
         return tf.transpose(x, perm=[0, 2, 1, 3])
 
-    def call(self, inputs):  # pylint: disable=arguments-differ
+    def call(self, inputs):
         # x.shape = [batch_size, seq_len, embedding_dim]
         batch_size = tf.shape(inputs)[0]
         query = self.query_dense(inputs)  # (batch_size, seq_len, embed_dim)
@@ -234,8 +234,8 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.dropout1 = tf.keras.layers.Dropout(rate)
         self.dropout2 = tf.keras.layers.Dropout(rate)
 
-    def call(self, inputs, training):  # pylint: disable=arguments-differ
-        attn_output = self.att(inputs)  # pylint: disable=not-callable
+    def call(self, inputs, training):
+        attn_output = self.att(inputs)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(out1)
@@ -255,7 +255,7 @@ class TokenAndPositionEmbedding(tf.keras.layers.Layer):
             input_dim=maxlen, output_dim=embed_dim
         )
 
-    def call(self, x):  # pylint: disable=arguments-differ
+    def call(self, x):
         maxlen = tf.shape(x)[-1]
         positions = tf.range(start=0, limit=maxlen, delta=1)
         positions = self.pos_emb(positions)

@@ -32,6 +32,8 @@ import threading
 import time
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.core.protobuf import cluster_pb2
 from tensorflow.python.platform import tf_logging as logging
 
@@ -129,13 +131,13 @@ class _WorkerContext:
                 "You cannot run distribute coordinator in a `worker_fn`.\t"
                 + self._debug_message()
             )
-        # pylint: disable=protected-access
+
         _worker_context.current = self
 
     def __exit__(
         self, unused_exception_type, unused_exception_value, unused_traceback
     ):
-        # pylint: disable=protected-access
+
         _worker_context.current = None
 
     def _get_master_target(self):
@@ -463,7 +465,7 @@ def _run_std_server(
 def _configure_session_config_for_std_servers(
     strategy, eval_strategy, session_config, cluster_spec, task_type, task_id
 ):
-    # pylint: disable=g-doc-args
+
     """Call strategy's `configure` to mutate the session_config.
 
     The session_config is currently needed as default config for a TensorFlow
@@ -629,9 +631,7 @@ def run_distribute_coordinator(
         # TODO(yuefengz): validate cluster_spec.
         cluster_spec = normalize_cluster_spec(cluster_spec)
     elif hasattr(strategy.extended, "_cluster_resolver"):
-        cluster_resolver = (
-            strategy.extended._cluster_resolver
-        )  # pylint: disable=protected-access
+        cluster_resolver = strategy.extended._cluster_resolver
         task_type = cluster_resolver.task_type
         task_id = cluster_resolver.task_id
         rpc_layer = cluster_resolver.rpc_layer or rpc_layer

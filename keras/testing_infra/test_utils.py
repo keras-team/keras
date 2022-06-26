@@ -24,10 +24,6 @@ import unittest
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -44,6 +40,12 @@ from keras.optimizers.optimizer_v2 import nadam as nadam_v2
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.util.tf_export import keras_export
 
 
 def string_test(actual, expected):
@@ -123,8 +125,8 @@ def layer_test(
         in the layer class. This is helpful for testing custom layers.
       test_harness: The Tensorflow test, if any, that this function is being
         called in.
-      supports_masking: Optional boolean to check the `supports_masking` property
-        of the layer. If None, the check will not be performed.
+      supports_masking: Optional boolean to check the `supports_masking`
+        property of the layer. If None, the check will not be performed.
 
     Returns:
       The output data (Numpy array) returned by the layer, for additional
@@ -213,7 +215,8 @@ def layer_test(
         )
 
     def assert_shapes_equal(expected, actual):
-        """Asserts that the output shape from the layer matches the actual shape."""
+        """Asserts that the output shape from the layer matches the actual
+        shape."""
         if len(expected) != len(actual):
             raise AssertionError(
                 "When testing layer %s, for input %s, found output_shape="
@@ -315,7 +318,8 @@ def layer_test(
                 raise AssertionError(
                     "When testing layer %s **after deserialization**, "
                     "for input %s, found output_shape="
-                    "%s but expected to find inferred shape %s.\nFull kwargs: %s"
+                    "%s but expected to find inferred shape %s.\n"
+                    "Full kwargs: %s"
                     % (
                         layer_cls.__name__,
                         x,
@@ -377,8 +381,8 @@ def run_eagerly_scope(value):
     The boolean gets restored to its original value upon exiting the scope.
 
     Args:
-       value: Bool specifying if we should run models eagerly in the active test.
-       Should be True or False.
+       value: Bool specifying if we should run models eagerly in the active
+         test. Should be True or False.
 
     Yields:
       The provided value.
@@ -434,8 +438,8 @@ def get_save_format():
     if _thread_local_data.saved_model_format is None:
         raise ValueError(
             "Cannot call `get_save_format()` outside of a "
-            "`saved_model_format_scope()` or `run_with_all_saved_model_formats` "
-            "decorator."
+            "`saved_model_format_scope()` or "
+            "`run_with_all_saved_model_formats` decorator."
         )
     return _thread_local_data.saved_model_format
 
@@ -444,8 +448,8 @@ def get_save_kwargs():
     if _thread_local_data.save_kwargs is None:
         raise ValueError(
             "Cannot call `get_save_kwargs()` outside of a "
-            "`saved_model_format_scope()` or `run_with_all_saved_model_formats` "
-            "decorator."
+            "`saved_model_format_scope()` or "
+            "`run_with_all_saved_model_formats` decorator."
         )
     return _thread_local_data.save_kwargs or {}
 
@@ -561,14 +565,14 @@ class _SubclassModel(models.Model):
         Args:
           model_layers: a list of layers to be added to the model.
           *args: Model's args
-          **kwargs: Model's keyword args, at most one of input_tensor -> the input
-            tensor required for ragged/sparse input.
+          **kwargs: Model's keyword args, at most one of input_tensor -> the
+            input tensor required for ragged/sparse input.
         """
 
         inputs = kwargs.pop("input_tensor", None)
         super().__init__(*args, **kwargs)
-        # Note that clone and build doesn't support lists of layers in subclassed
-        # models. Adding each layer directly here.
+        # Note that clone and build doesn't support lists of layers in
+        # subclassed models. Adding each layer directly here.
         for i, layer in enumerate(model_layers):
             setattr(self, self._layer_name_for_i(i), layer)
 
@@ -801,8 +805,8 @@ def get_multi_io_model(
 
     To build a two-input, two-output model:
       Specify a list of layers for branch a and branch b, but do not specify any
-      shared input branch or shared output branch. The resulting model will apply
-      each branch to a different input, to produce two outputs.
+      shared input branch or shared output branch. The resulting model will
+      apply each branch to a different input, to produce two outputs.
 
       The first value in branch_a must be the Keras 'Input' layer for branch a,
       and the first value in branch_b must be the Keras 'Input' layer for
@@ -862,8 +866,9 @@ def get_multi_io_model(
       branch_a: A sequence of layers for branch a of the model.
       branch_b: A sequence of layers for branch b of the model.
       shared_input_branch: An optional sequence of layers to apply to a single
-        input, before applying both branches to that intermediate result. If set,
-        the model will take only one input instead of two. Defaults to None.
+        input, before applying both branches to that intermediate result. If
+        set, the model will take only one input instead of two. Defaults to
+        None.
       shared_output_branch: An optional sequence of layers to merge the
         intermediate results produced by branch a and branch b. If set,
         the model will produce only one output instead of two. Defaults to None.
@@ -957,9 +962,8 @@ def get_v2_optimizer(name, **kwargs):
         return _V2_OPTIMIZER_MAP[name](**kwargs)
     except KeyError:
         raise ValueError(
-            "Could not find requested v2 optimizer: {}\nValid choices: {}".format(
-                name, list(_V2_OPTIMIZER_MAP.keys())
-            )
+            "Could not find requested v2 optimizer: "
+            "{}\nValid choices: {}".format(name, list(_V2_OPTIMIZER_MAP.keys()))
         )
 
 
@@ -1046,7 +1050,7 @@ def for_all_test_methods(decorator, *args, **kwargs):
 
 
 # The description is just for documentation purposes.
-def run_without_tensor_float_32(description):  # pylint: disable=unused-argument
+def run_without_tensor_float_32(description):
     """Execute test with TensorFloat-32 disabled.
 
     While almost every real-world deep learning model runs fine with
@@ -1080,7 +1084,7 @@ def run_without_tensor_float_32(description):  # pylint: disable=unused-argument
 # The description is just for documentation purposes.
 def run_all_without_tensor_float_32(
     description,
-):  # pylint: disable=unused-argument
+):
     """Execute all tests in a class with TensorFloat-32 disabled."""
     return for_all_test_methods(run_without_tensor_float_32, description)
 
@@ -1096,11 +1100,12 @@ def run_v2_only(obj=None):
 
     Args:
       obj: function to be annotated. If None, return a
-        decorator the can be applied to a function or class. If `obj` is not None,
-        return the decorator applied to `obj`.
+        decorator the can be applied to a function or class. If `obj` is not
+        None, return the decorator applied to `obj`.
 
     Returns:
-      Returns a decorator that will conditionally skip the decorated test method.
+      Returns a decorator that will conditionally skip the decorated test
+      method.
     """
     condition = not tf.__internal__.tf2.enabled()
     reason = "Test is only compatible with TF v2."

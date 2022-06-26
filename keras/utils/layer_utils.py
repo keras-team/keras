@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Utilities related to layer/model functionality."""
 
 import copy
 import functools
+import re
 import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
-from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.utils.get_source_inputs")
@@ -122,6 +124,60 @@ def count_params(weights):
     return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
+def get_layer_index_bound_by_layer_name(model, layer_range=None):
+    """Get the layer indexes from the model based on layer names.
+
+    The layer indexes can be used to slice the model into sub models for
+    display.
+
+    Args:
+        model: `tf.keras.Model` instance.
+        layer_names: a list or tuple of 2 strings, the starting layer name and
+            ending layer name (both inclusive) for the result. All layers will
+            be included when `None` is provided.
+
+    Returns:
+        The index value of layer based on its unique name (layer_names).
+        Output will be [first_layer_index, last_layer_index + 1].
+    """
+    if layer_range is not None:
+        if len(layer_range) != 2:
+            raise ValueError(
+                "layer_range must be a list or tuple of length 2. Received: "
+                f"layer_range = {layer_range} of length {len(layer_range)}"
+            )
+        if not isinstance(layer_range[0], str) or not isinstance(
+            layer_range[1], str
+        ):
+            raise ValueError(
+                "layer_range should contain string type only. "
+                f"Received: {layer_range}"
+            )
+    else:
+        return [0, len(model.layers)]
+
+    lower_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[0], layer.name)
+    ]
+    upper_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[1], layer.name)
+    ]
+
+    if not lower_index or not upper_index:
+        raise ValueError(
+            "Passed layer_names does not match the layer names in the model. "
+            f"Recieved: {layer_range}"
+        )
+
+    if min(lower_index) > max(upper_index):
+        return [min(upper_index), max(lower_index) + 1]
+    return [min(lower_index), max(upper_index) + 1]
+
+
 def print_summary(
     model,
     line_length=None,
@@ -129,6 +185,7 @@ def print_summary(
     print_fn=None,
     expand_nested=False,
     show_trainable=False,
+    layer_range=None,
 ):
     """Prints a summary of a model.
 
@@ -148,6 +205,14 @@ def print_summary(
             If not provided, defaults to `False`.
         show_trainable: Whether to show if a layer is trainable.
             If not provided, defaults to `False`.
+        layer_range: List or tuple containing two strings,
+            the starting layer name and ending layer name (both inclusive),
+            indicating the range of layers to be printed in the summary. The
+            strings could also be regexes instead of an exact name. In this
+             case, the starting layer will be the first layer that matches
+            `layer_range[0]` and the ending layer will be the last element that
+            matches `layer_range[1]`. By default (`None`) all
+            layers in the model are included in the summary.
     """
     if print_fn is None:
         print_fn = io_utils.print_msg
@@ -208,6 +273,8 @@ def print_summary(
         line_length += 11
         positions.append(line_length)
         to_display.append("Trainable")
+
+    layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
 
     def print_row(fields, positions, nested_level=0):
         left_to_print = [str(x) for x in fields]
@@ -272,8 +339,9 @@ def print_summary(
         name = layer.name
         cls_name = layer.__class__.__name__
         if not layer.built and not getattr(layer, "_is_graph_network", False):
-            # If a subclassed model has a layer that is not called in Model.call, the
-            # layer will not be built and we cannot call layer.count_params().
+            # If a subclassed model has a layer that is not called in
+            # Model.call, the layer will not be built and we cannot call
+            # layer.count_params().
             params = "0 (unused)"
         else:
             params = layer.count_params()
@@ -361,8 +429,7 @@ def print_summary(
                 + "|" * nested_level
             )
 
-    layers = model.layers
-    for layer in layers:
+    for layer in model.layers[layer_range[0] : layer_range[1]]:
         print_layer(layer)
     print_fn("=" * line_length)
 
@@ -441,8 +508,8 @@ def cached_per_instance(f):
     For classes with custom getattr / setattr behavior (such as trackable
     objects), storing cache results as object attributes is not performant.
     Instead, a specialized cache can significantly reduce property lookup
-    overhead. (While still allowing the decorated property to be lazily computed.)
-    Consider the following class:
+    overhead. (While still allowing the decorated property to be lazily
+    computed.) Consider the following class:
 
     ```
     class MyClass:
@@ -472,8 +539,8 @@ def cached_per_instance(f):
 
     Slows down attribute assignment by nearly 10x.
 
-    By contrast, replacing the definition of `thing` with the following sidesteps
-    the expensive __setattr__ altogether:
+    By contrast, replacing the definition of `thing` with the following
+    sidesteps the expensive __setattr__ altogether:
 
     '''
     @property
@@ -486,7 +553,8 @@ def cached_per_instance(f):
 
     Performance:
     The overhead for this decorator is ~0.4 us / call. A much lower overhead
-    implementation (~0.085 us / call) can be achieved by using a custom dict type:
+    implementation (~0.085 us / call) can be achieved by using a custom dict
+    type:
 
     ```
     def dict_based_cache(f):
@@ -545,7 +613,8 @@ def filter_empty_layer_containers(layer_list):
 
 
 class CallFunctionSpec:
-    """Caches the spec and provides utilities for handling call function args."""
+    """Caches the spec and provides utilities for handling call function
+    args."""
 
     def __init__(self, full_argspec):
         """Initialies a `CallFunctionSpec`.
@@ -571,12 +640,12 @@ class CallFunctionSpec:
 
         call_fn_defaults = self._full_argspec.defaults or []
         defaults = dict()
-        # The call arg defaults are an n-tuple of the last n elements of the args
-        # list. (n = # of elements that have a default argument)
+        # The call arg defaults are an n-tuple of the last n elements of the
+        # args list. (n = # of elements that have a default argument)
         for i in range(-1 * len(call_fn_defaults), 0):
             defaults[self._arg_names[i]] = call_fn_defaults[i]
-        # The default training arg will be any (non-None) default specified in the
-        # method signature, or None if no value is specified.
+        # The default training arg will be any (non-None) default specified in
+        # the method signature, or None if no value is specified.
         defaults.update(self._full_argspec.kwonlydefaults or {})
         self._default_training_arg = defaults.get("training")
 
@@ -599,7 +668,8 @@ class CallFunctionSpec:
     @cached_per_instance
     def arg_positions(self):
         """Returns a dict mapping arg names to their index positions."""
-        # `arg_positions` is not accurate if the layer has variable positional args.
+        # `arg_positions` is not accurate if the layer has variable positional
+        # args.
         call_fn_arg_positions = dict()
         for pos, arg in enumerate(self._arg_names):
             call_fn_arg_positions[arg] = pos
@@ -635,8 +705,8 @@ class CallFunctionSpec:
           arg_name: String name of the argument to find.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
 
         Returns:
           True if argument with `arg_name` is present in `args` or `kwargs`.
@@ -660,12 +730,12 @@ class CallFunctionSpec:
           arg_name: String name of the argument to find.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
 
         Returns:
-          The value of the argument with name `arg_name`, extracted from `args` or
-          `kwargs`.
+          The value of the argument with name `arg_name`, extracted from `args`
+          or `kwargs`.
 
         Raises:
           KeyError if the value of `arg_name` cannot be found.
@@ -695,10 +765,10 @@ class CallFunctionSpec:
           new_value: New value to give to the argument.
           args: Tuple of args passed to the call function.
           kwargs: Dictionary of kwargs  passed to the call function.
-          inputs_in_args: Whether the input argument (the first argument in the call
-            function) is included in `args`. Defaults to `False`.
-          pop_kwarg_if_none: If the new value is `None`, and this is `True`, then
-            the argument is deleted from `kwargs`.
+          inputs_in_args: Whether the input argument (the first argument in the
+            call function) is included in `args`. Defaults to `False`.
+          pop_kwarg_if_none: If the new value is `None`, and this is `True`,
+            then the argument is deleted from `kwargs`.
 
         Returns:
           The updated `(args, kwargs)`.

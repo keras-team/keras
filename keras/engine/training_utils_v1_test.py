@@ -21,13 +21,15 @@ import time
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.engine import keras_tensor
 from keras.engine import training_utils_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 class ModelInputsTest(tf.test.TestCase):
@@ -94,7 +96,6 @@ class ModelInputsTest(tf.test.TestCase):
 
 class DatasetUtilsTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
-        # pylint: disable=g-long-lambda
         ("Batch", lambda: tf.data.Dataset.range(5).batch(2)),
         ("Cache", lambda: tf.data.Dataset.range(5).cache()),
         (
@@ -170,7 +171,6 @@ class DatasetUtilsTest(tf.test.TestCase, parameterized.TestCase):
         ("TFRecordDataset", lambda: tf.data.TFRecordDataset([])),
         ("Window", lambda: tf.data.Dataset.range(5).window(2)),
         ("Zip", lambda: tf.data.Dataset.zip(tf.data.Dataset.range(5))),
-        # pylint: enable=g-long-lambda
     )
     def test_verify_dataset_shuffled(self, dataset_fn, expect_shuffled=False):
         dataset = dataset_fn()
@@ -244,7 +244,7 @@ class MonitoredPool(multiprocessing.pool.ThreadPool):
     def apply_async(self, func, *args, **kwargs):
         self._apply_counter += 1
         if self._func_wrapper:
-            func = self._func_wrapper(func)  # pylint: disable=not-callable
+            func = self._func_wrapper(func)
         return super().apply_async(func, *args, **kwargs)
 
 
@@ -259,9 +259,7 @@ def add_sleep(f):
 
 def cause_error(f):
     @functools.wraps(f)
-    def wrapped(
-        batch_element, batch_start, batch_end, is_finished
-    ):  # pylint: disable=unused-argument
+    def wrapped(batch_element, batch_start, batch_end, is_finished):
         # Induce a TypeError during assignment.
         return f(None, None, None, is_finished)
 

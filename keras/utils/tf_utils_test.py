@@ -23,7 +23,7 @@ from keras.testing_infra import test_combinations
 from keras.utils import tf_utils
 
 try:
-    import attr  # pylint:disable=g-import-not-at-top
+    import attr
 except ImportError:
     attr = None
 

@@ -30,8 +30,6 @@ from keras.layers.preprocessing import preprocessing_stage
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 
-# pylint: disable=g-classes-have-attributes
-
 
 class PL(base_preprocessing_layer.PreprocessingLayer):
     def __init__(self, **kwargs):

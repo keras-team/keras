@@ -13,14 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Batch Normalization V1 layer."""
-# pylint: disable=g-classes-have-attributes
 
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.layers.normalization import batch_normalization
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=missing-docstring
+
 @keras_export(v1=["keras.layers.BatchNormalization"])
 class BatchNormalization(batch_normalization.BatchNormalizationBase):
     _USE_V2_BEHAVIOR = False

@@ -17,10 +17,12 @@
 import time
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.eager.context import get_executor
 
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.eager import context
+from tensorflow.python.eager.context import get_executor
 
 
 def _run_benchmark(func, num_iters, execution_mode=None):
@@ -100,7 +102,7 @@ class MicroBenchmarksBase(tf.test.Benchmark):
         x = tf.convert_to_tensor([[1.0]])
 
         def fn():
-            layer(x)  # pylint: disable=not-callable
+            layer(x)
 
         self._run(fn, 10000)
 
@@ -114,7 +116,7 @@ class MicroBenchmarksBase(tf.test.Benchmark):
         model = tf.keras.Model(inputs=model_input, outputs=model_output)
 
         def fn():
-            model(x)  # pylint: disable=not-callable
+            model(x)
 
         fn()
         self._run(fn, 100)
@@ -143,7 +145,7 @@ class MicroBenchmarksBase(tf.test.Benchmark):
         self._run(fn, 10000)
 
 
-class KerasLayerCallOverheadBenchmarks(  # pylint: disable=undefined-variable
+class KerasLayerCallOverheadBenchmarks(
     MicroBenchmarksBase, metaclass=tf.__internal__.test.ParameterizedBenchmark
 ):
 

@@ -13,18 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based einsum dense layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import re
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import constraints
 from keras import initializers
 from keras import regularizers
 from keras.engine.base_layer import Layer
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Tests for saving/loading function for keras Model."""
 
 import os
@@ -213,9 +213,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
             training, lambda: x * 0, lambda: tf.identity(x)
         )
         if not tf.executing_eagerly():
-            output._uses_learning_phase = (
-                True  # pylint: disable=protected-access
-            )
+            output._uses_learning_phase = True
         return output
 
     def compute_output_shape(self, input_shape):
@@ -388,8 +386,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                     sess, saved_model_dir, mode_keys.ModeKeys.TEST
                 )
 
-                # First obtain the loss and predictions, and run the metric update op by
-                # feeding in the inputs and targets.
+                # First obtain the loss and predictions, and run the metric
+                # update op by feeding in the inputs and targets.
                 metrics_name = (
                     "mae"
                     if tf.__internal__.tf2.enabled()
@@ -410,8 +408,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                     },
                 )
 
-                # The metric value should be run after the update op, to ensure that it
-                # reflects the correct value.
+                # The metric value should be run after the update op, to ensure
+                # that it reflects the correct value.
                 metric_value = sess.run(outputs[metrics_value_op_key])
 
                 self.assertEqual(
@@ -422,7 +420,8 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
                 self.assertAllClose(ref_mae, metric_value, atol=1e-05)
                 self.assertAllClose(ref_predict, predictions, atol=1e-05)
 
-            # Load train graph, and check for the train op, and prediction values
+            # Load train graph, and check for the train op, and prediction
+            # values
             with tf.compat.v1.Session(graph=tf.Graph()) as sess:
                 inputs, outputs, meta_graph_def = load_model(
                     sess, saved_model_dir, mode_keys.ModeKeys.TRAIN

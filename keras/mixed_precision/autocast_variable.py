@@ -28,9 +28,9 @@ _autocast_dtype = threading.local()
 def numpy_text(tensor, is_repr=False):
     """Human readable representation of a tensor's numpy value."""
     if tensor.dtype.is_numpy_compatible:
-        # pylint: disable=protected-access
+
         text = repr(tensor._numpy()) if is_repr else str(tensor._numpy())
-        # pylint: enable=protected-access
+
     else:
         text = "<unprintable>"
     if "\n" in text:
@@ -231,7 +231,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
                 # 'op' attribute is defined. This matches the behavior of
                 # tf.Variable.assign.
                 var = create_autocast_variable(self._variable)
-                var._op = assign_op  # pylint:disable=protected-access
+                var._op = assign_op
                 return var
             return assign_op
 
@@ -330,7 +330,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
 
     @property
     def _shared_name(self):
-        return self._variable._shared_name  # pylint:disable=protected-access
+        return self._variable._shared_name
 
     @property
     def initializer(self):
@@ -347,9 +347,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         return self._op
 
     def _as_graph_element(self):
-        graph_element = (
-            self._variable._as_graph_element()
-        )  # pylint:disable=protected-access
+        graph_element = self._variable._as_graph_element()
         if graph_element is None:
             return self._op
         return graph_element
@@ -370,16 +368,12 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         # AutoCastVariables are identical to checkpoints with normal variables.
         # Therefore models checkpointed with AutoCastVariables can be restored
         # on models with normal variables, and vice versa.
-        return (
-            self._variable._gather_saveables_for_checkpoint()
-        )  # pylint:disable=protected-access
+        return self._variable._gather_saveables_for_checkpoint()
 
     def _map_resources(self, save_options):
         # By delegating this method to the wrapped variable, SavedModel with
         # AutoCastVariables are identical to SavedModel with normal variables.
-        obj_map, resource_map = self._variable._map_resources(
-            save_options
-        )  # pylint:disable=protected-access
+        obj_map, resource_map = self._variable._map_resources(save_options)
         obj_map[self] = obj_map[self._variable]
         return obj_map, resource_map
 
@@ -401,25 +395,19 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     # private attributes is hacky and difficult to maintain.
     @property
     def _handle_name(self):
-        return self._variable._handle_name  # pylint: disable=protected-access
+        return self._variable._handle_name
 
     @_handle_name.setter
     def _handle_name(self, handle_name):
-        self._variable._handle_name = (
-            handle_name  # pylint: disable=protected-access
-        )
+        self._variable._handle_name = handle_name
 
     @property
     def _initializer_op(self):
-        return (
-            self._variable._initializer_op
-        )  # pylint: disable=protected-access
+        return self._variable._initializer_op
 
     @_initializer_op.setter
     def _initializer_op(self, initializer_op):
-        self._variable._initializer_op = (
-            initializer_op  # pylint: disable=protected-access
-        )
+        self._variable._initializer_op = initializer_op
 
     # Operator overloads:
     # Note we only overload operators that support floating-point types, as
@@ -485,7 +473,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         return pow(o, self.read_value())
 
     def __neg__(self):
-        return -self.read_value()  # pylint: disable=invalid-unary-operand-type
+        return -self.read_value()
 
     def __abs__(self):
         return abs(self.read_value())
@@ -522,12 +510,10 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
             # https://docs.python.org/3/library/constants.html#NotImplemented
             return NotImplemented
 
-    # pylint: enable=multiple-statements
-
 
 tf.register_tensor_conversion_function(
     AutoCastVariable, AutoCastVariable._dense_var_to_tensor
-)  # pylint:disable=protected-access
+)
 
 
 def create_autocast_variable(variable):
@@ -558,18 +544,16 @@ def create_autocast_variable(variable):
 
         def __repr__(self):
 
-            # pylint: disable=missing-format-attribute
             return (
                 "<AutoCastDistributedVariable dtype={v.dtype.name} "
                 "dtype_to_cast_to={v._cast_dtype.name} "
                 "inner_variable={v._variable}>"
             ).format(v=self)
-            # pylint: enable=missing-format-attribute
 
     return AutoCastDistributedVariable(variable)
 
 
-class enable_auto_cast_variables:  # pylint:disable=invalid-name
+class enable_auto_cast_variables:
     """Context manager which enables the autocasting of `AutoCastVariable`s.
 
     Under this context manager, `AutoCastVariable`s will be cast to `dtype` if

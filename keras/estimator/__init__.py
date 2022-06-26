@@ -15,6 +15,8 @@
 """Keras estimator API."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 # Keras has undeclared dependency on tensorflow/estimator:estimator_py.
@@ -164,8 +166,9 @@ def model_to_estimator(
     """
 
     try:
+        # isort: off
         from tensorflow_estimator.python.estimator import (
-            keras_lib,  # pylint: disable=g-import-not-at-top
+            keras_lib,
         )
     except ImportError:
         raise NotImplementedError(
@@ -173,18 +176,16 @@ def model_to_estimator(
             "your installation."
         )
     _model_to_estimator_usage_gauge.get_cell("v1").set(True)
-    return (
-        keras_lib.model_to_estimator(  # pylint:disable=unexpected-keyword-arg
-            keras_model=keras_model,
-            keras_model_path=keras_model_path,
-            custom_objects=custom_objects,
-            model_dir=model_dir,
-            config=config,
-            checkpoint_format=checkpoint_format,
-            use_v2_estimator=False,
-            metric_names_map=metric_names_map,
-            export_outputs=export_outputs,
-        )
+    return keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        keras_model_path=keras_model_path,
+        custom_objects=custom_objects,
+        model_dir=model_dir,
+        config=config,
+        checkpoint_format=checkpoint_format,
+        use_v2_estimator=False,
+        metric_names_map=metric_names_map,
+        export_outputs=export_outputs,
     )
 
 
@@ -362,8 +363,9 @@ def model_to_estimator_v2(
     """
 
     try:
+        # isort: off
         from tensorflow_estimator.python.estimator import (
-            keras_lib,  # pylint: disable=g-import-not-at-top
+            keras_lib,
         )
     except ImportError:
         raise NotImplementedError(
@@ -371,18 +373,16 @@ def model_to_estimator_v2(
             "your installation."
         )
     _model_to_estimator_usage_gauge.get_cell("v2").set(True)
-    return (
-        keras_lib.model_to_estimator(  # pylint:disable=unexpected-keyword-arg
-            keras_model=keras_model,
-            keras_model_path=keras_model_path,
-            custom_objects=custom_objects,
-            model_dir=model_dir,
-            config=config,
-            checkpoint_format=checkpoint_format,
-            use_v2_estimator=True,
-            metric_names_map=metric_names_map,
-            export_outputs=export_outputs,
-        )
+    return keras_lib.model_to_estimator(
+        keras_model=keras_model,
+        keras_model_path=keras_model_path,
+        custom_objects=custom_objects,
+        model_dir=model_dir,
+        config=config,
+        checkpoint_format=checkpoint_format,
+        use_v2_estimator=True,
+        metric_names_map=metric_names_map,
+        export_outputs=export_outputs,
     )
 
 

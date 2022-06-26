@@ -17,14 +17,13 @@ import collections
 import functools
 import inspect as _inspect
 
-# pylint: disable=g-classes-have-attributes
 import tensorflow.compat.v2 as tf
 
 ArgSpec = _inspect.ArgSpec
 
 
 if hasattr(_inspect, "FullArgSpec"):
-    FullArgSpec = _inspect.FullArgSpec  # pylint: disable=invalid-name
+    FullArgSpec = _inspect.FullArgSpec
 else:
     FullArgSpec = collections.namedtuple(
         "FullArgSpec",
@@ -55,7 +54,7 @@ def _convert_maybe_argspec_to_fullargspec(argspec):
 
 
 if hasattr(_inspect, "getfullargspec"):
-    _getfullargspec = _inspect.getfullargspec  # pylint: disable=invalid-name
+    _getfullargspec = _inspect.getfullargspec
 
     def _getargspec(target):
         """A python3 version of getargspec.
@@ -173,7 +172,8 @@ def _get_argspec_for_partial(obj):
     # When callable is a functools.partial object, we construct its ArgSpec with
     # following strategy:
     # - If callable partial contains default value for positional arguments (ie.
-    # object.args), then final ArgSpec doesn't contain those positional arguments.
+    # object.args), then final ArgSpec doesn't contain those positional
+    # arguments.
     # - If callable partial contains default value for keyword arguments (ie.
     # object.keywords), then we merge them with wrapped target. Default values
     # from callable partial takes precedence over those from wrapped target.
@@ -192,12 +192,13 @@ def _get_argspec_for_partial(obj):
     #   return 2 * m + n
     # partialed = functools.partial(func, m=1)
     #
-    # This example will result in m having a default value but n doesn't. This is
-    # usually not allowed in Python and can not be expressed in ArgSpec correctly.
+    # This example will result in m having a default value but n doesn't. This
+    # is usually not allowed in Python and can not be expressed in ArgSpec
+    # correctly.
     #
-    # Thus, we must detect cases like this by finding first argument with default
-    # value and ensures all following arguments also have default values. When
-    # this is not true, a ValueError is raised.
+    # Thus, we must detect cases like this by finding first argument with
+    # default value and ensures all following arguments also have default
+    # values. When this is not true, a ValueError is raised.
 
     n_prune_args = len(obj.args)
     partial_keywords = obj.keywords or {}
@@ -287,9 +288,9 @@ def getcallargs(*func_and_positional, **named):
       A dictionary mapping `func`'s named arguments to the values they would
       receive if `func(*positional, **named)` were called.
 
-    `getcallargs` will use the argspec from the outermost decorator that provides
-    it. If no attached decorators modify argspec, the final unwrapped target's
-    argspec will be used.
+    `getcallargs` will use the argspec from the outermost decorator that
+    provides it. If no attached decorators modify argspec, the final unwrapped
+    target's argspec will be used.
     """
     func = func_and_positional[0]
     positional = func_and_positional[1:]

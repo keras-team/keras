@@ -16,11 +16,11 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import dataset_utils
 
-# pylint: disable=g-classes-have-attributes
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 try:
@@ -129,10 +129,11 @@ def audio_dataset_from_directory(
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
             raise ValueError(
-                "The `labels` argument should be a list/tuple of integer labels, of "
-                "the same size as the number of audio files in the target "
-                "directory. If you wish to infer the labels from the subdirectory "
-                'names in the target directory, pass `labels="inferred"`. '
+                "The `labels` argument should be a list/tuple of integer "
+                "labels, of the same size as the number of audio files in "
+                "the target directory. If you wish to infer the labels from "
+                "the subdirectory names in the target directory,"
+                ' pass `labels="inferred"`. '
                 "If you wish to get a dataset that only contains audio samples "
                 f"(no labels), pass `labels=None`. Received: labels={labels}"
             )
@@ -144,7 +145,8 @@ def audio_dataset_from_directory(
             )
     if label_mode not in {"int", "categorical", "binary", None}:
         raise ValueError(
-            '`label_mode` argument must be one of "int", "categorical", "binary", '
+            '`label_mode` argument must be one of "int", "categorical", '
+            '"binary", '
             f"or None. Received: label_mode={label_mode}"
         )
 
@@ -169,7 +171,8 @@ def audio_dataset_from_directory(
         if tfio is None:
             raise ImportError(
                 "To use the argument `sampling_rate`, you should install "
-                "tensorflow_io. You can install it via `pip install tensorflow-io`."
+                "tensorflow_io. You can install it via `pip install "
+                "tensorflow-io`."
             )
 
     if labels is None or label_mode is None:

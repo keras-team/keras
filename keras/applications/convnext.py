@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-docstring
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-direct-tensorflow-import
+
+
 """ConvNeXt models for Keras.
 
 References:
@@ -26,7 +24,6 @@ References:
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -34,6 +31,9 @@ from keras import utils
 from keras.applications import imagenet_utils
 from keras.engine import sequential
 from keras.engine import training as training_lib
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = (
     "https://storage.googleapis.com/tensorflow/keras-applications/convnext/"
@@ -732,7 +732,7 @@ ConvNeXtXLarge.__doc__ = BASE_DOCSTRING.format(name="ConvNeXtXLarge")
 
 
 @keras_export("keras.applications.convnext.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the convnext model

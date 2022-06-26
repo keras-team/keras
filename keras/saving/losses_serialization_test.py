@@ -31,7 +31,7 @@ from keras.utils import generic_utils
 from keras.utils import losses_utils
 
 try:
-    import h5py  # pylint:disable=g-import-not-at-top
+    import h5py
 except ImportError:
     h5py = None
 

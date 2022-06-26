@@ -15,14 +15,15 @@
 """Adagrad optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import initializers
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+
 @generic_utils.register_keras_serializable()
 @keras_export("keras.optimizers.experimental.Adagrad", v1=[])
 class Adagrad(optimizer.Optimizer):

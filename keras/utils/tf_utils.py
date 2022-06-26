@@ -20,23 +20,26 @@ import random
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import ops
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
 
+# isort: off
+from tensorflow.python.framework import ops
+from tensorflow.python.util.tf_export import keras_export
+
 
 @keras_export("keras.utils.set_random_seed", v1=[])
 def set_random_seed(seed):
     """Sets all random seeds for the program (Python, NumPy, and TensorFlow).
 
-    You can use this utility to make almost any Keras program fully deterministic.
-    Some limitations apply in cases where network communications are involved
-    (e.g. parameter server distribution), which creates additional sources of
-    randomness, or when certain non-deterministic cuDNN ops are involved.
+    You can use this utility to make almost any Keras program fully
+    deterministic. Some limitations apply in cases where network communications
+    are involved (e.g. parameter server distribution), which creates additional
+    sources of randomness, or when certain non-deterministic cuDNN ops are
+    involved.
 
     Calling this utility is equivalent to the following:
 
@@ -60,9 +63,7 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    backend._SEED_GENERATOR.generator = random.Random(
-        seed
-    )  # pylint:disable=protected-access
+    backend._SEED_GENERATOR.generator = random.Random(seed)
 
 
 def is_tensor_or_tensor_list(v):
@@ -85,7 +86,8 @@ def get_reachable_from_inputs(inputs, targets=None):
       targets: List of tensors.
 
     Returns:
-      A set of tensors reachable from the inputs (includes the inputs themselves).
+      A set of tensors reachable from the inputs (includes the inputs
+      themselves).
     """
     inputs = tf.nest.flatten(inputs, expand_composites=True)
     reachable = object_identity.ObjectIdentitySet(inputs)
@@ -103,7 +105,7 @@ def get_reachable_from_inputs(inputs, targets=None):
 
         if isinstance(x, tf.Operation):
             outputs = x.outputs[:] or []
-            outputs += x._control_outputs  # pylint: disable=protected-access
+            outputs += x._control_outputs
         elif isinstance(x, tf.Variable):
             try:
                 outputs = [x.op]
@@ -114,7 +116,8 @@ def get_reachable_from_inputs(inputs, targets=None):
             outputs = x.consumers()
         else:
             raise TypeError(
-                f"Expected tf.Operation, tf.Variable, or tf.Tensor. Received: {x}"
+                f"Expected tf.Operation, tf.Variable, or tf.Tensor. "
+                f"Received: {x}"
             )
 
         for y in outputs:
@@ -131,7 +134,8 @@ def get_reachable_from_inputs(inputs, targets=None):
 
 
 # This function needs access to private functions of `nest`.
-#  pylint: disable=protected-access
+
+
 def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
     """Maps the atomic elements of a nested structure.
 
@@ -176,9 +180,6 @@ def get_shapes(tensors):
     )
 
 
-#  pylint: enable=protected-access
-
-
 def convert_shapes(input_shape, to_tuples=True):
     """Converts nested shape representations to desired format.
 
@@ -194,9 +195,10 @@ def convert_shapes(input_shape, to_tuples=True):
     - None
 
     Args:
-      input_shape: A nested structure of objects to be converted to TensorShapes.
-      to_tuples: If `True`, converts all TensorShape to tuples. Otherwise converts
-        all tuples representing shapes to TensorShapes.
+      input_shape: A nested structure of objects to be converted to
+        TensorShapes.
+      to_tuples: If `True`, converts all TensorShape to tuples. Otherwise
+        converts all tuples representing shapes to TensorShapes.
 
     Returns:
       Nested structure of shapes in desired format.
@@ -283,12 +285,13 @@ class ListWrapper:
 
 
 def convert_inner_node_data(nested, wrap=False):
-    """Either wraps or unwraps innermost node data lists in `ListWrapper` objects.
+    """Either wraps or unwraps innermost node data lists in `ListWrapper`
+    objects.
 
     Args:
       nested: A nested data structure.
-      wrap: If `True`, wrap innermost lists in `ListWrapper` objects. If `False`,
-        unwraps `ListWrapper` objects into lists.
+      wrap: If `True`, wrap innermost lists in `ListWrapper` objects. If
+        `False`, unwraps `ListWrapper` objects into lists.
 
     Returns:
       Structure of same type as nested, with lists wrapped/unwrapped.
@@ -382,7 +385,8 @@ def is_extension_type(tensor):
 
 
 def is_symbolic_tensor(tensor):
-    """Returns whether a tensor is symbolic (from a TF graph) or an eager tensor.
+    """Returns whether a tensor is symbolic (from a TF graph) or an eager
+    tensor.
 
     A Variable can be seen as either: it is considered symbolic
     when we are in a graph scope, and eager when we are in an eager scope.
@@ -456,7 +460,7 @@ def register_symbolic_tensor_type(cls):
 def type_spec_from_value(value):
     """Grab type_spec without converting array-likes to tensors."""
     if is_extension_type(value):
-        return value._type_spec  # pylint: disable=protected-access
+        return value._type_spec
     # Get a TensorSpec for array-like data without
     # converting the data to a Tensor
     if hasattr(value, "shape") and hasattr(value, "dtype"):
@@ -508,8 +512,8 @@ def assert_no_legacy_layers(layers):
             "To use keras as a "
             "framework (for instance using the Network, Model, or Sequential "
             "classes), please use the tf.keras.layers implementation instead. "
-            "(Or, if writing custom layers, subclass from tf.keras.layers rather "
-            "than tf.layers)"
+            "(Or, if writing custom layers, subclass from tf.keras.layers "
+            "rather than tf.layers)"
         )
 
 
@@ -535,7 +539,8 @@ def maybe_init_scope(layer):
 
 @tf_contextlib.contextmanager
 def graph_context_for_symbolic_tensors(*args, **kwargs):
-    """Returns graph context manager if any of the inputs is a symbolic tensor."""
+    """Returns graph context manager if any of the inputs is a symbolic
+    tensor."""
     if any(is_symbolic_tensor(v) for v in list(args) + list(kwargs.values())):
         with backend.get_graph().as_default():
             yield
@@ -559,7 +564,7 @@ def dataset_is_infinite(dataset):
 
 def get_tensor_spec(t, dynamic_batch=False, name=None):
     """Returns a `TensorSpec` given a single `Tensor` or `TensorSpec`."""
-    # pylint: disable=protected-access
+
     if isinstance(t, tf.TypeSpec):
         spec = t
     elif is_extension_type(t):
@@ -575,7 +580,6 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
         spec = tf.TensorSpec(shape=t.shape, dtype=t.dtype, name=name)
     else:
         return None  # Allow non-Tensors to pass through.
-    # pylint: enable=protected-access
 
     if not dynamic_batch:
         return spec
@@ -593,14 +597,15 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
 
 
 def sync_to_numpy_or_python_type(tensors):
-    """Syncs and converts a structure of `Tensor`s to `NumPy` arrays or Python scalar types.
+    """Syncs and converts a structure of `Tensor`s to `NumPy` arrays or Python
+    scalar types.
 
     For each tensor, it calls `tensor.numpy()`. If the result is a scalar value,
     it converts it to a Python type, such as a float or int, by calling
     `result.item()`.
 
-    Numpy scalars are converted, as Python types are often more convenient to deal
-    with. This is especially useful for bfloat16 Numpy scalars, which don't
+    Numpy scalars are converted, as Python types are often more convenient to
+    deal with. This is especially useful for bfloat16 Numpy scalars, which don't
     support as many operations as other Numpy values.
 
     Async strategies (such as `TPUStrategy` and `ParameterServerStrategy`) are
@@ -621,7 +626,8 @@ def sync_to_numpy_or_python_type(tensors):
         # Don't turn ragged or sparse tensors to NumPy.
         if isinstance(t, tf.Tensor):
             t = t.numpy()
-        # Strings, ragged and sparse tensors don't have .item(). Return them as-is.
+        # Strings, ragged and sparse tensors don't have .item(). Return them
+        # as-is.
         if not isinstance(t, (np.ndarray, np.generic)):
             return t
         return t.item() if np.ndim(t) == 0 else t

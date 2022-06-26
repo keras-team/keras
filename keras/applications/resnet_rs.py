@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-function-docstring
+
+
 """ResNet-RS models for Keras.
 
 Reference:
@@ -27,7 +27,6 @@ from typing import List
 from typing import Union
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -35,6 +34,9 @@ from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.utils import data_utils
 from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_URL = (
     "https://storage.googleapis.com/tensorflow/" "keras-applications/resnet_rs/"
@@ -537,7 +539,6 @@ def ResNetRS(
     weights="imagenet",
     input_tensor=None,
     classes=1000,
-    # pylint: disable=g-bare-generic
     classifier_activation: Union[str, Callable] = "softmax",
     include_preprocessing=True,
 ):
@@ -945,7 +946,6 @@ def ResNetRS420(
     )
 
 
-# pylint: disable=unused-argument
 @keras_export("keras.applications.resnet_rs.preprocess_input")
 def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.

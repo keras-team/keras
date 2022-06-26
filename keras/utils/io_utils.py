@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-import-not-at-top
+
 """Utilities related to disk I/O."""
 
 import os
@@ -20,9 +20,11 @@ import sys
 import threading
 
 from absl import logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import keras_logging
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 INTERACTIVE_LOGGING = threading.local()
 INTERACTIVE_LOGGING.enable = keras_logging.INTERACTIVE_LOGGING_DEFAULT

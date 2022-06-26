@@ -13,14 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the AlphaDropout layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.AlphaDropout")
@@ -67,9 +69,7 @@ class AlphaDropout(base_layer.BaseRandomLayer):
         if 0.0 < self.rate < 1.0:
             noise_shape = self._get_noise_shape(inputs)
 
-            def dropped_inputs(
-                inputs=inputs, rate=self.rate
-            ):  # pylint: disable=missing-docstring
+            def dropped_inputs(inputs=inputs, rate=self.rate):
                 alpha = 1.6732632423543772848170429916717
                 scale = 1.0507009873554804934193349852946
                 alpha_p = -alpha * scale

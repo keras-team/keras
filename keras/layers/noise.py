@@ -13,10 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
-# pylint: disable=g-bad-import-order,unused-import
 
-from keras.layers.regularization.alpha_dropout import AlphaDropout
+
+from keras.layers.regularization.alpha_dropout import AlphaDropout  # noqa: F401
 
 # Regularization layers imported for backwards namespace compatibility
-from keras.layers.regularization.gaussian_dropout import GaussianDropout
-from keras.layers.regularization.gaussian_noise import GaussianNoise
+from keras.layers.regularization.gaussian_dropout import (  # noqa: F401,E501
+    GaussianDropout,
+)
+from keras.layers.regularization.gaussian_noise import (  # noqa: F401,E501
+    GaussianNoise,
+)

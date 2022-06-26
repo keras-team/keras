@@ -17,16 +17,18 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.eager import backprop
-from tensorflow.python.training import (
-    optimizer as optimizer_lib,
-)
 
 import keras
 from keras.engine import training as keras_training
 from keras.layers import core as keras_core
 from keras.optimizers.optimizer_v2 import rmsprop
 from keras.utils import kpl_test_utils
+
+# isort: off
+from tensorflow.python.eager import backprop
+from tensorflow.python.training import (
+    optimizer as optimizer_lib,
+)
 
 
 class MiniModel(keras_training.Model):
@@ -49,7 +51,7 @@ class MiniModel(keras_training.Model):
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
         ],
         mode=["eager"],
     )
@@ -73,7 +75,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
             optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.25)
             update_ops = optimizer._distributed_apply(
                 distribution, grads_and_vars
-            )  # pylint: disable=protected-access
+            )
 
             if not tf.executing_eagerly():
                 self.evaluate(tf.compat.v1.global_variables_initializer())

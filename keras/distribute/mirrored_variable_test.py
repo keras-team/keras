@@ -51,7 +51,7 @@ def get_strategy_with_mimicing_cpus():
             filter(
                 None.__ne__,
                 [
-                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                     get_strategy_with_mimicing_cpus(),
                 ],
             )
@@ -78,10 +78,8 @@ class MirroredVariableCreationTest(tf.test.TestCase):
 
     def _is_mirrored(self, val):
         if distributed_training_utils.is_distributed_variable(val):
-            if val._policy:  # pylint: disable=protected-access
-                return (
-                    val._policy._is_mirrored()
-                )  # pylint: disable=protected-access
+            if val._policy:
+                return val._policy._is_mirrored()
         # Since `Mirrored` is a private symbol in tf.distribute, we're checking
         # with `DistributedValues` as an approximation.
         return isinstance(val, tf.distribute.DistributedValues)

@@ -14,19 +14,19 @@
 # ==============================================================================
 """Keras discretization preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 INT = utils.INT
 MULTI_HOT = utils.MULTI_HOT
@@ -306,7 +306,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             initializer=lambda shape, dtype: [
                 [],
                 [],
-            ],  # pylint: disable=unused-arguments
+            ],
             trainable=False,
         )
 
@@ -387,7 +387,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             get_bin_boundaries(self.summary, self.num_bins)
         )
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self.input_bin_boundaries is not None or not self.built:
             return
 

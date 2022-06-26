@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
-"""Locally-connected layer for 1D input."""
 
-from tensorflow.python.util.tf_export import keras_export
+"""Locally-connected layer for 1D input."""
 
 from keras import activations
 from keras import backend
@@ -27,6 +25,9 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.locally_connected import locally_connected_utils
 from keras.utils import conv_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.LocallyConnected1D")

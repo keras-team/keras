@@ -140,7 +140,7 @@ def inject_mesh(init_method):
         # of __init__, since the class might need the mesh to create weights in
         # the __init__.
         if mesh is not None:
-            instance._mesh = mesh  # pylint: disable=protected-access
+            instance._mesh = mesh
         init_method(instance, *args, **kwargs)
 
     return tf.__internal__.decorator.make_decorator(

@@ -32,7 +32,8 @@ def convert_data_format(data_format, ndim):
             return "NDHWC"
         else:
             raise ValueError(
-                f"Input rank not supported: {ndim}. Expected values are [3, 4, 5]"
+                f"Input rank not supported: {ndim}. "
+                "Expected values are [3, 4, 5]"
             )
     elif data_format == "channels_first":
         if ndim == 3:
@@ -43,7 +44,8 @@ def convert_data_format(data_format, ndim):
             return "NCDHW"
         else:
             raise ValueError(
-                f"Input rank not supported: {ndim}. Expected values are [3, 4, 5]"
+                f"Input rank not supported: {ndim}. "
+                "Expected values are [3, 4, 5]"
             )
     else:
         raise ValueError(
@@ -177,8 +179,8 @@ def deconv_output_length(
         input_length: Integer.
         filter_size: Integer.
         padding: one of `"same"`, `"valid"`, `"full"`.
-        output_padding: Integer, amount of padding along the output dimension. Can
-          be set to `None` in which case the output length is inferred.
+        output_padding: Integer, amount of padding along the output dimension.
+          Can be set to `None` in which case the output length is inferred.
         stride: Integer.
         dilation: Integer.
 
@@ -245,9 +247,10 @@ def conv_kernel_mask(input_shape, kernel_shape, strides, padding):
 
     Assume a convolution with given parameters is applied to an input having N
     spatial dimensions with `input_shape = (d_in1, ..., d_inN)` to produce an
-    output with shape `(d_out1, ..., d_outN)`. This method returns a boolean array
-    of shape `(d_in1, ..., d_inN, d_out1, ..., d_outN)` with `True` entries
-    indicating pairs of input and output locations that are connected by a weight.
+    output with shape `(d_out1, ..., d_outN)`. This method returns a boolean
+    array of shape `(d_in1, ..., d_inN, d_out1, ..., d_outN)` with `True`
+    entries indicating pairs of input and output locations that are connected by
+    a weight.
 
     Example:
 
@@ -337,9 +340,9 @@ def conv_kernel_idxs(
     """Yields output-input tuples of indices in a CNN layer.
 
     The generator iterates over all `(output_idx, input_idx)` tuples, where
-      `output_idx` is an integer index in a flattened tensor representing a single
-      output image of a convolutional layer that is connected (via the layer
-      weights) to the respective single input image at `input_idx`
+    `output_idx` is an integer index in a flattened tensor representing a single
+    output image of a convolutional layer that is connected (via the layer
+    weights) to the respective single input image at `input_idx`
 
     Example:
 
@@ -369,15 +372,15 @@ def conv_kernel_idxs(
       data_format: string, "channels_first" or "channels_last".
 
     Yields:
-      The next tuple `(output_idx, input_idx)`, where
-      `output_idx` is an integer index in a flattened tensor representing a single
-      output image of a convolutional layer that is connected (via the layer
-      weights) to the respective single input image at `input_idx`.
+      The next tuple `(output_idx, input_idx)`, where `output_idx` is an integer
+      index in a flattened tensor representing a single output image of a
+      convolutional layer that is connected (via the layer weights) to the
+      respective single input image at `input_idx`.
 
     Raises:
-        ValueError: if `data_format` is neither
-        `"channels_last"` nor `"channels_first"`, or if number of strides, input,
-        and kernel number of dimensions do not match.
+        ValueError: if `data_format` is neither `"channels_last"` nor
+          `"channels_first"`, or if number of strides, input, and kernel number
+          of dimensions do not match.
 
         NotImplementedError: if `padding` is neither `"same"` nor `"valid"`.
     """
@@ -466,8 +469,8 @@ def conv_connected_inputs(
         input.
       kernel_shape: tuple of size N, spatial shape of the convolutional kernel /
         receptive field.
-      output_position: tuple of size N: `(p_out1, ..., p_outN)`, a single position
-        in the output of the convolution.
+      output_position: tuple of size N: `(p_out1, ..., p_outN)`, a single
+        position in the output of the convolution.
       strides: tuple of size N, strides along each spatial dimension.
       padding: type of padding, string `"same"` or `"valid"`.
         `"valid"` means no padding. `"same"` results in padding evenly to

@@ -20,6 +20,20 @@ import os
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl import flags
+
+from keras import callbacks
+from keras.distribute import distribute_strategy_test
+from keras.engine import base_layer
+from keras.engine import sequential as sequential_model_lib
+from keras.engine import training
+from keras.layers import convolutional as conv_layer_lib
+from keras.layers import core as layer_lib
+from keras.layers import pooling as pool_layer_lib
+from keras.layers import regularization as regularization_layer_lib
+from keras.layers import reshaping as reshaping_layer_lib
+from keras.testing_infra import test_utils
+
+# isort: off
 from tensorboard.plugins.histogram import (
     summary_v2 as histogram_summary_v2,
 )
@@ -35,18 +49,6 @@ from tensorflow.python.eager.context import (
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-
-from keras import callbacks
-from keras.distribute import distribute_strategy_test
-from keras.engine import base_layer
-from keras.engine import sequential as sequential_model_lib
-from keras.engine import training
-from keras.layers import convolutional as conv_layer_lib
-from keras.layers import core as layer_lib
-from keras.layers import pooling as pool_layer_lib
-from keras.layers import regularization as regularization_layer_lib
-from keras.layers import reshaping as reshaping_layer_lib
-from keras.testing_infra import test_utils
 
 NUM_CLASSES = 4
 
@@ -203,10 +205,11 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
         )
 
     def testV2SummaryWithKerasSequentialModel(self):
-        # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
-        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
-        #   if histogram summaries are supported fully on non-MLIR bridge or
-        #   non-MLIR bridge is no longer run.
+        # Histogram summaries require the MLIR bridge; see
+        # b/178826597#comment107.
+        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove
+        # this if histogram summaries are supported fully on non-MLIR bridge or
+        # non-MLIR bridge is no longer run.
         enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
         strategy = get_tpu_strategy()
 
@@ -231,9 +234,10 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
                 os.path.join(self.summary_dir, "train", "event*")
             )
             # Since total of 10 steps are ran and summary ops should be invoked
-            # every 2 batches, we should see total of 5 event logs for each summary.
+            # every 2 batches, we should see total of 5 event logs for each
+            # summary.
             expected_event_counts = {
-                "sequential/layer_for_histogram_summary/custom_histogram_summary_v2": 5
+                "sequential/layer_for_histogram_summary/custom_histogram_summary_v2": 5  # noqa: E501
                 if enable_histograms
                 else 0,
                 "sequential/layer_for_image_summary/custom_image_summary_v2": 5,
@@ -243,10 +247,11 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
             )
 
     def testV2SummaryWithKerasSubclassedModel(self):
-        # Histogram summaries require the MLIR bridge; see b/178826597#comment107.
-        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove this
-        #   if histogram summaries are supported fully on non-MLIR bridge or
-        #   non-MLIR bridge is no longer run.
+        # Histogram summaries require the MLIR bridge; see
+        # b/178826597#comment107.
+        # TODO(https://github.com/tensorflow/tensorboard/issues/2885): remove
+        # this if histogram summaries are supported fully on non-MLIR bridge or
+        # non-MLIR bridge is no longer run.
         enable_histograms = tf_test_utils.is_mlir_bridge_enabled()
         strategy = get_tpu_strategy()
         with strategy.scope():
@@ -268,7 +273,8 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
                 os.path.join(self.summary_dir, "train", "event*")
             )
             # Since total of 10 steps are ran and summary ops should be invoked
-            # every 2 batches, we should see total of 5 event logs for each summary.
+            # every 2 batches, we should see total of 5 event logs for each
+            # summary.
             expected_event_counts = {
                 (
                     "custom_model/layer_for_scalar_summary/"

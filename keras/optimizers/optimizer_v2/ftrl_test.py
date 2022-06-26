@@ -111,7 +111,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
                 def loss():
                     pred = tf.matmul(
                         tf.compat.v1.nn.embedding_lookup([var0], [0]), x
-                    )  # pylint: disable=cell-var-from-loop
+                    )
                     return pred * pred
 
                 sgd_op = ftrl.Ftrl(1.0).minimize(loss, var_list=[var0])

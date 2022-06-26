@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Wrapper layer to apply every temporal slice of an input."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine.base_layer import Layer
@@ -25,6 +24,9 @@ from keras.layers.rnn.base_wrapper import Wrapper
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.TimeDistributed")
@@ -191,7 +193,7 @@ class TimeDistributed(Wrapper):
                 mask=mask,
                 unroll=False,
             )
-            # pylint: disable=g-long-lambda
+
             y = tf.nest.map_structure(
                 lambda output: backend.maybe_convert_to_ragged(
                     is_ragged_input, output, row_lengths
@@ -251,7 +253,7 @@ class TimeDistributed(Wrapper):
 
                 # Shape: (num_samples, timesteps, ...)
                 output_shape = self.compute_output_shape(input_shape)
-                # pylint: disable=g-long-lambda
+
                 output_shape = tf.nest.map_structure(
                     lambda tensor, int_shape: self._get_shape_tuple(
                         (-1, input_length), tensor, 1, int_shape[2:]

@@ -15,9 +15,10 @@
 """Layer that multiplies (element-wise) several inputs."""
 
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras.layers.merging.base_merge import _Merge
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Multiply")

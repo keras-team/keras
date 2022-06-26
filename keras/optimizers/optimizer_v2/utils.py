@@ -15,6 +15,8 @@
 """Optimizer utilities."""
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -130,7 +132,8 @@ def make_global_gradient_clipnorm_fn(clipnorm):
             ),
         ):
             raise ValueError(
-                "`global_clipnorm` is not supported with `CenteralStorageStrategy`. "
+                "`global_clipnorm` is not supported with "
+                "`CenteralStorageStrategy`. "
                 f"The strategy used is {tf.distribute.get_strategy()}."
             )
 

@@ -16,12 +16,14 @@
 
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.distribute import values
 
 from keras.distribute import (
     strategy_combinations as keras_strategy_combinations,
 )
 from keras.optimizers.optimizer_v2 import gradient_descent
+
+# isort: off
+from tensorflow.python.distribute import values
 
 
 class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
@@ -68,7 +70,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             def step_fn(grads):
                 optimizer.apply_gradients(
                     [(grads, v)],
-                    experimental_aggregate_gradients=experimental_aggregate_gradients,
+                    experimental_aggregate_gradients=experimental_aggregate_gradients,  # noqa: E501
                 )
                 return v.read_value()
 
@@ -80,7 +82,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
-            distribution=tf.__internal__.distribute.combinations.one_device_strategy,
+            distribution=tf.__internal__.distribute.combinations.one_device_strategy,  # noqa: E501
             mode=["eager"],
             experimental_aggregate_gradients=[True, False],
         )
@@ -100,7 +102,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
             def step_fn(grads):
                 optimizer.apply_gradients(
                     [(grads, v)],
-                    experimental_aggregate_gradients=experimental_aggregate_gradients,
+                    experimental_aggregate_gradients=experimental_aggregate_gradients,  # noqa: E501
                 )
                 return v.read_value()
 
@@ -113,7 +115,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu  # noqa: E501
             ]
         )
     )

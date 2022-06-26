@@ -25,7 +25,7 @@ from keras.optimizers.optimizer_v2 import (
 
 
 class DistributionStrategyEmbeddingModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def get_model(
         self,
@@ -83,7 +83,7 @@ class DistributionStrategyEmbeddingModelCorrectnessTest(
 
 
 class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
-    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase
+    keras_correctness_test_base.TestDistributionStrategyEmbeddingModelCorrectnessBase  # noqa: E501
 ):
     def get_model(
         self,

@@ -149,7 +149,8 @@ class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
         #   mae (y1 - y_pred_1) = [[[.4], [.9]], [[.9], [1.4]], [[1.4], [.4]]]
         #   mae                 = [[2.7/3, 2.7/3]] = [[0.9, 0.9]] = 1.8/2 = 0.9
         #   mae_2 (y2 - y_pred_2) = [[[.4], [1.4]], [[.9], [.4]], [[1.4], [.9]]]
-        #   mae_2                 = [[2.7/3, 2.7/3]] = [[0.9, 0.9]] = 1.8/2 = 0.9
+        #   mae_2                 = [[2.7/3, 2.7/3]] = [[0.9, 0.9]] = 1.8/2 =
+        #   0.9
 
         self.expected_fit_result = {
             "output_1_mae": [1, 0.9],
@@ -185,8 +186,10 @@ class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
         #   mae_2 (sum over bs)   = [[6/3, 1.5/3]] = [[2, .5]] = 2.5/2 = 1.25
 
         # Epoch 2 - bias = 0.125 (2.5/2 * 0.1)
-        #   y_pred_1 = [[[0.125], [0.125]], [[1.125], [1.125]], [[2.125], [2.125]]]
-        #   y_pred_2 = [[[0.125], [0.125]], [[1.125], [1.125]], [[2.125], [2.125]]]
+        #   y_pred_1 = [[[0.125], [0.125]], [[1.125], [1.125]], [[2.125],
+        #   [2.125]]]
+        #   y_pred_2 = [[[0.125], [0.125]], [[1.125], [1.125]], [[2.125],
+        #   [2.125]]]
 
         #   mae (y1 - y_pred_1) = [[[.375], [.875]],
         #                          [[.875], [1.375]],
@@ -196,7 +199,8 @@ class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
         #                          [[1.375 * .5], [.375 * 2.]]]
         #   mae (w/o weights)   = [[2.625/3, 2.625/3]] = (.875+.875)/2 = .875
         #   mae (weighted mean) = [[1.3125/1.5,  5.25/6]] = (.875+.875)/2 = .875
-        #   mae (sum over bs)   = [[1.3125/3,  5.25/3]] = (0.4375+1.75)/2 = 1.09375
+        #   mae (sum over bs)   = [[1.3125/3,  5.25/3]] = (0.4375+1.75)/2 =
+        #   1.09375
 
         #   mae_2 (y2 - y_pred_2) = [[[.375], [1.375]],
         #                            [[.875], [.375]],
@@ -205,8 +209,10 @@ class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
         #                            [[.875 * 2.], [.375 * .5]],
         #                            [[1.375 * 2.], [.875 * .5]]]
         #   mae_2 (w/o weights)   = [[2.625/3, 2.625/3]] = (.875+.875)/2 = .875
-        #   mae_2 (weighted mean) = [[5.25/6, 1.3125/1.5]] = (.875+.875)/2 = .875
-        #   mae_2 (sum over bs)  = [[5.25/3, 1.3125/3]] = (1.75+0.4375)/2 = 1.09375
+        #   mae_2 (weighted mean) = [[5.25/6, 1.3125/1.5]] = (.875+.875)/2 =
+        #   .875
+        #   mae_2 (sum over bs)  = [[5.25/3, 1.3125/3]] = (1.75+0.4375)/2 =
+        #   1.09375
 
         self.expected_fit_result_with_weights = {
             "output_1_mae": [1, 0.875],

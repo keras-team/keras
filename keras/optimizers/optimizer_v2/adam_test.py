@@ -167,9 +167,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
-                g_sum = lambda: tf.reduce_sum(
-                    tf.gather(var, indices)
-                )  # pylint: disable=cell-var-from-loop
+                g_sum = lambda: tf.reduce_sum(tf.gather(var, indices))
                 optimizer = adam.Adam(3.0)
                 minimize_op = optimizer.minimize(g_sum, var_list=[var])
                 self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -738,9 +736,7 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 # placed on it (i.e. they have GPU kernels).
                 var = tf.Variable([[1.0], [2.0]])
                 indices = tf.constant([0, 1], dtype=index_dtype)
-                g_sum = lambda: tf.reduce_sum(
-                    tf.gather(var, indices)
-                )  # pylint: disable=cell-var-from-loop
+                g_sum = lambda: tf.reduce_sum(tf.gather(var, indices))
                 optimizer = adam.NonFusedAdam(3.0)
                 minimize_op = optimizer.minimize(g_sum, var_list=[var])
                 self.evaluate(tf.compat.v1.global_variables_initializer())

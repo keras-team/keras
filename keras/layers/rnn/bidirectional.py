@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Bidirectional wrapper for RNNs."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import copy
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine.base_layer import Layer
@@ -28,6 +27,9 @@ from keras.layers.rnn.base_wrapper import Wrapper
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Bidirectional")
@@ -178,9 +180,7 @@ class Bidirectional(Wrapper):
 
     @property
     def _use_input_spec_as_call_signature(self):
-        return (
-            self.layer._use_input_spec_as_call_signature
-        )  # pylint: disable=protected-access
+        return self.layer._use_input_spec_as_call_signature
 
     def _verify_layer_config(self):
         """Ensure the forward and backward layers have valid common property."""
@@ -512,5 +512,5 @@ class Bidirectional(Wrapper):
             config["backward_layer"] = backward_layer
         # Instantiate the wrapper, adjust it and return it.
         layer = cls(**config)
-        layer._num_constants = num_constants  # pylint: disable=protected-access
+        layer._num_constants = num_constants
         return layer

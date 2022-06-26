@@ -19,7 +19,6 @@ import sys
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import callbacks
@@ -27,6 +26,9 @@ from keras import metrics as metrics_module
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 class BatchCounterCallback(callbacks.Callback):
@@ -346,7 +348,7 @@ class TestTrainingWithDataset(test_combinations.TestCase):
         )
 
     def test_dataset_input_shape_validation(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session():  # noqa: E501
             model = test_utils.get_small_functional_mlp(1, 4, input_dim=3)
             model.compile(optimizer="rmsprop", loss="mse")
 

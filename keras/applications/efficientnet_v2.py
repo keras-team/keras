@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-docstring
+
+
 """EfficientNet V2 models for Keras.
 
 Reference:
@@ -25,7 +25,6 @@ import copy
 import math
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import layers
@@ -34,7 +33,10 @@ from keras.engine import training
 from keras.utils import data_utils
 from keras.utils import layer_utils
 
-BASE_WEIGHTS_PATH = "https://storage.googleapis.com/tensorflow/keras-applications/efficientnet_v2/"
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+
+BASE_WEIGHTS_PATH = "https://storage.googleapis.com/tensorflow/keras-applications/efficientnet_v2/"  # noqa: E501
 
 WEIGHTS_HASHES = {
     "b0": (
@@ -1329,7 +1331,7 @@ EfficientNetV2L.__doc__ = BASE_DOCSTRING.format(name="EfficientNetV2L")
 
 
 @keras_export("keras.applications.efficientnet_v2.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the EfficientNetV2 model

@@ -102,7 +102,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAlmostEqual(self.evaluate(m.total), 63.75, 2)
 
     def test_sum_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Sum()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)
@@ -261,7 +261,7 @@ class MeanTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_mean_graph_with_placeholder(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             m = metrics.Mean()
             v = tf.compat.v1.placeholder(tf.float32)
             w = tf.compat.v1.placeholder(tf.float32)
@@ -625,9 +625,7 @@ class CustomMetricsTest(tf.test.TestCase):
             ]
         )
 
-        update_op = btp_obj.update_state(
-            y_true, y_pred
-        )  # pylint: disable=assignment-from-no-return
+        update_op = btp_obj.update_state(y_true, y_pred)
         self.evaluate(update_op)
         result = btp_obj.result()
         self.assertEqual(7, self.evaluate(result))
@@ -777,14 +775,10 @@ class CustomMetricsTest(tf.test.TestCase):
         y = layers.Dense(3)(x)
         model = training_module.Model(x, y)
 
-        def bad_metric(
-            y_true, y_pred, sample_weight=None
-        ):  # pylint: disable=unused-argument
+        def bad_metric(y_true, y_pred, sample_weight=None):
             return None
 
-        def dict_metric(
-            y_true, y_pred, sample_weight=None
-        ):  # pylint: disable=unused-argument
+        def dict_metric(y_true, y_pred, sample_weight=None):
             return {"value": 0.0}
 
         with self.assertRaisesRegex(

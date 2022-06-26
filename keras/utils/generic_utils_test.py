@@ -88,13 +88,25 @@ class TestCustomObjectScope(tf.test.TestCase):
         class CustomClass:
             pass
 
-        with keras.utils.generic_utils.custom_object_scope(
-            {"CustomClass": CustomClass, "custom_fn": custom_fn}
-        ):
-            act = keras.activations.get("custom_fn")
-            self.assertEqual(act, custom_fn)
-            cl = keras.regularizers.get("CustomClass")
-            self.assertEqual(cl.__class__, CustomClass)
+        def check_get_in_thread():
+            with keras.utils.generic_utils.custom_object_scope(
+                {"CustomClass": CustomClass, "custom_fn": custom_fn}
+            ):
+                actual_custom_fn = keras.activations.get("custom_fn")
+                self.assertEqual(actual_custom_fn, custom_fn)
+                actual_custom_class = keras.regularizers.get("CustomClass")
+                self.assertEqual(actual_custom_class.__class__, CustomClass)
+
+            with keras.utils.generic_utils.custom_object_scope(
+                {"CustomClass": CustomClass, "custom_fn": custom_fn}
+            ):
+                actual_custom_fn = keras.activations.get("custom_fn")
+                self.assertEqual(actual_custom_fn, custom_fn)
+                actual_custom_class = keras.regularizers.get("CustomClass")
+                self.assertEqual(actual_custom_class.__class__, CustomClass)
+                checked_thread = self.checkedThread(check_get_in_thread)
+                checked_thread.start()
+                checked_thread.join()
 
 
 class SerializeKerasObjectTest(tf.test.TestCase):
@@ -131,8 +143,8 @@ class SerializeKerasObjectTest(tf.test.TestCase):
             ValueError, ".*has already been registered.*"
         ):
 
-            @keras.utils.generic_utils.register_keras_serializable()  # pylint: disable=function-redefined
-            class TestClass:  # pylint: disable=function-redefined
+            @keras.utils.generic_utils.register_keras_serializable()
+            class TestClass:
                 def __init__(self, value):
                     self._value = value
 
@@ -197,7 +209,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
             "Cannot register a class that does " "not have a get_config.*",
         ):
 
-            @keras.utils.generic_utils.register_keras_serializable(  # pylint: disable=unused-variable
+            @keras.utils.generic_utils.register_keras_serializable(
                 "TestPackage", "TestClass"
             )
             class TestClass:
@@ -476,8 +488,8 @@ class SharedObjectScopeTest(tf.test.TestCase):
         with generic_utils.SharedObjectSavingScope() as scope_1:
             scope_1.create_config({}, my_obj)
             with generic_utils.SharedObjectSavingScope() as scope_2:
-                # Nesting saving scopes should return the original scope and should
-                # not clear any objects we're tracking.
+                # Nesting saving scopes should return the original scope and
+                # should not clear any objects we're tracking.
                 self.assertIs(scope_1, scope_2)
                 self.assertIsNotNone(scope_2.get_config(my_obj))
             self.assertIsNotNone(scope_1.get_config(my_obj))
@@ -529,8 +541,8 @@ class SharedObjectScopeTest(tf.test.TestCase):
         with self.captureWritesToStream(sys.stderr) as printed:
             loaded_model.fit(x, y, epochs=1)
             if tf.__internal__.tf2.enabled():
-                # `tf.print` message is only available in stderr in TF2. Check that
-                # custom `train_step` is used.
+                # `tf.print` message is only available in stderr in TF2. Check
+                # that custom `train_step` is used.
                 self.assertRegex(printed.contents(), train_step_message)
 
         # Check that the custom class does get used.

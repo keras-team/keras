@@ -41,8 +41,8 @@ class DistributeKplTestUtils(tf.test.TestCase):
         """Function that defines KPL used for unit tests of tf.distribute.
 
         Args:
-          use_adapt: if adapt will be called. False means there will be precomputed
-            statistics.
+          use_adapt: if adapt will be called. False means there will be
+            precomputed statistics.
 
         Returns:
           feature_mapper: a simple keras model with one keras StringLookup layer
@@ -114,7 +114,7 @@ class DistributeKplTestUtils(tf.test.TestCase):
         )
 
         train_dataset = raw_dataset.map(
-            lambda x: (  # pylint: disable=g-long-lambda
+            lambda x: (
                 {"features": feature_mapper(x["features"])},
                 label_mapper(x["label"]),
             )

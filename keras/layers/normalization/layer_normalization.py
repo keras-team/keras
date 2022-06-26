@@ -15,7 +15,6 @@
 """Layer Normalization layer."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import constraints
 from keras import initializers
@@ -24,7 +23,8 @@ from keras.dtensor import utils
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 
-# pylint: disable=g-classes-have-attributes
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.LayerNormalization")

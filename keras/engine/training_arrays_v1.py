@@ -18,7 +18,6 @@ import functools
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -29,11 +28,12 @@ from keras.utils.generic_utils import make_batches
 from keras.utils.generic_utils import slice_arrays
 from keras.utils.mode_keys import ModeKeys
 
-# pylint: disable=protected-access
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 try:
-    from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
+    from scipy.sparse import issparse
 except ImportError:
     issparse = None
 
@@ -306,7 +306,7 @@ def model_iteration(
                     # case.
                     if not callable(ins) or (
                         model._distribution_strategy
-                        and not distributed_training_utils_v1.is_distributing_by_cloning(
+                        and not distributed_training_utils_v1.is_distributing_by_cloning(  # noqa: E501
                             model
                         )
                     ):
@@ -353,7 +353,7 @@ def model_iteration(
                     batch_outs = [batch_outs]
 
                 if model._distribution_strategy:
-                    batch_outs = distributed_training_utils_v1._per_replica_aggregate_batch(
+                    batch_outs = distributed_training_utils_v1._per_replica_aggregate_batch(  # noqa: E501
                         model._distribution_strategy, batch_outs, model, mode
                     )
 

@@ -21,9 +21,6 @@ from unittest import mock
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 import keras
 from keras.engine import data_adapter
@@ -31,6 +28,11 @@ from keras.layers import core
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 def _create_dataset(num_samples, batch_size):

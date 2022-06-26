@@ -24,7 +24,7 @@ _LOSS = "binary_crossentropy"
 _OPTIMIZER = "rmsprop"
 
 
-class KerasModelCPUBenchmark(  # pylint: disable=undefined-variable
+class KerasModelCPUBenchmark(
     tf.test.Benchmark, metaclass=tf.__internal__.test.ParameterizedBenchmark
 ):
     """Required Arguments for measure_performance.

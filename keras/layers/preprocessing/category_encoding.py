@@ -14,18 +14,18 @@
 # ==============================================================================
 """Keras CategoryEncoding preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 INT = utils.INT
 ONE_HOT = utils.ONE_HOT

@@ -23,8 +23,6 @@ the [text loading tutorial]
 and [preprocessing layer guide]
 (https://www.tensorflow.org/guide/keras/preprocessing_layers).
 """
-# pylint: disable=invalid-name
-# pylint: disable=g-classes-have-attributes
 
 
 import collections
@@ -33,6 +31,8 @@ import json
 import warnings
 
 import numpy as np
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -92,12 +92,13 @@ def one_hot(
 ):
     r"""One-hot encodes a text into a list of word indexes of size `n`.
 
-    Deprecated: `tf.keras.text.preprocessing.one_hot` does not operate on tensors
-    and is not recommended for new code. Prefer `tf.keras.layers.Hashing` with
-    `output_mode='one_hot'` which provides equivalent functionality through a
-    layer which accepts `tf.Tensor` input. See the [preprocessing layer guide]
-    (https://www.tensorflow.org/guide/keras/preprocessing_layers)
-    for an overview of preprocessing layers.
+    Deprecated: `tf.keras.text.preprocessing.one_hot` does not operate on
+    tensors and is not recommended for new code. Prefer
+    `tf.keras.layers.Hashing` with `output_mode='one_hot'` which provides
+    equivalent functionality through a layer which accepts `tf.Tensor` input.
+    See the [preprocessing layer guide]
+    (https://www.tensorflow.org/guide/keras/preprocessing_layers) for an
+    overview of preprocessing layers.
 
     This function receives as input a string of text and returns a
     list of encoded integers each corresponding to a word (or token)
@@ -144,11 +145,11 @@ def hashing_trick(
     r"""Converts a text to a sequence of indexes in a fixed-size hashing space.
 
     Deprecated: `tf.keras.text.preprocessing.hashing_trick` does not operate on
-    tensors and is not recommended for new code. Prefer `tf.keras.layers.Hashing`
-    which provides equivalent functionality through a layer which accepts
-    `tf.Tensor` input. See the [preprocessing layer guide]
-    (https://www.tensorflow.org/guide/keras/preprocessing_layers)
-    for an overview of preprocessing layers.
+    tensors and is not recommended for new code. Prefer
+    `tf.keras.layers.Hashing` which provides equivalent functionality through a
+    layer which accepts `tf.Tensor` input. See the [preprocessing layer guide](
+    https://www.tensorflow.org/guide/keras/preprocessing_layers) for an
+    overview of preprocessing layers.
 
     Args:
         text: Input text (string).

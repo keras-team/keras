@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Version 2 of class Optimizer."""
-# pylint: disable=g-bad-name
 
 
 import abc
@@ -22,7 +21,6 @@ import functools
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import initializers
@@ -33,6 +31,9 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/keras/optimizers", "keras optimizer usage", "method"
@@ -606,7 +607,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           gradient can be `None`.
 
         Raises:
-          TypeError: If `var_list` contains anything else than `Variable` objects.
+          TypeError: If `var_list` contains anything else than `Variable`
+            objects.
           ValueError: If some arguments are invalid, or var_list is None.
         """
         # TODO(joshl): Test that we handle weight decay in a reasonable way.
@@ -713,10 +715,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 and isinstance(
                     strategy,
                     (
-                        tf.compat.v1.distribute.experimental.ParameterServerStrategy,
+                        tf.compat.v1.distribute.experimental.ParameterServerStrategy,  # noqa: E501
                         tf.distribute.experimental.ParameterServerStrategy,
                         tf.distribute.experimental.CentralStorageStrategy,
-                        tf.compat.v1.distribute.experimental.CentralStorageStrategy,
+                        tf.compat.v1.distribute.experimental.CentralStorageStrategy,  # noqa: E501
                     ),
                 )
             ):
@@ -817,9 +819,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 # If the current context is graph mode or any of the update ops
                 # are symbolic then the step update should be carried out under
                 # a graph context. (eager updates execute immediately)
-                with backend._current_graph(
-                    update_ops
-                ).as_default():  # pylint: disable=protected-access
+                with backend._current_graph(update_ops).as_default():
                     with tf.control_dependencies([tf.group(update_ops)]):
                         return self.iterations.assign_add(1, read_value=False)
 
@@ -932,9 +932,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         sharded_vars = set()
         for var in var_list:
             if getattr(var, "_sharded_container", False):
-                sharded_vars.add(
-                    var._sharded_container()
-                )  # pylint: disable=protected-access
+                sharded_vars.add(var._sharded_container())
 
         for sharded_var in sharded_vars:
             sharded_key = _var_key(sharded_var)
@@ -1055,7 +1053,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                         % (
                             var._shared_name,
                             slot_name,
-                        ),  # pylint: disable=protected-access
+                        ),
                         dtype=var.dtype,
                         trainable=False,
                         initial_value=initial_value,
@@ -1090,7 +1088,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         keys = set()
         for var in var_list:
             if isinstance(var, tf.distribute.DistributedValues):
-                var_devices = var._devices  # pylint: disable=protected-access
+                var_devices = var._devices
             else:
                 var_devices = [var.device]
             var_dtype = var.dtype.base_dtype
@@ -1649,7 +1647,6 @@ def _var_key(var):
       the unique name of the variable.
     """
 
-    # pylint: disable=protected-access
     # Get the distributed variable if it exists.
     if hasattr(var, "_distributed_container"):
         var = var._distributed_container()

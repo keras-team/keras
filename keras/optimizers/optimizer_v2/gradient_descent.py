@@ -13,15 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """SGD optimizer implementation."""
-# pylint: disable=g-bad-import-order
-# pylint: disable=g-classes-have-attributes
+
+
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.optimizers.optimizer_v2 import optimizer_v2
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+
 @keras_export("keras.optimizers.SGD")
 class SGD(optimizer_v2.OptimizerV2):
     r"""Gradient descent (with momentum) optimizer.

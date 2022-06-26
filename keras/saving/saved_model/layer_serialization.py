@@ -39,23 +39,23 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
     def _python_properties_internal(self):
         """Returns dictionary of all python properties."""
         # TODO(kathywu): Add support for metrics serialization.
-        # TODO(kathywu): Synchronize with the keras spec (go/keras-json-spec) once
-        # the python config serialization has caught up.
+        # TODO(kathywu): Synchronize with the keras spec (go/keras-json-spec)
+        # once the python config serialization has caught up.
         metadata = dict(
             name=self.obj.name,
             trainable=self.obj.trainable,
-            expects_training_arg=self.obj._expects_training_arg,  # pylint: disable=protected-access
-            dtype=policy.serialize(
-                self.obj._dtype_policy
-            ),  # pylint: disable=protected-access
+            expects_training_arg=self.obj._expects_training_arg,
+            dtype=policy.serialize(self.obj._dtype_policy),
             batch_input_shape=getattr(self.obj, "_batch_input_shape", None),
             stateful=self.obj.stateful,
-            must_restore_from_config=self.obj._must_restore_from_config,  # pylint: disable=protected-access
+            must_restore_from_config=self.obj._must_restore_from_config,
+            preserve_input_structure_in_config=self.obj._preserve_input_structure_in_config,  # noqa: E501
         )
 
         metadata.update(get_serialized(self.obj))
         if self.obj.input_spec is not None:
-            # Layer's input_spec has already been type-checked in the property setter.
+            # Layer's input_spec has already been type-checked in the property
+            # setter.
             metadata["input_spec"] = tf.nest.map_structure(
                 lambda x: generic_utils.serialize_keras_object(x)
                 if x
@@ -70,12 +70,8 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             ] = generic_utils.serialize_keras_object(
                 self.obj.activity_regularizer
             )
-        if (
-            self.obj._build_input_shape is not None
-        ):  # pylint: disable=protected-access
-            metadata[
-                "build_input_shape"
-            ] = self.obj._build_input_shape  # pylint: disable=protected-access
+        if self.obj._build_input_shape is not None:
+            metadata["build_input_shape"] = self.obj._build_input_shape
         return metadata
 
     def objects_to_serialize(self, serialization_cache):
@@ -103,7 +99,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
         if (
             save_impl.should_skip_serialization(self.obj)
             or self.obj._must_restore_from_config
-        ):  # pylint: disable=protected-access
+        ):
             return serialized_attr
 
         object_dict, function_dict = self._get_serialized_attributes_internal(
@@ -120,8 +116,8 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
         functions = save_impl.wrap_layer_functions(
             self.obj, serialization_cache
         )
-        # Attribute validator requires that the default save signature is added to
-        # function dict, even if the value is None.
+        # Attribute validator requires that the default save signature is added
+        # to function dict, even if the value is None.
         functions["_default_save_signature"] = None
         return objects, functions
 
@@ -130,9 +126,10 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
 # generic_utils.py) to a separate file.
 def get_serialized(obj):
     with generic_utils.skip_failed_serialization():
-        # Store the config dictionary, which may be used when reviving the object.
-        # When loading, the program will attempt to revive the object from config,
-        # and if that fails, the object will be revived from the SavedModel.
+        # Store the config dictionary, which may be used when reviving the
+        # object.  When loading, the program will attempt to revive the object
+        # from config, and if that fails, the object will be revived from the
+        # SavedModel.
         return generic_utils.serialize_keras_object(obj)
 
 
@@ -152,7 +149,7 @@ class InputLayerSavedModelSaver(base_serialization.SavedModelSaver):
             dtype=self.obj.dtype,
             sparse=self.obj.sparse,
             ragged=self.obj.ragged,
-            batch_input_shape=self.obj._batch_input_shape,  # pylint: disable=protected-access
+            batch_input_shape=self.obj._batch_input_shape,
             config=self.obj.get_config(),
         )
 
@@ -175,12 +172,12 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
             serialization_cache
         )
         states = tf.__internal__.tracking.wrap(self.obj.states)
-        # SaveModel require all the objects to be Trackable when saving.
-        # If the states is still a tuple after wrap_or_unwrap, it means it doesn't
-        # contain any trackable item within it, eg empty tuple or (None, None) for
-        # stateless ConvLSTM2D. We convert them to list so that wrap_or_unwrap can
-        # make it a Trackable again for saving. When loaded, ConvLSTM2D is
-        # able to handle the tuple/list conversion.
+        # SaveModel require all the objects to be Trackable when saving.  If the
+        # states is still a tuple after wrap_or_unwrap, it means it doesn't
+        # contain any trackable item within it, eg empty tuple or (None, None)
+        # for stateless ConvLSTM2D. We convert them to list so that
+        # wrap_or_unwrap can make it a Trackable again for saving. When loaded,
+        # ConvLSTM2D is able to handle the tuple/list conversion.
         if isinstance(states, tuple):
             states = tf.__internal__.tracking.wrap(list(states))
         objects["states"] = states
@@ -193,9 +190,10 @@ class VocabularySavedModelSaver(LayerSavedModelSaver):
     This class is needed for StringLookup, IntegerLookup, and TextVectorization,
     which all have a vocabulary as part of the config. Currently, we keep this
     vocab as part of the config until saving, when we need to clear it to avoid
-    initializing a StaticHashTable twice (once when restoring the config and once
-    when restoring restoring module resources). After clearing the vocab, we
-    persist a property to the layer indicating it was constructed with a vocab.
+    initializing a StaticHashTable twice (once when restoring the config and
+    once when restoring restoring module resources). After clearing the vocab,
+    we persist a property to the layer indicating it was constructed with a
+    vocab.
     """
 
     @property
@@ -204,8 +202,9 @@ class VocabularySavedModelSaver(LayerSavedModelSaver):
         metadata = self._python_properties_internal()
         # Clear the vocabulary from the config during saving.
         metadata["config"]["vocabulary"] = None
-        # Persist a property to track that a vocabulary was passed on construction.
+        # Persist a property to track that a vocabulary was passed on
+        # construction.
         metadata["config"][
             "has_input_vocabulary"
-        ] = self.obj._has_input_vocabulary  # pylint: disable=protected-access
+        ] = self.obj._has_input_vocabulary
         return metadata

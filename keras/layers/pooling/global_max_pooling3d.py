@@ -13,12 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Global max pooling 3D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
 
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.layers.pooling.base_global_pooling3d import GlobalPooling3D
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.GlobalMaxPool3D", "keras.layers.GlobalMaxPooling3D")

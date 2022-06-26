@@ -17,15 +17,16 @@
 import contextlib
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.utils import generic_utils
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+
 @keras_export("keras.mixed_precision.Policy", v1=[])
 class Policy:
     """A dtype policy for a Keras layer.
@@ -489,7 +490,7 @@ def _policy_equivalent_to_dtype(policy):
     """
     # We use type() instead of isinstance because a subclass of Policy is never
     # equivalent to a dtype.
-    return type(policy) == Policy and (  # pylint: disable=unidiomatic-typecheck
+    return type(policy) == Policy and (
         policy.name == "_infer" or _is_convertible_to_dtype(policy.name)
     )
 

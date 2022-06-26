@@ -17,15 +17,16 @@
 Detailed documentation and user guides are available at
 [keras.io](https://keras.io).
 """
-# pylint: disable=unused-import
-from tensorflow.python import tf2
-from tensorflow.python.util.tf_export import keras_export
-
 from keras import distribute
 from keras import models
 from keras.engine.input_layer import Input
 from keras.engine.sequential import Sequential
 from keras.engine.training import Model
+
+# isort: off
+
+from tensorflow.python import tf2
+from tensorflow.python.util.tf_export import keras_export
 
 __version__ = "2.10.0"
 

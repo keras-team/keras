@@ -427,7 +427,7 @@ POOLING_LAYERS = [
 ]
 
 
-class KerasLayerBenchmarks(  # pylint: disable=undefined-variable
+class KerasLayerBenchmarks(
     layer_benchmarks_test_base.LayerBenchmarksBase,
     metaclass=tf.__internal__.test.ParameterizedBenchmark,
 ):

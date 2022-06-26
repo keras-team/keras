@@ -17,11 +17,13 @@
 import json
 
 import numpy as np
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.preprocessing.sequence import _remove_long_seq
 from keras.utils.data_utils import get_file
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.datasets.reuters.load_data")
@@ -115,11 +117,9 @@ def load_data(
     path = get_file(
         path,
         origin=origin_folder + "reuters.npz",
-        file_hash="d6586e694ee56d7a4e65172e12b3e987c03096cb01eab99753921ef915959916",
+        file_hash="d6586e694ee56d7a4e65172e12b3e987c03096cb01eab99753921ef915959916",  # noqa: E501
     )
-    with np.load(
-        path, allow_pickle=True
-    ) as f:  # pylint: disable=unexpected-keyword-arg
+    with np.load(path, allow_pickle=True) as f:
         xs, labels = f["x"], f["y"]
 
     rng = np.random.RandomState(seed)

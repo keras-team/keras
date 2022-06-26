@@ -19,11 +19,13 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.feature_column import base_feature_layer as kfc
 from keras.feature_column import dense_features
 from keras.utils import tf_contextlib
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.DenseFeatures", v1=[])
@@ -92,15 +94,11 @@ class DenseFeatures(dense_features.DenseFeatures):
             with tf.name_scope(column.name):
                 column.create_state(self._state_manager)
         # We would like to call Layer.build and not _DenseFeaturesHelper.build.
-        # pylint: disable=protected-access
-        super(kfc._BaseFeaturesLayer, self).build(
-            None
-        )  # pylint: disable=bad-super-call
+
+        super(kfc._BaseFeaturesLayer, self).build(None)
 
 
-class _StateManagerImplV2(
-    tf.__internal__.feature_column.StateManager
-):  # pylint: disable=protected-access
+class _StateManagerImplV2(tf.__internal__.feature_column.StateManager):
     """Manages the state of DenseFeatures."""
 
     def create_variable(
@@ -128,9 +126,7 @@ class _StateManagerImplV2(
                 use_resource=use_resource,
             )
         if isinstance(var, tf.__internal__.tracking.Trackable):
-            self._layer._track_trackable(
-                var, feature_column.name + "/" + name
-            )  # pylint: disable=protected-access
+            self._layer._track_trackable(var, feature_column.name + "/" + name)
         self._cols_to_vars_map[feature_column][name] = var
         return var
 
@@ -159,7 +155,7 @@ def no_manual_dependency_tracking_scope(obj):
     Yields:
       a scope in which the object doesn't track dependencies manually.
     """
-    # pylint: disable=protected-access
+
     previous_value = getattr(obj, "_manual_tracking", True)
     obj._manual_tracking = False
     try:

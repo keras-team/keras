@@ -17,14 +17,14 @@
 import copy
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine import data_adapter
 from keras.layers import deserialize as deserialize_layer
 from keras.models import Model
 from keras.utils import generic_utils
 
-# pylint: disable=g-classes-have-attributes
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @generic_utils.register_keras_serializable()

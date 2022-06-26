@@ -16,8 +16,6 @@
 
 import tensorflow.compat.v2 as tf
 
-from tensorflow.python import tf2
-
 from keras.engine.base_layer import Layer
 from keras.engine.base_preprocessing_layer import PreprocessingLayer
 
@@ -115,6 +113,7 @@ from keras.layers.preprocessing.hashing import Hashing
 
 # Image preprocessing layers.
 from keras.layers.preprocessing.image_preprocessing import CenterCrop
+from keras.layers.preprocessing.image_preprocessing import RandomBrightness
 from keras.layers.preprocessing.image_preprocessing import RandomContrast
 from keras.layers.preprocessing.image_preprocessing import RandomCrop
 from keras.layers.preprocessing.image_preprocessing import RandomFlip
@@ -156,6 +155,9 @@ from keras.layers.reshaping.up_sampling3d import UpSampling3D
 from keras.layers.reshaping.zero_padding1d import ZeroPadding1D
 from keras.layers.reshaping.zero_padding2d import ZeroPadding2D
 from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
+
+# isort: off
+from tensorflow.python import tf2
 
 if tf.__internal__.tf2.enabled():
     from keras.layers.normalization.batch_normalization import (

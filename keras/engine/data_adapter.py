@@ -23,6 +23,14 @@ import random
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+
+from keras import backend
+from keras.engine import training_utils
+from keras.utils import data_utils
+from keras.utils import dataset_creator
+from keras.utils import tf_utils
+
+# isort: off
 from tensorflow.python.distribute.input_lib import (
     DistributedDataset,
 )
@@ -31,14 +39,8 @@ from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
-from keras import backend
-from keras.engine import training_utils
-from keras.utils import data_utils
-from keras.utils import dataset_creator
-from keras.utils import tf_utils
-
 try:
-    import pandas as pd  # pylint: disable=g-import-not-at-top
+    import pandas as pd
 except ImportError:
     pd = None
 
@@ -352,6 +354,12 @@ class TensorLikeDataAdapter(DataAdapter):
                 return tf.nest.map_structure(tf.random.shuffle, batch)
 
             dataset = dataset.map(shuffle_batch)
+
+        options = tf.data.Options()
+        options.experimental_distribute.auto_shard_policy = (
+            tf.data.experimental.AutoShardPolicy.DATA
+        )
+        dataset = dataset.with_options(options)
 
         self._dataset = dataset
 
@@ -880,9 +888,7 @@ class GeneratorDataAdapter(DataAdapter):
 
         def _get_tensor_spec(t):
             # TODO(b/226395276): Remove _with_tensor_ranks_only usage.
-            return type_spec.type_spec_from_value(
-                t
-            )._with_tensor_ranks_only()  # pylint: disable=protected-access
+            return type_spec.type_spec_from_value(t)._with_tensor_ranks_only()
 
         output_signature = tf.nest.map_structure(_get_tensor_spec, peek)
 
@@ -1357,6 +1363,7 @@ class DataHandler:
     def steps(self):
         """Yields steps for the current epoch."""
         self._current_step = self._initial_step
+        self._initial_step = 0
         # `self._inferred_steps` can be changed by `catch_stop_iteration`.
         while (
             self._inferred_steps is None
@@ -1848,7 +1855,7 @@ def _get_tensor_types():
 
 def _is_scipy_sparse(x):
     try:
-        from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
+        from scipy.sparse import issparse
 
         return issparse(x)
     except ImportError:

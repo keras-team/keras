@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Module implementing the V1 version of RNN cell wrappers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from __future__ import absolute_import
 from __future__ import division
@@ -23,13 +23,15 @@ import hashlib
 import numbers
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
 
 from keras.layers.rnn.cell_wrappers import _enumerated_map_structure_up_to
 from keras.layers.rnn.cell_wrappers import _parse_config_to_function
 from keras.layers.rnn.cell_wrappers import _serialize_function_to_config
 from keras.layers.rnn.legacy_cells import RNNCell
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
 
 # This can be used with self.assertRaisesRegexp for assert_like_rnncell.
 ASSERT_LIKE_RNNCELL_ERROR_REGEXP = "is not an RNNCell"
@@ -495,9 +497,7 @@ class DropoutWrapper(_RNNCellWrapperV1):
             "input_size": self._input_size,
             "seed": self._seed,
         }
-        if (
-            self._dropout_state_filter != _default_dropout_state_filter_visitor
-        ):  # pylint: disable=comparison-with-callable
+        if self._dropout_state_filter != _default_dropout_state_filter_visitor:
             (
                 function,
                 function_type,
@@ -657,7 +657,7 @@ class DeviceWrapper(_RNNCellWrapperV1):
 
 def _default_dropout_state_filter_visitor(substate):
     from keras.layers.rnn.legacy_cells import (
-        LSTMStateTuple,  # pylint: disable=g-import-not-at-top
+        LSTMStateTuple,
     )
 
     if isinstance(substate, LSTMStateTuple):

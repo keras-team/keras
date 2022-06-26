@@ -17,11 +17,13 @@
 import sys
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 import keras.layers.activation as activation_layers
 from keras import backend
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 # b/123041942
 # In TF 2.x, if the `tf.nn.softmax` is used as an activation function in Keras
@@ -92,7 +94,7 @@ def softmax(x, axis=-1):
         )
 
     # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x  # pylint: disable=protected-access
+    output._keras_logits = x
     return output
 
 
@@ -408,7 +410,7 @@ def sigmoid(x):
     """
     output = tf.sigmoid(x)
     # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x  # pylint: disable=protected-access
+    output._keras_logits = x
     return output
 
 

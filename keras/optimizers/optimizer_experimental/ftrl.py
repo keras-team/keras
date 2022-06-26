@@ -15,13 +15,14 @@
 """FTRL optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.utils import generic_utils
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+
 @generic_utils.register_keras_serializable()
 @keras_export("keras.optimizers.experimental.Ftrl", v1=[])
 class Ftrl(optimizer.Optimizer):
@@ -240,7 +241,7 @@ class Ftrl(optimizer.Optimizer):
                 "initial_accumulator_value": self.initial_accumulator_value,
                 "l1_regularization_strength": self.l1_regularization_strength,
                 "l2_regularization_strength": self.l2_regularization_strength,
-                "l2_shrinkage_regularization_strength": self.l2_shrinkage_regularization_strength,
+                "l2_shrinkage_regularization_strength": self.l2_shrinkage_regularization_strength,  # noqa: E501
                 "beta": self.beta,
             }
         )

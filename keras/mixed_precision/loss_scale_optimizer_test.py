@@ -20,17 +20,11 @@ from unittest import mock
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.keras.optimizer_v2 import (
-    gradient_descent as legacy_sgd,
-)
-from tensorflow.python.platform import tf_logging
 
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import test_util as mp_test_util
+from keras.optimizers.optimizer_experimental import adam as adam_experimental
 from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
@@ -39,6 +33,15 @@ from keras.optimizers.optimizer_v2 import adam
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.keras.optimizer_v2 import (
+    gradient_descent as legacy_sgd,
+)
+from tensorflow.python.platform import tf_logging
 
 # If called outside any strategy.scope() calls, this will return the default
 # strategy.
@@ -337,7 +340,6 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.evaluate(tf.compat.v1.global_variables_initializer())
         self.assertEqual(self.evaluate(opt.loss_scale), 2**15)
 
-    # pylint: disable=cell-var-from-loop
     @test_combinations.generate(opt_and_strategy_and_mode_combinations())
     def testClipping(self, opt_cls, strategy_fn, use_tf_function):
         strategy = strategy_fn()
@@ -390,8 +392,6 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                     [-5.0], self.evaluate(var)
                 )  # Var does not change
                 self.assertEqual(self.evaluate(opt.loss_scale), 4)
-
-    # pylint: enable=cell-var-from-loop
 
     @test_combinations.generate(opt_and_strategy_and_mode_combinations())
     def testDynamicUpdate(self, opt_cls, strategy_fn, use_tf_function):
@@ -615,12 +615,28 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             opt.set_weights([np.array(2.0)])
             self.assertEqual(self.evaluate(opt.variables()[0]), 2)
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def testHyperParametersExposedLSOV3(self):
+        opt = adam_experimental.Adam(learning_rate=1.0, beta_1=0.5, beta_2=0.9)
+        lso = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        lso.learning_rate = tf.Variable(0.005)
+        self.assertAllClose(self.evaluate(lso.learning_rate), 0.005)
+        self.assertIs(lso.learning_rate, opt.learning_rate)
+
+        lso.use_ema = True
+        self.assertEqual(lso.use_ema, True)
+        self.assertEqual(opt.use_ema, True)
+
+        lso.ema_momentum = 0.88
+        self.assertEqual(lso.ema_momentum, 0.88)
+        self.assertEqual(opt.ema_momentum, 0.88)
+
     def testHyperParametersExposed(self):
         with self.cached_session():
             opt = adam.Adam(learning_rate=1.0, beta_1=0.5, beta_2=0.9)
             lso = loss_scale_optimizer.LossScaleOptimizer(opt)
             # Force hyperparameters to be created
-            opt.lr  # pylint: disable=pointless-statement
+            opt.lr
             self.evaluate(tf.compat.v1.global_variables_initializer())
 
             self.assertEqual(self.evaluate(lso.beta_1), 0.5)
@@ -665,7 +681,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             AttributeError,
             "'LossScaleOptimizer(V3)?' object has no attribute 'nesterov'",
         ):
-            lso.nesterov  # pylint: disable=pointless-statement
+            lso.nesterov
 
         lso.nesterov = True
         self.assertTrue(lso.nesterov)
@@ -772,7 +788,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             opt = create_lso(opt)
 
             # Force hyperparameters to be created
-            opt.learning_rate  # pylint: disable=pointless-statement
+            opt.learning_rate
             self.evaluate(tf.compat.v1.global_variables_initializer())
 
             self.assertEqual(self.evaluate(opt.learning_rate), 1.0)
@@ -983,7 +999,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             opt = loss_scale_optimizer.LossScaleOptimizer.from_config(config)
 
         # Force hyperparameters to be created
-        opt.learning_rate  # pylint: disable=pointless-statement
+        opt.learning_rate
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
         # Test attributes on the optimizer
@@ -1054,7 +1070,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             opt = loss_scale_optimizer.LossScaleOptimizer.from_config(config)
 
         # Force hyperparameters to be created
-        opt.learning_rate  # pylint: disable=pointless-statement
+        opt.learning_rate
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
         # Test attributes on the optimizer
@@ -1134,7 +1150,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             config = optimizers.serialize(opt)
         opt = optimizers.deserialize(config)
         # Force hyperparameters to be created
-        opt.learning_rate  # pylint: disable=pointless-statement
+        opt.learning_rate
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
         self.assertEqual(self.evaluate(opt.learning_rate), 2.0)
@@ -1176,7 +1192,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         custom_objects = {"MySGD": MySGD}
         opt = optimizers.deserialize(config, custom_objects=custom_objects)
         # Force hyperparameters to be created
-        opt.learning_rate  # pylint: disable=pointless-statement
+        opt.learning_rate
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
         self.assertEqual(self.evaluate(opt.learning_rate), 2.0)

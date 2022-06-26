@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """All Keras metrics."""
-# pylint: disable=g-bad-import-order
 
-from tensorflow.python.util.tf_export import keras_export
 
 # Utilities
 # Base classes
@@ -95,6 +93,9 @@ from keras.metrics.metrics import squared_hinge
 from keras.metrics.metrics import top_k_categorical_accuracy
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 # Aliases
 acc = ACC = accuracy

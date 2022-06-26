@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Functions that save the model's config into different formats."""
 
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -49,7 +50,7 @@ def model_from_config(config, custom_objects=None):
             f"Received: config={config}. Did you meant to use "
             "`Sequential.from_config(config)`?"
         )
-    from keras.layers import deserialize  # pylint: disable=g-import-not-at-top
+    from keras.layers import deserialize
 
     return deserialize(config, custom_objects=custom_objects)
 
@@ -102,7 +103,7 @@ def model_from_json(json_string, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     from keras.layers import (
-        deserialize_from_json,  # pylint: disable=g-import-not-at-top
+        deserialize_from_json,
     )
 
     return deserialize_from_json(json_string, custom_objects=custom_objects)

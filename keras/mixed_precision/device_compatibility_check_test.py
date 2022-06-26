@@ -17,10 +17,12 @@
 import re
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging
 
 from keras.mixed_precision import device_compatibility_check
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.platform import tf_logging
 
 
 def device_details(device_name, compute_capability=None):

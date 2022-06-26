@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Utility functions shared between SavedModel saving/loading implementations."""
+"""Utility functions shared between SavedModel saving/loading
+implementations."""
 
 import copy
-import inspect as _inspect
 import itertools
 import threading
 import types
@@ -29,9 +29,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_contextlib
 from keras.utils.generic_utils import LazyLoader
 
-# pylint:disable=g-inconsistent-quotes
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
-# pylint:enable=g-inconsistent-quotes
 
 
 def use_wrapped_call(
@@ -41,11 +39,11 @@ def use_wrapped_call(
 
     Args:
       layer: A Keras layer object
-      call_fn: tf.function that takes layer inputs (and possibly a training arg),
-        and returns a tuple of (outputs, list of losses).
+      call_fn: tf.function that takes layer inputs (and possibly a training
+        arg), and returns a tuple of (outputs, list of losses).
       call_spec: The `CallFunctionSpec` for the layer's call function.
-      default_training_value: Default value of the training kwarg. If `None`, the
-        default is `tf.keras.backend.learning_phase()`.
+      default_training_value: Default value of the training kwarg. If `None`,
+        the default is `tf.keras.backend.learning_phase()`.
       return_method: Whether to return a method bound to the layer.
 
     Returns:
@@ -59,7 +57,8 @@ def use_wrapped_call(
     )
 
     def return_outputs_and_add_losses(*args, **kwargs):
-        """Returns the outputs from the layer call function, and adds the losses."""
+        """Returns the outputs from the layer call function, and adds the
+        losses."""
         if return_method:
             args = args[1:]
 
@@ -67,19 +66,20 @@ def use_wrapped_call(
         layer.add_loss(losses)
 
         # TODO(kathywu): This is a temporary hack. When a network of layers is
-        # revived from SavedModel, only the top-level layer will have losses. This
-        # causes issues in eager mode because the child layers may have graph losses
-        # (thus model.losses returns a mix of Eager and graph tensors). To fix this,
-        # whenever eager losses are added to one layer, add eager losses to all
-        # child layers. This causes `.losses` to only return eager losses.
-        # pylint: disable=protected-access
+        # revived from SavedModel, only the top-level layer will have losses.
+        # This causes issues in eager mode because the child layers may have
+        # graph losses (thus model.losses returns a mix of Eager and graph
+        # tensors). To fix this, whenever eager losses are added to one layer,
+        # add eager losses to all child layers. This causes `.losses` to only
+        # return eager losses.
+
         if tf.executing_eagerly():
             for i in layer._flatten_layers():
                 if i is not layer:
                     i._eager_losses = [
                         base_layer_utils.REVIVED_LOSS_PLACEHOLDER
                     ]
-        # pylint: enable=protected-access
+
         return outputs
 
     decorated = tf.__internal__.decorator.make_decorator(
@@ -95,8 +95,9 @@ def use_wrapped_call(
 
 
 def layer_uses_training_bool(layer):
-    """Returns whether this layer or any of its children uses the training arg."""
-    if layer._expects_training_arg:  # pylint: disable=protected-access
+    """Returns whether this layer or any of its children uses the training
+    arg."""
+    if layer._expects_training_arg:
         return True
     visited = {layer}
     to_visit = list_all_layers(layer)
@@ -117,9 +118,7 @@ def list_all_layers(obj):
         # the `Input` layer.
         return obj.layers
     else:
-        return list(
-            obj._flatten_layers(include_self=False, recursive=False)
-        )  # pylint: disable=protected-access
+        return list(obj._flatten_layers(include_self=False, recursive=False))
 
 
 def list_all_layers_and_sublayers(obj):
@@ -138,8 +137,9 @@ def maybe_add_training_arg(
 ):
     """Decorate call and optionally adds training argument.
 
-    If a layer expects a training argument, this function ensures that 'training'
-    is present in the layer args or kwonly args, with the default training value.
+    If a layer expects a training argument, this function ensures that
+    'training' is present in the layer args or kwonly args, with the default
+    training value.
 
     Args:
       call_spec: CallFunctionSpec of the layer.
@@ -199,7 +199,8 @@ def maybe_add_training_arg(
 def set_training_arg_spec(arg_spec, default_training_value):
     """Set `training=DEFAULT` argument in an ArgSpec."""
     if "training" in arg_spec.args:
-        # If `training` is already in the args list, try to set the default value.
+        # If `training` is already in the args list, try to set the default
+        # value.
         index = arg_spec.args.index("training")
         training_default_index = len(arg_spec.args) - index
         defaults = (
@@ -243,7 +244,8 @@ def keras_option_scope(save_traces):
 
 
 def should_save_traces():
-    """Whether to trace layer functions-can be disabled in the save_traces arg."""
+    """Whether to trace layer functions-can be disabled in the save_traces
+    arg."""
     return _save_options_context.save_traces
 
 
@@ -252,9 +254,9 @@ def no_automatic_dependency_tracking_scope(obj):
     """A context that disables automatic dependency tracking when assigning attrs.
 
     Objects that inherit from Autotrackable automatically creates dependencies
-    to trackable objects through attribute assignments, and wraps data structures
-    (lists or dicts) with trackable classes. This scope may be used to temporarily
-    disable this behavior. This works similar to the decorator
+    to trackable objects through attribute assignments, and wraps data
+    structures (lists or dicts) with trackable classes. This scope may be used
+    to temporarily disable this behavior. This works similar to the decorator
     `no_automatic_dependency_tracking`.
 
     Example usage:
@@ -272,10 +274,8 @@ def no_automatic_dependency_tracking_scope(obj):
       a scope in which the object doesn't track dependencies.
     """
     previous_value = getattr(obj, "_setattr_tracking", True)
-    obj._setattr_tracking = False  # pylint: disable=protected-access
+    obj._setattr_tracking = False
     try:
         yield
     finally:
-        obj._setattr_tracking = (
-            previous_value  # pylint: disable=protected-access
-        )
+        obj._setattr_tracking = previous_value

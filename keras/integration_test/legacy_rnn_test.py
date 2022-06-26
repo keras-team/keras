@@ -72,7 +72,7 @@ class LegacyRNNTest(tf.test.TestCase):
                 outputs.shape.as_list(), [None, timestep, output_shape]
             )
             self.assertEqual(state.shape.as_list(), [None, output_shape])
-            loss = tf.losses.softmax_cross_entropy(predict, state)
+            loss = tf.keras.losses.categorical_crossentropy(predict, state)
             train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
             sess.run([tf.global_variables_initializer()])
@@ -108,7 +108,7 @@ class LegacyRNNTest(tf.test.TestCase):
                 outputs.shape.as_list(), [None, timestep, output_shape]
             )
             self.assertEqual(state.shape.as_list(), [None, output_shape])
-            loss = tf.losses.softmax_cross_entropy(predict, state)
+            loss = tf.keras.losses.categorical_crossentropy(predict, state)
             train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
             sess.run([tf.global_variables_initializer()])
@@ -146,7 +146,7 @@ class LegacyRNNTest(tf.test.TestCase):
             self.assertEqual(len(state), 2)
             self.assertEqual(state[0].shape.as_list(), [None, output_shape])
             self.assertEqual(state[1].shape.as_list(), [None, output_shape])
-            loss = tf.losses.softmax_cross_entropy(predict, state[0])
+            loss = tf.keras.losses.categorical_crossentropy(predict, state[0])
             train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
             sess.run([tf.global_variables_initializer()])
@@ -195,7 +195,7 @@ class LegacyRNNTest(tf.test.TestCase):
             self.assertEqual(state[1].shape.as_list(), [None, 2 * output_shape])
             self.assertEqual(state[2].shape.as_list(), [None, output_shape])
             self.assertEqual(state[3].shape.as_list(), [None, output_shape])
-            loss = tf.losses.softmax_cross_entropy(predict, state[2])
+            loss = tf.keras.losses.categorical_crossentropy(predict, state[2])
             train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
             sess.run([tf.global_variables_initializer()])
@@ -233,7 +233,7 @@ class LegacyRNNTest(tf.test.TestCase):
             self.assertEqual(len(outputs), timestep)
             self.assertEqual(outputs[0].shape.as_list(), [None, output_shape])
             self.assertEqual(state.shape.as_list(), [None, output_shape])
-            loss = tf.losses.softmax_cross_entropy(predict, state)
+            loss = tf.keras.losses.categorical_crossentropy(predict, state)
             train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
             sess.run([tf.global_variables_initializer()])
@@ -368,10 +368,9 @@ class LegacyRNNTest(tf.test.TestCase):
 
         z = tf.zeros((2, 3))
 
-        kn1(z)  # pylint:disable=not-callable
-        kn2(z)  # pylint:disable=not-callable
+        kn1(z)
+        kn2(z)
 
-        # pylint: disable=protected-access
         self.assertTrue(all("kn1" in v.name for v in kn1._cell.variables))
         self.assertTrue(all("kn2" in v.name for v in kn2._cell.variables))
 
@@ -379,10 +378,10 @@ class LegacyRNNTest(tf.test.TestCase):
             kn1_new = KerasNetworkTFRNNs(name="kn1_new")
             kn2_new = KerasNetworkKerasRNNs(name="kn2_new")
 
-        kn2_new(z)  # pylint:disable=not-callable
+        kn2_new(z)
         # Most importantly, this doesn't fail due to variable scope reuse
         # issues.
-        kn1_new(z)  # pylint:disable=not-callable
+        kn1_new(z)
 
         self.assertTrue(
             all("kn1_new" in v.name for v in kn1_new._cell.variables)

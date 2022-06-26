@@ -17,8 +17,6 @@
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.optimizers import optimizer_v1
@@ -29,16 +27,19 @@ from keras.saving import utils_v1 as model_utils
 from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file
 # once the issue with copybara is fixed.
-# pylint:disable=g-inconsistent-quotes
+
 metrics_lib = LazyLoader("metrics_lib", globals(), "keras.metrics")
 models_lib = LazyLoader("models_lib", globals(), "keras.models")
 sequential = LazyLoader("sequential", globals(), "keras.engine.sequential")
-# pylint:enable=g-inconsistent-quotes
 
 
 # File name for json format of SavedModel.
@@ -59,18 +60,18 @@ def export_saved_model(
     Note that at this time, subclassed models can only be saved using
     `serving_only=True`.
 
-    The exported `SavedModel` is a standalone serialization of Tensorflow objects,
-    and is supported by TF language APIs and the Tensorflow Serving system.
-    To load the model, use the function
-    `tf.keras.experimental.load_from_saved_model`.
+    The exported `SavedModel` is a standalone serialization of Tensorflow
+    objects, and is supported by TF language APIs and the Tensorflow Serving
+    system.  To load the model, use the function
+    `tf.compat.v1.keras.experimental.load_from_saved_model`.
 
     The `SavedModel` contains:
 
     1. a checkpoint containing the model weights.
     2. a `SavedModel` proto containing the Tensorflow backend graph. Separate
        graphs are saved for prediction (serving), train, and evaluation. If
-       the model has not been compiled, then only the graph computing predictions
-       will be exported.
+       the model has not been compiled, then only the graph computing
+       predictions will be exported.
     3. the model's json config. If the model is subclassed, this will only be
        included if the model's `get_config()` method is overwritten.
 
@@ -86,31 +87,34 @@ def export_saved_model(
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 
     Args:
-      model: A `tf.keras.Model` to be saved. If the model is subclassed, the flag
-        `serving_only` must be set to True.
-      saved_model_path: a string specifying the path to the SavedModel directory.
+      model: A `tf.keras.Model` to be saved. If the model is subclassed, the
+        flag `serving_only` must be set to True.
+      saved_model_path: a string specifying the path to the SavedModel
+        directory.
       custom_objects: Optional dictionary mapping string names to custom classes
         or functions (e.g. custom loss functions).
       as_text: bool, `False` by default. Whether to write the `SavedModel` proto
         in text format. Currently unavailable in serving-only mode.
-      input_signature: A possibly nested sequence of `tf.TensorSpec` objects, used
-        to specify the expected model inputs. See `tf.function` for more details.
+      input_signature: A possibly nested sequence of `tf.TensorSpec` objects,
+        used to specify the expected model inputs. See `tf.function` for more
+        details.
       serving_only: bool, `False` by default. When this is true, only the
         prediction graph is saved.
 
     Raises:
-      NotImplementedError: If the model is a subclassed model, and serving_only is
-        False.
+      NotImplementedError: If the model is a subclassed model, and serving_only
+        is False.
       ValueError: If the input signature cannot be inferred from the model.
-      AssertionError: If the SavedModel directory already exists and isn't empty.
+      AssertionError: If the SavedModel directory already exists and isn't
+        empty.
     """
     warnings.warn(
         "`tf.keras.experimental.export_saved_model` is deprecated"
@@ -160,10 +164,10 @@ def _export_model_variables(model, saved_model_path):
 
 def _save_v1_format(model, path, custom_objects, as_text, input_signature):
     """Exports model to v1 SavedModel format."""
-    if not model._is_graph_network:  # pylint: disable=protected-access
+    if not model._is_graph_network:
         if isinstance(model, sequential.Sequential):
-            # If input shape is not directly set in the model, the exported model
-            # will infer the expected shapes of the input from the model.
+            # If input shape is not directly set in the model, the exported
+            # model will infer the expected shapes of the input from the model.
             if not model.built:
                 raise ValueError(
                     "Weights for sequential model have not yet been "
@@ -176,13 +180,11 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
             # weights before _export_model_variables().
         else:
             raise NotImplementedError(
-                "Subclassed models can only be exported for serving. Please set "
-                "argument serving_only=True."
+                "Subclassed models can only be exported for serving. Please "
+                "set argument serving_only=True."
             )
 
-    builder = tf.__internal__.saved_model.SavedModelBuilder(
-        path
-    )  # pylint: disable=protected-access
+    builder = tf.__internal__.saved_model.SavedModelBuilder(path)
 
     # Manually save variables to export them in an object-based checkpoint. This
     # skips the `builder.add_meta_graph_and_variables()` step, which saves a
@@ -192,11 +194,11 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
     # one save is needed once the weights can be copied from the model to clone.
     checkpoint_path = _export_model_variables(model, path)
 
-    # Export each mode. Use ModeKeys enums defined for `Estimator` to ensure that
-    # Keras models and `Estimator`s are exported with the same format.
-    # Every time a mode is exported, the code checks to see if new variables have
-    # been created (e.g. optimizer slot variables). If that is the case, the
-    # checkpoint is re-saved to include the new variables.
+    # Export each mode. Use ModeKeys enums defined for `Estimator` to ensure
+    # that Keras models and `Estimator`s are exported with the same format.
+    # Every time a mode is exported, the code checks to see if new variables
+    # have been created (e.g. optimizer slot variables). If that is the case,
+    # the checkpoint is re-saved to include the new variables.
     export_args = {
         "builder": builder,
         "model": model,
@@ -218,10 +220,10 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
             _export_mode(mode_keys.ModeKeys.TEST, has_saved_vars, **export_args)
         else:
             logging.warning(
-                "Model was compiled with an optimizer, but the optimizer is not from "
-                "`tf.train` (e.g. `tf.train.AdagradOptimizer`). Only the serving "
-                "graph was exported. The train and evaluate graphs were not added to "
-                "the SavedModel."
+                "Model was compiled with an optimizer, but the optimizer is "
+                "not from `tf.train` (e.g. `tf.train.AdagradOptimizer`). "
+                "Only the serving graph was exported. The train and evaluate "
+                "graphs were not added to the SavedModel."
             )
     _export_mode(mode_keys.ModeKeys.PREDICT, has_saved_vars, **export_args)
 
@@ -288,8 +290,8 @@ def _export_mode(
                 create_placeholder, input_signature
             )
 
-        # Clone the model into blank graph. This will create placeholders for inputs
-        # and targets.
+        # Clone the model into blank graph. This will create placeholders for
+        # inputs and targets.
         clone = models_lib.clone_and_build_model(
             model,
             input_tensors=input_tensors,
@@ -297,10 +299,11 @@ def _export_mode(
             compile_clone=compile_clone,
         )
 
-        # Make sure that iterations variable is added to the global step collection,
-        # to ensure that, when the SavedModel graph is loaded, the iterations
-        # variable is returned by `tf.compat.v1.train.get_global_step()`. This is
-        # required for compatibility with the SavedModelEstimator.
+        # Make sure that iterations variable is added to the global step
+        # collection, to ensure that, when the SavedModel graph is loaded, the
+        # iterations variable is returned by
+        # `tf.compat.v1.train.get_global_step()`. This is required for
+        # compatibility with the SavedModelEstimator.
         if compile_clone:
             g.add_to_collection(
                 tf.compat.v1.GraphKeys.GLOBAL_STEP, clone.optimizer.iterations
@@ -309,12 +312,12 @@ def _export_mode(
         # Extract update and train ops from train/test/predict functions.
         train_op = None
         if mode == mode_keys.ModeKeys.TRAIN:
-            clone._make_train_function()  # pylint: disable=protected-access
+            clone._make_train_function()
             train_op = clone.train_function.updates_op
         elif mode == mode_keys.ModeKeys.TEST:
-            clone._make_test_function()  # pylint: disable=protected-access
+            clone._make_test_function()
         else:
-            clone._make_predict_function()  # pylint: disable=protected-access
+            clone._make_predict_function()
         g.get_collection_ref(tf.compat.v1.GraphKeys.UPDATE_OPS).extend(
             clone.state_updates
         )
@@ -322,14 +325,15 @@ def _export_mode(
         with tf.compat.v1.Session().as_default():
             clone_var_list = _get_var_list(clone)
             if has_saved_vars:
-                # Confirm all variables in the clone have an entry in the checkpoint.
+                # Confirm all variables in the clone have an entry in the
+                # checkpoint.
                 status = clone.load_weights(checkpoint_path)
                 status.assert_existing_objects_matched()
             else:
-                # Confirm that variables between the clone and model match up exactly,
-                # not counting optimizer objects. Optimizer objects are ignored because
-                # if the model has not trained, the slot variables will not have been
-                # created yet.
+                # Confirm that variables between the clone and model match up
+                # exactly, not counting optimizer objects. Optimizer objects are
+                # ignored because if the model has not trained, the slot
+                # variables will not have been created yet.
                 # TODO(b/113179535): Replace with trackable equivalence.
                 _assert_same_non_optimizer_objects(model, model_graph, clone, g)
 
@@ -341,9 +345,7 @@ def _export_mode(
                 clone.save_weights(
                     checkpoint_path, save_format="tf", overwrite=True
                 )
-                builder._has_saved_variables = (
-                    True  # pylint: disable=protected-access
-                )
+                builder._has_saved_variables = True
 
             # Add graph to the SavedModel builder.
             builder.add_meta_graph(
@@ -351,8 +353,8 @@ def _export_mode(
                 signature_def_map=_create_signature_def_map(clone, mode),
                 saver=tf.compat.v1.train.Saver(
                     clone_var_list,
-                    # Allow saving Models with no variables. This is somewhat odd, but
-                    # it's not necessarily a bug.
+                    # Allow saving Models with no variables. This is somewhat
+                    # odd, but it's not necessarily a bug.
                     allow_empty=True,
                 ),
                 init_op=tf.compat.v1.local_variables_initializer(),
@@ -367,7 +369,7 @@ def _create_signature_def_map(model, mode):
     if model.optimizer:
         targets_dict = {
             x.name.split(":")[0]: x for x in model._targets if x is not None
-        }  # pylint: disable=protected-access
+        }
         inputs_dict.update(targets_dict)
     outputs_dict = {
         name: x for name, x in zip(model.output_names, model.outputs)
@@ -407,9 +409,7 @@ def _create_signature_def_map(model, mode):
     )
 
 
-def _assert_same_non_optimizer_objects(
-    model, model_graph, clone, clone_graph
-):  # pylint: disable=unused-argument
+def _assert_same_non_optimizer_objects(model, model_graph, clone, clone_graph):
     """Asserts model and clone contain the same trackable objects."""
 
     # TODO(fchollet, kathywu): make sure this works in eager mode.
@@ -437,10 +437,10 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
 
     # Save the tf.keras model in the SavedModel format.
     path = '/tmp/simple_keras_model'
-    tf.keras.experimental.export_saved_model(model, path)
+    tf.compat.v1.keras.experimental.export_saved_model(model, path)
 
     # Load the saved keras model back.
-    new_model = tf.keras.experimental.load_from_saved_model(path)
+    new_model = tf.compat.v1.keras.experimental.load_from_saved_model(path)
     new_model.summary()
     ```
 

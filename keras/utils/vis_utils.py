@@ -12,18 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
-# pylint: disable=g-import-not-at-top
+
+
 """Utilities related to model visualization."""
 
 import os
-import re
 import sys
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
+from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 try:
     # pydot-ng is a fork of pydot that is better maintained.
@@ -70,33 +72,6 @@ def is_wrapped_model(layer):
 def add_edge(dot, src, dst):
     if not dot.get_edge(src, dst):
         dot.add_edge(pydot.Edge(src, dst))
-
-
-def get_layer_index_bound_by_layer_name(model, layer_names):
-    """Return specific range of layers to plot, mainly for sub-graph plot models.
-
-    Args:
-      model: tf.keras.Model
-      layer_names: unique name of layer of the model, type(str)
-
-    Returns:
-      return the index value of layer based on its unique name (layer_names)
-    """
-    lower_index = []
-    upper_index = []
-    for idx, layer in enumerate(model.layers):
-        if re.match(layer_names[0], layer.name):
-            lower_index.append(idx)
-        if re.match(layer_names[1], layer.name):
-            upper_index.append(idx)
-    if not lower_index or not upper_index:
-        raise ValueError(
-            "Passed layer_names does not match to layers in the model. "
-            f"Recieved: {layer_names}"
-        )
-    if min(lower_index) > max(upper_index):
-        return [min(upper_index), max(lower_index)]
-    return [min(lower_index), max(upper_index)]
 
 
 @keras_export("keras.utils.model_to_dot")
@@ -189,7 +164,9 @@ def model_to_dot(
                 "layer_range should contain string type only. "
                 f"Received: {layer_range}"
             )
-        layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
+        layer_range = layer_utils.get_layer_index_bound_by_layer_name(
+            model, layer_range
+        )
         if layer_range[0] < 0 or layer_range[1] > len(model.layers):
             raise ValueError(
                 "Both values in layer_range should be in range (0, "
@@ -213,7 +190,7 @@ def model_to_dot(
 
     # Create graph nodes.
     for i, layer in enumerate(layers):
-        if (layer_range) and (i < layer_range[0] or i > layer_range[1]):
+        if (layer_range) and (i < layer_range[0] or i >= layer_range[1]):
             continue
 
         layer_id = str(id(layer))
@@ -320,7 +297,7 @@ def model_to_dot(
 
     # Connect nodes with edges.
     for i, layer in enumerate(layers):
-        if (layer_range) and (i <= layer_range[0] or i > layer_range[1]):
+        if (layer_range) and (i <= layer_range[0] or i >= layer_range[1]):
             continue
         layer_id = str(id(layer))
         for i, node in enumerate(layer._inbound_nodes):
@@ -424,13 +401,14 @@ def plot_model(
       expand_nested: Whether to expand nested models into clusters.
       dpi: Dots per inch.
       layer_range: input of `list` containing two `str` items, which is the
-        starting layer name and ending layer name (both inclusive) indicating the
-        range of layers for which the plot will be generated. It also accepts
-        regex patterns instead of exact name. In such case, start predicate will
-        be the first element it matches to `layer_range[0]` and the end predicate
-        will be the last element it matches to `layer_range[1]`. By default `None`
-        which considers all layers of model. Note that you must pass range such
-        that the resultant subgraph must be complete.
+        starting layer name and ending layer name (both inclusive) indicating
+        the range of layers for which the plot will be generated. It also
+        accepts regex patterns instead of exact name. In such case, start
+        predicate will be the first element it matches to `layer_range[0]` and
+        the end predicate will be the last element it matches to
+        `layer_range[1]`. By default `None` which considers all layers of model.
+        Note that you must pass range such that the resultant subgraph must be
+        complete.
       show_layer_activations: Display layer activations (only for layers that
         have an `activation` property).
 
@@ -458,8 +436,8 @@ def plot_model(
             "for plot_model to work."
         )
         if "IPython.core.magics.namespace" in sys.modules:
-            # We don't raise an exception here in order to avoid crashing notebook
-            # tests where graphviz is not available.
+            # We don't raise an exception here in order to avoid crashing
+            # notebook tests where graphviz is not available.
             io_utils.print_msg(message)
             return
         else:

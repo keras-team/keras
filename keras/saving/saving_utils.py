@@ -17,9 +17,7 @@
 import copy
 import os
 
-# pylint: disable=g-bad-import-order, g-direct-tensorflow-import
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import backend
@@ -31,7 +29,8 @@ from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 
-# pylint: enable=g-bad-import-order, g-direct-tensorflow-import
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 def extract_model_metrics(model):
@@ -48,30 +47,29 @@ def extract_model_metrics(model):
     """
     if getattr(model, "_compile_metrics", None):
         # TODO(psv/kathywu): use this implementation in model to estimator flow.
-        # We are not using model.metrics here because we want to exclude the metrics
-        # added using `add_metric` API.
-        return {
-            m.name: m for m in model._compile_metric_functions
-        }  # pylint: disable=protected-access
+        # We are not using model.metrics here because we want to exclude the
+        # metrics added using `add_metric` API.
+        return {m.name: m for m in model._compile_metric_functions}
     return None
 
 
 def model_call_inputs(model, keep_original_batch_size=False):
     """Inspect model to get its input signature.
 
-    The model's input signature is a list with a single (possibly-nested) object.
-    This is due to the Keras-enforced restriction that tensor inputs must be
-    passed in as the first argument.
+    The model's input signature is a list with a single (possibly-nested)
+    object. This is due to the Keras-enforced restriction that tensor inputs
+    must be passed in as the first argument.
 
     For example, a model with input {'feature1': <Tensor>, 'feature2': <Tensor>}
-    will have input signature: [{'feature1': TensorSpec, 'feature2': TensorSpec}]
+    will have input signature:
+    [{'feature1': TensorSpec, 'feature2': TensorSpec}]
 
     Args:
       model: Keras Model object.
-      keep_original_batch_size: A boolean indicating whether we want to keep using
-        the original batch size or set it to None. Default is `False`, which means
-        that the batch dim of the returned input signature will always be set to
-        `None`.
+      keep_original_batch_size: A boolean indicating whether we want to keep
+        using the original batch size or set it to None. Default is `False`,
+        which means that the batch dim of the returned input signature will
+        always be set to `None`.
 
     Returns:
       A tuple containing `(args, kwargs)` TensorSpecs of the model call function
@@ -94,7 +92,8 @@ def raise_model_input_error(model):
             "data using `Model()`, `Model.fit()`, or `Model.predict()`."
         )
 
-    # If the model is not a `Sequential`, it is intended to be a subclassed model.
+    # If the model is not a `Sequential`, it is intended to be a subclassed
+    # model.
     raise ValueError(
         f"Model {model} cannot be saved either because the input shape is not "
         "available or because the forward pass of the model is not defined."
@@ -116,7 +115,8 @@ def trace_model_call(model, input_signature=None):
         inputs to the model.
 
     Returns:
-      A tf.function wrapping the model's call function with input signatures set.
+      A tf.function wrapping the model's call function with input signatures
+      set.
 
     Raises:
       ValueError: if input signature cannot be inferred from the model.
@@ -137,10 +137,7 @@ def trace_model_call(model, input_signature=None):
     @tf.function
     def _wrapped_model(*args, **kwargs):
         """A concrete tf.function that wraps the model's call function."""
-        (
-            args,
-            kwargs,
-        ) = model._call_spec.set_arg_value(  # pylint: disable=protected-access
+        (args, kwargs,) = model._call_spec.set_arg_value(
             "training", False, args, kwargs, inputs_in_args=True
         )
 
@@ -191,10 +188,8 @@ def model_metadata(model, include_optimizer=True, require_config=True):
                 "Prefer using a Keras optimizer instead "
                 "(see keras.io/optimizers)."
             )
-        elif model._compile_was_called:  # pylint: disable=protected-access
-            training_config = model._get_compile_args(
-                user_metrics=False
-            )  # pylint: disable=protected-access
+        elif model._compile_was_called:
+            training_config = model._get_compile_args(user_metrics=False)
             training_config.pop("optimizer", None)  # Handled separately.
             metadata["training_config"] = _serialize_nested_config(
                 training_config
@@ -202,9 +197,11 @@ def model_metadata(model, include_optimizer=True, require_config=True):
             if isinstance(model.optimizer, optimizer_v2.RestoredOptimizer):
                 raise NotImplementedError(
                     "Optimizers loaded from a SavedModel cannot be saved. "
-                    "If you are calling `model.save` or `tf.keras.models.save_model`, "
+                    "If you are calling `model.save` or "
+                    "`tf.keras.models.save_model`, "
                     "please set the `include_optimizer` option to `False`. For "
-                    "`tf.saved_model.save`, delete the optimizer from the model."
+                    "`tf.saved_model.save`, "
+                    "delete the optimizer from the model."
                 )
             else:
                 optimizer_config = {
@@ -319,8 +316,9 @@ def _deserialize_metric(metric_config):
     from keras import metrics as metrics_module
 
     if metric_config in ["accuracy", "acc", "crossentropy", "ce"]:
-        # Do not deserialize accuracy and cross-entropy strings as we have special
-        # case handling for these in compile, based on model output shape.
+        # Do not deserialize accuracy and cross-entropy strings as we have
+        # special case handling for these in compile, based on model output
+        # shape.
         return metric_config
     return metrics_module.deserialize(metric_config)
 
@@ -334,7 +332,7 @@ def _enforce_names_consistency(specs):
     def _clear_name(spec):
         spec = copy.deepcopy(spec)
         if hasattr(spec, "name"):
-            spec._name = None  # pylint:disable=protected-access
+            spec._name = None
         return spec
 
     flat_specs = tf.nest.flatten(specs)
@@ -357,11 +355,11 @@ def try_build_compiled_arguments(model):
                 model.compiled_loss.build(model.outputs)
             if not model.compiled_metrics.built:
                 model.compiled_metrics.build(model.outputs, model.outputs)
-        except:  # pylint: disable=bare-except
+        except:  # noqa: E722
             logging.warning(
-                "Compiled the loaded model, but the compiled metrics have yet to "
-                "be built. `model.compile_metrics` will be empty until you train "
-                "or evaluate the model."
+                "Compiled the loaded model, but the compiled metrics have "
+                "yet to be built. `model.compile_metrics` will be empty "
+                "until you train or evaluate the model."
             )
 
 

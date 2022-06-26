@@ -13,14 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Max pooling 1D layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import functools
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras import backend
 from keras.layers.pooling.base_pooling1d import Pooling1D
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.MaxPool1D", "keras.layers.MaxPooling1D")

@@ -21,15 +21,17 @@ from __future__ import print_function
 import json
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from keras.saving.saved_model import json_utils
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+
 
 @keras_export(v1=["keras.layers.DenseFeatures"])
-class DenseFeatures(kfc._BaseFeaturesLayer):  # pylint: disable=protected-access
+class DenseFeatures(kfc._BaseFeaturesLayer):
     """A layer that produces a dense `Tensor` based on given `feature_columns`.
 
     Generally a single example in training data is described with

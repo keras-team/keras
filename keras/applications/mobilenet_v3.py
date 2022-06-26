@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=invalid-name
-# pylint: disable=missing-function-docstring
+
+
 """MobileNet v3 models for Keras."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import models
@@ -26,6 +24,10 @@ from keras.applications import imagenet_utils
 from keras.layers import VersionAwareLayers
 from keras.utils import data_utils
 from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 # TODO(scottzhu): Change this to the GCS path.
 BASE_WEIGHT_PATH = (
@@ -668,7 +670,7 @@ def _inverted_res_block(
 
 
 @keras_export("keras.applications.mobilenet_v3.preprocess_input")
-def preprocess_input(x, data_format=None):  # pylint: disable=unused-argument
+def preprocess_input(x, data_format=None):
     """A placeholder method for backward compatibility.
 
     The preprocessing logic has been included in the mobilenet_v3 model

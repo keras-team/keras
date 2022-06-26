@@ -15,13 +15,15 @@
 """Benchmark for KPL implementation of embedding column with dense inputs."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager.def_function import (
-    function as tf_function,
-)
 
 import keras
 from keras.layers.preprocessing.benchmarks import (
     feature_column_benchmark as fc_bm,
+)
+
+# isort: off
+from tensorflow.python.eager.def_function import (
+    function as tf_function,
 )
 
 NUM_REPEATS = 10

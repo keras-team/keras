@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Built-in loss functions."""
 
 
@@ -20,11 +20,6 @@ import abc
 import functools
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops.ragged import ragged_map_ops
-from tensorflow.python.ops.ragged import ragged_util
-from tensorflow.python.util import dispatch
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.saving.experimental import saving_lib
@@ -33,6 +28,13 @@ from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.ops.ragged import ragged_map_ops
+from tensorflow.python.ops.ragged import ragged_util
+from tensorflow.python.util import dispatch
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.losses.Loss")
@@ -271,7 +273,7 @@ class LossFunctionWrapper(Loss):
                 backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
             )
 
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             config["fn"] = generic_utils.get_registered_name(self.fn)
 
         base_config = super().get_config()
@@ -287,7 +289,7 @@ class LossFunctionWrapper(Loss):
         Returns:
             A `keras.losses.Loss` instance.
         """
-        if saving_lib._ENABLED:  # pylint: disable=protected-access
+        if saving_lib._ENABLED:
             fn_name = config.pop("fn", None)
             if fn_name and cls is LossFunctionWrapper:
                 config["fn"] = get(fn_name)

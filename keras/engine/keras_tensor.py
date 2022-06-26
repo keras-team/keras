@@ -15,11 +15,11 @@
 """Keras Input Tensor used to track functional API Topology."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.data.util import structure
 
 from keras.utils import object_identity
 
-# pylint: disable=g-classes-have-attributes
+# isort: off
+from tensorflow.python.data.util import structure
 
 
 # Tensorflow tensors have a maximum rank of 254
@@ -420,9 +420,7 @@ class KerasTensor:
         return self._name
 
     @classmethod
-    def _overload_all_operators(
-        cls, tensor_class
-    ):  # pylint: disable=invalid-name
+    def _overload_all_operators(cls, tensor_class):
         """Register overloads for all operators."""
         for operator in tf.Tensor.OVERLOADABLE_OPERATORS:
             cls._overload_operator(tensor_class, operator)
@@ -433,9 +431,7 @@ class KerasTensor:
             cls._overload_operator(tensor_class, "experimental_ref")
 
     @classmethod
-    def _overload_operator(
-        cls, tensor_class, operator
-    ):  # pylint: disable=invalid-name
+    def _overload_operator(cls, tensor_class, operator):
         """Overload an operator with the same implementation as a base Tensor class.
 
         We pull the operator out of the class dynamically to avoid ordering
@@ -455,9 +451,7 @@ class KerasTensor:
         setattr(cls, operator, tensor_oper)
 
 
-KerasTensor._overload_all_operators(
-    tf.Tensor
-)  # pylint: disable=protected-access
+KerasTensor._overload_all_operators(tf.Tensor)
 
 
 class SparseKerasTensor(KerasTensor):
@@ -538,23 +532,13 @@ class RaggedKerasTensor(KerasTensor):
 
 
 # Overload slicing
-RaggedKerasTensor._overload_operator(
-    tf.RaggedTensor, "__getitem__"
-)  # pylint: disable=protected-access
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, "__getitem__")
 
 # Overload math ops
-RaggedKerasTensor._overload_operator(
-    tf.RaggedTensor, "__add__"
-)  # pylint: disable=protected-access
-RaggedKerasTensor._overload_operator(
-    tf.RaggedTensor, "__radd__"
-)  # pylint: disable=protected-access
-RaggedKerasTensor._overload_operator(
-    tf.RaggedTensor, "__mul__"
-)  # pylint: disable=protected-access
-RaggedKerasTensor._overload_operator(
-    tf.RaggedTensor, "__rmul__"
-)  # pylint: disable=protected-access
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, "__add__")
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, "__radd__")
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, "__mul__")
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, "__rmul__")
 
 
 # TODO(b/161487382):
@@ -664,7 +648,7 @@ def register_keras_tensor_specialization(cls, keras_tensor_subclass):
 def keras_tensor_to_placeholder(x):
     """Construct a graph placeholder to represent a KerasTensor when tracing."""
     if isinstance(x, KerasTensor):
-        return x._to_placeholder()  # pylint: disable=protected-access
+        return x._to_placeholder()
     else:
         return x
 
@@ -681,10 +665,8 @@ def keras_tensor_from_tensor(tensor):
 
     out = keras_tensor_cls.from_tensor(tensor)
 
-    if hasattr(tensor, "_keras_mask"):
-        out._keras_mask = keras_tensor_from_tensor(
-            tensor._keras_mask
-        )  # pylint: disable=protected-access
+    if getattr(tensor, "_keras_mask", None) is not None:
+        out._keras_mask = keras_tensor_from_tensor(tensor._keras_mask)
     return out
 
 
@@ -705,7 +687,7 @@ def keras_tensor_from_type_spec(type_spec, name=None):
 def type_spec_with_shape(spec, shape):
     """Returns a copy of TypeSpec `spec` with its shape set to `shape`."""
     if isinstance(spec, tf.TensorSpec):
-        # pylint: disable=protected-access
+
         # TODO(b/203201161) Figure out why mutation is needed here, and remove
         # it. (TensorSpec objects should be immutable; and we should not be
         # modifying private fields.)

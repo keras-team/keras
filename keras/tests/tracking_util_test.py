@@ -18,14 +18,6 @@ import os
 import weakref
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import context
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import (
-    util as trackable_utils,
-)
 
 from keras.engine import input_layer
 from keras.engine import sequential
@@ -36,8 +28,17 @@ from keras.optimizers.optimizer_v2 import adam
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
+# isort: off
+from tensorflow.python.checkpoint import (
+    checkpoint as trackable_utils,
+)
+from tensorflow.python.eager import context
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.platform import tf_logging as logging
 
-# pylint: disable=not-callable
+
 class MyModel(training.Model):
     """A concrete Model for testing."""
 
@@ -88,8 +89,8 @@ class CheckpointingTests(test_combinations.TestCase):
     def testNamingWithOptimizer(self):
         input_value = tf.constant([[3.0]])
         model = MyModel()
-        # A nuisance Model using the same optimizer. Its slot variables should not
-        # go in the checkpoint, since it is never depended on.
+        # A nuisance Model using the same optimizer. Its slot variables should
+        # not go in the checkpoint, since it is never depended on.
         other_model = MyModel()
         optimizer = adam.Adam(0.001)
         step = tf.compat.v1.train.get_or_create_global_step()
@@ -151,7 +152,8 @@ class CheckpointingTests(test_combinations.TestCase):
         self.assertEqual(
             len(expected_checkpoint_names), len(named_variables.keys())
         )
-        # Check that we've created the right full_names of objects (not exhaustive)
+        # Check that we've created the right full_names of objects (not
+        # exhaustive)
         expected_names = {
             "step" + suffix: "global_step",
             "model/_second/kernel" + suffix: "my_model/dense_1/kernel",
@@ -238,7 +240,8 @@ class CheckpointingTests(test_combinations.TestCase):
             self.assertAllEqual(1, self.evaluate(root_trackable.save_counter))
             self.assertAllEqual([1.5], self.evaluate(m_bias_slot))
             if not tf.executing_eagerly():
-                return  # Restore-on-create is only supported when executing eagerly
+                # Restore-on-create is only supported when executing eagerly
+                return
             on_create_model = MyModel()
             on_create_optimizer = adam.Adam(0.001)
             on_create_root = tf.train.Checkpoint(
@@ -273,7 +276,8 @@ class CheckpointingTests(test_combinations.TestCase):
             status.assert_consumed()
             self.assertAllEqual(
                 optimizer_variables,
-                # Creation order is different, so .variables() needs to be re-sorted.
+                # Creation order is different, so .variables() needs to be
+                # re-sorted.
                 self.evaluate(
                     sorted(optimizer.variables(), key=lambda v: v.name)
                 ),
@@ -362,7 +366,8 @@ class CheckpointingTests(test_combinations.TestCase):
     )
     def testAgnosticUsage(self):
         """Graph/eager agnostic usage."""
-        # Does create garbage when executing eagerly due to ops.Graph() creation.
+        # Does create garbage when executing eagerly due to ops.Graph()
+        # creation.
         with self.test_session():
             num_training_steps = 10
             checkpoint_directory = self.get_temp_dir()
@@ -427,7 +432,6 @@ class CheckpointingTests(test_combinations.TestCase):
         self.assertNotIn("(root).v1'", messages)
         self.assertIn("expect_partial()", messages)
 
-    # pylint: disable=cell-var-from-loop
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
@@ -481,8 +485,6 @@ class CheckpointingTests(test_combinations.TestCase):
                         self.evaluate(root.save_counter),
                     )
 
-    # pylint: enable=cell-var-from-loop
-
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def testAnonymousVarsInInit(self):
         class Model(training.Model):
@@ -525,8 +527,8 @@ class CheckpointingTests(test_combinations.TestCase):
             gradients = [1.0]
             train_op = optimizer.apply_gradients(zip(gradients, variables))
             # Note that `optimizer` has not been added as a dependency of
-            # `root`. Create a one-off grouping so that slot variables for `root.var`
-            # get initialized too.
+            # `root`. Create a one-off grouping so that slot variables for
+            # `root.var` get initialized too.
             self.evaluate(
                 trackable_utils.gather_initializers(
                     tf.train.Checkpoint(root=root, optimizer=optimizer)
@@ -569,8 +571,8 @@ class CheckpointingTests(test_combinations.TestCase):
                     slot_status.assert_consumed()
             self.assertEqual(12.0, self.evaluate(new_root.var))
             if tf.executing_eagerly():
-                # Slot variables are only created with restoring initializers when
-                # executing eagerly.
+                # Slot variables are only created with restoring initializers
+                # when executing eagerly.
                 self.assertEqual(
                     14.0,
                     self.evaluate(
@@ -588,13 +590,13 @@ class CheckpointingTests(test_combinations.TestCase):
             train_op = new_root.optimizer.apply_gradients(
                 zip(gradients, variables)
             )
-            # The slot variable now exists; restore() didn't create it, but we should
-            # now have a restore op for it.
+            # The slot variable now exists; restore() didn't create it, but we
+            # should now have a restore op for it.
             slot_status.run_restore_ops()
             if not tf.executing_eagerly():
-                # The train op hasn't run when graph building, so the slot variable has
-                # its restored value. It has run in eager, so the value will
-                # be different.
+                # The train op hasn't run when graph building, so the slot
+                # variable has its restored value. It has run in eager, so the
+                # value will be different.
                 self.assertEqual(
                     14.0,
                     self.evaluate(
@@ -716,8 +718,8 @@ class CheckpointingTests(test_combinations.TestCase):
                 if not tf.executing_eagerly():
                     train_fn = functools.partial(self.evaluate, train_fn())
                 status.initialize_or_restore()
-                # TODO(tanzheny): Add hyper variables to .variables(), and set them with
-                # set_weights etc.
+                # TODO(tanzheny): Add hyper variables to .variables(), and set
+                # them with set_weights etc.
                 variables_not_in_the_variables_property = [
                     obj
                     for obj in optimizer._hyper.values()
@@ -960,8 +962,8 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
                     status.assert_existing_objects_matched()
                     status.assert_nontrivial_match()
                 else:
-                    # When graph building, we haven't read any keys, so we don't know
-                    # whether the restore will be complete.
+                    # When graph building, we haven't read any keys, so we don't
+                    # know whether the restore will be complete.
                     with self.assertRaisesRegex(AssertionError, "not restored"):
                         status.assert_consumed()
                     with self.assertRaisesRegex(AssertionError, "not restored"):
@@ -975,8 +977,8 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
                 status.initialize_or_restore()
                 status.assert_nontrivial_match()
                 self._check_sentinels(root)
-                # Check that there is no error when keys are missing from the name-based
-                # checkpoint.
+                # Check that there is no error when keys are missing from the
+                # name-based checkpoint.
                 root.not_in_name_checkpoint = tf.Variable([1.0])
                 status = object_saver.read(save_path)
                 with self.assertRaises(AssertionError):
@@ -1014,8 +1016,8 @@ class CheckpointCompatibilityTests(test_combinations.TestCase):
         checkpoint_directory = self.get_temp_dir()
         checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
         with self.cached_session() as session:
-            # Create and save a model using Saver() before using a Checkpoint. This
-            # generates a snapshot without the Checkpoint's `save_counter`.
+            # Create and save a model using Saver() before using a Checkpoint.
+            # This generates a snapshot without the Checkpoint's `save_counter`.
             model = sequential.Sequential()
             model.add(reshaping.Flatten(input_shape=(1,)))
             model.add(core.Dense(1))

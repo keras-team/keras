@@ -14,14 +14,11 @@
 # ==============================================================================
 """Keras index lookup preprocessing layer."""
 
-# pylint: disable=g-classes-have-attributes
-
 
 import collections
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras.engine import base_layer_utils
@@ -30,6 +27,9 @@ from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 INT = utils.INT
 MULTI_HOT = utils.MULTI_HOT
@@ -83,9 +83,7 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
 
     def set_weights(self, weights):
         tokens = tf.convert_to_tensor(weights[0], self._dtype)
-        self._layer.lookup_table = self._layer._lookup_table_from_tokens(
-            tokens
-        )  # pylint: disable=protected-access
+        self._layer.lookup_table = self._layer._lookup_table_from_tokens(tokens)
 
     def get_tensors(self):
         # Just save the non-config part of the vocab (no special tokens).
@@ -715,7 +713,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # tables.
         self.reset_state()
 
-    def reset_state(self):  # pylint: disable=method-hidden
+    def reset_state(self):
         if self._has_input_vocabulary:
             return
 
@@ -771,7 +769,8 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
     def _lookup_dense(self, inputs):
         """Lookup table values for a dense Tensor, handling masking and OOV."""
-        # When executing eagerly and tracing keras.Inputs, do not call lookup.
+        # When executing eagerly and tracing keras.Input objects,
+        # do not call lookup.
         # This is critical for restoring SavedModel, which will first trace
         # layer.call and then attempt to restore the table. We need the table to
         # be uninitialized for the restore to work, but calling the table

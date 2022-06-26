@@ -13,17 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 """Built-in regularizers."""
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=invalid-name
+
 
 import math
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 def _check_penalty_number(x):
@@ -131,7 +132,7 @@ class Regularizer:
 
     >>> @tf.keras.utils.register_keras_serializable(package='Custom', name='l2')
     ... class L2Regularizer(tf.keras.regularizers.Regularizer):
-    ...   def __init__(self, l2=0.):  # pylint: disable=redefined-outer-name
+    ...   def __init__(self, l2=0.):
     ...     self.l2 = l2
     ...
     ...   def __call__(self, x):
@@ -228,7 +229,7 @@ class L1L2(Regularizer):
         l2: Float; L2 regularization factor.
     """
 
-    def __init__(self, l1=0.0, l2=0.0):  # pylint: disable=redefined-outer-name
+    def __init__(self, l1=0.0, l2=0.0):
         # The default value for l1 and l2 are different from the value in l1_l2
         # for backward compatibility reason. Eg, L1L2(l2=0.1) will only have l2
         # and no l1 penalty.
@@ -245,7 +246,8 @@ class L1L2(Regularizer):
         if self.l1:
             regularization += self.l1 * tf.reduce_sum(tf.abs(x))
         if self.l2:
-            regularization += self.l2 * tf.reduce_sum(tf.square(x))
+            # equivalent to "self.l2 * tf.reduce_sum(tf.square(x))"
+            regularization += 2.0 * self.l2 * tf.nn.l2_loss(x)
         return regularization
 
     def get_config(self):
@@ -269,9 +271,7 @@ class L1(Regularizer):
         l1: Float; L1 regularization factor.
     """
 
-    def __init__(
-        self, l1=0.01, **kwargs
-    ):  # pylint: disable=redefined-outer-name
+    def __init__(self, l1=0.01, **kwargs):
         l1 = kwargs.pop("l", l1)  # Backwards compatibility
         if kwargs:
             raise TypeError(f"Argument(s) not recognized: {kwargs}")
@@ -305,9 +305,7 @@ class L2(Regularizer):
         l2: Float; L2 regularization factor.
     """
 
-    def __init__(
-        self, l2=0.01, **kwargs
-    ):  # pylint: disable=redefined-outer-name
+    def __init__(self, l2=0.01, **kwargs):
         l2 = kwargs.pop("l", l2)  # Backwards compatibility
         if kwargs:
             raise TypeError(f"Argument(s) not recognized: {kwargs}")
@@ -318,7 +316,8 @@ class L2(Regularizer):
         self.l2 = backend.cast_to_floatx(l2)
 
     def __call__(self, x):
-        return self.l2 * tf.reduce_sum(tf.square(x))
+        # equivalent to "self.l2 * tf.reduce_sum(tf.square(x))"
+        return 2.0 * self.l2 * tf.nn.l2_loss(x)
 
     def get_config(self):
         return {"l2": float(self.l2)}
@@ -392,7 +391,7 @@ class OrthogonalRegularizer(Regularizer):
 
 
 @keras_export("keras.regularizers.l1_l2")
-def l1_l2(l1=0.01, l2=0.01):  # pylint: disable=redefined-outer-name
+def l1_l2(l1=0.01, l2=0.01):
     r"""Create a regularizer that applies both L1 and L2 penalties.
 
     The L1 regularization penalty is computed as:

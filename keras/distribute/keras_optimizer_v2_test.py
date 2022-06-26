@@ -34,7 +34,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -96,7 +96,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )

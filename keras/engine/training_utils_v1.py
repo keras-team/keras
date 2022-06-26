@@ -24,7 +24,6 @@ import time
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -34,6 +33,9 @@ from keras.utils import data_utils
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 def is_composite_or_composite_value(tensor):
@@ -414,7 +416,7 @@ class SliceAggregator(Aggregator):
         try:
             self.results[batch_start:batch_end] = batch_element
 
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             # `_slice_assign` should only be called in threads and exceptions
             # raised in threads do not carry over to the main thread. So instead
             # we perform a a broad catch in the thread and then store the
@@ -758,7 +760,7 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     """
     if x_weight is None or (
         isinstance(x_weight, (list, tuple)) and len(x_weight) == 0
-    ):  # pylint: disable=g-explicit-length-test
+    ):
         return [None for _ in output_names]
     if len(output_names) == 1:
         if isinstance(x_weight, (list, tuple)) and len(x_weight) == 1:
@@ -1036,9 +1038,7 @@ def collect_per_output_metric_info(
             metric_fn = get_metric_function(
                 metric, output_shape=output_shapes[i], loss_fn=loss_fns[i]
             )
-            metric_fn._from_serialized = (
-                from_serialized  # pylint: disable=protected-access
-            )
+            metric_fn._from_serialized = from_serialized
 
             # If the metric function is not stateful, we create a stateful
             # version.
@@ -1049,9 +1049,7 @@ def collect_per_output_metric_info(
                 # If the metric is being revived from something stateless, such
                 # as a string (e.g. "accuracy"), we may need to later reapply
                 # transformations such as renaming.
-                metric_fn._from_serialized = (
-                    False  # pylint: disable=protected-access
-                )
+                metric_fn._from_serialized = False
             metrics_dict[metric_name] = metric_fn
         per_output_metrics.append(metrics_dict)
 
@@ -1664,7 +1662,8 @@ def prepare_loss_functions(loss, output_names):
 
     Args:
         loss: String (name of objective function), objective function or
-          `tf.losses.Loss` instance. See `tf.losses`. If the model has multiple
+          `tf.keras.losses.Loss` instance. See `tf.keras.losses`.
+          If the model has multiple
           outputs, you can use a different loss on each output by passing a
           dictionary or a list of losses. The loss value that will be minimized
           by the model will then be the sum of all individual losses.
@@ -1769,7 +1768,6 @@ def is_eager_dataset_or_iterator(data):
     )
 
 
-# pylint: disable=protected-access
 def get_dataset_graph_def(dataset):
     if tf.executing_eagerly():
         graph_def_str = dataset._as_serialized_graph().numpy()
@@ -2040,10 +2038,6 @@ class ModelInputs:
 
 
 # Allow use of methods not exposed to the user.
-# pylint: disable=protected-access
-
-
-# pylint: enable=protected-access
 
 
 def generic_output_names(outputs_list):
@@ -2144,7 +2138,7 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
             (
                 val_x,
                 val_y,
-            ) = validation_data  # pylint: disable=unpacking-non-sequence
+            ) = validation_data
             val_sample_weight = None
         except ValueError:
             val_x, val_y, val_sample_weight = validation_data, None, None
@@ -2154,7 +2148,7 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
                 val_x,
                 val_y,
                 val_sample_weight,
-            ) = validation_data  # pylint: disable=unpacking-non-sequence
+            ) = validation_data
         except ValueError:
             val_x, val_y, val_sample_weight = validation_data, None, None
     else:

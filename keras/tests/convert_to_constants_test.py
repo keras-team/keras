@@ -18,12 +18,14 @@ import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import convert_to_constants
-from tensorflow.python.saved_model.load import load
-from tensorflow.python.saved_model.save import save
 
 import keras
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import convert_to_constants
+from tensorflow.python.saved_model.load import load
+from tensorflow.python.saved_model.save import save
 
 
 class VariablesToConstantsTest(tf.test.TestCase):
@@ -65,8 +67,8 @@ class VariablesToConstantsTest(tf.test.TestCase):
         self.assertEqual(0, self._getNumVariables(constant_graph_def))
         self.assertFalse(self._hasStatefulPartitionedCallOp(constant_graph_def))
 
-        # Check that the converted ConcreteFunction produces the same result as the
-        # original Function.
+        # Check that the converted ConcreteFunction produces the same result as
+        # the original Function.
         expected_value = tf.nest.flatten(func(**input_data))
         actual_value = tf.nest.flatten(converted_concrete_func(**input_data))
 

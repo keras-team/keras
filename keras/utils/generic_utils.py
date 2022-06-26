@@ -29,11 +29,13 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.utils import io_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 _GLOBAL_CUSTOM_NAMES = {}
@@ -45,10 +47,12 @@ _SKIP_FAILED_SERIALIZATION = False
 # If a layer does not have a defined config, then the returned config will be a
 # dictionary with the below key.
 _LAYER_UNDEFINED_CONFIG_KEY = "layer was saved without config"
+# Thread-local custom objects set by custom_object_scope.
+_THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
 
 
 @keras_export(
-    "keras.utils.custom_object_scope",  # pylint: disable=g-classes-have-attributes
+    "keras.utils.custom_object_scope",
     "keras.utils.CustomObjectScope",
 )
 class CustomObjectScope:
@@ -65,7 +69,8 @@ class CustomObjectScope:
 
     ```python
     layer = Dense(3, kernel_regularizer=my_regularizer)
-    config = layer.get_config()  # Config contains a reference to `my_regularizer`
+    # Config contains a reference to `my_regularizer`
+    config = layer.get_config()
     ...
     # Later:
     with custom_object_scope({'my_regularizer': my_regularizer}):
@@ -81,23 +86,23 @@ class CustomObjectScope:
         self.backup = None
 
     def __enter__(self):
-        self.backup = _GLOBAL_CUSTOM_OBJECTS.copy()
+        self.backup = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.copy()
         for objects in self.custom_objects:
-            _GLOBAL_CUSTOM_OBJECTS.update(objects)
+            _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(objects)
         return self
 
     def __exit__(self, *args, **kwargs):
-        _GLOBAL_CUSTOM_OBJECTS.clear()
-        _GLOBAL_CUSTOM_OBJECTS.update(self.backup)
+        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.clear()
+        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
 
 
 @keras_export("keras.utils.get_custom_objects")
 def get_custom_objects():
     """Retrieves a live reference to the global dictionary of custom objects.
 
-    Updating and clearing custom objects using `custom_object_scope`
-    is preferred, but `get_custom_objects` can
-    be used to directly access the current collection of custom objects.
+    Custom objects set using using `custom_object_scope` are not added to the
+    global dictionary of custom objects, and will not appear in the returned
+    dictionary.
 
     Example:
 
@@ -167,8 +172,8 @@ class DisableSharedObjectScope:
 class NoopLoadingScope:
     """The default shared object loading scope. It does nothing.
 
-    Created to simplify serialization code that doesn't care about shared objects
-    (e.g. when serializing a single object).
+    Created to simplify serialization code that doesn't care about shared
+    objects (e.g. when serializing a single object).
     """
 
     def get(self, unused_object_id):
@@ -200,8 +205,8 @@ class SharedObjectLoadingScope:
         """Given a shared object ID, returns a previously instantiated object.
 
         Args:
-          object_id: shared object ID to use when attempting to find already-loaded
-            object.
+          object_id: shared object ID to use when attempting to find
+            already-loaded object.
 
         Returns:
           The object, if we've seen this ID before. Else, `None`.
@@ -247,9 +252,9 @@ class SharedObjectConfig(dict):
 
     def increment_ref_count(self):
         # As soon as we've seen the object more than once, we want to attach the
-        # shared object ID. This allows us to only attach the shared object ID when
-        # it's strictly necessary, making backwards compatibility breakage less
-        # likely.
+        # shared object ID. This allows us to only attach the shared object ID
+        # when it's strictly necessary, making backwards compatibility breakage
+        # less likely.
         if self.ref_count == 1:
             self[SHARED_OBJECT_KEY] = self.object_id
         self.ref_count += 1
@@ -264,11 +269,11 @@ class SharedObjectSavingScope:
 
         global SHARED_OBJECT_SAVING
 
-        # Serialization can happen at a number of layers for a number of reasons.
-        # We may end up with a case where we're opening a saving scope within
-        # another saving scope. In that case, we'd like to use the outermost scope
-        # available and ignore inner scopes, since there is not (yet) a reasonable
-        # use case for having these nested and distinct.
+        # Serialization can happen at a number of layers for a number of
+        # reasons.  We may end up with a case where we're opening a saving scope
+        # within another saving scope. In that case, we'd like to use the
+        # outermost scope available and ignore inner scopes, since there is not
+        # (yet) a reasonable use case for having these nested and distinct.
         if _shared_object_saving_scope() is not None:
             self._passthrough = True
             return _shared_object_saving_scope()
@@ -293,9 +298,10 @@ class SharedObjectSavingScope:
         try:
             shared_object_config = self._shared_objects_config[obj]
         except (TypeError, KeyError):
-            # If the object is unhashable (e.g. a subclass of `AbstractBaseClass`
-            # that has not overridden `__hash__`), a `TypeError` will be thrown.
-            # We'll just continue on without shared object support.
+            # If the object is unhashable (e.g. a subclass of
+            # `AbstractBaseClass` that has not overridden `__hash__`), a
+            # `TypeError` will be thrown.  We'll just continue on without shared
+            # object support.
             return None
         shared_object_config.increment_ref_count()
         return shared_object_config
@@ -307,9 +313,10 @@ class SharedObjectSavingScope:
         try:
             self._shared_objects_config[obj] = shared_object_config
         except TypeError:
-            # If the object is unhashable (e.g. a subclass of `AbstractBaseClass`
-            # that has not overridden `__hash__`), a `TypeError` will be thrown.
-            # We'll just continue on without shared object support.
+            # If the object is unhashable (e.g. a subclass of
+            # `AbstractBaseClass` that has not overridden `__hash__`), a
+            # `TypeError` will be thrown.  We'll just continue on without shared
+            # object support.
             pass
         return shared_object_config
 
@@ -331,10 +338,10 @@ def serialize_keras_class_and_config(
     if shared_object_id is not None:
         base_config[SHARED_OBJECT_KEY] = shared_object_id
 
-    # If we have an active `SharedObjectSavingScope`, check whether we've already
-    # serialized this config. If so, just use that config. This will store an
-    # extra ID field in the config, allowing us to re-create the shared object
-    # relationship at load time.
+    # If we have an active `SharedObjectSavingScope`, check whether we've
+    # already serialized this config. If so, just use that config. This will
+    # store an extra ID field in the config, allowing us to re-create the shared
+    # object relationship at load time.
     if _shared_object_saving_scope() is not None and obj is not None:
         shared_object_config = _shared_object_saving_scope().get_config(obj)
         if shared_object_config is None:
@@ -373,13 +380,13 @@ def register_keras_serializable(package="Custom", name=None):
     ```
 
     Args:
-      package: The package that this class belongs to. This is used for the `key`
-        (which is 'package>name') to idenfify the class. Note that this is the
-        first argument passed into the decorator.
+      package: The package that this class belongs to. This is used for the
+        `key` (which is 'package>name') to idenfify the class. Note that this is
+        the first argument passed into the decorator.
       name: The name to serialize this class under in this package. If not
         provided or `None`, the class' name will be used (note that this is the
-        case when the decorator is used with only one argument, which becomes the
-        `package`).
+        case when the decorator is used with only one argument, which becomes
+        the `package`).
 
     Returns:
       A decorator that registers the decorated class with the passed names.
@@ -392,7 +399,8 @@ def register_keras_serializable(package="Custom", name=None):
 
         if tf_inspect.isclass(arg) and not hasattr(arg, "get_config"):
             raise ValueError(
-                "Cannot register a class that does not have a get_config() method."
+                "Cannot register a class that does not have a "
+                "get_config() method."
             )
 
         if registered_name in _GLOBAL_CUSTOM_OBJECTS:
@@ -403,7 +411,8 @@ def register_keras_serializable(package="Custom", name=None):
 
         if arg in _GLOBAL_CUSTOM_NAMES:
             raise ValueError(
-                f"{arg} has already been registered to {_GLOBAL_CUSTOM_NAMES[arg]}"
+                f"{arg} has already been registered to "
+                f"{_GLOBAL_CUSTOM_NAMES[arg]}"
             )
         _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
         _GLOBAL_CUSTOM_NAMES[arg] = registered_name
@@ -472,7 +481,9 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
       An instantiable class associated with 'name', or None if no such class
         exists.
     """
-    if name in _GLOBAL_CUSTOM_OBJECTS:
+    if name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[name]
+    elif name in _GLOBAL_CUSTOM_OBJECTS:
         return _GLOBAL_CUSTOM_OBJECTS[name]
     elif custom_objects and name in custom_objects:
         return custom_objects[name]
@@ -481,12 +492,8 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
     return None
 
 
-# pylint: disable=g-bad-exception-name
 class CustomMaskWarning(Warning):
     pass
-
-
-# pylint: enable=g-bad-exception-name
 
 
 @keras_export("keras.utils.serialize_keras_object")
@@ -508,7 +515,6 @@ def serialize_keras_object(instance):
     if instance is None:
         return None
 
-    # pylint: disable=protected-access
     #
     # For v1 layers, checking supports_masking is not enough. We have to also
     # check whether compute_mask has been overridden.
@@ -524,7 +530,6 @@ def serialize_keras_object(instance):
             category=CustomMaskWarning,
             stacklevel=2,
         )
-    # pylint: enable=protected-access
 
     if hasattr(instance, "get_config"):
         name = get_registered_name(instance.__class__)
@@ -542,8 +547,8 @@ def serialize_keras_object(instance):
                 serialization_config[key] = item
                 continue
 
-            # Any object of a different type needs to be converted to string or dict
-            # for serialization (e.g. custom functions, custom classes)
+            # Any object of a different type needs to be converted to string or
+            # dict for serialization (e.g. custom functions, custom classes)
             try:
                 serialized_item = serialize_keras_object(item)
                 if isinstance(serialized_item, dict) and not isinstance(
@@ -568,7 +573,9 @@ def serialize_keras_object(instance):
 
 def get_custom_objects_by_name(item, custom_objects=None):
     """Returns the item if it is in either local or global custom objects."""
-    if item in _GLOBAL_CUSTOM_OBJECTS:
+    if item in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[item]
+    elif item in _GLOBAL_CUSTOM_OBJECTS:
         return _GLOBAL_CUSTOM_OBJECTS[item]
     elif custom_objects and item in custom_objects:
         return custom_objects[item]
@@ -596,7 +603,8 @@ def class_and_config_for_serialized_keras_object(
     cls = get_registered_object(class_name, custom_objects, module_objects)
     if cls is None:
         raise ValueError(
-            f"Unknown {printable_module_name}: {class_name}. Please ensure this "
+            f"Unknown {printable_module_name}: {class_name}. "
+            "Please ensure this "
             "object is passed to the `custom_objects` argument. See "
             "https://www.tensorflow.org/guide/keras/save_and_serialize"
             "#registering_the_custom_object for details."
@@ -631,14 +639,15 @@ def class_and_config_for_serialized_keras_object(
         elif isinstance(item, str) and tf_inspect.isfunction(
             get_registered_object(item, custom_objects)
         ):
-            # Handle custom functions here. When saving functions, we only save the
-            # function's name as a string. If we find a matching string in the custom
-            # objects during deserialization, we convert the string back to the
-            # original function.
-            # Note that a potential issue is that a string field could have a naming
-            # conflict with a custom function name, but this should be a rare case.
-            # This issue does not occur if a string field has a naming conflict with
-            # a custom object, since the config of an object will always be a dict.
+            # Handle custom functions here. When saving functions, we only save
+            # the function's name as a string. If we find a matching string in
+            # the custom objects during deserialization, we convert the string
+            # back to the original function.
+            # Note that a potential issue is that a string field could have a
+            # naming conflict with a custom function name, but this should be a
+            # rare case.  This issue does not occur if a string field has a
+            # naming conflict with a custom object, since the config of an
+            # object will always be a dict.
             deserialized_objects[key] = get_registered_object(
                 item, custom_objects
             )
@@ -659,24 +668,26 @@ def deserialize_keras_object(
 
     This function is for mid-level library implementers rather than end users.
 
-    Importantly, this utility requires you to provide the dict of `module_objects`
-    to use for looking up the object config; this is not populated by default.
-    If you need a deserialization utility that has preexisting knowledge of
-    built-in Keras objects, use e.g. `keras.layers.deserialize(config)`,
-    `keras.metrics.deserialize(config)`, etc.
+    Importantly, this utility requires you to provide the dict of
+    `module_objects` to use for looking up the object config; this is not
+    populated by default. If you need a deserialization utility that has
+    preexisting knowledge of built-in Keras objects, use e.g.
+    `keras.layers.deserialize(config)`, `keras.metrics.deserialize(config)`,
+    etc.
 
     Calling `deserialize_keras_object` while underneath the
-    `SharedObjectLoadingScope` context manager will cause any already-seen shared
-    objects to be returned as-is rather than creating a new object.
+    `SharedObjectLoadingScope` context manager will cause any already-seen
+    shared objects to be returned as-is rather than creating a new object.
 
     Args:
       identifier: the serialized form of the object.
       module_objects: A dictionary of built-in objects to look the name up in.
-        Generally, `module_objects` is provided by midlevel library implementers.
+        Generally, `module_objects` is provided by midlevel library
+        implementers.
       custom_objects: A dictionary of custom objects to look the name up in.
         Generally, `custom_objects` is provided by the end user.
-      printable_module_name: A human-readable string representing the type of the
-        object. Printed in case of exception.
+      printable_module_name: A human-readable string representing the type of
+        the object. Printed in case of exception.
 
     Returns:
       The deserialized object.
@@ -708,12 +719,10 @@ def deserialize_keras_object(
             config, module_objects, custom_objects, printable_module_name
         )
 
-        # If this object has already been loaded (i.e. it's shared between multiple
-        # objects), return the already-loaded object.
+        # If this object has already been loaded (i.e. it's shared between
+        # multiple objects), return the already-loaded object.
         shared_object_id = config.get(SHARED_OBJECT_KEY)
-        shared_object = _shared_object_loading_scope().get(
-            shared_object_id
-        )  # pylint: disable=assignment-from-none
+        shared_object = _shared_object_loading_scope().get(shared_object_id)
         if shared_object is not None:
             return shared_object
 
@@ -726,6 +735,7 @@ def deserialize_keras_object(
                     cls_config,
                     custom_objects=dict(
                         list(_GLOBAL_CUSTOM_OBJECTS.items())
+                        + list(_THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.items())
                         + list(custom_objects.items())
                     ),
                 )
@@ -749,14 +759,17 @@ def deserialize_keras_object(
         object_name = identifier
         if custom_objects and object_name in custom_objects:
             obj = custom_objects.get(object_name)
+        elif object_name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
+            obj = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[object_name]
         elif object_name in _GLOBAL_CUSTOM_OBJECTS:
             obj = _GLOBAL_CUSTOM_OBJECTS[object_name]
         else:
             obj = module_objects.get(object_name)
             if obj is None:
                 raise ValueError(
-                    f"Unknown {printable_module_name}: {object_name}. Please ensure "
-                    "this object is passed to the `custom_objects` argument. See "
+                    f"Unknown {printable_module_name}: {object_name}. Please "
+                    "ensure this object is passed to the `custom_objects` "
+                    "argument. See "
                     "https://www.tensorflow.org/guide/keras/save_and_serialize"
                     "#registering_the_custom_object for details."
                 )
@@ -771,7 +784,8 @@ def deserialize_keras_object(
         return identifier
     else:
         raise ValueError(
-            f"Could not interpret serialized {printable_module_name}: {identifier}"
+            f"Could not interpret serialized "
+            f"{printable_module_name}: {identifier}"
         )
 
 
@@ -826,7 +840,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
         """
 
         def dummy_fn():
-            # pylint: disable=pointless-statement
+
             value  # just access it so it gets captured in .__closure__
 
         cell_value = dummy_fn.__closure__[0]
@@ -854,8 +868,8 @@ def has_arg(fn, name, accept_all=False):
     Args:
         fn: Callable to inspect.
         name: Check if `fn` can be called with `name` as a keyword argument.
-        accept_all: What to return if there is no parameter called `name` but the
-          function accepts a `**kwargs` argument.
+        accept_all: What to return if there is no parameter called `name` but
+          the function accepts a `**kwargs` argument.
 
     Returns:
         bool, whether `fn` accepts a `name` keyword argument.
@@ -874,9 +888,9 @@ class Progbar:
         target: Total number of steps expected, None if unknown.
         width: Progress bar width on screen.
         verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
-        stateful_metrics: Iterable of string names of metrics that should *not* be
-          averaged over time. Metrics in this list will be displayed as-is. All
-          others will be averaged by the progbar before display.
+        stateful_metrics: Iterable of string names of metrics that should *not*
+          be averaged over time. Metrics in this list will be displayed as-is.
+          All others will be averaged by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
         unit_name: Display name for step counts (usually "step" or "sample").
     """
@@ -923,9 +937,10 @@ class Progbar:
 
         Args:
             current: Index of current step.
-            values: List of tuples: `(name, value_for_last_step)`. If `name` is in
-              `stateful_metrics`, `value_for_last_step` will be displayed as-is.
-              Else, an average of the metric over time will be displayed.
+            values: List of tuples: `(name, value_for_last_step)`. If `name` is
+              in `stateful_metrics`, `value_for_last_step` will be displayed
+              as-is. Else, an average of the metric over time will be
+              displayed.
             finalize: Whether this is the last update for the progress bar. If
               `None`, defaults to `current >= self.target`.
         """
@@ -940,10 +955,11 @@ class Progbar:
             if k not in self._values_order:
                 self._values_order.append(k)
             if k not in self.stateful_metrics:
-                # In the case that progress bar doesn't have a target value in the first
-                # epoch, both on_batch_end and on_epoch_end will be called, which will
-                # cause 'current' and 'self._seen_so_far' to have the same value. Force
-                # the minimal value to 1 here, otherwise stateful_metric will be 0s.
+                # In the case that progress bar doesn't have a target value in
+                # the first epoch, both on_batch_end and on_epoch_end will be
+                # called, which will cause 'current' and 'self._seen_so_far' to
+                # have the same value. Force the minimal value to 1 here,
+                # otherwise stateful_metric will be 0s.
                 value_base = max(current - self._seen_so_far, 1)
                 if k not in self._values:
                     self._values[k] = [v * value_base, value_base]
@@ -1093,22 +1109,25 @@ class Progbar:
     def _estimate_step_duration(self, current, now):
         """Estimate the duration of a single step.
 
-        Given the step number `current` and the corresponding time `now`
-        this function returns an estimate for how long a single step
-        takes. If this is called before one step has been completed
-        (i.e. `current == 0`) then zero is given as an estimate. The duration
-        estimate ignores the duration of the (assumed to be non-representative)
-        first step for estimates when more steps are available (i.e. `current>1`).
+        Given the step number `current` and the corresponding time `now` this
+        function returns an estimate for how long a single step takes. If this
+        is called before one step has been completed (i.e. `current == 0`) then
+        zero is given as an estimate. The duration estimate ignores the duration
+        of the (assumed to be non-representative) first step for estimates when
+        more steps are available (i.e. `current>1`).
+
         Args:
           current: Index of current step.
           now: The current time.
+
         Returns: Estimate of the duration of a single step.
         """
         if current:
             # there are a few special scenarios here:
-            # 1) somebody is calling the progress bar without ever supplying step 1
-            # 2) somebody is calling the progress bar and supplies step one multiple
-            #    times, e.g. as part of a finalizing call
+            # 1) somebody is calling the progress bar without ever supplying
+            #    step 1
+            # 2) somebody is calling the progress bar and supplies step one
+            #    multiple times, e.g. as part of a finalizing call
             # in these cases, we just fall back to the simple calculation
             if self._time_after_first_step is not None and current > 1:
                 time_per_unit = (now - self._time_after_first_step) / (
@@ -1236,8 +1255,8 @@ def check_for_unexpected_keys(name, input_dict, expected_values):
     unknown = set(input_dict.keys()).difference(expected_values)
     if unknown:
         raise ValueError(
-            f"Unknown entries in {name} dictionary: {list(unknown)}. Only expected "
-            f"following keys: {expected_values}"
+            f"Unknown entries in {name} dictionary: {list(unknown)}. "
+            f"Only expected following keys: {expected_values}"
         )
 
 
@@ -1259,7 +1278,7 @@ def validate_config(config):
 
 def default(method):
     """Decorates a method to detect overrides in subclasses."""
-    method._is_default = True  # pylint: disable=protected-access
+    method._is_default = True
     return method
 
 
@@ -1290,8 +1309,8 @@ class LazyLoader(python_types.ModuleType):
         module = importlib.import_module(self.__name__)
         self._parent_module_globals[self._local_name] = module
         # Update this object's dict so that if someone keeps a reference to the
-        #   LazyLoader, lookups are efficient (__getattr__ is only called on lookups
-        #   that fail).
+        # LazyLoader, lookups are efficient (__getattr__ is only called on
+        # lookups that fail).
         self.__dict__.update(module.__dict__)
         return module
 
@@ -1302,4 +1321,4 @@ class LazyLoader(python_types.ModuleType):
 
 # Aliases
 
-custom_object_scope = CustomObjectScope  # pylint: disable=invalid-name
+custom_object_scope = CustomObjectScope

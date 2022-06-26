@@ -19,14 +19,17 @@ import contextlib
 import re
 import threading
 
-from tensorflow.python.util.tf_export import keras_export
+import tensorflow.compat.v2 as tf
 
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import lazy_variable
 from keras.dtensor import utils
 from keras.engine import base_layer
 
-# pylint: disable=missing-class-docstring
+# isort: off
+from tensorflow.python.util.deprecation import deprecated
+from tensorflow.python.util.tf_export import keras_export
+
 
 # We will skip the path for certain attributes when mapping the layout, e.g.
 # model._self_tracked_trackables, or layer._trainable_weights/
@@ -142,11 +145,101 @@ class LayoutMap(collections.abc.MutableMapping):
         """
         return self._default_mesh
 
+    def scope(self):
+        """Apply layout to all `tf.Variable` instances created under the scope.
+
+        All `tf.Variable` instances created under this scope
+        will be lazily initialized first. Once they are attached as the model
+        or layer attributes, and there is a stable layout mapping for it, the
+        variables will be reinitialized into a
+        `tf.experimental.dtensor.DVariable` with corresponding layout.
+
+        Note that the layout mapping will use object/attribute names as the
+        keys to map the variable to the layout.
+
+        For subclassed models, the full object/attribute name is used as the
+        key. For Functional/Sequential models, we use `layer.name` as
+        the key for the layer, followed by the attribute name. Keras ensures
+        name uniqueness among the layers within a Functional/Sequential model.
+
+        See the following examples that show variable object names
+        for different Keras model types:
+
+        ```python
+        layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+        layout_map['d1.kernel'] = layout_1
+        layout_map['d1.bias'] = layout_2
+        layout_map['d2.kernel'] = layout_3
+        layout_map['d2.bias'] = layout_4
+
+        ## Subclassed model
+        class SubclassModel(tf.keras.Model):
+
+          def __init__(self, name=None):
+            super().__init__(name=name)
+            self.d1 = tf.keras.layers.Dense(1000)
+            self.d2 = tf.keras.layers.Dense(1000)
+
+          def call(self, inputs):
+            x = self.d1(inputs)
+            return self.d2(x)
+
+        with layout_map.scope():
+          model = SubclassModel()
+        inputs = tf.zeros((10, 10))
+        results = model(inputs)
+
+        model.d1.kernel.layout == layout_1
+        model.d1.bias.layout == layout_2
+        model.d2.kernel.layout == layout_3
+        model.d2.bias.layout == layout_4
+
+        ## Functional model
+        with layout_map.scope():
+          inputs = tf.keras.Input((10,), batch_size=10)
+          x = tf.keras.layers.Dense(20, name='d1')(inputs)
+          output = tf.keras.layers.Dense(30, name='d2')(x)
+
+          model = tf.keras.Model(inputs, output)
+
+        d1 = model.layers[1]
+        d2 = model.layers[2]
+
+        d1.kernel.layout == layout_1
+        d1.bias.layout == layout_2
+        d1.kernel.layout == layout_3
+        d1.bias.layout == layout_4
+
+        ## Sequential model
+        with layout_map.scope():
+          model = tf.keras.Sequential([
+              tf.keras.layers.Dense(20, name='d1', input_shape=(10,)),
+              tf.keras.layers.Dense(30, name='d2')
+          ])
+
+        d1 = model.layers[0]
+        d2 = model.layers[1]
+
+        d1.kernel.layout == layout_1
+        d1.bias.layout == layout_2
+        d1.kernel.layout == layout_3
+        d1.bias.layout == layout_4
+        ```
+
+        Returns:
+          A context that will lazily initialize all `tf.Variable` objects
+          within the model, with their attributed layouts.
+        """
+        return layout_map_scope(self)
+
 
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
 @keras_export("keras.dtensor.experimental.layout_map_scope", v1=[])
+@deprecated(
+    None, "use tf.keras.dtensor.experimental.LayoutMap.scope() instead."
+)
 @contextlib.contextmanager
 def layout_map_scope(layout_map):
     """Apply the layout to all the tf.Variables created under the scope.
@@ -256,7 +349,7 @@ def _map_subclass_model_variable(model, layout_map):
     # Note that the model._flatten is a method from tf.Module, and it returns
     # duplicated items (since some of the items have different paths).
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+        predicate=_is_lazy_init_variable,
         with_path=True,
     ):
         # Note that path is a tuple that contains string and ints, eg:
@@ -270,7 +363,7 @@ def _map_subclass_model_variable(model, layout_map):
         _set_object_by_path(model, path, new_variable)
         lazy_init_variable_to_tf_variable_map[id(variable)] = new_variable
 
-    for layer in model._flatten(  # pylint: disable=protected-access
+    for layer in model._flatten(
         predicate=lambda o: isinstance(o, base_layer.Layer)
     ):
         _config_dvariable_regularization(
@@ -279,13 +372,14 @@ def _map_subclass_model_variable(model, layout_map):
     # After we replaced all the variables, we want to make sure all the cached
     # attributes are having the new variable, rather than old LazyInitVariable.
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,  # pylint: disable=protected-access
+        predicate=_is_lazy_init_variable,
         with_path=True,
     ):
         tf_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
         _set_object_by_path(model, path, tf_variable)
 
     _init_state_variable_for_rng(model, layout_map)
+    _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map)
     return model
 
 
@@ -331,6 +425,7 @@ def _map_functional_model_variable(model, layout_map):
             _set_object_by_path(layer, path, tf_variable)
 
     _init_state_variable_for_rng(model, layout_map)
+    _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map)
     return model
 
 
@@ -348,7 +443,7 @@ def _init_state_variable_for_rng(model, layout_map):
         BaseRandomLayers.
       layout_map: used to get the default mesh information to create DVariable.
     """
-    # pylint: disable=protected-access
+
     for l in model._flatten(
         predicate=lambda o: isinstance(o, base_layer.BaseRandomLayer)
     ):
@@ -392,7 +487,7 @@ def _config_dvariable_regularization(
       lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable
         ID and newly created DVariable.
     """
-    # pylint: disable=protected-access
+
     for (name, variable, regualarizer) in layer._captured_weight_regularizer:
         if not _is_lazy_init_variable(variable):
             raise ValueError(
@@ -431,7 +526,7 @@ def _create_dvariable(layout_map, object_path, variable):
         layout = dtensor.Layout.replicated(
             mesh=layout_map.get_default_mesh(), rank=variable_rank
         )
-    init_val = variable._initial_value  # pylint: disable=protected-access
+    init_val = variable._initial_value
     if callable(init_val):
         with lazy_variable.disable_init_variable_creator():
             init_val = utils.call_with_layout(init_val, layout)
@@ -474,6 +569,34 @@ def _set_object_by_path(object_to_set, path, value):
                 object_to_set = object_to_set[attr_name]
             else:
                 object_to_set = getattr(object_to_set, attr_name)
+
+
+# TODO(b/228209108): Revisit this after we can reinit LazyInitVariable.
+def _update_trackable_reference(model, lazy_init_variable_to_tf_variable_map):
+    """Update the trackable object references for the model.
+
+    Note that this method is only needed because of a corner case for model
+    checkpoint, where it could accidently catch a LazyInitVariable in checkpoint
+    dependency and not visible to the model attribute graph itself.
+
+    Args:
+      model: the keras model instance whose checkpoint dependency will be
+        examed.
+      lazy_init_variable_to_tf_variable_map: the dict between LazyInitVariable
+        ID and newly created DVariable.
+    """
+    # See b/234621758 for more details.
+    object_graph = tf.__internal__.tracking.ObjectGraphView(model)
+    trackables, _ = object_graph.breadth_first_traversal()
+    for trackable in trackables:
+        for ref_name, ref in trackable._trackable_children().items():
+            if _is_lazy_init_variable(ref):
+                # Replacing the LazyVariable with DVariable.
+                trackable._track_trackable(
+                    lazy_init_variable_to_tf_variable_map[id(ref)],
+                    ref_name,
+                    overwrite=True,
+                )
 
 
 def _is_lazy_init_variable(obj):

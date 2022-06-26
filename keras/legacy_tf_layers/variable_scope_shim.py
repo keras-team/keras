@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-# pylint: disable=g-classes-have-attributes
+
 """Contains a shim to allow using TF1 get_variable code in TF2."""
 from __future__ import absolute_import
 from __future__ import division
@@ -22,13 +22,15 @@ import contextlib
 import functools
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine import base_layer
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
+
+# isort: off
+from tensorflow.python.ops import variable_scope as vs
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 def as_shape(shape):
@@ -324,7 +326,7 @@ class _EagerVariableStore(tf.Module):
         # it to custom_getter.
         # Note: the parameters of _true_getter, and their documentation, match
         # *exactly* item-for-item with the docstring of this method.
-        def _true_getter(  # pylint: disable=missing-docstring
+        def _true_getter(
             name,
             shape=None,
             dtype=tf.float32,
@@ -332,11 +334,11 @@ class _EagerVariableStore(tf.Module):
             regularizer=None,
             reuse=None,
             trainable=None,
-            collections=None,  # pylint: disable=unused-argument
+            collections=None,
             caching_device=None,
             partitioner=None,
             validate_shape=True,
-            use_resource=None,  # pylint: disable=unused-argument
+            use_resource=None,
             constraint=None,
             synchronization=tf.VariableSynchronization.AUTO,
             aggregation=tf.compat.v1.VariableAggregation.NONE,
@@ -500,7 +502,7 @@ class _EagerVariableStore(tf.Module):
             return found_var
 
         # The code below handles only the case of creating a new variable.
-        if reuse is True:  # pylint: disable=g-bool-id-comparison
+        if reuse is True:
             raise ValueError(
                 "Variable %s does not exist, or was not created with "
                 "tf.get_variable(). Did you mean to set "
@@ -825,13 +827,9 @@ def track_tf1_style_variables(method):
                     "does not extend Module, Layer, or Model.".format(self)
                 )
             var_store = _EagerVariableStore()
-            self._tf1_style_var_store = (
-                var_store  # pylint: disable=protected-access
-            )
+            self._tf1_style_var_store = var_store
 
-        existing_regularized_variables = set(
-            var_store._regularizers.keys()
-        )  # pylint: disable=protected-access
+        existing_regularized_variables = set(var_store._regularizers.keys())
         with var_store.scope():
             out = method(self, *args, **kwargs)
 
@@ -841,9 +839,7 @@ def track_tf1_style_variables(method):
             for (
                 var_name,
                 regularizer,
-            ) in (
-                var_store._regularizers.items()
-            ):  # pylint: disable=protected-access
+            ) in var_store._regularizers.items():
                 if var_name not in existing_regularized_variables:
                     self.add_loss(regularizer)
 
@@ -1076,7 +1072,7 @@ def get_or_create_layer(name, create_layer_method):
     Returns:
       The created layer.
     """
-    store = vs._get_default_variable_store()  # pylint: disable=protected-access
+    store = vs._get_default_variable_store()
     if not isinstance(store, _EagerVariableStore):
         if not tf.compat.v1.executing_eagerly_outside_functions():
             # tf1 case; just create and return layer

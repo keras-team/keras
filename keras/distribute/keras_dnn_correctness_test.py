@@ -115,7 +115,7 @@ class TestDistributionStrategyDnnCorrectness(
         self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
     )
     def test_dnn_correctness_with_partial_last_batch_eval(
@@ -129,7 +129,7 @@ class TestDistributionStrategyDnnCorrectness(
         )
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.strategy_minus_tpu_and_input_config_combinations_eager()
+        keras_correctness_test_base.strategy_minus_tpu_and_input_config_combinations_eager()  # noqa: E501
         + keras_correctness_test_base.multi_worker_mirrored_eager()
     )
     def test_dnn_correctness_with_partial_last_batch(
@@ -354,7 +354,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
                 self.run_dynamic_lr_test(distribution)
 
     @tf.__internal__.distribute.combinations.generate(
-        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()
+        keras_correctness_test_base.test_combinations_with_tpu_strategies_graph()  # noqa: E501
     )
     def test_dnn_correctness_with_partial_last_batch_eval(
         self, distribution, use_numpy, use_validation_data

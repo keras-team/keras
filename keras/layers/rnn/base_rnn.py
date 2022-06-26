@@ -13,14 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for recurrent layers."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import collections
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.engine import base_layer
@@ -30,6 +28,10 @@ from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.layers.RNN")
@@ -690,12 +692,8 @@ class RNN(base_layer.Layer):
                 )
 
             def step(inputs, states):
-                constants = states[
-                    -self._num_constants :
-                ]  # pylint: disable=invalid-unary-operand-type
-                states = states[
-                    : -self._num_constants
-                ]  # pylint: disable=invalid-unary-operand-type
+                constants = states[-self._num_constants :]
+                states = states[: -self._num_constants]
 
                 states = (
                     states[0] if len(states) == 1 and is_tf_rnn_cell else states
@@ -970,7 +968,7 @@ class RNN(base_layer.Layer):
         )
         num_constants = config.pop("num_constants", 0)
         layer = cls(cell, **config)
-        layer._num_constants = num_constants  # pylint: disable=protected-access
+        layer._num_constants = num_constants
         return layer
 
     @property

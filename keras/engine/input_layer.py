@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Input layer code (`Input` and `InputLayer`)."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.distribute import distributed_training_utils
@@ -26,6 +25,9 @@ from keras.engine import node as node_module
 from keras.saving.saved_model import layer_serialization
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 def _assert_other_arg_none(arg_name, arg):
@@ -62,7 +64,7 @@ class InputLayer(base_layer.Layer):
     model = tf.keras.Sequential([
       tf.keras.layers.InputLayer(input_shape=(4,)),
       tf.keras.layers.Dense(8)])
-    model.compile(tf.optimizers.RMSprop(0.001), loss='mse')
+    model.compile(tf.keras.optimizers.RMSprop(0.001), loss='mse')
     model.fit(np.zeros((10, 4)),
               np.ones((10, 8)))
 
@@ -70,7 +72,7 @@ class InputLayer(base_layer.Layer):
     # Keras will add a input for the model behind the scene.
     model = tf.keras.Sequential([
       tf.keras.layers.Dense(8, input_shape=(4,))])
-    model.compile(tf.optimizers.RMSprop(0.001), loss='mse')
+    model.compile(tf.keras.optimizers.RMSprop(0.001), loss='mse')
     model.fit(np.zeros((10, 4)),
               np.ones((10, 8)))
     ```
@@ -257,9 +259,7 @@ class InputLayer(base_layer.Layer):
         if isinstance(input_tensor, keras_tensor.KerasTensor) or (
             tf_utils.is_extension_type(input_tensor)
         ):
-            self._type_spec = (
-                input_tensor._type_spec
-            )  # pylint: disable=protected-access
+            self._type_spec = input_tensor._type_spec
         else:
             self._type_spec = tf.TensorSpec(
                 shape=input_tensor.shape,
@@ -287,7 +287,7 @@ class InputLayer(base_layer.Layer):
 
 @keras_export("keras.Input", "keras.layers.Input")
 @traceback_utils.filter_traceback
-def Input(  # pylint: disable=invalid-name
+def Input(
     shape=None,
     batch_size=None,
     name=None,

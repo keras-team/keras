@@ -16,15 +16,14 @@
 
 import threading
 
+# isort: off
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import gen_resource_variable_ops
 from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import variable_scope
-from tensorflow.python.training.tracking import (
-    base as trackable,
-)
+from tensorflow.python.trackable import base as trackable
 from tensorflow.python.util import compat
 from tensorflow.python.util import tf_contextlib
 
@@ -46,9 +45,7 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
                 s=[compat.as_bytes("loc:@%s" % handle_name)]
             )
         )
-        with ops.get_default_graph()._attr_scope(
-            {"_class": attr}
-        ):  # pylint: disable=protected-access
+        with ops.get_default_graph()._attr_scope({"_class": attr}):
             with ops.name_scope("Initializer"), device_context_manager(None):
                 if not callable(initial_value):
                     if isinstance(
@@ -99,7 +96,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
         initial_value=None,
         trainable=None,
         collections=None,
-        validate_shape=True,  # pylint: disable=unused-argument
+        validate_shape=True,
         caching_device=None,
         name=None,
         dtype=None,
@@ -180,9 +177,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
     # TODO(scottzhu): This method and create_and_initialize might be removed if
     # we decide to just use the tf.Variable to replace this class.
     def initialize(self):
-        with ops.name_scope(
-            self._name, "Variable", skip_on_eager=False
-        ) as name:
+        with ops.name_scope(self._name, "Variable", skip_on_eager=False):
             with ops.colocate_with(self._handle), ops.name_scope("Initializer"):
                 if callable(self._initial_value):
                     initial_value = self._initial_value()

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras regularization layers."""
-# pylint: disable=g-bad-import-order
+
 
 from keras.layers.regularization.activity_regularization import (
     ActivityRegularization,

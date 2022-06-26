@@ -17,9 +17,7 @@
 import threading
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
-import threading
 from keras.engine import base_layer
 from keras.engine import input_layer
 from keras.engine import input_spec
@@ -29,7 +27,6 @@ from keras.layers import convolutional
 from keras.layers import core
 from keras.layers import locally_connected
 from keras.layers import merging
-from keras.layers import noise
 from keras.layers import pooling
 from keras.layers import regularization
 from keras.layers import reshaping
@@ -55,6 +52,9 @@ from keras.layers.rnn import lstm
 from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 ALL_MODULES = (
     base_layer,
@@ -139,15 +139,15 @@ def populate_deserializable_objects():
     ] = batch_normalization.BatchNormalization
 
     # Prevent circular dependencies.
-    from keras import models  # pylint: disable=g-import-not-at-top
+    from keras import models
     from keras.feature_column.sequence_feature_column import (
-        SequenceFeatures,  # pylint: disable=g-import-not-at-top
+        SequenceFeatures,
     )
     from keras.premade_models.linear import (
-        LinearModel,  # pylint: disable=g-import-not-at-top
+        LinearModel,
     )
     from keras.premade_models.wide_deep import (
-        WideDeepModel,  # pylint: disable=g-import-not-at-top
+        WideDeepModel,
     )
 
     LOCAL.ALL_OBJECTS["Input"] = input_layer.Input
@@ -161,13 +161,13 @@ def populate_deserializable_objects():
 
     if tf.__internal__.tf2.enabled():
         from keras.feature_column.dense_features_v2 import (
-            DenseFeatures,  # pylint: disable=g-import-not-at-top
+            DenseFeatures,
         )
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures
     else:
         from keras.feature_column.dense_features import (
-            DenseFeatures,  # pylint: disable=g-import-not-at-top
+            DenseFeatures,
         )
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures

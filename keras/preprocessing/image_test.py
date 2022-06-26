@@ -32,7 +32,7 @@ from keras.testing_infra import test_utils
 from keras.utils import image_utils
 
 try:
-    import PIL  # pylint:disable=g-import-not-at-top
+    import PIL
 except ImportError:
     PIL = None
 
@@ -1648,7 +1648,8 @@ class TestImageDataGenerator(test_combinations.TestCase):
             # number of classes, because labels are sorted
             with self.assertRaisesRegex(
                 ValueError,
-                "Training and validation subsets have different number of classes",
+                "Training and validation subsets have "
+                "different number of classes",
             ):
                 generator.flow(
                     images,

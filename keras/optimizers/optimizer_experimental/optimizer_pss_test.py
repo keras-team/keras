@@ -25,7 +25,7 @@ STRATEGIES = [
 
 adadelta_fn = tf.__internal__.test.combinations.NamedObject(
     "adadelta",
-    lambda: adadelta.Adadelta(  # pylint: disable=g-long-lambda
+    lambda: adadelta.Adadelta(
         0.002, use_ema=True, ema_overwrite_frequency=None
     ),
 )
@@ -52,9 +52,7 @@ rmsprop_fn = tf.__internal__.test.combinations.NamedObject(
 )
 sgd_fn = tf.__internal__.test.combinations.NamedObject(
     "sgdaverage",
-    lambda: sgd.SGD(  # pylint: disable=g-long-lambda
-        0.002, use_ema=True, ema_overwrite_frequency=1
-    ),
+    lambda: sgd.SGD(0.002, use_ema=True, ema_overwrite_frequency=1),
 )
 
 OPTIMIZER_FN = [

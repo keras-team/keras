@@ -16,7 +16,6 @@
 
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
-from tensorflow.python.platform import tf_logging
 
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
@@ -24,6 +23,9 @@ from keras.mixed_precision import policy as mp_policy
 from keras.optimizers.optimizer_v2 import gradient_descent
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

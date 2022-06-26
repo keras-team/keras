@@ -197,7 +197,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph"],
         )
@@ -227,14 +227,14 @@ class TestDistributionStrategyErrorCases(
                 "PerReplica:.+",
             ):
                 with distribution.scope():
-                    distributed_training_utils_v1.validate_distributed_dataset_inputs(
+                    distributed_training_utils_v1.validate_distributed_dataset_inputs(  # noqa: E501
                         distribution, x, None
                     )
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -264,14 +264,14 @@ class TestDistributionStrategyErrorCases(
                 "PerReplica:.+",
             ):
                 with distribution.scope():
-                    distributed_training_utils_v1.validate_distributed_dataset_inputs(
+                    distributed_training_utils_v1.validate_distributed_dataset_inputs(  # noqa: E501
                         distribution, x, None
                     )
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -322,7 +322,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                 tf.__internal__.distribute.combinations.one_device_strategy,
             ],
             mode=["graph", "eager"],
@@ -355,7 +355,7 @@ class TestDistributionStrategyErrorCases(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
                 tf.__internal__.distribute.combinations.one_device_strategy,
             ],
             mode=["graph", "eager"],
@@ -406,10 +406,10 @@ class TestDistributionStrategyWithLossMasking(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
-            optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
+            optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,  # noqa: E501
         )
     )
     def test_masking(self, distribution, optimizer):
@@ -443,7 +443,7 @@ class TestDistributionStrategyWithNormalizationLayer(
             keras_test_lib.all_strategy_combinations(),
             tf.__internal__.test.combinations.combine(
                 fused=[True, False],
-                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
+                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,  # noqa: E501
             ),
         )
     )
@@ -489,7 +489,7 @@ class TestDistributionStrategyWithNormalizationLayer(
         tf.__internal__.test.combinations.times(
             keras_test_lib.tpu_strategy_combinations(),
             tf.__internal__.test.combinations.combine(
-                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn
+                optimizer=optimizer_combinations.gradient_descent_optimizer_keras_v2_fn  # noqa: E501
             ),
         )
     )
@@ -653,7 +653,7 @@ class TestDistributionStrategyWithStaticShapes(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )
@@ -670,7 +670,7 @@ class TestDistributionStrategyWithStaticShapes(
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             distribution=[
-                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,  # noqa: E501
             ],
             mode=["graph", "eager"],
         )

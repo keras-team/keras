@@ -36,7 +36,7 @@ from keras.optimizers.optimizer_v2 import rmsprop
 maybe_distribute = tf.__internal__.test.combinations.combine(
     distribution=[
         tf.__internal__.distribute.combinations.default_strategy,
-        tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,
+        tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,  # noqa: E501
     ]
 )
 
@@ -165,9 +165,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
                         self.assertIsInstance(
                             var, autocast_variable.AutoCastVariable
                         )
-                        self.assertEqual(
-                            tf.identity(var).dtype, read_dtype
-                        )  # pylint: disable=cell-var-from-loop
+                        self.assertEqual(tf.identity(var).dtype, read_dtype)
                         return self.evaluate(var)
 
                 x = get_var(7.0, tf.float32)
@@ -444,7 +442,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
             # AutoCastVariable.
             if tf.executing_eagerly():
                 with self.assertRaises(AttributeError):
-                    x.op  # pylint: disable=pointless-statement
+                    x.op
                 self.assertIsNone(x.assign(1.0).op)
                 self.assertIsNone(x.assign_add(1.0).op)
                 self.assertIsNone(x.assign_sub(1.0).op)

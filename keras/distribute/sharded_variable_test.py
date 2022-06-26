@@ -30,7 +30,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         super().setUpClass()
         cls.strategy = tf.distribute.experimental.ParameterServerStrategy(
             multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-            variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(
+            variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(  # noqa: E501
                 2
             ),
         )
@@ -184,7 +184,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         if shard_config[0] > 2:
             strategy = tf.distribute.experimental.ParameterServerStrategy(
                 multi_worker_testing_utils.make_parameter_server_cluster(3, 3),
-                variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(
+                variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(  # noqa: E501
                     shard_config[0]
                 ),
             )
@@ -217,7 +217,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         if shard_config[1] > 2:
             strategy2 = tf.distribute.experimental.ParameterServerStrategy(
                 multi_worker_testing_utils.make_parameter_server_cluster(3, 3),
-                variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(
+                variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(  # noqa: E501
                     shard_config[1]
                 ),
             )
@@ -384,7 +384,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         # Create new strategy with different number of shards
         strategy2 = tf.distribute.experimental.ParameterServerStrategy(
             multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-            variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(
+            variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(  # noqa: E501
                 3
             ),
         )

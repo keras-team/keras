@@ -259,7 +259,7 @@ class KerasAccuracyTest(tf.test.TestCase):
         self.assertAlmostEqual(result, 0.93, 2)  # 2.5/2.7
 
     def test_sparse_categorical_accuracy_mismatched_dims_dynamic(self):
-        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
+        with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:  # noqa: E501
             acc_obj = metrics.SparseCategoricalAccuracy(name="my_acc")
             self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
 

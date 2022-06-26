@@ -15,8 +15,6 @@
 """Built-in WideNDeep model classes."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util import deprecation
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import backend
@@ -25,6 +23,10 @@ from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util import deprecation
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(
@@ -99,7 +101,7 @@ class WideDeepModel(keras_training.Model):
         else:
             linear_inputs, dnn_inputs = inputs
         linear_output = self.linear_model(linear_inputs)
-        # pylint: disable=protected-access
+
         if self.dnn_model._expects_training_arg:
             if training is None:
                 training = backend.learning_phase()
@@ -191,9 +193,7 @@ class WideDeepModel(keras_training.Model):
                 metrics_tensors = [
                     m._call_result
                     for m in metrics
-                    if hasattr(
-                        m, "_call_result"
-                    )  # pylint: disable=protected-access
+                    if hasattr(m, "_call_result")
                 ]
 
             with backend.name_scope("training"):

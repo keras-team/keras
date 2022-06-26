@@ -45,7 +45,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
             num_channels = None
             activation = None
             if loss_name == "sparse_categorical_crossentropy":
-                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(
+                loss = lambda y_true, y_pred: backend.sparse_categorical_crossentropy(  # noqa: E501
                     y_true, y_pred, axis=axis
                 )
                 num_channels = int(np.amax(target) + 1)
@@ -94,7 +94,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                 labels_channels_first = [
                     np.array(
                         [[[[0, 1, 3], [2, 1, 0], [2, 2, 1]]]], dtype=np.float32
-                    ),  # pylint: disable=line-too-long
+                    ),
                     np.array(
                         [
                             [
@@ -105,7 +105,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                             ]
                         ],
                         dtype=np.float32,
-                    ),  # pylint: disable=line-too-long
+                    ),
                     np.array(
                         [
                             [
@@ -115,7 +115,7 @@ class TrainingGPUTest(tf.test.TestCase, parameterized.TestCase):
                         ],
                         dtype=np.float32,
                     ),
-                ]  # pylint: disable=line-too-long
+                ]
                 # Compute one loss for each loss function in the list
                 # `losses_to_test`:
                 loss_channels_last = [0.0, 0.0, 0.0]

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Tests reviving models from config and SavedModel.
 
 These tests ensure that a model revived from a combination of config and
@@ -51,8 +51,9 @@ class SubclassedModelNoConfig(keras.Model):
                 CustomLayerNoConfig(self.a + 3, self.b + 4),
                 keras.Sequential(
                     [
-                        # TODO(b/145029112): Bug with losses when there are shared layers.
-                        # self.shared,  <-- Enable when bug is fixed.
+                        # TODO(b/145029112): Bug with losses when there are
+                        # shared layers.  self.shared,  <-- Enable when bug is
+                        # fixed.
                         CustomLayerNoConfig(self.a + 5, self.b + 6)
                     ]
                 ),
@@ -237,8 +238,8 @@ class ReviveTestBase(test_combinations.TestCase):
         self.assertAllClose(sum(model.losses), sum(revived.losses))
         self.assertAllClose(len(model.losses), len(revived.losses))
         self.assertEqual(len(model.metrics), len(revived.metrics))
-        # TODO(b/150403085): Investigate why the metric order changes when running
-        # this test in tf-nightly.
+        # TODO(b/150403085): Investigate why the metric order changes when
+        # running this test in tf-nightly.
         self.assertAllClose(
             sorted([m.result() for m in model.metrics]),
             sorted([m.result() for m in revived.metrics]),
@@ -256,8 +257,8 @@ class ReviveTestBase(test_combinations.TestCase):
             if "WithConfig" in type(model_layer).__name__:
                 self.assertEqual(type(model_layer), type(revived_layer))
             else:
-                # When loading layers from SavedModel, a new class is dynamically
-                # created with the same name.
+                # When loading layers from SavedModel, a new class is
+                # dynamically created with the same name.
                 self.assertEqual(
                     type(model_layer).__name__, type(revived_layer).__name__
                 )
@@ -326,8 +327,8 @@ class TestBigModelRevive(ReviveTestBase):
         # Run data through the Model to create save spec and weights.
         model.predict(np.ones((10, 2, 3)), batch_size=10)
 
-        # Test that the correct checkpointed values are loaded, whether the layer is
-        # created from the config or SavedModel.
+        # Test that the correct checkpointed values are loaded, whether the
+        # layer is created from the config or SavedModel.
         layer_with_config.c.assign(2 * layer_with_config.c)
         layer_without_config.c.assign(3 * layer_without_config.c)
 
@@ -462,7 +463,7 @@ if __name__ == "__main__":
             "CustomNetworkWithConfigName": CustomNetworkWithConfigName,
             "SubclassedModelWithConfig": SubclassedModelWithConfig,
             "FunctionalSubclassModel": FunctionalSubclassModel,
-            "FunctionalSubclassModelWrongConfig": FunctionalSubclassModelWrongConfig,
+            "FunctionalSubclassModelWrongConfig": FunctionalSubclassModelWrongConfig,  # noqa: E501
             "WideDeepModel": WideDeepModel,
         }
     ):

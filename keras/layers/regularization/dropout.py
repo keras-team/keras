@@ -13,14 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Dropout layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Dropout")
@@ -88,7 +90,7 @@ class Dropout(base_layer.BaseRandomLayer):
         self.supports_masking = True
 
     def build(self, input_shape):
-        self._random_generator._maybe_init()  # pylint: disable=protected-access
+        self._random_generator._maybe_init()
 
     def _get_noise_shape(self, inputs):
         # Subclasses of `Dropout` may implement `_get_noise_shape(self,

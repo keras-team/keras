@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Keras convolution layers."""
-# pylint: disable=g-bad-import-order
+
 
 # Convolution layer aliases.
 # Convolution layers.

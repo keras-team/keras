@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-doc-return-or-yield
+
+
 """Built-in metrics."""
 
 import abc
@@ -23,7 +23,6 @@ from typing import Union
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import activations
 from keras import backend
@@ -46,6 +45,9 @@ from keras.utils import losses_utils
 from keras.utils import metrics_utils
 from keras.utils.generic_utils import to_list
 from keras.utils.tf_utils import is_tensor_or_variable
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.metrics.MeanRelativeError")
@@ -110,7 +112,7 @@ class MeanRelativeError(base_metric.Mean):
         [
             y_pred,
             y_true,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_pred, y_true], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
@@ -902,8 +904,8 @@ class Precision(base_metric.Metric):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1048,8 +1050,8 @@ class Recall(base_metric.Metric):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1144,10 +1146,10 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
         """
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -1796,6 +1798,7 @@ class AUC(base_metric.Metric):
 
         # Handle multilabel arguments.
         self.multi_label = multi_label
+        self.num_labels = num_labels
         if label_weights is not None:
             label_weights = tf.constant(label_weights, dtype=self.dtype)
             tf.debugging.assert_non_negative(
@@ -1864,9 +1867,7 @@ class AUC(base_metric.Metric):
                 # AUC should be initialized outside of any tf.functions, and
                 # therefore in eager mode.
                 if not tf.executing_eagerly():
-                    backend._initialize_variables(
-                        backend._get_session()
-                    )  # pylint: disable=protected-access
+                    backend._initialize_variables(backend._get_session())
 
         self._built = True
 
@@ -1918,10 +1919,10 @@ class AUC(base_metric.Metric):
 
         return metrics_utils.update_confusion_matrix_variables(
             {
-                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
-                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,
-                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,
-                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
             },
             y_true,
             y_pred,
@@ -2125,7 +2126,9 @@ class AUC(base_metric.Metric):
             "curve": self.curve.value,
             "summation_method": self.summation_method.value,
             "multi_label": self.multi_label,
+            "num_labels": self.num_labels,
             "label_weights": label_weights,
+            "from_logits": self._from_logits,
         }
         # optimization to avoid serializing a large number of generated
         # thresholds

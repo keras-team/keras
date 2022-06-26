@@ -24,10 +24,6 @@ import threading
 import numpy
 import tensorflow as tf
 from absl.testing import parameterized
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.ops import variable_scope
 
 from keras import models
 from keras import regularizers
@@ -38,6 +34,12 @@ from keras.layers import core
 from keras.legacy_tf_layers import core as core_layers
 from keras.legacy_tf_layers import variable_scope_shim
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
+from tensorflow.python.ops import variable_scope
 
 
 def run_inside_wrap_function_in_eager_mode(graph_function):
@@ -958,8 +960,8 @@ class VariableScopeModule(tf.Module):
         `get_variable`&`compat.v1.layers`."""
         return {
             name: regularizer()
-            for name, regularizer in self._tf1_style_var_store._regularizers.items()
-        }  # pylint: disable=protected-access
+            for name, regularizer in self._tf1_style_var_store._regularizers.items()  # noqa: E501
+        }
 
 
 @test_combinations.generate(test_combinations.combine(mode=["eager"]))
@@ -1148,8 +1150,8 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                 """Dict w/ regularization losses from `get_variable`."""
                 return {
                     name: regularizer()
-                    for name, regularizer in self._variable_store._regularizers.items()
-                }  # pylint: disable=protected-access
+                    for name, regularizer in self._variable_store._regularizers.items()  # noqa: E501
+                }
 
             def __call__(self, inputs, training=None):
                 with self._variable_store.scope():

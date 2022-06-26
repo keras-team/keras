@@ -183,9 +183,7 @@ def clone_graph_nodes(inputs, outputs):
         # It is used in the Node constructor to check if the tensor
         # "is_keras_tensor()" The history will be override by the Node
         # constructor anyway for the corresponding layer output anyway.
-        cpy._keras_history = (
-            kt_output._keras_history
-        )  # pylint: disable=protected-access
+        cpy._keras_history = kt_output._keras_history
         cloned_outputs.append(cpy)
         kt_id_mapping[id(kt_output)] = cpy
     cloned_outputs = tf.nest.pack_sequence_as(outputs, cloned_outputs)
@@ -235,9 +233,7 @@ def clone_keras_tensors(args, keras_tensor_mapping):
             else:
                 # Create copy of keras_tensor if we haven't done it before
                 cpy = _clone_keras_tensor(obj)
-                cpy._keras_history = (
-                    obj._keras_history
-                )  # pylint: disable=protected-access
+                cpy._keras_history = obj._keras_history
                 keras_tensor_mapping[id(obj)] = cpy
             result.append(cpy)
         else:

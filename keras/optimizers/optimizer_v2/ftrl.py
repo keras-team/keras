@@ -13,16 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Ftrl-proximal optimizer implementation."""
-# pylint: disable=g-bad-import-order
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.optimizers.optimizer_v2 import optimizer_v2
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# pylint: disable=g-classes-have-attributes
+
 @keras_export("keras.optimizers.Ftrl")
 class Ftrl(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the FTRL algorithm.
@@ -300,7 +300,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
                     "l2_regularization_strength"
                 ),
                 "beta": self._serialize_hyperparameter("beta"),
-                "l2_shrinkage_regularization_strength": self._l2_shrinkage_regularization_strength,
+                "l2_shrinkage_regularization_strength": self._l2_shrinkage_regularization_strength,  # noqa: E501
             }
         )
         return config

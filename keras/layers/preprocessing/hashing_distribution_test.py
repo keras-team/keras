@@ -17,9 +17,6 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
 
 import keras
 from keras import backend
@@ -28,6 +25,11 @@ from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+
+# isort: off
+from tensorflow.python.framework import (
+    test_util as tf_test_utils,
+)
 
 
 @test_utils.run_v2_only

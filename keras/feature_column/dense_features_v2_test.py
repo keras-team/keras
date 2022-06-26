@@ -20,10 +20,12 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.eager import backprop
 
 from keras.feature_column import dense_features_v2 as df
 from keras.testing_infra import test_combinations
+
+# isort: off
+from tensorflow.python.eager import backprop
 
 
 def _initialized_session(config=None):
@@ -394,7 +396,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError,
                 r"Batch size \(first dimension\) of each feature must be same.",
-            ):  # pylint: disable=anomalous-backslash-in-string
+            ):
                 df.DenseFeatures([price1, price2])(features)
 
     def test_subset_of_static_batch_size_mismatch(self):
@@ -412,7 +414,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
             with self.assertRaisesRegex(
                 ValueError,
                 r"Batch size \(first dimension\) of each feature must be same.",
-            ):  # pylint: disable=anomalous-backslash-in-string
+            ):
                 df.DenseFeatures([price1, price2, price3])(features)
 
     def test_runtime_batch_size_mismatch(self):

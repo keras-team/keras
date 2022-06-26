@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Code for model cloning, plus model-related API entries."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import metrics as metrics_module
@@ -34,9 +32,13 @@ from keras.utils import generic_utils
 from keras.utils import version_utils
 from keras.utils.generic_utils import CustomObjectScope
 
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 # API entries importable from `keras.models`:
-Model = training.Model  # pylint: disable=invalid-name
-Sequential = sequential.Sequential  # pylint: disable=invalid-name
+Model = training.Model
+Sequential = sequential.Sequential
 
 
 # Callable used to clone a layer with weights preserved.
@@ -643,7 +645,7 @@ def _reset_build_compile_trackers(model):
     model.inputs = None
     model.outputs = None
     # Reset compile state
-    model._is_compiled = False  # pylint:disable=protected-access
+    model._is_compiled = False
     if not tf.compat.v1.executing_eagerly_outside_functions():
         model._v1_compile_was_called = False
     model.optimizer = None
@@ -748,9 +750,7 @@ def clone_and_build_model(
         )
 
     if compile_clone:
-        compile_args = (
-            model._get_compile_args()
-        )  # pylint: disable=protected-access
+        compile_args = model._get_compile_args()
         # Allows this method to be robust to switching graph and eager classes.
         model._get_compile_args = lambda: compile_args
 

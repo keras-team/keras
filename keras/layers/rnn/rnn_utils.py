@@ -13,12 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for RNN cells and layers."""
-# pylint: disable=protected-access
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras.utils import control_flow_util
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 def standardize_args(inputs, initial_state, constants, num_constants):

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Utilities for Keras classes with v1 and v2 versions."""
 
 import tensorflow.compat.v2 as tf
@@ -21,7 +21,7 @@ from keras.utils.generic_utils import LazyLoader
 
 # TODO(b/134426265): Switch back to single-quotes once the issue
 # with copybara is fixed.
-# pylint: disable=g-inconsistent-quotes
+
 training = LazyLoader("training", globals(), "keras.engine.training")
 training_v1 = LazyLoader("training_v1", globals(), "keras.engine.training_v1")
 base_layer = LazyLoader("base_layer", globals(), "keras.engine.base_layer")
@@ -32,35 +32,28 @@ callbacks = LazyLoader("callbacks", globals(), "keras.callbacks")
 callbacks_v1 = LazyLoader("callbacks_v1", globals(), "keras.callbacks_v1")
 
 
-# pylint: enable=g-inconsistent-quotes
-
-
 class ModelVersionSelector:
     """Chooses between Keras v1 and v2 Model class."""
 
-    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+    def __new__(cls, *args, **kwargs):
         use_v2 = should_use_v2()
-        cls = swap_class(
-            cls, training.Model, training_v1.Model, use_v2
-        )  # pylint: disable=self-cls-assignment
+        cls = swap_class(cls, training.Model, training_v1.Model, use_v2)
         return super(ModelVersionSelector, cls).__new__(cls)
 
 
 class LayerVersionSelector:
     """Chooses between Keras v1 and v2 Layer class."""
 
-    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+    def __new__(cls, *args, **kwargs):
         use_v2 = should_use_v2()
-        cls = swap_class(
-            cls, base_layer.Layer, base_layer_v1.Layer, use_v2
-        )  # pylint: disable=self-cls-assignment
+        cls = swap_class(cls, base_layer.Layer, base_layer_v1.Layer, use_v2)
         return super(LayerVersionSelector, cls).__new__(cls)
 
 
 class TensorBoardVersionSelector:
     """Chooses between Keras v1 and v2 TensorBoard callback class."""
 
-    def __new__(cls, *args, **kwargs):  # pylint: disable=unused-argument
+    def __new__(cls, *args, **kwargs):
         use_v2 = should_use_v2()
         start_cls = cls
         cls = swap_class(
@@ -70,8 +63,8 @@ class TensorBoardVersionSelector:
             start_cls == callbacks_v1.TensorBoard
             and cls == callbacks.TensorBoard
         ):
-            # Since the v2 class is not a subclass of the v1 class, __init__ has to
-            # be called manually.
+            # Since the v2 class is not a subclass of the v1 class, __init__ has
+            # to be called manually.
             return cls(*args, **kwargs)
         return super(TensorBoardVersionSelector, cls).__new__(cls)
 
@@ -109,8 +102,8 @@ def swap_class(cls, v2_cls, v1_cls, use_v2):
             # `v1_cls` often extends `v2_cls`, so it may still call `swap_class`
             # even if it doesn't need to. That being said, it may be the safest
             # not to over optimize this logic for the sake of correctness,
-            # especially if we swap v1 & v2 classes that don't extend each other,
-            # or when the inheritance order is different.
+            # especially if we swap v1 & v2 classes that don't extend each
+            # other, or when the inheritance order is different.
             or (not use_v2 and issubclass(base, v2_cls))
         ):
             new_base = swap_class(base, v2_cls, v1_cls, use_v2)
@@ -124,10 +117,11 @@ def swap_class(cls, v2_cls, v1_cls, use_v2):
 def disallow_legacy_graph(cls_name, method_name):
     if not tf.compat.v1.executing_eagerly_outside_functions():
         error_msg = (
-            f"Calling `{cls_name}.{method_name}` in graph mode is not supported "
-            f"when the `{cls_name}` instance was constructed with eager mode "
-            f"enabled. Please construct your `{cls_name}` instance in graph mode or"
-            f" call `{cls_name}.{method_name}` with eager mode enabled."
+            f"Calling `{cls_name}.{method_name}` in graph mode is not "
+            f"supported when the `{cls_name}` instance was constructed with "
+            f"eager mode enabled. Please construct your `{cls_name}` instance "
+            f"in graph mode or call `{cls_name}.{method_name}` with "
+            "eager mode enabled."
         )
         raise ValueError(error_msg)
 

@@ -20,7 +20,7 @@ operators that allow adding dropouts, projections, or embeddings for inputs.
 Constructing multi-layer cells is supported by the class `MultiRNNCell`, or by
 calling the `rnn` ops several times.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 from __future__ import absolute_import
 from __future__ import division
@@ -30,9 +30,6 @@ import collections
 import warnings
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
 
 from keras import activations
 from keras import backend
@@ -41,6 +38,11 @@ from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.legacy_tf_layers import base as base_layer
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.util.tf_export import tf_export
 
 _BIAS_VARIABLE_NAME = "bias"
 _WEIGHTS_VARIABLE_NAME = "kernel"
@@ -325,7 +327,7 @@ class RNNCell(base_layer.Layer):
         return output
 
     # TODO(b/134773139): Remove when contrib RNN cells implement `get_config`
-    def get_config(self):  # pylint: disable=useless-super-delegation
+    def get_config(self):
         return super().get_config()
 
     @property
@@ -1145,9 +1147,9 @@ class LSTMCell(LayerRNNCell):
             ) * self._activation(j)
 
         if self._cell_clip is not None:
-            # pylint: disable=invalid-unary-operand-type
+
             c = tf.clip_by_value(c, -self._cell_clip, self._cell_clip)
-            # pylint: enable=invalid-unary-operand-type
+
         if self._use_peepholes:
             m = sigmoid(o + self._w_o_diag * c) * self._activation(c)
         else:
@@ -1157,9 +1159,8 @@ class LSTMCell(LayerRNNCell):
             m = tf.matmul(m, self._proj_kernel)
 
             if self._proj_clip is not None:
-                # pylint: disable=invalid-unary-operand-type
+
                 m = tf.clip_by_value(m, -self._proj_clip, self._proj_clip)
-                # pylint: enable=invalid-unary-operand-type
 
         new_state = (
             LSTMStateTuple(c, m)

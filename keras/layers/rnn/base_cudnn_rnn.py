@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Base class for recurrent layers backed by cuDNN."""
-# pylint: disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
 
@@ -52,7 +52,7 @@ class _CuDNNRNN(RNN):
     ):
         # We invoke the base layer's initializer directly here because we do not
         # want to create RNN cell instance.
-        super(RNN, self).__init__(**kwargs)  # pylint: disable=bad-super-call
+        super(RNN, self).__init__(**kwargs)
         self.return_sequences = return_sequences
         self.return_state = return_state
         self.go_backwards = go_backwards
@@ -123,9 +123,7 @@ class _CuDNNRNN(RNN):
             "stateful": self.stateful,
             "time_major": self.time_major,
         }
-        base_config = super(  # pylint: disable=bad-super-call
-            RNN, self
-        ).get_config()
+        base_config = super(RNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -146,9 +144,7 @@ class _CuDNNRNN(RNN):
 
     @property
     def losses(self):
-        return super(RNN, self).losses  # pylint: disable=bad-super-call
+        return super(RNN, self).losses
 
     def get_losses_for(self, inputs=None):
-        return super(  # pylint: disable=bad-super-call
-            RNN, self
-        ).get_losses_for(inputs=inputs)
+        return super(RNN, self).get_losses_for(inputs=inputs)

@@ -349,7 +349,6 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                 )
                 norm.build(x.shape)
 
-                # pylint: disable=cell-var-from-loop
                 def forward_fn(x, beta, gamma):
                     # We must monkey-patch the attributes of `norm` with the
                     # function arguments, so that the gradient checker will
@@ -364,7 +363,6 @@ class LayerNormalizationNumericsTest(test_combinations.TestCase):
                         ):
                             return norm(x)
 
-                # pylint: enable=cell-var-from-loop
                 results = tf.test.compute_gradient(
                     forward_fn,
                     [keras.backend.cast(x, dtype), norm.beta, norm.gamma],

@@ -20,7 +20,6 @@ import math
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
 
 from keras import backend
 from keras import callbacks as cbks
@@ -30,7 +29,8 @@ from keras.utils import data_utils
 from keras.utils import generic_utils
 from keras.utils.mode_keys import ModeKeys
 
-# pylint: disable=protected-access
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
 
 
 def model_iteration(
@@ -588,9 +588,7 @@ def _make_execution_function(model, mode, class_weight=None):
     else:
         # Match signature of other modes to allow
         # 1, 2, or 3-tuples from generator
-        def predict_on_batch(
-            x, y=None, sample_weights=None
-        ):  # pylint: disable=unused-argument
+        def predict_on_batch(x, y=None, sample_weights=None):
             return model.predict_on_batch(x)
 
         f = predict_on_batch

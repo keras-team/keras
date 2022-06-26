@@ -93,11 +93,9 @@ class LayerCallInfoInjectionTest(tf.test.TestCase):
         tf.debugging.enable_traceback_filtering()
         try:
             fn()
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             # Info should be injected exactly once.
-            self.assertEqual(
-                str(e).count("Call arguments received"), 1
-            )  # pylint: disable=g-assert-in-except
+            self.assertEqual(str(e).count("Call arguments received"), 1)
 
     def test_custom_layer_call_nested(self):
         class InnerLayer(layers.Layer):

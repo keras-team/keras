@@ -16,14 +16,15 @@
 
 Wrappers are layers that augment the functionality of another layer.
 """
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import copy
 
-from tensorflow.python.util.tf_export import keras_export
-
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Wrapper")

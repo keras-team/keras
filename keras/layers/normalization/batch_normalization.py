@@ -15,11 +15,6 @@
 """The V2 implementation of Normalization layers."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.ops.control_flow_ops import (
-    get_enclosing_xla_context,
-)
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import constraints
@@ -30,6 +25,13 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import control_flow_util
 from keras.utils import tf_utils
+
+# isort: off
+from tensorflow.python.ops.control_flow_ops import (
+    get_enclosing_xla_context,
+)
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
 
 
 class BatchNormalizationBase(Layer):
@@ -418,7 +420,7 @@ class BatchNormalizationBase(Layer):
                 param_shape.insert(1, 1)
                 for idx, x in enumerate(self.axis):
                     self.axis[idx] = x + 1  # Account for added dimension
-
+        self._param_shape = param_shape
         if self.scale:
             self.gamma = self.add_weight(
                 name="gamma",
@@ -432,10 +434,6 @@ class BatchNormalizationBase(Layer):
             )
         else:
             self.gamma = None
-            if self.fused:
-                self._gamma_const = backend.constant(
-                    1.0, dtype=self._param_dtype, shape=param_shape
-                )
 
         if self.center:
             self.beta = self.add_weight(
@@ -450,10 +448,6 @@ class BatchNormalizationBase(Layer):
             )
         else:
             self.beta = None
-            if self.fused:
-                self._beta_const = backend.constant(
-                    0.0, dtype=self._param_dtype, shape=param_shape
-                )
 
         try:
             # Disable variable partitioning when creating the moving mean and
@@ -565,9 +559,7 @@ class BatchNormalizationBase(Layer):
             if tf.compat.v1.executing_eagerly_outside_functions():
                 return variable.assign_sub(calculate_update_delta(), name=scope)
             else:
-                with tf.compat.v1.colocate_with(
-                    variable
-                ):  # pylint: disable=protected-access
+                with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign_sub(
                         variable, calculate_update_delta(), name=scope
                     )
@@ -577,15 +569,23 @@ class BatchNormalizationBase(Layer):
             if tf.compat.v1.executing_eagerly_outside_functions():
                 return variable.assign(value, name=scope)
             else:
-                with tf.compat.v1.colocate_with(
-                    variable
-                ):  # pylint: disable=protected-access
+                with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign(variable, value, name=scope)
 
     def _fused_batch_norm(self, inputs, training):
         """Returns the output of fused batch norm."""
-        beta = self.beta if self.center else self._beta_const
-        gamma = self.gamma if self.scale else self._gamma_const
+        if self.center:
+            beta = self.beta
+        else:
+            beta = backend.constant(
+                0.0, dtype=self._param_dtype, shape=self._param_shape
+            )
+        if self.scale:
+            gamma = self.gamma
+        else:
+            gamma = backend.constant(
+                1.0, dtype=self._param_dtype, shape=self._param_shape
+            )
 
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
@@ -896,9 +896,7 @@ class BatchNormalizationBase(Layer):
         # Determine a boolean value for `training`: could be True, False, or
         # None.
         training_value = control_flow_util.constant_value(training)
-        if (
-            training_value == False
-        ):  # pylint: disable=singleton-comparison,g-explicit-bool-comparison
+        if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
             if self.adjustment:
@@ -1089,7 +1087,6 @@ class BatchNormalizationBase(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-# pylint: disable=g-classes-have-attributes
 @keras_export("keras.layers.experimental.SyncBatchNormalization", v1=[])
 class SyncBatchNormalization(BatchNormalizationBase):
     r"""Normalize and scale inputs or activations synchronously across replicas.

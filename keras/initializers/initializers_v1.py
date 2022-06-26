@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Keras initializers for TF 1."""
-# pylint:disable=g-classes-have-attributes
+
 
 import tensorflow.compat.v2 as tf
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 _v1_zeros_initializer = tf.compat.v1.zeros_initializer
@@ -154,7 +156,7 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
 
     `compat.v1` Fixed seed behavior:
 
-    >>> initializer = tf.compat.v1.keras.initializers.TruncatedNormal(seed=10)
+    >>> initializer = tf.compat.v1.keras.initializers.RandomNormal(seed=10)
     >>> a = initializer(shape=(2, 2))
     >>> b = initializer(shape=(2, 2))
     >>> tf.reduce_sum(a - b) == 0
@@ -162,11 +164,11 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
 
     After:
 
-    >>> initializer = tf.keras.initializers.TruncatedNormal(seed=10)
+    >>> initializer = tf.keras.initializers.RandomNormal(seed=10)
     >>> a = initializer(shape=(2, 2))
     >>> b = initializer(shape=(2, 2))
     >>> tf.reduce_sum(a - b) == 0
-    <tf.Tensor: shape=(), dtype=bool, numpy=False>
+    <tf.Tensor: shape=(), dtype=bool, numpy=True>
 
     @end_compatibility
     """
@@ -286,7 +288,7 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
     >>> a = initializer(shape=(2, 2))
     >>> b = initializer(shape=(2, 2))
     >>> tf.reduce_sum(a - b) == 0
-    <tf.Tensor: shape=(), dtype=bool, numpy=False>
+    <tf.Tensor: shape=(), dtype=bool, numpy=True>
 
     @end_compatibility
     """

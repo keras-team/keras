@@ -12,24 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-import-not-at-top
-# pylint: disable=g-classes-have-attributes
+
+
 """Callbacks: utilities called at certain points during model training."""
 
 import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras import callbacks
 
+# isort: off
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+
 
 @keras_export(v1=["keras.callbacks.TensorBoard"])
 class TensorBoard(callbacks.TensorBoard):
-    # pylint: disable=line-too-long
+
     """Enable visualizations for TensorBoard.
 
     TensorBoard is a visualization tool provided with TensorFlow.
@@ -101,8 +103,6 @@ class TensorBoard(callbacks.TensorBoard):
     gradients is not supported. Consequently, `histogram_freq` will be ignored.
     @end_compatibility
     """
-
-    # pylint: enable=line-too-long
 
     def __init__(
         self,
@@ -257,7 +257,7 @@ class TensorBoard(callbacks.TensorBoard):
         if self.embeddings_freq and self.embeddings_data is not None:
             # Avoid circular dependency.
             from keras.engine import (
-                training_utils_v1,  # pylint: disable=g-import-not-at-top
+                training_utils_v1,
             )
 
             self.embeddings_data = training_utils_v1.standardize_input_data(
@@ -315,6 +315,7 @@ class TensorBoard(callbacks.TensorBoard):
                 embeddings_metadata = self.embeddings_metadata
 
             try:
+                # isort: off
                 from tensorboard.plugins import projector
             except ImportError:
                 raise ImportError(
@@ -419,7 +420,7 @@ class TensorBoard(callbacks.TensorBoard):
 
         # check if histogram summary should be run for this epoch
         if self.histogram_freq and epoch % self.histogram_freq == 0:
-            # pylint: disable=protected-access
+
             # add the histogram summary op if it should run this epoch
             self.model._make_test_function()
             if self.merged not in self.model.test_function.fetches:
@@ -427,7 +428,6 @@ class TensorBoard(callbacks.TensorBoard):
                 self.model.test_function.fetch_callbacks[
                     self.merged
                 ] = self._fetch_callback
-            # pylint: enable=protected-access
 
     def on_epoch_end(self, epoch, logs=None):
         """Checks if summary ops should run next epoch, logs scalar
@@ -448,12 +448,11 @@ class TensorBoard(callbacks.TensorBoard):
 
         # pop the histogram summary op after each epoch
         if self.histogram_freq:
-            # pylint: disable=protected-access
+
             if self.merged in self.model.test_function.fetches:
                 self.model.test_function.fetches.remove(self.merged)
             if self.merged in self.model.test_function.fetch_callbacks:
                 self.model.test_function.fetch_callbacks.pop(self.merged)
-            # pylint: enable=protected-access
 
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError(

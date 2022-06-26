@@ -58,11 +58,11 @@ def exact_gaussian_kernel(x, y, stddev):
 
     The Gaussian kernel for vectors u, v is defined as follows:
          K(u, v) = exp(-||u-v||^2 / (2* stddev^2))
-    where the norm is the l2-norm. x, y can be either vectors or matrices. If they
-    are vectors, they must have the same dimension. If they are matrices, they
-    must have the same number of columns. In the latter case, the method returns
-    (as a matrix) K(u, v) values for all pairs (u, v) where u is a row from x and
-    v is a row from y.
+    where the norm is the l2-norm. x, y can be either vectors or matrices. If
+    they are vectors, they must have the same dimension. If they are matrices,
+    they must have the same number of columns. In the latter case, the method
+    returns (as a matrix) K(u, v) values for all pairs (u, v) where u is a row
+    from x and v is a row from y.
 
     Args:
       x: a tensor of rank 1 or 2. It's shape should be either [dim] or [m, dim].
@@ -70,9 +70,9 @@ def exact_gaussian_kernel(x, y, stddev):
       stddev: The width of the Gaussian kernel.
 
     Returns:
-      A single value (scalar) with shape (1, 1) (if x, y are vectors) or a matrix
-        of shape (m, n) with entries K(u, v) (where K is the Gaussian kernel) for
-        all (u,v) pairs where u, v are rows from x and y respectively.
+      A single value (scalar) with shape (1, 1) (if x, y are vectors) or a
+      matrix of shape (m, n) with entries K(u, v) (where K is the Gaussian
+      kernel) for all (u,v) pairs where u, v are rows from x and y respectively.
 
     Raises:
       ValueError: if the shapes of x, y are not compatible.
@@ -89,11 +89,11 @@ def exact_laplacian_kernel(x, y, stddev):
 
     The Laplacian kernel for vectors u, v is defined as follows:
          K(u, v) = exp(-||u-v|| / stddev)
-    where the norm is the l1-norm. x, y can be either vectors or matrices. If they
-    are vectors, they must have the same dimension. If they are matrices, they
-    must have the same number of columns. In the latter case, the method returns
-    (as a matrix) K(u, v) values for all pairs (u, v) where u is a row from x and
-    v is a row from y.
+    where the norm is the l1-norm. x, y can be either vectors or matrices. If
+    they are vectors, they must have the same dimension. If they are matrices,
+    they must have the same number of columns. In the latter case, the method
+    returns (as a matrix) K(u, v) values for all pairs (u, v) where u is a row
+    from x and v is a row from y.
 
     Args:
       x: a tensor of rank 1 or 2. It's shape should be either [dim] or [m, dim].

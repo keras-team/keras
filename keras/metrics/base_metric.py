@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=g-classes-have-attributes
-# pylint: disable=g-doc-return-or-yield
+
+
 """Base Metric classes."""
 
 import abc
@@ -23,8 +23,6 @@ import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
@@ -37,6 +35,10 @@ from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
 from keras.utils.tf_utils import is_tensor_or_variable
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 @keras_export("keras.metrics.Metric")
@@ -185,14 +187,12 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
             ):
                 update_op = None
             else:
-                update_op = self.update_state(
-                    *args, **kwargs
-                )  # pylint: disable=not-callable
+                update_op = self.update_state(*args, **kwargs)
             update_ops = []
             if update_op is not None:
                 update_ops.append(update_op)
             with tf.control_dependencies(update_ops):
-                result_t = self.result()  # pylint: disable=not-callable
+                result_t = self.result()
 
                 # We are adding the metric object as metadata on the result
                 # tensor.  This is required when we want to use a metric with
@@ -203,11 +203,11 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
                 #   model = Model()
                 #   mean = Mean()
                 #   model.add_metric(mean(values), name='mean')
-                result_t._metric_obj = self  # pylint: disable=protected-access
+                result_t._metric_obj = self
                 return result_t
 
         from keras.distribute import (
-            distributed_training_utils,  # pylint:disable=g-import-not-at-top
+            distributed_training_utils,
         )
 
         return distributed_training_utils.call_replica_local_fn(
@@ -455,7 +455,7 @@ class Reduce(Metric):
         """
         [
             values
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [values], sample_weight
         )
         try:
@@ -687,7 +687,7 @@ class MeanMetricWrapper(Mean):
         [
             y_true,
             y_pred,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_true, y_pred], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
@@ -703,9 +703,7 @@ class MeanMetricWrapper(Mean):
     def get_config(self):
         config = {}
 
-        if (
-            type(self) is MeanMetricWrapper
-        ):  # pylint: disable=unidiomatic-typecheck
+        if type(self) is MeanMetricWrapper:
             # Only include function argument when the object is a
             # MeanMetricWrapper and not a subclass.
             config["fn"] = self._fn
@@ -717,7 +715,7 @@ class MeanMetricWrapper(Mean):
 
     @classmethod
     def from_config(cls, config):
-        from keras.metrics import get  # pylint: disable=g-import-not-at-top
+        from keras.metrics import get
 
         # Note that while MeanMetricWrapper itself isn't public, objects of this
         # class may be created and added to the model by calling model.compile.
@@ -786,9 +784,7 @@ class MeanTensor(Metric):
         )
         with tf.init_scope():
             if not tf.executing_eagerly():
-                backend._initialize_variables(
-                    backend._get_session()
-                )  # pylint: disable=protected-access
+                backend._initialize_variables(backend._get_session())
         self._built = True
 
     @property

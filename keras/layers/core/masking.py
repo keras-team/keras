@@ -13,12 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Masking layer."""
-# pylint: disable=g-classes-have-attributes,g-direct-tensorflow-import
+
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine.base_layer import Layer
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.layers.Masking")
@@ -77,9 +79,7 @@ class Masking(Layer):
         )
         outputs = inputs * tf.cast(boolean_mask, inputs.dtype)
         # Compute the mask and outputs simultaneously.
-        outputs._keras_mask = tf.squeeze(
-            boolean_mask, axis=-1
-        )  # pylint: disable=protected-access
+        outputs._keras_mask = tf.squeeze(boolean_mask, axis=-1)
         return outputs
 
     def compute_output_shape(self, input_shape):
