@@ -176,7 +176,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer = adam_new.Adam()
         grads = tf.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
         optimizer.apply_gradients(zip([grads], [x]))
-        optimizer_variables = optimizer.variables
+        optimizer_variables = optimizer.variables()
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertLen(optimizer_variables, 4)
         self.assertCountEqual(
