@@ -409,7 +409,7 @@ class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
     >>> a = initializer(shape=(2, 2))
     >>> b = initializer(shape=(2, 2))
     >>> tf.reduce_sum(a - b) == 0
-    <tf.Tensor: shape=(), dtype=bool, numpy=False>
+    <tf.Tensor: shape=(), dtype=bool, numpy=True>
 
     @end_compatibility
     """
