@@ -88,6 +88,12 @@ class OptimizersTest(test_util.DTensorBaseTest):
             {"amsgrad": True},
             ["Adam/m/Variable", "Adam/v/Variable", "Adam/vhat/Variable"],
         ),
+        (
+            "AdamW",
+            optimizers.AdamW,
+            {"amsgrad": True},
+            ["AdamW/m/Variable", "AdamW/v/Variable", "AdamW/vhat/Variable"],
+        ),
         ("Adagrad", optimizers.Adagrad, {}, ["Adagrad/accumulator/Variable"]),
         (
             "RMSprop",
