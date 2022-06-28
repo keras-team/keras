@@ -1721,6 +1721,41 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
                 backend.eval(last_states[0]), expected_last_state
             )
 
+    def test_rnn_function_jit_compile_no_unroll_input_length_none(self):
+        num_samples = 3
+        num_timesteps = 4
+
+        def step_function(inputs, states):
+            return inputs, [s + 1 for s in states]
+
+        inputs_vals = np.random.random((num_samples, num_timesteps, 5))
+        initial_state_vals = np.random.random((num_samples, 6, 7))
+        mask_vals = np.ones((num_samples, num_timesteps))
+        mask_vals[0, -2:] = 0  # final two timesteps masked for first sample
+
+        expected_last_state = initial_state_vals.copy()
+        expected_last_state[0] += num_timesteps - 2
+        expected_last_state[1:] += num_timesteps
+
+        inputs = backend.variable(inputs_vals)
+        initial_states = [backend.variable(initial_state_vals)]
+        mask = backend.variable(mask_vals)
+
+        @tf.function(jit_compile=True)
+        def fn():
+            _, _, last_states = backend.rnn(
+                step_function,
+                inputs,
+                initial_states,
+                mask=mask,
+                unroll=False,
+                input_length=None,
+            )
+            return last_states
+
+        last_states = fn()
+        self.assertAllClose(backend.eval(last_states[0]), expected_last_state)
+
     def test_batch_normalization(self):
         g_val = np.random.random((3,))
         b_val = np.random.random((3,))
