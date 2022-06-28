@@ -38,6 +38,7 @@ import numpy as np
 from keras import backend
 from keras.utils import data_utils
 from keras.utils import image_utils
+from keras.utils import io_utils
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -596,9 +597,9 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
             self.classes[i : i + len(classes)] = classes
             i += len(classes)
 
-        print(
-            "Found %d images belonging to %d classes."
-            % (self.samples, self.num_classes)
+        io_utils.print_msg(
+            f"Found {self.samples} images belonging to "
+            f"{self.num_classes} classes."
         )
         pool.close()
         pool.join()
@@ -995,9 +996,11 @@ class DataFrameIterator(BatchFromFilesMixin, Iterator):
             "validated" if validate_filenames else "non-validated"
         )
         if class_mode in ["input", "multi_output", "raw", None]:
-            print(f"Found {self.samples} {validated_string} image filenames.")
+            io_utils.print_msg(
+                f"Found {self.samples} {validated_string} image filenames."
+            )
         else:
-            print(
+            io_utils.print_msg(
                 f"Found {self.samples} {validated_string} image filenames "
                 f"belonging to {num_classes} classes."
             )
