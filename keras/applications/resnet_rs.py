@@ -228,7 +228,7 @@ def Conv2DFixedPadding(filters, kernel_size, strides, name=None):
 
 
 def STEM(
-    bn_momentum: float = 0.0,
+    bn_momentum: float = 0.99,
     bn_epsilon: float = 1e-5,
     activation: str = "relu",
     name=None,
@@ -345,7 +345,7 @@ def BottleneckBlock(
     filters: int,
     strides: int,
     use_projection: bool,
-    bn_momentum: float = 0.0,
+    bn_momentum: float = 0.99,
     bn_epsilon: float = 1e-5,
     activation: str = "relu",
     se_ratio: float = 0.25,
@@ -454,7 +454,7 @@ def BlockGroup(
     num_repeats,
     se_ratio: float = 0.25,
     bn_epsilon: float = 1e-5,
-    bn_momentum: float = 0.0,
+    bn_momentum: float = 0.99,
     activation: str = "relu",
     survival_probability: float = 0.8,
     name=None,
@@ -526,7 +526,7 @@ def fixed_padding(inputs, kernel_size):
 def ResNetRS(
     depth: int,
     input_shape=None,
-    bn_momentum=0.0,
+    bn_momentum=0.99,
     bn_epsilon=1e-5,
     activation: str = "relu",
     se_ratio=0.25,
