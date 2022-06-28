@@ -4976,7 +4976,10 @@ def rnn(
                 tf.compat.v1.get_default_graph()
             )
         ):
-            max_iterations = tf.reduce_max(input_length)
+            if input_length is None:
+                max_iterations = time_steps_t
+            else:
+                max_iterations = tf.reduce_max(input_length)
         else:
             max_iterations = None
 
