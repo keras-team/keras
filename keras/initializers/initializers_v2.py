@@ -469,15 +469,9 @@ class TruncatedNormal(Initializer):
         self.mean = mean
         self.stddev = stddev
         self.seed = seed
-        if tf.compat.forward_compatible(2022, 6, 24):
-            # Use the new stateless implementation after the forward compat date
-            # is reached.
-            self._random_generator = backend.RandomGenerator(
-                seed, rng_type="stateless"
-            )
-        else:
-            # TODO(scottzhu): Remove this after the forward compat date expires.
-            self._random_generator = backend.RandomGenerator(seed)
+        self._random_generator = backend.RandomGenerator(
+            seed, rng_type="stateless"
+        )
 
     def __call__(self, shape, dtype=None, **kwargs):
         """Returns a tensor object initialized to random normal values (truncated).
