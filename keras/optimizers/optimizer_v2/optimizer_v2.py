@@ -115,6 +115,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     opt = tf.keras.optimizers.SGD(learning_rate=0.1)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
+    var1 = tf.Variable(2.0)
+    var2 = tf.Variable(5.0)
     loss = lambda: 3 * var1 * var1 + 2 * var2 * var2
     # In graph mode, returns op that minimizes the loss by updating the listed
     # variables.
