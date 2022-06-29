@@ -18,8 +18,8 @@ This file follows the terminology of https://arxiv.org/abs/1706.03762 Figure 2.
 Attention is formed by three tensors: Query, Key and Value.
 """
 
-
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.engine import base_layer
@@ -35,26 +35,21 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     reuse the `apply_attention_scores()` method.
 
     Args:
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
-        such that position `i` cannot attend to positions `j > i`. This prevents
-        the flow of information from the future towards the past.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores.
 
     Call Args:
-
       inputs: List of the following tensors:
         * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
         * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
         * key: Optional key `Tensor` of shape `[batch_size, Tv, dim]`. If not
-          given, will use `value` for both `key` and `value`, which is the
-          most common case.
+          given, will use `value` for both `key` and `value`, which is the most
+          common case.
       mask: List of the following tensors:
-        * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`.
-          If given, the output will be zero at the positions where
-          `mask==False`.
-        * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`.
-          If given, will apply the mask such that values at positions where
+        * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`. If
+          given, the output will be zero at the positions where `mask==False`.
+        * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`. If
+          given, will apply the mask such that values at positions where
           `mask==False` do not contribute to the result.
       training: Python boolean indicating whether the layer should behave in
         training mode (adding dropout) or in inference mode (no dropout).
@@ -68,9 +63,16 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         `[batch_size, Tq, Tv]`.
     """
 
-    def __init__(self, causal=False, dropout=0.0, **kwargs):
+    def __init__(self, dropout=0.0, **kwargs):
+        # Deprecated field `causal` determines whether to using causal masking.
+        # Use `use_causal_mask` in call() method instead.
+        if "causal" in kwargs:
+            logging.warning(
+                "`causal` argument is deprecated. Please use `use_causal_mask` "
+                "in call() method to specify causal masking."
+            )
+        self.causal = kwargs.pop("causal", False)
         super().__init__(**kwargs)
-        self.causal = causal
         self.dropout = dropout
         self.supports_masking = True
 
@@ -136,7 +138,12 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
 
     # TODO(b/125916026): Consider exposing a __call__ method with named args.
     def call(
-        self, inputs, mask=None, training=None, return_attention_scores=False
+        self,
+        inputs,
+        mask=None,
+        training=None,
+        return_attention_scores=False,
+        use_causal_mask=False,
     ):
         self._validate_call_args(inputs=inputs, mask=mask)
         q = inputs[0]
@@ -148,7 +155,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         if v_mask is not None:
             # Mask of shape [batch_size, 1, Tv].
             v_mask = tf.expand_dims(v_mask, axis=-2)
-        if self.causal:
+        if self.causal or use_causal_mask:
             # Creates a lower triangular mask, so position i cannot attend to
             # positions j>i. This prevents the flow of information from the
             # future into the past.
@@ -216,7 +223,6 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
 
     def get_config(self):
         config = {
-            "causal": self.causal,
             "dropout": self.dropout,
         }
         base_config = super().get_config()

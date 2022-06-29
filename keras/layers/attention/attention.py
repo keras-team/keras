@@ -46,10 +46,6 @@ class Attention(BaseDenseAttention):
     Args:
       use_scale: If `True`, will create a scalar variable to scale the attention
         scores.
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
-        such that position `i` cannot attend to positions `j > i`. This prevents
-        the flow of information from the future towards the past.  Defaults to
-        `False`.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores. Defaults to 0.0.
       score_mode: Function to use to compute attention scores, one of
@@ -76,6 +72,10 @@ class Attention(BaseDenseAttention):
         (after masking and softmax) as an additional output argument.
       training: Python boolean indicating whether the layer should behave in
         training mode (adding dropout) or in inference mode (no dropout).
+      use_causal_mask: Boolean. Set to `True` for decoder self-attention. Adds a
+        mask such that position `i` cannot attend to positions `j > i`. This
+        prevents the flow of information from the future towards the past.
+        Defaults to `False`.
 
     Output:
 

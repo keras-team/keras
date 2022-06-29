@@ -329,8 +329,8 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
             q = tf.cast(tf.random.uniform((2, 3, 4), seed=1), "float16")
             v = tf.cast(tf.random.uniform((2, 3, 4), seed=2), "float16")
             k = tf.cast(tf.random.uniform((2, 3, 4), seed=3), "float16")
-            layer = keras.layers.AdditiveAttention(causal=True)
-            _ = layer([q, v, k])
+            layer = keras.layers.AdditiveAttention()
+            _ = layer([q, v, k], use_causal_mask=True)
 
 
 if __name__ == "__main__":
