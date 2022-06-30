@@ -138,8 +138,7 @@ class TimeDistributedTest(test_combinations.TestCase):
 
     def test_TimeDistributed_learning_phase(self):
         with self.cached_session():
-            # test layers that need learning_phase to be set
-            np.random.seed(1234)
+            keras.utils.set_random_seed(0)
             x = keras.layers.Input(shape=(3, 2))
             y = keras.layers.TimeDistributed(keras.layers.Dropout(0.999))(
                 x, training=True
