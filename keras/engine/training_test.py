@@ -148,7 +148,7 @@ class TrainingTest(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_distribution_reduction_method_sum(self):
 
-        strategy = tf.distribute.MirroredStrategy(["/cpu:1", "/cpu:2"])
+        strategy = tf.distribute.MirroredStrategy(["/cpu:1", "/cpu:2", "/cpu:3", "/cpu:4"])
         BATCH_SIZE = 10
 
         class MyModel(training_module.Model):

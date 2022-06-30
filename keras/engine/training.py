@@ -3817,6 +3817,8 @@ def reduce_per_replica(values, strategy, reduction="first"):
                 return concat(strategy.experimental_local_results(v))
         elif reduction == "sum":
             values = strategy.experimental_local_results(v)
+            # TODO remove me before finalizing PR
+            tf.print("reduce-sum", tf.stack(values))
             return tf.reduce_sum(values)
         else:
             raise ValueError(
