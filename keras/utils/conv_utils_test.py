@@ -306,7 +306,7 @@ class TestConvUtils(tf.test.TestCase, parameterized.TestCase):
             ),
         )
 
-    def test_conv_kernel_mask_rect_kernel(self, *input_shape):
+    def DISABLED_test_conv_kernel_mask_rect_kernel(self, *input_shape):
         padding = "valid"
         ndims = len(input_shape)
         strides = (1,) * ndims

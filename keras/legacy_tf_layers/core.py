@@ -332,8 +332,15 @@ class Dropout(keras_layers.Dropout, base.Layer):
     def __init__(
         self, rate=0.5, noise_shape=None, seed=None, name=None, **kwargs
     ):
+        # Force the rng type to be legacy stateful since the new stateful code
+        # path is not supported by legacy layer.
         super().__init__(
-            rate=rate, noise_shape=noise_shape, seed=seed, name=name, **kwargs
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=seed,
+            name=name,
+            rng_type="legacy_stateful",
+            **kwargs
         )
 
     def call(self, inputs, training=False):

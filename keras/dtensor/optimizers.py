@@ -20,6 +20,7 @@ from keras.dtensor import dtensor_api as dtensor
 from keras.optimizers.optimizer_experimental import adadelta
 from keras.optimizers.optimizer_experimental import adagrad
 from keras.optimizers.optimizer_experimental import adam
+from keras.optimizers.optimizer_experimental import adamw
 from keras.optimizers.optimizer_experimental import optimizer as optimizer_lib
 from keras.optimizers.optimizer_experimental import rmsprop
 from keras.optimizers.optimizer_experimental import sgd
@@ -241,6 +242,34 @@ class Adam(Optimizer, adam.Adam):
         self.amsgrad = amsgrad
 
 
+@keras_export("keras.dtensor.experimental.optimizers.AdamW", v1=[])
+class AdamW(Optimizer, adamw.AdamW):
+    def __init__(
+        self,
+        learning_rate=0.001,
+        weight_decay=0.004,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-7,
+        amsgrad=False,
+        name="AdamW",
+        mesh=None,
+    ):
+        Optimizer.__init__(self, name=name, mesh=mesh)
+        self._learning_rate = self._build_learning_rate(learning_rate)
+        self.weight_decay = weight_decay
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+        self.epsilon = epsilon
+        self.amsgrad = amsgrad
+
+        if self.weight_decay is None:
+            raise ValueError(
+                "Missing value of `weight_decay` which is required and"
+                " must be a float value."
+            )
+
+
 @keras_export("keras.dtensor.experimental.optimizers.RMSprop", v1=[])
 class RMSprop(Optimizer, rmsprop.RMSprop):
     def __init__(
@@ -291,5 +320,6 @@ class SGD(Optimizer, sgd.SGD):
 Adadelta.__doc__ = Optimizer.__doc__ + adadelta.Adadelta.__doc__
 Adagrad.__doc__ = Optimizer.__doc__ + adagrad.Adagrad.__doc__
 Adam.__doc__ = Optimizer.__doc__ + adam.Adam.__doc__
+AdamW.__doc__ = Optimizer.__doc__ + adamw.AdamW.__doc__
 RMSprop.__doc__ = Optimizer.__doc__ + rmsprop.RMSprop.__doc__
 SGD.__doc__ = Optimizer.__doc__ + sgd.SGD.__doc__

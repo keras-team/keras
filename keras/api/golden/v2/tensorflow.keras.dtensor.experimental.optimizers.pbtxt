@@ -13,6 +13,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "AdamW"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "RMSprop"
     mtype: "<type \'type\'>"
   }
