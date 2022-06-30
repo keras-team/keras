@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'seed\', \'force_generator\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\'], "
+    argspec: "args=[\'self\', \'seed\', \'force_generator\', \'rng_type\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\', \'None\'], "
   }
   member_method {
     name: "add_loss"

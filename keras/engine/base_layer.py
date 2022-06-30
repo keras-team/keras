@@ -3610,7 +3610,9 @@ class BaseRandomLayer(Layer):
     """A layer handle the random number creation and savemodel behavior."""
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
-    def __init__(self, seed=None, force_generator=False, **kwargs):
+    def __init__(
+        self, seed=None, force_generator=False, rng_type=None, **kwargs
+    ):
         """Initialize the BaseRandomLayer.
 
         Note that the constructor is annotated with
@@ -3628,12 +3630,16 @@ class BaseRandomLayer(Layer):
           seed: optional integer, used to create RandomGenerator.
           force_generator: boolean, default to False, whether to force the
             RandomGenerator to use the code branch of tf.random.Generator.
+          rng_type: string, the rng type that will be passed to backend
+            RandomGenerator. Default to `None`, which will allow RandomGenerator
+            to choose types by itself. Valid values are "stateful", "stateless",
+            "legacy_stateful".
           **kwargs: other keyword arguments that will be passed to the parent
             *class
         """
         super().__init__(**kwargs)
         self._random_generator = backend.RandomGenerator(
-            seed, force_generator=force_generator
+            seed, force_generator=force_generator, rng_type=rng_type
         )
         # Eagerly init the generator to avoid any issue like b/206821407
         self._random_generator._maybe_init()
