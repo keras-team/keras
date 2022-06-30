@@ -153,9 +153,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
@@ -286,9 +284,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 15)
@@ -362,9 +358,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
