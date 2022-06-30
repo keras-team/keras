@@ -1009,11 +1009,7 @@ class ProgbarLogger(Callback):
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(
-        self,
-        count_mode: str = "samples",
-        stateful_metrics=None
-    ):
+    def __init__(self, count_mode: str = "samples", stateful_metrics=None):
         # when we drop support for python 3.7, replace 'count_mode: str'
         # with 'count_mode: Literal["samples", "steps"]'
         super().__init__()
