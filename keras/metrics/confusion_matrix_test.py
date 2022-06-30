@@ -560,9 +560,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     def test_weighted_with_threshold(self):
         p_obj = metrics.Precision(thresholds=[0.5, 1.0])
         y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-        y_pred = tf.constant(
-            [[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32
-        )
+        y_pred = tf.constant([[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32)
         weights = tf.constant([[4, 0], [3, 1]], shape=(2, 2), dtype=tf.float32)
         self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
         result = p_obj(y_true, y_pred, sample_weight=weights)
@@ -576,9 +574,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     def test_multiple_updates(self):
         p_obj = metrics.Precision(thresholds=[0.5, 1.0])
         y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-        y_pred = tf.constant(
-            [[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32
-        )
+        y_pred = tf.constant([[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32)
         weights = tf.constant([[4, 0], [3, 1]], shape=(2, 2), dtype=tf.float32)
         self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
         update_op = p_obj.update_state(y_true, y_pred, sample_weight=weights)
@@ -770,9 +766,7 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     def test_weighted_with_threshold(self):
         r_obj = metrics.Recall(thresholds=[0.5, 1.0])
         y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-        y_pred = tf.constant(
-            [[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32
-        )
+        y_pred = tf.constant([[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32)
         weights = tf.constant([[1, 4], [3, 2]], shape=(2, 2), dtype=tf.float32)
         self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
         result = r_obj(y_true, y_pred, sample_weight=weights)
@@ -784,9 +778,7 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     def test_multiple_updates(self):
         r_obj = metrics.Recall(thresholds=[0.5, 1.0])
         y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-        y_pred = tf.constant(
-            [[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32
-        )
+        y_pred = tf.constant([[1, 0], [0.6, 0]], shape=(2, 2), dtype=tf.float32)
         weights = tf.constant([[1, 4], [3, 2]], shape=(2, 2), dtype=tf.float32)
         self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
         update_op = r_obj.update_state(y_true, y_pred, sample_weight=weights)
@@ -1737,9 +1729,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
                 dtype=np.int64,
             )
             auc_obj = metrics.AUC()
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(labels, logits)
             self.assertEqual(self.evaluate(result), 0.5)
         except ImportError as e:
@@ -1758,9 +1748,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
         epsilon = 1e-12
         self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
 
-        self.y_true_good = tf.constant(
-            np.array([[0, 0, 1, 1], [0, 0, 1, 1]]).T
-        )
+        self.y_true_good = tf.constant(np.array([[0, 0, 1, 1], [0, 0, 1, 1]]).T)
         self.y_true_bad = tf.constant(np.array([[0, 0, 1, 1], [1, 1, 0, 0]]).T)
         self.sample_weight = [1, 2, 3, 4]
 
@@ -1803,9 +1791,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
         with self.test_session():
             self.setup()
             auc_obj = metrics.AUC(num_thresholds=5, multi_label=True)
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
 
             # Run several updates.
             update_op = auc_obj.update_state(self.y_true_good, self.y_pred)
@@ -1823,9 +1809,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
         with self.test_session():
             self.setup()
             auc_obj = metrics.AUC(multi_label=True)
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_true_good)
             self.assertEqual(self.evaluate(result), 1)
 
@@ -1842,9 +1826,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             auc_obj = metrics.AUC(
                 num_thresholds=self.num_thresholds, multi_label=True
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_pred)
 
             # tpr = [[1, 1, 0.5, 0.5, 0], [1, 1, 0, 0, 0]]
@@ -1860,9 +1842,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
                 multi_label=True,
                 from_logits=True,
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_pred_logits)
 
             # tpr = [[1, 1, 0.5, 0.5, 0], [1, 1, 0, 0, 0]]
@@ -1908,9 +1888,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
                 multi_label=True,
                 label_weights=[0.75, 0.25],
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_pred)
 
             # tpr = [[1, 1, 0.5, 0.5, 0], [1, 1, 0, 0, 0]]
@@ -1981,9 +1959,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             )
             self.assertEqual(auc_obj.num_thresholds, 3)
             self.assertAllClose(auc_obj.thresholds, [0.0, 0.5, 1.0])
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_pred)
 
             # tp = [[2, 1, 0], [2, 0, 0]]
@@ -2005,9 +1981,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             auc_obj = metrics.AUC(
                 num_thresholds=self.num_thresholds, multi_label=True
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(
                 self.y_true_good, self.y_pred, sample_weight=self.sample_weight
             )
@@ -2025,9 +1999,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
                 curve="PR",
                 multi_label=True,
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             good_result = auc_obj(self.y_true_good, self.y_pred)
             with self.subTest(name="good"):
                 # PR AUCs are 0.917 and 1.0 respectively
@@ -2049,9 +2021,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
                 curve="PR",
                 multi_label=True,
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             good_result = auc_obj(
                 self.y_true_good, self.y_pred, sample_weight=self.sample_weight
             )
@@ -2074,9 +2044,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             auc_obj = metrics.AUC(
                 num_thresholds=self.num_thresholds, multi_label=True
             )
-            self.evaluate(
-                tf.compat.v1.variables_initializer(auc_obj.variables)
-            )
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             auc_obj(self.y_true_good, self.y_pred)
             auc_obj.reset_state()
             self.assertAllEqual(auc_obj.true_positives, np.zeros((5, 2)))
