@@ -1010,8 +1010,6 @@ class ProgbarLogger(Callback):
     """
 
     def __init__(self, count_mode: str = "samples", stateful_metrics=None):
-        # when we drop support for python 3.7, replace 'count_mode: str'
-        # with 'count_mode: Literal["samples", "steps"]'
         super().__init__()
         self._supports_tf_logs = True
         if count_mode == "samples":
