@@ -24,9 +24,6 @@ import os
 import re
 import sys
 import time
-from typing import Iterable
-from typing import Optional
-from typing import Union
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -937,7 +934,7 @@ class BaseLogger(Callback):
             All others will be averaged in `on_epoch_end`.
     """
 
-    def __init__(self, stateful_metrics: Optional[Iterable[str]] = None):
+    def __init__(self, stateful_metrics=None):
         super().__init__()
         self.stateful_metrics = set(stateful_metrics or [])
 
@@ -1015,7 +1012,7 @@ class ProgbarLogger(Callback):
     def __init__(
         self,
         count_mode: str = "samples",
-        stateful_metrics: Optional[Iterable[str]] = None,
+        stateful_metrics=None
     ):
         # when we drop support for python 3.7, replace 'count_mode: str'
         # with 'count_mode: Literal["samples", "steps"]'
@@ -1327,17 +1324,15 @@ class ModelCheckpoint(Callback):
 
     def __init__(
         self,
-        filepath: Union[str, os.PathLike],
+        filepath,
         monitor: str = "val_loss",
         verbose: int = 0,
         save_best_only: bool = False,
         save_weights_only: bool = False,
         mode: str = "auto",
-        save_freq: Union[int, str] = "epoch",
-        options: Union[
-            tf.train.CheckpointOptions, tf.saved_model.SaveOptions, None
-        ] = None,
-        initial_value_threshold: Optional[float] = None,
+        save_freq="epoch",
+        options=None,
+        initial_value_threshold=None,
         **kwargs,
     ):
         super().__init__()
