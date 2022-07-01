@@ -2071,8 +2071,6 @@ def sparse_categorical_crossentropy(
     Returns:
       Sparse categorical crossentropy loss value.
     """
-    y_pred = tf.convert_to_tensor(y_pred)
-
     return backend.sparse_categorical_crossentropy(
         y_true,
         y_pred,
