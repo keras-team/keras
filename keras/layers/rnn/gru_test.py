@@ -817,6 +817,17 @@ class GRULayerTest(test_combinations.TestCase):
         # recurrent_dropout.
         self.assertEqual(layer.implementation, 1)
 
+    @test_utils.run_v2_only
+    def test_dropout_variable_name(self):
+        layer = keras.layers.RNN(
+            keras.layers.GRUCell(2, dropout=0.1, force_generator=True)
+        )
+        layer(np.random.random((2, 3, 4)))
+        self.assertEqual(
+            layer.cell._random_generator._generator._state_var.name,
+            "rnn/gru_cell/StateVar:0",
+        )
+
     @parameterized.parameters([0, 1, 2])
     def test_implementation_mode_gru(self, implementation_mode):
         num_samples = 2

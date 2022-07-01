@@ -159,6 +159,7 @@ class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
+        super().build(input_shape)
         default_caching_device = rnn_utils.caching_device(self)
         self.kernel = self.add_weight(
             shape=(input_shape[-1], self.units),

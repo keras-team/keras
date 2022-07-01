@@ -182,6 +182,7 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
+        super().build(input_shape)
         input_dim = input_shape[-1]
         default_caching_device = rnn_utils.caching_device(self)
         self.kernel = self.add_weight(
