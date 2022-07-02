@@ -39,6 +39,36 @@ class GeneralizedMeanPoolingTest(tf.test.TestCase, parameterized.TestCase):
             input_shape=(3, 2, 6),
         )
 
+    def test_generalized_mean_pooling_2d(self):
+        for padding in ["valid", "same"]:
+            for stride in [1, 2]:
+                test_utils.layer_test(
+                    keras.layers.GeneralizedMeanPooling2D,
+                    kwargs={"power": 3, "strides": stride, "padding": padding},
+                    input_shape=(1, 4, 4, 1),
+                )
+
+        test_utils.layer_test(
+            keras.layers.GeneralizedMeanPooling2D,
+            kwargs={"data_format": "channels_first"},
+            input_shape=(1, 1, 4, 4),
+        )
+
+    def test_generalized_mean_pooling_3d(self):
+        for padding in ["valid", "same"]:
+            for stride in [1, 2]:
+                test_utils.layer_test(
+                    keras.layers.GeneralizedMeanPooling3D,
+                    kwargs={"power": 3, "strides": stride, "padding": padding},
+                    input_shape=(1, 2, 2, 2, 1),
+                )
+
+        test_utils.layer_test(
+            keras.layers.GeneralizedMeanPooling3D,
+            kwargs={"data_format": "channels_first"},
+            input_shape=(1, 1, 2, 2, 2),
+        )
+
 
 if __name__ == "__main__":
     tf.test.main()
