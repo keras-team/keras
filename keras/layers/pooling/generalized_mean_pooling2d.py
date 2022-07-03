@@ -9,13 +9,14 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
     """Generalized mean pooling operation for temporal data.
 
     Generalized Mean Pooling (GeM) computes the generalized mean of each
-    channel in a tensor. It provides a parameter `p` that sets an exponent
-    enabling the pooling to increase or decrease the contrast between salient
-    features in the feature map.
+    channel in a tensor. It provides a parameter `power` that sets an
+    exponent enabling the pooling to increase or decrease the contrast
+    between salient features in the feature map.
 
-    The GeM layer is an generalization of the average pooling layer and spatial
-    max pooling layer. When `p` = 1`, it will act as a average pooling layer and
-    when `p = inf`, it will act as a spatial max pooling layer.
+    The GeM layer is an generalization of the average pooling layer and
+    spatial max pooling layer. When `power` = 1`, it will act as a average
+    pooling layer and when `power = inf`, it will act as a spatial
+    max-pooling layer.
 
     Examples:
 
@@ -26,7 +27,8 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
     ...                  [7., 8., 9.]])
     >>> x = tf.reshape(x, [1, 3, 3, 1])
     >>> gem_pool_2d = tf.keras.layers.GeneralizedMeanPooling2D(power=3,
-    ...    pool_size=2, strides=1, padding='valid', data_format='channels_last')
+    ...    pool_size=2, strides=1, padding='valid',
+    ...    data_format='channels_last')
     >>> gem_pool_2d(x)
     <tf.Tensor: shape=(1, 2, 2, 1), dtype=float32, numpy=
     array([[[[3.6717105],
@@ -42,7 +44,8 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
     ...                  [9., 10., 11., 12.]])
     >>> x = tf.reshape(x, [1, 3, 4, 1])
     >>> gem_pool_2d = tf.keras.layers.GeneralizedMeanPooling2D(power=3,
-    ...    pool_size=2, strides=2, padding='valid', data_format='channels_last')
+    ...    pool_size=2, strides=2, padding='valid',
+    ...    data_format='channels_last')
     >>> gem_pool_2d(x)
     <tf.Tensor: shape=(1, 1, 2, 1), dtype=float32, numpy=
     array([[[[4.4395204],
@@ -55,7 +58,8 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
     ...                  [7., 8., 9.]])
     >>> x = tf.reshape(x, [1, 3, 3, 1])
     >>> gem_pool_2d = tf.keras.layers.GeneralizedMeanPooling1D(power=3,
-    ...    pool_size=2, strides=1, padding='same', data_format='channels_last')
+    ...    pool_size=2, strides=1, padding='same',
+    ...    data_format='channels_last')
     >>> gem_pool_2d(x)
     <tf.Tensor: shape=(1, 3, 3, 1), dtype=float32, numpy=
     array([[[[3.6717105],
@@ -75,8 +79,8 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
         the generalized mean pooling computation. Setting this exponent as
         power > 1 increases the contrast of the pooled feature map and focuses
         on the salient features of the image. GeM is a generalization of the
-        average pooling commonly used in classification networks (power = 1)
-        and of spatial max-pooling layer (power = inf).
+        average pooling when `power` = 1 and of spatial max-pooling layer when
+        `power` = inf or a large number.
       pool_size: An integer or tuple/list of 2 integers:
         (pool_height, pool_width) specifying the size of the pooling window.
         Can be a single integer to specify the same value for all spatial
@@ -85,12 +89,11 @@ class GeneralizedMeanPooling2D(GeneralizedPooling2D):
         of the pooling operation. Can be a single integer to specify the same
         value for all spatial dimensions.
       padding: A string. The padding method, either 'valid' or 'same'.
-        Case-insensitive.
       data_format: A string, one of `channels_last` (default) or
         `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
-        `(batch, height, width, channels)` while `channels_first` corresponds
-        to inputs with shape `(batch, channels, height, width)`.
+        `(batch, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape `(batch, channels, height, width)`.
       name: A string, the name of the layer.
 
     Input shape:

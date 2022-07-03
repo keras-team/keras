@@ -63,10 +63,10 @@ class GeneralizedPooling2D(Layer):
     def get_config(self):
         config = {
             "power": self.power,
-            "pool_size": self.pool_size, 
+            "pool_size": self.pool_size,
             "strides": self.strides,
             "padding": self.padding,
-            "data_format": self.data_format
-            }
+            "data_format": self.data_format,
+        }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))

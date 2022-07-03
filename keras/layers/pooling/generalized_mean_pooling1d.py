@@ -9,13 +9,14 @@ class GeneralizedMeanPooling1D(GeneralizedPooling1D):
     """Generalized mean pooling operation for temporal data.
 
     Generalized Mean Pooling (GeM) computes the generalized mean of each
-    channel in a tensor. It provides a parameter `p` that sets an exponent
-    enabling the pooling to increase or decrease the contrast between salient
-    features in the feature map.
+    channel in a tensor. It provides a parameter `power` that sets an
+    exponent enabling the pooling to increase or decrease the contrast
+    between salient features in the feature map.
 
-    The GeM layer is an generalization of the average pooling layer and spatial
-    max pooling layer. When `p` = 1`, it will act as a average pooling layer and
-    when `p = inf`, it will act as a spatial max pooling layer.
+    The GeM layer is an generalization of the average pooling layer and
+    spatial max pooling layer. When `power` = 1`, it will act as a average
+    pooling layer and when `power = inf`, it will act as a spatial
+    max-pooling layer.
 
     Examples:
 
@@ -24,7 +25,8 @@ class GeneralizedMeanPooling1D(GeneralizedPooling1D):
     >>> input_shape = (2, 3, 4)
     >>> x = tf.random.normal(input_shape)
     >>> gem_pool_1d = tf.keras.layers.GeneralizedMeanPooling1D(power=3,
-    ...    pool_size=2, strides=1, padding='valid', data_format='channels_last')
+    ...    pool_size=2, strides=1, padding='valid',
+    ...    data_format='channels_last')
     >>> gem_pool_1d(x)
     <tf.Tensor: shape=(1, 4, 1), dtype=float32, numpy=
     array([[[1.6509637],
@@ -37,7 +39,8 @@ class GeneralizedMeanPooling1D(GeneralizedPooling1D):
     >>> input_shape = (2, 3, 4)
     >>> x = tf.random.normal(input_shape)
     >>> gem_pool_1d = tf.keras.layers.GeneralizedMeanPooling1D(power=3,
-    ...    pool_size=2, strides=2, padding='valid', data_format='channels_last')
+    ...    pool_size=2, strides=2, padding='valid',
+    ...    data_format='channels_last')
     >>> gem_pool_1d(x)
     <tf.Tensor: shape=(1, 2, 1), dtype=float32, numpy=
     array([[[1.6509637],
@@ -48,7 +51,8 @@ class GeneralizedMeanPooling1D(GeneralizedPooling1D):
     >>> input_shape = (2, 3, 4)
     >>> x = tf.random.normal(input_shape)
     >>> gem_pool_1d = tf.keras.layers.GeneralizedMeanPooling1D(power=3,
-    ...    pool_size=2, strides=1, padding='same', data_format='channels_last')
+    ...    pool_size=2, strides=1, padding='same',
+    ...    data_format='channels_last')
     >>> gem_pool_1d(x)
     <tf.Tensor: shape=(1, 5, 1), dtype=float32, numpy=
     array([[[1.6509637],
@@ -62,23 +66,22 @@ class GeneralizedMeanPooling1D(GeneralizedPooling1D):
         the generalized mean pooling computation. Setting this exponent as
         power > 1 increases the contrast of the pooled feature map and focuses
         on the salient features of the image. GeM is a generalization of the
-        average pooling commonly used in classification networks (power = 1)
-        and of spatial max-pooling layer (power = inf).
+        average pooling when `power` = 1 and of spatial max-pooling layer when
+        `power` = inf or a large number.
       pool_size: Integer, size of the average pooling windows.
       strides: Integer, or None. Factor by which to downscale.
         E.g. 2 will halve the input.
         If None, it will default to `pool_size`.
-      padding: One of `"valid"` or `"same"` (case-insensitive).
-        `"valid"` means no padding. `"same"` results in padding evenly to
+      padding: A string. The padding method, either 'valid' or 'same'.
+        `'valid'` means no padding. `'same'` results in padding evenly to
         the left/right or up/down of the input such that output has the same
         height/width dimension as the input.
-      data_format: A string,
-        one of `channels_last` (default) or `channels_first`.
-        The ordering of the dimensions in the inputs.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
-        `(batch, steps, features)` while `channels_first`
-        corresponds to inputs with shape
-        `(batch, features, steps)`.
+        `(batch, steps, features)` while `channels_first` corresponds
+        to inputs with shape `(batch, features, steps)`.
+      name: A string, the name of the layer.
 
     Input shape:
       - If `data_format='channels_last'`:

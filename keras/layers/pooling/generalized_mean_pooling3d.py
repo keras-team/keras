@@ -8,14 +8,15 @@ from keras.layers.pooling.base_generalized_pooling3d import GeneralizedPooling3D
 class GeneralizedMeanPooling3D(GeneralizedPooling3D):
     """Generalized mean pooling operation for temporal data.
 
-    Generalized Mean Pooling (GeM) computes the generalized mean of each
-    channel in a tensor. It provides a parameter `p` that sets an exponent
-    enabling the pooling to increase or decrease the contrast between salient
-    features in the feature map.
+    Generalized Mean Pooling (GeM) computes the generalized mean of
+    each channel in a tensor. It provides a parameter `p` that sets
+    an exponent enabling the pooling to increase or decrease the contrast
+    between salient features in the feature map.
 
-    The GeM layer is an generalization of the average pooling layer and spatial
-    max pooling layer. When `p` = 1`, it will act as a average pooling layer and
-    when `p = inf`, it will act as a spatial max pooling layer.
+    The GeM layer is an generalization of the average pooling layer and
+    spatial max pooling layer. When `power` = 1`, it will act as a average
+    pooling layer and when `power = inf`, it will act as a spatial
+    max-pooling layer.
 
     Examples:
 
@@ -63,24 +64,23 @@ class GeneralizedMeanPooling3D(GeneralizedPooling3D):
     Args:
       power: Float power > 0 is an inverse exponent parameter, used during
         the generalized mean pooling computation. Setting this exponent as
-        power > 1 increases the contrast of the pooled feature map and
-        focuses on the salient features of the image. GeM is a generalization
-        of the average pooling commonly used in classification networks
-        (power = 1) and of spatial max-pooling layer (power = inf).
+        power > 1 increases the contrast of the pooled feature map and focuses
+        on the salient features of the image. GeM is a generalization of the
+        average pooling when `power` = 1 and of spatial max-pooling layer when
+        `power` = inf or a large number.
       pool_size: An integer or tuple/list of 3 integers:
-        (pool_depth, pool_height, pool_width) specifying the size of the
+        `(pool_depth, pool_height, pool_width)` specifying the size of the
         pooling window. Can be a single integer to specify the same value for
         all spatial dimensions.
       strides: An integer or tuple/list of 3 integers, specifying the strides
         of the pooling operation. Can be a single integer to specify the same
         value for all spatial dimensions.
       padding: A string. The padding method, either 'valid' or 'same'.
-        Case-insensitive.
       data_format: A string, one of `channels_last` (default) or
         `channels_first`. The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape
-        `(batch, depth, height, width, channels)` while
-        `channels_first` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while `channels_first`
+        corresponds to inputs with shape
         `(batch, channels, depth, height, width)`.
       name: A string, the name of the layer.
 
