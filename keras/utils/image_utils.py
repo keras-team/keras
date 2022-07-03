@@ -35,12 +35,12 @@ except ImportError:
 
 if pil_image is not None:
     _PIL_INTERPOLATION_METHODS = {
-        "nearest": pil_image.NEAREST,
-        "bilinear": pil_image.BILINEAR,
-        "bicubic": pil_image.BICUBIC,
-        "hamming": pil_image.HAMMING,
-        "box": pil_image.BOX,
-        "lanczos": pil_image.LANCZOS,
+        "nearest": pil_image.Resampling.NEAREST,
+        "bilinear": pil_image.Resampling.BILINEAR,
+        "bicubic": pil_image.Resampling.BICUBIC,
+        "hamming": pil_image.Resampling.HAMMING,
+        "box": pil_image.Resampling.BOX,
+        "lanczos": pil_image.Resampling.LANCZOS,
     }
 
 ResizeMethod = tf.image.ResizeMethod
