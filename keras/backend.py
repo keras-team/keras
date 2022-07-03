@@ -5545,7 +5545,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
 def sparse_categorical_crossentropy(
-    target, output, from_logits=False, axis=-1, ignore_index=None
+    target, output, from_logits=False, axis=-1, ignore_class=None
 ):
     """Categorical crossentropy with integer targets.
 
@@ -5559,14 +5559,11 @@ def sparse_categorical_crossentropy(
         axis: Int specifying the channels axis. `axis=-1` corresponds to data
             format `channels_last`, and `axis=1` corresponds to data format
             `channels_first`.
-        ignore_index: Optional integer, the id of a label that will not be
-            included in the entropy equation nor in gradient computation. This
-            is useful in segmentation problems containing the *void* label
-            (commonly -1 or 255) in its annotated segmentation maps.
-            By default, all label ids are considered. If `ignore_index` is not
-            `None` and the output is a tensor with `rank>=3`, then the valid
-            entries will be averaged over the axes `range(1, output_rank-1)`,
-            resulting in an output of shape `[batch]`.
+        ignore_class: Optional integer. The ID of a class to be ignored
+            during loss computation. This is useful, for example, in
+            segmentation problems featuring a "void" class (commonly -1
+            or 255) in segmentation maps.
+            By default (`ignore_class=None`), all classes are considered.
 
     Returns:
         Output tensor.
@@ -5620,8 +5617,8 @@ def sparse_categorical_crossentropy(
         target = flatten(target)
         output = tf.reshape(output, [-1, output_shape[-1]])
 
-    if ignore_index is not None:
-        valid_mask = tf.not_equal(target, ignore_index)
+    if ignore_class is not None:
+        valid_mask = tf.not_equal(target, ignore_class)
         target = target[valid_mask]
         output = output[valid_mask]
 
@@ -5635,7 +5632,7 @@ def sparse_categorical_crossentropy(
             labels=target, logits=output
         )
 
-    if ignore_index is not None:
+    if ignore_class is not None:
         res_shape = cast(output_shape[:-1], "int64")
         valid_mask = tf.reshape(valid_mask, res_shape)
 

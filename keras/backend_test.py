@@ -1972,7 +1972,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
-    def test_sparse_categorical_crossentropy_loss_with_ignore_index(self):
+    def test_sparse_categorical_crossentropy_loss_with_ignore_class(self):
         t = backend.constant([255, 1, 2, 2])
         p = backend.softmax(
             backend.constant(
@@ -1984,7 +1984,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
                 ]
             )
         )
-        result = backend.sparse_categorical_crossentropy(t, p, ignore_index=255)
+        result = backend.sparse_categorical_crossentropy(t, p, ignore_class=255)
         self.assertArrayNear(
             self.evaluate(result),
             [0.0, 0.07428224, 0.13980183, 0.11967831],
@@ -2001,7 +2001,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
             ]
         )
         result = backend.sparse_categorical_crossentropy(
-            t, p, ignore_index=-1, from_logits=True
+            t, p, ignore_class=-1, from_logits=True
         )
         self.assertArrayNear(
             self.evaluate(result),
@@ -2012,7 +2012,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
-    def test_sparse_cce_loss_with_ignore_index_for_segmentation(self):
+    def test_sparse_cce_loss_with_ignore_class_for_segmentation(self):
         t = backend.constant(
             [
                 [[0, 2], [-1, -1]],
@@ -2032,7 +2032,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
             ]
         )
 
-        result = backend.sparse_categorical_crossentropy(t, p, ignore_index=-1)
+        result = backend.sparse_categorical_crossentropy(t, p, ignore_class=-1)
         self.assertArrayNear(
             self.evaluate(result), [2.3841855e-07, 3.4657377e-01], 1e-3
         )

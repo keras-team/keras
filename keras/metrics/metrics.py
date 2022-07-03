@@ -2646,10 +2646,10 @@ class _IoUBase(base_metric.Metric):
         `(num_classes, num_classes)` will be allocated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       sparse_labels: Wether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
@@ -2665,14 +2665,14 @@ class _IoUBase(base_metric.Metric):
         num_classes: int,
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         sparse_labels: bool = True,
         sparse_preds: bool = True,
         axis: int = -1,
     ):
         super().__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
-        self.ignore_index = ignore_index
+        self.ignore_class = ignore_class
         self.sparse_labels = sparse_labels
         self.sparse_preds = sparse_preds
         self.axis = axis
@@ -2713,8 +2713,8 @@ class _IoUBase(base_metric.Metric):
         if y_true.shape.ndims > 1:
             y_true = tf.reshape(y_true, [-1])
 
-        if self.ignore_index is not None:
-            valid_mask = tf.not_equal(y_true, self.ignore_index)
+        if self.ignore_class is not None:
+            valid_mask = tf.not_equal(y_true, self.ignore_class)
             y_true = y_true[valid_mask]
             y_pred = y_pred[valid_mask]
 
@@ -2774,10 +2774,10 @@ class IoU(_IoUBase):
         single id value should be provided.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       sparse_labels: Wether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
@@ -2826,7 +2826,7 @@ class IoU(_IoUBase):
         target_class_ids: Union[List[int], Tuple[int, ...]],
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         sparse_labels: bool = True,
         sparse_preds: bool = True,
         axis: int = -1,
@@ -2834,7 +2834,7 @@ class IoU(_IoUBase):
         super().__init__(
             name=name,
             num_classes=num_classes,
-            ignore_index=ignore_index,
+            ignore_class=ignore_class,
             sparse_labels=sparse_labels,
             sparse_preds=sparse_preds,
             axis=axis,
@@ -2883,7 +2883,7 @@ class IoU(_IoUBase):
         config = {
             "num_classes": self.num_classes,
             "target_class_ids": self.target_class_ids,
-            "ignore_index": self.ignore_index,
+            "ignore_class": self.ignore_class,
             "sparse_labels": self.sparse_labels,
             "sparse_preds": self.sparse_preds,
             "axis": self.axis,
@@ -3042,10 +3042,10 @@ class MeanIoU(IoU):
         [num_classes, num_classes] will be allocated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       sparse_labels: Wether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
@@ -3088,7 +3088,7 @@ class MeanIoU(IoU):
         num_classes: int,
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         sparse_labels: bool = True,
         sparse_preds: bool = True,
         axis: int = -1,
@@ -3100,7 +3100,7 @@ class MeanIoU(IoU):
             target_class_ids=target_class_ids,
             axis=axis,
             dtype=dtype,
-            ignore_index=ignore_index,
+            ignore_class=ignore_class,
             sparse_labels=sparse_labels,
             sparse_preds=sparse_preds,
         )
@@ -3110,7 +3110,7 @@ class MeanIoU(IoU):
             "num_classes": self.num_classes,
             "name": self.name,
             "dtype": self._dtype,
-            "ignore_index": self.ignore_index,
+            "ignore_class": self.ignore_class,
             "sparse_labels": self.sparse_labels,
             "sparse_preds": self.sparse_preds,
             "axis": self.axis,
@@ -3161,10 +3161,10 @@ class OneHotIoU(IoU):
         single id value should be provided.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       sparse_preds: Wether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
@@ -3206,7 +3206,7 @@ class OneHotIoU(IoU):
         target_class_ids: Union[List[int], Tuple[int, ...]],
         name=None,
         dtype=None,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         sparse_preds: bool = False,
         axis: int = -1,
     ):
@@ -3215,7 +3215,7 @@ class OneHotIoU(IoU):
             target_class_ids=target_class_ids,
             name=name,
             dtype=dtype,
-            ignore_index=ignore_index,
+            ignore_class=ignore_class,
             sparse_labels=False,
             sparse_preds=sparse_preds,
             axis=axis,
@@ -3227,7 +3227,7 @@ class OneHotIoU(IoU):
             "target_class_ids": self.target_class_ids,
             "name": self.name,
             "dtype": self._dtype,
-            "ignore_index": self.ignore_index,
+            "ignore_class": self.ignore_class,
             "sparse_preds": self.sparse_preds,
             "axis": self.axis,
         }
@@ -3275,10 +3275,10 @@ class OneHotMeanIoU(MeanIoU):
         allocated to accumulate predictions from which the metric is calculated.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       sparse_preds: Wether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
@@ -3319,7 +3319,7 @@ class OneHotMeanIoU(MeanIoU):
         num_classes: int,
         name: str = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         sparse_preds: bool = False,
         axis: int = -1,
     ):
@@ -3328,7 +3328,7 @@ class OneHotMeanIoU(MeanIoU):
             axis=axis,
             name=name,
             dtype=dtype,
-            ignore_index=ignore_index,
+            ignore_class=ignore_class,
             sparse_labels=False,
             sparse_preds=sparse_preds,
         )
@@ -3338,7 +3338,7 @@ class OneHotMeanIoU(MeanIoU):
             "num_classes": self.num_classes,
             "name": self.name,
             "dtype": self._dtype,
-            "ignore_index": self.ignore_index,
+            "ignore_class": self.ignore_class,
             "sparse_preds": self.sparse_preds,
             "axis": self.axis,
         }
@@ -3493,10 +3493,10 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
       dtype: (Optional) data type of the metric result.
       from_logits: (Optional) Whether output is expected to be a logits tensor.
         By default, we consider that output encodes a probability distribution.
-      ignore_index: Optional integer, the id of a label that will not be
-        included in the metric computation. This is useful in segmentation
-        problems containing the *void* label (commonly -1 or 255) in its
-        annotated segmentation maps. By default, all label ids are considered.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        metric computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
       axis: (Optional) Defaults to -1. The dimension along which entropy is
         computed.
 
@@ -3541,7 +3541,7 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
         name: str = "sparse_categorical_crossentropy",
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
         from_logits: bool = False,
-        ignore_index: Optional[int] = None,
+        ignore_class: Optional[int] = None,
         axis: int = -1,
     ):
         super().__init__(
@@ -3549,7 +3549,7 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
             name,
             dtype=dtype,
             from_logits=from_logits,
-            ignore_index=ignore_index,
+            ignore_class=ignore_class,
             axis=axis,
         )
 
