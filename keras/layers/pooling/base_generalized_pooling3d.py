@@ -21,8 +21,8 @@ from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
 
 
-class GeneralizedPooling2D(Layer):
-    """Abstract class for different generalized mean pooling 2D layers."""
+class GeneralizedPooling3D(Layer):
+    """Abstract class for different generalized mean pooling 3D layers."""
 
     def __init__(
         self,
@@ -59,3 +59,14 @@ class GeneralizedPooling2D(Layer):
 
     def call(self, inputs):
         raise NotImplementedError
+    
+    def get_config(self):
+        config = {
+            "power": self.power,
+            "pool_size": self.pool_size, 
+            "strides": self.strides,
+            "padding": self.padding,
+            "data_format": self.data_format
+            }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))

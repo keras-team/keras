@@ -33,7 +33,6 @@ py_library(
         ":max_pooling1d",
         ":max_pooling2d",
         ":max_pooling3d",
-
         ":generalized_mean_pooling1d",
         ":generalized_mean_pooling2d",
         ":generalized_mean_pooling3d"

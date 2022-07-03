@@ -41,3 +41,9 @@ from keras.layers.pooling.max_pooling2d import MaxPool2D
 from keras.layers.pooling.max_pooling2d import MaxPooling2D
 from keras.layers.pooling.max_pooling3d import MaxPool3D
 from keras.layers.pooling.max_pooling3d import MaxPooling3D
+from keras.layers.pooling.generalized_mean_pooling1d import GeneralizedPooling1D
+from keras.layers.pooling.generalized_mean_pooling1d import GeneralizedMeanPooling1D
+from keras.layers.pooling.generalized_mean_pooling2d import GeneralizedMeanPooling2D
+from keras.layers.pooling.generalized_mean_pooling2d import GeneralizedPooling2D
+from keras.layers.pooling.generalized_mean_pooling3d import GeneralizedMeanPooling3D
+from keras.layers.pooling.generalized_mean_pooling3d import GeneralizedPooling3D

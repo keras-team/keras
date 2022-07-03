@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Private base class for generalized pooling 1D layers."""
+"""Private base class for generalized pooling 2D layers."""
 
 
 from keras import backend
@@ -59,3 +59,14 @@ class GeneralizedPooling2D(Layer):
 
     def call(self, inputs):
         raise NotImplementedError
+
+    def get_config(self):
+        config = {
+            "power": self.power,
+            "pool_size": self.pool_size, 
+            "strides": self.strides,
+            "padding": self.padding,
+            "data_format": self.data_format
+            }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
