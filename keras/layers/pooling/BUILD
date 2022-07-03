@@ -33,6 +33,10 @@ py_library(
         ":max_pooling1d",
         ":max_pooling2d",
         ":max_pooling3d",
+
+        ":generalized_mean_pooling1d",
+        ":generalized_mean_pooling2d",
+        ":generalized_mean_pooling3d"
     ],
 )
 
@@ -232,6 +236,36 @@ py_library(
     ],
 )
 
+py_library(
+    name = "generalized_mean_pooling1d",
+    srcs = ["generalized_mean_pooling1d.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":base_generalized_pooling1d",
+        "//keras:backend",
+    ],
+)
+
+py_library(
+    name = "generalized_mean_pooling2d",
+    srcs = ["generalized_mean_pooling2d.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":base_generalized_pooling2d",
+        "//keras:backend",
+    ],
+)
+
+py_library(
+    name = "generalized_mean_pooling3d",
+    srcs = ["generalized_mean_pooling3d.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":base_generalized_pooling3d",
+        "//keras:backend",
+    ],
+)
+
 tf_py_test(
     name = "average_pooling_test",
     size = "medium",
@@ -290,6 +324,24 @@ tf_py_test(
     name = "global_max_pooling_test",
     size = "medium",
     srcs = ["global_max_pooling_test.py"],
+    python_version = "PY3",
+    shard_count = 8,
+    tags = [
+        "notsan",  # TODO(b/183962355)
+    ],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "generalized_mean_pooling_test",
+    size = "medium",
+    srcs = ["generalized_mean_pooling_test.py"],
     python_version = "PY3",
     shard_count = 8,
     tags = [
