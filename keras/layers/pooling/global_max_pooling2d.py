@@ -70,8 +70,12 @@ class GlobalMaxPooling2D(GlobalPooling2D):
 
     def call(self, inputs):
         if self.data_format == "channels_last":
+            if [inputs.shape[i] == 0 for i in [1, 2]]:
+                raise ValueError("Reducing axis cannot be of 0 dimension")
             return backend.max(inputs, axis=[1, 2], keepdims=self.keepdims)
         else:
+            if [inputs.shape[i] == 0 for i in [2, 3]]:
+                raise ValueError("Reducing axis cannot be of 0 dimension")
             return backend.max(inputs, axis=[2, 3], keepdims=self.keepdims)
 
 
