@@ -611,6 +611,14 @@ class CallbackList:
                 )
         # pylint: enable=protected-access
 
+    def make_logs(self, model, logs, outputs, mode, prefix=''):
+        """Computes logs for sending to `on_batch_end` methods."""
+        if not self.callbacks:
+            return logs
+
+        return make_logs(model, logs, outputs, mode, prefix=prefix)
+
+
 
 @keras_export("keras.callbacks.Callback")
 class Callback:
@@ -904,14 +912,7 @@ class Callback:
               method but that may change in the future.
         """
 
-    def make_logs(self, model, logs, outputs, mode, prefix=''):
-        """Computes logs for sending to `on_batch_end` methods."""
-        if not self.callbacks:
-            return logs
-
-        return make_logs(model, logs, outputs, mode, prefix=prefix)
-
-    def _implements_train_batch_hooks(self):
+        def _implements_train_batch_hooks(self):
         """Determines if this Callback should be called for each train batch."""
         return (
             not generic_utils.is_default(self.on_batch_begin)
