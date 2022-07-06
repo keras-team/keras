@@ -975,8 +975,7 @@ class Layer(base_layer.Layer):
         for v in tf.nest.flatten(value):
             if v is not None and not isinstance(v, input_spec.InputSpec):
                 raise TypeError(
-                    "Layer input_spec must be an instance of InputSpec. "
-                    "Got: {}".format(v)
+                    f"Layer input_spec must be an instance of InputSpec. Got: {v}"
                 )
         self._input_spec = value
 

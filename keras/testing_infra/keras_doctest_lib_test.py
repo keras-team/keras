@@ -99,9 +99,7 @@ class KerasDoctestOutputCheckerTest(parameterized.TestCase):
         try:
             self.assertLen(extracted_floats, len(expected_floats))
         except AssertionError as e:
-            msg = "\n\n  expected: {}\n  found:     {}".format(
-                expected_floats, extracted_floats
-            )
+            msg = f"\n\n  expected: {expected_floats}\n  found:     {extracted_floats}"
             e.args = (e.args[0] + msg,)
             raise e
 
@@ -111,9 +109,7 @@ class KerasDoctestOutputCheckerTest(parameterized.TestCase):
                 output_checker._allclose(expected_floats, extracted_floats)
             )
         except AssertionError as e:
-            msg = "\n\nexpected:  {}\nfound:     {}".format(
-                expected_floats, extracted_floats
-            )
+            msg = f"\n\nexpected:  {expected_floats}\nfound:     {extracted_floats}"
             e.args = (e.args[0] + msg,)
             raise e
 
@@ -128,9 +124,7 @@ class KerasDoctestOutputCheckerTest(parameterized.TestCase):
                 )
             )
         except AssertionError as e:
-            msg = "\n\n  expected: {}\n  found:     {}".format(
-                text_with_wildcards, text
-            )
+            msg = f"\n\n  expected: {text_with_wildcards}\n  found:     {text}"
             e.args = (e.args[0] + msg,)
             raise e
 

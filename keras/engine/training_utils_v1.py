@@ -195,12 +195,12 @@ def _append_ragged_tensor_value(target, to_append):
     # Make sure the ragged tensors are of the same size (save for the 0th dim).
     if len(target.shape) != len(to_append.shape):
         raise RuntimeError(
-            "Unable to concatenate %s and %s" % (target, to_append)
+            f"Unable to concatenate {target} and {to_append}"
         )
 
     if target.shape[1:] != to_append.shape[1:]:
         raise RuntimeError(
-            "Unable to concatenate %s and %s" % (target, to_append)
+            f"Unable to concatenate {target} and {to_append}"
         )
 
     adjusted_row_splits = to_append.row_splits[1:] + target.row_splits[-1]
@@ -238,7 +238,7 @@ def _append_composite_tensor(target, to_append):
     """
     if type(target) is not type(to_append):
         raise RuntimeError(
-            "Unable to concatenate %s and %s" % (type(target), type(to_append))
+            f"Unable to concatenate {type(target)} and {type(to_append)}"
         )
 
     # Perform type-specific concatenation.
@@ -263,7 +263,7 @@ def _append_composite_tensor(target, to_append):
         return _append_ragged_tensor_value(target, to_append)
     else:
         raise RuntimeError(
-            "Attempted to concatenate unsupported object %s." % type(target)
+            f"Attempted to concatenate unsupported object {type(target)}."
         )
 
 
@@ -474,9 +474,7 @@ class OutputsAggregator(Aggregator):
                 # CompositeTensorValue.  Fail fast rather than trying to
                 # concatenate it.
                 raise RuntimeError(
-                    "Attempted to aggregate unsupported object {}.".format(
-                        batch_element
-                    )
+                    f"Attempted to aggregate unsupported object {batch_element}."
                 )
 
             self.results[-1].create(batch_element)
@@ -555,7 +553,7 @@ def standardize_single_array(x, expected_shape=None):
 
     if isinstance(x, int):
         raise ValueError(
-            "Expected an array data type but received an integer: {}".format(x)
+            f"Expected an array data type but received an integer: {x}"
         )
 
     if (
@@ -1447,7 +1445,7 @@ def validate_input_types(inp, orig_inp, allow_dict=True, field_name="inputs"):
     elif isinstance(inp, dict):
         if not allow_dict:
             raise ValueError(
-                "You cannot pass a dictionary as model {}.".format(field_name)
+                f"You cannot pass a dictionary as model {field_name}."
             )
     elif not isinstance(inp, np.ndarray) and not tf.is_tensor(inp):
         raise ValueError(

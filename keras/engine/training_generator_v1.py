@@ -455,8 +455,7 @@ def _validate_arguments(
     if steps_per_epoch is None and not is_dataset:
         arg_name = "steps_per_epoch" if mode == ModeKeys.TRAIN else "steps"
         raise ValueError(
-            "Please specify the number of steps via the "
-            "`{}` argument.".format(arg_name)
+            f"Please specify the number of steps via the `{arg_name}` argument."
         )
 
     val_gen = data_utils.is_generator_or_sequence(
@@ -471,9 +470,7 @@ def _validate_arguments(
 
     if any(k != "steps" for k in kwargs):
         raise ValueError(
-            "Invalid arguments passed: {}".format(
-                [k for k in kwargs if k != "steps"]
-            )
+            f"Invalid arguments passed: {[k for k in kwargs if k != 'steps']}"
         )
 
 

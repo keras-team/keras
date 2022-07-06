@@ -1230,9 +1230,7 @@ def topological_sort(graph):
     # Check correctness.
     if len(result) != len(graph_ops):
         raise ValueError(
-            "Sort result has {} ops, source graph has {}.".format(
-                len(result), len(graph_ops)
-            )
+            f"Sort result has {len(result)} ops, source graph has {len(graph_ops)}."
         )
 
     sort_check_seen = set()
@@ -1318,7 +1316,7 @@ def identify_redundant_ops(graph):
         num_duplicates += len(op_defs)
         traceback = []
         for level in op_defs[0].traceback:
-            traceback.append("  {} {}:{}".format(level[0], level[2], level[1]))
+            traceback.append(f"  {level[0]} {level[2]}:{level[1]}")
 
         duplicate_types.append(
             "# Example name: {}\n# Op creation stack:\n{}\n{}".format(

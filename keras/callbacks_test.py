@@ -3236,7 +3236,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         result = set()
         for summary in summaries:
             if "/" not in summary.tag:
-                raise ValueError("tag has no layer name: %r" % summary.tag)
+                raise ValueError(f"tag has no layer name: {summary.tag!r}")
             start_from = 2 if "subclass" in model_type else 1
             new_tag = "/".join(summary.tag.split("/")[start_from:])
             result.add(summary._replace(tag=new_tag))
@@ -3875,7 +3875,7 @@ def events_from_logdir(logdir):
     """
     assert tf.compat.v1.gfile.Exists(logdir)
     files = tf.compat.v1.gfile.ListDirectory(logdir)
-    assert len(files) == 1, "Found not exactly one file in logdir: %s" % files
+    assert len(files) == 1, f"Found not exactly one file in logdir: {files}"
     return events_from_file(os.path.join(logdir, files[0]))
 
 

@@ -54,9 +54,7 @@ class ExportOutput:
 
         if not isinstance(key, str):
             raise ValueError(
-                "{} output key must be a string; got {}.".format(
-                    error_label, key
-                )
+                f"{error_label} output key must be a string; got {key}."
             )
         return key
 
@@ -91,9 +89,7 @@ class ExportOutput:
             key = self._check_output_key(key, error_name)
             if not isinstance(value, tf.Tensor):
                 raise ValueError(
-                    "{} output value must be a Tensor; got {}.".format(
-                        error_name, value
-                    )
+                    f"{error_name} output value must be a Tensor; got {value}."
                 )
 
             output_dict[key] = value
@@ -138,16 +134,14 @@ class ClassificationOutput(ExportOutput):
             isinstance(scores, tf.Tensor) and scores.dtype.is_floating
         ):
             raise ValueError(
-                "Classification scores must be a float32 Tensor; "
-                "got {}".format(scores)
+                f"Classification scores must be a float32 Tensor; got {scores}"
             )
         if classes is not None and not (
             isinstance(classes, tf.Tensor)
             and tf.as_dtype(classes.dtype) == tf.string
         ):
             raise ValueError(
-                "Classification classes must be a string Tensor; "
-                "got {}".format(classes)
+                f"Classification classes must be a string Tensor; got {classes}"
             )
         if scores is None and classes is None:
             raise ValueError(
@@ -207,8 +201,7 @@ class RegressionOutput(ExportOutput):
         """
         if not (isinstance(value, tf.Tensor) and value.dtype.is_floating):
             raise ValueError(
-                "Regression output value must be a float32 Tensor; "
-                "got {}".format(value)
+                f"Regression output value must be a float32 Tensor; got {value}"
             )
         self._value = value
 
@@ -391,9 +384,7 @@ class _SupervisedOutput(ExportOutput):
             op_name = key + self._SEPARATOR_CHAR + self.METRIC_UPDATE_SUFFIX
             if not isinstance(metric_val, tf.Tensor):
                 raise ValueError(
-                    "{} output value must be a Tensor; got {}.".format(
-                        key, metric_val
-                    )
+                    f"{key} output value must be a Tensor; got {metric_val}."
                 )
             if not (
                 tf.is_tensor(metric_op) or isinstance(metric_op, tf.Operation)

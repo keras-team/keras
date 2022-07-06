@@ -688,7 +688,7 @@ def _current_graph(op_input_list, graph=None):
 
     op_input_list = tuple(op_input_list)  # Handle generators correctly
     if graph and not isinstance(graph, tf.Graph):
-        raise TypeError("Input graph needs to be a Graph: %s" % (graph,))
+        raise TypeError(f"Input graph needs to be a Graph: {graph}")
 
     # 1. We validate that all of the inputs are from the same graph. This is
     #    either the supplied graph parameter, or the first one selected from one
@@ -717,7 +717,7 @@ def _current_graph(op_input_list, graph=None):
                 _assert_same_graph(original_graph_element, graph_element)
             elif graph_element.graph is not graph:
                 raise ValueError(
-                    "%s is not from the passed-in graph." % graph_element
+                    f"{graph_element} is not from the passed-in graph."
                 )
 
     # 2. If all else fails, we use the default graph, which is always there.
@@ -3665,7 +3665,7 @@ def resize_images(
     elif data_format == "channels_last":
         rows, cols = 1, 2
     else:
-        raise ValueError("Invalid `data_format` argument: %s" % (data_format,))
+        raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
     new_shape = x.shape[rows : cols + 1]
     if new_shape.is_fully_defined():
@@ -4810,11 +4810,11 @@ def rnn(
     def _expand_mask(mask_t, input_t, fixed_dim=1):
         if tf.nest.is_nested(mask_t):
             raise ValueError(
-                "mask_t is expected to be tensor, but got %s" % mask_t
+                f"mask_t is expected to be tensor, but got {mask_t}"
             )
         if tf.nest.is_nested(input_t):
             raise ValueError(
-                "input_t is expected to be tensor, but got %s" % input_t
+                f"input_t is expected to be tensor, but got {input_t}"
             )
         rank_diff = len(input_t.shape) - len(mask_t.shape)
         for _ in range(rank_diff):
@@ -4932,7 +4932,7 @@ def rnn(
             tf.TensorArray(
                 dtype=inp.dtype,
                 size=time_steps_t,
-                tensor_array_name="input_ta_%s" % i,
+                tensor_array_name=f"input_ta_{i}",
             )
             for i, inp in enumerate(flatted_inputs)
         )
@@ -4961,7 +4961,7 @@ def rnn(
                 dtype=out.dtype,
                 size=output_ta_size,
                 element_shape=out.shape,
-                tensor_array_name="output_ta_%s" % i,
+                tensor_array_name=f"output_ta_{i}",
             )
             for i, out in enumerate(tf.nest.flatten(output_time_zero))
         )

@@ -249,9 +249,7 @@ def _generate_object_paths(object_graph_def):
         for reference in object_graph_def.nodes[current_node].children:
             if reference.node_id in paths:
                 continue
-            paths[reference.node_id] = "{}.{}".format(
-                current_path, reference.local_name
-            )
+            paths[reference.node_id] = f"{current_path}.{reference.local_name}"
             nodes_to_visit.append(reference.node_id)
 
     return paths
@@ -428,7 +426,7 @@ class KerasObjectLoader:
             ):
                 setter = lambda *args: None
 
-            child_path = "{}.{}".format(parent_path, child_name)
+            child_path = f"{parent_path}.{child_name}"
             self._node_paths[child_id] = child_path
             self._add_children_recreated_from_config(
                 obj_child, child_proto, child_id

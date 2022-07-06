@@ -101,10 +101,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
             ends.append(time.time())
 
         avg_time = np.mean(np.array(ends) - np.array(starts))
-        name = "normalization_adapt|%s_elements|batch_%s" % (
-            num_elements,
-            batch_size,
-        )
+        name = f"normalization_adapt|{num_elements}_elements|batch_{batch_size}"
         baseline = self.run_dataset_implementation(num_elements, batch_size)
         extras = {
             "tf.data implementation baseline": baseline,

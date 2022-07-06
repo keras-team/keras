@@ -375,7 +375,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             # checks that all keyword arguments are non-negative.
             if kwargs[k] is not None and kwargs[k] < 0:
                 raise ValueError(
-                    "Expected {} >= 0, received: {}".format(k, kwargs[k])
+                    f"Expected {k} >= 0, received: {kwargs[k]}"
                 )
             if k == "lr":
                 warnings.warn(
@@ -404,8 +404,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         decay = kwargs.pop("decay", 0.0)
         if decay < 0.0:
             raise ValueError(
-                "decay cannot be less than 0. "
-                "Received: decay={}.".format(decay)
+                f"decay cannot be less than 0. Received: decay={decay}."
             )
         self._initial_decay = decay
 
@@ -1051,11 +1050,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
                 with strategy.extended.colocate_vars_with(var):
                     weight = tf.Variable(
-                        name="%s/%s"
-                        % (
-                            var._shared_name,
-                            slot_name,
-                        ),
+                        name=f"{var._shared_name}/{slot_name}",
                         dtype=var.dtype,
                         trainable=False,
                         initial_value=initial_value,

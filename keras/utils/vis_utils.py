@@ -216,9 +216,9 @@ def model_to_dot(
                 sub_w_last_node[layer.layer.name] = sub_w_nodes[-1]
                 dot.add_subgraph(submodel_wrapper)
             else:
-                layer_name = "{}({})".format(layer_name, layer.layer.name)
+                layer_name = f"{layer_name}({layer.layer.name})"
                 child_class_name = layer.layer.__class__.__name__
-                class_name = "{}({})".format(class_name, child_class_name)
+                class_name = f"{class_name}({child_class_name})"
 
         if expand_nested and isinstance(layer, functional.Functional):
             submodel_not_wrapper = model_to_dot(
@@ -255,7 +255,7 @@ def model_to_dot(
 
         # Rebuild the label as a table including the layer's name.
         if show_layer_names:
-            label = "%s|%s" % (layer_name, label)
+            label = f"{layer_name}|{label}"
 
         # Rebuild the label as a table including the layer's dtype.
         if show_dtype:
@@ -266,7 +266,7 @@ def model_to_dot(
                 else:
                     return str(dtype)
 
-            label = "%s|%s" % (label, format_dtype(layer.dtype))
+            label = f"{label}|{format_dtype(layer.dtype)}"
 
         # Rebuild the label as a table including input/output shapes.
         if show_shapes:

@@ -68,7 +68,7 @@ class _ObjectIdentityWrapper:
         return id(self._wrapped)
 
     def __repr__(self):
-        return "<{} wrapping {!r}>".format(type(self).__name__, self._wrapped)
+        return f"<{type(self).__name__} wrapping {self._wrapped!r}>"
 
 
 class _WeakObjectIdentityWrapper(_ObjectIdentityWrapper):
@@ -152,7 +152,7 @@ class ObjectIdentityDictionary(collections.abc.MutableMapping):
             yield key.unwrapped
 
     def __repr__(self):
-        return "ObjectIdentityDictionary(%s)" % repr(self._storage)
+        return f"ObjectIdentityDictionary({repr(self._storage)})"
 
 
 class ObjectIdentityWeakKeyDictionary(ObjectIdentityDictionary):

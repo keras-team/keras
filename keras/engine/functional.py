@@ -422,7 +422,7 @@ class Functional(training_lib.Model):
             proposal = layer.name
             while proposal in output_names:
                 existing_count = prefix_count.get(layer.name, 1)
-                proposal = "{}_{}".format(layer.name, existing_count)
+                proposal = f"{layer.name}_{existing_count}"
                 prefix_count[layer.name] = existing_count + 1
             output_names.add(proposal)
             uniquified.append(proposal)
@@ -589,14 +589,14 @@ class Functional(training_lib.Model):
                     for j, shape in enumerate(
                         tf.nest.flatten(layer_output_shapes)
                     ):
-                        shape_key = layer.name + "_%s_%s" % (node_index, j)
+                        shape_key = layer.name + f"_{node_index}_{j}"
                         layers_to_output_shapes[shape_key] = shape
 
             # Read final output shapes from layers_to_output_shapes.
             output_shapes = []
             for i in range(len(self._output_layers)):
                 layer, node_index, tensor_index = self._output_coordinates[i]
-                shape_key = layer.name + "_%s_%s" % (node_index, tensor_index)
+                shape_key = layer.name + f"_{node_index}_{tensor_index}"
                 output_shapes.append(layers_to_output_shapes[shape_key])
             output_shapes = tf.nest.pack_sequence_as(
                 self._nested_outputs, output_shapes
@@ -1622,7 +1622,7 @@ class ModuleWrapper(base_layer.Layer):
                 method_name = "call"
         if method_name is None or not hasattr(module, method_name):
             raise ValueError(
-                "{} is not defined on object {}".format(method_name, module)
+                f"{method_name} is not defined on object {module}"
             )
 
         self._module = module

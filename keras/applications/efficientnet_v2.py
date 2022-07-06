@@ -1032,7 +1032,7 @@ def EfficientNetV2(
                 activation=activation,
                 bn_momentum=bn_momentum,
                 survival_probability=drop_connect_rate * b / blocks,
-                name="block{}{}_".format(i + 1, chr(j + 97)),
+                name=f"block{i + 1}{chr(j + 97)}_",
                 **args,
             )(x)
             b += 1

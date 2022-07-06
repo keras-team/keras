@@ -553,7 +553,7 @@ def get_small_mlp(num_hidden, num_classes, input_dim):
         return get_small_sequential_mlp(num_hidden, num_classes, input_dim)
     if model_type == "functional":
         return get_small_functional_mlp(num_hidden, num_classes, input_dim)
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 class _SubclassModel(models.Model):
@@ -582,7 +582,7 @@ class _SubclassModel(models.Model):
             self._set_inputs(inputs)
 
     def _layer_name_for_i(self, i):
-        return "layer{}".format(i)
+        return f"layer{i}"
 
     def call(self, inputs, **kwargs):
         x = inputs
@@ -691,7 +691,7 @@ def get_model_from_layers(
             outputs = layer(outputs)
         return models.Model(inputs, outputs, name=name)
 
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 class Bias(layers.Layer):
@@ -927,7 +927,7 @@ def get_multi_io_model(
 
         return models.Model(inputs, outputs)
 
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 _V2_OPTIMIZER_MAP = {
@@ -1169,7 +1169,7 @@ def generate_combinations_with_testcase_name(**kwargs):
         named_combinations.append(
             collections.OrderedDict(
                 list(combination.items())
-                + [("testcase_name", "_test{}".format(name))]
+                + [("testcase_name", f"_test{name}")]
             )
         )
 

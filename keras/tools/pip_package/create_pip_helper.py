@@ -119,8 +119,7 @@ def verify_python_files_in_pip(pip_root, bazel_root):
             if path_exists and file_excluded:
                 raise PipPackagingError(
                     (
-                        "File in PIP_EXCLUDED_FILES included in pip. %s"
-                        % file_name
+                        f"File in PIP_EXCLUDED_FILES included in pip. {file_name}"
                     )
                 )
 

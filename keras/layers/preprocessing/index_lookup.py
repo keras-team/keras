@@ -470,7 +470,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         if isinstance(vocabulary, str):
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
-                    "Vocabulary file {} does not exist.".format(vocabulary)
+                    f"Vocabulary file {vocabulary} does not exist."
                 )
             if self.output_mode == TF_IDF:
                 raise ValueError(
@@ -504,9 +504,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         if vocabulary.size == 0:
             raise ValueError(
-                "Cannot set an empty vocabulary, you passed {}.".format(
-                    vocabulary
-                )
+                f"Cannot set an empty vocabulary, you passed {vocabulary}."
             )
 
         oov_start = self._oov_start_index()

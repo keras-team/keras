@@ -304,8 +304,7 @@ class Model(training_lib.Model):
         unknown_kwargs = set(kwargs.keys()) - allowed_kwargs
         if unknown_kwargs:
             raise TypeError(
-                "Invalid keyword argument(s) in `compile`: %s"
-                % (unknown_kwargs,)
+                f"Invalid keyword argument(s) in `compile`: {unknown_kwargs}"
             )
         self._function_kwargs = kwargs
         if self._function_kwargs:
@@ -2052,10 +2051,7 @@ class Model(training_lib.Model):
             # want to prepend the output name even if we are loading a
             # serialized model.
             if not getattr(metric_fn, "_from_serialized", False):
-                metric_name = "%s_%s" % (
-                    self.output_names[output_index],
-                    metric_name,
-                )
+                metric_name = f"{self.output_names[output_index]}_{metric_name}"
 
         j = 1
         base_metric_name = metric_name

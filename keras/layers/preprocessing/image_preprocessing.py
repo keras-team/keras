@@ -917,8 +917,7 @@ class RandomTranslation(BaseImageAugmentationLayer):
             )
         if abs(self.width_lower) > 1.0 or abs(self.width_upper) > 1.0:
             raise ValueError(
-                "`width_factor` must have values between [-1, 1], "
-                "got {}".format(width_factor)
+                f"`width_factor` must have values between [-1, 1], got {width_factor}"
             )
 
         check_fill_mode_and_interpolation(fill_mode, interpolation)
@@ -1265,7 +1264,7 @@ class RandomRotation(BaseImageAugmentationLayer):
             self.upper = factor
         if self.upper < self.lower:
             raise ValueError(
-                "Factor cannot have negative values, " "got {}".format(factor)
+                f"Factor cannot have negative values, got {factor}"
             )
         check_fill_mode_and_interpolation(fill_mode, interpolation)
         self.fill_mode = fill_mode
@@ -1653,8 +1652,7 @@ class RandomContrast(BaseImageAugmentationLayer):
             self.lower = self.upper = factor
         if self.lower < 0.0 or self.upper < 0.0 or self.lower > 1.0:
             raise ValueError(
-                "Factor cannot have negative values or greater than 1.0,"
-                " got {}".format(factor)
+                f"Factor cannot have negative values or greater than 1.0, got {factor}"
             )
         self.seed = seed
 
@@ -1904,13 +1902,11 @@ class RandomHeight(BaseImageAugmentationLayer):
 
         if self.height_upper < self.height_lower:
             raise ValueError(
-                "`factor` cannot have upper bound less than "
-                "lower bound, got {}".format(factor)
+                f"`factor` cannot have upper bound less than lower bound, got {factor}"
             )
         if self.height_lower < -1.0 or self.height_upper < -1.0:
             raise ValueError(
-                "`factor` must have values larger than -1, "
-                "got {}".format(factor)
+                f"`factor` must have values larger than -1, got {factor}"
             )
         self.interpolation = interpolation
         self._interpolation_method = image_utils.get_interpolation(
@@ -2028,13 +2024,11 @@ class RandomWidth(BaseImageAugmentationLayer):
             self.width_upper = factor
         if self.width_upper < self.width_lower:
             raise ValueError(
-                "`factor` cannot have upper bound less than "
-                "lower bound, got {}".format(factor)
+                f"`factor` cannot have upper bound less than lower bound, got {factor}"
             )
         if self.width_lower < -1.0 or self.width_upper < -1.0:
             raise ValueError(
-                "`factor` must have values larger than -1, "
-                "got {}".format(factor)
+                f"`factor` must have values larger than -1, got {factor}"
             )
         self.interpolation = interpolation
         self._interpolation_method = image_utils.get_interpolation(

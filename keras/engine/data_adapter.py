@@ -119,7 +119,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
         """
         if not self.can_handle(x, y):
             raise ValueError(
-                "{} Cannot handle input {}, {}".format(self.__class__, x, y)
+                f"{self.__class__} Cannot handle input {x}, {y}"
             )
 
     @abc.abstractmethod
@@ -1100,12 +1100,10 @@ def _type_name(x):
     if isinstance(x, dict):
         key_types = set(_type_name(key) for key in x.keys())
         val_types = set(_type_name(key) for key in x.values())
-        return "({} containing {} keys and {} values)".format(
-            type(x), key_types, val_types
-        )
+        return f"({type(x)} containing {key_types} keys and {val_types} values)"
     if isinstance(x, (list, tuple)):
         types = set(_type_name(val) for val in x)
-        return "({} containing values of types {})".format(type(x), types)
+        return f"({type(x)} containing values of types {types})"
     return str(type(x))
 
 

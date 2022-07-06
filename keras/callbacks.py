@@ -323,7 +323,7 @@ class CallbackList:
 
     def _call_batch_begin_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_begin` methods."""
-        hook_name = "on_{mode}_batch_begin".format(mode=mode)
+        hook_name = f"on_{mode}_batch_begin"
         self._call_batch_hook_helper(hook_name, batch, logs)
 
         if self._check_timing:
@@ -331,7 +331,7 @@ class CallbackList:
 
     def _call_batch_end_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_end` methods."""
-        hook_name = "on_{mode}_batch_end".format(mode=mode)
+        hook_name = f"on_{mode}_batch_end"
 
         if self._check_timing and batch >= 1:
             batch_time = time.time() - self._batch_start_time
@@ -341,7 +341,7 @@ class CallbackList:
 
         if len(self._batch_times) >= self._num_batches_for_timing_check:
             end_hook_name = hook_name
-            begin_hook_name = "on_{mode}_batch_begin".format(mode=mode)
+            begin_hook_name = f"on_{mode}_batch_begin"
             avg_batch_time = sum(self._batch_times) / len(self._batch_times)
             avg_end_hook_time = sum(self._hook_times[end_hook_name]) / len(
                 self._hook_times[end_hook_name]
@@ -2846,7 +2846,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         embeddings_ckpt = os.path.join(
             self._log_write_dir,
             "train",
-            "keras_embedding.ckpt-{}".format(epoch),
+            f"keras_embedding.ckpt-{epoch}",
         )
         self.model.save_weights(embeddings_ckpt)
 
@@ -3073,7 +3073,7 @@ class CSVLogger(Callback):
                 isinstance(k, collections.abc.Iterable)
                 and not is_zero_dim_ndarray
             ):
-                return '"[%s]"' % (", ".join(map(str, k)))
+                return f"\"[{', '.join(map(str, k))}]\""
             else:
                 return k
 

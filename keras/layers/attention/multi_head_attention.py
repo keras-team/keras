@@ -80,17 +80,9 @@ def _build_attention_equation(rank, attn_axes):
         + [target_notation[i] for i in attn_axes]
         + [source_notation[i] for i in attn_axes]
     )
-    dot_product_equation = "%s,%s->%s" % (
-        source_notation,
-        target_notation,
-        product_notation,
-    )
+    dot_product_equation = f"{source_notation},{target_notation}->{product_notation}"
     attn_scores_rank = len(product_notation)
-    combine_equation = "%s,%s->%s" % (
-        product_notation,
-        source_notation,
-        target_notation,
-    )
+    combine_equation = f"{product_notation},{source_notation}->{target_notation}"
     return dot_product_equation, combine_equation, attn_scores_rank
 
 
@@ -118,7 +110,7 @@ def _build_proj_equation(free_dims, bound_dims, output_dims):
         kernel_str += char
         output_str += char
         bias_axes += char
-    equation = "%s,%s->%s" % (input_str, kernel_str, output_str)
+    equation = f"{input_str},{kernel_str}->{output_str}"
 
     return equation, bias_axes, len(output_str)
 

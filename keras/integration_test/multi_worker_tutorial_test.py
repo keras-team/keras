@@ -85,7 +85,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
                 raise
 
     def mnist_dataset(self):
-        path_to_use = "mnist_{}.npz".format(str(uuid.uuid4()))
+        path_to_use = f"mnist_{str(uuid.uuid4())}.npz"
         with self.skip_fetch_failure_exception():
             (x_train, y_train), _ = tf.keras.datasets.mnist.load_data(
                 path=path_to_use

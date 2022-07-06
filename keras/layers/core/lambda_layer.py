@@ -229,7 +229,7 @@ class Lambda(Layer):
         ]
         if untracked_new_vars:
             variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_new_vars
+                f"  {i}" for i in untracked_new_vars
             )
             error_str = textwrap.dedent(
                 """
@@ -249,7 +249,7 @@ class Lambda(Layer):
         ]
         if untracked_used_vars and not self._already_warned:
             variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_used_vars
+                f"  {i}" for i in untracked_used_vars
             )
             self._warn(
                 textwrap.dedent(
@@ -316,7 +316,7 @@ class Lambda(Layer):
             module = None
         else:
             raise ValueError(
-                "Invalid input for serialization, type: %s " % type(inputs)
+                f"Invalid input for serialization, type: {type(inputs)} "
             )
 
         return output, output_type, module

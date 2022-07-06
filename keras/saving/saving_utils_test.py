@@ -273,9 +273,7 @@ def _import_and_infer(save_dir, inputs):
         ]
         assert set(inputs.keys()) == set(
             signature.inputs.keys()
-        ), "expected {}, found {}".format(
-            signature.inputs.keys(), inputs.keys()
-        )
+        ), f"expected {signature.inputs.keys()}, found {inputs.keys()}"
         feed_dict = {}
         for arg_name in inputs.keys():
             feed_dict[

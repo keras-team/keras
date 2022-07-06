@@ -40,10 +40,10 @@ class ParameterServerCustomTrainingLoopTest(tf.test.TestCase):
 
         cluster_dict = {}
         cluster_dict["worker"] = [
-            "localhost:%s" % port for port in worker_ports
+            f"localhost:{port}" for port in worker_ports
         ]
         if num_ps > 0:
-            cluster_dict["ps"] = ["localhost:%s" % port for port in ps_ports]
+            cluster_dict["ps"] = [f"localhost:{port}" for port in ps_ports]
 
         cluster_spec = tf.train.ClusterSpec(cluster_dict)
 

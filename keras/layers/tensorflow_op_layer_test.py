@@ -219,7 +219,7 @@ def _float64_op():
     inputs = keras.Input(shape=(10,))
     x = keras.layers.Dense(10, dtype="float64")(inputs)
     x = tf.nn.relu(x)
-    assert x.dtype == "float64", "x has dtype: %s" % x.dtype
+    assert x.dtype == "float64", f"x has dtype: {x.dtype}"
     outputs = keras.layers.Dense(10)(x)
     return keras.Model(inputs, outputs)
 

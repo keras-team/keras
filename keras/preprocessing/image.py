@@ -1028,7 +1028,7 @@ class DataFrameIterator(BatchFromFilesMixin, Iterator):
         # check that filenames/filepaths column values are all strings
         if not all(df[x_col].apply(lambda x: isinstance(x, str))):
             raise TypeError(
-                "All values in column x_col={} must be strings.".format(x_col)
+                f"All values in column x_col={x_col} must be strings."
             )
         # check labels are string if class_mode is binary or sparse
         if self.class_mode in {"binary", "sparse"}:
@@ -1069,14 +1069,12 @@ class DataFrameIterator(BatchFromFilesMixin, Iterator):
             None,
         }:
             warnings.warn(
-                '`classes` will be ignored given the class_mode="{}"'.format(
-                    self.class_mode
-                )
+                f'`classes` will be ignored given the class_mode="{self.class_mode}"'
             )
         # check that if weight column that the values are numerical
         if weight_col and not issubclass(df[weight_col].dtype.type, np.number):
             raise TypeError(
-                "Column weight_col={} must be numeric.".format(weight_col)
+                f"Column weight_col={weight_col} must be numeric."
             )
 
     def get_classes(self, df, y_col):
