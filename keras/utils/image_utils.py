@@ -29,18 +29,24 @@ from tensorflow.python.util.tf_export import keras_export
 
 try:
     from PIL import Image as pil_image
+
+    try:
+        pil_image_resampling = pil_image.Resampling
+    except AttributeError:
+        pil_image_resampling = pil_image
 except ImportError:
     pil_image = None
+    pil_image_resampling = None
 
 
-if pil_image is not None:
+if pil_image_resampling is not None:
     _PIL_INTERPOLATION_METHODS = {
-        "nearest": pil_image.NEAREST,
-        "bilinear": pil_image.BILINEAR,
-        "bicubic": pil_image.BICUBIC,
-        "hamming": pil_image.HAMMING,
-        "box": pil_image.BOX,
-        "lanczos": pil_image.LANCZOS,
+        "nearest": pil_image_resampling.NEAREST,
+        "bilinear": pil_image_resampling.BILINEAR,
+        "bicubic": pil_image_resampling.BICUBIC,
+        "hamming": pil_image_resampling.HAMMING,
+        "box": pil_image_resampling.BOX,
+        "lanczos": pil_image_resampling.LANCZOS,
     }
 
 ResizeMethod = tf.image.ResizeMethod
