@@ -592,6 +592,21 @@ class _BaseOptimizer(tf.Module):
                 )
         return cls(**config)
 
+    @doc_controls.do_not_generate_docs
+    def variables(self):
+        """Returns variables of this Optimizer.
+
+        We override the `variable` property method of `tf.Module` for the
+        sake of backward compatibility with `optimizer_v2.Optimizer`'s
+        `variable()` method.
+        """
+        return tuple(
+            self._flatten(
+                predicate=lambda obj: isinstance(obj, tf.Variable),
+                expand_composites=True,
+            )
+        )
+
 
 base_optimizer_keyword_args = """name: String. The name to use
         for momentum accumulator weights created by
