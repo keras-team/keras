@@ -15,10 +15,11 @@
 """Legacy Adam optimizer implementation."""
 
 from keras.optimizers.optimizer_v2 import optimizer_v2
-# pylint: disable=g-direct-tensorflow-import
+
+# isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.optimizers.legacy.Optimizer')
+@keras_export("keras.optimizers.legacy.Optimizer")
 class Optimizer(optimizer_v2.OptimizerV2):
-  pass
+    pass

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=protected-access
+
 """Model saving utilities.
 
 Everything has been moved to keras/saving/. This file will be deleted soon.
 """
 
-from keras.saving import *  # pylint: disable=wildcard-import
+from keras.saving import *  # noqa: F401,F403

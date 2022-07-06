@@ -3,8 +3,8 @@ tf_class {
   is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.autotrackable.AutoTrackable\'>"
-  is_instance: "<class \'tensorflow.python.training.tracking.base.Trackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.autotrackable.AutoTrackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.base.Trackable\'>"
   is_instance: "<class \'keras.utils.version_utils.LayerVersionSelector\'>"
   is_instance: "<type \'object\'>"
   member {
@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'seed\', \'force_generator\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\'], "
+    argspec: "args=[\'self\', \'seed\', \'force_generator\', \'rng_type\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\', \'None\'], "
   }
   member_method {
     name: "add_loss"

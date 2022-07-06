@@ -14,52 +14,60 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.image_preprocessing."""
 
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 import keras
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-import numpy as np
-import tensorflow.compat.v2 as tf
 
 
 @test_utils.run_v2_only
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        strategy=strategy_combinations.all_strategies +
-        strategy_combinations.multi_worker_mirrored_strategies,
-        mode=["eager"]))
+        strategy=strategy_combinations.all_strategies
+        + strategy_combinations.multi_worker_mirrored_strategies,
+        mode=["eager"],
+    )
+)
 class ImagePreprocessingDistributionTest(
-    test_combinations.TestCase,
-    preprocessing_test_utils.PreprocessingLayerTest):
+    test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
+):
+    def test_distribution(self, strategy):
+        if "CentralStorage" in type(strategy).__name__:
+            self.skipTest("Does not work with CentralStorageStrategy yet.")
+        # TODO(b/159738418): large image input causes OOM in ubuntu multi gpu.
+        np_images = np.random.random((32, 32, 32, 3)).astype(np.float32)
+        image_dataset = tf.data.Dataset.from_tensor_slices(np_images).batch(
+            16, drop_remainder=True
+        )
 
-  def test_distribution(self, strategy):
-    if "CentralStorage" in type(strategy).__name__:
-      self.skipTest("Does not work with CentralStorageStrategy yet.")
-    # TODO(b/159738418): large image input causes OOM in ubuntu multi gpu.
-    np_images = np.random.random((32, 32, 32, 3)).astype(np.float32)
-    image_dataset = tf.data.Dataset.from_tensor_slices(np_images).batch(
-        16, drop_remainder=True)
-
-    with strategy.scope():
-      input_data = keras.Input(shape=(32, 32, 3), dtype=tf.float32)
-      image_preprocessor = keras.Sequential([
-          image_preprocessing.Resizing(height=256, width=256),
-          image_preprocessing.RandomCrop(height=224, width=224),
-          image_preprocessing.RandomTranslation(.1, .1),
-          image_preprocessing.RandomBrightness(.1, value_range=(0, 1)),
-          image_preprocessing.RandomRotation(.2),
-          image_preprocessing.RandomFlip(),
-          image_preprocessing.RandomZoom(.2, .2)])
-      preprocessed_image = image_preprocessor(input_data)
-      flatten_layer = keras.layers.Flatten(data_format="channels_last")
-      output = flatten_layer(preprocessed_image)
-      cls_layer = keras.layers.Dense(units=1, activation="sigmoid")
-      output = cls_layer(output)
-      model = keras.Model(inputs=input_data, outputs=output)
-    _ = model.predict(image_dataset)
+        with strategy.scope():
+            input_data = keras.Input(shape=(32, 32, 3), dtype=tf.float32)
+            image_preprocessor = keras.Sequential(
+                [
+                    image_preprocessing.Resizing(height=256, width=256),
+                    image_preprocessing.RandomCrop(height=224, width=224),
+                    image_preprocessing.RandomTranslation(0.1, 0.1),
+                    image_preprocessing.RandomBrightness(
+                        0.1, value_range=(0, 1)
+                    ),
+                    image_preprocessing.RandomRotation(0.2),
+                    image_preprocessing.RandomFlip(),
+                    image_preprocessing.RandomZoom(0.2, 0.2),
+                ]
+            )
+            preprocessed_image = image_preprocessor(input_data)
+            flatten_layer = keras.layers.Flatten(data_format="channels_last")
+            output = flatten_layer(preprocessed_image)
+            cls_layer = keras.layers.Dense(units=1, activation="sigmoid")
+            output = cls_layer(output)
+            model = keras.Model(inputs=input_data, outputs=output)
+        _ = model.predict(image_dataset)
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+    tf.__internal__.distribute.multi_process_runner.test_main()

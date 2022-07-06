@@ -182,7 +182,11 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorflow_installed",
+        "//keras/saving/experimental",
         "//keras/utils:engine_utils",
+        "//keras/utils:generic_utils",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -206,6 +210,20 @@ py_library(
 #     srcs = ["google/url_utils.py"],
 #     srcs_version = "PY3",
 #     deps = ["//pyglib/contrib/google_ssl"],
+# )
+# copybara:uncomment_end
+
+# Some tf.distribute related feature requires detecting platform.
+# Internally we'd like to recognize Borg, which is not needed in OSS.
+# copybara:uncomment_begin(google-only)
+# py_library(
+#     name = "distribute_utils",
+#     srcs = ["google/distribute_utils.py"],
+#     deps = [
+#         "//:expect_six_installed",
+#         "//:expect_tensorflow_installed",
+#         "//third_party/py/requests",
+#     ],
 # )
 # copybara:uncomment_end
 
@@ -297,7 +315,10 @@ tf_py_test(
     size = "medium",
     srcs = ["callbacks_v1_test.py"],
     python_version = "PY3",
-    tags = ["notsan"],
+    tags = [
+        "nomac",  # Using profiler causes segfault in MacOS runs.
+        "notsan",
+    ],
     deps = [
         ":callbacks",
         ":callbacks_v1",
@@ -350,6 +371,20 @@ tf_py_test(
 #     deps = [
 #         ":url_utils",
 #         "//:expect_tensorflow_installed",
+#         "//testing/pymocks:matchers",
+#     ],
+# )
+# copybara:uncomment_end
+
+# copybara:uncomment_begin(google-only)
+# tf_py_test(
+#     name = "distribute_utils_test",
+#     srcs = ["google/distribute_utils_test.py"],
+#     python_version = "PY3",
+#     deps = [
+#         ":distribute_utils",
+#         "//:expect_tensorflow_installed",
+#         "//keras/distribute",
 #         "//testing/pymocks:matchers",
 #     ],
 # )

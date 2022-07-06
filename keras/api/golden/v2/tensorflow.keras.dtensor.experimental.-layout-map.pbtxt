@@ -35,12 +35,16 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "scope"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "setdefault"
     argspec: "args=[\'self\', \'key\', \'default\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "update"
-    argspec: "args=[], varargs=args, keywords=kwds, defaults=None"
+    argspec: "args=[\'self\', \'other\'], varargs=None, keywords=kwds, defaults=[\'()\'], "
   }
   member_method {
     name: "values"

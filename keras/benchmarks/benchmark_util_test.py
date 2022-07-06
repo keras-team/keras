@@ -20,30 +20,29 @@ from keras.benchmarks import benchmark_util
 
 
 class BenchmarkUtilTest(tf.test.TestCase):
+    def test_get_benchmark_name(self):
+        name = "benchmark_layer_call__Conv2D_small_shape"
+        expected = ["Conv2D", "small", "shape"]
+        out = benchmark_util.get_benchmark_name(name)
+        self.assertAllEqual(out, expected)
 
-  def test_get_benchmark_name(self):
-    name = "benchmark_layer_call__Conv2D_small_shape"
-    expected = ["Conv2D", "small", "shape"]
-    out = benchmark_util.get_benchmark_name(name)
-    self.assertAllEqual(out, expected)
+    def test_generate_benchmark_params_cpu_gpu(self):
+        adam_opt = tf.keras.optimizers.Adam()
+        sgd_opt = tf.keras.optimizers.SGD()
+        params = [
+            ("Adam", adam_opt, 10),
+            ("SGD", sgd_opt, 10),
+        ]
+        expected = [
+            ("Adam_CPU", adam_opt, 10),
+            ("SGD_CPU", sgd_opt, 10),
+            ("Adam_GPU", adam_opt, 10),
+            ("SGD_GPU", sgd_opt, 10),
+        ]
 
-  def test_generate_benchmark_params_cpu_gpu(self):
-    adam_opt = tf.keras.optimizers.Adam()
-    sgd_opt = tf.keras.optimizers.SGD()
-    params = [
-        ("Adam", adam_opt, 10),
-        ("SGD", sgd_opt, 10),
-    ]
-    expected = [
-        ("Adam_CPU", adam_opt, 10),
-        ("SGD_CPU", sgd_opt, 10),
-        ("Adam_GPU", adam_opt, 10),
-        ("SGD_GPU", sgd_opt, 10),
-    ]
-
-    out = benchmark_util.generate_benchmark_params_cpu_gpu(params)
-    self.assertAllEqual(out, expected)
+        out = benchmark_util.generate_benchmark_params_cpu_gpu(params)
+        self.assertAllEqual(out, expected)
 
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()

@@ -62,11 +62,7 @@ tf_module {
   }
   member_method {
     name: "binary_focal_crossentropy"
-    argspec: "args=[\'target\', \'output\', \'gamma\', \'from_logits\'], varargs=None, keywords=None, defaults=[\'2.0\', \'False\'], "
-  }
-  member_method {
-    name: "binary_weighted_focal_crossentropy"
-    argspec: "args=[\'target\', \'output\', \'alpha\', \'gamma\', \'from_logits\'], varargs=None, keywords=None, defaults=[\'0.25\', \'2.0\', \'False\'], "
+    argspec: "args=[\'target\', \'output\', \'apply_class_balancing\', \'alpha\', \'gamma\', \'from_logits\'], varargs=None, keywords=None, defaults=[\'False\', \'0.25\', \'2.0\', \'False\'], "
   }
   member_method {
     name: "cast"

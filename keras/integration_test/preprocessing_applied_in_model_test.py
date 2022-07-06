@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+
 from keras.integration_test import preprocessing_test_utils as utils
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -42,37 +43,44 @@ STRATEGIES = [
 
 
 @ds_combinations.generate(
-    test_combinations.combine(strategy=STRATEGIES, mode="eager"))
+    test_combinations.combine(strategy=STRATEGIES, mode="eager")
+)
 class PreprocessingAppliedInModelTest(tf.test.TestCase):
-  """Demonstrate Keras preprocessing layers applied inside a Model."""
+    """Demonstrate Keras preprocessing layers applied inside a Model."""
 
-  def testDistributedModelFit(self, strategy):
-    if (not tf.__internal__.tf2.enabled()
-        and isinstance(strategy,
-                       tf.distribute.experimental.ParameterServerStrategy)):
-      self.skipTest(
-          "Parameter Server strategy with dataset creator need to be run when "
-          "eager execution is enabled.")
-    with strategy.scope():
-      preprocessing_model = utils.make_preprocessing_model(self.get_temp_dir())
-      training_model = utils.make_training_model()
-      # Merge the two separate models into a single model for training.
-      inputs = preprocessing_model.inputs
-      outputs = training_model(preprocessing_model(inputs))
-      merged_model = tf.keras.Model(inputs, outputs)
-      merged_model.compile(optimizer="sgd", loss="binary_crossentropy")
+    def testDistributedModelFit(self, strategy):
+        if not tf.__internal__.tf2.enabled() and isinstance(
+            strategy, tf.distribute.experimental.ParameterServerStrategy
+        ):
+            self.skipTest(
+                "Parameter Server strategy with dataset creator need to be run "
+                "when eager execution is enabled."
+            )
+        with strategy.scope():
+            preprocessing_model = utils.make_preprocessing_model(
+                self.get_temp_dir()
+            )
+            training_model = utils.make_training_model()
+            # Merge the two separate models into a single model for training.
+            inputs = preprocessing_model.inputs
+            outputs = training_model(preprocessing_model(inputs))
+            merged_model = tf.keras.Model(inputs, outputs)
+            merged_model.compile(optimizer="sgd", loss="binary_crossentropy")
 
-    def dataset_fn(input_context):
-      dataset = utils.make_dataset()
-      dataset = dataset.shard(input_context.num_input_pipelines,
-                              input_context.input_pipeline_id)
-      batch_size = input_context.get_per_replica_batch_size(
-          global_batch_size=utils.BATCH_SIZE)
-      return dataset.batch(batch_size).repeat().prefetch(2)
+        def dataset_fn(input_context):
+            dataset = utils.make_dataset()
+            dataset = dataset.shard(
+                input_context.num_input_pipelines,
+                input_context.input_pipeline_id,
+            )
+            batch_size = input_context.get_per_replica_batch_size(
+                global_batch_size=utils.BATCH_SIZE
+            )
+            return dataset.batch(batch_size).repeat().prefetch(2)
 
-    dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
-    merged_model.fit(dataset_creator, epochs=2, steps_per_epoch=utils.STEPS)
+        dataset_creator = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
+        merged_model.fit(dataset_creator, epochs=2, steps_per_epoch=utils.STEPS)
 
 
 if __name__ == "__main__":
-  multi_process_runner.test_main()
+    multi_process_runner.test_main()

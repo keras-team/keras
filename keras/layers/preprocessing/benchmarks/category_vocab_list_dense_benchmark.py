@@ -12,63 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Benchmark for KPL implementation of vocabulary columns from lists with dense inputs."""
+"""Benchmark for KPL implementation of vocabulary columns from lists with dense
+inputs."""
 
 import tensorflow.compat.v2 as tf
 
 import keras
-from tensorflow.python.eager.def_function import function as tf_function
 from keras.layers.preprocessing import string_lookup
-from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc_bm
+from keras.layers.preprocessing.benchmarks import (
+    feature_column_benchmark as fc_bm,
+)
+
+# isort: off
+from tensorflow.python.eager.def_function import (
+    function as tf_function,
+)
 
 NUM_REPEATS = 10
 BATCH_SIZES = [32, 256]
 
 
 def embedding_varlen(batch_size, max_length):
-  """Benchmark a variable-length embedding."""
-  # Data and constants.
-  vocab = fc_bm.create_vocabulary(32768)
-  data = fc_bm.create_string_data(
-      max_length, batch_size * NUM_REPEATS, vocab, pct_oov=0.15)
+    """Benchmark a variable-length embedding."""
+    # Data and constants.
+    vocab = fc_bm.create_vocabulary(32768)
+    data = fc_bm.create_string_data(
+        max_length, batch_size * NUM_REPEATS, vocab, pct_oov=0.15
+    )
 
-  # Keras implementation
-  model = keras.Sequential()
-  model.add(keras.Input(shape=(max_length,), name="data", dtype=tf.string))
-  model.add(string_lookup.StringLookup(vocabulary=vocab, mask_token=None))
+    # Keras implementation
+    model = keras.Sequential()
+    model.add(keras.Input(shape=(max_length,), name="data", dtype=tf.string))
+    model.add(string_lookup.StringLookup(vocabulary=vocab, mask_token=None))
 
-  # FC implementation
-  fc = tf.feature_column.categorical_column_with_vocabulary_list(
-      key="data", vocabulary_list=vocab, num_oov_buckets=1)
+    # FC implementation
+    fc = tf.feature_column.categorical_column_with_vocabulary_list(
+        key="data", vocabulary_list=vocab, num_oov_buckets=1
+    )
 
-  # Wrap the FC implementation in a tf.function for a fair comparison
-  @tf_function()
-  def fc_fn(tensors):
-    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+    # Wrap the FC implementation in a tf.function for a fair comparison
+    @tf_function()
+    def fc_fn(tensors):
+        fc.transform_feature(
+            tf.__internal__.feature_column.FeatureTransformationCache(tensors),
+            None,
+        )
 
-  # Benchmark runs
-  keras_data = {
-      "data": data.to_tensor(default_value="", shape=(batch_size, max_length))
-  }
-  k_avg_time = fc_bm.run_keras(keras_data, model, batch_size, NUM_REPEATS)
+    # Benchmark runs
+    keras_data = {
+        "data": data.to_tensor(default_value="", shape=(batch_size, max_length))
+    }
+    k_avg_time = fc_bm.run_keras(keras_data, model, batch_size, NUM_REPEATS)
 
-  fc_data = {
-      "data": data.to_tensor(default_value="", shape=(batch_size, max_length))
-  }
-  fc_avg_time = fc_bm.run_fc(fc_data, fc_fn, batch_size, NUM_REPEATS)
+    fc_data = {
+        "data": data.to_tensor(default_value="", shape=(batch_size, max_length))
+    }
+    fc_avg_time = fc_bm.run_fc(fc_data, fc_fn, batch_size, NUM_REPEATS)
 
-  return k_avg_time, fc_avg_time
+    return k_avg_time, fc_avg_time
 
 
 class BenchmarkLayer(fc_bm.LayerBenchmark):
-  """Benchmark the layer forward pass."""
+    """Benchmark the layer forward pass."""
 
-  def benchmark_layer(self):
-    for batch in BATCH_SIZES:
-      name = "vocab_list|dense|batch_%s" % batch
-      k_time, f_time = embedding_varlen(batch_size=batch, max_length=256)
-      self.report(name, k_time, f_time, NUM_REPEATS)
+    def benchmark_layer(self):
+        for batch in BATCH_SIZES:
+            name = "vocab_list|dense|batch_%s" % batch
+            k_time, f_time = embedding_varlen(batch_size=batch, max_length=256)
+            self.report(name, k_time, f_time, NUM_REPEATS)
 
 
 if __name__ == "__main__":
-  tf.test.main()
+    tf.test.main()

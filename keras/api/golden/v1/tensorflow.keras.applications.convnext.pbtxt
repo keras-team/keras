@@ -1,0 +1,31 @@
+path: "tensorflow.keras.applications.convnext"
+tf_module {
+  member_method {
+    name: "ConvNeXtBase"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_base\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtLarge"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_large\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtSmall"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_small\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtTiny"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_tiny\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtXLarge"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_xlarge\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "decode_predictions"
+    argspec: "args=[\'preds\', \'top\'], varargs=None, keywords=None, defaults=[\'5\'], "
+  }
+  member_method {
+    name: "preprocess_input"
+    argspec: "args=[\'x\', \'data_format\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+}

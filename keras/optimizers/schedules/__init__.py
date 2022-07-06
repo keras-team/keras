@@ -16,5 +16,7 @@
 
 from keras.optimizers.schedules.learning_rate_schedules import ExponentialDecay
 from keras.optimizers.schedules.learning_rate_schedules import InverseTimeDecay
-from keras.optimizers.schedules.learning_rate_schedules import PiecewiseConstantDecay
+from keras.optimizers.schedules.learning_rate_schedules import (
+    PiecewiseConstantDecay,
+)
 from keras.optimizers.schedules.learning_rate_schedules import PolynomialDecay

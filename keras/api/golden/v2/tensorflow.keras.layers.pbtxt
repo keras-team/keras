@@ -181,6 +181,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "EinsumDense"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Embedding"
     mtype: "<type \'type\'>"
   }

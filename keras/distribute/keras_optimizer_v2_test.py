@@ -14,10 +14,9 @@
 # ==============================================================================
 """Tests that show that DistributionStrategy works with optimizer v2."""
 
-import tensorflow.compat.v2 as tf
-
-from absl.testing import parameterized
 import numpy as np
+import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_v2 import adam
@@ -25,108 +24,113 @@ from keras.optimizers.optimizer_v2 import gradient_descent
 
 
 def get_model():
-  x = keras.layers.Input(shape=(3,), name='input')
-  y = keras.layers.Dense(4, name='dense')(x)
-  model = keras.Model(x, y)
-  return model
+    x = keras.layers.Input(shape=(3,), name="input")
+    y = keras.layers.Dense(4, name="dense")(x)
+    model = keras.Model(x, y)
+    return model
 
 
 class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            distribution=[
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
+            ],
+            mode=["graph", "eager"],
+        )
+    )
+    def testKerasOptimizerWithUnequalInput(self, distribution):
+        with distribution.scope():
+            var = tf.Variable(
+                2.0, name="var", aggregation=tf.VariableAggregation.SUM
+            )
+            optimizer = adam.Adam(learning_rate=0.01, beta_1=0.2, beta_2=0.2)
+            all_vars = []
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
-          distribution=[
-              tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
-          ],
-          mode=['graph', 'eager']))
-  def testKerasOptimizerWithUnequalInput(self, distribution):
-    with distribution.scope():
-      var = tf.Variable(
-          2.0, name='var', aggregation=tf.VariableAggregation.SUM)
-      optimizer = adam.Adam(learning_rate=0.01, beta_1=0.2, beta_2=0.2)
-      all_vars = []
+            def model_fn():
+                def loss_fn():
+                    replica_id = _replica_id()
+                    return tf.cast(replica_id + 1, dtype=tf.float32) * 0.5 * var
 
-      def model_fn():
+                train_op = optimizer.minimize(loss_fn, var_list=[var])
 
-        def loss_fn():
-          replica_id = _replica_id()
-          return tf.cast(replica_id + 1, dtype=tf.float32) * 0.5 * var
+                return train_op, optimizer
 
-        train_op = optimizer.minimize(loss_fn, var_list=[var])
+            def train_fn():
+                (
+                    train_op,
+                    optimizer,
+                ) = distribution.extended.call_for_each_replica(model_fn)
+                if not all_vars:
+                    all_vars.append(var)
+                    all_vars.append(optimizer.get_slot(var, "m"))
+                    all_vars.append(optimizer.get_slot(var, "v"))
+                return distribution.group(train_op)
 
-        return train_op, optimizer
+            if not tf.executing_eagerly():
+                with self.cached_session() as sess:
+                    train_fn = sess.make_callable(train_fn())
+            self.evaluate(tf.compat.v1.global_variables_initializer())
 
-      def train_fn():
-        train_op, optimizer = distribution.extended.call_for_each_replica(
-            model_fn)
-        if not all_vars:
-          all_vars.append(var)
-          all_vars.append(optimizer.get_slot(var, 'm'))
-          all_vars.append(optimizer.get_slot(var, 'v'))
-        return distribution.group(train_op)
+            # first step.
+            train_fn()
+            # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 -
+            # beta1)
+            #        = 2.0 - 0.01 * 1.2 * sqrt(0.8) / sqrt(1.8) / 0.8
+            self.assertAllClose(1.99, self.evaluate(all_vars[0]))
+            # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) /
+            # 2
+            self.assertAllClose(1.2, self.evaluate(all_vars[1]))
+            # v(1) = beta2 * v(0) + (1-beta2) * grad^2 = 0.2 * 0 + 0.8 * 2.25
+            self.assertAllClose(1.8, self.evaluate(all_vars[2]))
 
-      if not tf.executing_eagerly():
-        with self.cached_session() as sess:
-          train_fn = sess.make_callable(train_fn())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+            # second step.
+            train_fn()
+            # var(1) = var(0) - lr * 2 = 1.98
+            self.assertAllClose(1.98, self.evaluate(all_vars[0]))
+            # m(2) = beta1 * m(1) + (1-beta1) * grad = 0.2 * 1.2 + 0.8 * 1.5
+            self.assertAllClose(1.44, self.evaluate(all_vars[1]))
+            # v(2) = beta2 * v(1) + (1-beta2) * grad^2 = 0.2 * 1.8 + 0.8 * 2.25
+            self.assertAllClose(2.16, self.evaluate(all_vars[2]))
 
-      # first step.
-      train_fn()
-      # var(1) = var(0) - lr * m(1) * sqrt(1 - beta2) / sqrt(v(1)) / (1 - beta1)
-      #        = 2.0 - 0.01 * 1.2 * sqrt(0.8) / sqrt(1.8) / 0.8
-      self.assertAllClose(1.99, self.evaluate(all_vars[0]))
-      # m(1) = beta1 * m(0) + (1-beta1) * grad = 0.2 * 0 + 0.8 * (1 + 2) / 2
-      self.assertAllClose(1.2, self.evaluate(all_vars[1]))
-      # v(1) = beta2 * v(0) + (1-beta2) * grad^2 = 0.2 * 0 + 0.8 * 2.25
-      self.assertAllClose(1.8, self.evaluate(all_vars[2]))
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            distribution=[
+                tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,  # noqa: E501
+            ],
+            mode=["graph", "eager"],
+        )
+    )
+    def testOptimizerWithKerasModelAndNumpyArrays(self, distribution):
+        with self.cached_session():
+            with distribution.scope():
+                model = get_model()
+                optimizer = gradient_descent.SGD(0.001)
+                loss = "mse"
+                metrics = ["mae"]
+                model.compile(optimizer, loss, metrics=metrics)
 
-      # second step.
-      train_fn()
-      # var(1) = var(0) - lr * 2 = 1.98
-      self.assertAllClose(1.98, self.evaluate(all_vars[0]))
-      # m(2) = beta1 * m(1) + (1-beta1) * grad = 0.2 * 1.2 + 0.8 * 1.5
-      self.assertAllClose(1.44, self.evaluate(all_vars[1]))
-      # v(2) = beta2 * v(1) + (1-beta2) * grad^2 = 0.2 * 1.8 + 0.8 * 2.25
-      self.assertAllClose(2.16, self.evaluate(all_vars[2]))
+            inputs = np.zeros((64, 3), dtype=np.float32)
+            targets = np.zeros((64, 4), dtype=np.float32)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
-          distribution=[
-              tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
-          ],
-          mode=['graph', 'eager']))
-  def testOptimizerWithKerasModelAndNumpyArrays(self, distribution):
-    with self.cached_session():
-      with distribution.scope():
-        model = get_model()
-        optimizer = gradient_descent.SGD(0.001)
-        loss = 'mse'
-        metrics = ['mae']
-        model.compile(
-            optimizer,
-            loss,
-            metrics=metrics)
-
-      inputs = np.zeros((64, 3), dtype=np.float32)
-      targets = np.zeros((64, 4), dtype=np.float32)
-
-      model.fit(
-          inputs,
-          targets,
-          epochs=1,
-          batch_size=2,
-          verbose=0,
-          validation_data=(inputs, targets))
-      model.evaluate(inputs, targets)
-      model.predict(inputs)
+            model.fit(
+                inputs,
+                targets,
+                epochs=1,
+                batch_size=2,
+                verbose=0,
+                validation_data=(inputs, targets),
+            )
+            model.evaluate(inputs, targets)
+            model.predict(inputs)
 
 
 def _replica_id():
-  replica_id = tf.distribute.get_replica_context().replica_id_in_sync_group
-  if not isinstance(replica_id, tf.Tensor):
-    replica_id = tf.constant(replica_id)
-  return replica_id
+    replica_id = tf.distribute.get_replica_context().replica_id_in_sync_group
+    if not isinstance(replica_id, tf.Tensor):
+        replica_id = tf.constant(replica_id)
+    return replica_id
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

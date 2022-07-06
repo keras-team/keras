@@ -23,58 +23,59 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+
 import setuptools
 
-DOCLINES = __doc__.split('\n')
+DOCLINES = __doc__.split("\n")
 
 # This version string is semver compatible, but incompatible with pip.
 # For pip, we will remove all '-' characters from this string, and use the
 # result for pip.
-_VERSION = '2.10.0'
+_VERSION = "2.10.0"
 
 REQUIRED_PACKAGES = [
     # We depend on TensorFlow's declared pip dependencies.
     # Add a new dep there if one is needed.
 ]
 
-project_name = 'keras'
-if '--project_name' in sys.argv:
-  project_name_idx = sys.argv.index('--project_name')
-  project_name = sys.argv[project_name_idx + 1]
-  sys.argv.remove('--project_name')
-  sys.argv.pop(project_name_idx)
+project_name = "keras"
+if "--project_name" in sys.argv:
+    project_name_idx = sys.argv.index("--project_name")
+    project_name = sys.argv[project_name_idx + 1]
+    sys.argv.remove("--project_name")
+    sys.argv.pop(project_name_idx)
 
 
 setuptools.setup(
     name=project_name,
-    version=_VERSION.replace('-', ''),
-    description='Deep learning for humans.',
-    long_description='\n'.join(DOCLINES[2:]),
-    url='https://keras.io/',
-    download_url='https://github.com/keras-team/keras/tags',
-    author='Keras team',
-    author_email='keras-users@googlegroups.com',
+    version=_VERSION.replace("-", ""),
+    description="Deep learning for humans.",
+    long_description="\n".join(DOCLINES[2:]),
+    url="https://keras.io/",
+    download_url="https://github.com/keras-team/keras/tags",
+    author="Keras team",
+    author_email="keras-users@googlegroups.com",
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
     # PyPI package information.
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
-        'Intended Audience :: Education',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3 :: Only',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Scientific/Engineering :: Mathematics',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Software Development',
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules',
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: Apache Software License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3 :: Only",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development",
+        "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    license='Apache 2.0',
-    keywords=['keras', 'tensorflow', 'machine learning', 'deep learning'],
+    license="Apache 2.0",
+    keywords=["keras", "tensorflow", "machine learning", "deep learning"],
 )

@@ -9,6 +9,8 @@ and it imports TensorFlow code, that installing TensorFlow python package
 is required to Bazel build Keras.
 """
 
+load("@org_keras//keras:keras.bzl", "if_indexing_source_code")
+
 def gen_api_init_files(
         name,
         output_files,
@@ -94,19 +96,32 @@ def gen_api_init_files(
     # Disable them for now so that we don't get SymbolExposedTwiceError
     # from create_python_api.py
     packages_to_ignore = ["tensorflow.python.keras", "tensorflow.keras"]
+
+    flags = [
+        root_init_template_flag,
+        "--apidir=$(@D)" + output_dir,
+        "--apiname=" + api_name,
+        "--apiversion=" + str(api_version),
+        compat_api_version_flags,
+        compat_init_template_flags,
+        "--packages=" + ",".join(packages),
+        "--packages_to_ignore=" + ",".join(packages_to_ignore),
+        "--output_package=" + output_package,
+    ]
+
     native.genrule(
         name = name,
         outs = all_output_files,
-        cmd = (
-            "$(location :" + api_gen_binary_target + ") " +
-            root_init_template_flag + " --apidir=$(@D)" + output_dir +
-            " --apiname=" + api_name + " --apiversion=" + str(api_version) +
-            compat_api_version_flags + " " + compat_init_template_flags +
-            " --packages=" + ",".join(packages) +
-            " --packages_to_ignore=" + ",".join(packages_to_ignore) +
-            " --output_package=" + output_package + " $(OUTS)"
+        cmd = if_indexing_source_code(
+            _make_cmd(api_gen_binary_target, flags, loading = "static"),
+            _make_cmd(api_gen_binary_target, flags, loading = "default"),
         ),
         srcs = srcs,
         exec_tools = [":" + api_gen_binary_target],
         visibility = ["//visibility:public"],
     )
+
+def _make_cmd(api_gen_binary_target, flags, loading = "default"):
+    binary = "$(location :" + api_gen_binary_target + ")"
+    flags.append("--loading=" + loading)
+    return " ".join([binary] + flags + ["$(OUTS)"])

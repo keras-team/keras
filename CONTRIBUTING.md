@@ -165,18 +165,21 @@ pip install --upgrade tf-nightly
 
 ## Code style
 
-The Keras codebase uses the PEP 8 Python style conventions -- with the
-exception that it uses 2 spaces for indentation instead of 4.
-To check code style, please run the `pylint` command from the repo's
-root directory so that the configuration in
-`.pylintrc` is taken into account.
+The Keras uses [Black](https://black.readthedocs.io/en/stable/) and
+[isort](https://pycqa.github.io/isort/) to format the code. Please refer to
+[requirements.txt](https://github.com/keras-team/keras/blob/master/requirements.txt)
+for the required versions. Run the following command **at the root directory of
+the repo** to format your code.
 
-```shell
-pylint path/to/changed_file.py
+```
+sh shell/format.sh
 ```
 
-Please ignore the errors in the rest of the codebase and only fix the ones
-relevant to your changes.
+It will also display the errors that cannot be resolved by autoformatting. You
+need to follow the output of the command to resolve them manually.
+
+If you do not want to auto format the code but only show the lint errors, you
+can run `sh shell/lint.sh` **at the root directory of the repo**.
 
 ## Run tests
 
@@ -269,3 +272,7 @@ mind.
     [application page](https://keras.io/api/applications/) updating the
     "Available Models" section. The contribution guide for keras.io can be found
     [here](https://github.com/keras-team/keras-io/blob/master/contributor_guide.md).
+-   As every PR requires several CPU/GPU hours of CI testing, we discourage
+    submitting PRs to fix one typo, one warning,etc. We recommend fixing the
+    same issue at the file level at least (e.g.: fix all typos in a file, fix
+    all compiler warning in a file, etc.)

@@ -25,7 +25,6 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
-        ":einsum_dense",
         ":kernelized",
         ":noise",
         "//keras/feature_column",
@@ -43,20 +42,6 @@ py_library(
         "//keras/layers/rnn",
         "//keras/premade_models",
         "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "einsum_dense",
-    srcs = ["einsum_dense.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:activations",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:regularizers",
-        "//keras/initializers",
     ],
 )
 
@@ -108,19 +93,6 @@ tf_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/testing_infra:test_combinations",
-    ],
-)
-
-tf_py_test(
-    name = "einsum_dense_test",
-    srcs = ["einsum_dense_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":einsum_dense",
-        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

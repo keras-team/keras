@@ -1,6 +1,10 @@
 path: "tensorflow.keras.applications"
 tf_module {
   member {
+    name: "convnext"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "densenet"
     mtype: "<type \'module\'>"
   }
@@ -71,6 +75,26 @@ tf_module {
   member {
     name: "xception"
     mtype: "<type \'module\'>"
+  }
+  member_method {
+    name: "ConvNeXtBase"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_base\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtLarge"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_large\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtSmall"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_small\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtTiny"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_tiny\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
+  }
+  member_method {
+    name: "ConvNeXtXLarge"
+    argspec: "args=[\'model_name\', \'include_top\', \'include_preprocessing\', \'weights\', \'input_tensor\', \'input_shape\', \'pooling\', \'classes\', \'classifier_activation\'], varargs=None, keywords=None, defaults=[\'convnext_xlarge\', \'True\', \'True\', \'imagenet\', \'None\', \'None\', \'None\', \'1000\', \'softmax\'], "
   }
   member_method {
     name: "DenseNet121"
