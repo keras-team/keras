@@ -136,7 +136,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
             )
         for v1, v2 in zip(shape1, shape2):
             if v1 != v2:
-                raise AssertionError("Shapes differ: %s vs %s" % (shape1, shape2))
+                raise AssertionError(
+                    "Shapes differ: %s vs %s" % (shape1, shape2)
+                )
 
     @parameterized.parameters(*MODEL_LIST)
     def test_application_base(self, app, _):
@@ -154,7 +156,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
             only_check_last_dim = True
         else:
             only_check_last_dim = False
-        output_shape = _get_output_shape(lambda: app(weights=None, include_top=False))
+        output_shape = _get_output_shape(
+            lambda: app(weights=None, include_top=False)
+        )
         if only_check_last_dim:
             self.assertEqual(output_shape[-1], last_dim)
         else:
@@ -175,7 +179,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         else:
             input_shape = (None, None, 1)
         output_shape = _get_output_shape(
-            lambda: app(weights=None, include_top=False, input_shape=input_shape)
+            lambda: app(
+                weights=None, include_top=False, input_shape=input_shape
+            )
         )
         self.assertShapeEqual(output_shape, (None, None, None, last_dim))
         backend.clear_session()
@@ -185,7 +191,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         else:
             input_shape = (None, None, 4)
         output_shape = _get_output_shape(
-            lambda: app(weights=None, include_top=False, input_shape=input_shape)
+            lambda: app(
+                weights=None, include_top=False, input_shape=input_shape
+            )
         )
         self.assertShapeEqual(output_shape, (None, None, None, last_dim))
         backend.clear_session()
