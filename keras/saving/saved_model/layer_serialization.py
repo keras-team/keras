@@ -50,6 +50,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             stateful=self.obj.stateful,
             must_restore_from_config=self.obj._must_restore_from_config,
             preserve_input_structure_in_config=self.obj._preserve_input_structure_in_config,  # noqa: E501
+            autocast=self.obj._autocast,
         )
 
         metadata.update(get_serialized(self.obj))

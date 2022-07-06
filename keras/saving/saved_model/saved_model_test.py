@@ -1108,6 +1108,24 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         assert_loaded_model(keras_load.load(saved_model_dir))
         assert_loaded_model(tf.saved_model.load(saved_model_dir))
 
+    @parameterized.named_parameters([("true", True), ("false", False)])
+    def test_save_layer_autocast(self, autocast):
+        class CustomLayer(keras.layers.Layer):
+            def __init__(self):
+                super().__init__(autocast=autocast)
+
+        x = tf.constant(3, dtype=tf.float64)
+
+        x_in = keras.Input(tensor=x)
+        output = CustomLayer()(x_in)
+        model = keras.Model(inputs=x_in, outputs=output)
+
+        saved_model_dir = self._save_model_dir()
+        model.save(saved_model_dir, save_format="tf")
+        loaded = keras_load.load(saved_model_dir)
+        self.assertEqual(autocast, loaded.layers[-1]._autocast)
+        self.assertEqual(self.evaluate(model(x)), self.evaluate(loaded(x)))
+
 
 class TestSavedModelFormat(tf.test.TestCase):
     def _save_model_dir(self, dirname="saved_model"):
