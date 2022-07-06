@@ -18,6 +18,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras import backend
+from keras import utils
+from keras.applications import convnext
 from keras.applications import densenet
 from keras.applications import efficientnet
 from keras.applications import efficientnet_v2
@@ -53,6 +55,11 @@ MODEL_LIST_NO_NASNET = [
     (mobilenet_v2.MobileNetV2, 1280),
     (mobilenet_v3.MobileNetV3Small, 576),
     (mobilenet_v3.MobileNetV3Large, 960),
+    (convnext.ConvNeXtTiny, 768),
+    (convnext.ConvNeXtSmall, 768),
+    (convnext.ConvNeXtBase, 1024),
+    (convnext.ConvNeXtLarge, 1536),
+    (convnext.ConvNeXtXLarge, 2048),
     (densenet.DenseNet121, 1024),
     (densenet.DenseNet169, 1664),
     (densenet.DenseNet201, 1920),
@@ -147,7 +154,12 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         model = app(weights=None)
         # Can be serialized and deserialized
         config = model.get_config()
-        reconstructed_model = model.__class__.from_config(config)
+        if "ConvNeXt" in app.__name__:
+            custom_objects = {"LayerScale": convnext.LayerScale}
+            with utils.custom_object_scope(custom_objects):
+                reconstructed_model = model.__class__.from_config(config)
+        else:
+            reconstructed_model = model.__class__.from_config(config)
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
         backend.clear_session()
 
