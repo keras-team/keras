@@ -306,7 +306,9 @@ def model_iteration(
             aggregator.aggregate(batch_outs)
 
             # Callbacks batch end.
-            batch_logs = callbacks.make_logs(model, batch_logs, batch_outs, mode)
+            batch_logs = callbacks.make_logs(
+                model, batch_logs, batch_outs, mode
+            )
             callbacks._call_batch_hook(mode, "end", step, batch_logs)
             step += 1
 

@@ -363,7 +363,9 @@ def model_iteration(
                 aggregator.aggregate(batch_outs)
 
                 # Callbacks batch end.
-                batch_logs = callbacks.make_logs(model, batch_logs, batch_outs, mode)
+                batch_logs = callbacks.make_logs(
+                    model, batch_logs, batch_outs, mode
+                )
                 callbacks._call_batch_hook(mode, "end", step, batch_logs)
                 step += 1
 
@@ -426,7 +428,9 @@ def model_iteration(
                 aggregator.aggregate(batch_outs, batch_start, batch_end)
 
                 # Callbacks batch end.
-                batch_logs = callbacks.make_logs(model, batch_logs, batch_outs, mode)
+                batch_logs = callbacks.make_logs(
+                    model, batch_logs, batch_outs, mode
+                )
                 callbacks._call_batch_hook(mode, "end", batch_index, batch_logs)
 
                 if callbacks.model.stop_training:
