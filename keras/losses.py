@@ -102,7 +102,7 @@ class Loss:
     def _set_name_scope(self):
         """Creates a valid `name_scope` name."""
         if self.name is None:
-            self._name_scope = self.__class__.__name__
+            self._name_scope = self.__class__.__name__.strip("_")
         elif self.name == "<lambda>":
             self._name_scope = "lambda"
         else:
