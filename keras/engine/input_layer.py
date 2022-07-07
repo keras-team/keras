@@ -331,7 +331,7 @@ def Input(
             ragged. Only one of 'ragged' and 'sparse' can be True. In this case,
             values of 'None' in the 'shape' argument represent ragged
             dimensions.  For more information about RaggedTensors, see
-            [this guide](https://www.tensorflow.org/guide/ragged_tensors).
+            [this guide](https://www.tensorflow.org/api_docs/python/tf/RaggedTensor).
         type_spec: A `tf.TypeSpec` object to create the input placeholder from.
             When provided, all other args except name must be None.
         **kwargs: deprecated arguments support. Supports `batch_shape` and
