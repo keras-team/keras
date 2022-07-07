@@ -620,9 +620,7 @@ class _EagerVariableStore(tf.Module):
         # NOTES:Do we need to support for handling DT_STRING and DT_COMPLEX
         # here?
         else:
-            raise ValueError(
-                f"An initializer for variable {name} of {dtype.base_dtype} is required"
-            )
+            raise ValueError(f"An initializer for variable {name} of {dtype.base_dtype} is required")
 
         return initializer, initializing_from_value
 
