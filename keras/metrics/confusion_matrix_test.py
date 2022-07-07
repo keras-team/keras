@@ -85,9 +85,7 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
 
         update_op = fp_obj.update_state(y_true, y_pred)
         self.evaluate(update_op)
@@ -106,9 +104,7 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
         sample_weight = (
             (1.0, 2.0, 3.0, 5.0),
             (7.0, 11.0, 13.0, 17.0),
@@ -188,9 +184,7 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
 
         update_op = fn_obj.update_state(y_true, y_pred)
         self.evaluate(update_op)
@@ -209,9 +203,7 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
         sample_weight = ((3.0,), (5.0,), (7.0,), (4.0,))
 
         result = fn_obj(y_true, y_pred, sample_weight=sample_weight)
@@ -273,9 +265,7 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
 
         update_op = tn_obj.update_state(y_true, y_pred)
         self.evaluate(update_op)
@@ -294,9 +284,7 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
         sample_weight = ((0.0, 2.0, 3.0, 5.0),)
 
         result = tn_obj(y_true, y_pred, sample_weight=sample_weight)
@@ -358,9 +346,7 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
 
         update_op = tp_obj.update_state(y_true, y_pred)
         self.evaluate(update_op)
@@ -379,9 +365,7 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
                 (0, 1, 0.7, 0.3),
             )
         )
-        y_true = tf.constant(
-            ((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1))
-        )
+        y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0), (1, 1, 1, 1)))
 
         result = tp_obj(y_true, y_pred, sample_weight=37.0)
         self.assertAllClose([222.0, 111.0, 37.0], self.evaluate(result))
@@ -425,9 +409,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
         # Then verify idempotency.
         initial_precision = self.evaluate(p_obj.result())
         for _ in range(10):
-            self.assertArrayNear(
-                initial_precision, self.evaluate(p_obj.result()), 1e-3
-            )
+            self.assertArrayNear(initial_precision, self.evaluate(p_obj.result()), 1e-3)
 
     def test_unweighted(self):
         p_obj = metrics.Precision()
@@ -487,9 +469,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
         weighted_tp = 0 + 3.0
         weighted_positives = (0 + 3.0) + (4.0 + 0.0)
         expected_precision = weighted_tp / weighted_positives
-        self.assertArrayNear(
-            [expected_precision, 0], self.evaluate(result), 1e-3
-        )
+        self.assertArrayNear([expected_precision, 0], self.evaluate(result), 1e-3)
 
     def test_multiple_updates(self):
         p_obj = metrics.Precision(thresholds=[0.5, 1.0])
@@ -502,9 +482,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(update_op)
 
         weighted_tp = (0 + 3.0) + (0 + 3.0)
-        weighted_positives = ((0 + 3.0) + (4.0 + 0.0)) + (
-            (0 + 3.0) + (4.0 + 0.0)
-        )
+        weighted_positives = ((0 + 3.0) + (4.0 + 0.0)) + ((0 + 3.0) + (4.0 + 0.0))
         expected_precision = weighted_tp / weighted_positives
         self.assertArrayNear(
             [expected_precision, 0], self.evaluate(p_obj.result()), 1e-3
@@ -524,9 +502,7 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
         y_true1 = tf.constant([0, 1, 1, 0, 1], shape=(1, 5))
         self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
         self.evaluate(
-            p_obj(
-                y_true1, y_pred1, sample_weight=tf.constant([[1, 4, 2, 3, 5]])
-            )
+            p_obj(y_true1, y_pred1, sample_weight=tf.constant([[1, 4, 2, 3, 5]]))
         )
 
         y_pred2 = tf.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
@@ -631,9 +607,7 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
         # Then verify idempotency.
         initial_recall = self.evaluate(r_obj.result())
         for _ in range(10):
-            self.assertArrayNear(
-                initial_recall, self.evaluate(r_obj.result()), 1e-3
-            )
+            self.assertArrayNear(initial_recall, self.evaluate(r_obj.result()), 1e-3)
 
     def test_unweighted(self):
         r_obj = metrics.Recall()
@@ -706,13 +680,9 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(update_op)
 
         weighted_tp = (0 + 3.0) + (0 + 3.0)
-        weighted_positives = ((0 + 3.0) + (4.0 + 0.0)) + (
-            (0 + 3.0) + (4.0 + 0.0)
-        )
+        weighted_positives = ((0 + 3.0) + (4.0 + 0.0)) + ((0 + 3.0) + (4.0 + 0.0))
         expected_recall = weighted_tp / weighted_positives
-        self.assertArrayNear(
-            [expected_recall, 0], self.evaluate(r_obj.result()), 1e-3
-        )
+        self.assertArrayNear([expected_recall, 0], self.evaluate(r_obj.result()), 1e-3)
 
     def test_unweighted_top_k(self):
         r_obj = metrics.Recall(top_k=3)
@@ -728,9 +698,7 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
         y_true1 = tf.constant([0, 1, 1, 0, 1], shape=(1, 5))
         self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
         self.evaluate(
-            r_obj(
-                y_true1, y_pred1, sample_weight=tf.constant([[1, 4, 2, 3, 5]])
-            )
+            r_obj(y_true1, y_pred1, sample_weight=tf.constant([[1, 4, 2, 3, 5]]))
         )
 
         y_pred2 = tf.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
@@ -813,9 +781,7 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(s_obj.class_id, 12)
 
         # Check save and restore config
-        s_obj2 = metrics.SensitivityAtSpecificity.from_config(
-            s_obj.get_config()
-        )
+        s_obj2 = metrics.SensitivityAtSpecificity.from_config(s_obj.get_config())
         self.assertEqual(s_obj2.name, "sensitivity_at_specificity_1")
         self.assertLen(s_obj2.variables, 4)
         self.assertEqual(s_obj2.specificity, 0.4)
@@ -926,9 +892,7 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(s_obj.class_id, 12)
 
         # Check save and restore config
-        s_obj2 = metrics.SpecificityAtSensitivity.from_config(
-            s_obj.get_config()
-        )
+        s_obj2 = metrics.SpecificityAtSensitivity.from_config(s_obj.get_config())
         self.assertEqual(s_obj2.name, "specificity_at_sensitivity_1")
         self.assertLen(s_obj2.variables, 4)
         self.assertEqual(s_obj2.sensitivity, 0.4)
@@ -1167,9 +1131,7 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
         # Then verify idempotency.
         initial_recall = self.evaluate(s_obj.result())
         for _ in range(10):
-            self.assertAlmostEqual(
-                initial_recall, self.evaluate(s_obj.result()), 1e-3
-            )
+            self.assertAlmostEqual(initial_recall, self.evaluate(s_obj.result()), 1e-3)
 
     def test_unweighted_all_correct(self):
         s_obj = metrics.RecallAtPrecision(0.7)
@@ -1431,9 +1393,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
         # Then verify idempotency.
         initial_auc = self.evaluate(auc_obj.result())
         for _ in range(10):
-            self.assertAllClose(
-                initial_auc, self.evaluate(auc_obj.result()), 1e-3
-            )
+            self.assertAllClose(initial_auc, self.evaluate(auc_obj.result()), 1e-3)
 
     def test_unweighted_all_correct(self):
         self.setup()
@@ -1458,9 +1418,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_unweighted_from_logits(self):
         self.setup()
-        auc_obj = metrics.AUC(
-            num_thresholds=self.num_thresholds, from_logits=True
-        )
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, from_logits=True)
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
         result = auc_obj(self.y_true, self.y_pred_logits)
 
@@ -1494,9 +1452,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
         self.setup()
         auc_obj = metrics.AUC(num_thresholds=self.num_thresholds)
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
         # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
@@ -1512,9 +1468,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             num_thresholds=self.num_thresholds, summation_method="majoring"
         )
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
         # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
@@ -1530,9 +1484,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             num_thresholds=self.num_thresholds, summation_method="minoring"
         )
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
         # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
@@ -1550,9 +1502,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             summation_method="majoring",
         )
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
         # precision = [7/(7+3), 4/4, 0] = [0.7, 1, 0]
@@ -1570,9 +1520,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             summation_method="minoring",
         )
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
         # precision = [7/(7+3), 4/4, 0] = [0.7, 1, 0]
@@ -1586,9 +1534,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
         self.setup()
         auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, curve="PR")
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true, self.y_pred, sample_weight=self.sample_weight
-        )
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
 
         # auc = (slope / Total Pos) * [dTP - intercept * log(Pb/Pa)]
 
@@ -1617,9 +1563,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             metrics.AUC(num_thresholds=1)
 
     def test_invalid_curve(self):
-        with self.assertRaisesRegex(
-            ValueError, 'Invalid AUC curve value: "Invalid".'
-        ):
+        with self.assertRaisesRegex(ValueError, 'Invalid AUC curve value: "Invalid".'):
             metrics.AUC(curve="Invalid")
 
     def test_invalid_summation_method(self):
@@ -1718,9 +1662,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             # Then verify idempotency.
             initial_auc = self.evaluate(auc_obj.result())
             for _ in range(10):
-                self.assertAllClose(
-                    initial_auc, self.evaluate(auc_obj.result()), 1e-3
-                )
+                self.assertAllClose(initial_auc, self.evaluate(auc_obj.result()), 1e-3)
 
     def test_unweighted_all_correct(self):
         with self.test_session():
@@ -1740,9 +1682,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
     def test_unweighted(self):
         with self.test_session():
             self.setup()
-            auc_obj = metrics.AUC(
-                num_thresholds=self.num_thresholds, multi_label=True
-            )
+            auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=True)
             self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(self.y_true_good, self.y_pred)
 
@@ -1769,13 +1709,9 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_sample_weight_flat(self):
         self.setup()
-        auc_obj = metrics.AUC(
-            num_thresholds=self.num_thresholds, multi_label=False
-        )
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=False)
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
-        result = auc_obj(
-            self.y_true_good, self.y_pred, sample_weight=[1, 2, 3, 4]
-        )
+        result = auc_obj(self.y_true_good, self.y_pred, sample_weight=[1, 2, 3, 4])
 
         # tpr = [1, 1, 0.2857, 0.2857, 0]
         # fpr = [1, 0.3333, 0, 0, 0]
@@ -1784,9 +1720,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_full_sample_weight_flat(self):
         self.setup()
-        auc_obj = metrics.AUC(
-            num_thresholds=self.num_thresholds, multi_label=False
-        )
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=False)
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
         sw = np.arange(4 * 2)
         sw = sw.reshape(4, 2)
@@ -1830,9 +1764,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_unweighted_flat(self):
         self.setup()
-        auc_obj = metrics.AUC(
-            num_thresholds=self.num_thresholds, multi_label=False
-        )
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=False)
         self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
         result = auc_obj(self.y_true_good, self.y_pred)
 
@@ -1871,9 +1803,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
             self.setup()
             # Verify that when specified, thresholds are used instead of
             # num_thresholds.
-            auc_obj = metrics.AUC(
-                num_thresholds=2, thresholds=[0.5], multi_label=True
-            )
+            auc_obj = metrics.AUC(num_thresholds=2, thresholds=[0.5], multi_label=True)
             self.assertEqual(auc_obj.num_thresholds, 3)
             self.assertAllClose(auc_obj.thresholds, [0.0, 0.5, 1.0])
             self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
@@ -1895,9 +1825,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
     def test_weighted_roc_interpolation(self):
         with self.test_session():
             self.setup()
-            auc_obj = metrics.AUC(
-                num_thresholds=self.num_thresholds, multi_label=True
-            )
+            auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=True)
             self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             result = auc_obj(
                 self.y_true_good, self.y_pred, sample_weight=self.sample_weight
@@ -1939,9 +1867,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
                 self.y_true_good, self.y_pred, sample_weight=self.sample_weight
             )
             # PR AUCs are 0.939 and 1.0 respectively
-            self.assertAllClose(
-                self.evaluate(good_result), (0.939 + 1.0) / 2.0, 1e-1
-            )
+            self.assertAllClose(self.evaluate(good_result), (0.939 + 1.0) / 2.0, 1e-1)
 
     def test_keras_model_compiles(self):
         inputs = layers.Input(shape=(10,))
@@ -1954,9 +1880,7 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
     def test_reset_state(self):
         with self.test_session():
             self.setup()
-            auc_obj = metrics.AUC(
-                num_thresholds=self.num_thresholds, multi_label=True
-            )
+            auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, multi_label=True)
             self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
             auc_obj(self.y_true_good, self.y_pred)
             auc_obj.reset_state()
