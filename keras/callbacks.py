@@ -641,20 +641,21 @@ class Callback:
 
     Example:
     
-    >>> callbacks =  tf.keras.callbacks.CallbackList([...])
-    >>> callbacks.append(...)
-
-    >>> callbacks.on_train_begin(...)
-    >>> for epoch in range(EPOCHS):
-    ...   callbacks.on_epoch_begin(epoch)
-    ...   for i, data in dataset.enumerate():
-    ...     callbacks.on_train_batch_begin(i)
-    ...     batch_logs = model.train_step(data)
-    ...     callbacks.on_train_batch_end(i, batch_logs)
-    ...   epoch_logs = ...
-    ...   callbacks.on_epoch_end(epoch, epoch_logs)
-    >>> final_logs=...
-    >>> callbacks.on_train_end(final_logs)
+    ```python
+       callbacks =  tf.keras.callbacks.CallbackList([...])
+       callbacks.append(...)
+       callbacks.on_train_begin(...)
+       for epoch in range(EPOCHS):
+         callbacks.on_epoch_begin(epoch)
+         for i, data in dataset.enumerate():
+           callbacks.on_train_batch_begin(i)
+           batch_logs = model.train_step(data)
+           callbacks.on_train_batch_end(i, batch_logs)
+         epoch_logs = ...
+         callbacks.on_epoch_end(epoch, epoch_logs)
+       final_logs=...
+       callbacks.on_train_end(final_logs)
+    ```
     
 
     Attributes:
