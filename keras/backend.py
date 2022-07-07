@@ -5618,7 +5618,7 @@ def sparse_categorical_crossentropy(
         output = tf.reshape(output, [-1, output_shape[-1]])
 
     if ignore_class is not None:
-        valid_mask = tf.not_equal(target, ignore_class)
+        valid_mask = tf.not_equal(target, cast(ignore_class, target.dtype))
         target = target[valid_mask]
         output = output[valid_mask]
 
@@ -5635,19 +5635,8 @@ def sparse_categorical_crossentropy(
     if ignore_class is not None:
         res_shape = cast(output_shape[:-1], "int64")
         valid_mask = tf.reshape(valid_mask, res_shape)
-
         res = tf.scatter_nd(tf.where(valid_mask), res, res_shape)
-
-        if output_rank is not None and output_rank >= 3:
-            # The output is a 2-dimensional (or higher) label map,
-            # and some pixels might be zero. We reduce the loss among the
-            # valid entries to prevent an artificial decrease of the loss
-            # value when many of them are invalid.
-            reduce_axis = list(range(1, output_rank - 1))
-            res = tf.math.divide_no_nan(
-                tf.reduce_sum(res, axis=reduce_axis),
-                tf.reduce_sum(cast(valid_mask, res.dtype), axis=reduce_axis),
-            )
+        res._keras_mask = valid_mask
 
         return res
 

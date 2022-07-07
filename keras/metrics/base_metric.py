@@ -698,6 +698,10 @@ class MeanMetricWrapper(Mean):
             self._fn, tf.__internal__.autograph.control_status_ctx()
         )
         matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
+        mask = losses_utils.get_mask(matches)
+        sample_weight = losses_utils.apply_valid_mask(
+            matches, sample_weight, mask, self.reduction
+        )
         return super().update_state(matches, sample_weight=sample_weight)
 
     def get_config(self):
@@ -915,6 +919,10 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
             self._fn, tf.__internal__.autograph.control_status_ctx()
         )
         matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
+        mask = losses_utils.get_mask(matches)
+        sample_weight = losses_utils.apply_valid_mask(
+            matches, sample_weight, mask, self.reduction
+        )
         return super().update_state(matches, sample_weight=sample_weight)
 
     def get_config(self):

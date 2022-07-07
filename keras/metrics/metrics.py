@@ -2713,15 +2713,18 @@ class _IoUBase(base_metric.Metric):
         if y_true.shape.ndims > 1:
             y_true = tf.reshape(y_true, [-1])
 
-        if self.ignore_class is not None:
-            valid_mask = tf.not_equal(y_true, self.ignore_class)
-            y_true = y_true[valid_mask]
-            y_pred = y_pred[valid_mask]
-
         if sample_weight is not None:
             sample_weight = tf.cast(sample_weight, self._dtype)
             if sample_weight.shape.ndims > 1:
                 sample_weight = tf.reshape(sample_weight, [-1])
+
+        if self.ignore_class is not None:
+            ignore_class = tf.cast(self.ignore_class, y_true.dtype)
+            valid_mask = tf.not_equal(y_true, ignore_class)
+            y_true = y_true[valid_mask]
+            y_pred = y_pred[valid_mask]
+            if sample_weight is not None:
+                sample_weight = sample_weight[valid_mask]
 
         # Accumulate the prediction to current confusion matrix.
         current_cm = tf.math.confusion_matrix(

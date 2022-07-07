@@ -1794,6 +1794,16 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
         self.assertAllClose(self.evaluate(result), 1.176, atol=1e-3)
 
+    def test_unweighted_ignore_class(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy(ignore_class=-1)
+        self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+
+        y_true = np.asarray([-1, 2])
+        y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+        result = scce_obj(y_true, y_pred)
+
+        self.assertAllClose(self.evaluate(result), 2.3026, atol=1e-3)
+
     def test_unweighted_from_logits(self):
         scce_obj = metrics.SparseCategoricalCrossentropy(from_logits=True)
         self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
@@ -1845,6 +1855,17 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
         # xent = [0.0513, 2.3026]
         # Weighted xent = [0.051 * 1.5, 2.302 * 2.]
         # Reduced xent = (0.051 * 1.5 + 2.302 * 2.) / 3.5
+
+        self.assertAllClose(self.evaluate(result), 1.338, atol=1e-3)
+
+    def test_weighted_ignore_class(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy(ignore_class=-1)
+        self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+
+        y_true = np.asarray([1, 2, -1])
+        y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1], [0.1, 0.8, 0.1]])
+        sample_weight = tf.constant([1.5, 2.0, 1.5])
+        result = scce_obj(y_true, y_pred, sample_weight=sample_weight)
 
         self.assertAllClose(self.evaluate(result), 1.338, atol=1e-3)
 

@@ -150,8 +150,13 @@ class Loss:
                     self.call, tf.__internal__.autograph.control_status_ctx()
                 )
             losses = call_fn(y_true, y_pred)
+            mask = losses_utils.get_mask(losses)
+            reduction = self._get_reduction()
+            sample_weight = losses_utils.apply_valid_mask(
+                losses, sample_weight, mask, reduction
+            )
             return losses_utils.compute_weighted_loss(
-                losses, sample_weight, reduction=self._get_reduction()
+                losses, sample_weight, reduction=reduction
             )
 
     @classmethod
@@ -977,6 +982,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     def __init__(
         self,
         from_logits=False,
+        ignore_class=None,
         reduction=losses_utils.ReductionV2.AUTO,
         name="sparse_categorical_crossentropy",
     ):
@@ -1003,6 +1009,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             name=name,
             reduction=reduction,
             from_logits=from_logits,
+            ignore_class=ignore_class,
         )
 
 

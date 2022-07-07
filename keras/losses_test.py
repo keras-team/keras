@@ -170,12 +170,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         logits = backend.variable(np.random.random((5, 1)))
         softmax_output = backend.softmax(logits)
 
-        valid_entries = tf.reshape(
-            tf.constant([0, 1, 0, 1, 1], target.dtype), (5, 1)
-        )
-        target.assign(
-            target * valid_entries + (1 - valid_entries) * ignore_class
-        )
+        _valid = tf.constant([[0], [1], [0], [1], [1]], target.dtype)
+        target.assign(target * _valid + (1 - _valid) * ignore_class)
 
         output_from_logit = losses.sparse_categorical_crossentropy(
             target, logits, ignore_class=ignore_class, from_logits=True
@@ -183,6 +179,12 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         output_from_softmax = losses.sparse_categorical_crossentropy(
             target, softmax_output, ignore_class=ignore_class
         )
+
+        # expected_mask = [False, True, False, True, True]
+        # for o in (output_from_logit, output_from_softmax):
+        #     mask = backend.eval(losses_utils.get_mask(o))
+        #     np.testing.assert_array_equal(mask, expected_mask)
+
         np.testing.assert_allclose(
             backend.eval(output_from_logit),
             backend.eval(output_from_softmax),
@@ -1838,6 +1840,70 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
         loss = cce_obj(y_true, logits)
         self.assertAlmostEqual(self.evaluate(loss), 0.0573, 3)
 
+    def test_unweighted_ignore_class(self):
+        cce_obj = losses.SparseCategoricalCrossentropy(ignore_class=-1)
+        y_true = tf.constant([0, 1, 2, -1])
+        y_pred = tf.constant(
+            [
+                [0.9, 0.05, 0.05],
+                [0.5, 0.89, 0.6],
+                [0.05, 0.01, 0.94],
+                [0.85, 0.14, 0.01],
+            ],
+            dtype=tf.float32,
+        )
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(self.evaluate(loss), 0.3239, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0], [7.8, 2.0, 1.0]]
+        )
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            ignore_class=-1, from_logits=True
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0573, 3)
+
+    def test_unweighted_ignore_class_for_segmentation(self):
+        cce_obj = losses.SparseCategoricalCrossentropy(ignore_class=-1)
+        y_true = tf.constant(
+            [[[0, 2], [-1, -1]], [[0, 2], [-1, -1]], [[0, 0], [0, 0]]]
+        )
+        y_pred = tf.constant(
+            [
+                [
+                    [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+                    [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]],
+                ],
+                [
+                    [[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]],
+                    [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]],
+                ],
+                [
+                    [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                    [[0.1, 0.9, 0.0], [0.2, 0.8, 0.0]],
+                ],
+            ],
+            dtype=tf.float32,
+        )
+
+        # Expected loss values:
+        # [[0.0, 0.0], [0.0, 0.0]],
+        # [[0.0, 0.693148], [0.0, 0.0]],
+        # [[0.0, 0.0], [2.302585, 1.609438]],
+
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(self.evaluate(loss), 0.575646375, 3)
+
+        # # Test with logits.
+        # logits = tf.constant(
+        #     [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
+        # )
+        # cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        # loss = cce_obj(y_true, logits)
+        # self.assertAlmostEqual(self.evaluate(loss), 0.0573, 3)
+
     def test_scalar_weighted(self):
         cce_obj = losses.SparseCategoricalCrossentropy()
         y_true = tf.constant([[0], [1], [2]])
@@ -1872,6 +1938,32 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
             [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
         )
         cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.31829, 3)
+
+    def test_sample_weighted_ignore_class(self):
+        cce_obj = losses.SparseCategoricalCrossentropy(ignore_class=-1)
+        y_true = tf.constant([[0], [1], [2], [-1]])
+        y_pred = tf.constant(
+            [
+                [0.9, 0.05, 0.05],
+                [0.5, 0.89, 0.6],
+                [0.05, 0.01, 0.94],
+                [0.85, 0.14, 0.01],
+            ],
+            dtype=tf.float32,
+        )
+        sample_weight = tf.constant([[1.2], [3.4], [5.6], [10.4]], shape=(4, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 1.0696, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0], [7.8, 2.0, 1.0]]
+        )
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            ignore_class=-1, from_logits=True
+        )
         loss = cce_obj(y_true, logits, sample_weight=sample_weight)
         self.assertAlmostEqual(self.evaluate(loss), 0.31829, 3)
 
