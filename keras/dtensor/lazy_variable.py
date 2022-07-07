@@ -42,7 +42,7 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
         device_context_manager = ops.NullContextmanager
         attr = attr_value_pb2.AttrValue(
             list=attr_value_pb2.AttrValue.ListValue(
-                s=[compat.as_bytes("loc:@%s" % handle_name)]
+                s=[compat.as_bytes(f"loc:@{handle_name}")]
             )
         )
         with ops.get_default_graph()._attr_scope({"_class": attr}):

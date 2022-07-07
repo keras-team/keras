@@ -294,7 +294,7 @@ class BackendUtilsTest(tf.test.TestCase):
         # we cannot test correctness.
         # The message gets correctly printed in practice.
         x = backend.placeholder(shape=())
-        y = backend.print_tensor(x, "eager=%s" % tf.executing_eagerly())
+        y = backend.print_tensor(x, f"eager={tf.executing_eagerly()}")
         f = backend.function(x, y)
         f(0)
 

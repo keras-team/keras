@@ -802,11 +802,11 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
         # Validate updated params, All variables should have decreased.
         self.assertTrue(
             all(v < 0.0 for v in self.evaluate(var0)),
-            msg="updated variables: %s" % self.evaluate(var0),
+            msg=f"updated variables: {self.evaluate(var0)}",
         )
         self.assertTrue(
             all(v < 2.0 for v in self.evaluate(var1)),
-            msg="updated variables: %s" % self.evaluate(var1),
+            msg=f"updated variables: {self.evaluate(var1)}",
         )
 
 

@@ -46,7 +46,7 @@ class PreprocessingLayerTest(tf.test.TestCase):
             self.assertEqual(len(a), len(b))
             for key, a_value in a.items():
                 b_value = b[key]
-                error_message = "{} ({})".format(msg, key) if msg else None
+                error_message = f"{msg} ({key})" if msg else None
                 self.assertAllCloseOrEqual(a_value, b_value, error_message)
         elif (
             isinstance(a, float)

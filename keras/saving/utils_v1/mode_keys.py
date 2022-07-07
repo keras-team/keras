@@ -95,7 +95,7 @@ class ModeKeyMap(collections.abc.Mapping):
             return KerasModeKeys.TEST
         if is_predict(key):
             return KerasModeKeys.PREDICT
-        raise ValueError("Invalid mode key: {}.".format(key))
+        raise ValueError(f"Invalid mode key: {key}.")
 
     def __getitem__(self, key):
         return self._internal_dict[self._get_internal_key(key)]

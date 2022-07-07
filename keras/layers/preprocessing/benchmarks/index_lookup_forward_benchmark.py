@@ -124,10 +124,7 @@ class BenchmarkLookup(tf.test.Benchmark):
             "delta seconds": (baseline - avg_time),
             "delta percent": ((baseline - avg_time) / baseline) * 100,
         }
-        name = "index_lookup_forward|%s_elements|batch_%s" % (
-            num_elements,
-            batch_size,
-        )
+        name = f"index_lookup_forward|{num_elements}_elements|batch_{batch_size}"
         self.report_benchmark(
             iters=num_repeats, wall_time=avg_time, extras=extras, name=name
         )

@@ -423,8 +423,7 @@ def load_img(
             img = pil_image.open(io.BytesIO(f.read()))
     else:
         raise TypeError(
-            "path should be path-like or io.BytesIO"
-            ", not {}".format(type(path))
+            f"path should be path-like or io.BytesIO, not {type(path)}"
         )
 
     if color_mode == "grayscale":

@@ -76,7 +76,7 @@ def write_ckpt_to_h5(path_h5, path_ckpt, keras_model, use_ema=True):
             tf_weight_names,
             model_name_tf,
         )
-        io_utils.print_msg("{} and {} match.".format(tf_block, keras_block))
+        io_utils.print_msg(f"{tf_block} and {keras_block} match.")
 
     block_mapping = {x[0]: x[1] for x in zip(keras_blocks, tf_blocks)}
 
@@ -106,7 +106,7 @@ def write_ckpt_to_h5(path_h5, path_ckpt, keras_model, use_ema=True):
             )
             continue
         else:
-            raise ValueError("{} failed to parse.".format(w.name))
+            raise ValueError(f"{w.name} failed to parse.")
 
         try:
             w_tf = tf.train.load_variable(path_ckpt, tf_name)
@@ -122,7 +122,7 @@ def write_ckpt_to_h5(path_h5, path_ckpt, keras_model, use_ema=True):
                 )
             else:
                 raise ValueError(
-                    "Fail to load {} from {}".format(w.name, tf_name)
+                    f"Fail to load {w.name} from {tf_name}"
                 )
 
     total_weights = len(keras_model.weights)
@@ -209,21 +209,17 @@ def keras_name_to_tf_name_stem_top(
 
     # stem batch normalization
     for bn_weights in ["beta", "gamma", "moving_mean", "moving_variance"]:
-        tf_name = "{}/stem/tpu_batch_normalization/{}{}".format(
-            model_name_tf, bn_weights, ema
-        )
-        stem_top_dict["stem_bn/{}:0".format(bn_weights)] = tf_name
+        tf_name = f"{model_name_tf}/stem/tpu_batch_normalization/{bn_weights}{ema}"
+        stem_top_dict[f"stem_bn/{bn_weights}:0"] = tf_name
 
     # top / head batch normalization
     for bn_weights in ["beta", "gamma", "moving_mean", "moving_variance"]:
-        tf_name = "{}/head/tpu_batch_normalization/{}{}".format(
-            model_name_tf, bn_weights, ema
-        )
-        stem_top_dict["top_bn/{}:0".format(bn_weights)] = tf_name
+        tf_name = f"{model_name_tf}/head/tpu_batch_normalization/{bn_weights}{ema}"
+        stem_top_dict[f"top_bn/{bn_weights}:0"] = tf_name
 
     if keras_name in stem_top_dict:
         return stem_top_dict[keras_name]
-    raise KeyError("{} from h5 file cannot be parsed".format(keras_name))
+    raise KeyError(f"{keras_name} from h5 file cannot be parsed")
 
 
 def keras_name_to_tf_name_block(
@@ -254,7 +250,7 @@ def keras_name_to_tf_name_block(
 
     if keras_block not in keras_name:
         raise ValueError(
-            "block name {} not found in {}".format(keras_block, keras_name)
+            f"block name {keras_block} not found in {keras_name}"
         )
 
     # all blocks in the first group will not have expand conv and bn

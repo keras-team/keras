@@ -1241,8 +1241,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         for v in tf.nest.flatten(value):
             if v is not None and not isinstance(v, input_spec.InputSpec):
                 raise TypeError(
-                    "Layer input_spec must be an instance of InputSpec. "
-                    "Got: {}".format(v)
+                    f"Layer input_spec must be an instance of InputSpec. Got: {v}"
                 )
         self._input_spec = value
 
@@ -1439,7 +1438,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         """
         kwargs.pop("inputs", None)
         if kwargs:
-            raise TypeError("Unknown keyword arguments: %s" % (kwargs.keys(),))
+            raise TypeError(f"Unknown keyword arguments: {kwargs.keys()}")
 
         def _tag_callable(loss):
             """Tags callable loss tensor as `_unconditional_loss`."""
@@ -2268,7 +2267,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             self.__class__, api_name="keras", add_prefix_to_v1_names=True
         )
         if canonical_name is not None:
-            return "tf.{}".format(canonical_name)
+            return f"tf.{canonical_name}"
         return self.__class__.__module__ + "." + self.__class__.__name__
 
     def _instrument_layer_creation(self):
@@ -3598,7 +3597,7 @@ def _apply_name_scope_on_model_declaration(enable):
     """
     if not isinstance(enable, bool):
         raise TypeError(
-            "`enable` argument must be `True` or `False`, got {}".format(enable)
+            f"`enable` argument must be `True` or `False`, got {enable}"
         )
 
     global _is_name_scope_on_model_declaration_enabled

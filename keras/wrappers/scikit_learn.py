@@ -107,7 +107,7 @@ class BaseWrapper:
             else:
                 if params_name != "nb_epoch":
                     raise ValueError(
-                        "{} is not a legal parameter".format(params_name)
+                        f"{params_name} is not a legal parameter"
                     )
 
     def get_params(self, **params):

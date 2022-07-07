@@ -124,7 +124,7 @@ def model_iteration(
     if "steps" in kwargs:
         steps_per_epoch = kwargs.pop("steps")
     if kwargs:
-        raise TypeError("Unknown arguments: %s" % (kwargs,))
+        raise TypeError(f"Unknown arguments: {kwargs}")
 
     # In case we were passed a dataset, we extract symbolic tensors from it.
     reset_dataset_after_each_epoch = False
@@ -516,13 +516,9 @@ def _get_model_feed(model, mode):
 
 def _print_train_info(num_samples_or_steps, val_samples_or_steps, is_dataset):
     increment = "steps" if is_dataset else "samples"
-    msg = "Train on {0} {increment}".format(
-        num_samples_or_steps, increment=increment
-    )
+    msg = f"Train on {num_samples_or_steps} {increment}"
     if val_samples_or_steps:
-        msg += ", validate on {0} {increment}".format(
-            val_samples_or_steps, increment=increment
-        )
+        msg += f", validate on {val_samples_or_steps} {increment}"
     io_utils.print_msg(msg)
 
 

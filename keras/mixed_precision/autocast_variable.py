@@ -72,8 +72,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         """
         if not isinstance(variable, tf.Variable):
             raise ValueError(
-                "variable must be of type tf.ResourceVariable, but got: "
-                "%s" % variable
+                f"variable must be of type tf.ResourceVariable, but got: {variable}"
             )
         if not variable.dtype.is_floating:
             raise ValueError(

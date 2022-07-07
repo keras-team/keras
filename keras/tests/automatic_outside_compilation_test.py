@@ -200,8 +200,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
         self.assertEqual(
             expected_event_counts,
             actual_event_counts,
-            msg="expected counts not found; all event counts: %r"
-            % event_counts,
+            msg=f"expected counts not found; all event counts: {event_counts!r}",
         )
 
     def testV2SummaryWithKerasSequentialModel(self):

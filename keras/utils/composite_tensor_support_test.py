@@ -52,7 +52,7 @@ class ToDense(Layer):
         elif isinstance(inputs, tf.Tensor):
             output = inputs
         else:
-            raise TypeError("Unexpected tensor type %s" % type(inputs).__name__)
+            raise TypeError(f"Unexpected tensor type {type(inputs).__name__}")
 
         # Return a float so that we can compile models with this as the final
         # layer.
@@ -97,7 +97,7 @@ class _SubclassModel(keras.Model):
             self._set_inputs(i_layer)
 
     def _layer_name_for_i(self, i):
-        return "layer{}".format(i)
+        return f"layer{i}"
 
     def call(self, inputs, **kwargs):
         x = inputs
@@ -143,7 +143,7 @@ def get_model_from_layers_with_input(
             outputs = layer(outputs)
         return keras.Model(inputs, outputs)
 
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 def get_test_mode_kwargs():

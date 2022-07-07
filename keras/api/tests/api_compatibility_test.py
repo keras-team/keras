@@ -110,7 +110,7 @@ def _KeyToFilePath(key, api_version):
 
     def _ReplaceCapsWithDash(matchobj):
         match = matchobj.group(0)
-        return "-%s" % (match.lower())
+        return f"-{match.lower()}"
 
     case_insensitive_key = re.sub(
         "([A-Z]{1})", _ReplaceCapsWithDash, six.ensure_str(key)
@@ -118,7 +118,7 @@ def _KeyToFilePath(key, api_version):
     api_folder = (
         _API_GOLDEN_FOLDER_V2 if api_version == 2 else _API_GOLDEN_FOLDER_V1
     )
-    return os.path.join(api_folder, "%s.pbtxt" % case_insensitive_key)
+    return os.path.join(api_folder, f"{case_insensitive_key}.pbtxt")
 
 
 def _FileNameToKey(filename):
@@ -240,7 +240,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
                 )
                 verbose_diff_message = diff_message
             elif key in only_in_actual:
-                diff_message = "New object %s found (added)." % key
+                diff_message = f"New object {key} found (added)."
                 verbose_diff_message = diff_message
             else:
                 # Do not truncate diff
@@ -250,7 +250,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
                     self.assertProtoEquals(expected_dict[key], actual_dict[key])
                 except AssertionError as e:
                     updated_keys.append(key)
-                    diff_message = "Change detected in python object: %s." % key
+                    diff_message = f"Change detected in python object: {key}."
                     verbose_diff_message = str(e)
 
             # All difference cases covered above. If any difference found, add

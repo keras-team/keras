@@ -47,7 +47,7 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
     def test_unweighted(self):
         fp_obj = metrics.FalsePositives()
         self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
-
+# change
         y_true = tf.constant(
             ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
         )
@@ -1650,7 +1650,7 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
             result = auc_obj(labels, logits)
             self.assertEqual(self.evaluate(result), 0.5)
         except ImportError as e:
-            tf_logging.warning("Cannot test special functions: %s" % str(e))
+            tf_logging.warning(f"Cannot test special functions: {str(e)}")
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

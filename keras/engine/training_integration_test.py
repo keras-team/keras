@@ -181,9 +181,7 @@ class CoreLayerIntegrationTest(test_combinations.TestCase):
         for x in [layer_result, model_result]:
             if not isinstance(x, tf.Tensor):
                 raise ValueError(
-                    "Tensor or EagerTensor expected, got type {}".format(
-                        type(x)
-                    )
+                    f"Tensor or EagerTensor expected, got type {type(x)}"
                 )
 
             if (
@@ -196,9 +194,7 @@ class CoreLayerIntegrationTest(test_combinations.TestCase):
                     else tf.Tensor
                 )
                 raise ValueError(
-                    "Expected type {}, got type {}".format(
-                        expected_type, type(x)
-                    )
+                    f"Expected type {expected_type}, got type {type(x)}"
                 )
 
     def _run_fit_eval_predict(

@@ -162,8 +162,7 @@ def _on_gcp():
         # issue. There is not default timeout, which means it might block
         # forever.
         response = requests.get(
-            "%s/computeMetadata/v1/%s"
-            % (gce_metadata_endpoint, "instance/hostname"),
+            f"{gce_metadata_endpoint}/computeMetadata/v1/{'instance/hostname'}",
             headers=GCP_METADATA_HEADER,
             timeout=5,
         )

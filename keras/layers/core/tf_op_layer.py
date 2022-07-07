@@ -293,7 +293,7 @@ class TFOpLambda(Layer):
         ]
         if untracked_new_vars:
             variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_new_vars
+                f"  {i}" for i in untracked_new_vars
             )
             raise ValueError(
                 "The following Variables were created within a Lambda layer "
@@ -312,7 +312,7 @@ class TFOpLambda(Layer):
         ]
         if untracked_used_vars and not self._already_warned:
             variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_used_vars
+                f"  {i}" for i in untracked_used_vars
             )
             self._warn(
                 "The following Variables were used in a Lambda layer's call "

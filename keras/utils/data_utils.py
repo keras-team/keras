@@ -836,7 +836,7 @@ def init_pool_generator(gens, random_seed=None, id_queue=None):
 
     # name isn't used for anything, but setting a more descriptive name is
     # helpful when diagnosing orphaned processes.
-    worker_proc.name = "Keras_worker_{}".format(worker_proc.name)
+    worker_proc.name = f"Keras_worker_{worker_proc.name}"
 
     if random_seed is not None:
         np.random.seed(random_seed + worker_proc.ident)
