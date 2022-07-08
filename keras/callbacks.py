@@ -640,7 +640,6 @@ class Callback:
        locations in your loop. Like this:
 
     Example:
-    
     ```python
        callbacks =  tf.keras.callbacks.CallbackList([...])
        callbacks.append(...)
