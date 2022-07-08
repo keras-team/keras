@@ -15,7 +15,7 @@
 """Utils for running models in a distribution setting.
 
 Mostly from
-https://github.com/tensorflow/models/blob/master/official/utils/misc/distribution_utils.py.
+https://github.com/tensorflow/models/blob/master/official/utils/misc/keras_utils.py.
 """
 
 import json
