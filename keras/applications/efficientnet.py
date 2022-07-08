@@ -402,7 +402,7 @@ def EfficientNet(
                 x,
                 activation,
                 drop_connect_rate * b / blocks,
-                name="block{}{}_".format(i + 1, chr(j + 97)),
+                name=f"block{i + 1}{chr(j + 97)}_",
                 **args
             )
             b += 1

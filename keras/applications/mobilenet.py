@@ -303,7 +303,7 @@ def MobileNet(
         inputs = img_input
 
     # Create model.
-    model = training.Model(inputs, x, name="mobilenet_%0.2f_%s" % (alpha, rows))
+    model = training.Model(inputs, x, name=f"mobilenet_{alpha:0.2f}_{rows}")
 
     # Load weights.
     if weights == "imagenet":
