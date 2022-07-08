@@ -225,16 +225,6 @@ class LayerCorrectnessTest(test_combinations.TestCase):
             lambda: bidirectional.Bidirectional(simple_rnn.SimpleRNN(units=4)),
             (2, 2, 2),
         ),
-        (
-            "AttentionLayerCausal",
-            lambda: attention.Attention(causal=True),
-            [(2, 2, 3), (2, 3, 3), (2, 3, 3)],
-        ),
-        (
-            "AdditiveAttentionLayerCausal",
-            lambda: attention.AdditiveAttention(causal=True),
-            [(2, 3, 4), (2, 3, 4), (2, 3, 4)],
-        ),
         ("NormalizationAdapt", _create_normalization_layer_with_adapt, (4, 4)),
         (
             "NormalizationNoAdapt",
