@@ -248,20 +248,20 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
             def call(self, inputs) -> tf.Tensor:
                 tensor_input, dict_input = inputs
                 return tf.concat(list(dict_input.values()), axis=1)
+
         inputs = {
             "a": keras.Input(name="a", shape=(1), dtype=tf.float32),
-            "b": keras.Input(name="b", shape=(1), dtype=tf.float32)
+            "b": keras.Input(name="b", shape=(1), dtype=tf.float32),
         }
-        outputs=DictLayer()((inputs["a"], inputs))
+        outputs = DictLayer()((inputs["a"], inputs))
         model = keras.Model(
             inputs=inputs,
             outputs=outputs,
         )
         try:
-            vis_utils.plot_model(model,
-                                 show_shapes=True,
-                                 show_dtype=True,
-                                 show_layer_names=True)
+            vis_utils.plot_model(
+                model, show_shapes=True, show_dtype=True, show_layer_names=True
+            )
         except ImportError:
             pass
 
