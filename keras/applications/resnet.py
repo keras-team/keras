@@ -140,7 +140,7 @@ def ResNet(
     else:
         layers = VersionAwareLayers()
     if kwargs:
-        raise ValueError("Unknown argument(s): %s" % (kwargs,))
+        raise ValueError(f"Unknown argument(s): {kwargs}")
     if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
