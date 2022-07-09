@@ -50,11 +50,11 @@ class LayerBenchmarksBase(tf.test.Benchmark):
         metrics = [
             {
                 "name": "examples_per_sec",
-                "value": float("{0:.3f}".format(num_iters / total_time)),
+                "value": float(f"{num_iters / total_time:.3f}"),
             },
             {
                 "name": "us_per_example",
-                "value": float("{0:.3f}".format(us_mean_time)),
+                "value": float(f"{us_mean_time:.3f}"),
             },
         ]
 
