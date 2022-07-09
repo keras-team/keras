@@ -277,7 +277,7 @@ class SidecarEvaluator:
                 "End of evaluation. Metrics: %s",
                 " ".join(
                     [
-                        "{}={}".format(name, value.numpy())
+                        f"{name}={value.numpy()}"
                         for name, value in return_metrics.items()
                     ]
                 ),

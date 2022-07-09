@@ -310,7 +310,7 @@ def fit_eval_and_predict(
         if is_stateful_model:
             predict_length = 3
         for i in range(predict_length):
-            result_key = "predict_result_{}".format(i)
+            result_key = f"predict_result_{i}"
             result[result_key] = model.predict(**predict_inputs)
 
     # Train and eval again to mimic user's flow.
@@ -397,7 +397,7 @@ def compare_results(
             results_without_ds[key],
             atol=tolerance,
             rtol=tolerance,
-            msg="Fail to assert {}.".format(key),
+            msg=f"Fail to assert {key}.",
         )
 
 

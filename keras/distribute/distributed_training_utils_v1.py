@@ -384,8 +384,7 @@ def validate_all_tensor_types(x, x_values):
     for i in range(1, len(x_values)):
         if x_dtype != x_values[i].dtype:
             raise ValueError(
-                "Input tensor dtypes do not match for distributed tensor"
-                " inputs {}".format(x)
+                f"Input tensor dtypes do not match for distributed tensor inputs {x}"
             )
 
 
@@ -395,8 +394,7 @@ def validate_all_tensor_shapes(x, x_values):
     for i in range(1, len(x_values)):
         if x_shape != x_values[i].shape.as_list():
             raise ValueError(
-                "Input tensor shapes do not match for distributed tensor"
-                " inputs {}".format(x)
+                f"Input tensor shapes do not match for distributed tensor inputs {x}"
             )
 
 
@@ -1057,7 +1055,7 @@ def _make_graph_execution_function(model, mode):
             all_inputs,
             all_outputs,
             updates=all_updates,
-            name="distributed_{}_function".format(mode),
+            name=f"distributed_{mode}_function",
             **all_session_args
         )
 
@@ -1105,7 +1103,7 @@ def _make_eager_execution_function(model, mode):
         return backend.function(
             all_inputs,
             all_outputs,
-            name="eager_distributed_{}_function".format(mode),
+            name=f"eager_distributed_{mode}_function",
         )
 
 
