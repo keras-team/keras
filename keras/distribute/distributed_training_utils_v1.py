@@ -1056,7 +1056,7 @@ def _make_graph_execution_function(model, mode):
             all_outputs,
             updates=all_updates,
             name=f"distributed_{mode}_function",
-            **all_session_args
+            **all_session_args,
         )
 
 
