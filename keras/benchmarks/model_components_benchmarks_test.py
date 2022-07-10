@@ -134,9 +134,7 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
                 },
                 {
                     "name": "us_per_exp",
-                    "value": float(
-                        f"{total_time * 1000000.0 / num_iters:.3f}"
-                    ),
+                    "value": float(f"{total_time * 1000000.0 / num_iters:.3f}"),
                 },
             ],
         )
