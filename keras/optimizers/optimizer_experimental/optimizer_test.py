@@ -391,8 +391,8 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         x2 = tf.Variable(np.ones([10]), dtype=tf.float64)
         grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
         sparse_grads = tf.IndexedSlices(
-            tf.convert_to_tensor([0, 0.2, 0.4, 0.8], dtype=tf.float64),
-            tf.convert_to_tensor([0, 2, 4, 6]),
+            tf.convert_to_tensor([0, 0.2, 0.4, 0.8, 0.8], dtype=tf.float64),
+            tf.convert_to_tensor([0, 2, 4, 6, 6]),
             dense_shape=tf.convert_to_tensor([len(grads)]),
         )
 
