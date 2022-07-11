@@ -600,9 +600,19 @@ class _BaseOptimizer(tf.Module):
         sake of backward compatibility with `optimizer_v2.Optimizer`'s
         `variable()` method.
         """
+
+        def predicate(obj):
+            if not isinstance(obj, tf.Variable):
+                return False
+            # Exclude `iteration` and `learning_rate` to keep backward
+            # compatibilty with `optimizer_v2.Optimizer`.
+            return (
+                "iteration" not in obj.name and "learning_rate" not in obj.name
+            )
+
         return tuple(
             self._flatten(
-                predicate=lambda obj: isinstance(obj, tf.Variable),
+                predicate=predicate,
                 expand_composites=True,
             )
         )
