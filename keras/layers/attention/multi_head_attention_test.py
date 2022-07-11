@@ -20,6 +20,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 # This decorator runs the test in V1, V2-Eager, and V2-Functional mode. It
@@ -327,6 +328,68 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         test_layer = keras.layers.MultiHeadAttention(num_heads=5, key_dim=2)
         results = test_layer(query, value, key)
         self.assertAllEqual(results.shape.as_list(), query.shape.as_list())
+
+    def test_query_mask_progagation(self):
+        """Test automatic propagation of the query's mask."""
+        test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        self.assertTrue(test_layer.supports_masking)
+        query = tf.constant([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
+        value = tf.random.normal((3, 3, 8))
+        output = test_layer(query=masked_query, value=value)
+        self.assertTrue(hasattr(output, "_keras_mask"))
+        self.assertAllEqual(masked_query._keras_mask, output._keras_mask)
+
+    @parameterized.named_parameters(("causal", True), ("not_causal", False))
+    @test_utils.run_v2_only
+    def test_value_mask(self, use_causal_mask):
+        """Test that the value and causal masks are taken into account."""
+        test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        query = tf.constant([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
+        value = tf.constant([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = keras.layers.Embedding(6, 8, mask_zero=True)(value)
+        output = test_layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=use_causal_mask,
+        )
+        mask = tf.constant(
+            [[[True, True, False]] * 3 + [[False, False, False]] * 2]
+            + [[[True, False, False]] * 5]
+            + [[[True, True, True]] + [[False, False, False]] * 4]
+        )
+        if use_causal_mask:
+            mask = mask & tf.constant(
+                [
+                    [[True, False, False], [True, True, False]]
+                    + [[True, True, True]] * 3
+                ]
+            )
+        del masked_query._keras_mask
+        del masked_value._keras_mask
+        output_with_manual_mask = test_layer(
+            query=masked_query, value=masked_value, attention_mask=mask
+        )
+        self.assertAllClose(output, output_with_manual_mask)
+
+    def test_masks_are_cast_to_bool(self):
+        """Test that the implicit and explicit masks are cast to bool."""
+        test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = keras.layers.Embedding(4, 8, mask_zero=True)(query)
+        masked_query._keras_mask = tf.cast(masked_query._keras_mask, tf.float32)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = keras.layers.Embedding(6, 8, mask_zero=True)(value)
+        masked_value._keras_mask = tf.cast(masked_value._keras_mask, tf.float32)
+        float_mask = tf.constant([[[1.0]]])
+        # if all works well, the following should not raise any exception:
+        _ = test_layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=True,
+            attention_mask=float_mask,
+        )
 
 
 class SubclassAttention(keras.layers.MultiHeadAttention):
