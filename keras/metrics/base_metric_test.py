@@ -149,6 +149,27 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(restore_update)
             self.assertEqual(600.0, self.evaluate(restore_sum.result()))
 
+    def test_init_scope_during_add_weight(self):
+        seen_variables = 0
+
+        def capture_variable_creation(next_creator_fn, **kwargs) -> tf.Variable:
+            nonlocal seen_variables
+            seen_variables += 1
+            return tf.constant(seen_variables)
+
+        @tf.function
+        def create_variables():
+            # When this method is called in a graph context, any usage of
+            # `tf.init_scope` will bypass this variable creator scope, resulting
+            # in different behavior.
+            with tf.variable_creator_scope(capture_variable_creation):
+                return metrics.Sum().variables
+
+        metric_variables = self.evaluate(create_variables())
+        # The Sum metric contains a single `total` variable, which the creation
+        # scope has changed to a `1` tensor.
+        self.assertAllEqual([1], metric_variables)
+
 
 class MeanTest(test_combinations.TestCase):
 
