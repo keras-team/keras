@@ -231,6 +231,10 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
             optimizer.iterations = 2
 
+    def testNoGradients(self):
+        optimizer = adam_new.Adam(jit_compile=False)
+        optimizer.apply_gradients(zip([], []))
+
     def testPassingMissingWDError(self):
         with self.assertRaises(ValueError):
             _ = adamw_new.AdamW(0.01, weight_decay=None)
