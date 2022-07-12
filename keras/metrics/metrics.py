@@ -2650,10 +2650,10 @@ class _IoUBase(base_metric.Metric):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      sparse_labels: Wether labels are encoded using natural numbers or
+      sparse_y_true: Whether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      sparse_preds: Wether predictions are encoded using natural numbers or
+      sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
       axis: (Optional) Defaults to -1. The dimension containing the logits.
@@ -2666,15 +2666,15 @@ class _IoUBase(base_metric.Metric):
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
         ignore_class: Optional[int] = None,
-        sparse_labels: bool = True,
-        sparse_preds: bool = True,
+        sparse_y_true: bool = True,
+        sparse_y_pred: bool = True,
         axis: int = -1,
     ):
         super().__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
         self.ignore_class = ignore_class
-        self.sparse_labels = sparse_labels
-        self.sparse_preds = sparse_preds
+        self.sparse_y_true = sparse_y_true
+        self.sparse_y_pred = sparse_y_pred
         self.axis = axis
 
         # Variable to accumulate the predictions in the confusion matrix.
@@ -2698,9 +2698,9 @@ class _IoUBase(base_metric.Metric):
           Update op.
         """
 
-        if not self.sparse_labels:
+        if not self.sparse_y_true:
             y_true = tf.argmax(y_true, axis=self.axis)
-        if not self.sparse_preds:
+        if not self.sparse_y_pred:
             y_pred = tf.argmax(y_pred, axis=self.axis)
 
         y_true = tf.cast(y_true, self._dtype)
@@ -2781,10 +2781,10 @@ class IoU(_IoUBase):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      sparse_labels: Wether labels are encoded using natural numbers or
+      sparse_y_true: Whether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      sparse_preds: Wether predictions are encoded using natural numbers or
+      sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
       axis: (Optional) Defaults to -1. The dimension containing the logits.
@@ -2830,16 +2830,16 @@ class IoU(_IoUBase):
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
         ignore_class: Optional[int] = None,
-        sparse_labels: bool = True,
-        sparse_preds: bool = True,
+        sparse_y_true: bool = True,
+        sparse_y_pred: bool = True,
         axis: int = -1,
     ):
         super().__init__(
             name=name,
             num_classes=num_classes,
             ignore_class=ignore_class,
-            sparse_labels=sparse_labels,
-            sparse_preds=sparse_preds,
+            sparse_y_true=sparse_y_true,
+            sparse_y_pred=sparse_y_pred,
             axis=axis,
             dtype=dtype,
         )
@@ -2887,8 +2887,8 @@ class IoU(_IoUBase):
             "num_classes": self.num_classes,
             "target_class_ids": self.target_class_ids,
             "ignore_class": self.ignore_class,
-            "sparse_labels": self.sparse_labels,
-            "sparse_preds": self.sparse_preds,
+            "sparse_y_true": self.sparse_y_true,
+            "sparse_y_pred": self.sparse_y_pred,
             "axis": self.axis,
         }
         base_config = super().get_config()
@@ -3049,10 +3049,10 @@ class MeanIoU(IoU):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      sparse_labels: Wether labels are encoded using natural numbers or
+      sparse_y_true: Whether labels are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      sparse_preds: Wether predictions are encoded using natural numbers or
+      sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
       axis: (Optional) Defaults to -1. The dimension containing the logits.
@@ -3092,8 +3092,8 @@ class MeanIoU(IoU):
         name: Optional[str] = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
         ignore_class: Optional[int] = None,
-        sparse_labels: bool = True,
-        sparse_preds: bool = True,
+        sparse_y_true: bool = True,
+        sparse_y_pred: bool = True,
         axis: int = -1,
     ):
         target_class_ids = list(range(num_classes))
@@ -3104,8 +3104,8 @@ class MeanIoU(IoU):
             axis=axis,
             dtype=dtype,
             ignore_class=ignore_class,
-            sparse_labels=sparse_labels,
-            sparse_preds=sparse_preds,
+            sparse_y_true=sparse_y_true,
+            sparse_y_pred=sparse_y_pred,
         )
 
     def get_config(self):
@@ -3114,8 +3114,8 @@ class MeanIoU(IoU):
             "name": self.name,
             "dtype": self._dtype,
             "ignore_class": self.ignore_class,
-            "sparse_labels": self.sparse_labels,
-            "sparse_preds": self.sparse_preds,
+            "sparse_y_true": self.sparse_y_true,
+            "sparse_y_pred": self.sparse_y_pred,
             "axis": self.axis,
         }
 
@@ -3168,7 +3168,7 @@ class OneHotIoU(IoU):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      sparse_preds: Wether predictions are encoded using natural numbers or
+      sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
       axis: (Optional) Defaults to -1. The dimension containing the logits.
@@ -3210,7 +3210,7 @@ class OneHotIoU(IoU):
         name=None,
         dtype=None,
         ignore_class: Optional[int] = None,
-        sparse_preds: bool = False,
+        sparse_y_pred: bool = False,
         axis: int = -1,
     ):
         super().__init__(
@@ -3219,8 +3219,8 @@ class OneHotIoU(IoU):
             name=name,
             dtype=dtype,
             ignore_class=ignore_class,
-            sparse_labels=False,
-            sparse_preds=sparse_preds,
+            sparse_y_true=False,
+            sparse_y_pred=sparse_y_pred,
             axis=axis,
         )
 
@@ -3231,7 +3231,7 @@ class OneHotIoU(IoU):
             "name": self.name,
             "dtype": self._dtype,
             "ignore_class": self.ignore_class,
-            "sparse_preds": self.sparse_preds,
+            "sparse_y_pred": self.sparse_y_pred,
             "axis": self.axis,
         }
 
@@ -3282,7 +3282,7 @@ class OneHotMeanIoU(MeanIoU):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      sparse_preds: Wether predictions are encoded using natural numbers or
+      sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
       axis: (Optional) Defaults to -1. The dimension containing the logits.
@@ -3323,7 +3323,7 @@ class OneHotMeanIoU(MeanIoU):
         name: str = None,
         dtype: Optional[Union[str, tf.dtypes.DType]] = None,
         ignore_class: Optional[int] = None,
-        sparse_preds: bool = False,
+        sparse_y_pred: bool = False,
         axis: int = -1,
     ):
         super().__init__(
@@ -3332,8 +3332,8 @@ class OneHotMeanIoU(MeanIoU):
             name=name,
             dtype=dtype,
             ignore_class=ignore_class,
-            sparse_labels=False,
-            sparse_preds=sparse_preds,
+            sparse_y_true=False,
+            sparse_y_pred=sparse_y_pred,
         )
 
     def get_config(self):
@@ -3342,7 +3342,7 @@ class OneHotMeanIoU(MeanIoU):
             "name": self.name,
             "dtype": self._dtype,
             "ignore_class": self.ignore_class,
-            "sparse_preds": self.sparse_preds,
+            "sparse_y_pred": self.sparse_y_pred,
             "axis": self.axis,
         }
 
