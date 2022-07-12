@@ -76,6 +76,13 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         self.dropout = dropout
         self.supports_masking = True
 
+    def build(self, input_shape):
+        # Skip RNG initialization if dropout rate is 0. This will let the layer
+        # be purely stateless, with no reference to any variable.
+        if self.dropout > 0:
+            super().build(input_shape)
+        self.built = True
+
     def _calculate_scores(self, query, key):
         """Calculates attention scores.
 
@@ -128,12 +135,16 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
             training = backend.learning_phase()
         weights = tf.nn.softmax(scores)
 
-        def dropped_weights():
-            return self._random_generator.dropout(weights, rate=self.dropout)
+        if self.dropout > 0:
 
-        weights = control_flow_util.smart_cond(
-            training, dropped_weights, lambda: tf.identity(weights)
-        )
+            def dropped_weights():
+                return self._random_generator.dropout(
+                    weights, rate=self.dropout
+                )
+
+            weights = control_flow_util.smart_cond(
+                training, dropped_weights, lambda: tf.identity(weights)
+            )
         return tf.matmul(weights, value), weights
 
     # TODO(b/125916026): Consider exposing a __call__ method with named args.

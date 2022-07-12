@@ -154,6 +154,20 @@ class BaseDenseAttentionTest(tf.test.TestCase, parameterized.TestCase):
         expected_shape = [batch_size, tq, dim]
         self.assertAllEqual(expected_shape, tf.shape(actual))
 
+    def test_skip_rng_init_when_no_dropout(self):
+        batch_size = 4
+        tq = 5
+        tv = 6
+        dim = 7
+        scores = np.ones((batch_size, tq, tv))
+        value = np.ones((batch_size, tv, dim))
+        layer = BaseDenseAttention()
+        layer.build(None)  # The input shape is not used by this layer
+        _, _ = layer._apply_scores(scores=scores, value=value, training=True)
+        # Make sure the rng is not built and no tf.random.Generator created.
+        self.assertFalse(layer._random_generator._built)
+        self.assertIsNone(getattr(layer._random_generator, "_generator", None))
+
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class LowerTriangularMaskTest(tf.test.TestCase, parameterized.TestCase):
