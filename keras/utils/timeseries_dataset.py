@@ -110,7 +110,7 @@ def timeseries_dataset_from_array(
     ```python
     input_data = data[:-10]
     targets = data[10:]
-    dataset = tf.keras.preprocessing.timeseries_dataset_from_array(
+    dataset = tf.keras.utils.timeseries_dataset_from_array(
         input_data, targets, sequence_length=10)
     for batch in dataset:
       inputs, targets = batch
@@ -133,9 +133,9 @@ def timeseries_dataset_from_array(
     Y = X*2
 
     sample_length = 20
-    input_dataset = tf.keras.preprocessing.timeseries_dataset_from_array(
+    input_dataset = tf.keras.utils.timeseries_dataset_from_array(
       X, None, sequence_length=sample_length, sequence_stride=sample_length)
-    target_dataset = tf.keras.preprocessing.timeseries_dataset_from_array(
+    target_dataset = tf.keras.utils.timeseries_dataset_from_array(
       Y, None, sequence_length=sample_length, sequence_stride=sample_length)
 
     for batch in zip(input_dataset, target_dataset):
