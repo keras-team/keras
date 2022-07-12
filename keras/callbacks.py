@@ -655,7 +655,6 @@ class Callback:
        final_logs=...
        callbacks.on_train_end(final_logs)
     ```
-    
 
     Attributes:
         params: Dict. Training parameters
