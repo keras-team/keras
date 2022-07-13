@@ -24,7 +24,7 @@ from keras.testing_infra import test_utils
 
 
 class TestPickleProtocol(test_combinations.TestCase):
-    """Tests pickle protoocol support."""
+    """Tests pickle protocol support."""
 
     @test_combinations.run_with_all_model_types
     @test_combinations.parameterized.named_parameters(
