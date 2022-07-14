@@ -94,6 +94,18 @@ class DropoutTest(test_combinations.TestCase):
         for name in checkpoint_var_names:
             self.assertNotIn("dropout", name)
 
+    @test_utils.run_v2_only
+    def test_state_variable_name(self):
+        inputs = keras.Input(shape=(5, 10))
+        layer = keras.layers.Dropout(
+            0.5, force_generator=True, name="dropout_layer"
+        )
+        layer(inputs)
+        self.assertEqual(
+            layer._random_generator._generator._state_var.name,
+            "dropout_layer/StateVar:0",
+        )
+
 
 if __name__ == "__main__":
     tf.test.main()

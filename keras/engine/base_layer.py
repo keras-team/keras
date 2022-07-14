@@ -3641,7 +3641,9 @@ class BaseRandomLayer(Layer):
         self._random_generator = backend.RandomGenerator(
             seed, force_generator=force_generator, rng_type=rng_type
         )
-        # Eagerly init the generator to avoid any issue like b/206821407
+
+    def build(self, input_shape):
+        super().build(input_shape)
         self._random_generator._maybe_init()
 
     def _trackable_children(self, save_type="checkpoint", **kwargs):

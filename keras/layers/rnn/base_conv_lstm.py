@@ -155,7 +155,7 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         self.state_size = (self.filters, self.filters)
 
     def build(self, input_shape):
-
+        super().build(input_shape)
         if self.data_format == "channels_first":
             channel_axis = 1
         else:

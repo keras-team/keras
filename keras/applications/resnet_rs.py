@@ -977,6 +977,7 @@ def decode_predictions(preds, top=5):
 decode_predictions.__doc__ = imagenet_utils.decode_predictions.__doc__
 
 ResNetRS50.__doc__ = BASE_DOCSTRING.format(name="ResNetRS50")
+ResNetRS101.__doc__ = BASE_DOCSTRING.format(name="ResNetRS101")
 ResNetRS152.__doc__ = BASE_DOCSTRING.format(name="ResNetRS152")
 ResNetRS200.__doc__ = BASE_DOCSTRING.format(name="ResNetRS200")
 ResNetRS270.__doc__ = BASE_DOCSTRING.format(name="ResNetRS270")

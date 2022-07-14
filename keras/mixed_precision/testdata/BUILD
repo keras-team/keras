@@ -2,10 +2,7 @@
 #   Contains checkpoints and SavedModels for testing purposes.
 
 package(
-    default_visibility = [
-        "//keras:friends",
-        "//third_party/tensorflow/tools/pip_package:__pkg__",
-    ],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 

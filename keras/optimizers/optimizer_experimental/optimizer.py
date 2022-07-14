@@ -122,6 +122,33 @@ class _BaseOptimizer(tf.Module):
         # issues on AggregatingVariable.
         return variable._unique_id
 
+    def _deduplicate_sparse_grad(self, grads):
+        """Deduplicate sparse gradient.
+
+        For sparse gradients, i.e., gradient is of type `tf.IndexedSlices`,
+        it is possible that `gradient.indices` has duplicated indices.
+        This function adds up values for the duplicated indices, and returns
+        a `tf.IndexedSlices` with indices of unique values.
+        """
+        processed_grads = []
+        for grad in grads:
+            if isinstance(grad, tf.IndexedSlices):
+                values = grad.values
+                indices = grad.indices
+                unique_indices, new_index_positions = tf.unique(indices)
+                summed_values = tf.math.unsorted_segment_sum(
+                    values, new_index_positions, tf.shape(unique_indices)[0]
+                )
+                processed_grads.append(
+                    tf.IndexedSlices(
+                        summed_values, unique_indices, grad.dense_shape
+                    )
+                )
+            else:
+                processed_grads.append(grad)
+
+        return processed_grads
+
     @abc.abstractmethod
     def update_step(self, gradient, variable):
         """Function to update variable value based on given gradients.
@@ -471,6 +498,7 @@ class _BaseOptimizer(tf.Module):
                 # issues.
                 self.build(trainable_variables)
         grads = self._clip_gradients(grads)
+        grads = self._deduplicate_sparse_grad(grads)
         grads_and_vars = list(zip(grads, trainable_variables))
         self._internal_apply_gradients(grads_and_vars)
 
@@ -591,6 +619,31 @@ class _BaseOptimizer(tf.Module):
                     config["learning_rate"]
                 )
         return cls(**config)
+
+    @doc_controls.do_not_generate_docs
+    def variables(self):
+        """Returns variables of this Optimizer.
+
+        We override the `variable` property method of `tf.Module` for the
+        sake of backward compatibility with `optimizer_v2.Optimizer`'s
+        `variable()` method.
+        """
+
+        def predicate(obj):
+            if not isinstance(obj, tf.Variable):
+                return False
+            # Exclude `iteration` and `learning_rate` to keep backward
+            # compatibilty with `optimizer_v2.Optimizer`.
+            return (
+                "iteration" not in obj.name and "learning_rate" not in obj.name
+            )
+
+        return tuple(
+            self._flatten(
+                predicate=predicate,
+                expand_composites=True,
+            )
+        )
 
 
 base_optimizer_keyword_args = """name: String. The name to use

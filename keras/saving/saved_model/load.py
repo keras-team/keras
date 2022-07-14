@@ -624,6 +624,8 @@ class KerasObjectLoader:
             obj._set_dtype_policy(metadata["dtype"])
         if metadata.get("stateful") is not None:
             obj.stateful = metadata["stateful"]
+        if metadata.get("autocast") is not None:
+            obj._autocast = metadata["autocast"]
         # Restore model save spec for subclassed models. (layers do not store a
         # SaveSpec)
         if isinstance(obj, training_lib.Model):
@@ -1187,6 +1189,8 @@ class RevivedLayer:
                 revived_obj._is_feature_layer = metadata["_is_feature_layer"]
             if metadata.get("stateful") is not None:
                 revived_obj.stateful = metadata["stateful"]
+            if metadata.get("autocast") is not None:
+                revived_obj._autocast = metadata["autocast"]
             if metadata.get("preserve_input_structure_in_config") is not None:
                 revived_obj._preserve_input_structure_in_config = metadata[
                     "preserve_input_structure_in_config"

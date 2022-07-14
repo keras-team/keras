@@ -639,10 +639,10 @@ class Callback:
     2. You will need to manually call all the `on_*` methods at the appropriate
        locations in your loop. Like this:
 
-       ```
+    Example:
+    ```python
        callbacks =  tf.keras.callbacks.CallbackList([...])
        callbacks.append(...)
-
        callbacks.on_train_begin(...)
        for epoch in range(EPOCHS):
          callbacks.on_epoch_begin(epoch)
@@ -654,7 +654,7 @@ class Callback:
          callbacks.on_epoch_end(epoch, epoch_logs)
        final_logs=...
        callbacks.on_train_end(final_logs)
-       ```
+    ```
 
     Attributes:
         params: Dict. Training parameters
@@ -1009,7 +1009,7 @@ class ProgbarLogger(Callback):
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(self, count_mode="samples", stateful_metrics=None):
+    def __init__(self, count_mode: str = "samples", stateful_metrics=None):
         super().__init__()
         self._supports_tf_logs = True
         if count_mode == "samples":
@@ -1319,11 +1319,11 @@ class ModelCheckpoint(Callback):
     def __init__(
         self,
         filepath,
-        monitor="val_loss",
-        verbose=0,
-        save_best_only=False,
-        save_weights_only=False,
-        mode="auto",
+        monitor: str = "val_loss",
+        verbose: int = 0,
+        save_best_only: bool = False,
+        save_weights_only: bool = False,
+        mode: str = "auto",
         save_freq="epoch",
         options=None,
         initial_value_threshold=None,

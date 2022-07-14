@@ -89,9 +89,6 @@ class Dropout(base_layer.BaseRandomLayer):
         self.seed = seed
         self.supports_masking = True
 
-    def build(self, input_shape):
-        self._random_generator._maybe_init()
-
     def _get_noise_shape(self, inputs):
         # Subclasses of `Dropout` may implement `_get_noise_shape(self,
         # inputs)`, which will override `self.noise_shape`, and allows for
