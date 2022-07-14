@@ -82,8 +82,6 @@ class GlobalAveragePooling1D(GlobalPooling1D):
 
     def call(self, inputs, mask=None):
         steps_axis = 1 if self.data_format == "channels_last" else 2
-        if inputs.shape[steps_axis] == 0 :
-            raise ValueError("Reducing axis cannot be of 0 dimension")
         if mask is not None:
             mask = tf.cast(mask, inputs[0].dtype)
             mask = tf.expand_dims(
