@@ -25,7 +25,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.distribute import sidecar_evaluator as sidecar_evaluator_lib
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.optimizer_experimental import sgd
 from keras.testing_infra import test_utils
 
 # isort: off
@@ -62,7 +62,7 @@ def _test_model_builder(model_type: ModelType, compile_model, build_model):
 
     if compile_model:
         model.compile(
-            gradient_descent.SGD(),
+            sgd.SGD(),
             loss="mse",
             metrics=[keras.metrics.CategoricalAccuracy(), DictMetric()],
         )
@@ -288,7 +288,9 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
         self.assertModelsSameVariables(model, eval_model)
 
         # check the iterations is restored.
-        self.assertEqual(sidecar_evaluator._iterations.numpy(), _BATCH_SIZE)
+        self.assertEqual(
+            sidecar_evaluator.model.optimizer.iterations.numpy(), _BATCH_SIZE
+        )
 
         self.assertSummaryEventsWritten(os.path.join(log_dir, "validation"))
 

@@ -37,6 +37,7 @@ from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
 from keras.mixed_precision import policy
 from keras.optimizers import optimizer_v2
+from keras.optimizers.optimizer_experimental import rmsprop
 from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -1413,7 +1414,7 @@ class TrainingTest(test_combinations.TestCase):
         )
         reference_model.compile(
             loss="categorical_crossentropy",
-            optimizer=RMSPropOptimizer(learning_rate=0.001),
+            optimizer=rmsprop.RMSprop(learning_rate=0.001),
             run_eagerly=True,
         )
         fixed_weights = reference_model.get_weights()

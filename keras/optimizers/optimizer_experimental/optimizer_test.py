@@ -336,11 +336,32 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(optimizer_2._iterations),
         )
 
+    def testCheckpointOptimizerWithModel(self):
+        inputs = keras.layers.Input(shape=(1,))
+        outputs = keras.layers.Dense(1)(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
+        optimizer = adamax_new_fn()
+        x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
+        y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
+        model.compile(loss="mse", optimizer=optimizer)
+        path = os.path.join(self.get_temp_dir(), "ckpt")
+        checkpoint_callback = keras.callbacks.ModelCheckpoint(path)
+        model.fit(x, y, callbacks=[checkpoint_callback])
+
+        new_model = keras.Model(inputs=inputs, outputs=outputs)
+        new_optimizer = adamax_new_fn()
+        new_model.compile(loss="mse", optimizer=new_optimizer)
+        new_model.load_weights(path)
+        self.assertEqual(
+            new_model.optimizer.iterations.numpy(),
+            model.optimizer.iterations.numpy(),
+        )
+
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSaveAndLoadOptimizerWithModel(self, optimizer_fn):
-        model = keras.Sequential(
-            [keras.layers.Input(shape=(1,)), keras.layers.Dense(1)]
-        )
+        inputs = keras.layers.Input(shape=(1,))
+        outputs = keras.layers.Dense(1)(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
         optimizer = optimizer_fn()
         optimizer.clipnorm = 0.1
         x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
