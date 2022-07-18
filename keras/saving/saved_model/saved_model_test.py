@@ -1234,6 +1234,29 @@ class TestSavedModelFormat(tf.test.TestCase):
         ):
             keras_load.load(saved_model_dir)
 
+    def test_random_generator_custom_layer(self):
+        class CustomDropout(keras.layers.Layer):
+            def __init__(self, dropout_rate=0.1, **kwargs):
+                super().__init__(**kwargs)
+                self.dropout_rate = dropout_rate
+                self.dropout = keras.layers.Dropout(
+                    dropout_rate, rng_type="stateful"
+                )
+
+            def call(self, inputs, training=False):
+                return self.dropout(inputs, training=training)
+
+        root = keras.models.Sequential(
+            [keras.layers.Input(shape=(3,)), CustomDropout()]
+        )
+        saved_model_dir = self._save_model_dir()
+        root.save(saved_model_dir, save_format="tf")
+
+        loaded = keras_load.load(saved_model_dir)
+
+        output = loaded(tf.random.uniform([1, 3]), training=True)
+        self.assertAllEqual([1, 3], output.shape)
+
 
 class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
     def test_functions_have_same_trace(self):
