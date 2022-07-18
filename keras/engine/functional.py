@@ -415,6 +415,11 @@ class Functional(training_lib.Model):
         Output layers with multiple output tensors would otherwise lead to
         duplicate names in self.output_names.
         """
+
+        if isinstance(self.output, dict):
+            self.output_names = list(self.output.keys())
+            return
+
         uniquified = []
         output_names = set()
         prefix_count = {}
