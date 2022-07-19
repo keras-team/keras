@@ -95,13 +95,14 @@ class DepthwiseConv1D(DepthwiseConv):
         `keras.constraints`).
 
     Input shape:
-      3D tensor with shape: `[batch_size, channels, input_dims]` if
+      3D tensor with shape: `[batch_size, channels, input_dim]` if
         data_format='channels_first'
-      or 3D tensor with shape: `[batch_size, input_dims, channels]` if
+      or 3D tensor with shape: `[batch_size, input_dim, channels]` if
         data_format='channels_last'.
 
     Output shape:
-      3D tensor with shape: `[batch_size, channels * depth_multiplier, new_dims]`
+      3D tensor with shape:
+       `[batch_size, channels * depth_multiplier, new_dims]`
         if `data_format='channels_first'`
         or 3D tensor with shape: `[batch_size,
         new_dims, channels * depth_multiplier]` if
@@ -197,20 +198,20 @@ class DepthwiseConv1D(DepthwiseConv):
     @tf_utils.shape_type_conversion
     def compute_output_shape(self, input_shape):
         if self.data_format == "channels_first":
-            input_dims = input_shape[2]
+            input_dim = input_shape[2]
             out_filters = input_shape[1] * self.depth_multiplier
         elif self.data_format == "channels_last":
-            input_dims = input_shape[1]
+            input_dim = input_shape[1]
             out_filters = input_shape[2] * self.depth_multiplier
 
-        input_dims = conv_utils.conv_output_length(
-            input_dims,
+        input_dim = conv_utils.conv_output_length(
+            input_dim,
             self.kernel_size[0],
             self.padding,
             self.strides[0],
             self.dilation_rate[0],
         )
         if self.data_format == "channels_first":
-            return (input_shape[0], out_filters, input_dims)
+            return (input_shape[0], out_filters, input_dim)
         elif self.data_format == "channels_last":
-            return (input_shape[0], input_dims, out_filters)
+            return (input_shape[0], input_dim, out_filters)
