@@ -255,6 +255,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         idf_weights=None,
         sparse=False,
         ragged=False,
+        encoding=None,
         **kwargs,
     ):
 
@@ -365,6 +366,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
         self._output_mode = output_mode
         self._output_sequence_length = output_sequence_length
+        self._encoding = encoding
 
         # VocabularySavedModelSaver will clear the config vocabulary to restore
         # the lookup table ops directly. We persist this hidden option to
@@ -391,6 +393,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             output_mode=output_mode if output_mode is not None else INT,
             sparse=sparse,
             has_input_vocabulary=self._has_input_vocabulary,
+            encoding=encoding,
         )
 
     def compute_output_shape(self, input_shape):
@@ -510,6 +513,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "ragged": self._ragged,
             "vocabulary": utils.listify_tensors(vocab),
             "idf_weights": utils.listify_tensors(idf_weights),
+            "encoding": self._encoding,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
