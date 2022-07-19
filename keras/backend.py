@@ -1815,7 +1815,7 @@ def identity(x, name=None):
 # tf.random.Generator to generate random numbers.
 # The legacy behavior is to use TF's legacy stateful RNG ops like
 # tf.random.uniform.
-_USE_GENERATOR_FOR_RNG = True
+_USE_GENERATOR_FOR_RNG = False
 
 # The global generator to create the seed when initializing the
 # tf.random.Genrator used by RandomGenerator. When tf.random.Generator becomes
