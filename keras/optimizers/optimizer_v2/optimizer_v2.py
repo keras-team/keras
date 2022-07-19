@@ -374,9 +374,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 )
             # checks that all keyword arguments are non-negative.
             if kwargs[k] is not None and kwargs[k] < 0:
-                raise ValueError(
-                    f"Expected {k} >= 0, received: {kwargs[k]}"
-                )
+                raise ValueError(f"Expected {k} >= 0, received: {kwargs[k]}")
             if k == "lr":
                 warnings.warn(
                     "The `lr` argument is deprecated, "
