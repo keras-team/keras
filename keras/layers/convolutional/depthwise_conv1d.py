@@ -96,7 +96,7 @@ class DepthwiseConv1D(DepthwiseConv):
 
     Input shape:
       3D tensor with shape: `[batch_size, channels, input_dims]` if
-        data_format='channels_first'.
+        data_format='channels_first'
       or 3D tensor with shape: `[batch_size, input_dims, channels]` if
         data_format='channels_last'.
 
