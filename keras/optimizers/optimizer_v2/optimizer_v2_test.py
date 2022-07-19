@@ -1230,7 +1230,8 @@ def topological_sort(graph):
     # Check correctness.
     if len(result) != len(graph_ops):
         raise ValueError(
-            f"Sort result has {len(result)} ops, source graph has {len(graph_ops)}."
+            f"Sort result has {len(result)} ops, "
+            f"source graph has {len(graph_ops)}."
         )
 
     sort_check_seen = set()
