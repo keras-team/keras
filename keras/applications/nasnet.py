@@ -188,7 +188,7 @@ def NASNet(
         default_size=default_size,
         min_size=32,
         data_format=backend.image_data_format(),
-        require_flatten=True,
+        require_flatten=include_top,
         weights=weights,
     )
 
