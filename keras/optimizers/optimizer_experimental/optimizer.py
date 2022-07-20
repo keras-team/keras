@@ -122,6 +122,33 @@ class _BaseOptimizer(tf.Module):
         # issues on AggregatingVariable.
         return variable._unique_id
 
+    def _deduplicate_sparse_grad(self, grads):
+        """Deduplicate sparse gradient.
+
+        For sparse gradients, i.e., gradient is of type `tf.IndexedSlices`,
+        it is possible that `gradient.indices` has duplicated indices.
+        This function adds up values for the duplicated indices, and returns
+        a `tf.IndexedSlices` with indices of unique values.
+        """
+        processed_grads = []
+        for grad in grads:
+            if isinstance(grad, tf.IndexedSlices):
+                values = grad.values
+                indices = grad.indices
+                unique_indices, new_index_positions = tf.unique(indices)
+                summed_values = tf.math.unsorted_segment_sum(
+                    values, new_index_positions, tf.shape(unique_indices)[0]
+                )
+                processed_grads.append(
+                    tf.IndexedSlices(
+                        summed_values, unique_indices, grad.dense_shape
+                    )
+                )
+            else:
+                processed_grads.append(grad)
+
+        return processed_grads
+
     @abc.abstractmethod
     def update_step(self, gradient, variable):
         """Function to update variable value based on given gradients.
@@ -463,6 +490,10 @@ class _BaseOptimizer(tf.Module):
                 self._learning_rate(self.iterations)
             )
         grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
+        if len(list(grads_and_vars)) == 0:
+            # It is possible that the grad is empty. In this case,
+            # `apply_gradients` is a no-op.
+            return
         grads, trainable_variables = zip(*grads_and_vars)
         scope_name = self._name or "optimizer"
         with tf.name_scope(scope_name):
@@ -471,6 +502,7 @@ class _BaseOptimizer(tf.Module):
                 # issues.
                 self.build(trainable_variables)
         grads = self._clip_gradients(grads)
+        grads = self._deduplicate_sparse_grad(grads)
         grads_and_vars = list(zip(grads, trainable_variables))
         self._internal_apply_gradients(grads_and_vars)
 
@@ -600,9 +632,19 @@ class _BaseOptimizer(tf.Module):
         sake of backward compatibility with `optimizer_v2.Optimizer`'s
         `variable()` method.
         """
+
+        def predicate(obj):
+            if not isinstance(obj, tf.Variable):
+                return False
+            # Exclude `iteration` and `learning_rate` to keep backward
+            # compatibilty with `optimizer_v2.Optimizer`.
+            return (
+                "iteration" not in obj.name and "learning_rate" not in obj.name
+            )
+
         return tuple(
             self._flatten(
-                predicate=lambda obj: isinstance(obj, tf.Variable),
+                predicate=predicate,
                 expand_composites=True,
             )
         )

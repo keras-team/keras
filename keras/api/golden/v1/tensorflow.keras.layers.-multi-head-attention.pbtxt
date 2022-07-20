@@ -157,7 +157,7 @@ tf_class {
   }
   member_method {
     name: "call"
-    argspec: "args=[\'self\', \'query\', \'value\', \'key\', \'attention_mask\', \'return_attention_scores\', \'training\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'False\', \'None\'], "
+    argspec: "args=[\'self\', \'query\', \'value\', \'key\', \'attention_mask\', \'return_attention_scores\', \'training\', \'use_causal_mask\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'False\', \'None\', \'False\'], "
   }
   member_method {
     name: "compute_mask"

@@ -48,10 +48,6 @@ class AdditiveAttention(BaseDenseAttention):
     Args:
       use_scale: If `True`, will create a variable to scale the attention
         scores.
-      causal: Boolean. Set to `True` for decoder self-attention. Adds a mask
-        such that position `i` cannot attend to positions `j > i`. This prevents
-        the flow of information from the future towards the past.  Defaults to
-        `False`.
       dropout: Float between 0 and 1. Fraction of the units to drop for the
         attention scores. Defaults to 0.0.
 
@@ -74,6 +70,10 @@ class AdditiveAttention(BaseDenseAttention):
         training mode (adding dropout) or in inference mode (no dropout).
       return_attention_scores: bool, it `True`, returns the attention scores
         (after masking and softmax) as an additional output argument.
+      use_causal_mask: Boolean. Set to `True` for decoder self-attention. Adds a
+        mask such that position `i` cannot attend to positions `j > i`. This
+        prevents the flow of information from the future towards the past.
+        Defaults to `False`.`
 
     Output:
 

@@ -828,6 +828,13 @@ class GRULayerTest(test_combinations.TestCase):
             "rnn/gru_cell/StateVar:0",
         )
 
+        layer = keras.layers.GRU(2, dropout=0.1, force_generator=True)
+        layer(np.random.random((2, 3, 4)))
+        self.assertEqual(
+            layer._random_generator._generator._state_var.name,
+            "gru/StateVar:0",
+        )
+
     @parameterized.parameters([0, 1, 2])
     def test_implementation_mode_gru(self, implementation_mode):
         num_samples = 2

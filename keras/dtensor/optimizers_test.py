@@ -132,7 +132,6 @@ class OptimizersTest(test_util.DTensorBaseTest):
         self.assertEqual(self.evaluate(optimizer.iterations), 1)
 
         all_names = [var._shared_name for var in optimizer_variables]
-        expect_variable_names.extend(["iteration", "learning_rate"])
         self.assertCountEqual(all_names, expect_variable_names)
 
 

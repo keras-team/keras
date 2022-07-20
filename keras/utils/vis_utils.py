@@ -272,7 +272,12 @@ def model_to_dot(
         if show_shapes:
 
             def format_shape(shape):
-                return str(shape).replace(str(None), "None")
+                return (
+                    str(shape)
+                    .replace(str(None), "None")
+                    .replace("{", "/{")
+                    .replace("}", "/}")
+                )
 
             try:
                 outputlabels = format_shape(layer.output_shape)

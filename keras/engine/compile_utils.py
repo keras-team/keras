@@ -261,7 +261,7 @@ class LossesContainer(Container):
                 continue
 
             y_t, y_p, sw = match_dtype_and_rank(y_t, y_p, sw)
-            sw = apply_mask(y_p, sw, get_mask(y_p))
+            sw = losses_utils.apply_mask(y_p, sw, losses_utils.get_mask(y_p))
             loss_value = loss_obj(y_t, y_p, sample_weight=sw)
 
             total_loss_mean_value = loss_value
@@ -596,8 +596,8 @@ class MetricsContainer(Container):
                 continue
 
             y_t, y_p, sw = match_dtype_and_rank(y_t, y_p, sw)
-            mask = get_mask(y_p)
-            sw = apply_mask(y_p, sw, mask)
+            mask = losses_utils.get_mask(y_p)
+            sw = losses_utils.apply_mask(y_p, sw, mask)
 
             for metric_obj in metric_objs:
                 if metric_obj is None:
@@ -845,25 +845,6 @@ def match_dtype_and_rank(y_t, y_p, sw):
     if sw is not None:
         sw = tf.cast(sw, y_p.dtype)
     return y_t, y_p, sw
-
-
-def get_mask(y_p):
-    """Returns Keras mask from tensor."""
-    return getattr(y_p, "_keras_mask", None)
-
-
-def apply_mask(y_p, sw, mask):
-    """Applies any mask on predictions to sample weights."""
-    if mask is not None:
-        mask = tf.cast(mask, y_p.dtype)
-        if sw is not None:
-            mask, _, sw = losses_utils.squeeze_or_expand_dimensions(
-                mask, sample_weight=sw
-            )
-            sw *= mask
-        else:
-            sw = mask
-    return sw
 
 
 def get_custom_object_name(obj):

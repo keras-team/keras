@@ -481,7 +481,7 @@ class RNN(base_layer.Layer):
             self._validate_state_spec(state_size, self.state_spec)
         if self.stateful:
             self.reset_states()
-        self.built = True
+        super().build(input_shape)
 
     @staticmethod
     def _validate_state_spec(cell_state_sizes, init_state_specs):

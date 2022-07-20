@@ -393,3 +393,41 @@ def cast_losses_to_common_dtype(losses):
     if highest_float:
         losses = [tf.cast(loss, highest_float) for loss in losses]
     return losses
+
+
+def get_mask(y_p):
+    """Returns Keras mask from tensor."""
+    return getattr(y_p, "_keras_mask", None)
+
+
+def apply_mask(y_p, sw, mask):
+    """Applies any mask on predictions to sample weights."""
+    if mask is not None:
+        mask = tf.cast(mask, y_p.dtype)
+        if sw is not None:
+            mask, _, sw = squeeze_or_expand_dimensions(mask, sample_weight=sw)
+            sw *= mask
+        else:
+            sw = mask
+    return sw
+
+
+def apply_valid_mask(losses, sw, mask, reduction):
+    """Redistribute sample weights considering only valid entries."""
+    if mask is not None:
+        mask = tf.cast(mask, losses.dtype)
+
+        if reduction in (ReductionV2.AUTO, ReductionV2.SUM_OVER_BATCH_SIZE):
+            # Valid entries have weight `total/valid`, while invalid ones
+            # have 0. When summed over batch, they will be reduced to:
+            #
+            # mean(loss * sample_weight * total / valid)
+            #   = sum(loss * sample_weight * total / valid) / total
+            #   = sum(loss * sample_weight) / total * total / valid
+            #   = sum(loss * sample_weight) / valid
+
+            total = tf.cast(tf.size(mask), losses.dtype)
+            valid = tf.reduce_sum(mask)
+            mask *= total / valid
+
+    return apply_mask(losses, sw, mask)

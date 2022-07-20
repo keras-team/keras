@@ -34,7 +34,7 @@ from keras.saving.saved_model import metric_serialization
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
-from keras.utils.tf_utils import is_tensor_or_variable
+from keras.utils import tf_utils
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -371,7 +371,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         else:
             additional_kwargs = {}
 
-        with tf.init_scope():
+        with tf_utils.maybe_init_scope(layer=self):
             return super().add_weight(
                 name=name,
                 shape=shape,
@@ -698,18 +698,23 @@ class MeanMetricWrapper(Mean):
             self._fn, tf.__internal__.autograph.control_status_ctx()
         )
         matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
+        mask = losses_utils.get_mask(matches)
+        sample_weight = losses_utils.apply_valid_mask(
+            matches, sample_weight, mask, self.reduction
+        )
         return super().update_state(matches, sample_weight=sample_weight)
 
     def get_config(self):
-        config = {}
+        config = {
+            k: backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
+            for k, v in self._fn_kwargs.items()
+        }
 
         if type(self) is MeanMetricWrapper:
             # Only include function argument when the object is a
             # MeanMetricWrapper and not a subclass.
             config["fn"] = self._fn
 
-        for k, v in self._fn_kwargs.items():
-            config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -915,12 +920,17 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
             self._fn, tf.__internal__.autograph.control_status_ctx()
         )
         matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
+        mask = losses_utils.get_mask(matches)
+        sample_weight = losses_utils.apply_valid_mask(
+            matches, sample_weight, mask, self.reduction
+        )
         return super().update_state(matches, sample_weight=sample_weight)
 
     def get_config(self):
-        config = {}
-        for k, v in self._fn_kwargs.items():
-            config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
+        config = {
+            k: backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
+            for k, v in self._fn_kwargs.items()
+        }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

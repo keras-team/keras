@@ -5443,6 +5443,41 @@ def softsign(x):
     return tf.math.softsign(x)
 
 
+def _get_logits(output, from_logits, op_type, fn_name):
+    output_ = output
+    from_logits_ = from_logits
+
+    has_keras_logits = hasattr(output, "_keras_logits")
+    if has_keras_logits:
+        output_ = output._keras_logits
+        from_logits_ = True
+
+    from_expected_op_type = (
+        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
+        and output.op.type == op_type
+    ) and not has_keras_logits
+
+    if from_expected_op_type:
+        # When softmax activation function is used for output operation, we
+        # use logits from the softmax function directly to compute loss in order
+        # to prevent collapsing zero when training.
+        # See b/117284466
+        assert len(output.op.inputs) == 1
+        output_ = output.op.inputs[0]
+        from_logits_ = True
+
+    if from_logits and (has_keras_logits or from_expected_op_type):
+        warnings.warn(
+            f'"`{fn_name}` received `from_logits=True`, but '
+            f"the `output` argument was produced by a {op_type} "
+            "activation and thus does not represent logits. "
+            "Was this intended?",
+            stacklevel=2,
+        )
+
+    return output_, from_logits_
+
+
 @keras_export("keras.backend.categorical_crossentropy")
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
@@ -5493,35 +5528,10 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = tf.convert_to_tensor(output)
     target.shape.assert_is_compatible_with(output.shape)
 
-    # Use logits whenever they are available. `softmax` and `sigmoid`
-    # activations cache logits on the `output` Tensor.
-    if hasattr(output, "_keras_logits"):
-        output = output._keras_logits
-        if from_logits:
-            warnings.warn(
-                '"`categorical_crossentropy` received `from_logits=True`, but '
-                "the `output` argument was produced by a sigmoid or softmax "
-                "activation and thus does not represent logits. "
-                "Was this intended?",
-                stacklevel=2,
-            )
-        from_logits = True
-
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "categorical_crossentropy"
+    )
     if from_logits:
-        return tf.nn.softmax_cross_entropy_with_logits(
-            labels=target, logits=output, axis=axis
-        )
-
-    if (
-        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
-        and output.op.type == "Softmax"
-    ) and not hasattr(output, "_keras_history"):
-        # When softmax activation function is used for output operation, we
-        # use logits from the softmax function directly to compute loss in order
-        # to prevent collapsing zero when training.
-        # See b/117284466
-        assert len(output.op.inputs) == 1
-        output = output.op.inputs[0]
         return tf.nn.softmax_cross_entropy_with_logits(
             labels=target, logits=output, axis=axis
         )
@@ -5537,7 +5547,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 @keras_export("keras.backend.sparse_categorical_crossentropy")
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
-def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+def sparse_categorical_crossentropy(
+    target, output, from_logits=False, axis=-1, ignore_class=None
+):
     """Categorical crossentropy with integer targets.
 
     Args:
@@ -5550,6 +5562,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         axis: Int specifying the channels axis. `axis=-1` corresponds to data
             format `channels_last`, and `axis=1` corresponds to data format
             `channels_first`.
+        ignore_class: Optional integer. The ID of a class to be ignored
+            during loss computation. This is useful, for example, in
+            segmentation problems featuring a "void" class (commonly -1
+            or 255) in segmentation maps.
+            By default (`ignore_class=None`), all classes are considered.
 
     Returns:
         Output tensor.
@@ -5560,36 +5577,17 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
-    # Use logits whenever they are available. `softmax` and `sigmoid`
-    # activations cache logits on the `output` Tensor.
-    if hasattr(output, "_keras_logits"):
-        output = output._keras_logits
-        if from_logits:
-            warnings.warn(
-                '"`sparse_categorical_crossentropy` received '
-                "`from_logits=True`, but the `output` argument "
-                "was produced by a sigmoid or softmax activation "
-                'and thus does not represent logits. Was this intended?"',
-                stacklevel=2,
-            )
-        from_logits = True
-    elif (
-        not from_logits
-        and not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
-        and output.op.type == "Softmax"
-    ) and not hasattr(output, "_keras_history"):
-        # When softmax activation function is used for output operation, we
-        # use logits from the softmax function directly to compute loss in order
-        # to prevent collapsing zero when training.
-        # See b/117284466
-        assert len(output.op.inputs) == 1
-        output = output.op.inputs[0]
-        from_logits = True
-    elif not from_logits:
+    target = cast(target, "int64")
+
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
+    )
+    if not from_logits:
         epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
         output = tf.clip_by_value(output, epsilon_, 1 - epsilon_)
         output = tf.math.log(output)
 
+    # Permute output so that the last axis contains the logits/probabilities.
     if isinstance(output.shape, (tuple, list)):
         output_rank = len(output.shape)
     else:
@@ -5609,8 +5607,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "on an output tensor with unknown rank".format(axis)
         )
 
-    target = cast(target, "int64")
-
     # Try to adjust the shape so that rank of labels = rank of logits - 1.
     output_shape = tf.shape(output)
     target_rank = target.shape.ndims
@@ -5624,6 +5620,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         target = flatten(target)
         output = tf.reshape(output, [-1, output_shape[-1]])
 
+    if ignore_class is not None:
+        valid_mask = tf.not_equal(target, cast(ignore_class, target.dtype))
+        target = target[valid_mask]
+        output = output[valid_mask]
+
     if py_any(_is_symbolic_tensor(v) for v in [target, output]):
         with get_graph().as_default():
             res = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -5634,12 +5635,20 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             labels=target, logits=output
         )
 
-    if update_shape and output_rank >= 3:
-        # If our output includes timesteps or spatial dimensions we need to
-        # reshape
-        return tf.reshape(res, output_shape[:-1])
-    else:
+    if ignore_class is not None:
+        res_shape = cast(output_shape[:-1], "int64")
+        valid_mask = tf.reshape(valid_mask, res_shape)
+        res = tf.scatter_nd(tf.where(valid_mask), res, res_shape)
+        res._keras_mask = valid_mask
+
         return res
+
+    if update_shape and output_rank >= 3:
+        # If our output includes timesteps or
+        # spatial dimensions we need to reshape
+        res = tf.reshape(res, output_shape[:-1])
+
+    return res
 
 
 @keras_export("keras.backend.binary_crossentropy")
@@ -5661,34 +5670,10 @@ def binary_crossentropy(target, output, from_logits=False):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
-    # Use logits whenever they are available. `softmax` and `sigmoid`
-    # activations cache logits on the `output` Tensor.
-    if hasattr(output, "_keras_logits"):
-        output = output._keras_logits
-        if from_logits:
-            warnings.warn(
-                '"`binary_crossentropy` received `from_logits=True`, '
-                "but the `output` argument was produced by a sigmoid "
-                "or softmax activation and thus "
-                'does not represent logits. Was this intended?"',
-                stacklevel=2,
-            )
-        from_logits = True
-
+    output, from_logits = _get_logits(
+        output, from_logits, "Sigmoid", "binary_crossentropy"
+    )
     if from_logits:
-        return tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=target, logits=output
-        )
-
-    if (
-        not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable))
-        and output.op.type == "Sigmoid"
-    ) and not hasattr(output, "_keras_history"):
-        # When sigmoid activation function is used for output operation, we
-        # use logits from the sigmoid function directly to compute loss in order
-        # to prevent collapsing zero when training.
-        assert len(output.op.inputs) == 1
-        output = output.op.inputs[0]
         return tf.nn.sigmoid_cross_entropy_with_logits(
             labels=target, logits=output
         )

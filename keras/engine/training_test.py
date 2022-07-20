@@ -4620,6 +4620,58 @@ class ScalarDataModelTest(test_combinations.TestCase):
         self.assertAllClose(preds, y, atol=2e-1)
 
 
+# Class used for testing.
+class SubclassModel(training_module.Model):
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        self.d1 = layers_module.Dense(1000)
+        self.d2 = layers_module.Dense(1000)
+        self.dropout = layers_module.Dropout(0.1)
+
+    def call(self, inputs, training=None):
+        x = self.d1(inputs)
+        x = self.dropout(x, training=training)
+        return self.d2(x)
+
+
+class TestVariableObjectPathMapping(test_combinations.TestCase):
+    def test_subclass_model_get_weight_paths(self):
+        model = SubclassModel()
+        # Make sure the object path produce nothing when weights are not
+        # initialized
+        self.assertEmpty(model.get_weight_paths())
+
+        model(tf.zeros((10, 10)))
+        mapping = model.get_weight_paths()
+        self.assertEqual(
+            mapping.keys(), {"d1.kernel", "d1.bias", "d2.kernel", "d2.bias"}
+        )
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_functional_model_get_weight_paths(self):
+        inputs = input_layer.Input(shape=(10,))
+        x = layers_module.Dense(100, name="d1")(inputs)
+        output = layers_module.Dense(200, name="d2", activation="softmax")(x)
+        model = training_module.Model(inputs, output)
+        mapping = model.get_weight_paths()
+        self.assertEqual(
+            mapping.keys(), {"d1.kernel", "d1.bias", "d2.kernel", "d2.bias"}
+        )
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_sequential_model_get_weight_paths(self):
+        model = sequential.Sequential(
+            [
+                layers_module.Dense(100, name="d1", input_shape=(10,)),
+                layers_module.Dense(200, name="d2", activation="softmax"),
+            ]
+        )
+        mapping = model.get_weight_paths()
+        self.assertEqual(
+            mapping.keys(), {"d1.kernel", "d1.bias", "d2.kernel", "d2.bias"}
+        )
+
+
 def _is_oss():
     """Returns whether the test is run under OSS."""
     return len(sys.argv) >= 1 and "bazel" in sys.argv[0]
