@@ -209,11 +209,13 @@ def keras_name_to_tf_name_stem_top(
 
     # stem batch normalization
     for bn_weights in ["beta", "gamma", "moving_mean", "moving_variance"]:
-        tf_name = f"{model_name_tf}/stem/tpu_batch_normalization/{bn_weights}{ema}"
+        tf_name_str = f"{model_name_tf}/stem/tpu_batch_normalization/{bn_weights}{ema}"
+        tf_name = tf_name_str
         stem_top_dict[f"stem_bn/{bn_weights}:0"] = tf_name
 
     # top / head batch normalization
-    for bn_weights in ["beta", "gamma", "moving_mean", "moving_variance"]:
+    bn_weights_list = ["beta", "gamma", "moving_mean", "moving_variance"] 
+    for bn_weights in bn_weights_list:
         tf_name = f"{model_name_tf}/head/tpu_batch_normalization/{bn_weights}{ema}"
         stem_top_dict[f"top_bn/{bn_weights}:0"] = tf_name
 
