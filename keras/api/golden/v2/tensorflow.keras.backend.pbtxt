@@ -494,7 +494,7 @@ tf_module {
   }
   member_method {
     name: "sparse_categorical_crossentropy"
-    argspec: "args=[\'target\', \'output\', \'from_logits\', \'axis\'], varargs=None, keywords=None, defaults=[\'False\', \'-1\'], "
+    argspec: "args=[\'target\', \'output\', \'from_logits\', \'axis\', \'ignore_class\'], varargs=None, keywords=None, defaults=[\'False\', \'-1\', \'None\'], "
   }
   member_method {
     name: "spatial_2d_padding"

@@ -238,7 +238,7 @@ class CenterCrop(base_layer.Layer):
 
 @keras_export("keras.__internal__.layers.BaseImageAugmentationLayer")
 class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
-    """Abstract base layer for image augmentaion.
+    """Abstract base layer for image augmentation.
 
     This layer contains base functionalities for preprocessing layers which
     augment image related data, eg. image and in future, label and bounding

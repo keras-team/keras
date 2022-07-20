@@ -639,10 +639,10 @@ class Callback:
     2. You will need to manually call all the `on_*` methods at the appropriate
        locations in your loop. Like this:
 
-       ```
+    Example:
+    ```python
        callbacks =  tf.keras.callbacks.CallbackList([...])
        callbacks.append(...)
-
        callbacks.on_train_begin(...)
        for epoch in range(EPOCHS):
          callbacks.on_epoch_begin(epoch)
@@ -654,7 +654,7 @@ class Callback:
          callbacks.on_epoch_end(epoch, epoch_logs)
        final_logs=...
        callbacks.on_train_end(final_logs)
-       ```
+    ```
 
     Attributes:
         params: Dict. Training parameters

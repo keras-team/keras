@@ -241,6 +241,30 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
         except ImportError:
             pass
 
+    def test_model_with_brackets_in_shape(self):
+        # Test fix for a bug in which plotting the model shapes fails if
+        # any labels contain brackets
+        class DictLayer(keras.layers.Layer):
+            def call(self, inputs) -> tf.Tensor:
+                tensor_input, dict_input = inputs
+                return tf.concat(list(dict_input.values()), axis=1)
+
+        inputs = {
+            "a": keras.Input(name="a", shape=(1), dtype=tf.float32),
+            "b": keras.Input(name="b", shape=(1), dtype=tf.float32),
+        }
+        outputs = DictLayer()((inputs["a"], inputs))
+        model = keras.Model(
+            inputs=inputs,
+            outputs=outputs,
+        )
+        try:
+            vis_utils.plot_model(
+                model, show_shapes=True, show_dtype=True, show_layer_names=True
+            )
+        except ImportError:
+            pass
+
 
 def get_layer_ids_from_model(model, layer_range):
     layer_range = layer_utils.get_layer_index_bound_by_layer_name(

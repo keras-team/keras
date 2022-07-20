@@ -271,6 +271,10 @@ tf_class {
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "get_weight_paths"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "get_weights"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }

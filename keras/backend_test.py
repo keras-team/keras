@@ -28,6 +28,7 @@ from keras.engine import input_layer
 from keras.layers import activation
 from keras.layers.normalization import batch_normalization_v1
 from keras.testing_infra import test_combinations
+from keras.utils import losses_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 
@@ -2003,6 +2004,88 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
             ),
         )
         self.assertArrayNear(self.evaluate(result)[0], [0.002, 0, 0.17], 1e-3)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    def test_sparse_categorical_crossentropy_loss_with_ignore_class(self):
+        tests = (([255, 1, 2, 2], 255), ([-1, 1, 2, 2], -1))
+        p = backend.softmax(
+            backend.constant(
+                [
+                    [1.8, 1.2, 0.5],
+                    [0.2, 3.8, 0.8],
+                    [1.1, 0.4, 3.4],
+                    [1.3, 0.7, 3.8],
+                ]
+            )
+        )
+
+        for t, ignore_class in tests:
+            t = backend.constant(t)
+            result = backend.sparse_categorical_crossentropy(
+                t, p, ignore_class=ignore_class
+            )
+            self.assertArrayNear(
+                self.evaluate(result),
+                [0.0, 0.07428224, 0.13980183, 0.11967831],
+                1e-3,
+            )
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    def test_sparse_cce_loss_with_ignore_class_for_segmentation(self):
+        t = backend.constant(
+            [[[0, 2], [-1, -1]], [[0, 2], [-1, -1]], [[0, 0], [0, 0]]]
+        )
+        p = backend.constant(
+            [
+                [
+                    [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+                    [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]],
+                ],
+                [
+                    [[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]],
+                    [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]],
+                ],
+                [
+                    [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                    [[0.1, 0.9, 0.0], [0.2, 0.8, 0.0]],
+                ],
+            ]
+        )
+
+        expected_result = [
+            [[0.0, 0.0], [0.0, 0.0]],
+            [[0.0, 0.693148], [0.0, 0.0]],
+            [[0.0, 0.0], [2.302585, 1.609438]],
+        ]
+
+        # total_entries = 12
+        # valid_entries = 8
+        expected_mask = backend.constant(
+            [
+                [[True, True], [False, False]],
+                [[True, True], [False, False]],
+                [[True, True], [True, True]],
+            ]
+        )
+
+        result = backend.sparse_categorical_crossentropy(t, p, ignore_class=-1)
+        mask = losses_utils.get_mask(result)
+
+        self.assertIsNotNone(
+            mask,
+            "expected sparse_categorical_crossentropy to set the "
+            "`_keras_mask` attribute when `ignore_class is not None`, "
+            "which indicates which loss values are valid.",
+        )
+
+        result = self.evaluate(result)
+        mask = self.evaluate(mask)
+        self.assertAllEqual(mask, expected_mask)
+        self.assertAllClose(result, expected_result, atol=1e-6)
 
     @test_combinations.generate(test_combinations.combine(mode=["graph"]))
     def test_sparse_categorical_crossentropy_loss_with_unknown_rank_tensor(

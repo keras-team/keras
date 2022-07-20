@@ -29,6 +29,12 @@ def load_data(path="boston_housing.npz", test_split=0.2, seed=113):
     This is a dataset taken from the StatLib library which is maintained at
     Carnegie Mellon University.
 
+    **WARNING:** This dataset has an ethical problem: the authors of this
+    dataset included a variable, "B", that may appear to assume that racial
+    self-segregation influences house prices. As such, we strongly discourage
+    the use of this dataset, unless in the context of illustrating ethical
+    issues in data science and machine learning.
+
     Samples contain 13 attributes of houses at different locations around the
     Boston suburbs in the late 1970s. Targets are the median values of
     the houses at a location (in k$).

@@ -193,5 +193,5 @@ def get(identifier):
         return deserialize(config)
     else:
         raise ValueError(
-            "Could not interpret optimizer identifier: {}".format(identifier)
+            f"Could not interpret optimizer identifier: {identifier}"
         )
