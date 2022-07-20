@@ -68,6 +68,18 @@ def set_random_seed(seed):
     backend._SEED_GENERATOR.generator = random.Random(seed)
 
 
+def get_random_seed():
+    """Retrieve a seed value to seed a random generator.
+
+    Returns:
+      the random seed as an integer.
+    """
+    if getattr(backend._SEED_GENERATOR, "generator", None):
+        return backend._SEED_GENERATOR.generator.randint(1, 1e9)
+    else:
+        return random.randint(1, 1e9)
+
+
 def is_tensor_or_tensor_list(v):
     v = tf.nest.flatten(v)
     if v and isinstance(v[0], tf.Tensor):
