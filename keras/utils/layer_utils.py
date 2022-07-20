@@ -169,8 +169,8 @@ def get_layer_index_bound_by_layer_name(model, layer_range=None):
 
     if not lower_index or not upper_index:
         raise ValueError(
-            "Passed layer_names does not match the layer names in the model. "
-            f"Recieved: {layer_range}"
+            "Passed layer_names do not match the layer names in the model. "
+            f"Received: {layer_range}"
         )
 
     if min(lower_index) > max(upper_index):
