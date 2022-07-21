@@ -19,6 +19,9 @@ import tensorflow.compat.v2 as tf
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import deprecation
+from keras.optimizers.optimizer_experimental import (
+    optimizer as optimizer_experimental,
+)
 from tensorflow.python.util.tf_export import keras_export
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
@@ -201,11 +204,15 @@ class SidecarEvaluator:
 
     def start(self):
         """Starts the evaluation loop."""
-        optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
-        checkpoint = tf.train.Checkpoint(
-            model=self.model, optimizer=optimizer_checkpoint
-        )
-
+        if self.model.optimizer and isinstance(
+            self.model.optimizer, optimizer_experimental.Optimizer
+        ):
+            checkpoint = tf.train.Checkpoint(model=self.model)
+        else:
+            optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
+            checkpoint = tf.train.Checkpoint(
+                model=self.model, optimizer=optimizer_checkpoint
+            )
         for latest_checkpoint in tf.train.checkpoints_iterator(
             self.checkpoint_dir,
             timeout=_CHECKPOINT_TIMEOUT_SEC,
@@ -230,7 +237,12 @@ class SidecarEvaluator:
                 # The model checkpoint might not include optimizer in cases,
                 # e.g.  using a custom training loop. Directly assign the
                 # iterations property to be used in callbacks.
-                if self.model.optimizer:
+                if self.model.optimizer and not isinstance(
+                    self.model.optimizer,
+                    optimizer_experimental.Optimizer,
+                ):
+                    # experimental optimizer automatically restores the
+                    # iteration value.
                     self.model.optimizer.iterations.assign(self._iterations)
             except (tf.errors.OpError,) as e:
                 # A couple errors can happen here with the coordinator racing to
@@ -247,8 +259,13 @@ class SidecarEvaluator:
                     f"Error: {e.__class__.__name__}: {e}"
                 )
                 continue
-
-            if self._iterations.numpy() == _ITERATIONS_UNINITIALIZED:
+            if (
+                self._iterations.numpy() == _ITERATIONS_UNINITIALIZED
+                and not isinstance(
+                    self.model.optimizer,
+                    optimizer_experimental.Optimizer,
+                )
+            ):
                 raise RuntimeError(
                     "Variable `iterations` cannot be loaded from the "
                     f"checkpoint file at {self.checkpoint_dir}. "
@@ -260,7 +277,6 @@ class SidecarEvaluator:
                 "Evaluation starts: Model weights loaded from latest "
                 f"checkpoint file {latest_checkpoint}"
             )
-
             self.model.evaluate(
                 self.data, steps=self.steps, callbacks=self.callbacks, verbose=2
             )

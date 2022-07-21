@@ -104,12 +104,14 @@ class Optimizer(optimizer_lib._BaseOptimizer):
                     self._mesh, rank=initial_value.shape.rank
                 ),
             )
-        return dtensor.DVariable(
+        variable = dtensor.DVariable(
             initial_value=initial_value,
             name=f"{variable_name}/{model_variable._shared_name}",
             dtype=model_variable.dtype,
             trainable=False,
         )
+        self._variables.append(variable)
+        return variable
 
     @doc_controls.do_not_generate_docs
     def aggregate_gradients(self, grads_and_vars):

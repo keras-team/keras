@@ -32,7 +32,7 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
 
-class _BaseOptimizer(tf.Module):
+class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     """Optimizer base class, which only supports non-distribute use case."""
 
     def __init__(
@@ -47,7 +47,7 @@ class _BaseOptimizer(tf.Module):
         jit_compile=True,
         **kwargs,
     ):
-        self._name = name
+        self.name = name
         self.clipnorm = clipnorm
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
@@ -85,6 +85,7 @@ class _BaseOptimizer(tf.Module):
 
         self._create_iteration_variable()
         self._process_kwargs(kwargs)
+        self._variables = []
 
     def _create_iteration_variable(self):
         """Create the iterations counter variable."""
@@ -405,9 +406,11 @@ class _BaseOptimizer(tf.Module):
             dtype = backend.floatx()
         if shape is None:
             shape = []
-        return tf.Variable(
+        variable = tf.Variable(
             initial_value=initializer(shape, dtype), name=name, trainable=False
         )
+        self._variables.append(variable)
+        return variable
 
     def add_variable_from_reference(
         self, model_variable, variable_name, shape=None, initial_value=None
@@ -441,12 +444,14 @@ class _BaseOptimizer(tf.Module):
                 )
             else:
                 initial_value = tf.zeros(shape, dtype=model_variable.dtype)
-        return tf.Variable(
+        variable = tf.Variable(
             initial_value=initial_value,
             name=f"{variable_name}/{model_variable._shared_name}",
             dtype=model_variable.dtype,
             trainable=False,
         )
+        self._variables.append(variable)
+        return variable
 
     def minimize(self, loss, var_list, tape=None):
         """Minimize `loss` by updating `var_list`.
@@ -486,16 +491,24 @@ class _BaseOptimizer(tf.Module):
         ):
             # Compute the current learning rate at the beginning of variable
             # update.
-            self._current_learning_rate.assign(
-                self._learning_rate(self.iterations)
-            )
+            if hasattr(self, "_current_learning_rate"):
+                self._current_learning_rate.assign(
+                    self._learning_rate(self.iterations)
+                )
+            else:
+                self._current_learning_rate = tf.Variable(
+                    self._learning_rate(self.iterations),
+                    name="learning_rate",
+                    dtype=tf.float32,
+                    trainable=False,
+                )
         grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
         if len(list(grads_and_vars)) == 0:
             # It is possible that the grad is empty. In this case,
             # `apply_gradients` is a no-op.
             return
         grads, trainable_variables = zip(*grads_and_vars)
-        scope_name = self._name or "optimizer"
+        scope_name = self.name or "optimizer"
         with tf.name_scope(scope_name):
             with tf.init_scope():
                 # Lift variable creation to init scope to avoid environment
@@ -632,22 +645,7 @@ class _BaseOptimizer(tf.Module):
         sake of backward compatibility with `optimizer_v2.Optimizer`'s
         `variable()` method.
         """
-
-        def predicate(obj):
-            if not isinstance(obj, tf.Variable):
-                return False
-            # Exclude `iteration` and `learning_rate` to keep backward
-            # compatibilty with `optimizer_v2.Optimizer`.
-            return (
-                "iteration" not in obj.name and "learning_rate" not in obj.name
-            )
-
-        return tuple(
-            self._flatten(
-                predicate=predicate,
-                expand_composites=True,
-            )
-        )
+        return self._variables
 
 
 base_optimizer_keyword_args = """name: String. The name to use
