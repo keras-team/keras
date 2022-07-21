@@ -180,7 +180,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
     def test_application_notop_custom_input_shape(self, app, last_dim):
         output_shape = _get_output_shape(
             lambda: app(
-                weights=None, include_top=False, input_shape=(224, 224, 3)
+                weights='imagenet', include_top=False, input_shape=(224, 224, 3)
             )
         )
 
