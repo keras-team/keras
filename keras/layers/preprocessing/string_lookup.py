@@ -123,7 +123,8 @@ class StringLookup(index_lookup.IndexLookup):
       sparse: Boolean. Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, returns a `SparseTensor` instead of a
         dense `Tensor`. Defaults to False.
-      encoding: Optional. A string representing the encoding to use. Defaults to `"utf-8"`.
+      encoding: Optional. A string representing the encoding to use. Defaults to 
+        `"utf-8"`.
 
     Examples:
 
