@@ -110,6 +110,7 @@ classes = model.predict(x_test, batch_size=128)
 ```
 
 What you just saw is the most elementary way to use Keras.
+
 However, Keras is also a highly-flexible framework suitable to iterate on state-of-the-art research ideas.
 Keras follows the principle of **progressive disclosure of complexity**: it makes it easy to get started,
 yet it makes it possible to handle arbitrarily advanced use cases,
