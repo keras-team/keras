@@ -298,16 +298,21 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     @learning_rate.setter
     def learning_rate(self, learning_rate):
         if isinstance(
-            self._learning_rate, learning_rate_schedule.LearningRateSchedule
+            learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
-            raise TypeError(
-                "This optimizer was created with a `LearningRateSchedule`"
-                " object as its `learning_rate` constructor argument, "
-                "hence its learning rate is not settable. If you need the"
-                " learning rate to be settable, you should instantiate "
-                "the optimizer with a float `learning_rate` argument."
-            )
-        self._learning_rate.assign(learning_rate)
+            self._learning_rate = learning_rate
+        else:
+            if isinstance(
+                self._learning_rate, learning_rate_schedule.LearningRateSchedule
+            ):
+                raise TypeError(
+                    "This optimizer was created with a `LearningRateSchedule`"
+                    " object as its `learning_rate` constructor argument, "
+                    "hence its learning rate is not settable. If you need the"
+                    " learning rate to be settable, you should instantiate "
+                    "the optimizer with a float `learning_rate` argument."
+                )
+            self._learning_rate.assign(learning_rate)
 
     @property
     @doc_controls.do_not_generate_docs
