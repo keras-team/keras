@@ -313,7 +313,7 @@ class StringLookup(index_lookup.IndexLookup):
         oov_token="[UNK]",
         vocabulary=None,
         idf_weights=None,
-        encoding=None,
+        encoding="utf-8",
         invert=False,
         output_mode="int",
         sparse=False,
@@ -326,9 +326,6 @@ class StringLookup(index_lookup.IndexLookup):
             kwargs["dtype"] == tf.string or kwargs["dtype"] == "string"
         ):
             del kwargs["dtype"]
-
-        if encoding is None:
-            encoding = "utf-8"
 
         self.encoding = encoding
 

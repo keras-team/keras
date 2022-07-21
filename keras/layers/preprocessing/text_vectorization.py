@@ -256,7 +256,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         idf_weights=None,
         sparse=False,
         ragged=False,
-        encoding=None,
+        encoding="utf-8",
         **kwargs,
     ):
 
