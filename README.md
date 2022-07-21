@@ -8,7 +8,7 @@ Read the documentation at [keras.io](https://keras.io/).
 ## About Keras
 
 Keras is a deep learning API written in Python,
-running on top of the machine learning platform [TensorFlow](https://github.com/tensorflow/tensorflow).
+running on top of [TensorFlow](https://github.com/tensorflow/tensorflow)'s machine learning platform
 It was developed with a focus on enabling fast experimentation.
 *Being able to go from idea to result as fast as possible is key to doing good research.*
 
@@ -21,7 +21,7 @@ Keras is:
     advanced workflows should be *possible* via a clear path that builds upon
     what you've already learned.
 -   **Powerful** -- Keras provides industry-strength performance and
-    scalability: it is used by organizations and companies including NASA,
+    scalability, and it is used by organizations and companies including NASA,
     YouTube, and Waymo.
 
 ---
@@ -40,11 +40,11 @@ It combines four key abilities:
 
 Keras is the high-level API of TensorFlow 2: an approachable, highly-productive interface
 for solving machine learning problems,
-with a focus on modern deep learning. It provides essential abstractions and building blocks for developing
+focusing on modern deep learning. It provides essential abstractions and building blocks for developing
 and shipping machine learning solutions with high iteration velocity.
 
 Keras empowers engineers and researchers to take full advantage of the scalability
-and cross-platform capabilities of TensorFlow 2: you can run Keras on TPU or on large clusters of GPUs,
+and cross-platform capabilities of TensorFlow 2: you can run Keras on TPU or large clusters of GPUs,
 and you can export your Keras models to run in the browser or on a mobile device.
 
 ---
@@ -52,9 +52,9 @@ and you can export your Keras models to run in the browser or on a mobile device
 ## First contact with Keras
 
 The core data structures of Keras are __layers__ and __models__.
-The simplest type of model is the [`Sequential` model](/guides/sequential_model/), a linear stack of layers.
+The simplest model type is the [`Sequential` model](/guides/sequential_model/), a linear stack of layers.
 For more complex architectures, you should use the [Keras functional API](/guides/functional_api/),
-which allows to build arbitrary graphs of layers, or [write models entirely from scratch via subclasssing](/guides/making_new_layers_and_models_via_subclassing/).
+which allows you to build arbitrary graphs of layers or [write models entirely from scratch via subclassing](/guides/making_new_layers_and_models_via_subclassing/).
 
 Here is the `Sequential` model:
 
@@ -111,13 +111,13 @@ classes = model.predict(x_test, batch_size=128)
 
 What you just saw is the most elementary way to use Keras.
 
-However, Keras is also a highly-flexible framework suitable to iterate on state-of-the-art research ideas.
+However, Keras is also a highly-flexible framework suitable for iterating on state-of-the-art research ideas.
 Keras follows the principle of **progressive disclosure of complexity**: it makes it easy to get started,
-yet it makes it possible to handle arbitrarily advanced use cases,
+yet it is possible to handle arbitrarily advanced use cases,
 only requiring incremental learning at each step.
 
 In much the same way that you were able to train & evaluate a simple neural network above in a few lines,
-you can use Keras to quickly develop new training procedures or exotic model architectures.
+you can use Keras to develop new training procedures or exotic model architectures quickly.
 Here's a low-level training loop example, combining Keras functionality with the TensorFlow `GradientTape`:
 
 ```python
