@@ -174,8 +174,8 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       sparse: Boolean. Only applicable to `"multi_hot"`, `"count"`, and
         `"tf_idf"` output modes. If True, returns a `SparseTensor` instead of a
         dense `Tensor`. Defaults to False.
-      encoding: Optional. A string representing the encoding to use. Defaults to
-        `"utf-8"`.
+      encoding: Optional. The text encoding to use to interpret the input
+        strings. Defaults to `"utf-8"`.
 
     Example:
 
