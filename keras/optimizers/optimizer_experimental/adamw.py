@@ -32,7 +32,7 @@ class AdamW(optimizer.Optimizer):
 
     AdamW optimization is a stochastic gradient descent method that is based on
     adaptive estimation of first-order and second-order moments with an added
-    method to decay weights per the techniques discussed in the paeper,
+    method to decay weights per the techniques discussed in the paper,
     'Decoupled Weight Decay Regularization' by
     [Loshchilov, Hutter et al., 2019](https://arxiv.org/abs/1711.05101).
 
