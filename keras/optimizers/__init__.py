@@ -105,7 +105,7 @@ def serialize(optimizer):
 
 
 @keras_export("keras.optimizers.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, **kwargs):
     """Inverse of the `serialize` function.
 
     Args:
@@ -123,25 +123,51 @@ def deserialize(config, custom_objects=None):
         loss_scale_optimizer,
     )
 
-    all_classes = {
-        "adadelta": adadelta_v2.Adadelta,
-        "adagrad": adagrad_v2.Adagrad,
-        "adam": adam_v2.Adam,
-        "adamax": adamax_v2.Adamax,
-        "experimentaladadelta": adadelta_experimental.Adadelta,
-        "experimentaladagrad": adagrad_experimental.Adagrad,
-        "experimentaladam": adam_experimental.Adam,
-        "experimentalsgd": sgd_experimental.SGD,
-        "nadam": nadam_v2.Nadam,
-        "rmsprop": rmsprop_v2.RMSprop,
-        "sgd": gradient_descent_v2.SGD,
-        "ftrl": ftrl.Ftrl,
-        "lossscaleoptimizer": loss_scale_optimizer.LossScaleOptimizer,
-        "lossscaleoptimizerv3": loss_scale_optimizer.LossScaleOptimizerV3,
-        # LossScaleOptimizerV1 was an old version of LSO that was removed.
-        # Deserializing it turns it into a LossScaleOptimizer
-        "lossscaleoptimizerv1": loss_scale_optimizer.LossScaleOptimizer,
-    }
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    if (
+        tf.__internal__.tf2.enabled()
+        and tf.executing_eagerly()
+        and not use_legacy_optimizer
+    ):
+        all_classes = {
+            "adadelta": adadelta_experimental.Adadelta,
+            "adagrad": adagrad_experimental.Adagrad,
+            "adam": adam_experimental.Adam,
+            "adamax": adamax_experimental.Adamax,
+            "experimentaladadelta": adadelta_experimental.Adadelta,
+            "experimentaladagrad": adagrad_experimental.Adagrad,
+            "experimentaladam": adam_experimental.Adam,
+            "experimentalsgd": sgd_experimental.SGD,
+            "nadam": nadam_experimental.Nadam,
+            "rmsprop": rmsprop_experimental.RMSprop,
+            "sgd": sgd_experimental.SGD,
+            "ftrl": ftrl_experimental.Ftrl,
+            "lossscaleoptimizer": loss_scale_optimizer.LossScaleOptimizerV3,
+            "lossscaleoptimizerv3": loss_scale_optimizer.LossScaleOptimizerV3,
+            # LossScaleOptimizerV1 was an old version of LSO that was removed.
+            # Deserializing it turns it into a LossScaleOptimizer
+            "lossscaleoptimizerv1": loss_scale_optimizer.LossScaleOptimizer,
+        }
+    else:
+        all_classes = {
+            "adadelta": adadelta_v2.Adadelta,
+            "adagrad": adagrad_v2.Adagrad,
+            "adam": adam_v2.Adam,
+            "adamax": adamax_v2.Adamax,
+            "experimentaladadelta": adadelta_experimental.Adadelta,
+            "experimentaladagrad": adagrad_experimental.Adagrad,
+            "experimentaladam": adam_experimental.Adam,
+            "experimentalsgd": sgd_experimental.SGD,
+            "nadam": nadam_v2.Nadam,
+            "rmsprop": rmsprop_v2.RMSprop,
+            "sgd": gradient_descent_v2.SGD,
+            "ftrl": ftrl.Ftrl,
+            "lossscaleoptimizer": loss_scale_optimizer.LossScaleOptimizer,
+            "lossscaleoptimizerv3": loss_scale_optimizer.LossScaleOptimizerV3,
+            # LossScaleOptimizerV1 was an old version of LSO that was removed.
+            # Deserializing it turns it into a LossScaleOptimizer
+            "lossscaleoptimizerv1": loss_scale_optimizer.LossScaleOptimizer,
+        }
 
     # Make deserialization case-insensitive for built-in optimizers.
     if config["class_name"].lower() in all_classes:
@@ -155,7 +181,7 @@ def deserialize(config, custom_objects=None):
 
 
 @keras_export("keras.optimizers.get")
-def get(identifier):
+def get(identifier, **kwargs):
     """Retrieves a Keras Optimizer instance.
 
     Args:
@@ -172,6 +198,7 @@ def get(identifier):
     Raises:
         ValueError: If `identifier` cannot be interpreted.
     """
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
     if isinstance(
         identifier,
         (
@@ -187,10 +214,12 @@ def get(identifier):
         backend.track_tf_optimizer(opt)
         return opt
     elif isinstance(identifier, dict):
-        return deserialize(identifier)
+        return deserialize(
+            identifier, use_legacy_optimizer=use_legacy_optimizer
+        )
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(config)
+        return deserialize(config, use_legacy_optimizer=use_legacy_optimizer)
     else:
         raise ValueError(
             f"Could not interpret optimizer identifier: {identifier}"
