@@ -3168,11 +3168,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self._assert_weights_created()
         weights = []
         for layer in self._self_tracked_trackables:
-            if isinstance(layer, optimizer_experimental.Optimizer):
-                # Optimizer has to use variables() method.
-                weights += layer.variables()
-            else:
-                weights += layer.variables
+            weights += layer.variables
         weights += self._trainable_weights + self._non_trainable_weights
         return weights
 

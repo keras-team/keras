@@ -150,8 +150,13 @@ class Loss:
                     self.call, tf.__internal__.autograph.control_status_ctx()
                 )
             losses = call_fn(y_true, y_pred)
+            mask = losses_utils.get_mask(losses)
+            reduction = self._get_reduction()
+            sample_weight = losses_utils.apply_valid_mask(
+                losses, sample_weight, mask, reduction
+            )
             return losses_utils.compute_weighted_loss(
-                losses, sample_weight, reduction=self._get_reduction()
+                losses, sample_weight, reduction=reduction
             )
 
     @classmethod
@@ -977,6 +982,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     def __init__(
         self,
         from_logits=False,
+        ignore_class=None,
         reduction=losses_utils.ReductionV2.AUTO,
         name="sparse_categorical_crossentropy",
     ):
@@ -985,6 +991,11 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
         Args:
           from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
+          ignore_class: Optional integer. The ID of a class to be ignored during
+            loss computation. This is useful, for example, in segmentation
+            problems featuring a "void" class (commonly -1 or 255) in
+            segmentation maps.
+            By default (`ignore_class=None`), all classes are considered.
           reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
@@ -1003,6 +1014,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             name=name,
             reduction=reduction,
             from_logits=from_logits,
+            ignore_class=ignore_class,
         )
 
 
@@ -2024,7 +2036,9 @@ def _ragged_tensor_categorical_crossentropy(
     "keras.losses.sparse_categorical_crossentropy",
 )
 @tf.__internal__.dispatch.add_dispatch_support
-def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
+def sparse_categorical_crossentropy(
+    y_true, y_pred, from_logits=False, axis=-1, ignore_class=None
+):
     """Computes the sparse categorical crossentropy loss.
 
     Standalone usage:
@@ -2036,6 +2050,22 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
     >>> loss.numpy()
     array([0.0513, 2.303], dtype=float32)
 
+    >>> y_true = [[[ 0,  2],
+    ...            [-1, -1]],
+    ...           [[ 0,  2],
+    ...            [-1, -1]]]
+    >>> y_pred = [[[[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+    ...             [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]]],
+    ...           [[[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]],
+    ...            [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]]]]
+    >>> loss = tf.keras.losses.sparse_categorical_crossentropy(
+    ...   y_true, y_pred, ignore_class=-1)
+    >>> loss.numpy()
+    array([[[2.3841855e-07, 2.3841855e-07],
+            [0.0000000e+00, 0.0000000e+00]],
+           [[2.3841855e-07, 6.9314730e-01],
+            [0.0000000e+00, 0.0000000e+00]]], dtype=float32)
+
     Args:
       y_true: Ground truth values.
       y_pred: The predicted values.
@@ -2043,20 +2073,26 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
         default, we assume that `y_pred` encodes a probability distribution.
       axis: Defaults to -1. The dimension along which the entropy is
         computed.
+      ignore_class: Optional integer. The ID of a class to be ignored during
+        loss computation. This is useful, for example, in segmentation
+        problems featuring a "void" class (commonly -1 or 255) in segmentation
+        maps. By default (`ignore_class=None`), all classes are considered.
 
     Returns:
       Sparse categorical crossentropy loss value.
     """
-    y_pred = tf.convert_to_tensor(y_pred)
-
     return backend.sparse_categorical_crossentropy(
-        y_true, y_pred, from_logits=from_logits, axis=axis
+        y_true,
+        y_pred,
+        from_logits=from_logits,
+        ignore_class=ignore_class,
+        axis=axis,
     )
 
 
 @dispatch.dispatch_for_types(sparse_categorical_crossentropy, tf.RaggedTensor)
 def _ragged_tensor_sparse_categorical_crossentropy(
-    y_true, y_pred, from_logits=False, axis=-1
+    y_true, y_pred, from_logits=False, axis=-1, ignore_class=None
 ):
     """Implements support for handling RaggedTensors.
 
@@ -2071,7 +2107,10 @@ def _ragged_tensor_sparse_categorical_crossentropy(
     the sum of the individual loss values divided by 3.
     """
     fn = functools.partial(
-        sparse_categorical_crossentropy, from_logits=from_logits, axis=axis
+        sparse_categorical_crossentropy,
+        from_logits=from_logits,
+        ignore_class=ignore_class,
+        axis=axis,
     )
     return _ragged_tensor_apply_loss(fn, y_true, y_pred, y_pred_extra_dim=True)
 

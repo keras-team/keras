@@ -167,7 +167,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       output_mode: Specification for the output of the layer. Defaults to
         `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or
         `"count"` configuring the layer as follows:
-          - `"int"`: Return the discritized bin indices directly.
+          - `"int"`: Return the discretized bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as `num_bins`, containing a 1 at the input's bin
             index. If the last dimension is size 1, will encode on that

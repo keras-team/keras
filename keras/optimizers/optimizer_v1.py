@@ -48,9 +48,7 @@ class Optimizer:
                 )
             # checks that clipnorm >= 0 and clipvalue >= 0
             if kwargs[k] < 0:
-                raise ValueError(
-                    "Expected {} >= 0, received: {}".format(k, kwargs[k])
-                )
+                raise ValueError(f"Expected {k} >= 0, received: {kwargs[k]}")
         self.__dict__.update(kwargs)
         self.updates = []
         self.weights = []
@@ -521,7 +519,7 @@ class Adam(Optimizer):
         epsilon=None,
         decay=0.0,
         amsgrad=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         with backend.name_scope(self.__class__.__name__):
@@ -637,7 +635,7 @@ class Adamax(Optimizer):
         beta_2=0.999,
         epsilon=None,
         decay=0.0,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         with backend.name_scope(self.__class__.__name__):
@@ -739,7 +737,7 @@ class Nadam(Optimizer):
         beta_2=0.999,
         epsilon=None,
         schedule_decay=0.004,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         with backend.name_scope(self.__class__.__name__):

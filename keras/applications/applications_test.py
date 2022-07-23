@@ -176,6 +176,16 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
             self.assertShapeEqual(output_shape, (None, None, None, last_dim))
         backend.clear_session()
 
+    @parameterized.parameters(*MODEL_LIST)
+    def test_application_notop_custom_input_shape(self, app, last_dim):
+        output_shape = _get_output_shape(
+            lambda: app(
+                weights="imagenet", include_top=False, input_shape=(224, 224, 3)
+            )
+        )
+
+        self.assertEqual(output_shape[-1], last_dim)
+
     @parameterized.parameters(MODEL_LIST)
     def test_application_pooling(self, app, last_dim):
         output_shape = _get_output_shape(
