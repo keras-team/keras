@@ -585,7 +585,9 @@ class BinaryTruePositives(metrics.Metric):
                 sample_weight, values
             )
             values = tf.multiply(values, sample_weight)
-        self.true_positives.assign_add(tf.reduce_sum(values))
+        
+        update_true_positives_value = self.true_positives.read_value() + tf.reduce_sum(values)
+        self.true_positives.assign(update_true_positives_value)
 
     def result(self):
         return self.true_positives
@@ -603,10 +605,13 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
         for i in range(len(y_true)):
             for j in range(len(y_true[i])):
                 if y_true[i][j] and y_pred[i][j]:
+                    update_true_positives_value = self.true_positives.read_value()
                     if sample_weight is None:
-                        self.true_positives.assign_add(1)
+                        update_true_positives_value += 1
                     else:
-                        self.true_positives.assign_add(sample_weight[i][0])
+                        update_true_positives_value += sample_weight[i][0]
+                        
+                    self.true_positives.assign(update_true_positives_value)
 
     def result(self):
         if tf.constant(True):

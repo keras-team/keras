@@ -318,15 +318,18 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
           ValueError: If the provided iterable does not contain metrics matching
             the metric's required specifications.
         """
-        assign_add_ops = []
-        for metric in metrics:
-            if len(self.weights) != len(metric.weights):
-                raise ValueError(
-                    f"Metric {metric} is not compatible with {self}"
-                )
-            for weight, weight_to_add in zip(self.weights, metric.weights):
-                assign_add_ops.append(weight.assign_add(weight_to_add))
-        return assign_add_ops
+        assign_ops = []
+        nr_weights = len(self.weights)
+        for i, weight in enumerate(self.weights):
+            assign_value = weight.read_value()
+            for metric in metrics:
+                if nr_weights != len(metric.weights):
+                    raise ValueError(
+                        f"Metric {metric} is not compatible with {self}"
+                    )
+                assign_value += metric.weights[i].read_value()
+            assign_ops.append(weight.assign(assign_value))
+        return assign_ops
 
     @abc.abstractmethod
     def result(self):
@@ -502,7 +505,8 @@ class Reduce(Metric):
 
         value_sum = tf.reduce_sum(values)
         with tf.control_dependencies([value_sum]):
-            update_total_op = self.total.assign_add(value_sum)
+            update_total_value = self.total.read_value() + value_sum
+            update_total_op = self.total.assign(update_total_value)
 
         # Exit early if the reduction doesn't have a denominator.
         if self.reduction == metrics_utils.Reduction.SUM:
@@ -523,7 +527,8 @@ class Reduce(Metric):
             )
 
         with tf.control_dependencies([update_total_op]):
-            return self.count.assign_add(num_values)
+            update_count_value = self.count.read_value() + num_values
+            return self.count.assign(update_count_value)
 
     def result(self):
         if self.reduction == metrics_utils.Reduction.SUM:
@@ -849,9 +854,12 @@ class MeanTensor(Metric):
             num_values = tf.multiply(num_values, sample_weight)
             values = tf.multiply(values, sample_weight)
 
-        update_total_op = self._total.assign_add(values)
+        update_total_value = self._total.read_value() + values
+        update_total_op = self._total.assign(update_total_value)
         with tf.control_dependencies([update_total_op]):
-            return self._count.assign_add(num_values)
+            update_count_value = self._count.read_value() + num_values
+            update_count_op = self._count.assign(update_count_value)
+            return update_count_op
 
     def result(self):
         if not self._built:

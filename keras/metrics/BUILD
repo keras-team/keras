@@ -67,6 +67,19 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "metrics_distributed_test",
+    size = "small",
+    srcs = ["metrics_distributed_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
     name = "metrics_test",
     size = "medium",
     srcs = ["metrics_test.py"],

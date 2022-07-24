@@ -2733,7 +2733,10 @@ class _IoUBase(base_metric.Metric):
             weights=sample_weight,
             dtype=self._dtype,
         )
-        return self.total_cm.assign_add(current_cm)
+
+        update_total_cm_value = self.total_cm.read_value() + current_cm
+        update_total_cm_op = self.total_cm.assign(update_total_cm_value)
+        return update_total_cm_op
 
     def reset_state(self):
         backend.set_value(
