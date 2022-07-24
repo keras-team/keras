@@ -1,11 +1,11 @@
 import tensorflow as tf
 from tensorflow.python.util.tf_export import keras_export
 
-from keras.layers.pooling.base_generalized_pooling2d import GeneralizedPooling2D
+from keras.layers.pooling.base_generalized_pooling import BaseGeneralizedPooling
 
 
 @keras_export("keras.layers.GeneralizedMeanPooling2D")
-class GeneralizedMeanPooling2D(GeneralizedPooling2D):
+class GeneralizedMeanPooling2D(BaseGeneralizedPooling):
     """Generalized mean pooling operation for temporal data.
 
     Generalized Mean Pooling (GeM) computes the generalized mean of each

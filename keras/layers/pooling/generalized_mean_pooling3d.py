@@ -1,11 +1,11 @@
 import tensorflow as tf
 from tensorflow.python.util.tf_export import keras_export
 
-from keras.layers.pooling.base_generalized_pooling3d import GeneralizedPooling3D
+from keras.layers.pooling.base_generalized_pooling import BaseGeneralizedPooling
 
 
 @keras_export("keras.layers.GeneralizedMeanPooling3D")
-class GeneralizedMeanPooling3D(GeneralizedPooling3D):
+class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
     """Generalized mean pooling operation for temporal data.
 
     Generalized Mean Pooling (GeM) computes the generalized mean of
@@ -111,7 +111,7 @@ class GeneralizedMeanPooling3D(GeneralizedPooling3D):
         strides=None,
         padding="valid",
         data_format=None,
-        name=None,
+        name='GeneralizedPooling3D',
         **kwargs
     ):
         self.power = power
