@@ -939,6 +939,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         as described in [distributed training guide](
             https://www.tensorflow.org/guide/distributed_training#use_tfdistributestrategy_with_custom_training_loops)
         you should set this property to `"sum"`.
+        This doesn't affect TPU training, where `"first"` should be used.
 
         Default: 'first', which will get the value from the first replica.
         """
