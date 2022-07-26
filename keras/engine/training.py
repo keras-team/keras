@@ -943,7 +943,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         Default: 'first', which will get the value from the first replica.
         """
-        return self._distribute_reduction_method or "first"
+        return self._distribute_reduction_method or "auto"
 
     @distribute_reduction_method.setter
     def distribute_reduction_method(self, value):
@@ -3764,7 +3764,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return saving_lib.save(self, dirpath)
 
 
-def reduce_per_replica(values, strategy, reduction="first"):
+def reduce_per_replica(values, strategy, reduction="auto"):
     """Attempt to reduce the structure `values` to single values.
 
     Given `values` (a `tf.Tensor` or a `PerReplica` structure),
@@ -3806,6 +3806,9 @@ def reduce_per_replica(values, strategy, reduction="first"):
     Raises:
       ValueError: if the reduction method is not supported.
     """
+
+    if reduction == "auto":
+        reduction = "first" if _is_tpu_multi_host(strategy) else "sum"
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
