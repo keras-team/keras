@@ -929,7 +929,9 @@ class LossScaleOptimizer(
                 )
             config["inner_optimizer"] = config.pop("optimizer")
         inner_optimizer = optimizers.deserialize(
-            config["inner_optimizer"], custom_objects=custom_objects
+            config["inner_optimizer"],
+            custom_objects=custom_objects,
+            use_legacy_optimizer=True,
         )
         del config["inner_optimizer"]
         return cls(inner_optimizer, **config)
@@ -1366,7 +1368,9 @@ class LossScaleOptimizerV3(
     def from_config(cls, config, custom_objects=None):
         config = config.copy()  # Make a copy, since we mutate config
         inner_optimizer = optimizers.deserialize(
-            config["inner_optimizer"], custom_objects=custom_objects
+            config["inner_optimizer"],
+            custom_objects=custom_objects,
+            use_legacy_optimizer=False,
         )
         del config["inner_optimizer"]
         return cls(inner_optimizer, **config)
