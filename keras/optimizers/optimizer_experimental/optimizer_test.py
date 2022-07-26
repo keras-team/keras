@@ -215,6 +215,11 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertTrue(
             optimizer.learning_rate < 0.01 and optimizer.learning_rate > 0.00999
         )
+        # Check it does not throw error to set `learning_rate` by a
+        # LearningRateScheduler instance.
+        optimizer.learning_rate = learning_rate_schedule.ExponentialDecay(
+            initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9
+        )
         with self.assertRaisesRegex(
             TypeError, "This optimizer was created with*"
         ):
