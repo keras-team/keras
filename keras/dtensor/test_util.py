@@ -63,9 +63,7 @@ class DTensorBaseTest(tf.test.TestCase, parameterized.TestCase):
             mesh = device_type_mesh_map.get(device_type, None)
             if mesh is None:
                 dt = device_type
-                raise ValueError(
-                    f"Requires a {dt} mesh to run test on {dt}."
-                )
+                raise ValueError(f"Requires a {dt} mesh to run test on {dt}.")
             return mesh
 
         mesh = None
