@@ -14,13 +14,12 @@
 # ==============================================================================
 """Tests for Keras metrics within tf.distribute.Strategy contexts."""
 
-import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras import backend
 from keras import metrics
-from keras.testing_infra import test_combinations
+
 
 class KerasDistributedMetricsTest(tf.test.TestCase, parameterized.TestCase):
     def test_one_device_strategy_cpu(self):
@@ -36,7 +35,6 @@ class KerasDistributedMetricsTest(tf.test.TestCase, parameterized.TestCase):
                 metric = metrics.Sum()
                 output = metric.update_state(1)
                 self.assertEqual(backend.eval(output), 1)
-
 
     def test_mirrored_strategy(self):
         with self.cached_session():

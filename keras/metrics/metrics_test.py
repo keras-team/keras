@@ -1954,12 +1954,14 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
         for i in range(len(y_true)):
             for j in range(len(y_true[i])):
                 if y_true[i][j] and y_pred[i][j]:
-                    update_true_positives_value = self.true_positives.read_value()
+                    update_true_positives_value = (
+                        self.true_positives.read_value()
+                    )
                     if sample_weight is None:
                         update_true_positives_value += 1
                     else:
                         update_true_positives_value += sample_weight[i][0]
-                        
+
                     self.true_positives.assign(update_true_positives_value)
 
     def result(self):
