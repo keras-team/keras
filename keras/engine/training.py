@@ -934,14 +934,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """Settable attribute indicating how the model should reduce
         loss and metric values from replicas.
 
-        By default, tf.distribute takes care of proper synchronization
-        so that "first" is sufficient. If you implement a custom `train_step`
-        as described in [distributed training guide](
-            https://www.tensorflow.org/guide/distributed_training#use_tfdistributestrategy_with_custom_training_loops)
-        you should set this property to `"sum"`.
-        This doesn't affect TPU training, where `"first"` should be used.
-
-        Default: 'first', which will get the value from the first replica.
+        Default: `"auto"`. This should be good for all cases.
+        It boils down to using `"sum"` or `"first"` conditioned on
+        whether TPU is used.
         """
         return self._distribute_reduction_method or "auto"
 
@@ -3827,13 +3822,11 @@ def reduce_per_replica(values, strategy, reduction="auto"):
                 return concat(strategy.experimental_local_results(v))
         elif reduction == "sum":
             values = strategy.experimental_local_results(v)
-            # TODO remove me before finalizing PR
-            tf.print("reduce-sum", tf.stack(values))
             return tf.reduce_sum(values)
         else:
             raise ValueError(
-                '`reduction` must be "first", "concat", or "sum". Received: '
-                f"reduction={reduction}."
+                '`reduction` must be "first", "concat", "sum", or "auto". '
+                f"Received: reduction={reduction}."
             )
 
     return tf.nest.map_structure(_reduce, values)
