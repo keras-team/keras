@@ -91,7 +91,8 @@ def serialize(optimizer):
     `Optimizer` instance again.
 
     >>> tf.keras.optimizers.serialize(tf.keras.optimizers.SGD())
-    {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
+    {'class_name': 'SGD', 'config': {'name': 'SGD', 'is_legacy_optimizer': True,
+                                     'learning_rate': 0.01,
                                      'decay': 0.0, 'momentum': 0.0,
                                      'nesterov': False}}
 
@@ -124,6 +125,11 @@ def deserialize(config, custom_objects=None, **kwargs):
     )
 
     use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    if "is_legacy_optimizer" in config["config"]:
+        # If the optimizer to deserialize has `is_legacy_optimizer`, use it to
+        # override `use_legacy_optimizer`. This happens when loading a saved
+        # optimizer.
+        use_legacy_optimizer = config["config"]["is_legacy_optimizer"]
     if (
         tf.__internal__.tf2.enabled()
         and tf.executing_eagerly()

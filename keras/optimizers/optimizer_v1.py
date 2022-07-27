@@ -148,7 +148,7 @@ class Optimizer:
         return backend.batch_get_value(self.weights)
 
     def get_config(self):
-        config = {}
+        config = {"is_legacy_optimizer": True}
         if hasattr(self, "clipnorm"):
             config["clipnorm"] = self.clipnorm
         if hasattr(self, "clipvalue"):
@@ -157,6 +157,8 @@ class Optimizer:
 
     @classmethod
     def from_config(cls, config):
+        if "is_legacy_optimizer" in config:
+            del config["is_legacy_optimizer"]
         return cls(**config)
 
 

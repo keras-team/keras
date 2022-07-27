@@ -132,6 +132,8 @@ class Adagrad(optimizer_v2.OptimizerV2):
             config["initial_accumulator_value"] = 0.1
         if "lr" in config:
             config["learning_rate"] = config.pop("lr")
+        if "is_legacy_optimizer" in config:
+            del config["is_legacy_optimizer"]
         return cls(**config)
 
     def _resource_apply_dense(self, grad, var, apply_state=None):

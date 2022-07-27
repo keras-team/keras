@@ -619,6 +619,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
             "jit_compile": self.jit_compile,
+            "is_legacy_optimizer": False,
         }
         return config
 
@@ -640,6 +641,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 config["learning_rate"] = learning_rate_schedule.deserialize(
                     config["learning_rate"]
                 )
+        if "is_legacy_optimizer" in config:
+            del config["is_legacy_optimizer"]
         return cls(**config)
 
     @doc_controls.do_not_generate_docs

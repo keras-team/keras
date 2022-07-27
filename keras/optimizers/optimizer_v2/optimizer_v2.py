@@ -1182,7 +1182,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         Returns:
             Python dictionary.
         """
-        config = {"name": self._name}
+        config = {
+            "name": self._name,
+            "is_legacy_optimizer": True,
+        }
         if self.clipnorm is not None:
             config["clipnorm"] = self.clipnorm
         if self.clipvalue is not None:
@@ -1215,6 +1218,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 config["learning_rate"] = learning_rate_schedule.deserialize(
                     config["learning_rate"], custom_objects=custom_objects
                 )
+        if "is_legacy_optimizer" in config:
+            del config["is_legacy_optimizer"]
         return cls(**config)
 
     def _serialize_hyperparameter(self, hyperparameter_name):
