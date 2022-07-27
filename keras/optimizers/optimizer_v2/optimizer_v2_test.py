@@ -304,7 +304,6 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         with test_utils.use_gpu():
             opt = gradient_descent.SGD(learning_rate=1.0)
             config = opt.get_config()
-            self.assertEqual(config["is_legacy_optimizer"], True)
             opt2 = gradient_descent.SGD.from_config(config)
             lr = opt._get_hyper("learning_rate")
             lr2 = opt2._get_hyper("learning_rate")

@@ -297,7 +297,6 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             "use_ema": True,
             "ema_momentum": 0.5,
             "ema_overwrite_frequency": 50,
-            "is_legacy_optimizer": False,
         }
         self.assertDictContainsSubset(expected_config, config)
         restored_optimizer = adam_new.Adam.from_config(config)

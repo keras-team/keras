@@ -92,8 +92,6 @@ class KerasOptimizersTest(test_combinations.TestCase):
             new_config["config"].pop("momentum", None)
         if "centered" not in config["config"]:
             new_config["config"].pop("centered", None)
-        if "is_legacy_optimizer" not in config["config"]:
-            new_config["config"].pop("is_legacy_optimizer", None)
         self.assertDictEqual(config, new_config)
 
         # Test constraints.
