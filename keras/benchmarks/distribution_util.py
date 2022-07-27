@@ -146,7 +146,7 @@ def get_distribution_strategy(
         )
 
     raise ValueError(
-        "Unrecognized Distribution Strategy: %r" % distribution_strategy
+        f"Unrecognized Distribution Strategy: {distribution_strategy}"
     )
 
 

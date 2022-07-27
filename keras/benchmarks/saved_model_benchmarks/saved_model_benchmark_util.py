@@ -54,13 +54,13 @@ def save_and_load_benchmark(app):
     save_result = {
         "iters": trials,
         "wall_time": total_save_time / trials,
-        "name": "{}.save".format(model_name),
+        "name": f"{model_name}.save",
     }
 
     load_result = {
         "iters": trials,
         "wall_time": total_load_time / trials,
-        "name": "{}.load".format(model_name),
+        "name": f"{model_name}.load",
     }
     tf.compat.v1.gfile.DeleteRecursively(save_dir)
     return save_result, load_result
