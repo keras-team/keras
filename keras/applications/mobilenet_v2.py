@@ -43,10 +43,8 @@ are provided (224, 192, 160, 128, and 96).
 The following table describes the performance of
 MobileNet on various input sizes:
 ------------------------------------------------------------------------
-
 MACs stands for Multiply Adds
-
- Classification Checkpoint|MACs (M)|Parameters (M)|Top 1 Accuracy|Top 5 Accuracy
+Classification Checkpoint|MACs (M)|Parameters (M)|Top 1 Accuracy|Top 5 Accuracy
 --------------------------|------------|---------------|---------|------------
 | [mobilenet_v2_1.4_224]  | 582 | 6.06 |          75.0 | 92.5 |
 | [mobilenet_v2_1.3_224]  | 509 | 5.34 |          74.4 | 92.1 |
