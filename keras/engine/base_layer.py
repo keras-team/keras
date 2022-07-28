@@ -574,7 +574,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           use_resource: Whether to use a `ResourceVariable` or not.
             See [this guide](
             https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)
-            for more information.
+             for more information.
           synchronization: Indicates when a distributed a variable will be
             aggregated. Accepted values are constants defined in the class
             `tf.VariableSynchronization`. By default the synchronization is set
@@ -3126,30 +3126,41 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Append value to list of trainable / non-trainable weights if relevant
         # TODO(b/125122625): This won't pick up on any variables added to a
         # list/dict after creation.
-        for val in tf.nest.flatten(value, expand_composites=True):
-            if not isinstance(val, tf.Variable):
-                continue
-
-            # Users may add extra weights/variables simply by assigning them to
-            # attributes (invalid for graph networks)
-            self._maybe_create_attribute("_trainable_weights", [])
-            self._maybe_create_attribute("_non_trainable_weights", [])
-            if val.trainable:
-                if any(val is w for w in self._trainable_weights):
-                    continue
-                self._trainable_weights.append(val)
-            else:
-                if any(val is w for w in self._non_trainable_weights):
-                    continue
-                self._non_trainable_weights.append(val)
-
-            backend.track_variable(val)
+        self._track_variables(value)
 
         # TODO(b/180760306) Skip the auto trackable from tf.Module to keep
         # status quo. See the comment at __delattr__.
         super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
             name, value
         )
+
+    def _track_variables(self, value):
+        """Tracks `Variable`s including `Variable`s in `CompositeTensor`s."""
+        for val in tf.nest.flatten(value):
+            if isinstance(val, tf.Variable):
+                self._track_variable(val)
+            elif tf_utils.is_extension_type(val):
+                # Manually expand extension types to track resource variables.
+                nested_vals = tf_utils.type_spec_from_value(val)._to_components(
+                    val
+                )
+                self._track_variables(nested_vals)
+
+    def _track_variable(self, val):
+        """Tracks the given `tf.Variable`."""
+        # Users may add extra weights/variables simply by assigning them to
+        # attributes (invalid for graph networks)
+        self._maybe_create_attribute("_trainable_weights", [])
+        self._maybe_create_attribute("_non_trainable_weights", [])
+        if val.trainable:
+            if any(val is w for w in self._trainable_weights):
+                return
+            self._trainable_weights.append(val)
+        else:
+            if any(val is w for w in self._non_trainable_weights):
+                return
+            self._non_trainable_weights.append(val)
+        backend.track_variable(val)
 
     def _gather_children_attribute(self, attribute):
         assert attribute in {

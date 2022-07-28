@@ -490,6 +490,36 @@ def is_tensor_or_extension_type(x):
     return tf.is_tensor(x) or is_extension_type(x)
 
 
+def convert_variables_to_tensors(values):
+    """Converts `Variable`s in `values` to `Tensor`s.
+
+    This is a Keras version of `convert_variables_to_tensors` in TensorFlow
+    variable_utils.py.
+
+    If an object in `values` is an `ExtensionType` and it overrides its
+    `_convert_variables_to_tensors` method, its `ResourceVariable` components
+    will also be converted to `Tensor`s. Objects other than `ResourceVariable`s
+    in `values` will be returned unchanged.
+
+    Args:
+        values: A nested structure of `ResourceVariable`s, or any other objects.
+
+    Returns:
+        A new structure with `ResourceVariable`s in `values` converted to
+        `Tensor`s.
+    """
+
+    def _convert_resource_variable_to_tensor(x):
+        if isinstance(x, tf.Variable):
+            return tf.convert_to_tensor(x)
+        elif is_extension_type(x):
+            return x._convert_variables_to_tensors()
+        else:
+            return x
+
+    return tf.nest.map_structure(_convert_resource_variable_to_tensor, values)
+
+
 def assert_no_legacy_layers(layers):
     """Prevent tf.layers.Layers from being used with Keras.
 
