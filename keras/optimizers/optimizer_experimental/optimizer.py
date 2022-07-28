@@ -97,6 +97,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             )
 
     def _process_kwargs(self, kwargs):
+        kwargs.pop("is_legacy_optimizer", None)
         legacy_kwargs = {
             "lr",
             "decay",
@@ -619,6 +620,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
             "jit_compile": self.jit_compile,
+            "is_legacy_optimizer": False,
         }
         return config
 
