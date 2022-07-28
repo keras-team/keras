@@ -2599,6 +2599,63 @@ class FunctionTest(tf.test.TestCase):
         results = f({"x": 2.0, "y": 3.0})
         self.assertEqual(results[0], 6.0)
 
+    def test_function_variable_inputs(self):
+        placeholders = {
+            "x": backend.placeholder(shape=()),
+            "y": backend.placeholder(shape=()),
+        }
+        outputs = [placeholders["x"] * placeholders["y"]]
+
+        f = backend.function(inputs=placeholders, outputs=outputs)
+        results = f({"x": backend.variable(2.0), "y": 3.0})
+        self.assertEqual(results[0], 6.0)
+
+    def test_function_composite_variable_inputs(self):
+        if context.executing_eagerly():
+            self.skipTest(
+                "Only graph mode flattens composite tensor inputs into flat "
+                "tensors."
+            )
+
+        class Spec(tf.TypeSpec):
+            value_type = property(lambda self: CompositeVariable)
+
+            def _serialize(self):
+                pass
+
+            def _component_specs(self):
+                pass
+
+            def _to_components(self, value):
+                return value.variables
+
+            def _from_components(self, variable_list):
+                return CompositeVariable(variable_list)
+
+        class CompositeVariable(tf.__internal__.CompositeTensor):
+            def __init__(self, variable_list):
+                self.variables = variable_list
+
+            @property
+            def _type_spec(self):
+                return Spec()
+
+            def _convert_variables_to_tensors(self):
+                self.variables = tf.nest.map_structure(
+                    tf_utils.convert_variables_to_tensors, self.variables
+                )
+                return self
+
+        placeholders = {
+            "x": backend.placeholder(shape=()),
+            "y": backend.placeholder(shape=()),
+        }
+        outputs = [placeholders["x"] * placeholders["y"]]
+
+        f = backend.function(inputs=placeholders, outputs=outputs)
+        results = f({"x": CompositeVariable([backend.variable(2.0)]), "y": 3.0})
+        self.assertEqual(results[0], 6.0)
+
     def test_function_single_input_output(self):
         x_ph = backend.placeholder(shape=(), name="x")
         output = x_ph * x_ph
