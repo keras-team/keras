@@ -31,7 +31,7 @@ DOCLINES = __doc__.split("\n")
 # This version string is semver compatible, but incompatible with pip.
 # For pip, we will remove all '-' characters from this string, and use the
 # result for pip.
-_VERSION = "2.10.0"
+_VERSION = "2.11.0"
 
 REQUIRED_PACKAGES = [
     # We depend on TensorFlow's declared pip dependencies.
