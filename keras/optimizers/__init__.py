@@ -124,6 +124,12 @@ def deserialize(config, custom_objects=None, **kwargs):
     )
 
     use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    if len(config["config"]) > 0:
+        # If the optimizer config is not empty, then we use the value of
+        # `is_legacy_optimizer` to override `use_legacy_optimizer`. If
+        # `is_legacy_optimizer` does not exist in config, it means we are
+        # using the legacy optimzier.
+        use_legacy_optimizer = config["config"].get("is_legacy_optimizer", True)
     if (
         tf.__internal__.tf2.enabled()
         and tf.executing_eagerly()
