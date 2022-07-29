@@ -560,7 +560,11 @@ class KerasModelTest(test_combinations.TestCase):
             model = models.Model(x, y)
             model.compile("sgd", "mse")
             self.assertIsInstance(
-                model.optimizer, loss_scale_optimizer.LossScaleOptimizer
+                model.optimizer,
+                (
+                    loss_scale_optimizer.LossScaleOptimizer,
+                    loss_scale_optimizer.LossScaleOptimizerV3,
+                ),
             )
 
             # Test if an LSO is passed, optimizer is not automatically wrapped
