@@ -29,8 +29,8 @@ The below table describes the performance on ImageNet 2012:
 ---------------------------------------------------------------------------
 Architecture         | Top-1 Acc | Top-5 Acc |  Multiply-Adds |  Params (M)
 ---------------------|-----------|-----------|----------------|------------
-NASNet-A (4 @ 1056)  |   74.0 %  |   91.6 %  |       564 M    |     5.3    
-NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9  
+NASNet-A (4 @ 1056)  |   74.0 %  |   91.6 %  |       564 M    |     5.3
+NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9
 
 Reference:
   - [Learning Transferable Architectures for Scalable Image Recognition](
