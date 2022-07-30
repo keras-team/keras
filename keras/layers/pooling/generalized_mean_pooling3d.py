@@ -111,7 +111,7 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
         strides=None,
         padding="valid",
         data_format=None,
-        name='GeneralizedPooling3D',
+        name="GeneralizedPooling3D",
         **kwargs
     ):
         self.power = power
