@@ -43,5 +43,5 @@ def run_with_xprof(
         for _ in range(num_iters_xprof):
             func()
     total_time = time.time() - start
-    us_per_example = float("{0:.3f}".format(total_time * 1e6 / num_iters_xprof))
+    us_per_example = float(f"{total_time * 1000000.0 / num_iters_xprof:.3f}")
     return logdir, us_per_example

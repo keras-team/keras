@@ -94,6 +94,19 @@ class DropoutTest(test_combinations.TestCase):
         for name in checkpoint_var_names:
             self.assertNotIn("dropout", name)
 
+        # Make sure the checkpoint can be loaded
+        clone_model = keras.models.clone_model(model)
+        checkpoint = tf.train.Checkpoint(clone_model)
+        status = checkpoint.restore(
+            os.path.join(self.get_temp_dir(), "checkpoint-1")
+        )
+        self.assertTrue(status.assert_consumed())
+        self.assertTrue(status.assert_existing_objects_matched())
+        # Make sure the output is differnt from the original model, since
+        # the StateVar is not preserved.
+        train3 = clone_model(np.ones((20, 5, 10)), training=True)
+        self.assertNotAllClose(train3, train2)
+
     @test_utils.run_v2_only
     def test_state_variable_name(self):
         inputs = keras.Input(shape=(5, 10))
