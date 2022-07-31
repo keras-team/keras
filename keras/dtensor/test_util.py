@@ -62,10 +62,8 @@ class DTensorBaseTest(tf.test.TestCase, parameterized.TestCase):
         def get_mesh(device_type):
             mesh = device_type_mesh_map.get(device_type, None)
             if mesh is None:
-                raise ValueError(
-                    "Requires a %s mesh to run test on %s."
-                    % (device_type, device_type)
-                )
+                dt = device_type
+                raise ValueError(f"Requires a {dt} mesh to run test on {dt}.")
             return mesh
 
         mesh = None
@@ -140,9 +138,9 @@ def reset_logical_devices(device_type, count):
             * count,
         )
     else:
+        dt = device_type
         raise ValueError(
-            "resetting logical device for non-supported device type : "
-            "%s" % device_type
+            f"resetting logical device for non-supported device type: {dt}"
         )
 
 
