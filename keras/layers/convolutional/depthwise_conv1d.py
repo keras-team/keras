@@ -49,7 +49,7 @@ class DepthwiseConv1D(DepthwiseConv):
     are generated per input channel in the depthwise step.
 
     Args:
-      kernel_size: An integer, specifying the height and width of the 1D
+      kernel_size: An integer, specifying the height or width of the 1D
         convolution window. Can be a single integer to specify the same value
         for all spatial dimensions.
       strides: An integer, specifying the strides of the convolution along the
