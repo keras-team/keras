@@ -480,9 +480,24 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 # TODO(b/153110928): Keras TF format doesn't restore optimizer
                 # weights currently.
                 return
-            self.assertAllClose(
-                model.optimizer.weights, loaded_model.optimizer.weights
-            )
+            if isinstance(
+                loaded_model.optimizer,
+                keras.optimizers.optimizer_experimental.Optimizer,
+            ):
+                loaded_model.optimizer.build(loaded_model.trainable_variables)
+                save_format = test_utils.get_save_format()
+                if save_format == "h5":
+                    # Experimental optimizer does not restore weights if saved
+                    # in h5 format.
+                    return
+                self.assertAllClose(
+                    model.optimizer.variables(),
+                    loaded_model.optimizer.variables(),
+                )
+            else:
+                self.assertAllClose(
+                    model.optimizer.weights, loaded_model.optimizer.weights
+                )
 
         # In V1/Graph mode, the model isn't built, so the metrics are not loaded
         # immediately (requires model to be called on some data before building

@@ -86,6 +86,8 @@ class TestPickleProtocol(test_combinations.TestCase):
         model = serializer(original_model)
         # compile
         model.compile(optimizer="sgd", loss="sparse_categorical_crossentropy")
+        if hasattr(model.optimizer, "_distribution_strategy"):
+            model.optimizer._distribution_strategy = None
         # roundtrip compiled but not trained
         model = serializer(model)
 

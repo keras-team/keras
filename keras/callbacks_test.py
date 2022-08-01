@@ -366,7 +366,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             model.compile("sgd", "mse")
             cbk = BackupAndRestore(self.get_temp_dir())
             model.fit(
-                np.ones((10, 1)), np.ones((10, 1)), epochs=0, callbacks=[cbk]
+                np.ones((10, 1)), np.ones((10, 1)), epochs=1, callbacks=[cbk]
             )
 
     def test_backup_restore_train_counter(self):

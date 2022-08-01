@@ -22,6 +22,7 @@ from absl.testing import parameterized
 
 import keras
 from keras import backend
+from keras.optimizers.optimizer_experimental import adam
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.utils import generic_utils
@@ -88,7 +89,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
     def _get_subclassed_model(self):
         subclassed_model = CustomModelX()
         subclassed_model.compile(
-            optimizer="adam",
+            optimizer=adam.Adam(),
             loss=[
                 "mse",
                 keras.losses.mean_squared_error,
@@ -126,7 +127,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
                 model.optimizer.__class__,
-                keras.optimizers.optimizer_v2.adam.Adam,
+                adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,
@@ -185,7 +186,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
                 model.optimizer.__class__,
-                keras.optimizers.optimizer_v2.adam.Adam,
+                adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,
@@ -255,7 +256,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertIsNone(config_dict["config"]["optimizer"]["module"])
         self.assertEqual(
             config_dict["config"]["optimizer"]["class_name"],
-            "keras.optimizers.Adam",
+            "keras.optimizers.experimental.Adam",
         )
         self.assertEqual(
             config_dict["config"]["loss"]["module"],
