@@ -36,6 +36,7 @@ from keras.utils import control_flow_util
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+from keras.utils import tf_utils
 
 # isort: off
 from tensorflow.core.protobuf import config_pb2
@@ -1468,7 +1469,6 @@ def is_placeholder(x):
     try:
         if tf.compat.v1.executing_eagerly_outside_functions():
             return hasattr(x, "_is_backend_placeholder")
-        from keras.utils import tf_utils
 
         if tf_utils.is_extension_type(x):
             flat_components = tf.nest.flatten(x, expand_composites=True)
@@ -1972,10 +1972,6 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._seed = self._create_seed(self._seed)
             self._generator = None
         elif self._rng_type == self.RNG_STATEFUL:
-            from keras.utils import (
-                tf_utils,
-            )
-
             with tf_utils.maybe_init_scope(self):
                 seed = self._create_seed(self._seed)
                 self._generator = tf.random.Generator.from_seed(seed)
@@ -4407,11 +4403,13 @@ class GraphExecutionFunction:
                 "should be a list or tuple."
             )
 
-        self._inputs_structure = inputs
-        self.inputs = tf.nest.flatten(inputs, expand_composites=True)
-        self._outputs_structure = outputs
-        self.outputs = cast_variables_to_tensor(
-            tf.nest.flatten(outputs, expand_composites=True)
+        self.inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True,
+        )
+        self._outputs_structure = tf_utils.convert_variables_to_tensors(outputs)
+        self.outputs = tf.nest.flatten(
+            self._outputs_structure, expand_composites=True
         )
         # TODO(b/127668432): Consider using autograph to generate these
         # dependencies in call.
@@ -4522,7 +4520,6 @@ class GraphExecutionFunction:
         # the CompositeTensors. E.g., if output_structure contains a
         # SparseTensor, then this ensures that we return its value as a
         # SparseTensorValue rather than a SparseTensor.
-        from keras.utils import tf_utils
 
         if tf_utils.is_extension_type(tensor):
             return self._session.run(tensor)
@@ -4530,7 +4527,10 @@ class GraphExecutionFunction:
             return tensor
 
     def __call__(self, inputs):
-        inputs = tf.nest.flatten(inputs, expand_composites=True)
+        inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True,
+        )
 
         session = get_session(inputs)
         feed_arrays = []
@@ -4620,7 +4620,6 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
                 "eager execution. You passed: %s" % (updates,)
             )
         from keras import models
-        from keras.utils import tf_utils
 
         model = models.Model(inputs=inputs, outputs=outputs)
 
@@ -7242,15 +7241,6 @@ def _is_tpu_strategy_class(clz):
 def is_tpu_strategy(strategy):
     """Returns whether input is a TPUStrategy instance or subclass instance."""
     return _is_tpu_strategy_class(strategy.__class__)
-
-
-def cast_variables_to_tensor(tensors):
-    def _cast_variables_to_tensor(tensor):
-        if isinstance(tensor, tf.Variable):
-            return tf.identity(tensor)
-        return tensor
-
-    return tf.nest.map_structure(_cast_variables_to_tensor, tensors)
 
 
 def _is_symbolic_tensor(x):
