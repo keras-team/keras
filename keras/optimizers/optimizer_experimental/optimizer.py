@@ -525,6 +525,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         grads_and_vars = list(zip(grads, trainable_variables))
         self._internal_apply_gradients(grads_and_vars)
 
+        for variable in trainable_variables:
+            if variable.constraint is not None:
+                variable.assign(variable.constraint(variable))
+
     def _internal_apply_gradients(self, grads_and_vars):
         """Helper function of apply gradients.
 
