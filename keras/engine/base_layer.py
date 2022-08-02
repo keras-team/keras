@@ -219,7 +219,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     that returns `y = w . x + b`.
     It shows how to implement `build()` and `call()`.
     Variables set as attributes of a layer are tracked as weights
-    of the layers (in `layer.weights`).
+    of the layers (in `layer.weights`), as long as they are not added 
+    to a python list or dictionary after its creation (see below examples). 
+    
 
     ```python
     class SimpleDense(Layer):
@@ -273,6 +275,45 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       def call(self, inputs):
           return tf.matmul(inputs, self.w) + self.b
     ```
+    
+    However, it is preferable to use `add_weight()` when working with 
+    nested python structures (dictionaries and lists). Otherwise, take into a
+    account that weights added to a list or dictionary after its creation won't
+    be tracked. 
+    
+    For example, this layer won't keep track of the weights defined in
+    its `build()` method:
+    
+    ```python
+    class MyLayer(Layer):
+     def build(self, input_shape):  
+        self.weights = []
+        for i in range(3):
+          self.weights.append(tf.Variable(
+                                            name=f"w_{i}",
+                                            initial_value=w_init(shape=(input_shape[-1], self.units), dtype='float32'),
+                                            trainable=True
+                                         )
+    ```
+    Because they have been added a posteriori to a list. 
+    
+    But in this other example, the layer will keep track of the weights:
+    
+    ```python
+    class MyLayer(Layer):
+     def build(self, input_shape):  
+        self.weights = [
+                          tf.Variable(
+                             name=f"w_{i}",
+                             initial_value=w_init(shape=(input_shape[-1], self.units), dtype='float32'),
+                             trainable=True
+                             )
+                          for i in range(3)
+                       ]
+    ```
+    
+    The `add_weight()` method does not have the same asymmetry, keeping 
+    always track of the variables passed to it. 
 
     Besides trainable weights, updated via backpropagation during training,
     layers can also have non-trainable weights. These weights are meant to
