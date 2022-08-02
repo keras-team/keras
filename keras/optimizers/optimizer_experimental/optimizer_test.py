@@ -236,6 +236,16 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
             optimizer.iterations = 2
 
+    def testVariableConstraints(self):
+        optimizer = adam_new.Adam()
+        inputs = keras.layers.Input(shape=[1])
+        outputs = keras.layers.Dense(1, kernel_constraint="NonNeg")(inputs)
+        model = keras.models.Model(inputs=inputs, outputs=outputs)
+        model.trainable_variables[0] = -999999  # Set as a negative number.
+        grads = [tf.zeros(1, 1), tf.zeros(1)]
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.assertEqual(model.trainable_variables[0], 0.0)
+
     def testNoGradients(self):
         optimizer = adam_new.Adam(jit_compile=False)
         optimizer.apply_gradients(zip([], []))
