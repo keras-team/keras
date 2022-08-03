@@ -209,7 +209,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
     ```python
     from PIL import Image
     img = np.random.random(size=(100, 100, 3))
-    pil_img = tf.keras.preprocessing.image.array_to_img(img)
+    pil_img = tf.keras.utils.array_to_img(img)
     ```
 
 
@@ -290,8 +290,8 @@ def img_to_array(img, data_format=None, dtype=None):
     ```python
     from PIL import Image
     img_data = np.random.random(size=(100, 100, 3))
-    img = tf.keras.preprocessing.image.array_to_img(img_data)
-    array = tf.keras.preprocessing.image.img_to_array(img)
+    img = tf.keras.utils.array_to_img(img_data)
+    array = tf.keras.utils.image.img_to_array(img)
     ```
 
 
@@ -375,8 +375,8 @@ def load_img(
     Usage:
 
     ```
-    image = tf.keras.preprocessing.image.load_img(image_path)
-    input_arr = tf.keras.preprocessing.image.img_to_array(image)
+    image = tf.keras.utils.load_img(image_path)
+    input_arr = tf.keras.utils.img_to_array(image)
     input_arr = np.array([input_arr])  # Convert single image to a batch.
     predictions = model.predict(input_arr)
     ```
