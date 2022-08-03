@@ -1,0 +1,7 @@
+path: "tensorflow.keras.__internal__.optimizers"
+tf_module {
+  member_method {
+    name: "convert_to_legacy_optimizer"
+    argspec: "args=[\'optimizer\'], varargs=None, keywords=None, defaults=None"
+  }
+}
