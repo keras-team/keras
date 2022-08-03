@@ -143,9 +143,11 @@ def set_callback_parameters(
         mode: String. One of ModeKeys.TRAIN, ModeKeys.TEST, or ModeKeys.PREDICT.
           Which loop mode to configure callbacks for.
     """
-    metric_names = model.metrics_names
+    metric_names = None
     for cbk in callback_list:
         if isinstance(cbk, (BaseLogger, ProgbarLogger)):
+            if not metric_names:
+                metric_names = model.metrics_names
             cbk.stateful_metrics = metric_names[1:]  # Exclude `loss`
 
     # Set callback parameters
@@ -153,6 +155,8 @@ def set_callback_parameters(
     # When we have deferred build scenario with iterator input, we will compile
     # when we standardize first batch of data.
     if mode != ModeKeys.PREDICT:
+        if not metric_names:
+            metric_names = model.metrics_names
         callback_metrics = copy.copy(metric_names)
         if do_validation:
             callback_metrics += ["val_" + n for n in metric_names]
@@ -604,6 +608,13 @@ class CallbackList:
                     "`ParameterServerStrategy`. Found unsupported "
                     f"callbacks: {unsupported_callbacks}"
                 )
+
+    def make_logs(self, model, logs, outputs, mode, prefix=""):
+        """Computes logs for sending to `on_batch_end` methods."""
+        if not self.callbacks:
+            return logs
+
+        return make_logs(model, logs, outputs, mode, prefix=prefix)
 
 
 @keras_export("keras.callbacks.Callback")
