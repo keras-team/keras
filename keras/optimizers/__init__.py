@@ -77,6 +77,7 @@ from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.utils.generic_utils import deserialize_keras_object
+from keras.utils.generic_utils import get_registered_name
 from keras.utils.generic_utils import serialize_keras_object
 
 # isort: off
@@ -184,6 +185,46 @@ def deserialize(config, custom_objects=None, **kwargs):
         custom_objects=custom_objects,
         printable_module_name="optimizer",
     )
+
+
+@keras_export(
+    "keras.__internal__.optimizers.convert_to_legacy_optimizer", v1=[]
+)
+def convert_to_legacy_optimizer(optimizer):
+    """Convert experimental optimizer to legacy optimizer.
+
+    This function takes in a `tf.keras.optimizers.experimental.Optimizer`
+    instance and converts it to the corresponding
+    `tf.keras.optimizer.legacy.Optimizer` instance.
+    For example, `tf.keras.optimizers.experimental.Adam(...)` to
+    `tf.keras.optimizers.legacy.Adam(...)`.
+
+    Args:
+        optimizer: An instance of `tf.keras.optimizers.experimental.Optimizer`.
+    """
+    if not isinstance(optimizer, optimizer_experimental.Optimizer):
+        raise ValueError(
+            "`convert_to_legacy_optimizer` should only be called "
+            "on instances of `tf.keras.optimizers.Optimizer`, but "
+            f"received {optimizer} of type {type(optimizer)}."
+        )
+    optimizer_name = optimizer.__class__.__name__.lower()
+    config = optimizer.get_config()
+    # Remove fields that only exist in experimental optimizer.
+    keys_to_remove = [
+        "use_ema",
+        "ema_momentum",
+        "ema_overwrite_frequency",
+        "jit_compile",
+        "is_legacy_optimizer",
+    ]
+    for key in keys_to_remove:
+        config.pop(key, None)
+    legacy_optimizer_config = {
+        "class_name": optimizer_name,
+        "config": config,
+    }
+    return deserialize(legacy_optimizer_config, use_legacy_optimizer=True)
 
 
 @keras_export("keras.optimizers.get")

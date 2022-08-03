@@ -22,6 +22,8 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras.optimizers import optimizer_v1
+from keras.optimizers.optimizer_experimental import adam as adam_experimental
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import np_utils
@@ -298,6 +300,55 @@ class KerasOptimizersTest(test_combinations.TestCase):
             ValueError, "Could not interpret optimizer"
         ):
             keras.optimizers.get(0)
+
+    @test_utils.run_v2_only
+    def test_convert_to_legacy_optimizer(self):
+        if not tf.executing_eagerly():
+            # The conversion could only happen in eager mode.
+            return
+        optimizer_list = [
+            "adadelta",
+            "adagrad",
+            "adam",
+            "adamax",
+            "nadam",
+            "rmsprop",
+            "sgd",
+            "ftrl",
+        ]
+        # Test conversion does not throw errors.
+        for name in optimizer_list:
+            experimental_optimizer = keras.optimizers.get(
+                name, use_legacy_optimizer=False
+            )
+            reference_legacy_optimizer = keras.optimizers.get(
+                name, use_legacy_optimizer=True
+            )
+            converted_legacy_optimizer = (
+                keras.optimizers.convert_to_legacy_optimizer(
+                    experimental_optimizer
+                )
+            )
+            self.assertEqual(
+                type(reference_legacy_optimizer),
+                type(converted_legacy_optimizer),
+            )
+            self.assertDictEqual(
+                reference_legacy_optimizer.get_config(),
+                converted_legacy_optimizer.get_config(),
+            )
+
+        lr_schedule = learning_rate_schedule.ExponentialDecay(
+            initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9
+        )
+        optimizer = adam_experimental.Adam(learning_rate=lr_schedule)
+        legacy_optimizer = keras.optimizers.convert_to_legacy_optimizer(
+            optimizer
+        )
+        self.assertDictEqual(
+            optimizer.get_config()["learning_rate"],
+            legacy_optimizer.get_config()["learning_rate"],
+        )
 
 
 if __name__ == "__main__":
