@@ -934,9 +934,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """Settable attribute indicating how the model should reduce
         loss and metric values from replicas.
 
-        Default: `"auto"`. This should be good for all cases.
-        It boils down to using `"sum"` or `"first"` conditioned on
-        whether TPU is used.
+        Default: `"auto"`. This should be good for general use cases.
+        It boils down to using `"sum"` or `"first"` conditioned on the 
+        specific implementation of the `tf.distribute` strategy.
+        In case of a `tf.distribute.MirroredStrategy` it boils down to `"sum"`
+        to account for the case of custom training loops.
         """
         return self._distribute_reduction_method or "auto"
 
