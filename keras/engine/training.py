@@ -935,7 +935,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         loss and metric values from replicas.
 
         Default: `"auto"`. This should be good for general use cases.
-        It boils down to using `"sum"` or `"first"` conditioned on the 
+        It boils down to using `"sum"` or `"first"` conditioned on the
         specific implementation of the `tf.distribute` strategy.
         In case of a `tf.distribute.MirroredStrategy` it boils down to `"sum"`
         to account for the case of custom training loops.
