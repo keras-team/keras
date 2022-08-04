@@ -30,9 +30,7 @@ from keras.testing_infra import test_utils
 from keras.utils import io_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 def _create_dataset(num_samples, batch_size):

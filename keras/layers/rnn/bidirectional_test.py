@@ -30,12 +30,8 @@ from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 # isort: off
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_util,
-)
-from tensorflow.python.framework import (
-    test_util as tf_test_util,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_util
+from tensorflow.python.framework import test_util as tf_test_util
 
 
 class _RNNCellWithConstants(keras.layers.Layer):

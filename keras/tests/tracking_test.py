@@ -480,8 +480,7 @@ class TupleTests(test_combinations.TestCase):
             )
 
     @parameterized.named_parameters(
-        ("Module", tf.Module),
-        ("Model", training.Model),
+        ("Module", tf.Module), ("Model", training.Model),
     )
     def testSubModelTracking(self, module_subclass):
         model = module_subclass()

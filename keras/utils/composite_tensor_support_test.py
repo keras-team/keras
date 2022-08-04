@@ -700,12 +700,7 @@ class CompositeTensorModelPredictTest(test_combinations.TestCase):
             layers, model_input=model_input
         )
 
-        ragged_input = tf.ragged.constant(
-            [
-                [1, 2, 3, 4, 5],
-                [2, 4],
-            ]
-        )
+        ragged_input = tf.ragged.constant([[1, 2, 3, 4, 5], [2, 4],])
 
         shape = model(ragged_input).shape
         self.assertEqual((2, None, 5), self._normalize_shape(shape))

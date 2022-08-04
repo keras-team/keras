@@ -102,8 +102,6 @@ def model_from_json(json_string, custom_objects=None):
     Returns:
         A Keras model instance (uncompiled).
     """
-    from keras.layers import (
-        deserialize_from_json,
-    )
+    from keras.layers import deserialize_from_json
 
     return deserialize_from_json(json_string, custom_objects=custom_objects)

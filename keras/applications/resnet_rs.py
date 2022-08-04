@@ -652,7 +652,7 @@ def ResNetRS(
         if num_channels == 3:
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
-                variance=[0.229**2, 0.224**2, 0.225**2],
+                variance=[0.229 ** 2, 0.224 ** 2, 0.225 ** 2],
                 axis=bn_axis,
             )(x)
 

@@ -1447,9 +1447,7 @@ def placeholder(
         # Add keras_history connectivity information to the placeholder
         # when the placeholder is built in a top-level eager context
         # (intended to be used with keras.backend.function)
-        from keras.engine import (
-            input_layer,
-        )
+        from keras.engine import input_layer
 
         x = input_layer.Input(tensor=x)
         x._is_backend_placeholder = True
@@ -4969,11 +4967,8 @@ def rnn(
 
         # We only specify the 'maximum_iterations' when building for XLA since
         # that causes slowdowns on GPU in TF.
-        if (
-            not tf.executing_eagerly()
-            and control_flow_util.GraphOrParentsInXlaContext(
-                tf.compat.v1.get_default_graph()
-            )
+        if not tf.executing_eagerly() and control_flow_util.GraphOrParentsInXlaContext(
+            tf.compat.v1.get_default_graph()
         ):
             if input_length is None:
                 max_iterations = time_steps_t
@@ -5263,9 +5258,7 @@ def in_train_phase(x, alt, training=None):
         Either `x` or `alt` based on the `training` flag.
         the `training` flag defaults to `K.learning_phase()`.
     """
-    from keras.engine import (
-        base_layer_utils,
-    )
+    from keras.engine import base_layer_utils
 
     if training is None:
         training = base_layer_utils.call_context().training
@@ -5731,18 +5724,14 @@ def binary_focal_crossentropy(
       A tensor.
     """
     sigmoidal = tf.__internal__.smart_cond.smart_cond(
-        from_logits,
-        lambda: sigmoid(output),
-        lambda: output,
+        from_logits, lambda: sigmoid(output), lambda: output,
     )
     p_t = target * sigmoidal + (1 - target) * (1 - sigmoidal)
     # Calculate focal factor
     focal_factor = tf.pow(1.0 - p_t, gamma)
     # Binary crossentropy
     bce = binary_crossentropy(
-        target=target,
-        output=output,
-        from_logits=from_logits,
+        target=target, output=output, from_logits=from_logits,
     )
     focal_bce = focal_factor * bce
 

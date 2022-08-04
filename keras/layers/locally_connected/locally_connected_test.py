@@ -28,12 +28,8 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_util,
-)
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
+from tensorflow.python.framework import test_util as tf_test_util
+from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 _DATA_FORMAT_PADDING_IMPLEMENTATION = [
     {"data_format": "channels_first", "padding": "valid", "implementation": 1},

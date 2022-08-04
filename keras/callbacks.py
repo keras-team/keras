@@ -1437,10 +1437,8 @@ class ModelCheckpoint(Callback):
 
     def on_train_begin(self, logs=None):
         if self.load_weights_on_restart:
-            filepath_to_load = (
-                self._get_most_recently_modified_file_matching_pattern(
-                    self.filepath
-                )
+            filepath_to_load = self._get_most_recently_modified_file_matching_pattern(
+                self.filepath
             )
             if filepath_to_load is not None and self._checkpoint_exists(
                 filepath_to_load
@@ -2565,8 +2563,8 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                         embedding.metadata_path = self.embeddings_metadata
                     else:
                         if layer.name in self.embeddings_metadata.keys():
-                            embedding.metadata_path = (
-                                self.embeddings_metadata.pop(layer.name)
+                            embedding.metadata_path = self.embeddings_metadata.pop(
+                                layer.name
                             )
 
         if self.embeddings_metadata and not isinstance(

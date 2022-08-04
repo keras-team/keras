@@ -47,8 +47,7 @@ class EncodeCategoricalInputsTest(test_combinations.TestCase):
         self.assertAllEqual([0, 1, 2], outputs)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_one_hot_encoding(self, sparse):
         inputs = tf.constant([0, 1, 2])
@@ -60,8 +59,7 @@ class EncodeCategoricalInputsTest(test_combinations.TestCase):
         self.assertAllEqual([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], outputs)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_multi_hot_encoding(self, sparse):
         inputs = tf.constant([0, 1, 2])
@@ -73,8 +71,7 @@ class EncodeCategoricalInputsTest(test_combinations.TestCase):
         self.assertAllEqual([1, 1, 1, 0], outputs)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_count_encoding(self, sparse):
         inputs = tf.constant([0, 1, 1, 2, 2, 2])
@@ -86,8 +83,7 @@ class EncodeCategoricalInputsTest(test_combinations.TestCase):
         self.assertAllEqual([1, 2, 3, 0], outputs)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_tf_idf_encoding(self, sparse):
         inputs = tf.constant([0, 1, 1, 2, 2, 2])

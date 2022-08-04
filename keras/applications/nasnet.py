@@ -216,7 +216,7 @@ def NASNet(
         else:
             img_input = input_tensor
 
-    if penultimate_filters % (24 * (filter_multiplier**2)) != 0:
+    if penultimate_filters % (24 * (filter_multiplier ** 2)) != 0:
         raise ValueError(
             "For NASNet-A models, the `penultimate_filters` must be a multiple "
             "of 24 * (`filter_multiplier` ** 2). Current value: %d"
@@ -242,7 +242,7 @@ def NASNet(
 
     p = None
     x, p = _reduction_a_cell(
-        x, p, filters // (filter_multiplier**2), block_id="stem_1"
+        x, p, filters // (filter_multiplier ** 2), block_id="stem_1"
     )
     x, p = _reduction_a_cell(
         x, p, filters // filter_multiplier, block_id="stem_2"
@@ -268,7 +268,7 @@ def NASNet(
     x, p0 = _reduction_a_cell(
         x,
         p,
-        filters * filter_multiplier**2,
+        filters * filter_multiplier ** 2,
         block_id="reduce_%d" % (2 * num_blocks),
     )
 
@@ -278,7 +278,7 @@ def NASNet(
         x, p = _normal_a_cell(
             x,
             p,
-            filters * filter_multiplier**2,
+            filters * filter_multiplier ** 2,
             block_id="%d" % (2 * num_blocks + i + 1),
         )
 

@@ -36,9 +36,7 @@ from keras.legacy_tf_layers import variable_scope_shim
 from keras.testing_infra import test_combinations
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.ops import variable_scope
 
 
@@ -987,9 +985,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                         name="kernel",
                     )
                     bias = tf.compat.v1.get_variable(
-                        shape=[
-                            self.units,
-                        ],
+                        shape=[self.units,],
                         initializer=tf.compat.v1.zeros_initializer(),
                         name="bias",
                     )
@@ -1004,9 +1000,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                             name="kernel",
                         )
                         bias = tf.compat.v1.get_variable(
-                            shape=[
-                                self.units,
-                            ],
+                            shape=[self.units,],
                             initializer=tf.compat.v1.zeros_initializer(),
                             name="bias",
                         )
@@ -1166,9 +1160,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                             name="kernel",
                         )
                         bias = tf.compat.v1.get_variable(
-                            shape=[
-                                self.units,
-                            ],
+                            shape=[self.units,],
                             initializer=tf.compat.v1.zeros_initializer(),
                             name="bias",
                         )
@@ -1183,9 +1175,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                                 name="kernel",
                             )
                             bias = tf.compat.v1.get_variable(
-                                shape=[
-                                    self.units,
-                                ],
+                                shape=[self.units,],
                                 initializer=tf.compat.v1.zeros_initializer(),
                                 name="bias",
                             )
@@ -1245,9 +1235,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                         name="kernel",
                     )
                     bias = tf.compat.v1.get_variable(
-                        shape=[
-                            self.units,
-                        ],
+                        shape=[self.units,],
                         initializer=tf.compat.v1.zeros_initializer(),
                         name="bias",
                     )
@@ -1262,9 +1250,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                             name="kernel",
                         )
                         bias = tf.compat.v1.get_variable(
-                            shape=[
-                                self.units,
-                            ],
+                            shape=[self.units,],
                             initializer=tf.compat.v1.zeros_initializer(),
                             name="bias",
                         )
@@ -1380,9 +1366,7 @@ class TF1VariableScopeLayerTest(tf.test.TestCase, parameterized.TestCase):
                         name="kernel",
                     )
                     bias = tf.compat.v1.get_variable(
-                        shape=[
-                            self.units,
-                        ],
+                        shape=[self.units,],
                         initializer=tf.compat.v1.initializers.zeros,
                         name="bias",
                     )
@@ -1783,9 +1767,7 @@ class GetOrCreateLayerTest(tf.test.TestCase, parameterized.TestCase):
             def build_model(self):
                 inp = input_layer_module.Input(shape=(5, 5))
                 dense_layer = core.Dense(
-                    10,
-                    name="dense",
-                    kernel_regularizer="l2",
+                    10, name="dense", kernel_regularizer="l2",
                 )
                 model = training_module.Model(
                     inputs=inp, outputs=dense_layer(inp)

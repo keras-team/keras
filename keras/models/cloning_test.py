@@ -205,12 +205,8 @@ class TestModelCloning(test_combinations.TestCase):
 
         input_a = keras.Input(shape=(4,))
         input_b = keras.Input(shape=(4,))
-        dense_1 = keras.layers.Dense(
-            4,
-        )
-        dense_2 = keras.layers.Dense(
-            4,
-        )
+        dense_1 = keras.layers.Dense(4,)
+        dense_2 = keras.layers.Dense(4,)
 
         x_a = dense_1(input_a)
         x_a = keras.layers.Dropout(0.5)(x_a)

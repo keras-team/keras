@@ -187,8 +187,7 @@ class DiscretizationTest(
         self.assertAllEqual(outputs.shape.as_list(), [16, 4])
 
     @parameterized.named_parameters(
-        ("int32", tf.int32),
-        ("int64", tf.int64),
+        ("int32", tf.int32), ("int64", tf.int64),
     )
     def test_output_dtype(self, dtype):
         inputs = keras.Input(batch_size=16, shape=(4,), dtype="float32")
@@ -213,8 +212,7 @@ class DiscretizationTest(
         self.assertAllEqual(outputs.dtype, tf.int64)
 
     @parameterized.named_parameters(
-        ("float32", tf.float32),
-        ("float64", tf.float64),
+        ("float32", tf.float32), ("float64", tf.float64),
     )
     def test_one_hot_output_dtype(self, dtype):
         inputs = keras.Input(batch_size=16, shape=(1,), dtype="float32")
@@ -397,8 +395,7 @@ class DiscretizationAdaptTest(
         self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.product(
-        save_format=["tf", "h5"],
-        adapt=[True, False],
+        save_format=["tf", "h5"], adapt=[True, False],
     )
     def test_saved_model_keras(self, save_format, adapt):
         input_data = [[1], [2], [3]]

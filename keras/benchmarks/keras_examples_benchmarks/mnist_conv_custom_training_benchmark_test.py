@@ -120,13 +120,7 @@ class CustomMnistBenchmark(tf.test.Benchmark):
         """
         per_replica_losses = distribution_strategy.run(
             self.train_step,
-            args=(
-                batch_dataset,
-                model,
-                loss_fn,
-                optimizer,
-                batch_size,
-            ),
+            args=(batch_dataset, model, loss_fn, optimizer, batch_size,),
         )
         return distribution_strategy.reduce(
             tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None

@@ -394,11 +394,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
             old_model_config, module_objects={"Sequential": keras.Sequential}
         )
         new_model = keras.Sequential(
-            [
-                keras.layers.Dense(
-                    32, input_dim=784, kernel_initializer="Ones"
-                ),
-            ]
+            [keras.layers.Dense(32, input_dim=784, kernel_initializer="Ones"),]
         )
         input_data = np.random.normal(2, 1, (5, 784))
         output = old_model.predict(input_data)

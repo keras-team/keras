@@ -23,21 +23,14 @@ import keras
 from keras.optimizers.optimizer_v2 import gradient_descent
 
 # isort: off
-from tensorflow.python.distribute.cluster_resolver import (
-    SimpleClusterResolver,
-)
+from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.server_lib import (
-    ClusterSpec,
-)
+from tensorflow.python.training.server_lib import ClusterSpec
 
 _portpicker_import_error = None
 try:
     import portpicker
-except (
-    ImportError,
-    ModuleNotFoundError,
-) as _error:
+except (ImportError, ModuleNotFoundError,) as _error:
     _portpicker_import_error = _error
     portpicker = None
 

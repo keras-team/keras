@@ -108,9 +108,7 @@ class SplitDatasetTest(tf.test.TestCase):
         # test with tuple of np arrays with different shapes
         dataset = (
             np.random.rand(5, 32, 32),
-            np.random.rand(
-                5,
-            ),
+            np.random.rand(5,),
         )
         left_split, right_split = dataset_utils.split_dataset(
             dataset, left_size=2, right_size=3
@@ -195,9 +193,7 @@ class SplitDatasetTest(tf.test.TestCase):
         # test with dict of np arrays with different shapes
         dict_samples = {
             "images": np.random.rand(10, 16, 16, 3),
-            "labels": np.random.rand(
-                10,
-            ),
+            "labels": np.random.rand(10,),
         }
         dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
         dataset = dataset.batch(1)
@@ -255,9 +251,7 @@ class SplitDatasetTest(tf.test.TestCase):
         # test with tuple of np arrays with different shapes
         X, Y = (
             np.random.rand(5, 3, 3),
-            np.random.rand(
-                5,
-            ),
+            np.random.rand(5,),
         )
         dataset = tf.data.Dataset.from_tensor_slices((X, Y))
         left_split, right_split = dataset_utils.split_dataset(
@@ -287,9 +281,7 @@ class SplitDatasetTest(tf.test.TestCase):
         # test with dict of np arrays with different shapes
         dict_samples = {
             "images": np.random.rand(10, 16, 16, 3),
-            "labels": np.random.rand(
-                10,
-            ),
+            "labels": np.random.rand(10,),
         }
         dataset = tf.data.Dataset.from_tensor_slices(dict_samples)
         left_split, right_split = dataset_utils.split_dataset(

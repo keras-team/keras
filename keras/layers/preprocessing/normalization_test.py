@@ -297,20 +297,14 @@ class NormalizationAdaptTest(
 
     def test_1d_unbatched_adapt(self):
         ds = tf.data.Dataset.from_tensor_slices(
-            [
-                [2.0, 0.0, 2.0, 0.0],
-                [0.0, 2.0, 0.0, 2.0],
-            ]
+            [[2.0, 0.0, 2.0, 0.0], [0.0, 2.0, 0.0, 2.0],]
         )
         layer = normalization.Normalization(axis=-1)
         layer.adapt(ds)
         output_ds = ds.map(layer)
         self.assertAllClose(
             list(output_ds.as_numpy_iterator()),
-            [
-                [1.0, -1.0, 1.0, -1.0],
-                [-1.0, 1.0, -1.0, 1.0],
-            ],
+            [[1.0, -1.0, 1.0, -1.0], [-1.0, 1.0, -1.0, 1.0],],
         )
 
     def test_0d_unbatched_adapt(self):
@@ -390,8 +384,7 @@ class NormalizationAdaptTest(
         self.assertAllClose(actual_output, expected_second_output)
 
     @parameterized.parameters(
-        {"adapted": True},
-        {"adapted": False},
+        {"adapted": True}, {"adapted": False},
     )
     def test_saved_model_tf(self, adapted):
         input_data = [[0.0], [2.0], [0.0], [2.0]]
@@ -423,8 +416,7 @@ class NormalizationAdaptTest(
         self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.product(
-        save_format=["tf", "h5"],
-        adapt=[True, False],
+        save_format=["tf", "h5"], adapt=[True, False],
     )
     def test_saved_model_keras(self, save_format, adapt):
         input_data = [[0.0], [2.0], [0.0], [2.0]]
@@ -458,8 +450,7 @@ class NormalizationAdaptTest(
         self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.parameters(
-        {"adapted": True},
-        {"adapted": False},
+        {"adapted": True}, {"adapted": False},
     )
     def test_saved_weights_keras(self, adapted):
         input_data = [[0.0], [2.0], [0.0], [2.0]]

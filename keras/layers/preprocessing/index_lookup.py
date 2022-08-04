@@ -336,12 +336,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                 default_value=0,
             )
             if self.output_mode == TF_IDF:
-                self.token_document_counts = (
-                    tf.lookup.experimental.MutableHashTable(
-                        key_dtype=vocabulary_dtype,
-                        value_dtype=tf.int64,
-                        default_value=0,
-                    )
+                self.token_document_counts = tf.lookup.experimental.MutableHashTable(
+                    key_dtype=vocabulary_dtype,
+                    value_dtype=tf.int64,
+                    default_value=0,
                 )
                 self.num_documents = tf.Variable(
                     0, dtype=tf.int64, trainable=False

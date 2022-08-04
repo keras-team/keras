@@ -84,9 +84,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
                 super().__init__()
                 self.w = self.add_weight(
                     shape=(2,),
-                    initializer=lambda shape, dtype: tf.constant(
-                        [0.0, 1.0],
-                    ),
+                    initializer=lambda shape, dtype: tf.constant([0.0, 1.0],),
                     trainable=True,
                 )
                 self.b = self.add_weight(
@@ -415,14 +413,12 @@ class ShardedVariableMixedPartitioningTest(tf.test.TestCase):
 
         # set min_shard_bytes such that Dense kernel is split into 2 and bias
         # into 1
-        partitioner = (
-            tf.distribute.experimental.partitioners.MinSizePartitioner(
-                min_shard_bytes=(6 * 6 * 4) // 2, max_shards=2
-            )
+        partitioner = tf.distribute.experimental.partitioners.MinSizePartitioner(
+            min_shard_bytes=(6 * 6 * 4) // 2, max_shards=2
         )
 
-        cluster_resolver = (
-            multi_worker_testing_utils.make_parameter_server_cluster(3, 2)
+        cluster_resolver = multi_worker_testing_utils.make_parameter_server_cluster(
+            3, 2
         )
         strategy = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver, variable_partitioner=partitioner
@@ -448,10 +444,8 @@ class ShardedVariableMixedPartitioningTest(tf.test.TestCase):
 
         # set min_shard_bytes such that Dense kernel is split into 3 and bias
         # into 1
-        partitioner2 = (
-            tf.distribute.experimental.partitioners.MinSizePartitioner(
-                min_shard_bytes=(6 * 6 * 4) // 3, max_shards=3
-            )
+        partitioner2 = tf.distribute.experimental.partitioners.MinSizePartitioner(
+            min_shard_bytes=(6 * 6 * 4) // 3, max_shards=3
         )
         strategy2 = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver, variable_partitioner=partitioner2

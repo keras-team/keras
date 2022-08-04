@@ -501,9 +501,8 @@ class Layer(base_layer.Layer):
                 )
 
                 if regularizer:
-                    if (
-                        tf.compat.v1.executing_eagerly_outside_functions()
-                        or _should_add_regularizer(variable, existing_variables)
+                    if tf.compat.v1.executing_eagerly_outside_functions() or _should_add_regularizer(
+                        variable, existing_variables
                     ):
                         self._handle_weight_regularization(
                             name, variable, regularizer

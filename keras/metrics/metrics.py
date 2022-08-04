@@ -110,10 +110,10 @@ class MeanRelativeError(base_metric.Mean):
         """
         y_true = tf.cast(y_true, self._dtype)
         y_pred = tf.cast(y_pred, self._dtype)
-        [
-            y_pred,
-            y_true,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
+        (
+            [y_pred, y_true,],
+            sample_weight,
+        ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_pred, y_true], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
@@ -490,8 +490,8 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
         self.thresholds = metrics_utils.parse_init_thresholds(
             thresholds, default_threshold=0.5
         )
-        self._thresholds_distributed_evenly = (
-            metrics_utils.is_evenly_distributed_thresholds(self.thresholds)
+        self._thresholds_distributed_evenly = metrics_utils.is_evenly_distributed_thresholds(
+            self.thresholds
         )
         self.accumulator = self.add_weight(
             "accumulator", shape=(len(self.thresholds),), initializer="zeros"
@@ -876,8 +876,8 @@ class Precision(base_metric.Metric):
         self.thresholds = metrics_utils.parse_init_thresholds(
             thresholds, default_threshold=default_threshold
         )
-        self._thresholds_distributed_evenly = (
-            metrics_utils.is_evenly_distributed_thresholds(self.thresholds)
+        self._thresholds_distributed_evenly = metrics_utils.is_evenly_distributed_thresholds(
+            self.thresholds
         )
         self.true_positives = self.add_weight(
             "true_positives", shape=(len(self.thresholds),), initializer="zeros"
@@ -1022,8 +1022,8 @@ class Recall(base_metric.Metric):
         self.thresholds = metrics_utils.parse_init_thresholds(
             thresholds, default_threshold=default_threshold
         )
-        self._thresholds_distributed_evenly = (
-            metrics_utils.is_evenly_distributed_thresholds(self.thresholds)
+        self._thresholds_distributed_evenly = metrics_utils.is_evenly_distributed_thresholds(
+            self.thresholds
         )
         self.true_positives = self.add_weight(
             "true_positives", shape=(len(self.thresholds),), initializer="zeros"
@@ -1758,10 +1758,8 @@ class AUC(base_metric.Metric):
             # If specified, use the supplied thresholds.
             self.num_thresholds = len(thresholds) + 2
             thresholds = sorted(thresholds)
-            self._thresholds_distributed_evenly = (
-                metrics_utils.is_evenly_distributed_thresholds(
-                    np.array([0.0] + thresholds + [1.0])
-                )
+            self._thresholds_distributed_evenly = metrics_utils.is_evenly_distributed_thresholds(
+                np.array([0.0] + thresholds + [1.0])
             )
         else:
             if num_thresholds <= 1:
@@ -3562,10 +3560,10 @@ SparseCategoricalCrossentropy.update_state.__doc__ = (
 
 
 def accuracy(y_true, y_pred):
-    [
-        y_pred,
-        y_true,
-    ], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+    (
+        [y_pred, y_true,],
+        _,
+    ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(
         [y_pred, y_true]
     )
     y_true.shape.assert_is_compatible_with(y_pred.shape)

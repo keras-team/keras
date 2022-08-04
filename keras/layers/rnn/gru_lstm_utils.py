@@ -73,15 +73,11 @@ class DefunWrapper:
             + str(uuid.uuid4()),
         }
         if self.layer_name == "lstm":
-            from keras.layers.rnn import (
-                lstm,
-            )
+            from keras.layers.rnn import lstm
 
             layer_func = lstm.lstm_with_backend_selection
         else:
-            from keras.layers.rnn import (
-                gru,
-            )
+            from keras.layers.rnn import gru
 
             layer_func = gru.gru_with_backend_selection
 

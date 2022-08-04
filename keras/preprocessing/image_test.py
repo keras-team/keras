@@ -531,11 +531,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
         self.assertNotEqual(input_img[0][0][0], output_img[0][0][0])
 
     @parameterized.parameters(
-        [
-            (0.25, 30),
-            (0.50, 20),
-            (0.75, 10),
-        ]
+        [(0.25, 30), (0.50, 20), (0.75, 10),]
     )
     def test_directory_iterator_with_validation_split(
         self, validation_split, num_training
@@ -1245,11 +1241,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         self.assertAllEqual(batch_y, df[["output_0", "output_1"]].values[:3])
 
     @parameterized.parameters(
-        [
-            (0.25, 18),
-            (0.50, 12),
-            (0.75, 6),
-        ]
+        [(0.25, 18), (0.50, 12), (0.75, 6),]
     )
     def test_dataframe_iterator_with_validation_split(
         self, validation_split, num_training
@@ -2130,24 +2122,8 @@ class TestAffineTransformations(test_combinations.TestCase):
         )
 
     def test_matrix_center(self):
-        x = np.expand_dims(
-            np.array(
-                [
-                    [0, 1],
-                    [0, 0],
-                ]
-            ),
-            -1,
-        )
-        x_rotated90 = np.expand_dims(
-            np.array(
-                [
-                    [1, 0],
-                    [0, 0],
-                ]
-            ),
-            -1,
-        )
+        x = np.expand_dims(np.array([[0, 1], [0, 0],]), -1,)
+        x_rotated90 = np.expand_dims(np.array([[1, 0], [0, 0],]), -1,)
 
         self.assertAllClose(
             image.apply_affine_transform(
@@ -2157,41 +2133,11 @@ class TestAffineTransformations(test_combinations.TestCase):
         )
 
     def test_translation(self):
-        x = np.array(
-            [
-                [0, 0, 0, 0],
-                [0, 1, 0, 0],
-                [0, 0, 0, 0],
-            ]
-        )
-        x_up = np.array(
-            [
-                [0, 1, 0, 0],
-                [0, 0, 0, 0],
-                [0, 0, 0, 0],
-            ]
-        )
-        x_dn = np.array(
-            [
-                [0, 0, 0, 0],
-                [0, 0, 0, 0],
-                [0, 1, 0, 0],
-            ]
-        )
-        x_left = np.array(
-            [
-                [0, 0, 0, 0],
-                [1, 0, 0, 0],
-                [0, 0, 0, 0],
-            ]
-        )
-        x_right = np.array(
-            [
-                [0, 0, 0, 0],
-                [0, 0, 1, 0],
-                [0, 0, 0, 0],
-            ]
-        )
+        x = np.array([[0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0],])
+        x_up = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],])
+        x_dn = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 1, 0, 0],])
+        x_left = np.array([[0, 0, 0, 0], [1, 0, 0, 0], [0, 0, 0, 0],])
+        x_right = np.array([[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 0],])
 
         # Channels first
         x_test = np.expand_dims(x, 0)

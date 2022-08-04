@@ -31,9 +31,7 @@ from keras.utils import np_utils
 
 # isort: off
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.framework import (
-    test_util as tf_test_util,
-)
+from tensorflow.python.framework import test_util as tf_test_util
 
 # Global config for grappler setting that is used for graph mode test.
 _rewrites = rewriter_config_pb2.RewriterConfig()

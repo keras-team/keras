@@ -126,8 +126,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         # and the loaded model.
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
-                model.optimizer.__class__,
-                adam.Adam,
+                model.optimizer.__class__, adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,
@@ -185,8 +184,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         # and the loaded model.
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
-                model.optimizer.__class__,
-                adam.Adam,
+                model.optimizer.__class__, adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,

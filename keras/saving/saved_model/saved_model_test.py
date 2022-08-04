@@ -190,16 +190,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
             initializer=tf.compat.v1.constant_initializer(12),
             trainable=False,
         )
-        model = keras.Sequential(
-            [
-                keras.Input(
-                    [
-                        3,
-                    ]
-                ),
-                layer,
-            ]
-        )
+        model = keras.Sequential([keras.Input([3,]), layer,])
 
         saved_model_dir = self._save_model_dir()
         self.evaluate(tf.compat.v1.variables_initializer(layer.variables))
@@ -737,10 +728,8 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
             bucketized = tf.feature_column.bucketized_column(
                 numeric, boundaries=[5, 10, 15]
             )
-            cat_vocab = (
-                tf.feature_column.categorical_column_with_vocabulary_list(
-                    "b", ["1", "2", "3"]
-                )
+            cat_vocab = tf.feature_column.categorical_column_with_vocabulary_list(
+                "b", ["1", "2", "3"]
             )
             one_hot = tf.feature_column.indicator_column(cat_vocab)
             embedding = tf.feature_column.embedding_column(

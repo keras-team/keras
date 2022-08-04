@@ -84,11 +84,7 @@ class TestBasicConvUtilsTest(tf.test.TestCase):
             ),
         )
         self.assertEqual(
-            (
-                1,
-                2,
-                3,
-            ),
+            (1, 2, 3,),
             conv_utils.normalize_tuple((1, 2, 3), n=3, name="pool_size"),
         )
         self.assertEqual(

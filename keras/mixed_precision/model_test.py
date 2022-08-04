@@ -212,7 +212,7 @@ class KerasModelTest(test_combinations.TestCase):
                 # variable, the variable will not change. So this tests the
                 # learning rate not applied to a float16 value, but instead the
                 # float32 variable.
-                opt = gradient_descent.SGD(2**-14)
+                opt = gradient_descent.SGD(2 ** -14)
                 # Use a fixed loss scale, as this test will fail if gradients
                 # are skipped for a step due to dynamic loss scaling.
                 opt = loss_scale_optimizer.LossScaleOptimizer(
@@ -230,11 +230,11 @@ class KerasModelTest(test_combinations.TestCase):
         model.fit(dataset)
         # Variable starts at 1, and should have gradient of 2 ** -14 subtracted
         # from it.
-        expected = 1 - 2**-14
+        expected = 1 - 2 ** -14
         if use_regularizer:
             # Weight and activity regularizer each add another 2 ** -14 to the
             # gradient.
-            expected -= 2 * 2**-14
+            expected -= 2 * 2 ** -14
         self.assertEqual(backend.eval(layer.v), expected)
 
         if save_format:
@@ -256,16 +256,16 @@ class KerasModelTest(test_combinations.TestCase):
             for layer in model.layers
             if "MultiplyLayer" in layer.__class__.__name__
         )
-        expected = 1 - 2**-14
+        expected = 1 - 2 ** -14
         if use_regularizer:
-            expected -= 2 * 2**-14
+            expected -= 2 * 2 ** -14
         self.assertEqual(backend.eval(layer.v), expected)
 
         # Continue training, and assert variable is correct value
         model.fit(dataset)
-        new_expected = expected - 2**-14
+        new_expected = expected - 2 ** -14
         if use_regularizer:
-            new_expected -= 2 * 2**-14
+            new_expected -= 2 * 2 ** -14
         self.assertEqual(backend.eval(layer.v), new_expected)
 
         # Load saved model again, and assert variable is previous value
@@ -311,10 +311,8 @@ class KerasModelTest(test_combinations.TestCase):
             # gradient is 'loss_scale'. We divide by the batch size since the
             # loss is averaged across batch elements.
             expected_gradient = loss_scale / batch_size
-            identity_with_grad_check_fn = (
-                mp_test_util.create_identity_with_grad_check_fn(
-                    [expected_gradient]
-                )
+            identity_with_grad_check_fn = mp_test_util.create_identity_with_grad_check_fn(
+                [expected_gradient]
             )
             y = core.Lambda(identity_with_grad_check_fn)(y)
             model = models.Model(inputs=x, outputs=y)
@@ -365,7 +363,7 @@ class KerasModelTest(test_combinations.TestCase):
         strategy = strategy_fn()
         if use_loss_scaling:
             loss_scale = 8.0
-        learning_rate = 2**-14
+        learning_rate = 2 ** -14
 
         with strategy.scope():
             with policy.policy_scope(policy.Policy("mixed_float16")):
@@ -395,11 +393,9 @@ class KerasModelTest(test_combinations.TestCase):
                     # the gradient is 'loss_scale'. We divide by the batch size
                     # of 2 since the loss is averaged across batch elements.
                     expected_gradient = loss_scale / 2
-                    identity_with_grad_check_fn = (
-                        mp_test_util.create_identity_with_grad_check_fn(
-                            expected_dtype=tf.float16,
-                            expected_gradient=[expected_gradient],
-                        )
+                    identity_with_grad_check_fn = mp_test_util.create_identity_with_grad_check_fn(
+                        expected_dtype=tf.float16,
+                        expected_gradient=[expected_gradient],
                     )
                     y = core.Lambda(identity_with_grad_check_fn)(y)
                 model = models.Model(inputs=x, outputs=y)
@@ -465,17 +461,13 @@ class KerasModelTest(test_combinations.TestCase):
                 )
                 layer = mp_test_util.MultiplyLayer(assert_type=tf.float16)
                 y = layer(x)
-                identity_with_nan_grads = (
-                    mp_test_util.create_identity_with_nan_gradients_fn(
-                        have_nan_gradients
-                    )
+                identity_with_nan_grads = mp_test_util.create_identity_with_nan_gradients_fn(
+                    have_nan_gradients
                 )
                 y = core.Lambda(identity_with_nan_grads)(y)
-                identity_with_grad_check_fn = (
-                    mp_test_util.create_identity_with_grad_check_fn(
-                        expected_dtype=tf.float16,
-                        expected_gradient=expected_gradient,
-                    )
+                identity_with_grad_check_fn = mp_test_util.create_identity_with_grad_check_fn(
+                    expected_dtype=tf.float16,
+                    expected_gradient=expected_gradient,
                 )
                 y = core.Lambda(identity_with_grad_check_fn)(y)
                 model = models.Model(inputs=x, outputs=y)
@@ -617,10 +609,7 @@ class KerasModelTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     @parameterized.named_parameters(
-        {
-            "testcase_name": "base",
-            "strategy_fn": default_strategy_fn,
-        },
+        {"testcase_name": "base", "strategy_fn": default_strategy_fn,},
         {
             "testcase_name": "distribute",
             "strategy_fn": create_mirrored_strategy,
@@ -659,10 +648,7 @@ class KerasModelTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     @parameterized.named_parameters(
-        {
-            "testcase_name": "base",
-            "strategy_fn": default_strategy_fn,
-        },
+        {"testcase_name": "base", "strategy_fn": default_strategy_fn,},
         {
             "testcase_name": "distribute",
             "strategy_fn": create_mirrored_strategy,
@@ -768,13 +754,7 @@ class KerasModelTest(test_combinations.TestCase):
         # of LossScaleOptimizer changed, but old checkpoints can still be loaded
         opt = gradient_descent.SGD(0.1, momentum=0.1)
         opt = loss_scale_optimizer.LossScaleOptimizer(opt)
-        model = sequential.Sequential(
-            [
-                core.Dense(
-                    2,
-                )
-            ]
-        )
+        model = sequential.Sequential([core.Dense(2,)])
 
         # The checkpoint and expected values were obtained from the program in
         # testdata/BUILD.
@@ -838,10 +818,7 @@ class KerasModelTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     @parameterized.named_parameters(
-        {
-            "testcase_name": "base",
-            "strategy_fn": default_strategy_fn,
-        },
+        {"testcase_name": "base", "strategy_fn": default_strategy_fn,},
         {
             "testcase_name": "distribute",
             "strategy_fn": create_mirrored_strategy,

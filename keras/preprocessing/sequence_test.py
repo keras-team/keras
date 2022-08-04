@@ -104,12 +104,7 @@ class TestSequence(tf.test.TestCase):
             batch[0], np.array([[[r - 10], [r - 8], [r - 6], [r - 4], [r - 2]]])
         )
         self.assertAllClose(
-            batch[1],
-            np.array(
-                [
-                    [r],
-                ]
-            ),
+            batch[1], np.array([[r],]),
         )
 
         data_gen = sequence.TimeseriesGenerator(

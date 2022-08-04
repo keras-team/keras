@@ -69,8 +69,7 @@ class TestPickleProtocol(test_combinations.TestCase):
 
     @test_combinations.run_with_all_model_types
     @test_combinations.parameterized.named_parameters(
-        ("copy", copy.copy),
-        ("deepcopy", copy.deepcopy),
+        ("copy", copy.copy), ("deepcopy", copy.deepcopy),
     )
     def test_unbuilt_models(self, serializer):
         """Unbuilt models should be copyable & deepcopyable for all model

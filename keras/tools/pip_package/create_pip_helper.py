@@ -34,20 +34,11 @@ PIP_EXCLUDED_FILES = frozenset(
 )
 
 PIP_EXCLUDED_DIRS = frozenset(
-    [
-        "keras/benchmarks",
-        "keras/integration_tests",
-        "keras/tests",
-    ]
+    ["keras/benchmarks", "keras/integration_tests", "keras/tests",]
 )
 
 # Directories that should not have __init__.py files generated within them.
-EXCLUDED_INIT_FILE_DIRECTORIES = frozenset(
-    [
-        "keras/benchmarks",
-        "keras/tools",
-    ]
-)
+EXCLUDED_INIT_FILE_DIRECTORIES = frozenset(["keras/benchmarks", "keras/tools",])
 
 
 class PipPackagingError(Exception):

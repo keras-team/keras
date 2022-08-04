@@ -238,21 +238,13 @@ class Functional(training_lib.Model):
 
         # Build self._output_layers:
         for x in self.outputs:
-            (
-                layer,
-                node_index,
-                tensor_index,
-            ) = x._keras_history
+            (layer, node_index, tensor_index,) = x._keras_history
             self._output_layers.append(layer)
             self._output_coordinates.append((layer, node_index, tensor_index))
 
         # Build self._input_layers:
         for x in self.inputs:
-            (
-                layer,
-                node_index,
-                tensor_index,
-            ) = x._keras_history
+            (layer, node_index, tensor_index,) = x._keras_history
             # It's supposed to be an input layer, so only one node
             # and one tensor output.
             assert node_index == 0
@@ -1191,11 +1183,7 @@ def _build_map_helper(
     layer_indices,
 ):
     """Recursive helper for `_build_map`."""
-    (
-        layer,
-        node_index,
-        _,
-    ) = tensor._keras_history
+    (layer, node_index, _,) = tensor._keras_history
     node = layer._inbound_nodes[node_index]
 
     # Don't repeat work for shared subgraphs
