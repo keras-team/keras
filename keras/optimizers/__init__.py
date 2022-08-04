@@ -124,7 +124,7 @@ def deserialize(config, custom_objects=None, **kwargs):
         loss_scale_optimizer,
     )
 
-    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
     if len(config["config"]) > 0:
         # If the optimizer config is not empty, then we use the value of
         # `is_legacy_optimizer` to override `use_legacy_optimizer`. If
@@ -245,7 +245,7 @@ def get(identifier, **kwargs):
     Raises:
         ValueError: If `identifier` cannot be interpreted.
     """
-    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
     if isinstance(
         identifier,
         (
