@@ -321,10 +321,10 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         # formula (see
         # https://en.wikipedia.org/wiki/Lack-of-fit_sum_of_squares).
         total_variance = (
-            self.adapt_variance + (self.adapt_mean - total_mean) ** 2
-        ) * existing_weight + (
-            batch_variance + (batch_mean - total_mean) ** 2
-        ) * batch_weight
+            (self.adapt_variance + (self.adapt_mean - total_mean) ** 2)
+            * existing_weight
+            + (batch_variance + (batch_mean - total_mean) ** 2) * batch_weight
+        )
         self.adapt_mean.assign(total_mean)
         self.adapt_variance.assign(total_variance)
         self.count.assign(total_count)

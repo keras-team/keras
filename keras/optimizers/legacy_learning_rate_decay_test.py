@@ -195,7 +195,7 @@ class SqrtDecayTest(test_combinations.TestCase):
         decayed_lr = tf.compat.v1.train.polynomial_decay(
             lr, step, 10, end_lr, power=power
         )
-        expected = lr * 0.5**power
+        expected = lr * 0.5 ** power
         self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
     def testEnd(self):
@@ -217,7 +217,7 @@ class SqrtDecayTest(test_combinations.TestCase):
         decayed_lr = tf.compat.v1.train.polynomial_decay(
             lr, step, 10, end_lr, power=power
         )
-        expected = (lr - end_lr) * 0.5**power + end_lr
+        expected = (lr - end_lr) * 0.5 ** power + end_lr
         self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
     def testBeyondEnd(self):
@@ -239,7 +239,7 @@ class SqrtDecayTest(test_combinations.TestCase):
         decayed_lr = tf.compat.v1.train.polynomial_decay(
             lr, step, 10, end_lr, power=power, cycle=True
         )
-        expected = (lr - end_lr) * 0.25**power + end_lr
+        expected = (lr - end_lr) * 0.25 ** power + end_lr
         self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
 

@@ -35,9 +35,7 @@ from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
 # isort: off
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_util,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_util
 
 # Used for nested input/output/state RNN test.
 NestedInput = collections.namedtuple("NestedInput", ["t1", "t2"])

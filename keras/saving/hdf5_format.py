@@ -246,8 +246,8 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
                         "a freshly initialized optimizer."
                     )
 
-                optimizer_weight_values = (
-                    load_optimizer_weights_from_hdf5_group(f)
+                optimizer_weight_values = load_optimizer_weights_from_hdf5_group(
+                    f
                 )
                 try:
                     model.optimizer.set_weights(optimizer_weight_values)

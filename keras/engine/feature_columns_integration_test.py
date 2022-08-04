@@ -134,9 +134,7 @@ class FeatureColumnsIntegrationTest(test_combinations.TestCase):
         inp_y = np.random.randint(0, 1, size=100)
         ds = tf.data.Dataset.from_tensor_slices((inp_x, inp_y)).batch(5)
         model.compile(
-            optimizer="adam",
-            loss="binary_crossentropy",
-            metrics=["accuracy"],
+            optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"],
         )
         model.fit(ds, epochs=1)
         model.fit(ds, epochs=1)

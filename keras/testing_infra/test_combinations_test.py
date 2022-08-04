@@ -51,11 +51,7 @@ class CombinationsTest(tf.test.TestCase):
             self.assertLen(test_params, 3)
             self.assertAllEqual(
                 test_params,
-                [
-                    ("graph", False),
-                    ("eager", True),
-                    ("eager", False),
-                ],
+                [("graph", False), ("eager", True), ("eager", False),],
             )
 
             ts = unittest.makeSuite(ExampleTest)
@@ -65,11 +61,7 @@ class CombinationsTest(tf.test.TestCase):
         else:
             self.assertLen(test_params, 2)
             self.assertAllEqual(
-                test_params,
-                [
-                    ("eager", True),
-                    ("eager", False),
-                ],
+                test_params, [("eager", True), ("eager", False),],
             )
 
             ts = unittest.makeSuite(ExampleTest)
@@ -369,12 +361,7 @@ class KerasParameterizedTest(test_combinations.TestCase):
         if not tf.__internal__.tf2.enabled():
             self.assertLen(l, 3)
             self.assertAllEqual(
-                l,
-                [
-                    ("graph", False),
-                    ("eager", True),
-                    ("eager", False),
-                ],
+                l, [("graph", False), ("eager", True), ("eager", False),],
             )
 
             ts = unittest.makeSuite(ExampleTest)
@@ -384,11 +371,7 @@ class KerasParameterizedTest(test_combinations.TestCase):
         else:
             self.assertLen(l, 2)
             self.assertAllEqual(
-                l,
-                [
-                    ("eager", True),
-                    ("eager", False),
-                ],
+                l, [("eager", True), ("eager", False),],
             )
 
             ts = unittest.makeSuite(ExampleTest)
@@ -475,11 +458,7 @@ class KerasParameterizedTest(test_combinations.TestCase):
 
         self.assertLen(l, 2)
         self.assertEqual(
-            set(l),
-            {
-                ("eager", True),
-                ("eager", False),
-            },
+            set(l), {("eager", True), ("eager", False),},
         )
 
     def test_run_all_keras_modes_with_all_model_types(self):

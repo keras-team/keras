@@ -43,18 +43,10 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
-            {
-                "x_list": [1],
-            },
-            {
-                "x_list": [1, 2],
-            },
-            {
-                "x_list": [1, 2, 4],
-            },
-            {
-                "x_list": [[1, 2], [3, 4]],
-            },
+            {"x_list": [1],},
+            {"x_list": [1, 2],},
+            {"x_list": [1, 2, 4],},
+            {"x_list": [[1, 2], [3, 4]],},
         ]
     )
     def test_passing_one_dense_tensor(self, x_list):
@@ -81,24 +73,12 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(
         [
-            {
-                "x_list": [1],
-            },
-            {
-                "x_list": [1, 2],
-            },
-            {
-                "x_list": [1, 2, 4],
-            },
-            {
-                "x_list": [[1, 2], [3, 4]],
-            },
-            {
-                "x_list": [[1, 2], [3, 4], [1]],
-            },
-            {
-                "x_list": [[1, 2], [], [1]],
-            },
+            {"x_list": [1],},
+            {"x_list": [1, 2],},
+            {"x_list": [1, 2, 4],},
+            {"x_list": [[1, 2], [3, 4]],},
+            {"x_list": [[1, 2], [3, 4], [1]],},
+            {"x_list": [[1, 2], [], [1]],},
         ]
     )
     def test_passing_one_ragged(self, x_list):
@@ -131,10 +111,10 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
         x = tf.ragged.constant(x_list)
         y = tf.ragged.constant(y_list)
         mask = tf.ragged.constant(mask_list)
-        [
-            x,
-            y,
-        ], mask = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        (
+            [x, y,],
+            mask,
+        ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(
             [x, y], mask
         )
         x.shape.assert_is_compatible_with(y.shape)
@@ -162,35 +142,31 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
         x.shape.assert_is_compatible_with(mask.shape)
 
     @parameterized.parameters(
-        [
-            {"x_list": [[[1, 3]]], "y_list": [[2, 3]]},
-        ]
+        [{"x_list": [[[1, 3]]], "y_list": [[2, 3]]},]
     )
     def test_failing_different_ragged_and_dense_ranks(self, x_list, y_list):
         x = tf.ragged.constant(x_list)
         y = tf.ragged.constant(y_list)
         with self.assertRaises(ValueError):
-            [
-                x,
-                y,
-            ], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+            (
+                [x, y,],
+                _,
+            ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(
                 [x, y]
             )
 
     @parameterized.parameters(
-        [
-            {"x_list": [[[1, 3]]], "y_list": [[[2, 3]]], "mask_list": [[0, 1]]},
-        ]
+        [{"x_list": [[[1, 3]]], "y_list": [[[2, 3]]], "mask_list": [[0, 1]]},]
     )
     def test_failing_different_mask_ranks(self, x_list, y_list, mask_list):
         x = tf.ragged.constant(x_list)
         y = tf.ragged.constant(y_list)
         mask = tf.ragged.constant(mask_list)
         with self.assertRaises(ValueError):
-            [
-                x,
-                y,
-            ], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+            (
+                [x, y,],
+                _,
+            ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(
                 [x, y], mask
             )
 
@@ -203,10 +179,10 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
         x = tf.RaggedTensor.from_row_splits(dt, row_splits=[0, 1])
         y = tf.ragged.constant([[[[1, 2]]]])
         with self.assertRaises(ValueError):
-            [
-                x,
-                y,
-            ], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values(
+            (
+                [x, y,],
+                _,
+            ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(
                 [x, y]
             )
 

@@ -66,15 +66,13 @@ def _infer_shape_dtype_and_create_handle(initial_value, shape, dtype, name):
 
             assert dtype
             assert shape
-            handle = (
-                resource_variable_ops._variable_handle_from_shape_and_dtype(
-                    shape=shape,
-                    dtype=dtype,
-                    shared_name=None,  # Never shared
-                    name=name,
-                    graph_mode=False,
-                    initial_value=None,
-                )
+            handle = resource_variable_ops._variable_handle_from_shape_and_dtype(
+                shape=shape,
+                dtype=dtype,
+                shared_name=None,  # Never shared
+                name=name,
+                graph_mode=False,
+                initial_value=None,
             )
             # initial_value=initial_value if not callable(initial_value) else
             # None)

@@ -27,9 +27,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 def batch_wrapper(dataset, batch_size, strategy, repeat=None):

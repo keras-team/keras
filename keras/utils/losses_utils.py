@@ -343,11 +343,9 @@ def compute_weighted_loss(
         sample_weight = tf.cast(sample_weight, losses.dtype)
         # Update dimensions of `sample_weight` to match with `losses` if
         # possible.
-        (
-            losses,
-            _,
-            sample_weight,
-        ) = squeeze_or_expand_dimensions(losses, None, sample_weight)
+        (losses, _, sample_weight,) = squeeze_or_expand_dimensions(
+            losses, None, sample_weight
+        )
         weighted_losses = tf.multiply(losses, sample_weight)
 
         # Apply reduction function to the individual weighted losses.

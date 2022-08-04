@@ -755,7 +755,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             # the list of layer names into numpy array, which uses the same
             # amount of memory for every item, it increases the memory
             # requirements substantially.
-            x = keras.Input(shape=(2,), name="input_" + ("x" * (2**15)))
+            x = keras.Input(shape=(2,), name="input_" + ("x" * (2 ** 15)))
             f = x
             for i in range(4):
                 f = keras.layers.Dense(2, name="dense_%d" % (i,))(f)
@@ -805,7 +805,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             # This layer name will make the `weights_name`
             # HDF5 attribute blow out of proportion.
             f = keras.layers.Dense(
-                2, name="nested_model_output" + ("x" * (2**14))
+                2, name="nested_model_output" + ("x" * (2 ** 14))
             )(f)
             nested_model = keras.Model(
                 inputs=[x], outputs=[f], name="nested_model"

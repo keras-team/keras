@@ -35,9 +35,7 @@ from keras.utils import tf_utils
 # isort: off
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 def compare_single_input_op_to_numpy(
@@ -1498,10 +1496,10 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
                 assert len(states) == 2
                 prev_output = states[0]
                 output = backend.dot(x, w_i) + backend.dot(prev_output, w_o)
-                return output, [
+                return (
                     output,
-                    backend.concatenate([output, output], axis=-1),
-                ]
+                    [output, backend.concatenate([output, output], axis=-1),],
+                )
 
             return step_function
 
@@ -1806,16 +1804,10 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertEqual(normed.shape.as_list(), [10, 3, 10, 10])
         self.assertEqual(
-            mean.shape.as_list(),
-            [
-                3,
-            ],
+            mean.shape.as_list(), [3,],
         )
         self.assertEqual(
-            var.shape.as_list(),
-            [
-                3,
-            ],
+            var.shape.as_list(), [3,],
         )
 
         # case: gamma=None
@@ -1825,16 +1817,10 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertEqual(normed.shape.as_list(), [10, 3, 10, 10])
         self.assertEqual(
-            mean.shape.as_list(),
-            [
-                3,
-            ],
+            mean.shape.as_list(), [3,],
         )
         self.assertEqual(
-            var.shape.as_list(),
-            [
-                3,
-            ],
+            var.shape.as_list(), [3,],
         )
 
         # case: beta=None
@@ -1844,16 +1830,10 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertEqual(normed.shape.as_list(), [10, 3, 10, 10])
         self.assertEqual(
-            mean.shape.as_list(),
-            [
-                3,
-            ],
+            mean.shape.as_list(), [3,],
         )
         self.assertEqual(
-            var.shape.as_list(),
-            [
-                3,
-            ],
+            var.shape.as_list(), [3,],
         )
 
     def test_dropout(self):
@@ -2228,10 +2208,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         logits = backend.constant([[8.0, 1.0, 1.0]])
         result = self.evaluate(
             backend.binary_focal_crossentropy(
-                target=t,
-                output=logits,
-                gamma=2.0,
-                from_logits=True,
+                target=t, output=logits, gamma=2.0, from_logits=True,
             )
         )
         self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
@@ -2246,11 +2223,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         p = tf.identity(tf.identity(p))
         gamma = 0
         focal_result = self.evaluate(
-            backend.binary_focal_crossentropy(
-                target=t,
-                output=p,
-                gamma=gamma,
-            )
+            backend.binary_focal_crossentropy(target=t, output=p, gamma=gamma,)
         )
         non_focal_result = self.evaluate(backend.binary_crossentropy(t, p))
         self.assertArrayNear(focal_result[0], non_focal_result[0], 1e-3)
@@ -2265,9 +2238,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         p = tf.identity(tf.identity(p))
         result = self.evaluate(
             backend.binary_focal_crossentropy(
-                target=t,
-                output=p,
-                apply_class_balancing=True,
+                target=t, output=p, apply_class_balancing=True,
             )
         )
         self.assertArrayNear(result[0], [5.996, 0.006, 0.526], 1e-3)
@@ -2669,12 +2640,12 @@ class FunctionTest(tf.test.TestCase):
 
         x_ph = backend.placeholder(ndim=2)
         v = backend.variable(np.ones((4, 2)))
-        output = x_ph**2 + v
+        output = x_ph ** 2 + v
         new_v = v + x_ph
         f = backend.function(x_ph, output, updates=[(v, new_v)])
         input_val = np.random.random((4, 2))
         result = f(input_val)
-        self.assertAllClose(result, input_val**2 + 1)
+        self.assertAllClose(result, input_val ** 2 + 1)
         self.assertAllClose(backend.get_value(v), np.ones((4, 2)) + input_val)
 
 

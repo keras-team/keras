@@ -27,9 +27,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 @test_combinations.run_all_keras_modes
@@ -471,7 +469,7 @@ class CuDNNV1OnlyTest(test_combinations.TestCase):
             )
         )
         model.add(keras.layers.Bidirectional(rnn(output_dim), merge_mode=mode))
-        model.compile(loss="mse", optimizer=R"rmsprop")
+        model.compile(loss="mse", optimizer=r"rmsprop")
         model.fit(x, y, epochs=1, batch_size=1)
 
         # test with functional API
@@ -480,7 +478,7 @@ class CuDNNV1OnlyTest(test_combinations.TestCase):
             inputs
         )
         model = keras.Model(inputs, outputs)
-        model.compile(loss="mse", optimizer=R"rmsprop")
+        model.compile(loss="mse", optimizer=r"rmsprop")
         model.fit(x, y, epochs=1, batch_size=1)
 
         # Bidirectional and stateful

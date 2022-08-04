@@ -703,9 +703,7 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                 }
                 normal_lstm_kwargs = gpu_lstm_kwargs.copy()
                 normal_lstm_kwargs.update(
-                    {
-                        "zero_output_for_mask": self.zero_output_for_mask,
-                    }
+                    {"zero_output_for_mask": self.zero_output_for_mask,}
                 )
 
                 if tf.executing_eagerly():

@@ -74,9 +74,7 @@ def _compute_fans(shape):
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class KerasInitializersTest(tf.test.TestCase, parameterized.TestCase):
     def _runner(
-        self,
-        init,
-        shape,
+        self, init, shape,
     ):
         # The global seed is set so that we can get the same random streams
         # between eager and graph mode when stateful op is used.

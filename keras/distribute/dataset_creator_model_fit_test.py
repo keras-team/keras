@@ -23,9 +23,7 @@ from keras.testing_infra import test_utils
 from keras.utils import dataset_creator
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 # TODO(rchao): Investigate why there cannot be single worker and multi worker
@@ -83,11 +81,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         x = np.random.rand(100, 10)
         y = np.random.rand(100, 1)
         model = self._model_fit(
-            strategy,
-            x=x,
-            y=y,
-            batch_size=1,
-            validation_data=(x, y),
+            strategy, x=x, y=y, batch_size=1, validation_data=(x, y),
         )
         self.assertEqual(model.optimizer.iterations, 100)
 
@@ -95,11 +89,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         x = tf.random.uniform((100, 10))
         y = tf.random.uniform((100,))
         model = self._model_fit(
-            strategy,
-            x=x,
-            y=y,
-            batch_size=1,
-            validation_data=(x, y),
+            strategy, x=x, y=y, batch_size=1, validation_data=(x, y),
         )
         self.assertEqual(model.optimizer.iterations, 100)
 
@@ -132,10 +122,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         x = np.random.rand(100, 10)
         y = np.random.rand(100, 1)
         self._model_evaluate(
-            strategy,
-            x=x,
-            y=y,
-            batch_size=1,
+            strategy, x=x, y=y, batch_size=1,
         )
         self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
 
@@ -143,10 +130,7 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         x = tf.random.uniform((100, 10))
         y = tf.random.uniform((100,))
         self._model_evaluate(
-            strategy,
-            x=x,
-            y=y,
-            batch_size=1,
+            strategy, x=x, y=y, batch_size=1,
         )
         self.assertGreaterEqual(self._accuracy_metric.result(), 0.0)
 

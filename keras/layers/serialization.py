@@ -140,15 +140,9 @@ def populate_deserializable_objects():
 
     # Prevent circular dependencies.
     from keras import models
-    from keras.feature_column.sequence_feature_column import (
-        SequenceFeatures,
-    )
-    from keras.premade_models.linear import (
-        LinearModel,
-    )
-    from keras.premade_models.wide_deep import (
-        WideDeepModel,
-    )
+    from keras.feature_column.sequence_feature_column import SequenceFeatures
+    from keras.premade_models.linear import LinearModel
+    from keras.premade_models.wide_deep import WideDeepModel
 
     LOCAL.ALL_OBJECTS["Input"] = input_layer.Input
     LOCAL.ALL_OBJECTS["InputSpec"] = input_spec.InputSpec
@@ -160,15 +154,11 @@ def populate_deserializable_objects():
     LOCAL.ALL_OBJECTS["WideDeepModel"] = WideDeepModel
 
     if tf.__internal__.tf2.enabled():
-        from keras.feature_column.dense_features_v2 import (
-            DenseFeatures,
-        )
+        from keras.feature_column.dense_features_v2 import DenseFeatures
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures
     else:
-        from keras.feature_column.dense_features import (
-            DenseFeatures,
-        )
+        from keras.feature_column.dense_features import DenseFeatures
 
         LOCAL.ALL_OBJECTS["DenseFeatures"] = DenseFeatures
 

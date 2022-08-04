@@ -238,8 +238,7 @@ class SidecarEvaluator:
                 # e.g.  using a custom training loop. Directly assign the
                 # iterations property to be used in callbacks.
                 if self.model.optimizer and not isinstance(
-                    self.model.optimizer,
-                    optimizer_experimental.Optimizer,
+                    self.model.optimizer, optimizer_experimental.Optimizer,
                 ):
                     # experimental optimizer automatically restores the
                     # iteration value.
@@ -259,12 +258,8 @@ class SidecarEvaluator:
                     f"Error: {e.__class__.__name__}: {e}"
                 )
                 continue
-            if (
-                self._iterations.numpy() == _ITERATIONS_UNINITIALIZED
-                and not isinstance(
-                    self.model.optimizer,
-                    optimizer_experimental.Optimizer,
-                )
+            if self._iterations.numpy() == _ITERATIONS_UNINITIALIZED and not isinstance(
+                self.model.optimizer, optimizer_experimental.Optimizer,
             ):
                 raise RuntimeError(
                     "Variable `iterations` cannot be loaded from the "

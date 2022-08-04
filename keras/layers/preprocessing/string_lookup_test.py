@@ -60,9 +60,7 @@ def _get_end_to_end_test_cases():
                     ["michigan"],
                 ]
             ),
-            "kwargs": {
-                "max_tokens": None,
-            },
+            "kwargs": {"max_tokens": None,},
             "expected_output": [[1], [2], [3], [4], [4], [3], [1], [0]],
             "input_dtype": tf.string,
         },

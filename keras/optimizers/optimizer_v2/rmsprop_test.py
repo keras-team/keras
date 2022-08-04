@@ -28,9 +28,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 _DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 

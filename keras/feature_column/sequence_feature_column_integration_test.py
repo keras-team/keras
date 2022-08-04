@@ -31,9 +31,7 @@ from keras.layers.rnn import simple_rnn
 from google.protobuf import text_format
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
@@ -65,15 +63,11 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
             tf.feature_column.numeric_column("float_ctx"),
         ]
 
-        identity_col = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                "int_list", num_buckets=10
-            )
+        identity_col = tf.feature_column.sequence_categorical_column_with_identity(
+            "int_list", num_buckets=10
         )
-        bucket_col = (
-            tf.feature_column.sequence_categorical_column_with_hash_bucket(
-                "bytes_list", hash_bucket_size=100
-            )
+        bucket_col = tf.feature_column.sequence_categorical_column_with_hash_bucket(
+            "bytes_list", hash_bucket_size=100
         )
         seq_cols = [
             tf.feature_column.embedding_column(identity_col, dimension=10),

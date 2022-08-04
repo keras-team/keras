@@ -1443,8 +1443,7 @@ class TextVectorizationOutputTest(
         self.assertAllEqual(expected_output_2, output_dataset)
 
     @parameterized.parameters(
-        {"sparse": True},
-        {"sparse": False},
+        {"sparse": True}, {"sparse": False},
     )
     def test_multi_hot_output_hard_maximum(self, sparse):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -1484,8 +1483,7 @@ class TextVectorizationOutputTest(
             self.assertAllEqual(expected_output, output_dataset)
 
     @parameterized.parameters(
-        {"sparse": True},
-        {"sparse": False},
+        {"sparse": True}, {"sparse": False},
     )
     def test_multi_hot_output_soft_maximum(self, sparse):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -1773,8 +1771,7 @@ class TextVectorizationOutputTest(
         self.assertAllEqual(expected_output, output_dataset)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_tfidf_output_hard_maximum(self, sparse):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -1816,8 +1813,7 @@ class TextVectorizationOutputTest(
         self.assertAllClose(expected_output, output_dataset)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_tfidf_output_soft_maximum(self, sparse):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -1859,8 +1855,7 @@ class TextVectorizationOutputTest(
         self.assertAllClose(expected_output, output_dataset)
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_tfidf_output_set_oov_weight(self, sparse):
         vocab_data = ["[UNK]", "earth", "wind", "and", "fire"]
@@ -2011,8 +2006,7 @@ class TextVectorizationModelBuildingTest(
 @test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationVocbularyTest(
-    test_combinations.TestCase,
-    preprocessing_test_utils.PreprocessingLayerTest,
+    test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest,
 ):
     def test_get_vocabulary(self):
         vocab = ["earth", "wind", "and", "fire"]
@@ -2208,8 +2202,7 @@ class TextVectorizationSavingTest(
         super(TextVectorizationSavingTest, self).tearDown()
 
     @parameterized.parameters(
-        {"init_vocab": True},
-        {"init_vocab": False},
+        {"init_vocab": True}, {"init_vocab": False},
     )
     def test_saving(self, init_vocab):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -2249,8 +2242,7 @@ class TextVectorizationSavingTest(
         self.assertAllEqual(loaded_model.predict(input_array), expected_output)
 
     @parameterized.parameters(
-        {"init_vocab": True},
-        {"init_vocab": False},
+        {"init_vocab": True}, {"init_vocab": False},
     )
     def test_saving_when_nested(self, init_vocab):
         vocab_data = ["earth", "wind", "and", "fire"]

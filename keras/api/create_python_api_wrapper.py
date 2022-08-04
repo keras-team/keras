@@ -26,9 +26,7 @@ from __future__ import print_function
 import keras  # noqa: F401
 
 # isort: off
-from tensorflow.python.tools.api.generator import (
-    create_python_api,
-)
+from tensorflow.python.tools.api.generator import create_python_api
 
 if __name__ == "__main__":
     create_python_api.main()

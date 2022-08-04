@@ -660,9 +660,7 @@ def MBConvBlock(
                 name=name + "expand_conv",
             )(inputs)
             x = layers.BatchNormalization(
-                axis=bn_axis,
-                momentum=bn_momentum,
-                name=name + "expand_bn",
+                axis=bn_axis, momentum=bn_momentum, name=name + "expand_bn",
             )(x)
             x = layers.Activation(activation, name=name + "expand_activation")(
                 x
@@ -965,7 +963,7 @@ def EfficientNetV2(
             x = layers.Rescaling(scale=1.0 / 255)(x)
             x = layers.Normalization(
                 mean=[0.485, 0.456, 0.406],
-                variance=[0.229**2, 0.224**2, 0.225**2],
+                variance=[0.229 ** 2, 0.224 ** 2, 0.225 ** 2],
                 axis=bn_axis,
             )(x)
         else:
@@ -988,9 +986,7 @@ def EfficientNetV2(
         name="stem_conv",
     )(x)
     x = layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=bn_momentum,
-        name="stem_bn",
+        axis=bn_axis, momentum=bn_momentum, name="stem_bn",
     )(x)
     x = layers.Activation(activation, name="stem_activation")(x)
 
@@ -1055,9 +1051,7 @@ def EfficientNetV2(
         name="top_conv",
     )(x)
     x = layers.BatchNormalization(
-        axis=bn_axis,
-        momentum=bn_momentum,
-        name="top_bn",
+        axis=bn_axis, momentum=bn_momentum, name="top_bn",
     )(x)
     x = layers.Activation(activation=activation, name="top_activation")(x)
 

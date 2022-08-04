@@ -56,10 +56,7 @@ def _get_end_to_end_test_cases():
                 [[1138], [1729], [725], [42], [42], [725], [1138], [4]],
                 dtype=np.int64,
             ),
-            "kwargs": {
-                "max_tokens": None,
-                "dtype": tf.int64,
-            },
+            "kwargs": {"max_tokens": None, "dtype": tf.int64,},
             "expected_output": [[1], [2], [3], [4], [4], [3], [1], [0]],
             "input_dtype": tf.int64,
         },
@@ -314,8 +311,7 @@ class IntegerLookupOutputTest(
 
         input_data = keras.Input(shape=(None,), dtype=tf.int64)
         layer = integer_lookup.IntegerLookup(
-            vocabulary=vocab_data,
-            max_tokens=None,
+            vocabulary=vocab_data, max_tokens=None,
         )
         int_data = layer(input_data)
         model = keras.Model(inputs=input_data, outputs=int_data)
@@ -329,9 +325,7 @@ class IntegerLookupOutputTest(
 
         input_data = keras.Input(shape=(None,), dtype=tf.int64)
         layer = integer_lookup.IntegerLookup(
-            vocabulary=vocab_data,
-            max_tokens=None,
-            mask_token=0,
+            vocabulary=vocab_data, max_tokens=None, mask_token=0,
         )
         int_data = layer(input_data)
         model = keras.Model(inputs=input_data, outputs=int_data)

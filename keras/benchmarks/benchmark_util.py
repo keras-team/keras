@@ -175,9 +175,7 @@ def measure_performance(
 
             t1 = timer()
             model.compile(
-                optimizer=optimizer,
-                loss=loss,
-                metrics=metrics,
+                optimizer=optimizer, loss=loss, metrics=metrics,
             )
             compile_time = timer() - t1
         # Run one warm up epoch.

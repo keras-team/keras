@@ -256,9 +256,7 @@ class TensorBoard(callbacks.TensorBoard):
         # visualize embeddings.
         if self.embeddings_freq and self.embeddings_data is not None:
             # Avoid circular dependency.
-            from keras.engine import (
-                training_utils_v1,
-            )
+            from keras.engine import training_utils_v1
 
             self.embeddings_data = training_utils_v1.standardize_input_data(
                 self.embeddings_data, model.input_names

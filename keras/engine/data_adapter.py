@@ -31,9 +31,7 @@ from keras.utils import dataset_creator
 from keras.utils import tf_utils
 
 # isort: off
-from tensorflow.python.distribute.input_lib import (
-    DistributedDataset,
-)
+from tensorflow.python.distribute.input_lib import DistributedDataset
 from tensorflow.python.eager import context
 from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging

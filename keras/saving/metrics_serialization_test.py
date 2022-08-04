@@ -87,17 +87,11 @@ def _get_multi_io_model():
     ),
     dict(
         testcase_name="dict_of_list_of_string",
-        value={
-            "output": ["mae"],
-            "output_1": ["mae"],
-        },
+        value={"output": ["mae"], "output_1": ["mae"],},
     ),
     dict(
         testcase_name="dict_of_list_of_built_in_fn",
-        value={
-            "output": [metrics.mae],
-            "output_1": [metrics.mae],
-        },
+        value={"output": [metrics.mae], "output_1": [metrics.mae],},
     ),
     dict(
         testcase_name="dict_of_list_of_built_in_class",
@@ -108,10 +102,7 @@ def _get_multi_io_model():
     ),
     dict(
         testcase_name="dict_of_list_of_custom_fn",
-        value={
-            "output": [_my_mae],
-            "output_1": [_my_mae],
-        },
+        value={"output": [_my_mae], "output_1": [_my_mae],},
     ),
     dict(
         testcase_name="dict_of_list_of_custom_class",
@@ -122,17 +113,11 @@ def _get_multi_io_model():
     ),
     dict(
         testcase_name="dict_of_string",
-        value={
-            "output": "mae",
-            "output_1": "mae",
-        },
+        value={"output": "mae", "output_1": "mae",},
     ),
     dict(
         testcase_name="dict_of_built_in_fn",
-        value={
-            "output": metrics.mae,
-            "output_1": metrics.mae,
-        },
+        value={"output": metrics.mae, "output_1": metrics.mae,},
     ),
     dict(
         testcase_name="dict_of_built_in_class",
@@ -147,10 +132,7 @@ def _get_multi_io_model():
     ),
     dict(
         testcase_name="dict_of_custom_class",
-        value={
-            "output": MyMeanAbsoluteError,
-            "output_1": MyMeanAbsoluteError,
-        },
+        value={"output": MyMeanAbsoluteError, "output_1": MyMeanAbsoluteError,},
     ),
 )
 class MetricsSerialization(test_combinations.TestCase):

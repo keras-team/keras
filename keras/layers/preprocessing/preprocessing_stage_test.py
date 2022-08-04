@@ -44,13 +44,7 @@ class PreprocessingStageTest(
                 return inputs + 1.0
 
         # Test with NumPy array
-        stage = preprocessing_stage.PreprocessingStage(
-            [
-                PL(),
-                PL(),
-                PL(),
-            ]
-        )
+        stage = preprocessing_stage.PreprocessingStage([PL(), PL(), PL(),])
         stage.adapt(np.ones((3, 4)))
         self.assertEqual(stage.layers[0].adapt_count, 1)
         self.assertEqual(stage.layers[1].adapt_count, 1)

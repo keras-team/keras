@@ -18,9 +18,7 @@ import tensorflow.compat.v2 as tf
 import keras
 
 # isort: off
-from tensorflow.python.framework.memory_checker import (
-    MemoryChecker,
-)
+from tensorflow.python.framework.memory_checker import MemoryChecker
 
 
 class MemoryCheckerTest(tf.test.TestCase):

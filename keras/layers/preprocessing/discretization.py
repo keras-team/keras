@@ -303,10 +303,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             name="summary",
             shape=(2, None),
             dtype=tf.float32,
-            initializer=lambda shape, dtype: [
-                [],
-                [],
-            ],
+            initializer=lambda shape, dtype: [[], [],],
             trainable=False,
         )
 

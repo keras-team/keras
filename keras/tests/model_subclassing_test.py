@@ -27,9 +27,7 @@ from keras.testing_infra import test_utils
 from keras.tests import model_subclassing_test_util as model_util
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.trackable import data_structures
 
 try:

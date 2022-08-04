@@ -347,8 +347,7 @@ class HashingTest(test_combinations.TestCase):
         self.assertAllEqual(expected_output, output_data)
 
     @parameterized.named_parameters(
-        ("int32", tf.int32),
-        ("int64", tf.int64),
+        ("int32", tf.int32), ("int64", tf.int64),
     )
     def test_output_dtype(self, dtype):
         input_data = keras.Input(batch_size=16, shape=(4,), dtype="string")
@@ -367,8 +366,7 @@ class HashingTest(test_combinations.TestCase):
         self.assertAllEqual(outputs.dtype, tf.int64)
 
     @parameterized.named_parameters(
-        ("float32", tf.float32),
-        ("float64", tf.float64),
+        ("float32", tf.float32), ("float64", tf.float64),
     )
     def test_one_hot_output_dtype(self, dtype):
         input_data = keras.Input(batch_size=16, shape=(1,), dtype="string")
@@ -415,16 +413,8 @@ class HashingTest(test_combinations.TestCase):
         self.assertAllClose(new_output_data, original_output_data)
 
     @parameterized.named_parameters(
-        (
-            "list_input",
-            [1, 2, 3],
-            [1, 1, 1],
-        ),
-        (
-            "list_input_2d",
-            [[1], [2], [3]],
-            [[1], [1], [1]],
-        ),
+        ("list_input", [1, 2, 3], [1, 1, 1],),
+        ("list_input_2d", [[1], [2], [3]], [[1], [1], [1]],),
         (
             "list_input_2d_multiple",
             [[1, 2], [2, 3], [3, 4]],

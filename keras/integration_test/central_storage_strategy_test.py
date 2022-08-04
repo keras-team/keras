@@ -18,15 +18,9 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 # isort: off
-from tensorflow.python.distribute import (
-    combinations as ds_combinations,
-)
-from tensorflow.python.distribute import (
-    strategy_combinations,
-)
-from tensorflow.python.framework import (
-    test_combinations as combinations,
-)
+from tensorflow.python.distribute import combinations as ds_combinations
+from tensorflow.python.distribute import strategy_combinations
+from tensorflow.python.framework import test_combinations as combinations
 from tensorflow.python.keras.utils import kpl_test_utils
 
 
@@ -78,8 +72,8 @@ class CentralStorageStrategyTest(tf.test.TestCase, parameterized.TestCase):
 
                 distribution.run(step_fn, args=(next(iterator),))
 
-            distributed_dataset = (
-                distribution.distribute_datasets_from_function(dataset_fn)
+            distributed_dataset = distribution.distribute_datasets_from_function(
+                dataset_fn
             )
             distributed_iterator = iter(distributed_dataset)
             num_epochs = 4

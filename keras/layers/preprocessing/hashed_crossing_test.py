@@ -29,8 +29,7 @@ from keras.testing_infra import test_combinations
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class HashedCrossingTest(test_combinations.TestCase):
     @parameterized.named_parameters(
-        ("python_value", lambda x: x),
-        ("dense", tf.constant),
+        ("python_value", lambda x: x), ("dense", tf.constant),
     )
     def test_cross_scalars(self, data_fn):
         layer = hashed_crossing.HashedCrossing(num_bins=10)
@@ -71,8 +70,7 @@ class HashedCrossingTest(test_combinations.TestCase):
         self.assertAllEqual(outputs.shape.as_list(), [5, 1])
 
     @parameterized.named_parameters(
-        ("sparse", True),
-        ("dense", False),
+        ("sparse", True), ("dense", False),
     )
     def test_cross_one_hot_output(self, sparse):
         layer = hashed_crossing.HashedCrossing(

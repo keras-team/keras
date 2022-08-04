@@ -27,12 +27,8 @@ from keras.testing_infra import test_utils
 from keras.utils import dataset_creator
 
 # isort: off
-from tensorflow.python.distribute.cluster_resolver import (
-    SimpleClusterResolver,
-)
-from tensorflow.python.training.server_lib import (
-    ClusterSpec,
-)
+from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
+from tensorflow.python.training.server_lib import ClusterSpec
 
 
 @test_utils.run_v2_only
@@ -167,10 +163,8 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
         strategy = self._get_parameter_server_strategy()
         with strategy.scope():
             model = sequential.Sequential([core_layers.Dense(10)])
-            model._cluster_coordinator = (
-                tf.distribute.experimental.coordinator.ClusterCoordinator(
-                    strategy
-                )
+            model._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+                strategy
             )
             data_handler = data_adapter.get_data_handler(
                 x, steps_per_epoch=2, model=model

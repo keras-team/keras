@@ -576,9 +576,7 @@ class IncreasingBatchSizeAdapterTest(test_combinations.TestCase):
         self.assertEqual(self.sequence_input._current_epoch, 0)
         self.assertEqual(self.sequence_input._current_batch_size, 5)
         data_handler = data_adapter.get_data_handler(
-            self.sequence_input,
-            epochs=self.epochs,
-            model=self.model,
+            self.sequence_input, epochs=self.epochs, model=self.model,
         )
         self.assertEqual(
             data_handler.inferred_steps, 4
@@ -1403,10 +1401,9 @@ class TestValidationSplit(test_combinations.TestCase):
             y = tf.convert_to_tensor([0, 2, 4, 6, 8])
             sw = tf.convert_to_tensor([0, 4, 8, 12, 16])
 
-        (train_x, train_y, train_sw), (
-            val_x,
-            val_y,
-            val_sw,
+        (
+            (train_x, train_y, train_sw),
+            (val_x, val_y, val_sw,),
         ) = data_adapter.train_validation_split(
             (x, y, sw), validation_split=0.2
         )

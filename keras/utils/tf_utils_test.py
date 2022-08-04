@@ -457,10 +457,7 @@ class TestGetTensorSpec(parameterized.TestCase):
 
 class TestSyncToNumpyOrPythonType(parameterized.TestCase):
     @parameterized.parameters(
-        [
-            (0.5,),
-            (b"string value",),
-        ]
+        [(0.5,), (b"string value",),]
     )
     def test_types(self, value):
         if not tf.executing_eagerly():

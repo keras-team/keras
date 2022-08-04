@@ -25,13 +25,9 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_utils,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_utils
 from tensorflow.python.eager import context
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 class NonLayerTrackable(tf.Module):
@@ -311,8 +307,7 @@ class CheckpointingTests(test_combinations.TestCase):
                 # TODO(allenl): Use a Dataset and serialize/checkpoint it.
                 input_value = tf.constant([[3.0]])
                 optimizer.minimize(
-                    lambda: model(input_value),
-                    global_step=root.optimizer_step,
+                    lambda: model(input_value), global_step=root.optimizer_step,
                 )
             root.save(file_prefix=checkpoint_prefix)
             self.assertEqual(

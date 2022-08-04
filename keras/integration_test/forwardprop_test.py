@@ -24,8 +24,11 @@ def _jvp(f, primals, tangents):
     """Compute the jacobian of `f` at `primals` multiplied by `tangents`."""
     with tf.autodiff.ForwardAccumulator(primals, tangents) as acc:
         primals_out = f(*primals)
-    return primals_out, acc.jvp(
-        primals_out, unconnected_gradients=tf.UnconnectedGradients.ZERO
+    return (
+        primals_out,
+        acc.jvp(
+            primals_out, unconnected_gradients=tf.UnconnectedGradients.ZERO
+        ),
     )
 
 

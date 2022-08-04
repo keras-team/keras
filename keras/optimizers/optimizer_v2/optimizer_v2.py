@@ -474,10 +474,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 f"gradient_transformers={self.gradient_transformers}."
             )
         self._global_clipnorm = val
-        self._global_clipnorm_fn = (
-            optimizer_utils.make_global_gradient_clipnorm_fn(
-                self._global_clipnorm
-            )
+        self._global_clipnorm_fn = optimizer_utils.make_global_gradient_clipnorm_fn(
+            self._global_clipnorm
         )
 
     @property
@@ -1579,10 +1577,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 or self._distribution_strategy
             )
         ):
-            initializer = (
-                tf.__internal__.tracking.CheckpointInitialValueCallable(
-                    checkpoint_position=slot_variable_position
-                )
+            initializer = tf.__internal__.tracking.CheckpointInitialValueCallable(
+                checkpoint_position=slot_variable_position
             )
             slot_variable = self.add_slot(
                 var=variable,

@@ -573,7 +573,7 @@ class NormalizationLayersGraphModeOnlyTest(
                         np.array([1.0]),
                         np.array([0.0]),
                         np.array([bn_mean]),
-                        np.array([bn_std**2]),
+                        np.array([bn_std ** 2]),
                     ]
                 )
                 return model1

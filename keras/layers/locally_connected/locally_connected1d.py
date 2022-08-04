@@ -227,14 +227,12 @@ class LocallyConnected1D(Layer):
                 constraint=self.kernel_constraint,
             )
 
-            self.kernel_mask = (
-                locally_connected_utils.get_locallyconnected_mask(
-                    input_shape=(input_length,),
-                    kernel_shape=self.kernel_size,
-                    strides=self.strides,
-                    padding=self.padding,
-                    data_format=self.data_format,
-                )
+            self.kernel_mask = locally_connected_utils.get_locallyconnected_mask(
+                input_shape=(input_length,),
+                kernel_shape=self.kernel_size,
+                strides=self.strides,
+                padding=self.padding,
+                data_format=self.data_format,
             )
 
         elif self.implementation == 3:

@@ -18,9 +18,7 @@ import gc
 import tensorflow.compat.v2 as tf
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.platform import test as test_lib
 
 layers = tf.keras.layers

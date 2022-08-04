@@ -48,9 +48,7 @@ from keras.utils import losses_utils
 from keras.utils import np_utils
 
 # isort: off
-from tensorflow.python.distribute.cluster_resolver import (
-    SimpleClusterResolver,
-)
+from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 
 _RANDOM_SEED = 1337
 _TRAIN_SIZE = 200
@@ -2729,10 +2727,8 @@ class TestDistributionStrategyWithKerasModels(
             task_id=1,
             num_accelerators={"GPU": 0},
         )
-        distribution = (
-            tf.compat.v1.distribute.experimental.ParameterServerStrategy(
-                cluster_resolver
-            )
+        distribution = tf.compat.v1.distribute.experimental.ParameterServerStrategy(
+            cluster_resolver
         )
 
         self.assertIsInstance(
@@ -3024,11 +3020,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         temp_dir = os.path.join(self.get_temp_dir(), "ckpt")
 
         def create_model():
-            model = keras.models.Sequential(
-                [
-                    keras.layers.Dense(1),
-                ]
-            )
+            model = keras.models.Sequential([keras.layers.Dense(1),])
             model.compile(optimizer="adam", loss="mse")
             model.build([None, 1])  # create weights.
             self.assertEmpty(model.optimizer.variables())

@@ -349,8 +349,7 @@ class CategoryEncodingOutputTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
 ):
     @parameterized.named_parameters(
-        ("float32", tf.float32),
-        ("float64", tf.float64),
+        ("float32", tf.float32), ("float64", tf.float64),
     )
     def test_output_dtype(self, dtype):
         inputs = keras.Input(shape=(1,), dtype=tf.int32)
@@ -510,15 +509,7 @@ class CategoryEncodingOutputTest(
         with self.assertRaisesRegex(
             ValueError, "maximum supported output rank"
         ):
-            _ = layer(
-                keras.Input(
-                    shape=(
-                        3,
-                        4,
-                    ),
-                    dtype=tf.int32,
-                )
-            )
+            _ = layer(keras.Input(shape=(3, 4,), dtype=tf.int32,))
         with self.assertRaisesRegex(
             ValueError, "maximum supported output rank"
         ):

@@ -3331,9 +3331,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
         summary_file = list_summaries(self.logdir)
         self.assertEqual(
             summary_file.tensors,
-            {
-                _ObservedSummary(logdir=self.train_dir, tag="keras"),
-            },
+            {_ObservedSummary(logdir=self.train_dir, tag="keras"),},
         )
         if not model.run_eagerly:
             # There should be one train graph
@@ -3396,9 +3394,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
 
         self.assertEqual(
             summary_file.tensors,
-            {
-                _ObservedSummary(logdir=self.train_dir, tag="batch_1"),
-            },
+            {_ObservedSummary(logdir=self.train_dir, tag="batch_1"),},
         )
         self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 
@@ -3428,9 +3424,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
 
         self.assertEqual(
             summary_file.tensors,
-            {
-                _ObservedSummary(logdir=self.train_dir, tag="batch_1"),
-            },
+            {_ObservedSummary(logdir=self.train_dir, tag="batch_1"),},
         )
         self.assertEqual(0, self._count_trace_file(logdir=self.train_dir))
 
@@ -3453,9 +3447,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
 
         self.assertEqual(
             summary_file.tensors,
-            {
-                _ObservedSummary(logdir=self.train_dir, tag="batch_2"),
-            },
+            {_ObservedSummary(logdir=self.train_dir, tag="batch_2"),},
         )
         self.assertEqual(1, self._count_trace_file(logdir=self.logdir))
 

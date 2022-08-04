@@ -26,9 +26,7 @@ from keras.utils import kpl_test_utils
 
 # isort: off
 from tensorflow.python.eager import backprop
-from tensorflow.python.training import (
-    optimizer as optimizer_lib,
-)
+from tensorflow.python.training import optimizer as optimizer_lib
 
 
 class MiniModel(keras_training.Model):
@@ -122,8 +120,8 @@ class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
 
                 distribution.run(step_fn, args=(next(iterator),))
 
-            distributed_dataset = (
-                distribution.distribute_datasets_from_function(dataset_fn)
+            distributed_dataset = distribution.distribute_datasets_from_function(
+                dataset_fn
             )
             distributed_iterator = iter(distributed_dataset)
             num_epochs = 4

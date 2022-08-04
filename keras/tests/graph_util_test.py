@@ -22,9 +22,7 @@ import keras
 # isort: off
 from tensorflow.core.protobuf import meta_graph_pb2
 from tensorflow.python.grappler import tf_optimizer
-from tensorflow.python.training.saver import (
-    export_meta_graph,
-)
+from tensorflow.python.training.saver import export_meta_graph
 
 
 class ConvertVariablesToConstantsTest(tf.test.TestCase):
@@ -101,10 +99,8 @@ class ConvertVariablesToConstantsTest(tf.test.TestCase):
         sess = keras.backend.get_session()
         variable_graph_def = sess.graph_def
         output_tensor = self._get_tensor_names(model.outputs)
-        constant_graph_def = (
-            tf.compat.v1.graph_util.convert_variables_to_constants(
-                sess, variable_graph_def, output_tensor
-            )
+        constant_graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(
+            sess, variable_graph_def, output_tensor
         )
 
         # Validate converted graph.
@@ -131,10 +127,8 @@ class ConvertVariablesToConstantsTest(tf.test.TestCase):
             variable_graph_def, tensor_names
         )
         output_tensor = self._get_tensor_names(model.outputs)
-        constant_graph_def = (
-            tf.compat.v1.graph_util.convert_variables_to_constants(
-                sess, variable_graph_def, output_tensor
-            )
+        constant_graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(
+            sess, variable_graph_def, output_tensor
         )
 
         # Validate converted graph.
@@ -158,10 +152,8 @@ class ConvertVariablesToConstantsTest(tf.test.TestCase):
             variable_graph_def, tensor_names
         )
         output_tensor = self._get_tensor_names(model.outputs)
-        constant_graph_def = (
-            tf.compat.v1.graph_util.convert_variables_to_constants(
-                sess, variable_graph_def, output_tensor
-            )
+        constant_graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(
+            sess, variable_graph_def, output_tensor
         )
 
         # Validate converted graph.

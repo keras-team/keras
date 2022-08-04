@@ -35,12 +35,8 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.testing_infra import test_combinations
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
-from tensorflow.python.keras.optimizer_v2 import (
-    gradient_descent as legacy_sgd,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
+from tensorflow.python.keras.optimizer_v2 import gradient_descent as legacy_sgd
 from tensorflow.python.platform import tf_logging
 
 # If called outside any strategy.scope() calls, this will return the default
@@ -335,10 +331,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     def testDynamicLossScaleDefaultValues(self, opt_cls):
         opt = create_sgd(opt_cls)
         opt = create_lso(opt)
-        self.assertEqual(opt.initial_scale, 2**15)
+        self.assertEqual(opt.initial_scale, 2 ** 15)
         self.assertEqual(opt.dynamic_growth_steps, 2000)
         self.evaluate(tf.compat.v1.global_variables_initializer())
-        self.assertEqual(self.evaluate(opt.loss_scale), 2**15)
+        self.assertEqual(self.evaluate(opt.loss_scale), 2 ** 15)
 
     @test_combinations.generate(opt_and_strategy_and_mode_combinations())
     def testClipping(self, opt_cls, strategy_fn, use_tf_function):

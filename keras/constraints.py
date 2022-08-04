@@ -307,8 +307,11 @@ class RadialConstraint(Constraint):
         while_condition = lambda index, *args: backend.less(index, start)
 
         def body_fn(i, array):
-            return i + 1, tf.pad(
-                array, padding, constant_values=kernel[start + i, start + i]
+            return (
+                i + 1,
+                tf.pad(
+                    array, padding, constant_values=kernel[start + i, start + i]
+                ),
             )
 
         _, kernel_new = tf.compat.v1.while_loop(

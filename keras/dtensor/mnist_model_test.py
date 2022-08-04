@@ -30,11 +30,7 @@ class MnistTest(test_util.DTensorBaseTest):
     def test_mnist_training_cpu(self):
         devices = tf.config.list_physical_devices("CPU")
         tf.config.set_logical_device_configuration(
-            devices[0],
-            [
-                tf.config.LogicalDeviceConfiguration(),
-            ]
-            * 8,
+            devices[0], [tf.config.LogicalDeviceConfiguration(),] * 8,
         )
 
         mesh = mesh_util.create_mesh(

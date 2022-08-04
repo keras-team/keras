@@ -475,8 +475,9 @@ class TestGeneratorMethodsWithSequences(test_combinations.TestCase):
 
         class CustomSequence(data_utils.Sequence):
             def __getitem__(self, idx):
-                return np.ones([10, 10], np.float32), np.ones(
-                    [10, 1], np.float32
+                return (
+                    np.ones([10, 10], np.float32),
+                    np.ones([10, 1], np.float32),
                 )
 
             def __len__(self):
@@ -528,8 +529,9 @@ class TestGeneratorMethodsWithSequences(test_combinations.TestCase):
                 self.epochs = 0
 
             def __getitem__(self, idx):
-                return np.ones([10, 10], np.float32), np.ones(
-                    [10, 1], np.float32
+                return (
+                    np.ones([10, 10], np.float32),
+                    np.ones([10, 1], np.float32),
                 )
 
             def __len__(self):

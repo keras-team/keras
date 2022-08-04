@@ -28,9 +28,7 @@ from keras.testing_infra import test_utils
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
+from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 MAE = losses.MeanAbsoluteError
 mae = losses.mean_absolute_error
