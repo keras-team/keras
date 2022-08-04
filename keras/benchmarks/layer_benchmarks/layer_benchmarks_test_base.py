@@ -52,10 +52,7 @@ class LayerBenchmarksBase(tf.test.Benchmark):
                 "name": "examples_per_sec",
                 "value": float(f"{num_iters / total_time:.3f}"),
             },
-            {
-                "name": "us_per_example",
-                "value": float(f"{us_mean_time:.3f}"),
-            },
+            {"name": "us_per_example", "value": float(f"{us_mean_time:.3f}"),},
         ]
 
         # 2. Run with xprof with no python trace.

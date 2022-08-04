@@ -135,10 +135,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
             return _initializer
 
-        categorical_column_a = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.sequence_categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
         embedding_column_a = tf.feature_column.embedding_column(
             categorical_column_a,
@@ -147,10 +145,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 embedding_dimension_a, embedding_values_a
             ),
         )
-        categorical_column_b = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="bbb", num_buckets=vocabulary_size
-            )
+        categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
+            key="bbb", num_buckets=vocabulary_size
         )
         embedding_column_b = tf.feature_column.embedding_column(
             categorical_column_b,
@@ -165,10 +161,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
             [embedding_column_b, embedding_column_a]
         )
         input_layer, sequence_length = sequence_input_layer(
-            {
-                "aaa": sparse_input_a,
-                "bbb": sparse_input_b,
-            }
+            {"aaa": sparse_input_a, "bbb": sparse_input_b,}
         )
 
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -198,10 +191,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
             dense_shape=(2, 2),
         )
 
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
         embedding_column_a = tf.feature_column.embedding_column(
             categorical_column_a, dimension=2
@@ -258,15 +249,11 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
             ]
             expected_sequence_length = [1, 2]
 
-            categorical_column_a = (
-                tf.feature_column.sequence_categorical_column_with_identity(
-                    key="aaa", num_buckets=vocabulary_size
-                )
+            categorical_column_a = tf.feature_column.sequence_categorical_column_with_identity(
+                key="aaa", num_buckets=vocabulary_size
             )
-            categorical_column_b = (
-                tf.feature_column.sequence_categorical_column_with_identity(
-                    key="bbb", num_buckets=vocabulary_size
-                )
+            categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
+                key="bbb", num_buckets=vocabulary_size
             )
             # Test that columns are reordered alphabetically.
             shared_embedding_columns = tf.feature_column.shared_embeddings(
@@ -322,15 +309,11 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 dense_shape=(2, 2),
             )
 
-            categorical_column_a = (
-                tf.feature_column.categorical_column_with_identity(
-                    key="aaa", num_buckets=vocabulary_size
-                )
+            categorical_column_a = tf.feature_column.categorical_column_with_identity(
+                key="aaa", num_buckets=vocabulary_size
             )
-            categorical_column_b = (
-                tf.feature_column.categorical_column_with_identity(
-                    key="bbb", num_buckets=vocabulary_size
-                )
+            categorical_column_b = tf.feature_column.categorical_column_with_identity(
+                key="bbb", num_buckets=vocabulary_size
             )
             shared_embedding_columns = tf.feature_column.shared_embeddings(
                 [categorical_column_a, categorical_column_b], dimension=2
@@ -426,18 +409,14 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         vocabulary_size_a = 3
         vocabulary_size_b = 2
 
-        categorical_column_a = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size_a
-            )
+        categorical_column_a = tf.feature_column.sequence_categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size_a
         )
         indicator_column_a = tf.feature_column.indicator_column(
             categorical_column_a
         )
-        categorical_column_b = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="bbb", num_buckets=vocabulary_size_b
-            )
+        categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
+            key="bbb", num_buckets=vocabulary_size_b
         )
         indicator_column_b = tf.feature_column.indicator_column(
             categorical_column_b
@@ -466,10 +445,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
             dense_shape=(2, 2),
         )
 
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
         indicator_column_a = tf.feature_column.indicator_column(
             categorical_column_a
@@ -802,10 +779,8 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     ):
         """Tests that we return a known static shape when we have one."""
         sparse_input = tf.compat.v1.SparseTensorValue(**sparse_input_args)
-        categorical_column = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="aaa", num_buckets=3
-            )
+        categorical_column = tf.feature_column.sequence_categorical_column_with_identity(
+            key="aaa", num_buckets=3
         )
         indicator_column = tf.feature_column.indicator_column(
             categorical_column

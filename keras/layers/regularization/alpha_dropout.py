@@ -80,7 +80,7 @@ class AlphaDropout(base_layer.BaseRandomLayer):
                 kept_idx = tf.cast(kept_idx, inputs.dtype)
 
                 # Get affine transformation params
-                a = ((1 - rate) * (1 + rate * alpha_p**2)) ** -0.5
+                a = ((1 - rate) * (1 + rate * alpha_p ** 2)) ** -0.5
                 b = -a * alpha_p * rate
 
                 # Apply mask

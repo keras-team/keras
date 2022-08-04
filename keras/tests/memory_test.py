@@ -25,9 +25,7 @@ import tensorflow.compat.v2 as tf
 import keras
 
 # isort: off
-from tensorflow.python.eager.memory_tests import (
-    memory_test_util,
-)
+from tensorflow.python.eager.memory_tests import memory_test_util
 
 
 class SingleLayerNet(keras.Model):

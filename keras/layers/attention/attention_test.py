@@ -344,8 +344,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(expected, actual)
 
     @parameterized.named_parameters(
-        ("", False),
-        ("return_attention_scores", True),
+        ("", False), ("return_attention_scores", True),
     )
     def test_multi_dim_with_query_mask(self, return_attention_scores):
         # Query tensor of shape [1, 2, 1]
@@ -427,8 +426,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllClose(1.0, attention_layer.scale.value())
 
     @parameterized.named_parameters(
-        ("", False),
-        ("return_attention_scores", True),
+        ("", False), ("return_attention_scores", True),
     )
     def test_self_attention_causal(self, return_attention_scores):
         # Query-value tensor of shape [1, 3, 1]
@@ -489,14 +487,9 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         # Query-value tensor of shape [1, 3, 1]
         q = np.array([[[0.5], [0.8], [-0.3]]], dtype=np.float32)
         attention_layer_new = keras.layers.Attention()
-        new_scores = attention_layer_new(
-            [q, q],
-            use_causal_mask=True,
-        )
+        new_scores = attention_layer_new([q, q], use_causal_mask=True,)
         attention_layer_old = keras.layers.Attention(causal=True)
-        old_scores = attention_layer_old(
-            [q, q],
-        )
+        old_scores = attention_layer_old([q, q],)
         self.assertAllClose(new_scores, old_scores)
 
     def test_inputs_not_list(self):
@@ -565,8 +558,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose([[[0], [1]]], actual)
 
     @parameterized.named_parameters(
-        ("", False),
-        ("use_scale", True),
+        ("", False), ("use_scale", True),
     )
     def test_serialization(self, use_scale):
         # Test serialization with use_scale

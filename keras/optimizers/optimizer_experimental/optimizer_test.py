@@ -119,7 +119,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer = adam_new.Adam(clipnorm=1)
         grad = [tf.convert_to_tensor([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
-        self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
+        self.assertAllClose(clipped_grad[0], [2 ** 0.5 / 2, 2 ** 0.5 / 2])
 
     def testClipValue(self):
         optimizer = adam_new.Adam(clipvalue=1)
@@ -180,11 +180,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertLen(optimizer_variables, 2)
         self.assertCountEqual(
-            all_names,
-            [
-                "Adam/m/Variable",
-                "Adam/v/Variable",
-            ],
+            all_names, ["Adam/m/Variable", "Adam/v/Variable",],
         )
 
     def testSetLearningRate(self):

@@ -20,9 +20,7 @@ from keras.benchmarks import benchmark_util
 from keras.optimizers.optimizer_v2 import adam
 
 # isort: off
-from tensorflow.python.platform.benchmark import (
-    ParameterizedBenchmark,
-)
+from tensorflow.python.platform.benchmark import ParameterizedBenchmark
 
 
 def bidirect_imdb_lstm_config():

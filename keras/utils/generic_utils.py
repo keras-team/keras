@@ -52,8 +52,7 @@ _THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
 
 
 @keras_export(
-    "keras.utils.custom_object_scope",
-    "keras.utils.CustomObjectScope",
+    "keras.utils.custom_object_scope", "keras.utils.CustomObjectScope",
 )
 class CustomObjectScope:
     """Exposes custom classes/functions to Keras deserialization internals.

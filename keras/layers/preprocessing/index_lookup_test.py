@@ -975,8 +975,7 @@ class IndexLookupOutputTest(
         self.assertAllEqual(int_data.shape.as_list(), [16, 4])
 
     @parameterized.named_parameters(
-        ("int32", tf.int32),
-        ("int64", tf.int64),
+        ("int32", tf.int32), ("int64", tf.int64),
     )
     def test_int_output_dtype(self, dtype):
         input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
@@ -1257,26 +1256,13 @@ class IndexLookupOutputTest(
         )
 
         if mode == "count":
-            expected_output = np.array(
-                [
-                    [0, 0, 1, 1, 2],
-                    [2, 1, 0, 0, 1],
-                ]
-            )
+            expected_output = np.array([[0, 0, 1, 1, 2], [2, 1, 0, 0, 1],])
         elif mode == "tf_idf":
             expected_output = np.array(
-                [
-                    [0, 0, 1, 1, 2],
-                    [2, 1, 0, 0, 1],
-                ]
+                [[0, 0, 1, 1, 2], [2, 1, 0, 0, 1],]
             ) * math.log(1.5)
         else:
-            expected_output = np.array(
-                [
-                    [0, 0, 1, 1, 1],
-                    [1, 1, 0, 0, 1],
-                ]
-            )
+            expected_output = np.array([[0, 0, 1, 1, 1], [1, 1, 0, 0, 1],])
         expected_output_shape = [None, 5]
         if pad_to_max:
             expected_output = np.concatenate(

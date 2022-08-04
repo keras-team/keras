@@ -28,9 +28,7 @@ from keras.legacy_tf_layers import normalization as normalization_layers
 
 # isort: off
 from tensorflow.core.protobuf import saver_pb2
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 @tf_test_utils.run_v1_only("b/120545219")

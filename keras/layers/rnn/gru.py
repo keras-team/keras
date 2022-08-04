@@ -860,9 +860,7 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             }
             normal_gru_kwargs = gpu_gru_kwargs.copy()
             normal_gru_kwargs.update(
-                {
-                    "zero_output_for_mask": self.zero_output_for_mask,
-                }
+                {"zero_output_for_mask": self.zero_output_for_mask,}
             )
 
             if tf.executing_eagerly():

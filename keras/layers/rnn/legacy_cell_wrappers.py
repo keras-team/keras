@@ -466,10 +466,8 @@ class DropoutWrapper(_RNNCellWrapperV1):
         if _should_dropout(self._state_keep_prob):
             # Identify which subsets of the state to perform dropout on and
             # which ones to keep.
-            shallow_filtered_substructure = (
-                tf.__internal__.nest.get_traverse_shallow_structure(
-                    self._dropout_state_filter, new_state
-                )
+            shallow_filtered_substructure = tf.__internal__.nest.get_traverse_shallow_structure(
+                self._dropout_state_filter, new_state
             )
             new_state = self._dropout(
                 new_state,
@@ -656,9 +654,7 @@ class DeviceWrapper(_RNNCellWrapperV1):
 
 
 def _default_dropout_state_filter_visitor(substate):
-    from keras.layers.rnn.legacy_cells import (
-        LSTMStateTuple,
-    )
+    from keras.layers.rnn.legacy_cells import LSTMStateTuple
 
     if isinstance(substate, LSTMStateTuple):
         # Do not perform dropout on the memory state.

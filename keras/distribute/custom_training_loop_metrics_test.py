@@ -22,9 +22,7 @@ from keras import metrics
 from keras.distribute import strategy_combinations
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):

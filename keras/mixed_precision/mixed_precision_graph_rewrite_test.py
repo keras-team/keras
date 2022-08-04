@@ -84,9 +84,9 @@ class MixedPrecisionTest(test_combinations.TestCase):
         )
         self.assertIsInstance(opt, loss_scale_optimizer_v2.LossScaleOptimizer)
         self.evaluate(tf.compat.v1.global_variables_initializer())
-        self.assertEqual(self.evaluate(opt.loss_scale), 2.0**15)
+        self.assertEqual(self.evaluate(opt.loss_scale), 2.0 ** 15)
         self.assertTrue(opt.dynamic)
-        self.assertTrue(opt.initial_scale, 2.0**15)
+        self.assertTrue(opt.initial_scale, 2.0 ** 15)
         self.assertTrue(opt.dynamic_growth_steps, 2000)
 
         opt = gradient_descent_v2.SGD(1.0)

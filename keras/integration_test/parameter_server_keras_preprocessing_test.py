@@ -86,10 +86,8 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         self.strategy = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver
         )
-        self.coordinator = (
-            tf.distribute.experimental.coordinator.ClusterCoordinator(
-                self.strategy
-            )
+        self.coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+            self.strategy
         )
 
     def define_kpls_for_training(self, use_adapt):
@@ -317,10 +315,8 @@ class KPLCreatedInDatasetsFromFunctionTest(
         self.strategy = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver
         )
-        self.coordinator = (
-            tf.distribute.experimental.coordinator.ClusterCoordinator(
-                self.strategy
-            )
+        self.coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+            self.strategy
         )
 
     def testKPLCreatedInDatasetsFromFunction(self):
@@ -355,8 +351,8 @@ class KPLCreatedInDatasetsFromFunctionTest(
                 dataset_fn
             )
 
-        per_worker_distribute_dataset = (
-            self.coordinator.create_per_worker_dataset(per_worker_dataset_fn)
+        per_worker_distribute_dataset = self.coordinator.create_per_worker_dataset(
+            per_worker_dataset_fn
         )
         per_worker_iter = iter(per_worker_distribute_dataset)
 

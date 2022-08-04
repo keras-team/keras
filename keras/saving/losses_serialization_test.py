@@ -83,17 +83,11 @@ def _get_multi_io_model():
         ),
         dict(
             testcase_name="dict_of_string",
-            value={
-                "output": "mae",
-                "output_1": "mae",
-            },
+            value={"output": "mae", "output_1": "mae",},
         ),
         dict(
             testcase_name="dict_of_built_in_fn",
-            value={
-                "output": losses.mae,
-                "output_1": losses.mae,
-            },
+            value={"output": losses.mae, "output_1": losses.mae,},
         ),
         dict(
             testcase_name="dict_of_built_in_class",

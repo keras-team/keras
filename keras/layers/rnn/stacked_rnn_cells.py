@@ -159,8 +159,11 @@ class StackedRNNCells(base_layer.Layer):
                 inputs, states = cell_call_fn(inputs, states, **kwargs)
             new_nested_states.append(states)
 
-        return inputs, tf.nest.pack_sequence_as(
-            state_size, tf.nest.flatten(new_nested_states)
+        return (
+            inputs,
+            tf.nest.pack_sequence_as(
+                state_size, tf.nest.flatten(new_nested_states)
+            ),
         )
 
     @tf_utils.shape_type_conversion

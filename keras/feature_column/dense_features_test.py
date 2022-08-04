@@ -27,9 +27,7 @@ from keras.testing_infra import test_combinations
 
 # isort: off
 from tensorflow.python.eager import backprop
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 
 def _initialized_session(config=None):
@@ -469,10 +467,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
                 )
 
     def test_multiple_layers_with_same_embedding_column(self):
-        some_sparse_column = (
-            tf.feature_column.categorical_column_with_hash_bucket(
-                "sparse_feature", hash_bucket_size=5
-            )
+        some_sparse_column = tf.feature_column.categorical_column_with_hash_bucket(
+            "sparse_feature", hash_bucket_size=5
         )
         some_embedding_column = tf.feature_column.embedding_column(
             some_sparse_column, dimension=10
@@ -510,15 +506,11 @@ class DenseFeaturesTest(test_combinations.TestCase):
 
     @tf_test_utils.run_deprecated_v1
     def test_multiple_layers_with_same_shared_embedding_column(self):
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=3
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=3
         )
-        categorical_column_b = (
-            tf.feature_column.categorical_column_with_identity(
-                key="bbb", num_buckets=3
-            )
+        categorical_column_b = tf.feature_column.categorical_column_with_identity(
+            key="bbb", num_buckets=3
         )
         embedding_dimension = 2
         (
@@ -568,15 +560,11 @@ class DenseFeaturesTest(test_combinations.TestCase):
     def test_multiple_layers_with_same_shared_embedding_column_diff_graphs(
         self,
     ):
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=3
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=3
         )
-        categorical_column_b = (
-            tf.feature_column.categorical_column_with_identity(
-                key="bbb", num_buckets=3
-            )
+        categorical_column_b = tf.feature_column.categorical_column_with_identity(
+            key="bbb", num_buckets=3
         )
         embedding_dimension = 2
         (
@@ -677,12 +665,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
 
         # Provides 1-dim tensor and dense tensor.
         features = {
-            "price": tf.constant(
-                [
-                    11.0,
-                    12.0,
-                ]
-            ),
+            "price": tf.constant([11.0, 12.0,]),
             "body-style": tf.SparseTensor(
                 indices=((0,), (1,)),
                 values=("sedan", "hardtop"),
@@ -1130,25 +1113,17 @@ class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         )
 
         # Build columns.
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
-        categorical_column_b = (
-            tf.feature_column.categorical_column_with_identity(
-                key="bbb", num_buckets=vocabulary_size
-            )
+        categorical_column_b = tf.feature_column.categorical_column_with_identity(
+            key="bbb", num_buckets=vocabulary_size
         )
-        categorical_column_c = (
-            tf.feature_column.categorical_column_with_identity(
-                key="ccc", num_buckets=vocabulary_size
-            )
+        categorical_column_c = tf.feature_column.categorical_column_with_identity(
+            key="ccc", num_buckets=vocabulary_size
         )
-        categorical_column_d = (
-            tf.feature_column.categorical_column_with_identity(
-                key="ddd", num_buckets=vocabulary_size
-            )
+        categorical_column_d = tf.feature_column.categorical_column_with_identity(
+            key="ddd", num_buckets=vocabulary_size
         )
 
         (
@@ -1324,10 +1299,8 @@ class SequenceFeatureColumnsTest(tf.test.TestCase):
             dense_shape=(2, 2),
         )
 
-        categorical_column_a = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.sequence_categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
         embedding_column_a = tf.feature_column.embedding_column(
             categorical_column_a, dimension=2
@@ -1352,10 +1325,8 @@ class SequenceFeatureColumnsTest(tf.test.TestCase):
             dense_shape=(2, 2),
         )
 
-        categorical_column_a = (
-            tf.feature_column.sequence_categorical_column_with_identity(
-                key="aaa", num_buckets=vocabulary_size
-            )
+        categorical_column_a = tf.feature_column.sequence_categorical_column_with_identity(
+            key="aaa", num_buckets=vocabulary_size
         )
         indicator_column_a = tf.feature_column.indicator_column(
             categorical_column_a

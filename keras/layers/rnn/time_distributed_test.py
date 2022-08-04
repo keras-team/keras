@@ -24,9 +24,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_util,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_util
 
 
 class TimeDistributedTest(test_combinations.TestCase):
@@ -236,10 +234,7 @@ class TimeDistributedTest(test_combinations.TestCase):
         model = keras.models.Sequential()
         model.add(
             keras.layers.TimeDistributed(
-                keras.layers.Masking(
-                    mask_value=0.0,
-                ),
-                input_shape=(None, 4),
+                keras.layers.Masking(mask_value=0.0,), input_shape=(None, 4),
             )
         )
         model.add(keras.layers.TimeDistributed(keras.layers.Dense(5)))

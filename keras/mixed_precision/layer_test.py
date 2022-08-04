@@ -198,7 +198,7 @@ class LayerTest(test_combinations.TestCase):
                 # variable, the variable will not change. So this tests the
                 # learning rate is not applied to a float16 value, but instead
                 # the float32 variable.
-                opt = gradient_descent.SGD(2**-14)
+                opt = gradient_descent.SGD(2 ** -14)
 
                 def run_fn():
                     with tf.GradientTape() as tape:
@@ -218,7 +218,7 @@ class LayerTest(test_combinations.TestCase):
                 # variable is initialized with 1 and the learning rate is
                 # 2**-14, the new variable value should be: init_val - gradient
                 # * learning_rate, which is  1 - 1 * 2**-14
-                self.assertEqual(self.evaluate(layer.v), 1 - 2**-14)
+                self.assertEqual(self.evaluate(layer.v), 1 - 2 ** -14)
 
     def _test_checkpointing_layer_weights(
         self, strategy_fn, mixed_prec_when_saving, mixed_prec_when_loading

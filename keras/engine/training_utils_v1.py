@@ -357,7 +357,7 @@ class SliceAggregator(Aggregator):
     so a value of 2 ** 14 was chosen which should be reasonable on most systems.
     """
 
-    _BINARY_SIZE_THRESHOLD = 2**14
+    _BINARY_SIZE_THRESHOLD = 2 ** 14
     _MAX_COPY_SECONDS = 300
 
     def __init__(self, num_samples, batch_size):
@@ -2135,20 +2135,13 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
         val_sample_weight = None
     elif len(validation_data) == 2:
         try:
-            (
-                val_x,
-                val_y,
-            ) = validation_data
+            (val_x, val_y,) = validation_data
             val_sample_weight = None
         except ValueError:
             val_x, val_y, val_sample_weight = validation_data, None, None
     elif len(validation_data) == 3:
         try:
-            (
-                val_x,
-                val_y,
-                val_sample_weight,
-            ) = validation_data
+            (val_x, val_y, val_sample_weight,) = validation_data
         except ValueError:
             val_x, val_y, val_sample_weight = validation_data, None, None
     else:

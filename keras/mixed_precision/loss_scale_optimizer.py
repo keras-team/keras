@@ -312,7 +312,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
 
 
 # See LossScaleOptimizer docstring for why this is so big
-_DEFAULT_INITIAL_SCALE = 2**15
+_DEFAULT_INITIAL_SCALE = 2 ** 15
 _DEFAULT_GROWTH_STEPS = 2000
 
 
@@ -992,9 +992,7 @@ class LossScaleOptimizer(
 
     def _restore_slot_variable(self, slot_name, variable, slot_variable):
         return self._optimizer._restore_slot_variable(
-            slot_name,
-            variable,
-            slot_variable,
+            slot_name, variable, slot_variable,
         )
 
     def _create_or_restore_slot_variable(

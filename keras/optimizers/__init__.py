@@ -120,9 +120,7 @@ def deserialize(config, custom_objects=None, **kwargs):
     """
     # loss_scale_optimizer has a direct dependency of optimizer, import here
     # rather than top to avoid the cyclic dependency.
-    from keras.mixed_precision import (
-        loss_scale_optimizer,
-    )
+    from keras.mixed_precision import loss_scale_optimizer
 
     use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
     if len(config["config"]) > 0:

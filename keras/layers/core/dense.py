@@ -163,9 +163,7 @@ class Dense(Layer):
         if self.use_bias:
             self.bias = self.add_weight(
                 "bias",
-                shape=[
-                    self.units,
-                ],
+                shape=[self.units,],
                 initializer=self.bias_initializer,
                 regularizer=self.bias_regularizer,
                 constraint=self.bias_constraint,

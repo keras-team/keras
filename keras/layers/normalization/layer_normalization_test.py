@@ -60,10 +60,7 @@ class LayerNormalizationTest(test_combinations.TestCase):
         )
         test_utils.layer_test(
             keras.layers.LayerNormalization,
-            kwargs={
-                "gamma_initializer": "ones",
-                "beta_initializer": "ones",
-            },
+            kwargs={"gamma_initializer": "ones", "beta_initializer": "ones",},
             input_shape=(3, 4, 2),
         )
         test_utils.layer_test(

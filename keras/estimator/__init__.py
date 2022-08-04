@@ -167,9 +167,7 @@ def model_to_estimator(
 
     try:
         # isort: off
-        from tensorflow_estimator.python.estimator import (
-            keras_lib,
-        )
+        from tensorflow_estimator.python.estimator import keras_lib
     except ImportError:
         raise NotImplementedError(
             "tf.keras.estimator.model_to_estimator function not available in "
@@ -364,9 +362,7 @@ def model_to_estimator_v2(
 
     try:
         # isort: off
-        from tensorflow_estimator.python.estimator import (
-            keras_lib,
-        )
+        from tensorflow_estimator.python.estimator import keras_lib
     except ImportError:
         raise NotImplementedError(
             "tf.keras.estimator.model_to_estimator function not available in "

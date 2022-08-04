@@ -452,13 +452,7 @@ class TestDistributionStrategyWithNormalizationLayer(
             with distribution.scope():
                 model = keras.models.Sequential()
                 norm = keras.layers.BatchNormalization(
-                    input_shape=(
-                        10,
-                        20,
-                        30,
-                    ),
-                    momentum=0.8,
-                    fused=fused,
+                    input_shape=(10, 20, 30,), momentum=0.8, fused=fused,
                 )
                 model.add(norm)
                 model.compile(loss="mse", optimizer=optimizer())
@@ -498,11 +492,7 @@ class TestDistributionStrategyWithNormalizationLayer(
             with distribution.scope():
                 model = keras.models.Sequential()
                 norm = keras.layers.BatchNormalization(
-                    input_shape=(
-                        10,
-                        20,
-                        30,
-                    ),
+                    input_shape=(10, 20, 30,),
                     momentum=0.8,
                     fused=False,
                     renorm=True,

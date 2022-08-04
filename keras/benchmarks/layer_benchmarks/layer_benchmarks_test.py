@@ -56,7 +56,7 @@ def _get_input_data(inputs):
 def _layer_call_backward(layer, x):
     with tf.GradientTape() as tape:
         y = layer(x)
-        loss = tf.reduce_mean(y**2)
+        loss = tf.reduce_mean(y ** 2)
 
     _ = tape.gradient(loss, layer.trainable_variables)
 
@@ -100,7 +100,7 @@ CORE_LAYERS = [
     (
         "Lambda_small_shape",
         tf.keras.layers.Lambda,
-        {"function": lambda x: x**2},
+        {"function": lambda x: x ** 2},
         {"input_shape": (1, 1)},
         100,
     ),

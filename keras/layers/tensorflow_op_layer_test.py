@@ -255,11 +255,7 @@ def _inner_layer():
 
 def _reuse_ancillary_layer():
     inputs = (keras.Input(shape=(5,)), keras.Input(shape=(5,)))
-    base_model = keras.Sequential(
-        [
-            keras.layers.Dense(3, input_shape=(5,)),
-        ]
-    )
+    base_model = keras.Sequential([keras.layers.Dense(3, input_shape=(5,)),])
     outputs = base_model(inputs[0])
     model = keras.Model(inputs, outputs)
     # The second input is only involved in ancillary layers.
@@ -681,7 +677,7 @@ class AutoLambdaTest(test_combinations.TestCase):
         def f(x):
             with tf.GradientTape() as t:
                 t.watch(x)
-                z = m(x**2)
+                z = m(x ** 2)
             grads = t.gradient(z, x)
             return grads
 

@@ -1464,13 +1464,7 @@ class OneHotMeanIoUTest(tf.test.TestCase):
 
     def test_weighted(self):
         y_true = tf.constant(
-            [
-                [0, 0, 1],
-                [1, 0, 0],
-                [0, 1, 0],
-                [1, 0, 0],
-                [1, 0, 0],
-            ]
+            [[0, 0, 1], [1, 0, 0], [0, 1, 0], [1, 0, 0], [1, 0, 0],]
         )
         # y_true will be converted to [2, 0, 1, 0, 0]
         y_pred = tf.constant(

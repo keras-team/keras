@@ -394,7 +394,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
                 v0_val, v1_val = self.evaluate([var0, var1])
                 # var0 is experiencing L2 shrinkage so it should be smaller than
                 # var1 in magnitude.
-                self.assertTrue((v0_val**2 < v1_val**2).all())
+                self.assertTrue((v0_val ** 2 < v1_val ** 2).all())
                 accum0 = sess.run(opt0.get_slot(var0, "accumulator"))
                 accum1 = sess.run(opt1.get_slot(var1, "accumulator"))
                 # L2 shrinkage should not change how we update grad accumulator.

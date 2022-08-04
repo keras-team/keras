@@ -28,11 +28,9 @@ from keras.optimizers.optimizer_v2 import (
 from keras.optimizers.optimizer_v2 import nadam as nadam_keras_v2
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_keras_v2
 
-gradient_descent_optimizer_v1_fn = (
-    tf.__internal__.test.combinations.NamedObject(
-        "GradientDescentV1",
-        lambda: tf.compat.v1.train.GradientDescentOptimizer(0.001),
-    )
+gradient_descent_optimizer_v1_fn = tf.__internal__.test.combinations.NamedObject(
+    "GradientDescentV1",
+    lambda: tf.compat.v1.train.GradientDescentOptimizer(0.001),
 )
 adagrad_optimizer_v1_fn = tf.__internal__.test.combinations.NamedObject(
     "AdagradV1", lambda: tf.compat.v1.train.AdagradOptimizer(0.001)
@@ -76,10 +74,8 @@ nadam_optimizer_keras_v2_fn = tf.__internal__.test.combinations.NamedObject(
 ftrl_optimizer_keras_v2_fn = tf.__internal__.test.combinations.NamedObject(
     "FtrlKerasV2", lambda: ftrl_keras_v2.Ftrl(0.001)
 )
-gradient_descent_optimizer_keras_v2_fn = (
-    tf.__internal__.test.combinations.NamedObject(
-        "GradientDescentKerasV2", lambda: gradient_descent_keras_v2.SGD(0.001)
-    )
+gradient_descent_optimizer_keras_v2_fn = tf.__internal__.test.combinations.NamedObject(
+    "GradientDescentKerasV2", lambda: gradient_descent_keras_v2.SGD(0.001)
 )
 rmsprop_optimizer_keras_v2_fn = tf.__internal__.test.combinations.NamedObject(
     "RmsPropKerasV2", lambda: rmsprop_keras_v2.RMSprop(0.001)

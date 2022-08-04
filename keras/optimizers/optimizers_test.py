@@ -324,10 +324,8 @@ class KerasOptimizersTest(test_combinations.TestCase):
             reference_legacy_optimizer = keras.optimizers.get(
                 name, use_legacy_optimizer=True
             )
-            converted_legacy_optimizer = (
-                keras.optimizers.convert_to_legacy_optimizer(
-                    experimental_optimizer
-                )
+            converted_legacy_optimizer = keras.optimizers.convert_to_legacy_optimizer(
+                experimental_optimizer
             )
             self.assertEqual(
                 type(reference_legacy_optimizer),

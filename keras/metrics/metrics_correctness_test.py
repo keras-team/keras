@@ -259,9 +259,7 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
             [self.x, self.x],
             [self.y1, self.y2],
             batch_size=2,
-            sample_weight={
-                "output_2": self.sample_weight_2,
-            },
+            sample_weight={"output_2": self.sample_weight_2,},
         )
         self.assertAllClose(
             eval_result, self.expected_batch_result_with_weights_output_2, 1e-3
@@ -303,9 +301,7 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
         result = model.train_on_batch(
             [self.x, self.x],
             [self.y1, self.y2],
-            sample_weight={
-                "output_2": self.sample_weight_2,
-            },
+            sample_weight={"output_2": self.sample_weight_2,},
         )
         self.assertAllClose(
             result, self.expected_batch_result_with_weights_output_2, 1e-3
@@ -334,9 +330,7 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
         result = model.test_on_batch(
             [self.x, self.x],
             [self.y1, self.y2],
-            sample_weight={
-                "output_2": self.sample_weight_2,
-            },
+            sample_weight={"output_2": self.sample_weight_2,},
         )
         self.assertAllClose(
             result, self.expected_batch_result_with_weights_output_2, 1e-3

@@ -94,10 +94,7 @@ def all_combinations():
 
 def tpu_combinations():
     return tf.__internal__.test.combinations.combine(
-        distribution=[
-            combinations.tpu_strategy,
-        ],
-        mode=["graph"],
+        distribution=[combinations.tpu_strategy,], mode=["graph"],
     )
 
 

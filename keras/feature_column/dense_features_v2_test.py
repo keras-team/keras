@@ -462,10 +462,8 @@ class DenseFeaturesTest(test_combinations.TestCase):
                 )
 
     def test_multiple_layers_with_same_embedding_column(self):
-        some_sparse_column = (
-            tf.feature_column.categorical_column_with_hash_bucket(
-                "sparse_feature", hash_bucket_size=5
-            )
+        some_sparse_column = tf.feature_column.categorical_column_with_hash_bucket(
+            "sparse_feature", hash_bucket_size=5
         )
         some_embedding_column = tf.feature_column.embedding_column(
             some_sparse_column, dimension=10
@@ -502,15 +500,11 @@ class DenseFeaturesTest(test_combinations.TestCase):
             )
 
     def test_multiple_layers_with_same_shared_embedding_column(self):
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=3
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=3
         )
-        categorical_column_b = (
-            tf.feature_column.categorical_column_with_identity(
-                key="bbb", num_buckets=3
-            )
+        categorical_column_b = tf.feature_column.categorical_column_with_identity(
+            key="bbb", num_buckets=3
         )
         embedding_dimension = 2
 
@@ -560,15 +554,11 @@ class DenseFeaturesTest(test_combinations.TestCase):
     def test_multiple_layers_with_same_shared_embedding_column_diff_graphs(
         self,
     ):
-        categorical_column_a = (
-            tf.feature_column.categorical_column_with_identity(
-                key="aaa", num_buckets=3
-            )
+        categorical_column_a = tf.feature_column.categorical_column_with_identity(
+            key="aaa", num_buckets=3
         )
-        categorical_column_b = (
-            tf.feature_column.categorical_column_with_identity(
-                key="bbb", num_buckets=3
-            )
+        categorical_column_b = tf.feature_column.categorical_column_with_identity(
+            key="bbb", num_buckets=3
         )
         embedding_dimension = 2
 
@@ -670,12 +660,7 @@ class DenseFeaturesTest(test_combinations.TestCase):
         with tf.Graph().as_default():
             # Provides 1-dim tensor and dense tensor.
             features = {
-                "price": tf.constant(
-                    [
-                        11.0,
-                        12.0,
-                    ]
-                ),
+                "price": tf.constant([11.0, 12.0,]),
                 "body-style": tf.SparseTensor(
                     indices=((0,), (1,)),
                     values=("sedan", "hardtop"),

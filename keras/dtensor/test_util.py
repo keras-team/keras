@@ -121,11 +121,7 @@ def reset_logical_devices(device_type, count):
     devices = tf.config.list_physical_devices(device_type)
     if device_type.upper() == "CPU":
         tf.config.set_logical_device_configuration(
-            devices[0],
-            [
-                tf.config.LogicalDeviceConfiguration(),
-            ]
-            * count,
+            devices[0], [tf.config.LogicalDeviceConfiguration(),] * count,
         )
     elif device_type.upper() == "GPU":
         tf.config.set_logical_device_configuration(

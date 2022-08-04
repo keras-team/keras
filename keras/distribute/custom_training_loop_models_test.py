@@ -492,8 +492,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
         @tf.function
         def step(features):
             per_replica_losses = distribution.run(
-                replica_step,
-                (net.trainable_variables, features),
+                replica_step, (net.trainable_variables, features),
             )
             loss = distribution.reduce(
                 tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None

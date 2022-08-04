@@ -1166,10 +1166,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 self.train_tf_function = train_function
 
             if self._cluster_coordinator:
-                self.train_function = (
-                    lambda it: self._cluster_coordinator.schedule(
-                        train_function, args=(it,)
-                    )
+                self.train_function = lambda it: self._cluster_coordinator.schedule(
+                    train_function, args=(it,)
                 )
             else:
                 self.train_function = train_function
@@ -1473,10 +1471,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Create the validation data using the training data. Only supported
             # for `Tensor` and `NumPy` input.
             (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = data_adapter.train_validation_split(
+                (x, y, sample_weight,),
+                validation_data,
+            ) = data_adapter.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -1488,10 +1485,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             ) = data_adapter.unpack_x_y_sample_weight(validation_data)
 
         if self.distribute_strategy._should_use_with_coordinator:
-            self._cluster_coordinator = (
-                tf.distribute.experimental.coordinator.ClusterCoordinator(
-                    self.distribute_strategy
-                )
+            self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+                self.distribute_strategy
             )
 
         with self.distribute_strategy.scope(), training_utils.RespectCompiledTrainableState(  # noqa: E501
@@ -1732,10 +1727,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 )
 
             if self._cluster_coordinator:
-                self.test_function = (
-                    lambda it: self._cluster_coordinator.schedule(
-                        test_function, args=(it,)
-                    )
+                self.test_function = lambda it: self._cluster_coordinator.schedule(
+                    test_function, args=(it,)
                 )
             else:
                 self.test_function = test_function
@@ -1888,10 +1881,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             raise TypeError(f"Invalid keyword arguments: {list(kwargs.keys())}")
 
         if self.distribute_strategy._should_use_with_coordinator:
-            self._cluster_coordinator = (
-                tf.distribute.experimental.coordinator.ClusterCoordinator(
-                    self.distribute_strategy
-                )
+            self._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+                self.distribute_strategy
             )
 
         verbose = _get_verbosity(verbose, self.distribute_strategy)

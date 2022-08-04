@@ -349,8 +349,7 @@ def _map_subclass_model_variable(model, layout_map):
     # Note that the model._flatten is a method from tf.Module, and it returns
     # duplicated items (since some of the items have different paths).
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,
-        with_path=True,
+        predicate=_is_lazy_init_variable, with_path=True,
     ):
         # Note that path is a tuple that contains string and ints, eg:
         # ('d1', '_trainable_weights', 0) maps to model.d1._trainable_weights[0]
@@ -372,8 +371,7 @@ def _map_subclass_model_variable(model, layout_map):
     # After we replaced all the variables, we want to make sure all the cached
     # attributes are having the new variable, rather than old LazyInitVariable.
     for path, variable in model._flatten(
-        predicate=_is_lazy_init_variable,
-        with_path=True,
+        predicate=_is_lazy_init_variable, with_path=True,
     ):
         tf_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
         _set_object_by_path(model, path, tf_variable)
@@ -393,8 +391,7 @@ def _map_functional_model_variable(model, layout_map):
         # name based on the class name.
         layer_name = layer.name
         for path, variable in layer._flatten(
-            predicate=_is_lazy_init_variable,
-            with_path=True,
+            predicate=_is_lazy_init_variable, with_path=True,
         ):
             # Note that path is a tuple that contains string and ints, eg:
             # ('d1', '_trainable_weights', 0) maps to
@@ -418,8 +415,7 @@ def _map_functional_model_variable(model, layout_map):
         # cached attributes are having the new variable, rather than old
         # LazyInitVariable.
         for path, variable in layer._flatten(
-            predicate=_is_lazy_init_variable,
-            with_path=True,
+            predicate=_is_lazy_init_variable, with_path=True,
         ):
             tf_variable = lazy_init_variable_to_tf_variable_map[id(variable)]
             _set_object_by_path(layer, path, tf_variable)

@@ -61,10 +61,7 @@ class ResizingTest(test_combinations.TestCase):
         ("down_sample_area_3_by_2", {"interpolation": "area"}, 3, 2),
         (
             "down_sample_crop_to_aspect_ratio_3_by_2",
-            {
-                "interpolation": "bilinear",
-                "crop_to_aspect_ratio": True,
-            },
+            {"interpolation": "bilinear", "crop_to_aspect_ratio": True,},
             3,
             2,
         ),
@@ -81,10 +78,7 @@ class ResizingTest(test_combinations.TestCase):
         ("up_sample_area_12_by_12", {"interpolation": "area"}, 12, 12),
         (
             "up_sample_crop_to_aspect_ratio_12_by_14",
-            {
-                "interpolation": "bilinear",
-                "crop_to_aspect_ratio": True,
-            },
+            {"interpolation": "bilinear", "crop_to_aspect_ratio": True,},
             12,
             14,
         ),
@@ -152,12 +146,7 @@ class ResizingTest(test_combinations.TestCase):
             )
             output_image = layer(input_image)
             expected_output = np.asarray(
-                [
-                    [1, 2],
-                    [5, 6],
-                    [9, 10],
-                    [13, 14],
-                ]
+                [[1, 2], [5, 6], [9, 10], [13, 14],]
             ).astype("float32")
             expected_output = np.reshape(expected_output, (1, 4, 2, 1))
             self.assertAllEqual(expected_output, output_image)
@@ -169,12 +158,7 @@ class ResizingTest(test_combinations.TestCase):
             )
             layer = image_preprocessing.Resizing(2, 2, interpolation="nearest")
             output_image = layer(input_image)
-            expected_output = np.asarray(
-                [
-                    [5, 7],
-                    [13, 15],
-                ]
-            ).astype("float32")
+            expected_output = np.asarray([[5, 7], [13, 15],]).astype("float32")
             expected_output = np.reshape(expected_output, (2, 2, 1))
             self.assertAllEqual(expected_output, output_image)
 
@@ -346,12 +330,7 @@ class CenterCropTest(test_combinations.TestCase):
             )
             layer = image_preprocessing.CenterCrop(2, 2)
             output_image = layer(input_image)
-            expected_output = np.asarray(
-                [
-                    [5, 6],
-                    [9, 10],
-                ]
-            ).astype("float32")
+            expected_output = np.asarray([[5, 6], [9, 10],]).astype("float32")
             expected_output = np.reshape(expected_output, (2, 2, 1))
             self.assertAllEqual(expected_output, output_image)
 
@@ -619,9 +598,7 @@ class RandomFlipTest(test_combinations.TestCase):
             if mode == "vertical" or mode == "horizontal_and_vertical":
                 expected_output = np.flip(expected_output, axis=1)
         with tf.compat.v1.test.mock.patch.object(
-            np.random,
-            "choice",
-            side_effect=mock_random,
+            np.random, "choice", side_effect=mock_random,
         ):
             with test_utils.use_gpu():
                 layer = image_preprocessing.RandomFlip(mode)
@@ -665,9 +642,7 @@ class RandomFlipTest(test_combinations.TestCase):
         expected_output = np.flip(np.flip(input_images, axis=1), axis=2)
         mock_random = [True, True, True, True]
         with tf.compat.v1.test.mock.patch.object(
-            np.random,
-            "choice",
-            side_effect=mock_random,
+            np.random, "choice", side_effect=mock_random,
         ):
             with self.cached_session():
                 layer = image_preprocessing.RandomFlip()
@@ -686,9 +661,7 @@ class RandomFlipTest(test_combinations.TestCase):
         expected_output = np.flip(input_image, axis=0)
         mock_random = [True, True, True, True]
         with tf.compat.v1.test.mock.patch.object(
-            np.random,
-            "choice",
-            side_effect=mock_random,
+            np.random, "choice", side_effect=mock_random,
         ):
             with self.cached_session():
                 layer = image_preprocessing.RandomFlip("vertical")
@@ -755,9 +728,7 @@ class RandomFlipTest(test_combinations.TestCase):
         input = {"images": [image, image], "bounding_boxes": bboxes}
         mock_random = [True, True, True, True]
         with tf.compat.v1.test.mock.patch.object(
-            np.random,
-            "choice",
-            side_effect=mock_random,
+            np.random, "choice", side_effect=mock_random,
         ):
             layer = image_preprocessing.RandomFlip()
             output = layer(input, training=True)

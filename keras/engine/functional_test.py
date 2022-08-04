@@ -35,9 +35,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_utils
 
 # isort: off
-from tensorflow.python.checkpoint.checkpoint import (
-    Checkpoint,
-)
+from tensorflow.python.checkpoint.checkpoint import Checkpoint
 from tensorflow.python.framework import extension_type
 
 
@@ -225,7 +223,7 @@ class NetworkConstructionTest(test_combinations.TestCase):
     def testTopologicalAttributesMultiOutputLayer(self):
         class PowersLayer(layers.Layer):
             def call(self, inputs):
-                return [inputs**2, inputs**3]
+                return [inputs ** 2, inputs ** 3]
 
         x = input_layer_lib.Input(shape=(32,))
         test_layer = PowersLayer()
