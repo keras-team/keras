@@ -21,12 +21,8 @@ from keras.engine.base_layer import Layer
 
 # isort: off
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import (
-    get_canonical_name_for_symbol,
-)
-from tensorflow.python.util.tf_export import (
-    get_symbol_from_name,
-)
+from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
+from tensorflow.python.util.tf_export import get_symbol_from_name
 
 
 class ClassMethod(Layer):

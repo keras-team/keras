@@ -144,8 +144,8 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
             )
         if training is None:
             training = backend.learning_phase()
-        transformation_cache = (
-            tf.__internal__.feature_column.FeatureTransformationCache(features)
+        transformation_cache = tf.__internal__.feature_column.FeatureTransformationCache(
+            features
         )
         output_tensors = []
         sequence_lengths = []

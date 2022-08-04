@@ -23,9 +23,7 @@ from keras.engine import training
 from keras.layers import core
 
 # isort: off
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_utils,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_utils
 
 
 class NonLayerTrackable(tf.Module):

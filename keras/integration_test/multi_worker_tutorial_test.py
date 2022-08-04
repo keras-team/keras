@@ -269,8 +269,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
 
         for worker_id in range(NUM_WORKERS):
             accu_result = tf.nest.map_structure(
-                lambda x: extract_accuracy(worker_id, x),
-                mpr_result.stdout,
+                lambda x: extract_accuracy(worker_id, x), mpr_result.stdout,
             )
             self.assertTrue(
                 any(accu_result),
@@ -294,12 +293,9 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
                 with strategy.scope():
                     multi_worker_model = self.build_cnn_model()
 
-                multi_worker_dataset = (
-                    strategy.distribute_datasets_from_function(
-                        lambda input_context: self.dataset_fn(
-                            global_batch_size,
-                            input_context,
-                        )
+                multi_worker_dataset = strategy.distribute_datasets_from_function(
+                    lambda input_context: self.dataset_fn(
+                        global_batch_size, input_context,
                     )
                 )
                 optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001)
@@ -316,11 +312,11 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
                         x, y = inputs
                         with tf.GradientTape() as tape:
                             predictions = multi_worker_model(x, training=True)
-                            per_batch_loss = (
-                                tf.keras.losses.SparseCategoricalCrossentropy(
-                                    from_logits=True,
-                                    reduction=tf.keras.losses.Reduction.NONE,
-                                )(y, predictions)
+                            per_batch_loss = tf.keras.losses.SparseCategoricalCrossentropy(
+                                from_logits=True,
+                                reduction=tf.keras.losses.Reduction.NONE,
+                            )(
+                                y, predictions
                             )
                             loss = tf.nn.compute_average_loss(
                                 per_batch_loss,

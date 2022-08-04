@@ -23,7 +23,7 @@ from keras.testing_infra import test_utils
 
 
 def squared_l2_norm(x):
-    return tf.reduce_sum(x**2)
+    return tf.reduce_sum(x ** 2)
 
 
 @test_utils.run_v2_only

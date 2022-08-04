@@ -21,9 +21,7 @@ from keras.optimizers.optimizer_v2 import adam
 
 # isort: off
 from tensorflow.compiler.tests import xla_test
-from tensorflow.python.checkpoint import (
-    checkpoint as trackable_utils,
-)
+from tensorflow.python.checkpoint import checkpoint as trackable_utils
 
 
 class NonLayerTrackable(tf.Module):

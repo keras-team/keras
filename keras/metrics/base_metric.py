@@ -206,9 +206,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
                 result_t._metric_obj = self
                 return result_t
 
-        from keras.distribute import (
-            distributed_training_utils,
-        )
+        from keras.distribute import distributed_training_utils
 
         return distributed_training_utils.call_replica_local_fn(
             replica_local_fn, *args, **kwargs
@@ -453,9 +451,10 @@ class Reduce(Metric):
         Returns:
           Update op.
         """
-        [
-            values
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
+        (
+            [values],
+            sample_weight,
+        ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [values], sample_weight
         )
         try:
@@ -684,10 +683,10 @@ class MeanMetricWrapper(Mean):
         """
         y_true = tf.cast(y_true, self._dtype)
         y_pred = tf.cast(y_pred, self._dtype)
-        [
-            y_true,
-            y_pred,
-        ], sample_weight = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
+        (
+            [y_true, y_pred,],
+            sample_weight,
+        ) = metrics_utils.ragged_assert_compatible_and_get_flat_values(  # noqa: E501
             [y_true, y_pred], sample_weight
         )
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(

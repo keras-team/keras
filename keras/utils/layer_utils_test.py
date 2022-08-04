@@ -177,8 +177,7 @@ class LayerUtilsTest(tf.test.TestCase):
             def __init__(self):
                 super().__init__()
                 self.module = Sequential(
-                    keras.layers.Dense(10),
-                    keras.layers.Dense(10),
+                    keras.layers.Dense(10), keras.layers.Dense(10),
                 )
 
             def call(self, input_tensor):
@@ -543,7 +542,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 # an instance returns the same value in different threads, but
                 # different instances return different values.
                 return int(
-                    np.random.RandomState(id(self) % (2**31)).randint(2**16)
+                    np.random.RandomState(id(self) % (2 ** 31)).randint(2 ** 16)
                 )
 
             def get_test_property(self, _):

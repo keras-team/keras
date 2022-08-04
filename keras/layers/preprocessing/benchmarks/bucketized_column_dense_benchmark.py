@@ -24,9 +24,7 @@ from keras.layers.preprocessing.benchmarks import (
 )
 
 # isort: off
-from tensorflow.python.eager.def_function import (
-    function as tf_function,
-)
+from tensorflow.python.eager.def_function import function as tf_function
 
 NUM_REPEATS = 10  # The number of times to run each benchmark.
 BATCH_SIZES = [32, 256]

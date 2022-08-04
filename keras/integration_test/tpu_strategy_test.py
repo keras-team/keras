@@ -21,9 +21,7 @@ import tensorflow.compat.v2 as tf
 from absl import flags
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("tpu", "", "Name of TPU to connect to.")
@@ -45,9 +43,7 @@ LABEL_VOCAB = ["yes", "no"]
 
 def get_tpu_cluster_resolver():
     resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-        tpu=FLAGS.tpu,
-        zone=FLAGS.zone,
-        project=FLAGS.project,
+        tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project,
     )
     return resolver
 

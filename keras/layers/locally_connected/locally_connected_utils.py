@@ -128,10 +128,7 @@ def local_conv_matmul(inputs, kernel, kernel_mask, output_shape):
     output_flat = tf.matmul(inputs_flat, kernel, b_is_sparse=True)
     output = backend.reshape(
         output_flat,
-        [
-            backend.shape(output_flat)[0],
-        ]
-        + output_shape.as_list()[1:],
+        [backend.shape(output_flat)[0],] + output_shape.as_list()[1:],
     )
     return output
 
@@ -173,10 +170,7 @@ def local_conv_sparse_matmul(
 
     output_reshaped = backend.reshape(
         output_flat_transpose,
-        [
-            backend.shape(output_flat_transpose)[0],
-        ]
-        + output_shape.as_list()[1:],
+        [backend.shape(output_flat_transpose)[0],] + output_shape.as_list()[1:],
     )
     return output_reshaped
 

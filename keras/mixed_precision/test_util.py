@@ -47,11 +47,9 @@ def create_identity_with_grad_check_fn(expected_gradient, expected_dtype=None):
             """Gradient function that asserts the gradient has a certain
             value."""
             if expected_dtype:
-                assert (
-                    dx.dtype == expected_dtype
-                ), "dx.dtype should be %s but is: %s" % (
-                    expected_dtype,
-                    dx.dtype,
+                assert dx.dtype == expected_dtype, (
+                    "dx.dtype should be %s but is: %s"
+                    % (expected_dtype, dx.dtype,)
                 )
             expected_tensor = tf.convert_to_tensor(
                 expected_gradient, dtype=dx.dtype, name="expected_gradient"

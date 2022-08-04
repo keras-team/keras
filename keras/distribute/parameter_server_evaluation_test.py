@@ -22,12 +22,8 @@ import keras
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorflow.python.distribute import (
-    multi_worker_test_base,
-)
-from tensorflow.python.distribute.cluster_resolver import (
-    SimpleClusterResolver,
-)
+from tensorflow.python.distribute import multi_worker_test_base
+from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from tensorflow.python.ops import resource_variable_ops
 
 
@@ -101,10 +97,8 @@ class EvaluationTest(tf.test.TestCase):
         cls.strategy = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver
         )
-        cls.cluster_coord = (
-            tf.distribute.experimental.coordinator.ClusterCoordinator(
-                cls.strategy
-            )
+        cls.cluster_coord = tf.distribute.experimental.coordinator.ClusterCoordinator(
+            cls.strategy
         )
 
     @classmethod

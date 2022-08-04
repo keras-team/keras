@@ -254,10 +254,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
             "b": keras.Input(name="b", shape=(1), dtype=tf.float32),
         }
         outputs = DictLayer()((inputs["a"], inputs))
-        model = keras.Model(
-            inputs=inputs,
-            outputs=outputs,
-        )
+        model = keras.Model(inputs=inputs, outputs=outputs,)
         try:
             vis_utils.plot_model(
                 model, show_shapes=True, show_dtype=True, show_layer_names=True

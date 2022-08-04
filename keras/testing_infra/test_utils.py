@@ -42,9 +42,7 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -1082,9 +1080,7 @@ def run_without_tensor_float_32(description):
 
 
 # The description is just for documentation purposes.
-def run_all_without_tensor_float_32(
-    description,
-):
+def run_all_without_tensor_float_32(description,):
     """Execute all tests in a class with TensorFloat-32 disabled."""
     return for_all_test_methods(run_without_tensor_float_32, description)
 

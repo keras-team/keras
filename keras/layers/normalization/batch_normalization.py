@@ -27,9 +27,7 @@ from keras.utils import control_flow_util
 from keras.utils import tf_utils
 
 # isort: off
-from tensorflow.python.ops.control_flow_ops import (
-    get_enclosing_xla_context,
-)
+from tensorflow.python.ops.control_flow_ops import get_enclosing_xla_context
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 

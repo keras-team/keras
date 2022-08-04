@@ -347,9 +347,7 @@ class ModelAttributes(
 
 class MetricAttributes(
     SerializedAttributes.with_attributes(
-        "MetricAttributes",
-        checkpointable_objects=["variables"],
-        functions=[],
+        "MetricAttributes", checkpointable_objects=["variables"], functions=[],
     )
 ):
     """Attributes that are added to Metric objects when saved to SavedModel.

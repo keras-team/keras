@@ -78,10 +78,8 @@ class ParameterServerCustomTrainingLoopTest(tf.test.TestCase):
         self.strategy = tf.distribute.experimental.ParameterServerStrategy(
             cluster_resolver
         )
-        self.coordinator = (
-            tf.distribute.experimental.coordinator.ClusterCoordinator(
-                self.strategy
-            )
+        self.coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+            self.strategy
         )
 
     def testCustomTrainingLoop(self):

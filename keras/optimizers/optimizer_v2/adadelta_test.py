@@ -100,7 +100,7 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                             )
 
                         # Perform initial update without previous accum values
-                        accum = accum * rho + (grad**2) * (1 - rho)
+                        accum = accum * rho + (grad ** 2) * (1 - rho)
                         update[step] = (
                             np.sqrt(accum_update + epsilon)
                             * (1.0 / np.sqrt(accum + epsilon))

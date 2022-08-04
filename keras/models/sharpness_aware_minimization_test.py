@@ -26,12 +26,7 @@ STRATEGIES = [
 @test_utils.run_v2_only
 class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
     def test_sam_model_call(self):
-        model = keras.Sequential(
-            [
-                keras.Input([2, 2]),
-                keras.layers.Dense(4),
-            ]
-        )
+        model = keras.Sequential([keras.Input([2, 2]), keras.layers.Dense(4),])
         sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(
             model
         )
@@ -90,11 +85,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_save_sam(self):
         model = keras.Sequential(
-            [
-                keras.Input([2, 2]),
-                keras.layers.Dense(4),
-                keras.layers.Dense(1),
-            ]
+            [keras.Input([2, 2]), keras.layers.Dense(4), keras.layers.Dense(1),]
         )
         sam_model = sharpness_aware_minimization.SharpnessAwareMinimization(
             model
@@ -118,11 +109,7 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_checkpoint_sam(self):
         model = keras.Sequential(
-            [
-                keras.Input([2, 2]),
-                keras.layers.Dense(4),
-                keras.layers.Dense(1),
-            ]
+            [keras.Input([2, 2]), keras.layers.Dense(4), keras.layers.Dense(1),]
         )
         sam_model_1 = sharpness_aware_minimization.SharpnessAwareMinimization(
             model

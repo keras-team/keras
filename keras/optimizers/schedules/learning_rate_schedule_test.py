@@ -229,7 +229,7 @@ class SqrtDecayTestV2(tf.test.TestCase, parameterized.TestCase):
             lr, 10, end_lr, power=power
         )
         decayed_lr = _maybe_serialized(decayed_lr, serialize)
-        expected = lr * 0.5**power
+        expected = lr * 0.5 ** power
         self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
     def testEnd(self, serialize):
@@ -253,7 +253,7 @@ class SqrtDecayTestV2(tf.test.TestCase, parameterized.TestCase):
             lr, 10, end_lr, power=power
         )
         decayed_lr = _maybe_serialized(decayed_lr, serialize)
-        expected = (lr - end_lr) * 0.5**power + end_lr
+        expected = (lr - end_lr) * 0.5 ** power + end_lr
         self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
     def testBeyondEnd(self, serialize):
@@ -277,7 +277,7 @@ class SqrtDecayTestV2(tf.test.TestCase, parameterized.TestCase):
             lr, 10, end_lr, power=power, cycle=True
         )
         decayed_lr = _maybe_serialized(decayed_lr, serialize)
-        expected = (lr - end_lr) * 0.25**power + end_lr
+        expected = (lr - end_lr) * 0.25 ** power + end_lr
         self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
 

@@ -25,9 +25,7 @@ from keras.testing_infra import test_combinations
 from keras.utils import losses_utils
 
 # isort: off
-from tensorflow.python.autograph.impl import (
-    api as autograph,
-)
+from tensorflow.python.autograph.impl import api as autograph
 
 ALL_LOSSES = [
     losses.mean_squared_error,
@@ -62,10 +60,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
             for obj in ALL_LOSSES:
                 objective_output = obj(y_a, y_b)
                 self.assertListEqual(
-                    objective_output.shape.as_list(),
-                    [
-                        6,
-                    ],
+                    objective_output.shape.as_list(), [6,],
                 )
 
     def test_cce_one_hot(self):
@@ -1130,12 +1125,7 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
 
     def test_all_correct_unweighted(self):
         y_true = tf.constant(
-            [
-                [1, 0, 0],
-                [0, 1, 0],
-                [0, 0, 1],
-            ],
-            dtype=tf.float32,
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1],], dtype=tf.float32,
         )
         obj = losses.BinaryFocalCrossentropy(gamma=1.5)
         loss = obj(y_true, y_true)
@@ -1289,8 +1279,7 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
             [2, 2]
         )
         obj = losses.BinaryFocalCrossentropy(
-            gamma=2.0,
-            reduction=losses_utils.ReductionV2.NONE,
+            gamma=2.0, reduction=losses_utils.ReductionV2.NONE,
         )
         loss = obj(y_true, y_pred)
 
@@ -1325,10 +1314,7 @@ class BinaryFocalCrossentropyTest(tf.test.TestCase):
 class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
     def test_config(self):
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.1,
-            gamma=1.5,
-            name="bfce_0",
+            apply_class_balancing=True, alpha=0.1, gamma=1.5, name="bfce_0",
         )
         self.assertTrue(obj.apply_class_balancing)
         self.assertEqual(obj.name, "bfce_0")
@@ -1343,12 +1329,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
 
     def test_all_correct_unweighted(self):
         y_true = tf.constant(
-            [
-                [1, 0, 0],
-                [0, 1, 0],
-                [0, 0, 1],
-            ],
-            dtype=tf.float32,
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1],], dtype=tf.float32,
         )
         obj = losses.BinaryFocalCrossentropy(
             apply_class_balancing=True, gamma=1.5
@@ -1365,10 +1346,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
             ]
         )
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.3,
-            gamma=2.0,
-            from_logits=True,
+            apply_class_balancing=True, alpha=0.3, gamma=2.0, from_logits=True,
         )
         loss = obj(y_true, logits)
         self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
@@ -1379,9 +1357,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
             [2, 2]
         )
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.4,
-            gamma=2.0,
+            apply_class_balancing=True, alpha=0.4, gamma=2.0,
         )
         loss = obj(y_true, y_pred)
 
@@ -1402,10 +1378,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
         logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.3,
-            gamma=3.0,
-            from_logits=True,
+            apply_class_balancing=True, alpha=0.3, gamma=3.0, from_logits=True,
         )
         loss = obj(y_true, logits)
 
@@ -1433,9 +1406,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
             [2, 2]
         )
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.6,
-            gamma=2.0,
+            apply_class_balancing=True, alpha=0.6, gamma=2.0,
         )
         loss = obj(y_true, y_pred, sample_weight=1.23)
 
@@ -1456,10 +1427,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
         logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.2,
-            gamma=3.0,
-            from_logits=True,
+            apply_class_balancing=True, alpha=0.2, gamma=3.0, from_logits=True,
         )
         loss = obj(y_true, logits, sample_weight=3.21)
 
@@ -1490,9 +1458,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         )
         sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.1,
-            gamma=2.0,
+            apply_class_balancing=True, alpha=0.1, gamma=2.0,
         )
         loss = obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -1515,10 +1481,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         y_true = tf.constant([[1, 1, 0], [0, 1, 0]], dtype=tf.float32)
         logits = tf.constant([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.2,
-            gamma=3.0,
-            from_logits=True,
+            apply_class_balancing=True, alpha=0.2, gamma=3.0, from_logits=True,
         )
         loss = obj(y_true, logits, sample_weight=sample_weight)
 
@@ -1575,9 +1538,7 @@ class BinaryWeightedFocalCrossentropyTest(tf.test.TestCase):
         y_true = tf.ragged.constant([[1, 0, 1], [0]])
         y_pred = tf.ragged.constant([[0.9, 0.8, 0.7], [0.2]])
         obj = losses.BinaryFocalCrossentropy(
-            apply_class_balancing=True,
-            alpha=0.1,
-            gamma=2.0,
+            apply_class_balancing=True, alpha=0.1, gamma=2.0,
         )
         loss = obj(y_true, y_pred)
 
@@ -2760,8 +2721,7 @@ class CustomLossTest(tf.test.TestCase):
 
         loss = loss_fn(y_true, y_pred)
         self.assertAllEqual(
-            self.evaluate(loss),
-            7.0,
+            self.evaluate(loss), 7.0,
         )
 
 

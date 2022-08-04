@@ -59,29 +59,16 @@ def get_model_with_layout_map(layout_map):
         )
         model.add(
             layers.Conv2D(
-                64,
-                name="conv2d_2",
-                kernel_size=(3, 3),
-                activation="relu",
+                64, name="conv2d_2", kernel_size=(3, 3), activation="relu",
             )
         )
         model.add(layers.MaxPooling2D(pool_size=(2, 2)))
         model.add(layers.Dropout(0.25))
         model.add(layers.Flatten())
-        model.add(
-            layers.Dense(
-                128,
-                name="dense_1",
-                activation="relu",
-            )
-        )
+        model.add(layers.Dense(128, name="dense_1", activation="relu",))
         model.add(layers.Dropout(0.5))
         model.add(
-            layers.Dense(
-                NUM_CLASS,
-                name="dense_2",
-                activation="softmax",
-            )
+            layers.Dense(NUM_CLASS, name="dense_2", activation="softmax",)
         )
         return model
 

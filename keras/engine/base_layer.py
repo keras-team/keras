@@ -56,9 +56,7 @@ from keras.utils.tf_utils import is_tensor_or_tensor_list  # noqa: F401
 # isort: off
 from google.protobuf import json_format
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.util.tf_export import (
-    get_canonical_name_for_symbol,
-)
+from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 

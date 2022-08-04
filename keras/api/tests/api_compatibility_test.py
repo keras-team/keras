@@ -41,9 +41,7 @@ from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.api.lib import api_objects_pb2
-from tensorflow.tools.api.lib import (
-    python_object_to_proto_visitor,
-)
+from tensorflow.tools.api.lib import python_object_to_proto_visitor
 from tensorflow.tools.common import public_api
 from tensorflow.tools.common import traverse
 

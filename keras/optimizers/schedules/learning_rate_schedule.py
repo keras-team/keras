@@ -769,10 +769,10 @@ class CosineDecayRestarts(LearningRateSchedule):
                         / tf.math.log(t_mul)
                     )
 
-                    sum_r = (1.0 - t_mul**i_restart) / (1.0 - t_mul)
+                    sum_r = (1.0 - t_mul ** i_restart) / (1.0 - t_mul)
                     completed_fraction = (
                         completed_fraction - sum_r
-                    ) / t_mul**i_restart
+                    ) / t_mul ** i_restart
 
                 else:
                     i_restart = tf.floor(completed_fraction)
@@ -786,7 +786,7 @@ class CosineDecayRestarts(LearningRateSchedule):
                 lambda: compute_step(completed_fraction, geometric=True),
             )
 
-            m_fac = m_mul**i_restart
+            m_fac = m_mul ** i_restart
             cosine_decayed = (
                 0.5
                 * m_fac

@@ -168,8 +168,8 @@ class DenseFeatures(kfc._BaseFeaturesLayer):
             raise ValueError(
                 "We expected a dictionary here. Instead we got: ", features
             )
-        transformation_cache = (
-            tf.__internal__.feature_column.FeatureTransformationCache(features)
+        transformation_cache = tf.__internal__.feature_column.FeatureTransformationCache(
+            features
         )
         output_tensors = []
         for column in self._feature_columns:

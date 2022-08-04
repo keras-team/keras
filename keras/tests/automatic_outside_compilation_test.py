@@ -34,21 +34,11 @@ from keras.layers import reshaping as reshaping_layer_lib
 from keras.testing_infra import test_utils
 
 # isort: off
-from tensorboard.plugins.histogram import (
-    summary_v2 as histogram_summary_v2,
-)
-from tensorboard.plugins.image import (
-    summary_v2 as image_summary_v2,
-)
-from tensorboard.plugins.scalar import (
-    summary_v2 as scalar_summary_v2,
-)
-from tensorflow.python.eager.context import (
-    set_soft_device_placement,
-)
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorboard.plugins.histogram import summary_v2 as histogram_summary_v2
+from tensorboard.plugins.image import summary_v2 as image_summary_v2
+from tensorboard.plugins.scalar import summary_v2 as scalar_summary_v2
+from tensorflow.python.eager.context import set_soft_device_placement
+from tensorflow.python.framework import test_util as tf_test_utils
 
 NUM_CLASSES = 4
 
@@ -60,9 +50,7 @@ flags.DEFINE_string("zone", None, "Name of GCP zone with TPU.")
 
 def get_tpu_cluster_resolver():
     resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-        tpu=FLAGS.tpu,
-        zone=FLAGS.zone,
-        project=FLAGS.project,
+        tpu=FLAGS.tpu, zone=FLAGS.zone, project=FLAGS.project,
     )
     return resolver
 

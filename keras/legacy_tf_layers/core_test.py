@@ -29,9 +29,7 @@ from keras.legacy_tf_layers import core as core_layers
 from keras.testing_infra import test_combinations
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.ops import variable_scope
 
 

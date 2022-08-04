@@ -46,13 +46,9 @@ from keras.utils import io_utils
 from keras.utils import np_utils
 
 # isort: off
-from tensorflow.python.framework import (
-    test_util as tf_test_utils,
-)
+from tensorflow.python.framework import test_util as tf_test_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.rmsprop import (
-    RMSPropOptimizer,
-)
+from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 try:
     import scipy.sparse as scipy_sparse
@@ -1720,9 +1716,7 @@ class TrainingTest(test_combinations.TestCase):
         model = sequential.Sequential([layers_module.Dense(1)])
         optimizer = sgd_experimental.SGD()
         model.compile(
-            optimizer,
-            "mse",
-            run_eagerly=test_utils.should_run_eagerly(),
+            optimizer, "mse", run_eagerly=test_utils.should_run_eagerly(),
         )
         model.fit(x, y, epochs=2)
         policy.set_global_policy("float32")
@@ -2219,9 +2213,7 @@ class TestExceptionsAndWarnings(test_combinations.TestCase):
 
             model.compile(
                 optimizer,
-                loss={
-                    "dense_2": "categorical_crossentropy",
-                },
+                loss={"dense_2": "categorical_crossentropy",},
                 metrics={
                     "dense_2": "categorical_accuracy",
                     "dense_1": metrics_module.CategoricalAccuracy(),
@@ -2251,10 +2243,7 @@ class TestExceptionsAndWarnings(test_combinations.TestCase):
     def test_predict_structured(self, spe, static_batch):
         inputs = layers_module.Input(shape=(2,))
         outputs = layers_module.Dense(2)(inputs)
-        model = training_module.Model(
-            inputs=inputs,
-            outputs={"out": outputs},
-        )
+        model = training_module.Model(inputs=inputs, outputs={"out": outputs},)
         model.compile(
             loss="mse",
             steps_per_execution=spe,

@@ -423,10 +423,8 @@ class DropoutWrapper(_RNNCellWrapper):
         if _should_dropout(self._state_keep_prob):
             # Identify which subsets of the state to perform dropout on and
             # which ones to keep.
-            shallow_filtered_substructure = (
-                tf.__internal__.nest.get_traverse_shallow_structure(
-                    self._dropout_state_filter, new_state
-                )
+            shallow_filtered_substructure = tf.__internal__.nest.get_traverse_shallow_structure(
+                self._dropout_state_filter, new_state
             )
             new_state = self._dropout(
                 new_state,

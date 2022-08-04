@@ -836,10 +836,7 @@ def track_tf1_style_variables(method):
         # If this is a layer method, add the regularization losses
         # to the layer for any newly-created regularized variables
         if isinstance(self, base_layer.Layer):
-            for (
-                var_name,
-                regularizer,
-            ) in var_store._regularizers.items():
+            for (var_name, regularizer,) in var_store._regularizers.items():
                 if var_name not in existing_regularized_variables:
                     self.add_loss(regularizer)
 

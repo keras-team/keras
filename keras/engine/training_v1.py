@@ -2006,24 +2006,20 @@ class Model(training_lib.Model):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output.shape.as_list())
-        self._per_output_metrics = (
-            training_utils_v1.collect_per_output_metric_info(
-                metrics,
-                self.output_names,
-                output_shapes,
-                self.loss_functions,
-                from_serialized=self._from_serialized,
-            )
+        self._per_output_metrics = training_utils_v1.collect_per_output_metric_info(
+            metrics,
+            self.output_names,
+            output_shapes,
+            self.loss_functions,
+            from_serialized=self._from_serialized,
         )
-        self._per_output_weighted_metrics = (
-            training_utils_v1.collect_per_output_metric_info(
-                weighted_metrics,
-                self.output_names,
-                output_shapes,
-                self.loss_functions,
-                from_serialized=self._from_serialized,
-                is_weighted=True,
-            )
+        self._per_output_weighted_metrics = training_utils_v1.collect_per_output_metric_info(
+            weighted_metrics,
+            self.output_names,
+            output_shapes,
+            self.loss_functions,
+            from_serialized=self._from_serialized,
+            is_weighted=True,
         )
 
     def _add_unique_metric_name(self, metric_name, metric_fn, output_index):
