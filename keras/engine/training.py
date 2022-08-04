@@ -3803,7 +3803,7 @@ def reduce_per_replica(values, strategy, reduction="auto"):
     """
 
     if reduction == "auto":
-        reduction = "first" if _is_tpu_multi_host(strategy) else "sum"
+        reduction = "first" if backend.is_tpu_strategy(strategy) else "sum"
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
