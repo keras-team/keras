@@ -14,7 +14,6 @@
 # ==============================================================================
 """Keras timeseries dataset utilities."""
 
-import numpy as np
 import tensorflow.compat.v2 as tf
 
 # isort: off
@@ -35,6 +34,8 @@ def timeseries_dataset_from_array(
     batch_size=128,
     shuffle=False,
     seed=None,
+    drop_remainder=True,
+    many_to_many=False,
     start_index=None,
     end_index=None,
 ):
@@ -50,9 +51,6 @@ def timeseries_dataset_from_array(
         containing consecutive data points (timesteps).
         Axis 0 is expected to be the time dimension.
       targets: Targets corresponding to timesteps in `data`.
-        `targets[i]` should be the target
-        corresponding to the window that starts at index `i`
-        (see example 2 below).
         Pass None if you don't have target data (in this case the dataset will
         only yield the input data).
       sequence_length: Length of the output sequences (in number of timesteps).
@@ -69,6 +67,12 @@ def timeseries_dataset_from_array(
       shuffle: Whether to shuffle output samples,
         or instead draw them in chronological order.
       seed: Optional int; random seed for shuffling.
+      drop_remainder: Optional bool; representing whether the last windows
+        should be dropped if their size is smaller than size.
+      many_to_many: Optional bool; whether the target
+        corresponding to the window that starts at index `i` or
+        for each timestep of window
+        (see example 2 and 3 below).
       start_index: Optional int; data points earlier (exclusive)
         than `start_index` will not be used
         in the output sequences. This is useful to reserve part of the
@@ -128,6 +132,8 @@ def timeseries_dataset_from_array(
     To generate a dataset that uses the current timestamp
     to predict the corresponding target timestep, you would use:
 
+    Option 1:
+
     ```python
     X = np.arange(100)
     Y = X*2
@@ -145,6 +151,30 @@ def timeseries_dataset_from_array(
       # second sample equals output timestamps 20-40
       assert np.array_equal(targets[1], Y[sample_length:2*sample_length])
       break
+    ```
+
+    Option 2:
+
+    ```python
+    X = np.arange(100)
+    Y = X*2
+
+    sample_length = 20
+    dataset = tf.keras.preprocessing.timeseries_dataset_from_array(
+        X,
+        Y,
+        sequence_length=sample_length,
+        sequence_stride=sample_length,
+        many_to_many=True
+    )
+
+    for batch in dataset:
+        inputs, targets = batch
+        assert np.array_equal(inputs[0], X[:sample_length])
+
+        # second sample equals output timestamps 20-40
+        assert np.array_equal(targets[1], Y[sample_length:2*sample_length])
+        break
     ```
     """
     if start_index:
@@ -212,47 +242,45 @@ def timeseries_dataset_from_array(
     num_seqs = end_index - start_index - (sequence_length * sampling_rate) + 1
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))
-    if num_seqs < 2147483647:
-        index_dtype = "int32"
-    else:
-        index_dtype = "int64"
 
-    # Generate start positions
-    start_positions = np.arange(0, num_seqs, sequence_stride, dtype=index_dtype)
-    if shuffle:
-        if seed is None:
-            seed = np.random.randint(1e6)
-        rng = np.random.RandomState(seed)
-        rng.shuffle(start_positions)
-
-    sequence_length = tf.cast(sequence_length, dtype=index_dtype)
-    sampling_rate = tf.cast(sampling_rate, dtype=index_dtype)
-
-    positions_ds = tf.data.Dataset.from_tensors(start_positions).repeat()
-
-    # For each initial window position, generates indices of the window elements
-    indices = tf.data.Dataset.zip(
-        (tf.data.Dataset.range(len(start_positions)), positions_ds)
-    ).map(
-        lambda i, positions: tf.range(
-            positions[i],
-            positions[i] + sequence_length * sampling_rate,
-            sampling_rate,
-        ),
-        num_parallel_calls=tf.data.AUTOTUNE,
+    dataset = tf.data.Dataset.from_tensor_slices(data[start_index : end_index])
+    dataset = dataset.window(
+        sequence_length,
+        shift=sequence_stride,
+        stride=sampling_rate,
+        drop_remainder=drop_remainder
+    )
+    dataset = dataset.flat_map(
+        lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
     )
 
-    dataset = sequences_from_indices(data, indices, start_index, end_index)
     if targets is not None:
-        indices = tf.data.Dataset.zip(
-            (tf.data.Dataset.range(len(start_positions)), positions_ds)
-        ).map(
-            lambda i, positions: positions[i],
-            num_parallel_calls=tf.data.AUTOTUNE,
-        )
-        target_ds = sequences_from_indices(
-            targets, indices, start_index, end_index
-        )
+        if many_to_many:
+            target_ds = tf.data.Dataset.from_tensor_slices(
+                targets[start_index : end_index]
+            )
+            target_ds = target_ds.window(
+                sequence_length,
+                shift=sequence_stride,
+                stride=sampling_rate,
+                drop_remainder=drop_remainder
+            )
+            target_ds = target_ds.flat_map(
+                lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
+            )
+        else:
+            target_ds = tf.data.Dataset.from_tensors(
+                targets[start_index : end_index]
+            )
+            target_ds = tf.data.Dataset.zip(
+                (
+                    target_ds.repeat(),
+                    tf.data.Dataset.range(0, num_seqs, sequence_stride)
+                )
+            ).map(
+                lambda steps, i: tf.gather(steps, i),
+                num_parallel_calls=tf.data.AUTOTUNE
+            )
         dataset = tf.data.Dataset.zip((dataset, target_ds))
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     if batch_size is not None:
@@ -263,13 +291,4 @@ def timeseries_dataset_from_array(
     else:
         if shuffle:
             dataset = dataset.shuffle(buffer_size=1024, seed=seed)
-    return dataset
-
-
-def sequences_from_indices(array, indices_ds, start_index, end_index):
-    dataset = tf.data.Dataset.from_tensors(array[start_index:end_index])
-    dataset = tf.data.Dataset.zip((dataset.repeat(), indices_ds)).map(
-        lambda steps, inds: tf.gather(steps, inds),
-        num_parallel_calls=tf.data.AUTOTUNE,
-    )
     return dataset
