@@ -39,7 +39,7 @@ from keras.utils import layer_utils
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_URL = (
-    "https://storage.googleapis.com/tensorflow/" "keras-applications/resnet_rs/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/resnet_rs/"
 )
 
 WEIGHT_HASHES = {
@@ -619,9 +619,9 @@ def ResNetRS(
 
     if weights in weights_allow_list and include_top and classes != 1000:
         raise ValueError(
-            f"If using `weights` as `'imagenet'` or any "
+            "If using `weights` as `'imagenet'` or any "
             f"of {weights_allow_list} "
-            f"with `include_top` as true, `classes` should be 1000. "
+            "with `include_top` as true, `classes` should be 1000. "
             f"Received classes={classes}"
         )
 

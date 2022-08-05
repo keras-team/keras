@@ -373,7 +373,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
             saving_filepath = os.path.join(
                 test_obj.get_temp_dir(),
-                "logfile_%s" % (get_tf_config_task()["type"]),
+                f"logfile_{get_tf_config_task()['type']}",
             )
 
             saving_filepath_for_temp = os.path.join(

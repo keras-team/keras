@@ -41,7 +41,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         # Generate paths to class subdirectories
         paths = []
         for class_index in range(num_classes):
-            class_directory = "class_%s" % (class_index,)
+            class_directory = f"class_{class_index}"
             if nested_dirs:
                 class_paths = [
                     class_directory,
@@ -59,7 +59,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
 
         for i in range(count):
             path = paths[i % len(paths)]
-            filename = os.path.join(path, "text_%s.txt" % (i,))
+            filename = os.path.join(path, f"text_{i}.txt")
             f = open(os.path.join(temp_dir, filename), "w")
             text = "".join(
                 [random.choice(string.printable) for _ in range(length)]
@@ -73,7 +73,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         # subdirs. Save a few extra files in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
         for i in range(3):
-            filename = "text_%s.txt" % (i,)
+            filename = f"text_{i}.txt"
             f = open(os.path.join(directory, filename), "w")
             text = "".join([random.choice(string.printable) for _ in range(20)])
             f.write(text)
@@ -292,7 +292,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            '`subset` must be either "training", ' '"validation" or "both"',
+            '`subset` must be either "training", "validation" or "both"',
         ):
             _ = text_dataset.text_dataset_from_directory(
                 directory, validation_split=0.2, subset="other"

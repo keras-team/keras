@@ -175,7 +175,7 @@ def wrap_layer_functions(layer, serialization_cache):
     call_collection = LayerCallCollection(layer)
     call_fn_with_losses = call_collection.add_function(
         _wrap_call_and_conditional_losses(layer),
-        "{}_layer_call_and_return_conditional_losses".format(layer.name),
+        f"{layer.name}_layer_call_and_return_conditional_losses",
         # If any of this layer's child layers use the training arg, the traced
         # call functions of this layer will have a training keyword argument. If
         # the original layer does not expect the training arg, then it will have
@@ -184,7 +184,7 @@ def wrap_layer_functions(layer, serialization_cache):
     )
     call_fn = call_collection.add_function(
         _extract_outputs_from_fn(layer, call_fn_with_losses),
-        "{}_layer_call_fn".format(layer.name),
+        f"{layer.name}_layer_call_fn",
         # Since `call_fn` wraps call_fn_with_losses and not the original call
         # function, `match_layer_training_arg` should be set to False.
         match_layer_training_arg=False,
@@ -203,9 +203,7 @@ def wrap_layer_functions(layer, serialization_cache):
             _append_activity_regularizer_loss(
                 layer, call_fn_with_losses, fns["activity_regularizer_fn"]
             ),
-            "{}_layer_call_and_return_all_conditional_losses".format(
-                layer.name
-            ),
+            f"{layer.name}_layer_call_and_return_all_conditional_losses",
             match_layer_training_arg=False,
         )
     else:
@@ -757,7 +755,7 @@ def _wrap_unconditional_loss(loss_fn, index):
         return fn
     else:
         return tf.__internal__.function.Function(
-            fn, "loss_fn_{}".format(index), input_signature=[]
+            fn, f"loss_fn_{index}", input_signature=[]
         )
 
 
@@ -770,7 +768,7 @@ def _wrap_activity_regularizer(layer):
         return layer._activity_regularizer
     return tf.__internal__.function.Function(
         layer._activity_regularizer,
-        "{}_activity_regularizer".format(layer.name),
+        f"{layer.name}_activity_regularizer",
         input_signature=[
             tf.TensorSpec(None, layer._compute_dtype or backend.floatx())
         ],

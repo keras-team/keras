@@ -101,8 +101,7 @@ class ZeroPadding2D(Layer):
         elif hasattr(padding, "__len__"):
             if len(padding) != 2:
                 raise ValueError(
-                    "`padding` should have two elements. "
-                    f"Received: {padding}."
+                    f"`padding` should have two elements. Received: {padding}."
                 )
             height_padding = conv_utils.normalize_tuple(
                 padding[0], 2, "1st entry of padding", allow_zero=True

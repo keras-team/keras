@@ -265,7 +265,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         # a dtype of 'string'.
         if "dtype" in kwargs and kwargs["dtype"] != tf.string:
             raise ValueError(
-                f"`TextVectorization` may only have a dtype of string. "
+                "`TextVectorization` may only have a dtype of string. "
                 f"Received dtype: {kwargs['dtype']}."
             )
         elif "dtype" not in kwargs:
@@ -319,7 +319,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             and all(isinstance(item, int) for item in ngrams)
         ):
             raise ValueError(
-                f"`ngrams` must be None, an integer, or a tuple of "
+                "`ngrams` must be None, an integer, or a tuple of "
                 f"integers. Received: ngrams={ngrams}"
             )
 
@@ -330,28 +330,28 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             or (output_sequence_length is None)
         ):
             raise ValueError(
-                f"`output_sequence_length` must be either None or an "
-                f"integer when `output_mode` is 'int'. Received: "
+                "`output_sequence_length` must be either None or an "
+                "integer when `output_mode` is 'int'. Received: "
                 f"output_sequence_length={output_sequence_length}"
             )
 
         if output_mode != INT and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if `output_mode` is "
-                f"not 'int'. "
+                "`output_sequence_length` must not be set if `output_mode` is "
+                "not 'int'. "
                 f"Received output_sequence_length={output_sequence_length}."
             )
 
         if ragged and output_mode != INT:
             raise ValueError(
-                f"`ragged` must not be true if `output_mode` is "
+                "`ragged` must not be true if `output_mode` is "
                 f"`'int'`. Received: ragged={ragged} and "
                 f"output_mode={output_mode}"
             )
 
         if ragged and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if ragged "
+                "`output_sequence_length` must not be set if ragged "
                 f"is True. Received: ragged={ragged} and "
                 f"output_sequence_length={output_sequence_length}"
             )
@@ -585,11 +585,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                 inputs = self._split(inputs)
             else:
                 raise ValueError(
-                    (
-                        "%s is not a supported splitting."
-                        "TextVectorization supports the following options "
-                        "for `split`: None, 'whitespace', or a Callable."
-                    )
+                    "%s is not a supported splitting."
+                    "TextVectorization supports the following options "
+                    "for `split`: None, 'whitespace', or a Callable."
                     % self._split
                 )
 

@@ -784,7 +784,7 @@ def deserialize_keras_object(
         return identifier
     else:
         raise ValueError(
-            f"Could not interpret serialized "
+            "Could not interpret serialized "
             f"{printable_module_name}: {identifier}"
         )
 
@@ -975,7 +975,7 @@ class Progbar:
 
         message = ""
         now = time.time()
-        info = " - %.0fs" % (now - self._start)
+        info = f" - {now - self._start:.0f}s"
         if current == self.target:
             self._time_at_epoch_end = now
         if self.verbose == 1:
@@ -1025,20 +1025,20 @@ class Progbar:
                 else:
                     eta_format = "%ds" % eta
 
-                info = " - ETA: %s" % eta_format
+                info = f" - ETA: {eta_format}"
 
             for k in self._values_order:
-                info += " - %s:" % k
+                info += f" - {k}:"
                 if isinstance(self._values[k], list):
                     avg = np.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if abs(avg) > 1e-3:
-                        info += " %.4f" % avg
+                        info += f" {avg:.4f}"
                     else:
-                        info += " %.4e" % avg
+                        info += f" {avg:.4e}"
                 else:
-                    info += " %s" % self._values[k]
+                    info += f" {self._values[k]}"
 
             self._total_width += len(info)
             if prev_total_width > self._total_width:
@@ -1057,14 +1057,14 @@ class Progbar:
                 count = ("%" + str(numdigits) + "d/%d") % (current, self.target)
                 info = count + info
                 for k in self._values_order:
-                    info += " - %s:" % k
+                    info += f" - {k}:"
                     avg = np.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if avg > 1e-3:
-                        info += " %.4f" % avg
+                        info += f" {avg:.4f}"
                     else:
-                        info += " %.4e" % avg
+                        info += f" {avg:.4e}"
                 if self._time_at_epoch_end:
                     time_per_epoch = (
                         self._time_at_epoch_end - self._time_at_epoch_start
@@ -1099,11 +1099,11 @@ class Progbar:
         """
         formatted = ""
         if time_per_unit >= 1 or time_per_unit == 0:
-            formatted += " %.0fs/%s" % (time_per_unit, unit_name)
+            formatted += f" {time_per_unit:.0f}s/{unit_name}"
         elif time_per_unit >= 1e-3:
-            formatted += " %.0fms/%s" % (time_per_unit * 1e3, unit_name)
+            formatted += f" {time_per_unit * 1000.0:.0f}ms/{unit_name}"
         else:
-            formatted += " %.0fus/%s" % (time_per_unit * 1e6, unit_name)
+            formatted += f" {time_per_unit * 1000000.0:.0f}us/{unit_name}"
         return formatted
 
     def _estimate_step_duration(self, current, now):

@@ -340,9 +340,9 @@ class LossScaleOptimizerMetaclass(type):
 
         # Raise TypeError because inner_optimizer is not an optimizer
         msg = (
-            f'"inner_optimizer" must be an instance of '
-            f"`tf.keras.optimizers.Optimizer` or "
-            f"`tf.keras.optimizers.experimental.Optimizer`, but got: "
+            '"inner_optimizer" must be an instance of '
+            "`tf.keras.optimizers.Optimizer` or "
+            "`tf.keras.optimizers.experimental.Optimizer`, but got: "
             f"{inner_optimizer}."
         )
         if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
@@ -607,16 +607,16 @@ class LossScaleOptimizer(
                 # Give better error message if the new experimental optimizer is
                 # passed.
                 raise TypeError(
-                    f"You passed an instance of the new experimental "
-                    f"optimizer, `optimizer_experimental.Optimizer`, "
-                    f"to LossScaleOptimizer, but "
-                    f"only the classic optimizers subclassing from "
-                    f"`tf.keras.optimizers.Optimizer` can be passed. Please "
-                    f"use `loss_scale_optimizer.LossScaleOptimizerV3` "
-                    f"instead of "
-                    f"`tf.keras.mixed_precision.LossScaleOptimizer`, "
-                    f"as the former supports wrapping "
-                    f"instances of the new experimental optimizer. "
+                    "You passed an instance of the new experimental "
+                    "optimizer, `optimizer_experimental.Optimizer`, "
+                    "to LossScaleOptimizer, but "
+                    "only the classic optimizers subclassing from "
+                    "`tf.keras.optimizers.Optimizer` can be passed. Please "
+                    "use `loss_scale_optimizer.LossScaleOptimizerV3` "
+                    "instead of "
+                    "`tf.keras.mixed_precision.LossScaleOptimizer`, "
+                    "as the former supports wrapping "
+                    "instances of the new experimental optimizer. "
                     f"Got optimizer: {inner_optimizer}"
                 )
             msg = (
@@ -679,7 +679,7 @@ class LossScaleOptimizer(
         else:
             if initial_scale is None:
                 raise ValueError(
-                    '"initial_scale" must be specified if "dynamic" is ' "False"
+                    '"initial_scale" must be specified if "dynamic" is False'
                 )
             self._loss_scale = float(initial_scale)
             if dynamic_growth_steps is not None:
@@ -1125,18 +1125,18 @@ class LossScaleOptimizerV3(
                 # Give better error message if the OptimizerV2 class is passed
                 # instead of the new experimental optimizer.
                 raise TypeError(
-                    f"You passed a `tf.keras.optimizer.Optimizer` instance to "
-                    f"LossScaleOptimizerV3, but only the new experimental "
-                    f"optimizer defined in "
-                    f"keras/optimizer_expeirmental/optimizer.py can be "
-                    f"passed. Please use "
-                    f"`tf.keras.mixed_precision.LossScaleOptimizer` "
-                    f"instead of LossScaleOptimizerV3, as the former supports "
-                    f"`tf.keras.optimizer.Optimizer`s. Got optimizer: "
+                    "You passed a `tf.keras.optimizer.Optimizer` instance to "
+                    "LossScaleOptimizerV3, but only the new experimental "
+                    "optimizer defined in "
+                    "keras/optimizer_expeirmental/optimizer.py can be "
+                    "passed. Please use "
+                    "`tf.keras.mixed_precision.LossScaleOptimizer` "
+                    "instead of LossScaleOptimizerV3, as the former supports "
+                    "`tf.keras.optimizer.Optimizer`s. Got optimizer: "
                     f"{inner_optimizer}"
                 )
             raise TypeError(
-                f'"inner_optimizer" must be an instance of '
+                '"inner_optimizer" must be an instance of '
                 f"Optimizer, but got: {inner_optimizer}."
             )
         if not isinstance(dynamic, bool):
@@ -1144,12 +1144,12 @@ class LossScaleOptimizerV3(
             # second argument argument, as this was commonly done for the
             # now-removed LossScaleOptimizerV1.
             raise TypeError(
-                f'"dynamic" argument to LossScaleOptimizer.__init__ must '
+                '"dynamic" argument to LossScaleOptimizer.__init__ must '
                 f"be a bool, but got: {repr(dynamic)}"
             )
         if isinstance(inner_optimizer, LossScaleOptimizerV3):
             raise TypeError(
-                f"LossScaleOptimizer cannot wrap another "
+                "LossScaleOptimizer cannot wrap another "
                 f"LossScaleOptimizer, but got: {inner_optimizer}"
             )
         _raise_if_strategy_unsupported()
@@ -1186,12 +1186,12 @@ class LossScaleOptimizerV3(
         else:
             if initial_scale is None:
                 raise ValueError(
-                    '"initial_scale" must be specified if "dynamic" is ' "False"
+                    '"initial_scale" must be specified if "dynamic" is False'
                 )
             self._loss_scale = float(initial_scale)
             if dynamic_growth_steps is not None:
                 raise ValueError(
-                    f'"dynamic_growth_steps" must be None if "dynamic" '
+                    '"dynamic_growth_steps" must be None if "dynamic" '
                     f"is False, but got: {dynamic_growth_steps}"
                 )
 
@@ -1482,8 +1482,8 @@ def _create_loss_scale_optimizer_from_v1_loss_scale(optimizer, loss_scale):
     elif isinstance(loss_scale, tf.compat.v1.mixed_precision.DynamicLossScale):
         if loss_scale.multiplier != 2:
             raise ValueError(
-                f'When passing a DynamicLossScale to "loss_scale", '
-                f"DynamicLossScale.multiplier must be 2. Got: "
+                'When passing a DynamicLossScale to "loss_scale", '
+                "DynamicLossScale.multiplier must be 2. Got: "
                 f"{loss_scale}"
             )
         return LossScaleOptimizer(
@@ -1493,14 +1493,14 @@ def _create_loss_scale_optimizer_from_v1_loss_scale(optimizer, loss_scale):
         )
     elif isinstance(loss_scale, tf.compat.v1.mixed_precision.LossScale):
         raise TypeError(
-            f"Passing a LossScale that is not a FixedLossScale or a "
+            "Passing a LossScale that is not a FixedLossScale or a "
             f"DynamicLossScale is not supported. Got: {loss_scale}"
         )
     else:
         raise ValueError(
-            f"Invalid value passed to loss_scale. loss_scale "
-            f'must be the string "dynamic" (recommended), an int, '
-            f"a float, a FixedLossScale, or a DynamicLossScale. Got "
+            "Invalid value passed to loss_scale. loss_scale "
+            'must be the string "dynamic" (recommended), an int, '
+            "a float, a FixedLossScale, or a DynamicLossScale. Got "
             f"value: {loss_scale}"
         )
 
@@ -1573,8 +1573,8 @@ def _raise_if_strategy_unsupported():
             )
         else:
             raise ValueError(
-                f"Loss scaling is not supported with the "
-                f"tf.distribute.Strategy: "
+                "Loss scaling is not supported with the "
+                "tf.distribute.Strategy: "
                 f"{strategy.__class__.__name__}. Try using a different "
-                f"Strategy, e.g. a MirroredStrategy"
+                "Strategy, e.g. a MirroredStrategy"
             )

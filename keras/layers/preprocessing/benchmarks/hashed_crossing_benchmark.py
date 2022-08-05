@@ -80,7 +80,7 @@ class BenchmarkLayer(fc_bm.LayerBenchmark):
 
     def benchmark_layer(self):
         for batch in BATCH_SIZES:
-            name = "hashed_cross|dense|batch_%s" % batch
+            name = f"hashed_cross|dense|batch_{batch}"
             k_time, f_time = embedding_varlen(batch_size=batch)
             self.report(name, k_time, f_time, NUM_REPEATS)
 

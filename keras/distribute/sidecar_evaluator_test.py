@@ -79,8 +79,7 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
         summary_files = tf.io.gfile.listdir(log_dir)
         self.assertNotEmpty(
             summary_files,
-            "Summary should have been written and "
-            "log_dir should not be empty.",
+            "Summary should have been written and log_dir should not be empty.",
         )
 
         # Asserts the content of the summary file.
@@ -138,7 +137,7 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
         )
         with self.assertRaisesRegex(
             RuntimeError,
-            "`iterations` cannot be loaded " "from the checkpoint file.",
+            "`iterations` cannot be loaded from the checkpoint file.",
         ):
             sidecar_evaluator.start()
 
@@ -342,7 +341,7 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
             sidecar_evaluator_lib.SidecarEvaluatorExperimental(None, None, None)
 
         warning_msg = (
-            "`tf.keras.experimental.SidecarEvaluator` " "endpoint is deprecated"
+            "`tf.keras.experimental.SidecarEvaluator` endpoint is deprecated"
         )
         self.assertIn(warning_msg, "\n".join(warning_messages))
 

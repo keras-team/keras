@@ -22,8 +22,7 @@ def _to_matrix(u):
     u_rank = len(u.shape)
     if u_rank not in [1, 2]:
         raise ValueError(
-            "The input tensor should have rank 1 or 2. "
-            f"Received rank: {u_rank}"
+            f"The input tensor should have rank 1 or 2. Received rank: {u_rank}"
         )
     if u_rank == 1:
         return tf.expand_dims(u, 0)

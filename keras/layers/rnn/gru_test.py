@@ -213,8 +213,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_with_masking_layer_GRU(self):
         layer_class = keras.layers.GRU
@@ -232,8 +233,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_masking_with_stacking_GRU(self):
         inputs = np.random.random((2, 3, 4))
@@ -283,8 +285,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_return_states_GRU(self):
         layer_class = keras.layers.GRU
@@ -370,8 +373,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_statefulness_GRU(self):
         num_samples = 2
@@ -481,8 +485,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask(self):
@@ -630,8 +635,9 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_GRU_runtime_with_mask(self):

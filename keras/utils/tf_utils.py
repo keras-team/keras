@@ -116,7 +116,7 @@ def get_reachable_from_inputs(inputs, targets=None):
             outputs = x.consumers()
         else:
             raise TypeError(
-                f"Expected tf.Operation, tf.Variable, or tf.Tensor. "
+                "Expected tf.Operation, tf.Variable, or tf.Tensor. "
                 f"Received: {x}"
             )
 

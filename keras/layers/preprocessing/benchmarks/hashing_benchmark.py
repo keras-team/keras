@@ -84,7 +84,7 @@ class BenchmarkLayer(tf.test.Benchmark):
             ends.append(time.time())
 
         avg_time = np.mean(np.array(ends) - np.array(starts)) / num_batches
-        name = "hashing|batch_%s" % batch_size
+        name = f"hashing|batch_{batch_size}"
         baseline = self.run_dataset_implementation(batch_size)
         extras = {
             "dataset implementation baseline": baseline,

@@ -167,7 +167,7 @@ def text_dataset_from_directory(
 
     if label_mode == "binary" and len(class_names) != 2:
         raise ValueError(
-            f'When passing `label_mode="binary"`, there must be exactly 2 '
+            'When passing `label_mode="binary"`, there must be exactly 2 '
             f"class_names. Received: class_names={class_names}"
         )
 
@@ -187,12 +187,12 @@ def text_dataset_from_directory(
         if not file_paths_train:
             raise ValueError(
                 f"No training text files found in directory {directory}. "
-                f"Allowed format: .txt"
+                "Allowed format: .txt"
             )
         if not file_paths_val:
             raise ValueError(
                 f"No validation text files found in directory {directory}. "
-                f"Allowed format: .txt"
+                "Allowed format: .txt"
             )
         train_dataset = paths_and_labels_to_dataset(
             file_paths=file_paths_train,
@@ -235,7 +235,7 @@ def text_dataset_from_directory(
         if not file_paths:
             raise ValueError(
                 f"No text files found in directory {directory}. "
-                f"Allowed format: .txt"
+                "Allowed format: .txt"
             )
         dataset = paths_and_labels_to_dataset(
             file_paths=file_paths,

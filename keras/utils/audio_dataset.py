@@ -164,7 +164,7 @@ def audio_dataset_from_directory(
 
         if sampling_rate <= 0:
             raise ValueError(
-                f"`sampling_rate` should be higher than 0. "
+                "`sampling_rate` should be higher than 0. "
                 f"Received: sampling_rate={sampling_rate}"
             )
 
@@ -198,7 +198,7 @@ def audio_dataset_from_directory(
 
     if label_mode == "binary" and len(class_names) != 2:
         raise ValueError(
-            f'When passing `label_mode="binary"`, there must be exactly 2 '
+            'When passing `label_mode="binary"`, there must be exactly 2 '
             f"class_names. Received: class_names={class_names}"
         )
 

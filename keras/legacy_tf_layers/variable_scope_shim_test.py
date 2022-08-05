@@ -97,7 +97,7 @@ class VariableScopeTest(tf.test.TestCase):
         vs = variable_scope._get_default_variable_store()
         vs.get_variable("v1", [2])
         vs.get_variable("v2", [2])
-        expected_names = ["%s:0" % name for name in ["v1", "v2"]]
+        expected_names = [f"{name}:0" for name in ["v1", "v2"]]
         self.assertEqual(
             set(expected_names), set(v.name for v in vs._vars.values())
         )
@@ -174,7 +174,7 @@ class VariableScopeTest(tf.test.TestCase):
         ]
 
         # Use different variable_name to distinguish various dtypes
-        for (i, dtype) in enumerate(types):
+        for i, dtype in enumerate(types):
             x = tf.compat.v1.get_variable(
                 name="xx%d" % i, shape=(3, 4), dtype=dtype
             )

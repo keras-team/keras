@@ -75,16 +75,14 @@ class KerasModelTest(test_combinations.TestCase):
             and test_utils.get_model_type() == "subclass"
         ):
             self.skipTest(
-                "Non-default strategies are unsupported with subclassed "
-                "models"
+                "Non-default strategies are unsupported with subclassed models"
             )
 
     def _skip_if_save_format_unsupported(self, save_format):
         model_type = test_utils.get_model_type()
         if save_format == "h5" and model_type == "subclass":
             self.skipTest(
-                "Saving subclassed models with the HDF5 format is "
-                "unsupported"
+                "Saving subclassed models with the HDF5 format is unsupported"
             )
         if (
             save_format == "tf"
@@ -92,8 +90,7 @@ class KerasModelTest(test_combinations.TestCase):
             and not tf.executing_eagerly()
         ):
             self.skipTest(
-                "b/148820505: This combination of features is currently "
-                "broken."
+                "b/148820505: This combination of features is currently broken."
             )
 
     @test_combinations.run_with_all_model_types

@@ -816,7 +816,7 @@ class MeanTensor(Metric):
         elif values.shape != self._shape:
             raise ValueError(
                 "MeanTensor input values must always have the same "
-                f"shape. Expected shape (set during the first call): "
+                "shape. Expected shape (set during the first call): "
                 f"{self._shape}. "
                 f"Got: {values.shape}."
             )

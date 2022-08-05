@@ -59,7 +59,7 @@ def model_iteration(
     validation_in_fit=False,
     prepared_feed_values_from_dataset=False,
     steps_name="steps",
-    **kwargs
+    **kwargs,
 ):
     """Loop function for arrays of data with modes TRAIN/TEST/PREDICT.
 
@@ -124,7 +124,7 @@ def model_iteration(
     if "steps" in kwargs:
         steps_per_epoch = kwargs.pop("steps")
     if kwargs:
-        raise TypeError("Unknown arguments: %s" % (kwargs,))
+        raise TypeError(f"Unknown arguments: {kwargs}")
 
     # In case we were passed a dataset, we extract symbolic tensors from it.
     reset_dataset_after_each_epoch = False
@@ -520,13 +520,9 @@ def _get_model_feed(model, mode):
 
 def _print_train_info(num_samples_or_steps, val_samples_or_steps, is_dataset):
     increment = "steps" if is_dataset else "samples"
-    msg = "Train on {0} {increment}".format(
-        num_samples_or_steps, increment=increment
-    )
+    msg = f"Train on {num_samples_or_steps} {increment}"
     if val_samples_or_steps:
-        msg += ", validate on {0} {increment}".format(
-            val_samples_or_steps, increment=increment
-        )
+        msg += f", validate on {val_samples_or_steps} {increment}"
     io_utils.print_msg(msg)
 
 
@@ -693,7 +689,7 @@ class ArrayLikeTrainingLoop(training_utils_v1.TrainingLoop):
         steps_per_epoch=None,
         validation_steps=None,
         validation_freq=1,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(
             batch_size, steps_per_epoch, x
@@ -765,7 +761,7 @@ class ArrayLikeTrainingLoop(training_utils_v1.TrainingLoop):
         sample_weight=None,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(batch_size, steps, x)
         x, y, sample_weights = model._standardize_user_data(
@@ -796,7 +792,7 @@ class ArrayLikeTrainingLoop(training_utils_v1.TrainingLoop):
         verbose=0,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(batch_size, steps, x)
         x, _, _ = model._standardize_user_data(

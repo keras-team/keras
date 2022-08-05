@@ -51,7 +51,7 @@ class DeterministicRandomTestTool(object):
         if mode not in {"constant", "num_random_ops"}:
             raise ValueError(
                 "Mode arg must be 'constant' or 'num_random_ops'. "
-                + "Got: {}".format(mode)
+                + f"Got: {mode}"
             )
         self.seed_implementation = sys.modules[tf.compat.v1.get_seed.__module__]
         self._mode = mode
@@ -91,7 +91,7 @@ class DeterministicRandomTestTool(object):
                     raise ValueError(
                         "This `DeterministicRandomTestTool` "
                         "object is trying to re-use the "
-                        + "already-used operation seed {}. ".format(op_seed)
+                        + f"already-used operation seed {op_seed}. "
                         + "It cannot guarantee random numbers will match "
                         + "between eager and sessions when an operation seed "
                         + "is reused. You most likely set "

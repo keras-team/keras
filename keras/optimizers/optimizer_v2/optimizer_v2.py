@@ -753,7 +753,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             """Apply gradient to variable."""
             if isinstance(var, tf.Tensor):
                 raise NotImplementedError(
-                    f"Updating a `Tensor` is not implemented. "
+                    "Updating a `Tensor` is not implemented. "
                     f"Received: var={var}."
                 )
 
@@ -1420,7 +1420,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           An `Operation` which updates the value of the variable.
         """
         raise NotImplementedError(
-            "`_resource_apply_dense` must be implemented in " "subclasses."
+            "`_resource_apply_dense` must be implemented in subclasses."
         )
 
     def _resource_apply_sparse_duplicate_indices(
@@ -1474,7 +1474,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           An `Operation` which updates the value of the variable.
         """
         raise NotImplementedError(
-            "`_resource_apply_sparse` Must be implemented in " "subclasses."
+            "`_resource_apply_sparse` Must be implemented in subclasses."
         )
 
     def _resource_scatter_add(self, x, i, v):

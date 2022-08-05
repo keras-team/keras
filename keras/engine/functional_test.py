@@ -1702,7 +1702,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1739,7 +1739,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1772,7 +1772,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)

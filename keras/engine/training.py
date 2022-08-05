@@ -3277,7 +3277,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"{list(layer.name for layer in self.layers)}."
             )
         raise ValueError(
-            "Provide either a layer name or layer index at " "`get_layer`."
+            "Provide either a layer name or layer index at `get_layer`."
         )
 
     def get_weight_paths(self):

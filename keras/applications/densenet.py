@@ -33,7 +33,7 @@ from keras.utils import layer_utils
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = (
-    "https://storage.googleapis.com/tensorflow/" "keras-applications/densenet/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/densenet/"
 )
 DENSENET121_WEIGHT_PATH = (
     BASE_WEIGHTS_PATH + "densenet121_weights_tf_dim_ordering_tf_kernels.h5"

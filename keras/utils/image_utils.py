@@ -131,7 +131,7 @@ def smart_resize(x, size, interpolation="bilinear"):
     """
     if len(size) != 2:
         raise ValueError(
-            "Expected `size` to be a tuple of 2 integers, " f"but got: {size}."
+            f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
     img = tf.convert_to_tensor(x)
     if img.shape.rank is not None:
@@ -355,7 +355,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     img = array_to_img(x, data_format=data_format, scale=scale)
     if img.mode == "RGBA" and (file_format == "jpg" or file_format == "jpeg"):
         warnings.warn(
-            "The JPG format does not support " "RGBA images, converting to RGB."
+            "The JPG format does not support RGBA images, converting to RGB."
         )
         img = img.convert("RGB")
     img.save(path, format=file_format, **kwargs)
@@ -407,12 +407,12 @@ def load_img(
     """
     if grayscale:
         warnings.warn(
-            "grayscale is deprecated. Please use " 'color_mode = "grayscale"'
+            'grayscale is deprecated. Please use color_mode = "grayscale"'
         )
         color_mode = "grayscale"
     if pil_image is None:
         raise ImportError(
-            "Could not import PIL.Image. " "The use of `load_img` requires PIL."
+            "Could not import PIL.Image. The use of `load_img` requires PIL."
         )
     if isinstance(path, io.BytesIO):
         img = pil_image.open(path)
@@ -423,8 +423,7 @@ def load_img(
             img = pil_image.open(io.BytesIO(f.read()))
     else:
         raise TypeError(
-            "path should be path-like or io.BytesIO"
-            ", not {}".format(type(path))
+            f"path should be path-like or io.BytesIO, not {type(path)}"
         )
 
     if color_mode == "grayscale":

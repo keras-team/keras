@@ -70,7 +70,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             ):
                 raise ValueError(
                     "`ema_overwrite_frequency` must be an integer > 1 or None. "
-                    f"Received: ema_overwrite_frequency="
+                    "Received: ema_overwrite_frequency="
                     f"{ema_overwrite_frequency}"
                 )
         self.ema_momentum = ema_momentum
@@ -78,7 +78,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         if self.clipnorm is not None and self.global_clipnorm is not None:
             raise ValueError(
-                f"At most one of `clipnorm` and `global_clipnorm` can "
+                "At most one of `clipnorm` and `global_clipnorm` can "
                 f"be set. Received: clipnorm={self.clipnorm}, "
                 f"global_clipnorm={self.global_clipnorm}."
             )
@@ -195,8 +195,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if self._var_key(variable) not in self._index_dict:
             raise KeyError(
                 f"The optimizer cannot recognize variable {variable.name}. "
-                f"This usually means that you're reusing an optimizer "
-                f"previously created for a different model. Try creating a "
+                "This usually means that you're reusing an optimizer "
+                "previously created for a different model. Try creating a "
                 "new optimizer instance."
             )
         self.update_step(gradient, variable)
@@ -549,7 +549,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
-            for (var, average) in zip(
+            for var, average in zip(
                 var_list, self._model_variables_moving_average
             ):
                 average.assign(
@@ -561,10 +561,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if len(var_list) != len(self._model_variables_moving_average):
             raise ValueError(
                 f"The length of model variables ({len(var_list)}) to "
-                f"override does not match the length of model variables "
-                f"stored in the optimizer "
+                "override does not match the length of model variables "
+                "stored in the optimizer "
                 f"({len(self._model_variables_moving_average)}). Please "
-                f"check if the optimizer was called on your model."
+                "check if the optimizer was called on your model."
             )
         self._overwrite_model_variables_with_average_value_helper(var_list)
 
@@ -975,7 +975,7 @@ class Optimizer(_BaseOptimizer):
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
-            for (var, average) in zip(
+            for var, average in zip(
                 var_list, self._model_variables_moving_average
             ):
                 self._distribution_strategy.extended.update(

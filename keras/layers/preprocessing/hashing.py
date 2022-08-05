@@ -165,7 +165,7 @@ class Hashing(base_layer.Layer):
     ):
         if num_bins is None or num_bins <= 0:
             raise ValueError(
-                f"The `num_bins` for `Hashing` cannot be `None` or "
+                "The `num_bins` for `Hashing` cannot be `None` or "
                 f"non-positive values. Received: num_bins={num_bins}."
             )
 
@@ -205,8 +205,8 @@ class Hashing(base_layer.Layer):
 
         if sparse and output_mode == INT:
             raise ValueError(
-                f"`sparse` may only be true if `output_mode` is "
-                f'`"one_hot"`, `"multi_hot"`, or `"count"`. '
+                "`sparse` may only be true if `output_mode` is "
+                '`"one_hot"`, `"multi_hot"`, or `"count"`. '
                 f"Received: sparse={sparse} and "
                 f"output_mode={output_mode}"
             )

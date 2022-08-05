@@ -82,7 +82,7 @@ class Dropout(base_layer.BaseRandomLayer):
         if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
             raise ValueError(
                 f"Invalid value {rate} received for "
-                f"`rate`, expected a value between 0 and 1."
+                "`rate`, expected a value between 0 and 1."
             )
         self.rate = rate
         self.noise_shape = noise_shape

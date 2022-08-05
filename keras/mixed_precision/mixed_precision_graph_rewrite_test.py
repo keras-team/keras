@@ -147,7 +147,7 @@ class MixedPrecisionTest(test_combinations.TestCase):
         opt = loss_scale_optimizer_v2.LossScaleOptimizer(opt)
         with self.assertRaisesRegex(
             ValueError,
-            '"opt" must not already be an instance of a ' "LossScaleOptimizer.",
+            '"opt" must not already be an instance of a LossScaleOptimizer.',
         ):
             tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
                 opt

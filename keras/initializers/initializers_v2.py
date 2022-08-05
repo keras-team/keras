@@ -82,7 +82,7 @@ class Initializer:
           **kwargs: Additional keyword arguments.
         """
         raise NotImplementedError(
-            "Initializer subclasses must implement the " "`__call__()` method."
+            "Initializer subclasses must implement the `__call__()` method."
         )
 
     def get_config(self):
@@ -573,7 +573,7 @@ class VarianceScaling(Initializer):
     ):
         if scale <= 0.0:
             raise ValueError(
-                "`scale` must be positive float. " f"Received: scale={scale}."
+                f"`scale` must be positive float. Received: scale={scale}."
             )
         allowed_modes = {"fan_in", "fan_out", "fan_avg"}
         if mode not in allowed_modes:

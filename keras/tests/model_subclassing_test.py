@@ -58,7 +58,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
         test_model(dummy_data)
         self.assertTrue(
             test_model.uses_custom_build,
-            "Model should use user " "defined build when called.",
+            "Model should use user defined build when called.",
         )
 
     def test_attribute_conflict_error(self):
@@ -119,7 +119,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         with self.assertRaisesRegex(
             ValueError, "input shape is not one of the valid types"
@@ -161,7 +161,7 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         with self.assertRaisesRegex(
             ValueError, "if your layers do not support float type inputs"
@@ -186,15 +186,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build(batch_input_shape)
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -213,15 +210,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build(input_shape=(batch_size, input_dim))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -240,15 +234,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build(input_shape=(batch_size, input_dim))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -265,16 +256,13 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         batch_input_shape = (batch_size,) + input_shape
         model.build(input_shape=batch_input_shape)
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -292,15 +280,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build(input_shape=tf.TensorShape((batch_size,) + input_shape))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -318,15 +303,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build(input_shape=tf.TensorShape((batch_size,) + input_shape))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -355,16 +337,13 @@ class ModelSubclassingTest(test_combinations.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         batch_input_shape = tf.TensorShape((batch_size, input_dim))
         model.build(input_shape=[batch_input_shape, batch_input_shape])
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -697,15 +676,12 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build((None, input_dim))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -718,15 +694,12 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         model.build((None, input_dim))
         self.assertTrue(
             model.weights,
-            (
-                "Model should have weights now that it "
-                "has been properly built."
-            ),
+            "Model should have weights now that it has been properly built.",
         )
         self.assertTrue(
             model.built, "Model should be built after calling `build`."
@@ -740,7 +713,7 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
         self.assertFalse(model.built, "Model should not have been built")
         self.assertFalse(
             model.weights,
-            ("Model should have no weights since it " "has not been built."),
+            "Model should have no weights since it has not been built.",
         )
         with self.assertRaisesRegex(
             ValueError, "cannot build your model if it has positional"

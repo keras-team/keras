@@ -57,7 +57,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         if h5py is not None:
             self.assertTrue(
                 h5py.is_hdf5(path),
-                "Model saved at path {} is not a valid hdf5 file.".format(path),
+                f"Model saved at path {path} is not a valid hdf5 file.",
             )
 
     def assert_saved_model(self, path):

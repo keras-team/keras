@@ -1747,7 +1747,7 @@ class AUC(base_metric.Metric):
             summation_method, metrics_utils.AUCSummationMethod
         ) and summation_method not in list(metrics_utils.AUCSummationMethod):
             raise ValueError(
-                f"Invalid `summation_method` "
+                "Invalid `summation_method` "
                 f'argument value "{summation_method}". '
                 f"Expected one of: {list(metrics_utils.AUCSummationMethod)}"
             )
@@ -2845,7 +2845,7 @@ class IoU(_IoUBase):
         if max(target_class_ids) >= num_classes:
             raise ValueError(
                 f"Target class id {max(target_class_ids)} "
-                f"is out of range, which is "
+                "is out of range, which is "
                 f"[{0}, {num_classes})."
             )
         self.target_class_ids = list(target_class_ids)

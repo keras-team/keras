@@ -209,7 +209,7 @@ class BNTest(tf.test.TestCase):
         )
 
         checkpoint_path_a = os.path.join(
-            self.get_temp_dir(), "checkpoint_a_%s" % base_path
+            self.get_temp_dir(), f"checkpoint_a_{base_path}"
         )
         self._train(
             checkpoint_path_a,
@@ -220,7 +220,7 @@ class BNTest(tf.test.TestCase):
             freeze_mode=freeze_mode,
         )
         checkpoint_path_b = os.path.join(
-            self.get_temp_dir(), "checkpoint_b_%s" % base_path
+            self.get_temp_dir(), f"checkpoint_b_{base_path}"
         )
         self._train(
             checkpoint_path_b,

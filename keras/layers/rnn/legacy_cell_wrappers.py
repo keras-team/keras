@@ -298,9 +298,9 @@ class DropoutWrapper(_RNNCellWrapperV1):
                             f"Parameter {attr} must be between 0 and 1. "
                             f"Received {const_prob}"
                         )
-                    setattr(self, "_%s" % attr, float(const_prob))
+                    setattr(self, f"_{attr}", float(const_prob))
                 else:
-                    setattr(self, "_%s" % attr, tensor_prob)
+                    setattr(self, f"_{attr}", tensor_prob)
 
         # Set variational_recurrent, seed before running the code below
         self._variational_recurrent = variational_recurrent

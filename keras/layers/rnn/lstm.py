@@ -141,7 +141,7 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
     ):
         if units < 0:
             raise ValueError(
-                f"Received an invalid value for argument `units`, "
+                "Received an invalid value for argument `units`, "
                 f"expected a positive integer, got {units}."
             )
         # By default use cached variable under v2 mode, see b/143699808.

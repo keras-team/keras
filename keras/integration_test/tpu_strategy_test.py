@@ -125,7 +125,7 @@ class TpuStrategyTest(tf.test.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Trying to run metric.update_state " "in replica context",
+            "Trying to run metric.update_state in replica context",
         ):
             with strategy.scope():
                 for i in dataset:

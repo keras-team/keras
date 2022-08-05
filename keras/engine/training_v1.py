@@ -232,7 +232,7 @@ class Model(training_lib.Model):
         weighted_metrics=None,
         target_tensors=None,
         distribute=None,
-        **kwargs
+        **kwargs,
     ):
         """Configures the model for training.
 
@@ -304,8 +304,7 @@ class Model(training_lib.Model):
         unknown_kwargs = set(kwargs.keys()) - allowed_kwargs
         if unknown_kwargs:
             raise TypeError(
-                "Invalid keyword argument(s) in `compile`: %s"
-                % (unknown_kwargs,)
+                f"Invalid keyword argument(s) in `compile`: {unknown_kwargs}"
             )
         self._function_kwargs = kwargs
         if self._function_kwargs:
@@ -687,7 +686,7 @@ class Model(training_lib.Model):
         max_queue_size=10,
         workers=1,
         use_multiprocessing=False,
-        **kwargs
+        **kwargs,
     ):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -2052,10 +2051,7 @@ class Model(training_lib.Model):
             # want to prepend the output name even if we are loading a
             # serialized model.
             if not getattr(metric_fn, "_from_serialized", False):
-                metric_name = "%s_%s" % (
-                    self.output_names[output_index],
-                    metric_name,
-                )
+                metric_name = f"{self.output_names[output_index]}_{metric_name}"
 
         j = 1
         base_metric_name = metric_name
@@ -2257,7 +2253,7 @@ class Model(training_lib.Model):
         self._check_trainable_weights_consistency()
         if isinstance(self.optimizer, list):
             raise ValueError(
-                "The `optimizer` in `compile` should be a single " "optimizer."
+                "The `optimizer` in `compile` should be a single optimizer."
             )
         # If we have re-compiled the loss/weighted metric sub-graphs then create
         # train function even if one exists already. This is because
@@ -2301,7 +2297,7 @@ class Model(training_lib.Model):
                     [self.total_loss] + metrics_tensors,
                     updates=updates,
                     name="train_function",
-                    **self._function_kwargs
+                    **self._function_kwargs,
                 )
                 setattr(self, "train_function", fn)
 
@@ -2337,7 +2333,7 @@ class Model(training_lib.Model):
                     [self.total_loss] + metrics_tensors,
                     updates=updates,
                     name="test_function",
-                    **self._function_kwargs
+                    **self._function_kwargs,
                 )
                 setattr(self, "test_function", fn)
 
@@ -2355,7 +2351,7 @@ class Model(training_lib.Model):
                     self.outputs,
                     updates=self.state_updates,
                     name="predict_function",
-                    **kwargs
+                    **kwargs,
                 )
 
     def _make_execution_function(self, mode):
@@ -2711,7 +2707,7 @@ class Model(training_lib.Model):
             flat_inputs = tf.nest.flatten(x)
             flat_expected_inputs = tf.nest.flatten(self.inputs)
             converted_x = []
-            for (a, b) in zip(flat_inputs, flat_expected_inputs):
+            for a, b in zip(flat_inputs, flat_expected_inputs):
                 converted_x.append(_convert_scipy_sparse_tensor(a, b))
             x = tf.nest.pack_sequence_as(x, converted_x)
 
@@ -2728,7 +2724,7 @@ class Model(training_lib.Model):
         flat_expected_inputs = tf.nest.flatten(
             tf_utils.convert_variables_to_tensors(self.inputs)
         )
-        for (a, b) in zip(flat_inputs, flat_expected_inputs):
+        for a, b in zip(flat_inputs, flat_expected_inputs):
             tf.nest.assert_same_structure(a, b, expand_composites=True)
 
         if y is not None:

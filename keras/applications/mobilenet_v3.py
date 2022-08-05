@@ -31,8 +31,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 # TODO(scottzhu): Change this to the GCS path.
 BASE_WEIGHT_PATH = (
-    "https://storage.googleapis.com/tensorflow/"
-    "keras-applications/mobilenet_v3/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/mobilenet_v3/"
 )
 WEIGHTS_HASHES = {
     "large_224_0.75_float": (
@@ -611,7 +610,7 @@ def _inverted_res_block(
     infilters = backend.int_shape(x)[channel_axis]
     if block_id:
         # Expand
-        prefix = "expanded_conv_{}/".format(block_id)
+        prefix = f"expanded_conv_{block_id}/"
         x = layers.Conv2D(
             _depth(infilters * expansion),
             kernel_size=1,

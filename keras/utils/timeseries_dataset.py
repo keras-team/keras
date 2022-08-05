@@ -150,25 +150,25 @@ def timeseries_dataset_from_array(
     if start_index:
         if start_index < 0:
             raise ValueError(
-                f"`start_index` must be 0 or greater. Received: "
+                "`start_index` must be 0 or greater. Received: "
                 f"start_index={start_index}"
             )
         if start_index >= len(data):
             raise ValueError(
-                f"`start_index` must be lower than the length of the "
+                "`start_index` must be lower than the length of the "
                 f"data. Received: start_index={start_index}, for data "
                 f"of length {len(data)}"
             )
     if end_index:
         if start_index and end_index <= start_index:
             raise ValueError(
-                f"`end_index` must be higher than `start_index`. "
+                "`end_index` must be higher than `start_index`. "
                 f"Received: start_index={start_index}, and "
                 f"end_index={end_index} "
             )
         if end_index >= len(data):
             raise ValueError(
-                f"`end_index` must be lower than the length of the "
+                "`end_index` must be lower than the length of the "
                 f"data. Received: end_index={end_index}, for data of "
                 f"length {len(data)}"
             )
@@ -181,23 +181,23 @@ def timeseries_dataset_from_array(
     # Validate strides
     if sampling_rate <= 0:
         raise ValueError(
-            f"`sampling_rate` must be higher than 0. Received: "
+            "`sampling_rate` must be higher than 0. Received: "
             f"sampling_rate={sampling_rate}"
         )
     if sampling_rate >= len(data):
         raise ValueError(
-            f"`sampling_rate` must be lower than the length of the "
+            "`sampling_rate` must be lower than the length of the "
             f"data. Received: sampling_rate={sampling_rate}, for data "
             f"of length {len(data)}"
         )
     if sequence_stride <= 0:
         raise ValueError(
-            f"`sequence_stride` must be higher than 0. Received: "
+            "`sequence_stride` must be higher than 0. Received: "
             f"sequence_stride={sequence_stride}"
         )
     if sequence_stride >= len(data):
         raise ValueError(
-            f"`sequence_stride` must be lower than the length of the "
+            "`sequence_stride` must be lower than the length of the "
             f"data. Received: sequence_stride={sequence_stride}, for "
             f"data of length {len(data)}"
         )
