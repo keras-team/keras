@@ -160,7 +160,7 @@ def timeseries_dataset_from_array(
     Y = X*2
 
     sample_length = 20
-    dataset = tf.keras.preprocessing.timeseries_dataset_from_array(
+    dataset = tf.keras.utils.timeseries_dataset_from_array(
         X,
         Y,
         sequence_length=sample_length,
@@ -204,7 +204,8 @@ def timeseries_dataset_from_array(
             )
         if end_index <= 0:
             raise ValueError(
-                "`end_index` must be higher than 0. " f"Received: end_index={end_index}"
+                "`end_index` must be higher than 0. "
+                f"Received: end_index={end_index}"
             )
 
     # Validate strides
@@ -265,10 +266,15 @@ def timeseries_dataset_from_array(
                 drop_remainder=drop_remainder,
             )
             target_ds = target_ds.flat_map(
-                lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
+                lambda x: x.batch(
+                    sequence_length,
+                    drop_remainder=drop_remainder,
+                )
             )
         else:
-            target_ds = tf.data.Dataset.from_tensors(targets[start_index:end_index])
+            target_ds = tf.data.Dataset.from_tensors(
+                targets[start_index:end_index]
+            )
             target_ds = tf.data.Dataset.zip(
                 (
                     target_ds.repeat(),
