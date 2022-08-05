@@ -204,8 +204,7 @@ def timeseries_dataset_from_array(
             )
         if end_index <= 0:
             raise ValueError(
-                "`end_index` must be higher than 0. "
-                f"Received: end_index={end_index}"
+                "`end_index` must be higher than 0. " f"Received: end_index={end_index}"
             )
 
     # Validate strides
@@ -243,12 +242,12 @@ def timeseries_dataset_from_array(
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))
 
-    dataset = tf.data.Dataset.from_tensor_slices(data[start_index : end_index])
+    dataset = tf.data.Dataset.from_tensor_slices(data[start_index:end_index])
     dataset = dataset.window(
         sequence_length,
         shift=sequence_stride,
         stride=sampling_rate,
-        drop_remainder=drop_remainder
+        drop_remainder=drop_remainder,
     )
     dataset = dataset.flat_map(
         lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
@@ -257,32 +256,27 @@ def timeseries_dataset_from_array(
     if targets is not None:
         if many_to_many:
             target_ds = tf.data.Dataset.from_tensor_slices(
-                targets[start_index : end_index]
+                targets[start_index:end_index]
             )
             target_ds = target_ds.window(
                 sequence_length,
                 shift=sequence_stride,
                 stride=sampling_rate,
-                drop_remainder=drop_remainder
+                drop_remainder=drop_remainder,
             )
             target_ds = target_ds.flat_map(
-                lambda x: x.batch(
-                    sequence_length,
-                    drop_remainder=drop_remainder
-                )
+                lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
             )
         else:
-            target_ds = tf.data.Dataset.from_tensors(
-                targets[start_index : end_index]
-            )
+            target_ds = tf.data.Dataset.from_tensors(targets[start_index:end_index])
             target_ds = tf.data.Dataset.zip(
                 (
                     target_ds.repeat(),
-                    tf.data.Dataset.range(0, num_seqs, sequence_stride)
+                    tf.data.Dataset.range(0, num_seqs, sequence_stride),
                 )
             ).map(
                 lambda steps, i: tf.gather(steps, i),
-                num_parallel_calls=tf.data.AUTOTUNE
+                num_parallel_calls=tf.data.AUTOTUNE,
             )
         dataset = tf.data.Dataset.zip((dataset, target_ds))
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
