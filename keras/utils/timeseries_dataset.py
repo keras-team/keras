@@ -266,7 +266,10 @@ def timeseries_dataset_from_array(
                 drop_remainder=drop_remainder
             )
             target_ds = target_ds.flat_map(
-                lambda x: x.batch(sequence_length, drop_remainder=drop_remainder)
+                lambda x: x.batch(
+                    sequence_length,
+                    drop_remainder=drop_remainder
+                )
             )
         else:
             target_ds = tf.data.Dataset.from_tensors(
