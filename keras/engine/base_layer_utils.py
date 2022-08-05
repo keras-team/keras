@@ -27,6 +27,7 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 
 # isort: off
+from tensorflow.python.trackable import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 _call_context = threading.local()
@@ -113,7 +114,11 @@ def make_variable(
         # Instantiate initializer if provided initializer is a type object.
         if tf_inspect.isclass(initializer):
             initializer = initializer()
-        if layout:
+        # Only pass in layout if initializer is not a Checkpoint Initializer.
+        # Checkpoint Initializer does not have a layout argument nor kwargs.
+        if layout and not issubclass(
+            type(initializer), trackable.CheckpointInitialValueCallable
+        ):
             init_val = functools.partial(
                 initializer, shape, dtype=dtype, layout=layout
             )
@@ -158,6 +163,7 @@ def make_variable(
             synchronization=synchronization,
             aggregation=aggregation,
             shape=variable_shape if variable_shape else None,
+            layout=layout,
         )
 
 

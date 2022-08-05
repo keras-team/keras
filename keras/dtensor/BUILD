@@ -75,6 +75,19 @@ tf_py_test(
     ],
 )
 
+tf_py_test(
+    name = "checkpoint_test",
+    srcs = ["checkpoint_test.py"],
+    tags = ["no_oss"],
+    deps = [
+        ":dtensor",
+        ":test_util",
+        "//:expect_tensorflow_installed",
+        "//keras/layers",
+        "//keras/models",
+    ],
+)
+
 py_library(
     name = "integration_test_utils",
     srcs = ["integration_test_utils.py"],
