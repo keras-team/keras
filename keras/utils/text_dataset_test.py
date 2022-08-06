@@ -73,10 +73,11 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         directory = self._prepare_directory(count=7, num_classes=2)
         for i in range(3):
             filename = f"text_{i}.txt"
-            f = open(os.path.join(directory, filename), "w")
-            text = "".join([random.choice(string.printable) for _ in range(20)])
-            f.write(text)
-            f.close()
+            with open(os.path.join(directory, filename), "w") as f:
+                text = "".join(
+                    [random.choice(string.printable) for _ in range(20)]
+                )
+                f.write(text)
 
         dataset = text_dataset.text_dataset_from_directory(
             directory, batch_size=5, label_mode=None, max_length=10
