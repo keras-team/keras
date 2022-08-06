@@ -260,9 +260,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "trainable"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
@@ -390,9 +389,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The expected lenght with no layer filter is 15
             # we filtered out 2 lines by excluding the layer 'dense'
             self.assertEqual(len(lines), 15 - 2)
@@ -438,9 +436,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model"\n'
                 "_________________________________________________________________\n"  # noqa: E501
