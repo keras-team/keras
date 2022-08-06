@@ -223,9 +223,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The output content are slightly different for the input shapes
             # between v1 and v2.
             if tf.__internal__.tf2.enabled():
