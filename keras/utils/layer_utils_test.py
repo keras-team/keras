@@ -75,9 +75,8 @@ class LayerUtilsTest(tf.test.TestCase):
             layer_utils.print_summary(model, print_fn=print_to_file)
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             self.assertEqual(len(lines), 15)
         except ImportError:
             pass
