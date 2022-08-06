@@ -327,9 +327,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model_2"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
