@@ -308,17 +308,24 @@ class TimeDistributedTest(test_combinations.TestCase):
         td3 = keras.layers.TimeDistributed(NoReshapeLayer())
         self.assertFalse(td3._always_use_reshape)
 
-    @test_combinations.generate(
-        test_combinations.combine(mode=["graph", "eager"])
+    @test_combinations.run_all_keras_modes
+    @parameterized.named_parameters(
+        ("fully_defined", [3, 2, 4], [3, 2, 8]),
+        ("dynamic_batch_size", [None, 2, 4], [None, 2, 8]),
+        ("two_dynamic_dims", [None, None, 4], [None, None, 8]),
+        ("rank_only", [None, None, None], [None, None, None]),
     )
-    def test_TimeDistributed_output_shape_return_types(self):
+    def test_TimeDistributed_output_shape_return_types(
+        self, input_shape, expected_output_shape
+    ):
         class TestLayer(keras.layers.Layer):
             def call(self, inputs):
                 return tf.concat([inputs, inputs], axis=-1)
 
             def compute_output_shape(self, input_shape):
                 output_shape = tf.TensorShape(input_shape).as_list()
-                output_shape[-1] = output_shape[-1] * 2
+                if output_shape[-1] is not None:
+                    output_shape[-1] = output_shape[-1] * 2
                 output_shape = tf.TensorShape(output_shape)
                 return output_shape
 
@@ -336,12 +343,12 @@ class TimeDistributedTest(test_combinations.TestCase):
         test_layers = [TestLayer, TestListLayer, TestTupleLayer]
         for layer in test_layers:
             input_layer = keras.layers.TimeDistributed(layer())
-            inputs = keras.backend.placeholder(shape=(None, 2, 4))
+            inputs = keras.backend.placeholder(shape=input_shape)
             output = input_layer(inputs)
-            self.assertEqual(output.shape.as_list(), [None, 2, 8])
+            self.assertEqual(output.shape.as_list(), expected_output_shape)
             self.assertEqual(
-                input_layer.compute_output_shape([None, 2, 4]).as_list(),
-                [None, 2, 8],
+                input_layer.compute_output_shape(input_shape).as_list(),
+                expected_output_shape,
             )
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)

@@ -84,7 +84,7 @@ class TimeDistributed(Wrapper):
             layer
         ) and not getattr(layer, "stateful", False)
 
-    def _get_shape_tuple(self, init_tuple, tensor, start_idx, int_shape=None):
+    def _get_shape_tuple(self, init_tuple, tensor, start_idx):
         """Finds non-specific dimensions in the static shapes.
 
         The static shapes are replaced with the corresponding dynamic shapes of
@@ -95,25 +95,19 @@ class TimeDistributed(Wrapper):
             as the last part of the output shape
           start_idx: int, which indicate the first dimension to take from
             the static shape of the tensor
-          int_shape: an alternative static shape to take as the last part
-            of the output shape
         Returns:
-          The new int_shape with the first part from init_tuple
-          and the last part from either `int_shape` (if provided)
-          or `tensor.shape`, where every `None` is replaced by
-          the corresponding dimension from `tf.shape(tensor)`.
+          The new shape with the first part from `init_tuple` and the last part
+          from or `tensor.shape`, where every `None` is replaced by the
+          corresponding dimension from `tf.shape(tensor)`.
         """
         # replace all None in int_shape by backend.shape
-        if int_shape is None:
-            int_shape = backend.int_shape(tensor)[start_idx:]
-        if isinstance(int_shape, tf.TensorShape):
-            int_shape = int_shape.as_list()
-        if not any(not s for s in int_shape):
-            return init_tuple + tuple(int_shape)
+        int_shape = backend.int_shape(tensor)[start_idx:]
+        if not any(s is None for s in int_shape):
+            return init_tuple + int_shape
         shape = backend.shape(tensor)
         int_shape = list(int_shape)
         for i, s in enumerate(int_shape):
-            if not s:
+            if s is None:
                 int_shape[i] = shape[start_idx + i]
         return init_tuple + tuple(int_shape)
 
@@ -251,29 +245,20 @@ class TimeDistributed(Wrapper):
 
                 y = self.layer(inputs, **kwargs)
 
-                # Shape: (num_samples, timesteps, ...)
-                output_shape = self.compute_output_shape(input_shape)
-
+                # Reconstruct the output shape by re-splitting the 0th dimension
+                # back into (num_samples, timesteps, ...)
+                # We use batch_size when available so that the 0th dimension is
+                # set in the static shape of the reshaped output
+                reshape_batch_size = batch_size if batch_size else -1
                 output_shape = tf.nest.map_structure(
-                    lambda tensor, int_shape: self._get_shape_tuple(
-                        (-1, input_length), tensor, 1, int_shape[2:]
+                    lambda tensor: self._get_shape_tuple(
+                        (reshape_batch_size, input_length), tensor, 1
                     ),
                     y,
-                    output_shape,
                 )
                 y = tf.__internal__.nest.map_structure_up_to(
                     y, tf.reshape, y, output_shape
                 )
-                if not tf.executing_eagerly():
-                    # Set the static shape for the result since it might be lost
-                    # during array_ops reshape, eg, some `None` dim in the
-                    # result could be inferred.
-                    tf.__internal__.nest.map_structure_up_to(
-                        y,
-                        lambda tensor, shape: tensor.set_shape(shape),
-                        y,
-                        self.compute_output_shape(input_shape),
-                    )
 
         return y
 
@@ -359,21 +344,9 @@ class TimeDistributed(Wrapper):
                     lambda x: backend.shape(x)[1], inputs
                 )
                 input_length = tf.nest.flatten(input_length)[0]
-            output_mask_int_shape = backend.int_shape(output_mask)
-            if output_mask_int_shape is None:
-                # if the output_mask does not have a static shape,
-                # its shape must be the same as mask's
-                if mask is not None:
-                    output_mask_int_shape = backend.int_shape(mask)
-                else:
-                    input_shape = generic_utils.to_list(
-                        tf.nest.flatten(input_shape)
-                    )[0]
-                    output_mask_int_shape = backend.compute_output_shape(
-                        input_shape
-                    )[:-1]
+            reshape_batch_size = batch_size if batch_size else -1
             output_mask_shape = self._get_shape_tuple(
-                (-1, input_length), output_mask, 1, output_mask_int_shape[1:]
+                (reshape_batch_size, input_length), output_mask, 1
             )
             output_mask = backend.reshape(output_mask, output_mask_shape)
         return output_mask
