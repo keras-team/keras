@@ -6,13 +6,6 @@ then
   exit 1
 fi
 echo "no issues with isort"
-flynt --line-length 80 --fail-on-change keras
-if ! [ $? -eq 0 ]
-then
-  echo "Please fix the f-string formatting."
-  exit 1
-fi
-echo "no issues with flynt"
 flake8 keras
 if ! [ $? -eq 0 ]
 then
