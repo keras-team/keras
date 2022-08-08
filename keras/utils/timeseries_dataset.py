@@ -50,11 +50,11 @@ def timeseries_dataset_from_array(
         containing consecutive data points (timesteps).
         Axis 0 is expected to be the time dimension.
       targets: Targets corresponding to timesteps in `data`.
-         `targets[i]` should be the target
-         corresponding to the window that starts at index `i`
-         (see example 2 below).
-         Pass None if you don't have target data (in this case the dataset will
-         only yield the input data).
+        `targets[i]` should be the target
+        corresponding to the window that starts at index `i`
+        (see example 2 below).
+        Pass None if you don't have target data (in this case the dataset will
+        only yield the input data).
       sequence_length: Length of the output sequences (in number of timesteps).
       sequence_stride: Period between successive output sequences.
         For stride `s`, output samples would
@@ -227,9 +227,7 @@ def timeseries_dataset_from_array(
     )
 
     if targets is not None:
-        target_ds = tf.data.Dataset.from_tensors(
-            targets[start_index:end_index]
-        )
+        target_ds = tf.data.Dataset.from_tensors(targets[start_index:end_index])
         target_ds = tf.data.Dataset.zip(
             (
                 target_ds.repeat(),
