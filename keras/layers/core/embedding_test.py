@@ -67,6 +67,12 @@ class EmbeddingTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes
+    def test_untrainable(self):
+        l = keras.layers.Embedding(output_dim=2, input_dim=2, trainable=False)
+        l.build((None, 2))
+        self.assertFalse(l.embeddings.trainable)
+
+    @test_combinations.run_all_keras_modes
     def test_embedding_correctness(self):
         layer = keras.layers.Embedding(output_dim=2, input_dim=2)
         model = keras.models.Sequential([layer])

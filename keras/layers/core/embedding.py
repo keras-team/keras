@@ -167,6 +167,7 @@ class Embedding(Layer):
             regularizer=self.embeddings_regularizer,
             constraint=self.embeddings_constraint,
             experimental_autocast=False,
+            trainable=self.trainable
         )
         self.built = True
 
