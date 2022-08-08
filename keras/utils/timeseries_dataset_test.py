@@ -221,30 +221,6 @@ class TimeseriesDatasetTest(tf.test.TestCase):
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 1)
 
-    def test_seq_to_seq(self):
-        # Test ordering, targets, sequence length, batch size
-        data = np.arange(80)
-        targets = data * 2
-        dataset = timeseries_dataset.timeseries_dataset_from_array(
-            data, targets, sequence_length=7, batch_size=10, many_to_many=True
-        )
-        # Expect 19 batches
-        for i, batch in enumerate(dataset):
-            self.assertLen(batch, 2)
-            inputs, targets = batch
-            if i < 7:
-                self.assertEqual(inputs.shape, (10, 7))
-            if i == 7:
-                # Last batch: size 4
-                self.assertEqual(inputs.shape, (4, 7))
-            # Check target values
-            self.assertAllClose(targets, inputs * 2)
-            for j in range(min(10, len(inputs))):
-                # Check each sample in the batch
-                self.assertAllClose(
-                    inputs[j], np.arange(i * 10 + j, i * 10 + j + 7)
-                )
-
     def test_shape(self):
         data = tf.random.uniform([100, 25, 81])
         targets = tf.random.uniform([100, 25, 1])
