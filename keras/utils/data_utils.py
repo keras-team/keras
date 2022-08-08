@@ -86,7 +86,6 @@ if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.
             for chunk in chunk_read(response, reporthook=reporthook):
                 fd.write(chunk)
 
-
 else:
     from urllib.request import urlretrieve
 
