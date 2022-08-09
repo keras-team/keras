@@ -81,8 +81,8 @@ def _build_attention_equation(rank, attn_axes):
         + [source_notation[i] for i in attn_axes]
     )
     dot_product_equation = "%s,%s->%s" % (
-        source_notation,
         target_notation,
+        source_notation,
         product_notation,
     )
     attn_scores_rank = len(product_notation)
@@ -522,7 +522,7 @@ class MultiHeadAttention(Layer):
 
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.
-        attention_scores = tf.einsum(self._dot_product_equation, key, query)
+        attention_scores = tf.einsum(self._dot_product_equation, query, key)
 
         attention_scores = self._masked_softmax(
             attention_scores, attention_mask
