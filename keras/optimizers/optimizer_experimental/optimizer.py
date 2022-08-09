@@ -480,14 +480,16 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
         self.apply_gradients(grads_and_vars)
 
-    def apply_gradients(self, grads_and_vars):
+    def apply_gradients(self, grads_and_vars, name=None):
         """Apply gradients to variables.
 
         Args:
-          grads_and_vars: List of (gradient, variable) pairs.
+          grads_and_vars: List of `(gradient, variable)` pairs.
+          name: string, defaults to None. The name of the namescope to
+            use when creating variables. If None, `self.name` will be used.
 
         Returns:
-          None
+          A `tf.Variable`, representing the current iteration.
 
         Raises:
           TypeError: If `grads_and_vars` is malformed.
@@ -514,7 +516,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             # `apply_gradients` is a no-op.
             return
         grads, trainable_variables = zip(*grads_and_vars)
-        scope_name = self.name or "optimizer"
+        scope_name = name or self.name or "optimizer"
         with tf.name_scope(scope_name):
             with tf.init_scope():
                 # Lift variable creation to init scope to avoid environment
@@ -523,11 +525,13 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         grads = self._clip_gradients(grads)
         grads = self._deduplicate_sparse_grad(grads)
         grads_and_vars = list(zip(grads, trainable_variables))
-        self._internal_apply_gradients(grads_and_vars)
+        iteration = self._internal_apply_gradients(grads_and_vars)
 
+        # Apply variable constraints after applying gradients.
         for variable in trainable_variables:
             if variable.constraint is not None:
                 variable.assign(variable.constraint(variable))
+        return iteration
 
     def _internal_apply_gradients(self, grads_and_vars):
         """Helper function of apply gradients.
@@ -543,8 +547,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         else:
             for grad, var in grads_and_vars:
                 self._update_step(grad, var)
-
-        self.iterations.assign_add(1)
+        return self.iterations.assign_add(1)
 
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
@@ -923,17 +926,21 @@ class Optimizer(_BaseOptimizer):
         """
         return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
-    def apply_gradients(self, grads_and_vars, skip_gradients_aggregation=False):
+    def apply_gradients(
+        self, grads_and_vars, name=None, skip_gradients_aggregation=False
+    ):
         """Apply gradients to variables.
 
         Args:
-          grads_and_vars: List of (gradient, variable) pairs.
+          grads_and_vars: List of `(gradient, variable)` pairs.
+          name: string, defaults to None. The name of the namescope to
+            use when creating variables. If None, `self.name` will be used.
           skip_gradients_aggregation: If true, gradients aggregation will not be
             performed inside optimizer. Usually this arg is set to True when you
             write custom code aggregating gradients outside the optimizer.
 
         Returns:
-          None
+          A `tf.Variable`, representing the current iteration.
 
         Raises:
           TypeError: If `grads_and_vars` is malformed.
@@ -941,10 +948,10 @@ class Optimizer(_BaseOptimizer):
         """
         if not skip_gradients_aggregation:
             grads_and_vars = self.aggregate_gradients(grads_and_vars)
-        super().apply_gradients(grads_and_vars)
+        return super().apply_gradients(grads_and_vars, name=name)
 
     def _internal_apply_gradients(self, grads_and_vars):
-        tf.__internal__.distribute.interim.maybe_merge_call(
+        return tf.__internal__.distribute.interim.maybe_merge_call(
             self._distributed_apply_gradients_fn,
             self._distribution_strategy,
             grads_and_vars,
@@ -997,7 +1004,6 @@ class Optimizer(_BaseOptimizer):
             distribution.extended.update(
                 var, apply_grad_to_update_var, args=(grad,), group=False
             )
-        self.iterations.assign_add(1)
 
         if self.use_ema:
             _, var_list = zip(*grads_and_vars)
@@ -1006,8 +1012,8 @@ class Optimizer(_BaseOptimizer):
                 # Only when self.ema_overwrite_frequency is not None, we
                 # overwrite the model variables.
                 should_overwrite_model_vars = (
-                    self.iterations % self.ema_overwrite_frequency == 0
-                )
+                    self.iterations + 1
+                ) % self.ema_overwrite_frequency == 0
                 tf.cond(
                     tf.cast(should_overwrite_model_vars, tf.bool),
                     true_fn=lambda: self._overwrite_model_variables_with_average_value(  # noqa: E501
@@ -1015,6 +1021,7 @@ class Optimizer(_BaseOptimizer):
                     ),
                     false_fn=lambda: None,
                 )
+        return self.iterations.assign_add(1)
 
 
 class RestoredOptimizer(Optimizer):
