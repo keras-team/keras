@@ -220,7 +220,10 @@ def get_file(
         )
 
     if cache_dir is None:
-        cache_dir = os.path.join(os.path.expanduser("~"), ".keras")
+        if "KERAS_HOME" in os.environ:
+            cache_dir = os.environ.get("KERAS_HOME")
+        else:
+            cache_dir = os.path.join(os.path.expanduser("~"), ".keras")
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = "md5"
