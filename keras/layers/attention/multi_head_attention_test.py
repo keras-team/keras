@@ -14,16 +14,11 @@
 # ==============================================================================
 """Tests for the MultiHeadAttention layer."""
 
-import math
-import string
-
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.layers import activation
-from keras.layers import regularization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -395,135 +390,6 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
             use_causal_mask=True,
             attention_mask=float_mask,
         )
-
-
-class AttentionWithTranspose(keras.layers.MultiHeadAttention):
-    def _build_attention_equation(self, rank, attn_axes):
-        _CHR_IDX = string.ascii_lowercase
-        target_notation = _CHR_IDX[:rank]
-        # `batch_dims` includes the head dim.
-        batch_dims = tuple(np.delete(range(rank), attn_axes + (rank - 1,)))
-        letter_offset = rank
-        source_notation = ""
-        for i in range(rank):
-            if i in batch_dims or i == rank - 1:
-                source_notation += target_notation[i]
-            else:
-                source_notation += _CHR_IDX[letter_offset]
-                letter_offset += 1
-
-        product_notation = "".join(
-            [target_notation[i] for i in batch_dims]
-            + [target_notation[i] for i in attn_axes]
-            + [source_notation[i] for i in attn_axes]
-        )
-        dot_product_equation = "%s,%s->%s" % (
-            source_notation,
-            target_notation,
-            product_notation,
-        )
-        attn_scores_rank = len(product_notation)
-        combine_equation = "%s,%s->%s" % (
-            product_notation,
-            source_notation,
-            target_notation,
-        )
-        return dot_product_equation, combine_equation, attn_scores_rank
-
-    def _build_attention(self, rank):
-        if self._attention_axes is None:
-            self._attention_axes = tuple(range(1, rank - 2))
-        else:
-            self._attention_axes = tuple(self._attention_axes)
-        (
-            self._dot_product_equation,
-            self._combine_equation,
-            attn_scores_rank,
-        ) = self._build_attention_equation(rank, attn_axes=self._attention_axes)
-        norm_axes = tuple(
-            range(
-                attn_scores_rank - len(self._attention_axes), attn_scores_rank
-            )
-        )
-        self._softmax = activation.Softmax(axis=norm_axes)
-        self._dropout_layer = regularization.Dropout(rate=self._dropout)
-
-    def _compute_attention(
-        self, query, key, value, attention_mask=None, training=None
-    ):
-        query = tf.multiply(query, 1.0 / math.sqrt(float(self._key_dim)))
-        attention_scores = tf.einsum(self._dot_product_equation, key, query)
-        attention_scores = self._masked_softmax(
-            attention_scores, attention_mask
-        )
-        attention_scores_dropout = self._dropout_layer(
-            attention_scores, training=training
-        )
-        attention_output = tf.einsum(
-            self._combine_equation, attention_scores_dropout, value
-        )
-        return attention_output, attention_scores
-
-
-@test_combinations.run_all_keras_modes
-class AttentionTransposeTest(test_combinations.TestCase):
-    def test_transpose(self):
-        """Test that removing transpose (i.e., changing key query multiplication
-
-        to query key multiplication) does not change attention outputs and
-        attention scores.
-        """
-
-        input_tensor_1 = tf.random.uniform((32, 4, 8))
-        input_tensor_2 = tf.random.uniform((32, 4, 8))
-
-        # Instantiate layer and call with inputs to build.
-        orig_layer = AttentionWithTranspose(num_heads=2, key_dim=2)
-        _ = orig_layer(input_tensor_1, input_tensor_2)
-        opt_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
-        _ = opt_layer(input_tensor_1, input_tensor_2)
-
-        # Set the weights of the two layers to be the same.
-        query_dense_weights = np.random.uniform(size=(8, 2, 2))
-        query_dense_bias = np.random.uniform(size=(2, 2))
-        key_dense_weights = np.random.uniform(size=(8, 2, 2))
-        key_dense_bias = np.random.uniform(size=(2, 2))
-        value_dense_weights = np.random.uniform(size=(8, 2, 2))
-        value_dense_bias = np.random.uniform(size=(2, 2))
-        attention_output_dense_weights = np.random.uniform(size=(2, 2, 8))
-        attention_output_dense_bias = np.random.uniform(size=(8,))
-
-        orig_layer._query_dense.set_weights(
-            [query_dense_weights, query_dense_bias]
-        )
-        orig_layer._key_dense.set_weights([key_dense_weights, key_dense_bias])
-        orig_layer._value_dense.set_weights(
-            [value_dense_weights, value_dense_bias]
-        )
-        orig_layer._output_dense.set_weights(
-            [attention_output_dense_weights, attention_output_dense_bias]
-        )
-
-        opt_layer._query_dense.set_weights(
-            [query_dense_weights, query_dense_bias]
-        )
-        opt_layer._key_dense.set_weights([key_dense_weights, key_dense_bias])
-        opt_layer._value_dense.set_weights(
-            [value_dense_weights, value_dense_bias]
-        )
-        opt_layer._output_dense.set_weights(
-            [attention_output_dense_weights, attention_output_dense_bias]
-        )
-
-        # Calculate two sets of attention outputs and scores and compare.
-        orig_attn_output, orig_attn_score = orig_layer(
-            input_tensor_1, input_tensor_2, return_attention_scores=True
-        )
-        opt_attn_output, opt_attn_score = opt_layer(
-            input_tensor_1, input_tensor_2, return_attention_scores=True
-        )
-        self.assertAllClose(orig_attn_output, opt_attn_output)
-        self.assertAllClose(orig_attn_score, opt_attn_score)
 
 
 class SubclassAttention(keras.layers.MultiHeadAttention):
