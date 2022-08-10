@@ -178,10 +178,11 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer.apply_gradients(zip([grads], [x]))
         optimizer_variables = optimizer.variables()
         all_names = [var._shared_name for var in optimizer_variables]
-        self.assertLen(optimizer_variables, 2)
+        self.assertLen(optimizer_variables, 3)
         self.assertCountEqual(
             all_names,
             [
+                "iteration",
                 "Adam/m/Variable",
                 "Adam/v/Variable",
             ],
