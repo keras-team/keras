@@ -83,9 +83,9 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 f"global_clipnorm={self.global_clipnorm}."
             )
 
+        self._variables = []
         self._create_iteration_variable()
         self._process_kwargs(kwargs)
-        self._variables = []
 
     def _create_iteration_variable(self):
         """Create the iterations counter variable."""
@@ -95,6 +95,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             self._iterations = tf.Variable(
                 0, name="iteration", dtype=tf.int64, trainable=False
             )
+        self._variables.append(self._iterations)
 
     def _process_kwargs(self, kwargs):
         kwargs.pop("is_legacy_optimizer", None)
@@ -330,23 +331,25 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         self.learning_rate = learning_rate
 
     def _build_learning_rate(self, learning_rate):
-        if isinstance(
-            learning_rate, learning_rate_schedule.LearningRateSchedule
-        ):
-            # Create a variable to hold the current learning rate.
-            self._current_learning_rate = tf.Variable(
-                learning_rate(self.iterations),
+        with tf.init_scope():
+            if isinstance(
+                learning_rate, learning_rate_schedule.LearningRateSchedule
+            ):
+                # Create a variable to hold the current learning rate.
+                self._current_learning_rate = tf.Variable(
+                    learning_rate(self.iterations),
+                    name="learning_rate",
+                    dtype=tf.float32,
+                    trainable=False,
+                )
+                return learning_rate
+
+            return tf.Variable(
+                learning_rate,
                 name="learning_rate",
-                dtype=tf.float32,
+                dtype=backend.floatx(),
                 trainable=False,
             )
-            return learning_rate
-        return tf.Variable(
-            learning_rate,
-            name="learning_rate",
-            dtype=backend.floatx(),
-            trainable=False,
-        )
 
     @abc.abstractmethod
     def build(self, var_list):

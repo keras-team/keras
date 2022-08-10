@@ -3031,7 +3031,6 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             )
             model.compile(optimizer="adam", loss="mse")
             model.build([None, 1])  # create weights.
-            self.assertEmpty(model.optimizer.variables())
             return model
 
         model = create_model()
