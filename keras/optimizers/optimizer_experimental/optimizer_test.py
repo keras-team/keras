@@ -231,7 +231,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(optimizer.iterations, 2)
         var_list = [tf.Variable(2.0), tf.Variable(2.0)]
         grads = tf.convert_to_tensor([1.0, 1.0])
-        optimizer.apply_gradients(zip(grads, var_list))
+        iterations = optimizer.apply_gradients(zip(grads, var_list))
+        self.assertEqual(iterations, 3)
         self.assertEqual(optimizer.iterations, 3)
         with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
             optimizer.iterations = 2
@@ -249,6 +250,13 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
     def testNoGradients(self):
         optimizer = adam_new.Adam(jit_compile=False)
         optimizer.apply_gradients(zip([], []))
+
+    def testApplyGradientsNameArg(self):
+        optimizer = adam_new.Adam(jit_compile=False)
+        var_list = [tf.Variable(2.0), tf.Variable(2.0)]
+        grads = tf.convert_to_tensor([1.0, 1.0])
+        optimizer.apply_gradients(zip(grads, var_list), name="dummy")
+        self.assertIn("dummy", optimizer._velocities[0].name)
 
     def testPassingMissingWDError(self):
         with self.assertRaises(ValueError):
