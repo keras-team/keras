@@ -249,7 +249,7 @@ class SerializedAttributes:
                         "The object dictionary contained a non-trackable "
                         f"object: {object_dict[key]} (for key {key}). "
                         "Only trackable objects are "
-                        f"allowed, such as Keras layers/models or "
+                        "allowed, such as Keras layers/models or "
                         "tf.Module instances."
                     )
                 self._object_dict[key] = object_dict[key]

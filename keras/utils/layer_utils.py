@@ -86,9 +86,7 @@ def validate_string_arg(
     else:
         allowed_args = "`None`, " if allow_none else ""
         allowed_args += "a `Callable`, " if allow_callables else ""
-        allowed_args += "or one of the following values: %s" % (
-            allowable_strings,
-        )
+        allowed_args += f"or one of the following values: {allowable_strings}"
         if allow_callables:
             callable_note = (
                 f"If restoring a model and `{arg_name}` is a custom callable, "
@@ -317,7 +315,7 @@ def print_summary(
             line += "|" * nested_level
             print_fn(line)
 
-    print_fn('Model: "{}"'.format(model.name))
+    print_fn(f'Model: "{model.name}"')
     print_fn("_" * line_length)
     print_row(to_display, positions)
     print_fn("=" * line_length)
@@ -377,9 +375,7 @@ def print_summary(
                 _,
             ) in node.iterate_inbound():
                 connections.append(
-                    "{}[{}][{}]".format(
-                        inbound_layer.name, node_index, tensor_index
-                    )
+                    f"{inbound_layer.name}[{node_index}][{tensor_index}]"
                 )
 
         name = layer.name
@@ -440,9 +436,9 @@ def print_summary(
 
     non_trainable_count = count_params(model.non_trainable_weights)
 
-    print_fn("Total params: {:,}".format(trainable_count + non_trainable_count))
-    print_fn("Trainable params: {:,}".format(trainable_count))
-    print_fn("Non-trainable params: {:,}".format(non_trainable_count))
+    print_fn(f"Total params: {trainable_count + non_trainable_count:,}")
+    print_fn(f"Trainable params: {trainable_count:,}")
+    print_fn(f"Non-trainable params: {non_trainable_count:,}")
     print_fn("_" * line_length)
 
 

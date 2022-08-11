@@ -46,7 +46,7 @@ class PreprocessingLayerTest(tf.test.TestCase):
             self.assertEqual(len(a), len(b))
             for key, a_value in a.items():
                 b_value = b[key]
-                error_message = "{} ({})".format(msg, key) if msg else None
+                error_message = f"{msg} ({key})" if msg else None
                 self.assertAllCloseOrEqual(a_value, b_value, error_message)
         elif (
             isinstance(a, float)
@@ -71,7 +71,7 @@ class PreprocessingLayerTest(tf.test.TestCase):
         identical."""
         if len(data) < 4:
             raise AssertionError(
-                f"Data must have at least 4 elements. Received "
+                "Data must have at least 4 elements. Received "
                 f"len(data)={len(data)}."
             )
         data_0 = np.array([data[0]])
@@ -104,8 +104,10 @@ class PreprocessingLayerTest(tf.test.TestCase):
         self.compare_accumulators(
             all_merge,
             unordered_all_merge,
-            msg="The order of merge arguments should not change the data "
-            "output.",
+            msg=(
+                "The order of merge arguments should not change the data "
+                "output."
+            ),
         )
 
         hierarchical_merge = combiner.merge(
@@ -140,8 +142,10 @@ class PreprocessingLayerTest(tf.test.TestCase):
         self.compare_accumulators(
             all_merge,
             mixed_compute,
-            msg="Mixing merge and compute calls should not change the data "
-            "output.",
+            msg=(
+                "Mixing merge and compute calls should not change the data "
+                "output."
+            ),
         )
 
         single_merge = combiner.merge(
@@ -153,15 +157,16 @@ class PreprocessingLayerTest(tf.test.TestCase):
         self.compare_accumulators(
             all_merge,
             single_merge,
-            msg="Calling merge with a data length of 1 should not change "
-            "the data output.",
+            msg=(
+                "Calling merge with a data length of 1 should not change "
+                "the data output."
+            ),
         )
 
         self.compare_accumulators(
             expected,
             all_merge,
-            msg="Calculated accumulators "
-            "did not match expected accumulator.",
+            msg="Calculated accumulators did not match expected accumulator.",
         )
 
     def validate_accumulator_extract(self, combiner, data, expected):

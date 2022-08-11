@@ -249,9 +249,7 @@ def _generate_object_paths(object_graph_def):
         for reference in object_graph_def.nodes[current_node].children:
             if reference.node_id in paths:
                 continue
-            paths[reference.node_id] = "{}.{}".format(
-                current_path, reference.local_name
-            )
+            paths[reference.node_id] = f"{current_path}.{reference.local_name}"
             nodes_to_visit.append(reference.node_id)
 
     return paths
@@ -384,7 +382,7 @@ class KerasObjectLoader:
                     )
                     children.append((metric, reference.node_id, metric_path))
 
-        for (obj_child, child_id, child_name) in children:
+        for obj_child, child_id, child_name in children:
             child_proto = self._proto.nodes[child_id]
 
             if not isinstance(obj_child, tf.__internal__.tracking.Trackable):
@@ -428,7 +426,7 @@ class KerasObjectLoader:
             ):
                 setter = lambda *args: None
 
-            child_path = "{}.{}".format(parent_path, child_name)
+            child_path = f"{parent_path}.{child_name}"
             self._node_paths[child_id] = child_path
             self._add_children_recreated_from_config(
                 obj_child, child_proto, child_id
@@ -598,7 +596,7 @@ class KerasObjectLoader:
             if builtin_layer:
                 raise RuntimeError(
                     f"Unable to restore object of class '{class_name}' likely "
-                    f"due to name conflict with built-in Keras class "
+                    "due to name conflict with built-in Keras class "
                     f"'{builtin_layer}'. To override the built-in Keras "
                     "definition of the object, decorate your class with "
                     "`@keras.utils.register_keras_serializable` and include "
@@ -760,8 +758,8 @@ class KerasObjectLoader:
                 for model_id in uninitialized_model_ids
             ]
             raise ValueError(
-                f"Error loading model(s) in the SavedModel format. "
-                f"The following model(s) could not be initialized: "
+                "Error loading model(s) in the SavedModel format. "
+                "The following model(s) could not be initialized: "
                 f"{uninitialized_model_names}"
             )
 
@@ -1136,9 +1134,9 @@ def revive_custom_object(identifier, metadata):
     else:
         raise ValueError(
             f"Unable to restore custom object of type {identifier}. "
-            f"Please make sure that any custom layers are included in the "
-            f"`custom_objects` arg when calling `load_model()` and make sure "
-            f"that all layers implement `get_config` and `from_config`."
+            "Please make sure that any custom layers are included in the "
+            "`custom_objects` arg when calling `load_model()` and make sure "
+            "that all layers implement `get_config` and `from_config`."
         )
 
 
@@ -1285,7 +1283,7 @@ def recursively_deserialize_keras_object(config, module_objects=None):
         ]
     else:
         raise ValueError(
-            f"Unable to decode Keras layer config. Config should be a "
+            "Unable to decode Keras layer config. Config should be a "
             f"dictionary, tuple or list. Received: config={config}"
         )
 

@@ -1585,7 +1585,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         with self.assertRaisesRegex(
             IOError,
-            "Please specify a non-directory " "filepath for ModelCheckpoint.",
+            "Please specify a non-directory filepath for ModelCheckpoint.",
         ):
             model.fit(train_ds, epochs=1, callbacks=[callback])
 
@@ -1602,7 +1602,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
         callback = keras.callbacks.ModelCheckpoint(filepath=filepath)
 
         with self.assertRaisesRegex(
-            KeyError, "Failed to format this callback " "filepath.*"
+            KeyError, "Failed to format this callback filepath.*"
         ):
             model.fit(train_ds, epochs=1, callbacks=[callback])
 
@@ -2763,7 +2763,7 @@ def list_summaries(logdir):
       ValueError: If an event file contains an summary of unexpected kind.
     """
     result = _SummaryFile()
-    for (dirpath, _, filenames) in os.walk(logdir):
+    for dirpath, _, filenames in os.walk(logdir):
         for filename in filenames:
             if not filename.startswith("events.out."):
                 continue
@@ -2930,7 +2930,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         model.fit(x, y, batch_size=2, epochs=2, callbacks=[tb_cbk])
 
         events_file_run_basenames = set()
-        for (dirpath, _, filenames) in os.walk(self.train_dir):
+        for dirpath, _, filenames in os.walk(self.train_dir):
             if any(fn.startswith("events.out.") for fn in filenames):
                 events_file_run_basenames.add(os.path.basename(dirpath))
         self.assertEqual(events_file_run_basenames, {"train"})
@@ -3153,11 +3153,9 @@ class TestTensorBoardV2(test_combinations.TestCase):
                 f.readlines(),
                 [
                     "embeddings {\n",
-                    (
-                        "  tensor_name: "
-                        '"layer_with_weights-0/embeddings/.ATTRIBUTES/'
-                        'VARIABLE_VALUE"\n'
-                    ),
+                    "  tensor_name: "
+                    '"layer_with_weights-0/embeddings/.ATTRIBUTES/'
+                    'VARIABLE_VALUE"\n',
                     '  metadata_path: "metadata.tsv"\n',
                     "}\n",
                 ],
@@ -3236,7 +3234,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         result = set()
         for summary in summaries:
             if "/" not in summary.tag:
-                raise ValueError("tag has no layer name: %r" % summary.tag)
+                raise ValueError(f"tag has no layer name: {summary.tag!r}")
             start_from = 2 if "subclass" in model_type else 1
             new_tag = "/".join(summary.tag.split("/")[start_from:])
             result.add(summary._replace(tag=new_tag))
@@ -3307,7 +3305,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
     def _count_trace_file(self, logdir):
         profile_dir = os.path.join(logdir, "plugins", "profile")
         count = 0
-        for (dirpath, dirnames, filenames) in os.walk(profile_dir):
+        for dirpath, dirnames, filenames in os.walk(profile_dir):
             del dirpath  # unused
             del dirnames  # unused
             for filename in filenames:
@@ -3875,7 +3873,7 @@ def events_from_logdir(logdir):
     """
     assert tf.compat.v1.gfile.Exists(logdir)
     files = tf.compat.v1.gfile.ListDirectory(logdir)
-    assert len(files) == 1, "Found not exactly one file in logdir: %s" % files
+    assert len(files) == 1, f"Found not exactly one file in logdir: {files}"
     return events_from_file(os.path.join(logdir, files[0]))
 
 

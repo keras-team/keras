@@ -206,7 +206,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Cannot register a class that does " "not have a get_config.*",
+            "Cannot register a class that does not have a get_config.*",
         ):
 
             @keras.utils.generic_utils.register_keras_serializable(

@@ -1530,12 +1530,12 @@ class NameScopingTest(test_combinations.TestCase):
                 "MatMul/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "MatMul/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "MatMul",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "BiasAdd",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp/resource",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp",
                 "call_scope/model/OuterDense/MatMul",

@@ -1075,8 +1075,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
-                object_name=f'layer "{self.name}" " \
-                f"(type {self.__class__.__name__})',
+                object_name=(
+                    f'layer "{self.name}" "                 f"(type'
+                    f" {self.__class__.__name__})"
+                ),
             )
             with contextlib.ExitStack() as namescope_stack:
                 if _is_name_scope_on_model_declaration_enabled:
@@ -1439,7 +1441,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         """
         kwargs.pop("inputs", None)
         if kwargs:
-            raise TypeError("Unknown keyword arguments: %s" % (kwargs.keys(),))
+            raise TypeError(f"Unknown keyword arguments: {kwargs.keys()}")
 
         def _tag_callable(loss):
             """Tags callable loss tensor as `_unconditional_loss`."""
@@ -1612,8 +1614,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         if not in_call_context and not is_symbolic:
             raise ValueError(
-                "Expected a symbolic Tensor for the metric value, "
-                "received: " + str(value)
+                "Expected a symbolic Tensor for the metric value, received: "
+                + str(value)
             )
 
         # If a metric was added in a Layer's `call` or `build`.
@@ -2268,7 +2270,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             self.__class__, api_name="keras", add_prefix_to_v1_names=True
         )
         if canonical_name is not None:
-            return "tf.{}".format(canonical_name)
+            return f"tf.{canonical_name}"
         return self.__class__.__module__ + "." + self.__class__.__name__
 
     def _instrument_layer_creation(self):
@@ -3609,7 +3611,7 @@ def _apply_name_scope_on_model_declaration(enable):
     """
     if not isinstance(enable, bool):
         raise TypeError(
-            "`enable` argument must be `True` or `False`, got {}".format(enable)
+            f"`enable` argument must be `True` or `False`, got {enable}"
         )
 
     global _is_name_scope_on_model_declaration_enabled

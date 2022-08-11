@@ -128,7 +128,7 @@ class Ftrl(optimizer.Optimizer):
         if initial_accumulator_value < 0.0:
             raise ValueError(
                 "`initial_accumulator_value` needs to be positive or zero. "
-                f"Received: initial_accumulator_value="
+                "Received: initial_accumulator_value="
                 f"{initial_accumulator_value}."
             )
         if learning_rate_power > 0.0:
@@ -139,13 +139,13 @@ class Ftrl(optimizer.Optimizer):
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength="
+                "Received: l1_regularization_strength="
                 f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength="
+                "Received: l2_regularization_strength="
                 f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:

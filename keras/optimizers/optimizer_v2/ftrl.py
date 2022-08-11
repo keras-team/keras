@@ -132,13 +132,13 @@ class Ftrl(optimizer_v2.OptimizerV2):
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength="
+                "Received: l1_regularization_strength="
                 f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength="
+                "Received: l2_regularization_strength="
                 f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:

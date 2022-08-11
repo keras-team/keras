@@ -103,7 +103,7 @@ class Reshape(Layer):
                     unknown = index
                 else:
                     raise ValueError(
-                        f"There must be at most one unknown dimension in "
+                        "There must be at most one unknown dimension in "
                         f"output_shape. Received: output_shape={output_shape}."
                     )
             else:

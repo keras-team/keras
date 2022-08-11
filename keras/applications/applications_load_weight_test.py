@@ -172,10 +172,10 @@ class ApplicationsLoadWeightTest(tf.test.TestCase, parameterized.TestCase):
     def assertShapeEqual(self, shape1, shape2):
         if len(shape1) != len(shape2):
             raise AssertionError(
-                "Shapes are different rank: %s vs %s" % (shape1, shape2)
+                f"Shapes are different rank: {shape1} vs {shape2}"
             )
         if shape1 != shape2:
-            raise AssertionError("Shapes differ: %s vs %s" % (shape1, shape2))
+            raise AssertionError(f"Shapes differ: {shape1} vs {shape2}")
 
     def test_application_pretrained_weights_loading(self):
         app_module = ARG_TO_MODEL[FLAGS.module][0]

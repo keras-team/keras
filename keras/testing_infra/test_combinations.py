@@ -127,7 +127,7 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
         exclude_formats.append(["h5"])
     saved_model_formats = ["h5", "tf", "tf_no_traces"]
     params = [
-        ("_%s" % saved_format, saved_format)
+        (f"_{saved_format}", saved_format)
         for saved_format in saved_model_formats
         if saved_format not in tf.nest.flatten(exclude_formats)
     ]
@@ -147,7 +147,7 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
             elif saved_format == "tf_no_traces":
                 _test_tf_saved_model_format_no_traces(f, self, *args, **kwargs)
             else:
-                raise ValueError("Unknown model type: %s" % (saved_format,))
+                raise ValueError(f"Unknown model type: {saved_format}")
 
         return decorated
 
@@ -270,7 +270,7 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
     """
     model_types = ["functional", "subclass", "sequential"]
     params = [
-        ("_%s" % model, model)
+        (f"_{model}", model)
         for model in model_types
         if model not in tf.nest.flatten(exclude_models)
     ]
@@ -290,7 +290,7 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
             elif model_type == "sequential":
                 _test_sequential_model_type(f, self, *args, **kwargs)
             else:
-                raise ValueError("Unknown model type: %s" % (model_type,))
+                raise ValueError(f"Unknown model type: {model_type}")
 
         return decorated
 
@@ -317,7 +317,7 @@ def run_all_keras_modes(
     config=None,
     always_skip_v1=False,
     always_skip_eager=False,
-    **kwargs
+    **kwargs,
 ):
     """Execute the decorated test with all keras execution modes.
 
@@ -389,7 +389,7 @@ def run_all_keras_modes(
         a target dependency.
     """
     if kwargs:
-        raise ValueError("Unrecognized keyword args: {}".format(kwargs))
+        raise ValueError(f"Unrecognized keyword args: {kwargs}")
 
     params = [("_v2_function", "v2_function")]
     if not always_skip_eager:
@@ -413,7 +413,7 @@ def run_all_keras_modes(
             elif run_mode == "v2_function":
                 _v2_function_test(f, self, *args, **kwargs)
             else:
-                return ValueError("Unknown run mode %s" % run_mode)
+                return ValueError(f"Unknown run mode {run_mode}")
 
         return decorated
 

@@ -188,9 +188,9 @@ class Bidirectional(Wrapper):
             raise ValueError(
                 "Forward layer and backward layer should have different "
                 "`go_backwards` value."
-                f"forward_layer.go_backwards = "
+                "forward_layer.go_backwards = "
                 f"{self.forward_layer.go_backwards},"
-                f"backward_layer.go_backwards = "
+                "backward_layer.go_backwards = "
                 f"{self.backward_layer.go_backwards}"
             )
 

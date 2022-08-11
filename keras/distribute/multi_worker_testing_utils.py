@@ -145,14 +145,14 @@ def _create_cluster(
     cluster_dict = {}
     if num_workers > 0:
         cluster_dict[worker_name] = [
-            "localhost:%s" % port for port in worker_ports
+            f"localhost:{port}" for port in worker_ports
         ]
     if num_ps > 0:
-        cluster_dict[ps_name] = ["localhost:%s" % port for port in ps_ports]
+        cluster_dict[ps_name] = [f"localhost:{port}" for port in ps_ports]
     if has_eval:
-        cluster_dict["evaluator"] = ["localhost:%s" % pick_unused_port()]
+        cluster_dict["evaluator"] = [f"localhost:{pick_unused_port()}"]
     if has_chief:
-        cluster_dict[chief_name] = ["localhost:%s" % pick_unused_port()]
+        cluster_dict[chief_name] = [f"localhost:{pick_unused_port()}"]
 
     cs = tf.train.ClusterSpec(cluster_dict)
 

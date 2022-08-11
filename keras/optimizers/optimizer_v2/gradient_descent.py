@@ -123,7 +123,7 @@ class SGD(optimizer_v2.OptimizerV2):
             momentum < 0 or momentum > 1
         ):
             raise ValueError(
-                f"`momentum` must be between [0, 1]. Received: "
+                "`momentum` must be between [0, 1]. Received: "
                 f"momentum={momentum} (of type {type(momentum)})."
             )
         self._set_hyper("momentum", momentum)

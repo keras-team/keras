@@ -1970,7 +1970,7 @@ def categorical_crossentropy(
     """
     if isinstance(axis, bool):
         raise ValueError(
-            f"`axis` must be of type `int`. "
+            "`axis` must be of type `int`. "
             f"Received: axis={axis} of type {type(axis)}"
         )
     y_pred = tf.convert_to_tensor(y_pred)

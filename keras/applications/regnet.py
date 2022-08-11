@@ -826,7 +826,7 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
         else:
             raise NotImplementedError(
                 f"Block type `{block_type}` not recognized."
-                f"block_type must be one of (`X`, `Y`, `Z`). "
+                "block_type must be one of (`X`, `Y`, `Z`). "
             )
         return x
 

@@ -327,7 +327,7 @@ class CallbackList:
 
     def _call_batch_begin_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_begin` methods."""
-        hook_name = "on_{mode}_batch_begin".format(mode=mode)
+        hook_name = f"on_{mode}_batch_begin"
         self._call_batch_hook_helper(hook_name, batch, logs)
 
         if self._check_timing:
@@ -335,7 +335,7 @@ class CallbackList:
 
     def _call_batch_end_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_end` methods."""
-        hook_name = "on_{mode}_batch_end".format(mode=mode)
+        hook_name = f"on_{mode}_batch_end"
 
         if self._check_timing and batch >= 1:
             batch_time = time.time() - self._batch_start_time
@@ -345,7 +345,7 @@ class CallbackList:
 
         if len(self._batch_times) >= self._num_batches_for_timing_check:
             end_hook_name = hook_name
-            begin_hook_name = "on_{mode}_batch_begin".format(mode=mode)
+            begin_hook_name = f"on_{mode}_batch_begin"
             avg_batch_time = sum(self._batch_times) / len(self._batch_times)
             avg_end_hook_time = sum(self._hook_times[end_hook_name]) / len(
                 self._hook_times[end_hook_name]
@@ -1361,7 +1361,7 @@ class ModelCheckpoint(Callback):
             else:
                 raise TypeError(
                     "If save_weights_only is True, then `options` must be "
-                    f"either None or a tf.train.CheckpointOptions. "
+                    "either None or a tf.train.CheckpointOptions. "
                     f"Got {options}."
                 )
         else:
@@ -1372,7 +1372,7 @@ class ModelCheckpoint(Callback):
             else:
                 raise TypeError(
                     "If save_weights_only is False, then `options` must be "
-                    f"either None or a tf.saved_model.SaveOptions. "
+                    "either None or a tf.saved_model.SaveOptions. "
                     f"Got {options}."
                 )
 
@@ -1402,7 +1402,7 @@ class ModelCheckpoint(Callback):
 
         if mode not in ["auto", "min", "max"]:
             logging.warning(
-                "ModelCheckpoint mode %s is unknown, " "fallback to auto mode.",
+                "ModelCheckpoint mode %s is unknown, fallback to auto mode.",
                 mode,
             )
             mode = "auto"
@@ -1984,7 +1984,7 @@ class EarlyStopping(Callback):
 
         if mode not in ["auto", "min", "max"]:
             logging.warning(
-                "EarlyStopping mode %s is unknown, " "fallback to auto mode.",
+                "EarlyStopping mode %s is unknown, fallback to auto mode.",
                 mode,
             )
             mode = "auto"
@@ -2138,8 +2138,8 @@ class RemoteMonitor(Callback):
                 )
         except requests.exceptions.RequestException:
             logging.warning(
-                "Warning: could not reach RemoteMonitor "
-                "root server at " + str(self.root)
+                "Warning: could not reach RemoteMonitor root server at "
+                + str(self.root)
             )
 
 
@@ -2857,7 +2857,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         embeddings_ckpt = os.path.join(
             self._log_write_dir,
             "train",
-            "keras_embedding.ckpt-{}".format(epoch),
+            f"keras_embedding.ckpt-{epoch}",
         )
         self.model.save_weights(embeddings_ckpt)
 
@@ -2947,7 +2947,7 @@ class ReduceLROnPlateau(Callback):
         self.monitor = monitor
         if factor >= 1.0:
             raise ValueError(
-                f"ReduceLROnPlateau does not support "
+                "ReduceLROnPlateau does not support "
                 f"a factor >= 1.0. Got {factor}"
             )
         if "epsilon" in kwargs:
@@ -3023,7 +3023,7 @@ class ReduceLROnPlateau(Callback):
                         if self.verbose > 0:
                             io_utils.print_msg(
                                 f"\nEpoch {epoch +1}: "
-                                f"ReduceLROnPlateau reducing "
+                                "ReduceLROnPlateau reducing "
                                 f"learning rate to {new_lr}."
                             )
                         self.cooldown_counter = self.cooldown
@@ -3084,7 +3084,7 @@ class CSVLogger(Callback):
                 isinstance(k, collections.abc.Iterable)
                 and not is_zero_dim_ndarray
             ):
-                return '"[%s]"' % (", ".join(map(str, k)))
+                return f"\"[{', '.join(map(str, k))}]\""
             else:
                 return k
 

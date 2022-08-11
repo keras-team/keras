@@ -104,7 +104,7 @@ def build_all_signature_defs(
     signature_def_map = {}
     excluded_signatures = {}
     for output_key, export_output in export_outputs.items():
-        signature_name = "{}".format(output_key or "None")
+        signature_name = f"{output_key or 'None'}"
         try:
             signature = export_output.as_signature_def(receiver_tensors)
             signature_def_map[signature_name] = signature
@@ -188,7 +188,7 @@ def _log_signature_report(signature_def_map, excluded_signatures):
             "be served via TensorFlow Serving APIs:"
         )
         for signature_name, message in excluded_signatures.items():
-            logging.info("'{}' : {}".format(signature_name, message))
+            logging.info(f"'{signature_name}' : {message}")
 
     if not signature_def_map:
         logging.warning("Export includes no signatures!")
@@ -273,7 +273,7 @@ def get_temp_export_dir(timestamped_export_dir):
         str_name = str(basename)
     temp_export_dir = tf.io.gfile.join(
         tf.compat.as_bytes(dirname),
-        tf.compat.as_bytes("temp-{}".format(str_name)),
+        tf.compat.as_bytes(f"temp-{str_name}"),
     )
     return temp_export_dir
 

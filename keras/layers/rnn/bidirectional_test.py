@@ -663,8 +663,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_last_output_with_masking(self):
         rnn = keras.layers.LSTM
@@ -696,8 +697,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters([keras.layers.LSTM, keras.layers.GRU])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_sequence_output_with_masking(self, rnn):
         samples = 2
@@ -925,8 +927,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters(["ave", "concat", "mul"])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm RNN does not support ragged "
-        "tensors yet.",
+        skip_message=(
+            "Skipping as ROCm RNN does not support ragged tensors yet."
+        ),
     )
     def test_Bidirectional_ragged_input(self, merge_mode):
         np.random.seed(100)

@@ -456,7 +456,7 @@ class TestDistributionStrategyWithNumpyArrays(
                 # Computed global batch size can not be sharded across replicas
                 with self.assertRaisesRegex(
                     ValueError,
-                    "could not be sharded evenly " "across the sync replicas",
+                    "could not be sharded evenly across the sync replicas",
                 ):
                     distributed_training_utils_v1.get_input_params(
                         distribution, 63, steps=1, batch_size=None

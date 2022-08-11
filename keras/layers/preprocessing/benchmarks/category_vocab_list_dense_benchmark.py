@@ -77,7 +77,7 @@ class BenchmarkLayer(fc_bm.LayerBenchmark):
 
     def benchmark_layer(self):
         for batch in BATCH_SIZES:
-            name = "vocab_list|dense|batch_%s" % batch
+            name = f"vocab_list|dense|batch_{batch}"
             k_time, f_time = embedding_varlen(batch_size=batch, max_length=256)
             self.report(name, k_time, f_time, NUM_REPEATS)
 

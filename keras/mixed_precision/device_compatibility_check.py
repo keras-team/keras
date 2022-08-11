@@ -77,7 +77,7 @@ def _log_device_compatibility_check(policy_name, gpu_details_list):
         name = details.get("device_name", "Unknown GPU")
         cc = details.get("compute_capability")
         if cc:
-            device_str = "%s, compute capability %s.%s" % (name, cc[0], cc[1])
+            device_str = f"{name}, compute capability {cc[0]}.{cc[1]}"
             if cc >= (7, 0):
                 supported_device_strs.append(device_str)
             else:

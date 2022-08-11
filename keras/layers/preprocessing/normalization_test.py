@@ -199,11 +199,9 @@ class NormalizationTest(
     def test_list_input(self):
         with self.assertRaisesRegex(
             ValueError,
-            (
-                "Normalization only accepts a single input. If you are "
-                "passing a python list or tuple as a single input, "
-                "please convert to a numpy array or `tf.Tensor`."
-            ),
+            "Normalization only accepts a single input. If you are "
+            "passing a python list or tuple as a single input, "
+            "please convert to a numpy array or `tf.Tensor`.",
         ):
             normalization.Normalization()([1, 2, 3])
 

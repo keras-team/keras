@@ -815,7 +815,7 @@ def load_weights_from_hdf5_group(f, model):
     layer_names = filtered_layer_names
     if len(layer_names) != len(filtered_layers):
         raise ValueError(
-            f"Layer count mismatch when loading weights from file. "
+            "Layer count mismatch when loading weights from file. "
             f"Model expected {len(filtered_layers)} layers, found "
             f"{len(layer_names)} saved layers."
         )
@@ -849,8 +849,8 @@ def load_weights_from_hdf5_group(f, model):
         )
         if len(weight_values) != len(symbolic_weights):
             raise ValueError(
-                f"Weight count mismatch for top-level weights when loading "
-                f"weights from file. "
+                "Weight count mismatch for top-level weights when loading "
+                "weights from file. "
                 f"Model expects {len(symbolic_weights)} top-level weight(s). "
                 f"Received {len(weight_values)} saved top-level weight(s)"
             )
@@ -937,7 +937,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                             f"{layer.name}) due to mismatch in shape for "
                             f"weight {symbolic_weights[i].name}. "
                             f"Weight expects shape {expected_shape}. "
-                            f"Received saved weight "
+                            "Received saved weight "
                             f"with shape {received_shape}"
                         )
                         continue
@@ -945,7 +945,7 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                         f"Shape mismatch in layer #{k} (named {layer.name}) "
                         f"for weight {symbolic_weights[i].name}. "
                         f"Weight expects shape {expected_shape}. "
-                        f"Received saved weight "
+                        "Received saved weight "
                         f"with shape {received_shape}"
                     )
                 else:
@@ -964,17 +964,17 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
         if len(weight_values) != len(symbolic_weights):
             if skip_mismatch:
                 logging.warning(
-                    f"Skipping loading top-level weights for model due to "
-                    f"mismatch in number of weights. "
+                    "Skipping loading top-level weights for model due to "
+                    "mismatch in number of weights. "
                     f"Model expects {len(symbolic_weights)} "
-                    f"top-level weight(s). "
+                    "top-level weight(s). "
                     f"Received {len(weight_values)} saved top-level weight(s)"
                 )
             else:
                 raise ValueError(
-                    f"Weight count mismatch for top-level weights of model. "
+                    "Weight count mismatch for top-level weights of model. "
                     f"Model expects {len(symbolic_weights)} "
-                    f"top-level weight(s). "
+                    "top-level weight(s). "
                     f"Received {len(weight_values)} saved top-level weight(s)"
                 )
         else:
@@ -984,19 +984,19 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                 if expected_shape != received_shape:
                     if skip_mismatch:
                         logging.warning(
-                            f"Skipping loading top-level weight for model due "
-                            f"to mismatch in shape for "
+                            "Skipping loading top-level weight for model due "
+                            "to mismatch in shape for "
                             f"weight {symbolic_weights[i].name}. "
                             f"Weight expects shape {expected_shape}. "
-                            f"Received saved weight "
+                            "Received saved weight "
                             f"with shape {received_shape}"
                         )
                     else:
                         raise ValueError(
-                            f"Shape mismatch in model for top-level weight "
+                            "Shape mismatch in model for top-level weight "
                             f"{symbolic_weights[i].name}. "
                             f"Weight expects shape {expected_shape}. "
-                            f"Received saved weight "
+                            "Received saved weight "
                             f"with shape {received_shape}"
                         )
                 else:
@@ -1109,8 +1109,8 @@ def _legacy_weights(layer):
     weights = layer.trainable_weights + layer.non_trainable_weights
     if any(not isinstance(w, tf.Variable) for w in weights):
         raise NotImplementedError(
-            f"Save or restore weights that is not an instance of `tf.Variable` "
-            f"is not supported in h5, use `save_format='tf'` instead. Received "
+            "Save or restore weights that is not an instance of `tf.Variable` "
+            "is not supported in h5, use `save_format='tf'` instead. Received "
             f"a model or layer {layer.__class__.__name__} "
             f"with weights {weights}"
         )

@@ -227,8 +227,7 @@ class Node:
                 + " was passed non-JSON-serializable arguments. "
                 + "Arguments had types: "
                 + str(kwarg_types)
-                + ". They cannot be serialized out "
-                "when saving the model."
+                + ". They cannot be serialized out when saving the model."
             )
 
         # `kwargs` is added to each Tensor in the first arg. This should be
