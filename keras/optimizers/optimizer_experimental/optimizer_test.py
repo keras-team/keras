@@ -610,7 +610,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
                         )(labels, output_1)
                     grads_1 = tape.gradient(loss_1, model_1.trainable_variables)
                     optimizer_1.apply_gradients(
-                        zip(grads_1, model_1.trainable_variables)
+                        zip(grads_1, model_1.trainable_variables),
+                        skip_gradients_aggregation=False,
                     )
 
                     with tf.GradientTape() as tape:
@@ -620,7 +621,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
                         )(labels, output_2)
                     grads_2 = tape.gradient(loss_2, model_2.trainable_variables)
                     optimizer_2.apply_gradients(
-                        zip(grads_2, model_2.trainable_variables)
+                        zip(grads_2, model_2.trainable_variables),
+                        experimental_aggregate_gradients=True,
                     )
 
                 strategy.run(replica_fn, args=(next(iter(ds)),))
