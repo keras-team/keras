@@ -930,7 +930,11 @@ class Optimizer(_BaseOptimizer):
         return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
     def apply_gradients(
-        self, grads_and_vars, name=None, skip_gradients_aggregation=False
+        self,
+        grads_and_vars,
+        name=None,
+        skip_gradients_aggregation=False,
+        **kwargs,
     ):
         """Apply gradients to variables.
 
@@ -941,6 +945,7 @@ class Optimizer(_BaseOptimizer):
           skip_gradients_aggregation: If true, gradients aggregation will not be
             performed inside optimizer. Usually this arg is set to True when you
             write custom code aggregating gradients outside the optimizer.
+          **kwargs: keyword arguments only used for backward compatibility.
 
         Returns:
           A `tf.Variable`, representing the current iteration.
@@ -949,7 +954,13 @@ class Optimizer(_BaseOptimizer):
           TypeError: If `grads_and_vars` is malformed.
           RuntimeError: If called in a cross-replica context.
         """
-        if not skip_gradients_aggregation:
+        # `experimental_aggregate_gradients` is an arg in `apply_gradients` of
+        # v2 optimizer -- the reverse of `skip_gradients_aggregation`.
+        # We read it from kwargs for backward compatibility.
+        experimental_aggregate_gradients = kwargs.pop(
+            "experimental_aggregate_gradients", True
+        )
+        if not skip_gradients_aggregation and experimental_aggregate_gradients:
             grads_and_vars = self.aggregate_gradients(grads_and_vars)
         return super().apply_gradients(grads_and_vars, name=name)
 
