@@ -56,7 +56,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
             for path in class_paths:
                 os.mkdir(os.path.join(temp_dir, path))
             paths += class_paths
-
+            
         for i in range(count):
             path = paths[i % len(paths)]
             filename = os.path.join(path, f"text_{i}.txt")
@@ -74,11 +74,9 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         for i in range(3):
             filename = f"text_{i}.txt"
             with open(os.path.join(directory, filename), "w") as f:
-                text = "".join(
-                    [random.choice(string.printable) for _ in range(20)]
-                )
+                text = "".join([random.choice(string.printable) for _ in range(20)])
                 f.write(text)
-
+                
         dataset = text_dataset.text_dataset_from_directory(
             directory, batch_size=5, label_mode=None, max_length=10
         )
