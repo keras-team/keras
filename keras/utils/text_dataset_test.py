@@ -74,7 +74,9 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         for i in range(3):
             filename = f"text_{i}.txt"
             with open(os.path.join(directory, filename), "w") as f:
-                text = "".join([random.choice(string.printable) for _ in range(20)])
+                text = "".join(
+                    [random.choice(string.printable) for _ in range(20)]
+                )
                 f.write(text)
                 
         dataset = text_dataset.text_dataset_from_directory(
