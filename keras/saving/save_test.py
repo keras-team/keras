@@ -1401,6 +1401,32 @@ class TestWholeModelSaving(test_combinations.TestCase):
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     @test_utils.run_v2_only
+    def test_save_functional_with_constant_string_input(self):
+        input1 = keras.Input(shape=[2], dtype=tf.string)
+        input2 = tf.constant([["単", "に"]])
+        outputs = keras.layers.Concatenate()([input1, input2])
+        model = keras.Model(input1, outputs)
+        saved_model_dir = self._save_model_dir()
+        model.save(saved_model_dir)
+        loaded_model = keras.models.load_model(saved_model_dir)
+        x = tf.constant([["a", "b"]])
+        self.assertAllEqual(model(x), loaded_model(x))
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    @test_utils.run_v2_only
+    def test_save_functional_with_ragged_constant_string_input(self):
+        input1 = keras.Input(shape=[1], dtype=tf.string)
+        input2 = tf.ragged.constant([["単", "に"], ["単"]])
+        outputs = keras.layers.Concatenate(axis=0)([input1, input2])
+        model = keras.Model(input1, outputs)
+        saved_model_dir = self._save_model_dir()
+        model.save(saved_model_dir)
+        loaded_model = keras.models.load_model(saved_model_dir)
+        x = tf.constant([["a"]])
+        self.assertAllEqual(model(x), loaded_model(x))
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    @test_utils.run_v2_only
     def test_save_inputs_spec_with_composite_tensor_names(self):
         class KerasModel(keras.Model):
             def call(self, inputs):

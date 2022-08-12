@@ -96,6 +96,12 @@ class JsonUtilsTest(test_combinations.TestCase):
         loaded = json_utils.decode(string)
         self.assertAllEqual(loaded, x)
 
+    def test_encode_decode_bytes(self):
+        b_string = b"abc"
+        json_string = json_utils.Encoder().encode(b_string)
+        loaded = json_utils.decode(json_string)
+        self.assertAllEqual(b_string, loaded)
+
 
 if __name__ == "__main__":
     tf.test.main()

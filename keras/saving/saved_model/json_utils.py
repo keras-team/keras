@@ -136,6 +136,8 @@ def _decode_helper(
                 )
             except ValueError:
                 pass
+        elif obj["class_name"] == "__bytes__":
+            return obj["value"].encode("utf-8")
     return obj
 
 
@@ -217,6 +219,9 @@ def get_json_type(obj):
 
     if isinstance(obj, enum.Enum):
         return obj.value
+
+    if isinstance(obj, bytes):
+        return {"class_name": "__bytes__", "value": obj.decode("utf-8")}
 
     raise TypeError(
         f"Unable to serialize {obj} to JSON. Unrecognized type {type(obj)}."
