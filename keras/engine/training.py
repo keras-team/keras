@@ -2757,7 +2757,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         While the formats are the same, do not mix `save_weights` and
         `tf.train.Checkpoint`. Checkpoints saved by `Model.save_weights` should
         be loaded using `Model.load_weights`. Checkpoints saved using
-        `tf.train.Checkpoint.save` should be restored using the corresponding
+        [tf.train.Checkpoint.save](https://www.tensorflow.org/api_docs/python/tf/train/Checkpoint#save) should be restored using the corresponding
         `tf.train.Checkpoint.restore`. Prefer `tf.train.Checkpoint` over
         `save_weights` for training checkpoints.
 
