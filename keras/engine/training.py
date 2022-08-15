@@ -653,8 +653,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               strings 'accuracy' or 'acc', we convert this to one of
               `tf.keras.metrics.BinaryAccuracy`,
               `tf.keras.metrics.CategoricalAccuracy`,
-              `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
-              function used and the model output shape. We do a similar
+              `tf.keras.metrics.SparseCategoricalAccuracy` based on the shapes
+              of the targets and of the model output. We do a similar
               conversion for the strings 'crossentropy' and 'ce' as well.
               The metrics passed here are evaluated without sample weighting; if
               you would like sample weighting to apply, you can specify your
