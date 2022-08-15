@@ -382,26 +382,6 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             model.optimizer.iterations.numpy(),
         )
 
-    def testRestoreOldOptimizerCheckpoint(self):
-        inputs = keras.layers.Input(shape=(1,))
-        outputs = keras.layers.Dense(1)(inputs)
-        model = keras.Model(inputs=inputs, outputs=outputs)
-        optimizer = adam_old.Adam()
-        x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
-        y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
-        model.compile(loss="mse", optimizer=optimizer)
-        path = os.path.join(self.get_temp_dir(), "ckpt")
-        checkpoint_callback = keras.callbacks.ModelCheckpoint(path)
-        model.fit(x, y, callbacks=[checkpoint_callback])
-
-        new_model = keras.Model(inputs=inputs, outputs=outputs)
-        new_optimizer = adam_new.Adam()
-        new_model.compile(loss="mse", optimizer=new_optimizer)
-        with self.assertRaisesRegex(
-            ValueError, "You are trying to restore a checkpoint*"
-        ):
-            new_model.load_weights(path)
-
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSaveAndLoadOptimizerWithModel(self, optimizer_fn):
         inputs = keras.layers.Input(shape=(1,))
