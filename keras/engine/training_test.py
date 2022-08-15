@@ -2173,7 +2173,8 @@ class TrainingTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_ema_overwrite(self):
-
+        if not tf.__internal__.tf2.enabled():
+            self.skipTest("EMA optimizer is only available in TF2.")
         model = sequential.Sequential()
         model.add(input_layer.Input(shape=(4,)))
         model.add(layers_module.Dense(1, activation="relu"))
