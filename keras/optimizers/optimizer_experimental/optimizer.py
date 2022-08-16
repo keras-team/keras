@@ -118,6 +118,16 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                     " for `optimizer_experimental.Optimizer`."
                 )
 
+    def _create_or_restore_slot_variable(self, **kwargs):
+        raise ValueError(
+            "You are trying to restore a checkpoint from a legacy Keras "
+            "optimizer into a v2.11+ Optimizer, which can cause "
+            "errors. Please update the optimizer referenced in your code "
+            "to be an instance of "
+            "`tf.keras.optimizers.legacy.Optimizer`, e.g.: "
+            f"`tf.keras.optimizer.legacy.{self.__class__.__name__}`."
+        )
+
     def _var_key(self, variable):
         """Get a unique identifier of the given variable."""
         # Get the distributed variable if it exists.
