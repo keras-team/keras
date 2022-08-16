@@ -78,7 +78,7 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
                     [random.choice(string.printable) for _ in range(20)]
                 )
                 f.write(text)
- 
+
         dataset = text_dataset.text_dataset_from_directory(
             directory, batch_size=5, label_mode=None, max_length=10
         )
