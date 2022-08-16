@@ -251,10 +251,16 @@ def get(identifier, **kwargs):
         (
             Optimizer,
             base_optimizer_v2.OptimizerV2,
-            optimizer_experimental.Optimizer,
         ),
     ):
         return identifier
+    elif isinstance(identifier, optimizer_experimental.Optimizer):
+        if tf.__internal__.tf2.enabled():
+            return identifier
+        else:
+            # If TF2 is disabled, we convert to the legacy optimizer.
+            return convert_to_legacy_optimizer(identifier)
+
     # Wrap legacy TF optimizer instances
     elif isinstance(identifier, tf.compat.v1.train.Optimizer):
         opt = TFOptimizer(identifier)
