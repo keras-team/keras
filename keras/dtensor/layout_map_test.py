@@ -414,6 +414,9 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
         self.assertEqual(model.layers[0].kernel.name, "d1/kernel:0")
         self.assertEqual(model.layers[0].bias.name, "d1/bias:0")
 
+    @tf.compat.v1.test.mock.patch.dict(
+        "os.environ", {"DTENSOR_ENABLE_CHECKPOINT_V2": "True"}
+    )
     def test_checkpoint(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
         with layout_map.scope():
@@ -423,13 +426,19 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
                     SubclassLayer(10),
                 ]
             )
-        cpt = tf.experimental.dtensor.DTensorCheckpoint(
-            mesh=self.mesh, root=model
+        cpt = tf.train.Checkpoint(root=model)
+        options = tf.train.CheckpointOptions(
+            experimental_io_device=dtensor.device_name()
         )
         tmpdir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
-        saved_path = cpt.save(os.path.join(tmpdir, "checkpoint"))
-        cpt.restore(saved_path)
+
+        saved_path = cpt.save(
+            os.path.join(tmpdir, "checkpoint"),
+            options=options,
+        )
+
+        cpt.restore(saved_path, options=options)
 
 
 if __name__ == "__main__":
