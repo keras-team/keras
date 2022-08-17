@@ -3833,7 +3833,10 @@ def concat(tensors, axis=0):
     """Concats `tensor`s along `axis`."""
     if isinstance(tensors[0], tf.SparseTensor):
         return tf.sparse.concat(axis=axis, sp_inputs=tensors)
-    return tf.concat(tensors, axis=axis)
+    elif _is_scalar(tensors[0]):
+        return tf.stack(tensors, axis=axis)
+    else:
+        return tf.concat(tensors, axis=axis)
 
 
 def potentially_ragged_concat(tensors):
@@ -3861,7 +3864,10 @@ def potentially_ragged_concat(tensors):
     )
     if tf.math.reduce_all(constant_dims).numpy().item():
         # All non-batch dims are constant
-        return tf.concat(tensors, axis=0)
+        if _is_scalar(tensors[0]):
+            return tf.stack(tensors, axis=0)
+        else:
+            return tf.concat(tensors, axis=0)
 
     # First, identify constant inner dimensions by finding the
     # rightmost dimension that is not constant
