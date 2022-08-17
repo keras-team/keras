@@ -368,6 +368,7 @@ class TestDistributionStrategyDnnCorrectness(
         Arguments:
           distribution: distribute test configuration
         """
+        self.skipTest("TODO(b/234354008): Requires fetching data from network.")
         (train_images, train_labels), _ = fashion_mnist.load_data()
         # add channel dimension to make 2D data into 3D, since some ops of the
         # model require it.
