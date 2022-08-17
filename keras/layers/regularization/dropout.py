@@ -14,6 +14,7 @@
 # ==============================================================================
 """Contains the Dropout layer."""
 
+import numbers
 
 import tensorflow.compat.v2 as tf
 
@@ -105,6 +106,9 @@ class Dropout(base_layer.BaseRandomLayer):
         return tf.convert_to_tensor(noise_shape)
 
     def call(self, inputs, training=None):
+        if isinstance(self.rate, numbers.Real) and self.rate == 0:
+            return tf.identity(inputs)
+
         if training is None:
             training = backend.learning_phase()
 
