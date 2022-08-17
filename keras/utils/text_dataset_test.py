@@ -60,12 +60,11 @@ class TextDatasetFromDirectoryTest(test_combinations.TestCase):
         for i in range(count):
             path = paths[i % len(paths)]
             filename = os.path.join(path, f"text_{i}.txt")
-            f = open(os.path.join(temp_dir, filename), "w")
-            text = "".join(
-                [random.choice(string.printable) for _ in range(length)]
-            )
-            f.write(text)
-            f.close()
+            with open(os.path.join(temp_dir, filename), "w") as f:
+                text = "".join(
+                    [random.choice(string.printable) for _ in range(length)]
+                )
+                f.write(text)
         return temp_dir
 
     def test_text_dataset_from_directory_standalone(self):
