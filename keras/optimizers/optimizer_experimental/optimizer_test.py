@@ -302,9 +302,11 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             use_ema=True,
             ema_momentum=0.5,
             ema_overwrite_frequency=50,
+            name="custom_adam",
         )
         config = optimizer.get_config()
         expected_config = {
+            "name": "custom_adam",
             "learning_rate": np.float32(0.05),
             "beta_1": 0.7,
             "beta_2": 0.77,
