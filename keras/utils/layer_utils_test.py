@@ -75,9 +75,8 @@ class LayerUtilsTest(tf.test.TestCase):
             layer_utils.print_summary(model, print_fn=print_to_file)
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             self.assertEqual(len(lines), 15)
         except ImportError:
             pass
@@ -153,9 +152,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
@@ -226,9 +223,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The output content are slightly different for the input shapes
             # between v1 and v2.
             if tf.__internal__.tf2.enabled():
@@ -264,9 +260,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "trainable"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
@@ -286,9 +281,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 15)
@@ -331,9 +324,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model_2"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
@@ -362,9 +354,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
@@ -399,9 +389,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The expected lenght with no layer filter is 15
             # we filtered out 2 lines by excluding the layer 'dense'
             self.assertEqual(len(lines), 15 - 2)
@@ -447,9 +436,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model"\n'
                 "_________________________________________________________________\n"  # noqa: E501
