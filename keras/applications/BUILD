@@ -18,6 +18,7 @@ py_library(
         "convnext.py",
         "densenet.py",
         "efficientnet.py",
+        "efficientnet_lite.py",
         "efficientnet_v2.py",
         "imagenet_utils.py",
         "inception_resnet_v2.py",

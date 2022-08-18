@@ -1,0 +1,625 @@
+import copy
+import math
+
+import tensorflow.compat.v2 as tf
+
+from keras import backend
+from keras import layers
+from keras.applications import efficientnet
+from keras.applications import imagenet_utils
+from keras.utils import data_utils
+from keras.utils import layer_utils
+
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+
+WEIGHTS_BASE_URL = "https://storage.googleapis.com/keras-applications/"
+
+WEIGHTS_HASHES = {
+    # Lite variants are ending with lite<number>, e.g lite0, lite1 etc.
+    "e0": (
+        "a1fac1765ff9bff7776d7363ff4ab6aa",
+        "219361f78697276dbd254abb00cc6c94",
+    ),
+    "e1": (
+        "60953b9cbe6dae1962c7ab1e2526372e",
+        "8795803d7dc8ba7cc0d325d0a9190fb1",
+    ),
+    "e2": (
+        "a8ea4d2559a62b13237190c797051233",
+        "a1b0962e9648ec4b090a480bd78b1e61",
+    ),
+    "e3": (
+        "4240c64bcdef593895e0f77832ee753e",
+        "34f0d1eaaeaf601ec463f3281d012586",
+    ),
+    "e4": (
+        "c8d5b68b8c02463a6d980032b0f35add",
+        "ec01dca94123384d6e86c86445ed3bf6",
+    ),
+}
+
+BASE_DOCSTRING = """Instantiates the {name} architecture.
+
+  Reference:
+  - [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](
+      https://arxiv.org/abs/1905.11946) (ICML 2019)
+  - [EfficientNet Lites on GitHub](
+      https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/lite/README.md
+    )
+
+  This function returns a Keras image classification model,
+  optionally loaded with weights pre-trained on ImageNet.
+
+  For image classification use cases, see
+  [this page for detailed examples](
+    https://keras.io/api/applications/#usage-examples-for-image-classification-models).
+
+  For transfer learning use cases, make sure to read the
+  [guide to transfer learning & fine-tuning](
+    https://keras.io/guides/transfer_learning/).
+
+  Note: each Keras Application expects a specific kind of input preprocessing.
+  For EfficientNetLite, input preprocessing is included as part of the model
+  (as a `Normalization` layer), and thus
+  `tf.keras.applications.efficientnet_lite.preprocess_input` is actually a
+  pass-through function. EfficientNetLite models expect their inputs to be float
+  tensors of pixels with values in the [0-255] range. At the same time,
+  preprocessing as a part of the model (i.e. Normalization layer) can be
+  disabled by setting `include_preprocessing` argument to `False`. With
+  preprocessing disabled EfficientNetLite models expect their inputs to be
+  float tensors of pixels with values in the [-1, 1] range.
+
+  Args:
+    include_top: Whether to include the fully-connected
+        layer at the top of the network. Defaults to True.
+    weights: One of `None` (random initialization),
+          'imagenet' (pre-training on ImageNet),
+          or the path to the weights file to be loaded. Defaults to 'imagenet'.
+    input_tensor: Optional Keras tensor
+        (i.e. output of `layers.Input()`)
+        to use as image input for the model.
+    input_shape: Optional shape tuple, only to be specified
+        if `include_top` is False.
+        It should have exactly 3 inputs channels.
+    pooling: Optional pooling mode for feature extraction
+        when `include_top` is `False`. Defaults to None.
+        - `None` means that the output of the model will be
+            the 4D tensor output of the
+            last convolutional layer.
+        - `avg` means that global average pooling
+            will be applied to the output of the
+            last convolutional layer, and thus
+            the output of the model will be a 2D tensor.
+        - `max` means that global max pooling will
+            be applied.
+    classes: Optional number of classes to classify images
+        into, only to be specified if `include_top` is True, and
+        if no `weights` argument is specified. Defaults to 1000 (number of
+        ImageNet classes).
+    classifier_activation: A `str` or callable. The activation function to use
+        on the "top" layer. Ignored unless `include_top=True`. Set
+        `classifier_activation=None` to return the logits of the "top" layer.
+        Defaults to 'softmax'.
+        When loading pretrained weights, `classifier_activation` can only
+        be `None` or `"softmax"`.
+
+  Returns:
+    A `keras.Model` instance.
+"""
+
+
+def EfficientNetLite(
+    width_coefficient,
+    depth_coefficient,
+    default_size,
+    dropout_rate=0.2,
+    drop_connect_rate=0.2,
+    depth_divisor=8,
+    activation="relu6",
+    blocks_args="default",
+    model_name="efficientnet",
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+    include_preprocessing=True,
+):
+    """
+    Instantiate the EfficientNet architecture using given scaling coefficients.
+
+    Args:
+        width_coefficient: float, scaling coefficient for network width.
+        depth_coefficient: float, scaling coefficient for network depth.
+        default_size: integer, default input image size.
+        dropout_rate: float, dropout rate before final classifier layer.
+        drop_connect_rate: float, dropout rate at skip connections.
+        depth_divisor:  integer, a unit of network width.
+        activation: activation function.
+        blocks_args: list of dicts, parameters to construct block modules.
+        model_name: string, model name.
+        include_top: whether to include the fully-connected
+            layer at the top of the network.
+        weights: 'imagenet' or path to weights file.
+        input_tensor: optional Keras tensor
+            (i.e. output of `layers.Input()`)
+            to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False.
+            It should have exactly 3 inputs channels.
+        pooling: when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
+        classifier_activation: A `str` or callable.
+            The activation function to use on the "top" layer. Ignored unless
+            `include_top=True`. Set`classifier_activation=None`
+            to return the logits of the "top" layer.
+        include_preprocessing: Boolean, whether to include the preprocessing
+            layer (`Rescaling`) at the bottom of the network. Defaults to
+            `True`.  Note: Input image is normalized by ImageNet mean and
+            standard deviation.
+
+    Returns:
+        A `keras.Model` instance.
+
+    Raises:
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
+        ValueError: if `classifier_activation` is not `softmax` or `None` when
+            using a pretrained top layer.
+    """
+    if blocks_args == "default":
+        # By default, we use EfficientNet V1 blocks args
+        blocks_args = efficientnet.DEFAULT_BLOCKS_ARGS
+
+    if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
+        raise ValueError(
+            "The `weights` argument should be either "
+            "`None` (random initialization), `imagenet` "
+            "(pre-training on ImageNet), "
+            "or the path to the weights file to be loaded."
+        )
+
+    if weights == "imagenet" and include_top and classes != 1000:
+        raise ValueError(
+            'If using `weights` as `"imagenet"` with `include_top`'
+            " as true, `classes` should be 1000"
+        )
+
+    # Determine proper input shape
+    input_shape = imagenet_utils.obtain_input_shape(
+        input_shape,
+        default_size=default_size,
+        min_size=32,
+        data_format=backend.image_data_format(),
+        require_flatten=include_top,
+        weights=weights,
+    )
+    if input_tensor is None:
+        img_input = layers.Input(shape=input_shape)
+    else:
+        if not backend.is_keras_tensor(input_tensor):
+            img_input = layers.Input(tensor=input_tensor, shape=input_shape)
+        else:
+            img_input = input_tensor
+
+    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+
+    # Build stem
+    x = img_input
+
+    if include_preprocessing:
+        x = layers.Normalization(mean=127.0, variance=128.0**2, axis=bn_axis)(
+            x
+        )
+
+    x = layers.ZeroPadding2D(
+        padding=imagenet_utils.correct_pad(x, 3), name="stem_conv_pad"
+    )(x)
+    x = layers.Conv2D(
+        32,
+        3,
+        strides=2,
+        padding="valid",
+        use_bias=False,
+        kernel_initializer=efficientnet.CONV_KERNEL_INITIALIZER,
+        name="stem_conv",
+    )(x)
+    x = layers.BatchNormalization(axis=bn_axis, name="stem_bn")(x)
+    x = layers.Activation(activation, name="stem_activation")(x)
+
+    # Build blocks
+    blocks_args = copy.deepcopy(blocks_args)
+    b = 0
+    blocks = float(sum(args["repeats"] for args in blocks_args))
+
+    for (i, args) in enumerate(blocks_args):
+        # Lite variant do not use Squeeze and Excitation block:
+        args.pop("se_ratio")
+
+        assert args["repeats"] > 0
+        # Update block input and output filters based on depth multiplier.
+        args["filters_in"] = round_filters(
+            filters=args["filters_in"],
+            width_coefficient=width_coefficient,
+            depth_divisor=depth_divisor,
+        )
+        args["filters_out"] = round_filters(
+            filters=args["filters_out"],
+            width_coefficient=width_coefficient,
+            depth_divisor=depth_divisor,
+        )
+
+        if i == 0 or i == (len(blocks_args) - 1):
+            repeats = args.pop("repeats")
+        else:
+            repeats = round_repeats(
+                repeats=args.pop("repeats"), depth_coefficient=depth_coefficient
+            )
+
+        for j in range(repeats):
+            # The first block needs to take care of stride and filter size
+            # increase.
+            if j > 0:
+                args["strides"] = 1
+                args["filters_in"] = args["filters_out"]
+            x = BlockLite(
+                activation=activation,
+                drop_rate=drop_connect_rate * b / blocks,
+                name="block{}{}_".format(i + 1, chr(j + 97)),
+                **args,
+            )(x)
+
+            b += 1
+    # Build top
+    x = layers.Conv2D(
+        1280,
+        1,
+        padding="same",
+        use_bias=False,
+        kernel_initializer=efficientnet.CONV_KERNEL_INITIALIZER,
+        name="top_conv",
+    )(x)
+    x = layers.BatchNormalization(axis=bn_axis, name="top_bn")(x)
+    x = layers.Activation(activation, name="top_activation")(x)
+
+    if include_top:
+        x = layers.GlobalAveragePooling2D(name="avg_pool")(x)
+        if dropout_rate > 0:
+            x = layers.Dropout(dropout_rate, name="top_dropout")(x)
+        imagenet_utils.validate_activation(classifier_activation, weights)
+        x = layers.Dense(
+            classes,
+            activation=classifier_activation,
+            kernel_initializer=efficientnet.DENSE_KERNEL_INITIALIZER,
+            name="predictions",
+        )(x)
+    else:
+        if pooling == "avg":
+            x = layers.GlobalAveragePooling2D(name="avg_pool")(x)
+        elif pooling == "max":
+            x = layers.GlobalMaxPooling2D(name="max_pool")(x)
+
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = layer_utils.get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+
+    # Create model.
+    model = tf.keras.Model(inputs, x, name=model_name)
+
+    # Load weights.
+    if weights == "imagenet":
+        if include_top:
+            file_suffix = ".h5"
+            file_hash = WEIGHTS_HASHES[model_name[-2:]][0]
+        else:
+            file_suffix = "_notop.h5"
+            file_hash = WEIGHTS_HASHES[model_name[-2:]][1]
+        file_name = model_name + file_suffix
+        weights_path = data_utils.get_file(
+            file_name,
+            WEIGHTS_BASE_URL + file_name,
+            cache_subdir="models",
+            file_hash=file_hash,
+        )
+        model.load_weights(weights_path)
+    elif weights is not None:
+        model.load_weights(weights)
+    return model
+
+
+def round_filters(filters, depth_divisor, width_coefficient):
+    """Round number of filters based on depth multiplier."""
+    filters *= width_coefficient
+    new_filters = max(
+        depth_divisor,
+        int(filters + depth_divisor / 2) // depth_divisor * depth_divisor,
+    )
+    # Make sure that round down does not go down by more than 10%.
+    if new_filters < 0.9 * filters:
+        new_filters += depth_divisor
+    return int(new_filters)
+
+
+def round_repeats(repeats, depth_coefficient):
+    """Round number of repeats based on depth multiplier."""
+    return int(math.ceil(depth_coefficient * repeats))
+
+
+def BlockLite(
+    activation="relu6",
+    drop_rate=0.0,
+    name="",
+    filters_in=32,
+    filters_out=16,
+    kernel_size=3,
+    strides=1,
+    expand_ratio=1,
+    id_skip=True,
+):
+    """
+    Create an inverted residual block.
+
+    This is standard EfficientNet V1 block, without Squeeze and Excitation part
+    and ReLU6 activation instead of swish.
+
+    Args:
+        activation: string, activation function.
+        drop_rate: float between 0 and 1, fraction of the input units to drop.
+        name: string, block label.
+        filters_in: integer, the number of input filters.
+        filters_out: integer, the number of output filters.
+        kernel_size: integer, the dimension of the convolution window.
+        strides: integer, the stride of the convolution.
+        expand_ratio: integer, scaling coefficient for the input filters.
+        id_skip: boolean.
+
+    Returns:
+        output tensor for the block.
+    """
+    bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
+
+    def apply(inputs):
+        # Expansion phase
+        filters = filters_in * expand_ratio
+        if expand_ratio != 1:
+            x = layers.Conv2D(
+                filters,
+                1,
+                padding="same",
+                use_bias=False,
+                kernel_initializer=efficientnet.CONV_KERNEL_INITIALIZER,
+                name=name + "expand_conv",
+            )(inputs)
+            x = layers.BatchNormalization(
+                axis=bn_axis, name=name + "expand_bn"
+            )(x)
+            x = layers.Activation(activation, name=name + "expand_activation")(
+                x
+            )
+        else:
+            x = inputs
+
+        # Depthwise Convolution
+        if strides == 2:
+            x = layers.ZeroPadding2D(
+                padding=imagenet_utils.correct_pad(x, kernel_size),
+                name=name + "dwconv_pad",
+            )(x)
+            conv_pad = "valid"
+        else:
+            conv_pad = "same"
+        x = layers.DepthwiseConv2D(
+            kernel_size,
+            strides=strides,
+            padding=conv_pad,
+            use_bias=False,
+            depthwise_initializer=efficientnet.CONV_KERNEL_INITIALIZER,
+            name=name + "dwconv",
+        )(x)
+        x = layers.BatchNormalization(axis=bn_axis, name=name + "bn")(x)
+        x = layers.Activation(activation, name=name + "activation")(x)
+
+        # Skip SE block
+        # Output phase
+        x = layers.Conv2D(
+            filters_out,
+            1,
+            padding="same",
+            use_bias=False,
+            kernel_initializer=efficientnet.CONV_KERNEL_INITIALIZER,
+            name=name + "project_conv",
+        )(x)
+        x = layers.BatchNormalization(axis=bn_axis, name=name + "project_bn")(x)
+        if id_skip and strides == 1 and filters_in == filters_out:
+            if drop_rate > 0:
+                x = layers.Dropout(
+                    drop_rate, noise_shape=(None, 1, 1, 1), name=name + "drop"
+                )(x)
+            x = layers.add([x, inputs], name=name + "add")
+        return x
+
+    return apply
+
+
+def EfficientNetLiteB0(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+):
+    """Create EfficientNetLite B0 variant."""
+    return EfficientNetLite(
+        1.0,
+        1.0,
+        224,
+        0.2,
+        model_name="efficientnetlite0",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
+        classifier_activation=classifier_activation,
+    )
+
+
+def EfficientNetLiteB1(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+):
+    """Create EfficientNetLite B1 variant."""
+    return EfficientNetLite(
+        1.0,
+        1.1,
+        240,
+        0.2,
+        model_name="efficientnetlite1",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
+        classifier_activation=classifier_activation,
+    )
+
+
+def EfficientNetLiteB2(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+):
+    """Create EfficientNetLite B2 variant."""
+    return EfficientNetLite(
+        1.1,
+        1.2,
+        260,
+        0.3,
+        model_name="efficientnetlite2",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
+        classifier_activation=classifier_activation,
+    )
+
+
+def EfficientNetLiteB3(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+):
+    """Create EfficientNetLite B3 variant."""
+    return EfficientNetLite(
+        1.2,
+        1.4,
+        280,
+        0.3,
+        model_name="efficientnetlite3",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
+        classifier_activation=classifier_activation,
+    )
+
+
+def EfficientNetLiteB4(
+    include_top=True,
+    weights="imagenet",
+    input_tensor=None,
+    input_shape=None,
+    pooling=None,
+    classes=1000,
+    classifier_activation="softmax",
+):
+    """Create EfficientNetLite B4 variant."""
+    return EfficientNetLite(
+        1.4,
+        1.8,
+        300,
+        0.3,
+        model_name="efficientnetlite4",
+        include_top=include_top,
+        weights=weights,
+        input_tensor=input_tensor,
+        input_shape=input_shape,
+        pooling=pooling,
+        classes=classes,
+        classifier_activation=classifier_activation,
+    )
+
+
+EfficientNetLiteB0.__doc__ = BASE_DOCSTRING.format(name="EfficientNetLiteB0")
+EfficientNetLiteB1.__doc__ = BASE_DOCSTRING.format(name="EfficientNetLiteB1")
+EfficientNetLiteB2.__doc__ = BASE_DOCSTRING.format(name="EfficientNetLiteB2")
+EfficientNetLiteB3.__doc__ = BASE_DOCSTRING.format(name="EfficientNetLiteB3")
+EfficientNetLiteB4.__doc__ = BASE_DOCSTRING.format(name="EfficientNetLiteB4")
+
+
+@keras_export("keras.applications.efficientnet_lite.preprocess_input")
+def preprocess_input(x, data_format=None):
+    """A placeholder method for backward compatibility.
+
+    The preprocessing logic has been included in the efficientnet lite model
+    implementation. Users are no longer required to call this method to
+    normalize the input data. This method does nothing and only kept as a
+    placeholder to align the API surface between old and new version of model.
+
+    Args:
+      x: A floating point `numpy.array` or a `tf.Tensor`.
+      data_format: Optional data format of the image tensor/array. Defaults to
+        None, in which case the global setting
+        `tf.keras.backend.image_data_format()` is used (unless you changed it,
+        it defaults to "channels_last").{mode}
+
+    Returns:
+      Unchanged `numpy.array` or `tf.Tensor`.
+    """
+    return x
+
+
+@keras_export("keras.applications.efficientnet_lite.decode_predictions")
+def decode_predictions(preds, top=5):
+    return imagenet_utils.decode_predictions(preds, top=top)
+
+
+decode_predictions.__doc__ = imagenet_utils.decode_predictions.__doc__

@@ -69,6 +69,7 @@ MODEL_LIST_NO_NASNET = [
     (efficientnet.EfficientNetB5, 2048),
     (efficientnet.EfficientNetB6, 2304),
     (efficientnet.EfficientNetB7, 2560),
+    # TODO: efficientnet_lite after weight upload.
     (efficientnet_v2.EfficientNetV2B0, 1280),
     (efficientnet_v2.EfficientNetV2B1, 1280),
     (efficientnet_v2.EfficientNetV2B2, 1408),

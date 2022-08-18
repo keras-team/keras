@@ -41,6 +41,7 @@ import warnings
 
 import tensorflow.compat.v2 as tf
 from tensorflow.keras.applications import efficientnet
+from tensorflow.keras.applications import efficientnet_lite
 
 from keras.utils import io_utils
 
@@ -372,6 +373,11 @@ if __name__ == "__main__":
         "b5": efficientnet.EfficientNetB5,
         "b6": efficientnet.EfficientNetB6,
         "b7": efficientnet.EfficientNetB7,
+        "b0-lite": efficientnet_lite.EfficientNetLiteB0,
+        "b1-lite": efficientnet_lite.EfficientNetLiteB1,
+        "b2-lite": efficientnet_lite.EfficientNetLiteB2,
+        "b3-lite": efficientnet_lite.EfficientNetLiteB3,
+        "b4-lite": efficientnet_lite.EfficientNetLiteB4,
     }
 
     p = argparse.ArgumentParser(

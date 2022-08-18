@@ -86,6 +86,7 @@ ARG_TO_MODEL = {
             efficientnet.EfficientNetB7,
         ],
     ),
+    # TODO: efficientnet_lite - after weight upload.
     "efficientnet_v2": (
         efficientnet_v2,
         [
