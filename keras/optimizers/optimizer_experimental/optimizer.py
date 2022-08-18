@@ -639,6 +639,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             Python dictionary.
         """
         config = {
+            "name": self.name,
             "clipnorm": self.clipnorm,
             "global_clipnorm": self.global_clipnorm,
             "clipvalue": self.clipvalue,

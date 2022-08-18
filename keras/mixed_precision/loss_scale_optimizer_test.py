@@ -742,7 +742,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         class MyOptimizer(sgd_experimental.SGD):
             def apply_gradients(
-                self, grads_and_vars, skip_gradients_aggregation=False
+                self,
+                grads_and_vars,
+                skip_gradients_aggregation=False,
+                experimental_aggregate_gradients=True,
             ):
                 for grad, _ in grads_and_vars:
                     outer_self.assertIsInstance(grad, tf.Tensor)

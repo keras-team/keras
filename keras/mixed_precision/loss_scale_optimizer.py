@@ -1270,7 +1270,9 @@ class LossScaleOptimizerV3(
         unscaled_grads = self.get_unscaled_gradients(grads)
         return list(zip(unscaled_grads, weights))
 
-    def apply_gradients(self, grads_and_vars, skip_gradients_aggregation=False):
+    def apply_gradients(
+        self, grads_and_vars, skip_gradients_aggregation=False, **kwargs
+    ):
         if tf.distribute.in_cross_replica_context():
             raise ValueError(
                 "apply_gradients() must be called in a replica context."
@@ -1284,7 +1286,13 @@ class LossScaleOptimizerV3(
         )
 
         grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
-        if not skip_gradients_aggregation:
+        # `experimental_aggregate_gradients` is an arg in `apply_gradients` of
+        # v2 optimizer -- the reverse of `skip_gradients_aggregation`.
+        # We read it from kwargs for backward compatibility.
+        experimental_aggregate_gradients = kwargs.pop(
+            "experimental_aggregate_gradients", True
+        )
+        if not skip_gradients_aggregation and experimental_aggregate_gradients:
             # We must aggregate the gradients here instead of in
             # self.optimizer.apply_gradients, so that any NaN or Inf gradients
             # are propagated to each replica. If any replica has a NaN or Inf
