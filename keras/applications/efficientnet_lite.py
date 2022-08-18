@@ -103,6 +103,9 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
         Defaults to 'softmax'.
         When loading pretrained weights, `classifier_activation` can only
         be `None` or `"softmax"`.
+    include_preprocessing: Boolean, whether to include the preprocessing
+        layer (`Normalization`) at the bottom of the network. Defaults to
+        `True`.
 
   Returns:
     A `keras.Model` instance.
@@ -118,7 +121,7 @@ def EfficientNetLite(
     depth_divisor=8,
     activation="relu6",
     blocks_args="default",
-    model_name="efficientnet",
+    model_name="efficientnetlite",
     include_top=True,
     weights="imagenet",
     input_tensor=None,
@@ -168,7 +171,7 @@ def EfficientNetLite(
             `include_top=True`. Set`classifier_activation=None`
             to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing
-            layer (`Rescaling`) at the bottom of the network. Defaults to
+            layer (`Normalization`) at the bottom of the network. Defaults to
             `True`.  Note: Input image is normalized by ImageNet mean and
             standard deviation.
 
@@ -182,7 +185,6 @@ def EfficientNetLite(
             using a pretrained top layer.
     """
     if blocks_args == "default":
-        # By default, we use EfficientNet V1 blocks args
         blocks_args = efficientnet.DEFAULT_BLOCKS_ARGS
 
     if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
@@ -247,7 +249,7 @@ def EfficientNetLite(
     blocks = float(sum(args["repeats"] for args in blocks_args))
 
     for (i, args) in enumerate(blocks_args):
-        # Lite variant do not use Squeeze and Excitation block:
+        # Lite variants do not use Squeeze and Excitation block:
         args.pop("se_ratio")
 
         assert args["repeats"] > 0
@@ -458,6 +460,7 @@ def BlockLite(
     return apply
 
 
+@keras_export("keras.applications.efficientnet_lite.EfficientNetLiteB0")
 def EfficientNetLiteB0(
     include_top=True,
     weights="imagenet",
@@ -484,6 +487,7 @@ def EfficientNetLiteB0(
     )
 
 
+@keras_export("keras.applications.efficientnet_lite.EfficientNetLiteB1")
 def EfficientNetLiteB1(
     include_top=True,
     weights="imagenet",
@@ -510,6 +514,7 @@ def EfficientNetLiteB1(
     )
 
 
+@keras_export("keras.applications.efficientnet_lite.EfficientNetLiteB2")
 def EfficientNetLiteB2(
     include_top=True,
     weights="imagenet",
@@ -536,6 +541,7 @@ def EfficientNetLiteB2(
     )
 
 
+@keras_export("keras.applications.efficientnet_lite.EfficientNetLiteB3")
 def EfficientNetLiteB3(
     include_top=True,
     weights="imagenet",
@@ -562,6 +568,7 @@ def EfficientNetLiteB3(
     )
 
 
+@keras_export("keras.applications.efficientnet_lite.EfficientNetLiteB4")
 def EfficientNetLiteB4(
     include_top=True,
     weights="imagenet",
