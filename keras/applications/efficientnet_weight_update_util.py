@@ -385,12 +385,6 @@ if __name__ == "__main__":
         choices=arg_to_model.keys(),
     )
     p.add_argument(
-        "--lite",
-        action="store_true",
-        help="Whether to use lite variant of the model.",
-        default=False,
-    )
-    p.add_argument(
         "--notop",
         action="store_true",
         help="do not include top layers",
@@ -404,7 +398,5 @@ if __name__ == "__main__":
 
     include_top = not args.notop
 
-    model = arg_to_model[args.model](
-        include_top=include_top, lite=args.lite, weights=None
-    )
+    model = arg_to_model[args.model](include_top=include_top, weights=None)
     write_ckpt_to_h5(args.output, args.ckpt, keras_model=model)

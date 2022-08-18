@@ -71,27 +71,6 @@ WEIGHTS_HASHES = {
         "8c03f828fec3ef71311cd463b6759d99",
         "cbcfe4450ddf6f3ad90b1b398090fe4a",
     ),
-    # Lite variants are ending with lite<number>, e.g lite0, lite1 etc.
-    "e0": (
-        "a1fac1765ff9bff7776d7363ff4ab6aa",
-        "219361f78697276dbd254abb00cc6c94",
-    ),
-    "e1": (
-        "60953b9cbe6dae1962c7ab1e2526372e",
-        "8795803d7dc8ba7cc0d325d0a9190fb1",
-    ),
-    "e2": (
-        "a8ea4d2559a62b13237190c797051233",
-        "a1b0962e9648ec4b090a480bd78b1e61",
-    ),
-    "e3": (
-        "4240c64bcdef593895e0f77832ee753e",
-        "34f0d1eaaeaf601ec463f3281d012586",
-    ),
-    "e4": (
-        "c8d5b68b8c02463a6d980032b0f35add",
-        "ec01dca94123384d6e86c86445ed3bf6",
-    ),
 }
 
 DEFAULT_BLOCKS_ARGS = [
@@ -223,10 +202,6 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
     input_shape: Optional shape tuple, only to be specified
         if `include_top` is False.
         It should have exactly 3 inputs channels.
-    lite: Optional boolean, whether to create a 'lite' variant of the network.
-        Note, that only B0-B4 variants have lite option. For more details on
-        lite variants, you can read:
-        https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/lite/README.md
     pooling: Optional pooling mode for feature extraction
         when `include_top` is `False`. Defaults to None.
         - `None` means that the output of the model will be
@@ -262,7 +237,6 @@ def EfficientNet(
     depth_coefficient,
     default_size,
     dropout_rate=0.2,
-    lite=False,
     drop_connect_rate=0.2,
     depth_divisor=8,
     activation="swish",
@@ -283,8 +257,6 @@ def EfficientNet(
       depth_coefficient: float, scaling coefficient for network depth.
       default_size: integer, default input image size.
       dropout_rate: float, dropout rate before final classifier layer.
-      lite: optional bool, whether to create 'lite' variant of the network.
-          Note: only B0-B4 variants have lite version.
       drop_connect_rate: float, dropout rate at skip connections.
       depth_divisor: integer, a unit of network width.
       activation: activation function.
@@ -345,13 +317,6 @@ def EfficientNet(
             " as true, `classes` should be 1000"
         )
 
-    if lite and not model_name.endswith(("0", "1", "2", "3", "4")):
-        raise ValueError(
-            "`lite` option is only available for B0, B1, B2, B3 and B4 "
-            f"variants. Attempted to create EfficientNet lite {model_name[-2:]}"
-            f" variant."
-        )
-
     # Determine proper input shape
     input_shape = imagenet_utils.obtain_input_shape(
         input_shape,
@@ -389,31 +354,23 @@ def EfficientNet(
 
     # Build stem
     x = img_input
-
-    if lite:
-        x = layers.Normalization(mean=127.0, variance=128.0**2)(x)
-    else:
-        x = layers.Rescaling(1.0 / 255.0)(x)
-        x = layers.Normalization(axis=bn_axis)(x)
-
-    if weights == "imagenet" and not lite:
-        # Note that the normalization layer uses square value of STDDEV as the
+    x = layers.Rescaling(1.0 / 255.0)(x)
+    x = layers.Normalization(axis=bn_axis)(x)
+    if weights == "imagenet":
+        # Note that the normaliztion layer uses square value of STDDEV as the
         # variance for the layer: result = (input - mean) / sqrt(var)
-        # However, the original implementation uses (input - mean) / var to
+        # However, the original implemenetation uses (input - mean) / var to
         # normalize the input, we need to divide another sqrt(var) to match the
         # original implementation.
         # See https://github.com/tensorflow/tensorflow/issues/49930 for more
-        # details.
-        # This doesn't apply to `lite` variants, which follow different
-        # preprocessing.
+        # details
         x = layers.Rescaling(1.0 / tf.math.sqrt(IMAGENET_STDDEV_RGB))(x)
 
     x = layers.ZeroPadding2D(
         padding=imagenet_utils.correct_pad(x, 3), name="stem_conv_pad"
     )(x)
-
     x = layers.Conv2D(
-        32 if lite else round_filters(32),
+        round_filters(32),
         3,
         strides=2,
         padding="valid",
@@ -428,25 +385,14 @@ def EfficientNet(
     blocks_args = copy.deepcopy(blocks_args)
 
     b = 0
-    if lite:
-        blocks = float(sum(args["repeats"] for args in blocks_args))
-    else:
-        blocks = float(
-            sum(round_repeats(args["repeats"]) for args in blocks_args)
-        )
-
+    blocks = float(sum(round_repeats(args["repeats"]) for args in blocks_args))
     for i, args in enumerate(blocks_args):
         assert args["repeats"] > 0
         # Update block input and output filters based on depth multiplier.
         args["filters_in"] = round_filters(args["filters_in"])
         args["filters_out"] = round_filters(args["filters_out"])
 
-        if lite and i in (0, len(blocks_args) - 1):
-            repeats = args.pop("repeats")
-        else:
-            repeats = round_repeats(args.pop("repeats"))
-
-        for j in range(repeats):
+        for j in range(round_repeats(args.pop("repeats"))):
             # The first block needs to take care of stride and filter size
             # increase.
             if j > 0:
@@ -456,7 +402,6 @@ def EfficientNet(
                 x,
                 activation,
                 drop_connect_rate * b / blocks,
-                lite=lite,
                 name=f"block{i + 1}{chr(j + 97)}_",
                 **args,
             )
@@ -464,7 +409,7 @@ def EfficientNet(
 
     # Build top
     x = layers.Conv2D(
-        1280 if lite else round_filters(1280),
+        round_filters(1280),
         1,
         padding="same",
         use_bias=False,
@@ -525,7 +470,6 @@ def block(
     inputs,
     activation="swish",
     drop_rate=0.0,
-    lite=False,
     name="",
     filters_in=32,
     filters_out=16,
@@ -541,7 +485,6 @@ def block(
         inputs: input tensor.
         activation: activation function.
         drop_rate: float between 0 and 1, fraction of the input units to drop.
-        lite: boolean, whether to use `lite` block variant.
         name: string, block label.
         filters_in: integer, the number of input filters.
         filters_out: integer, the number of output filters.
@@ -593,7 +536,7 @@ def block(
     x = layers.Activation(activation, name=name + "activation")(x)
 
     # Squeeze and Excitation phase
-    if 0 < se_ratio <= 1 and not lite:
+    if 0 < se_ratio <= 1:
         filters_se = max(1, int(filters_in * se_ratio))
         se = layers.GlobalAveragePooling2D(name=name + "se_squeeze")(x)
         if bn_axis == 1:
@@ -645,7 +588,6 @@ def block(
 def EfficientNetB0(
     include_top=True,
     weights="imagenet",
-    lite=False,
     input_tensor=None,
     input_shape=None,
     pooling=None,
@@ -658,11 +600,9 @@ def EfficientNetB0(
         1.0,
         224,
         0.2,
-        lite=lite,
-        model_name="efficientnetlite0" if lite else "efficientnetb0",
+        model_name="efficientnetb0",
         include_top=include_top,
         weights=weights,
-        activation="relu6" if lite else "swish",
         input_tensor=input_tensor,
         input_shape=input_shape,
         pooling=pooling,
@@ -679,7 +619,6 @@ def EfficientNetB0(
 def EfficientNetB1(
     include_top=True,
     weights="imagenet",
-    lite=False,
     input_tensor=None,
     input_shape=None,
     pooling=None,
@@ -692,11 +631,9 @@ def EfficientNetB1(
         1.1,
         240,
         0.2,
-        lite=lite,
-        model_name="efficientnetlite1" if lite else "efficientnetb1",
+        model_name="efficientnetb1",
         include_top=include_top,
         weights=weights,
-        activation="relu6" if lite else "swish",
         input_tensor=input_tensor,
         input_shape=input_shape,
         pooling=pooling,
@@ -713,7 +650,6 @@ def EfficientNetB1(
 def EfficientNetB2(
     include_top=True,
     weights="imagenet",
-    lite=False,
     input_tensor=None,
     input_shape=None,
     pooling=None,
@@ -726,11 +662,9 @@ def EfficientNetB2(
         1.2,
         260,
         0.3,
-        lite=lite,
-        model_name="efficientnetlite2" if lite else "efficientnetb2",
+        model_name="efficientnetb2",
         include_top=include_top,
         weights=weights,
-        activation="relu6" if lite else "swish",
         input_tensor=input_tensor,
         input_shape=input_shape,
         pooling=pooling,
@@ -747,7 +681,6 @@ def EfficientNetB2(
 def EfficientNetB3(
     include_top=True,
     weights="imagenet",
-    lite=False,
     input_tensor=None,
     input_shape=None,
     pooling=None,
@@ -758,13 +691,11 @@ def EfficientNetB3(
     return EfficientNet(
         1.2,
         1.4,
-        280 if lite else 300,
+        300,
         0.3,
-        lite=lite,
-        model_name="efficientnetlite3" if lite else "efficientnetb3",
+        model_name="efficientnetb3",
         include_top=include_top,
         weights=weights,
-        activation="relu6" if lite else "swish",
         input_tensor=input_tensor,
         input_shape=input_shape,
         pooling=pooling,
@@ -781,7 +712,6 @@ def EfficientNetB3(
 def EfficientNetB4(
     include_top=True,
     weights="imagenet",
-    lite=False,
     input_tensor=None,
     input_shape=None,
     pooling=None,
@@ -792,11 +722,9 @@ def EfficientNetB4(
     return EfficientNet(
         1.4,
         1.8,
-        300 if lite else 380,
-        0.3 if lite else 0.4,
-        lite=lite,
-        model_name="efficientnetlite4" if lite else "efficientnetb4",
-        activation="relu6" if lite else "swish",
+        380,
+        0.4,
+        model_name="efficientnetb4",
         include_top=include_top,
         weights=weights,
         input_tensor=input_tensor,
