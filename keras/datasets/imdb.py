@@ -202,7 +202,7 @@ def get_word_index(path="imdb_word_index.json"):
     inverted_word_index[start_char] = "[START]"
     inverted_word_index[oov_char] = "[OOV]"
     # Decode the first sequence in the dataset
-    decoded_sequence = " ".join(inverted_word_index[i] for i in x_train[0])
+    decoded_sequence = " ".join(inverted_word_index.get(i - 3, "?") for i in x_train[0])
     ```
     """
     origin_folder = (
