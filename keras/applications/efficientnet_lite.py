@@ -39,6 +39,73 @@ WEIGHTS_HASHES = {
     ),
 }
 
+
+DEFAULT_BLOCKS_ARGS = [
+    {
+        "kernel_size": 3,
+        "repeats": 1,
+        "filters_in": 32,
+        "filters_out": 16,
+        "expand_ratio": 1,
+        "id_skip": True,
+        "strides": 1,
+    },
+    {
+        "kernel_size": 3,
+        "repeats": 2,
+        "filters_in": 16,
+        "filters_out": 24,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 2,
+    },
+    {
+        "kernel_size": 5,
+        "repeats": 2,
+        "filters_in": 24,
+        "filters_out": 40,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 2,
+    },
+    {
+        "kernel_size": 3,
+        "repeats": 3,
+        "filters_in": 40,
+        "filters_out": 80,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 2,
+    },
+    {
+        "kernel_size": 5,
+        "repeats": 3,
+        "filters_in": 80,
+        "filters_out": 112,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 1,
+    },
+    {
+        "kernel_size": 5,
+        "repeats": 4,
+        "filters_in": 112,
+        "filters_out": 192,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 2,
+    },
+    {
+        "kernel_size": 3,
+        "repeats": 1,
+        "filters_in": 192,
+        "filters_out": 320,
+        "expand_ratio": 6,
+        "id_skip": True,
+        "strides": 1,
+    },
+]
+
 BASE_DOCSTRING = """Instantiates the {name} architecture.
 
   Reference:
@@ -185,7 +252,7 @@ def EfficientNetLite(
             using a pretrained top layer.
     """
     if blocks_args == "default":
-        blocks_args = efficientnet.DEFAULT_BLOCKS_ARGS
+        blocks_args = DEFAULT_BLOCKS_ARGS
 
     if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
         raise ValueError(
@@ -249,8 +316,6 @@ def EfficientNetLite(
     blocks = float(sum(args["repeats"] for args in blocks_args))
 
     for (i, args) in enumerate(blocks_args):
-        # Lite variants do not use Squeeze and Excitation block:
-        args.pop("se_ratio")
 
         assert args["repeats"] > 0
         # Update block input and output filters based on depth multiplier.
@@ -469,6 +534,7 @@ def EfficientNetLiteB0(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    include_preprocessing=True,
 ):
     """Create EfficientNetLite B0 variant."""
     return EfficientNetLite(
@@ -484,6 +550,7 @@ def EfficientNetLiteB0(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
+        include_preprocessing=include_preprocessing,
     )
 
 
@@ -496,6 +563,7 @@ def EfficientNetLiteB1(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    include_preprocessing=True,
 ):
     """Create EfficientNetLite B1 variant."""
     return EfficientNetLite(
@@ -511,6 +579,7 @@ def EfficientNetLiteB1(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
+        include_preprocessing=include_preprocessing,
     )
 
 
@@ -523,6 +592,7 @@ def EfficientNetLiteB2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    include_preprocessing=True,
 ):
     """Create EfficientNetLite B2 variant."""
     return EfficientNetLite(
@@ -538,6 +608,7 @@ def EfficientNetLiteB2(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
+        include_preprocessing=include_preprocessing,
     )
 
 
@@ -550,6 +621,7 @@ def EfficientNetLiteB3(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    include_preprocessing=True,
 ):
     """Create EfficientNetLite B3 variant."""
     return EfficientNetLite(
@@ -565,6 +637,7 @@ def EfficientNetLiteB3(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
+        include_preprocessing=include_preprocessing,
     )
 
 
@@ -577,6 +650,7 @@ def EfficientNetLiteB4(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
+    include_preprocessing=True,
 ):
     """Create EfficientNetLite B4 variant."""
     return EfficientNetLite(
@@ -592,6 +666,7 @@ def EfficientNetLiteB4(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
+        include_preprocessing=include_preprocessing,
     )
 
 
