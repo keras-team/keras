@@ -73,6 +73,10 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
     """Adds the vocabulary as a layer weight during serialization."""
 
     def __init__(self, lookup_layer):
+        # Note that this class doesn't call super().__init__() in order to
+        # have customized behavior. The fileds like '_dtype' and
+        # '_distribute_strategy' are required by the parent class, as well as
+        # tf.distribute. See `strategy.extended.variable_created_in_scope`
         self._layer = lookup_layer
         self._dtype = lookup_layer.vocabulary_dtype
         self._distribute_strategy = tf.distribute.get_strategy()
