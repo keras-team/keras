@@ -48,6 +48,13 @@ class CategoryEncodingInputTest(
         output_data = layer(category_data, count_weights=weight_data)
         self.assertAllEqual(output_data, expected_output)
 
+    def test_compute_output_shape(self):
+        layer = category_encoding.CategoryEncoding(5)
+        output_shape = layer.compute_output_shape((None, 1))
+        self.assertListEqual(output_shape.as_list(), [None, 5])
+        output_shape = layer.compute_output_shape([None, 1])
+        self.assertListEqual(output_shape.as_list(), [None, 5])
+
     def test_dense_input_sparse_output(self):
         input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
 
