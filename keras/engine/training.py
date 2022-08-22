@@ -943,11 +943,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @property
     def distribute_reduction_method(self):
-        """Indicates how to reduce loss & metric values from replicas.
+        """The method employed to reduce per-replica values during training.
 
-        Default: `"auto"`. This should be good for general use cases.
-        It selects `"sum"` or `"first"` conditioned on the
-        specific implementation of the `tf.distribute` strategy.
+        Unless specified, the value "auto" will be assumed, indicating that
+        the reduction strategy should be chosen based on the current
+        running environment.
+        See `reduce_per_replica` function for more details.
+
         """
         return self._distribute_reduction_method or "auto"
 

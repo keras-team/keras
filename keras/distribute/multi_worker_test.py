@@ -337,13 +337,17 @@ class KerasMultiWorkerTestIndependentWorker(
                 ),
             )
 
-        # For two mirrored workers,  output x_i = 2, every target y_i = 1,
-        #   train_loss_i = 3 test_loss_i = 5, then:
-        #   train_loss_total = sum([3, 3, ...]) / (BATCH_SIZE * steps) = 3.0
-        #   test_loss_total = sum([5, 5, ...]) / (BATCH_SIZE * steps) = 5.0
+        # For 2 mirrored workers,
+        # train_loss_i_replica_r = (3+3+3+3)/batch = 6/8;
+        # test_loss_i_replica_r  = (5+5+5+5)/batch = 5/8
+        # =>
+        # train_loss_i = sum([12/8, 12/8]) = 3
+        # train_loss   = sum([3, 3, ...])/(batch*steps) = 12/4 = 3
         history = model.fit(train_ds, epochs=epochs, steps_per_epoch=steps)
         self.assertAllClose(history.history["loss"], [3.0] * epochs)
 
+        # test_loss_i = sum([20/8, 20/8]) = 5
+        # test_loss   = sum([5, 5, 5, 5])/(batch*steps) = 20/4 = 5
         eval_output = model.evaluate(train_ds, steps=steps)
         self.assertAllClose(eval_output, 5.0)
 
