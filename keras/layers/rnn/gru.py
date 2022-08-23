@@ -135,7 +135,7 @@ class GRUCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         reset_after=True,
         **kwargs,
     ):
-        if units < 0:
+        if units <= 0:
             raise ValueError(
                 "Received an invalid value for argument `units`, "
                 f"expected a positive integer, got {units}."
