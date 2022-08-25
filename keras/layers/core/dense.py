@@ -112,6 +112,7 @@ class Dense(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        factor=1.,
         **kwargs,
     ):
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
@@ -122,6 +123,7 @@ class Dense(Layer):
                 "Received an invalid value for `units`, expected "
                 f"a positive integer. Received: units={units}"
             )
+        self.factor = factor
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -257,7 +259,7 @@ class Dense(Layer):
         if is_ragged:
             outputs = original_inputs.with_flat_values(outputs)
 
-        return outputs
+        return tf.math.mul(outputs, self.factor)
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
@@ -296,6 +298,7 @@ class Dense(Layer):
                     self.kernel_constraint
                 ),
                 "bias_constraint": constraints.serialize(self.bias_constraint),
+                "factor": self.factor,
             }
         )
         return config
