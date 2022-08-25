@@ -2160,7 +2160,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 run until the input dataset is exhausted.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during prediction.
-                See [callbacks](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks).
+                See [callbacks](
+                https://www.tensorflow.org/api_docs/python/tf/keras/callbacks).
             max_queue_size: Integer. Used for generator or
                 `keras.utils.Sequence` input only. Maximum size for the
                 generator queue. If unspecified, `max_queue_size` will default
