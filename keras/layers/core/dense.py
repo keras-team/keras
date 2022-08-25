@@ -259,7 +259,7 @@ class Dense(Layer):
         if is_ragged:
             outputs = original_inputs.with_flat_values(outputs)
 
-        return tf.math.mul(outputs, self.factor)
+        return tf.math.multiply(outputs, self.factor)
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
