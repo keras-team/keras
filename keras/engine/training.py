@@ -3010,6 +3010,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         config = {}
 
         if saving_lib._ENABLED:
+            config["is_compiled"] = self._is_compiled
             if self.optimizer:
                 config["optimizer"] = saving_lib.serialize_keras_object(
                     self.optimizer
@@ -3026,15 +3027,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     @classmethod
     def from_config(cls, config, custom_objects=None):
 
-        # Grab the optimizer and loss from the `config` for `compile()` and
+        # Grab the information from the `config` for `compile()` and
         # `build()`.
+        is_compiled = config.pop("is_compiled", False)
         optimizer, loss = None, None
         optimizer_dict = config.pop("optimizer", {})
         if optimizer_dict:
-            optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
+            optimizer = saving_lib.deserialize_keras_object(
+                optimizer_dict, custom_objects
+            )
         loss_dict = config.pop("loss", {})
         if loss_dict:
-            loss = saving_lib.deserialize_keras_object(loss_dict)
+            loss = saving_lib.deserialize_keras_object(
+                loss_dict, custom_objects
+            )
         input_shape = config.pop("input_shape", {})
 
         # `from_config` assumes `cls` is either `Functional` or a child class of
@@ -3082,7 +3088,23 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
             if saving_lib._ENABLED:
 
-                if optimizer or loss:
+                has_overridden_compile = cls.compile != Model.compile
+                has_overridden_from_config = (
+                    cls.from_config.__func__.__qualname__
+                    != Model.from_config.__func__.__qualname__
+                )
+
+                if has_overridden_compile and (not has_overridden_from_config):
+                    logging.warning(
+                        "`compile()` was not called as part of model loading "
+                        "because the model's `compile()` method is custom. "
+                        "All subclassed Models that have `compile()` "
+                        "overridden should also override `from_config()` in "
+                        "order to call `compile()`. Alternatively, you can "
+                        "call `compile()` manually after loading."
+                    )
+                elif (not has_overridden_compile) and is_compiled:
+                    # TODO(rchao): Handle other compile args.
                     model.compile(optimizer=optimizer, loss=loss)
 
                 if input_shape:
@@ -3752,7 +3774,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return self._is_compiled
 
     def _save_new(self, dirpath):
-        return saving_lib.save(self, dirpath)
+        return saving_lib.save_model(self, dirpath)
 
 
 def reduce_per_replica(values, strategy, reduction="auto"):

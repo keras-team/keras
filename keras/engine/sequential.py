@@ -23,7 +23,9 @@ from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
 from keras.engine import input_layer
+from keras.engine import training
 from keras.engine import training_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -452,7 +454,9 @@ class Sequential(functional.Functional):
             # `self._self_tracked_trackables` is managed by the tracking
             # infrastructure and should not be used.
             layer_configs.append(generic_utils.serialize_keras_object(layer))
-        config = {"name": self.name, "layers": copy.deepcopy(layer_configs)}
+        config = training.Model.get_config(self)
+        config["name"] = self.name
+        config["layers"] = copy.deepcopy(layer_configs)
         if not self._is_graph_network and self._build_input_shape is not None:
             config["build_input_shape"] = self._build_input_shape
         return config
@@ -473,12 +477,50 @@ class Sequential(functional.Functional):
                 layer_config, custom_objects=custom_objects
             )
             model.add(layer)
+
+        if saving_lib._ENABLED:
+
+            # Grab the information from the `config` for `compile()` and
+            # `build()`.
+            is_compiled = config.pop("is_compiled", False)
+            optimizer, loss = None, None
+            optimizer_dict = config.pop("optimizer", {})
+            if optimizer_dict:
+                optimizer = saving_lib.deserialize_keras_object(
+                    optimizer_dict, custom_objects
+                )
+            loss_dict = config.pop("loss", {})
+            if loss_dict:
+                loss = saving_lib.deserialize_keras_object(
+                    loss_dict, custom_objects
+                )
+
+            has_overridden_compile = cls.compile != Sequential.compile
+            has_overridden_from_config = (
+                cls.from_config.__func__.__qualname__
+                != Sequential.from_config.__func__.__qualname__
+            )
+            if has_overridden_compile and (not has_overridden_from_config):
+                logging.warning(
+                    "`compile()` was not called as part of model loading "
+                    "because the model's `compile()` method is custom. "
+                    "All subclassed Models that have `compile()` "
+                    "overridden should also override `from_config()` in order "
+                    "to call `compile()`. Alternatively, you can call "
+                    "`compile()` manually after loading."
+                )
+
+            if (not has_overridden_compile) and is_compiled:
+                # TODO(rchao): Handle other compile args.
+                model.compile(optimizer=optimizer, loss=loss)
+
         if (
             not model.inputs
             and build_input_shape
             and isinstance(build_input_shape, (tuple, list))
         ):
             model.build(build_input_shape)
+
         return model
 
     @property
