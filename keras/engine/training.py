@@ -1117,10 +1117,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """
         del x  # The default implementation does not use `x`.
         self.compiled_metrics.update_state(y, y_pred, sample_weight)
-        return self._get_metrics_result()
+        return self.get_metrics_result()
 
-    def _get_metrics_result(self):
-        """Returns model metrics as a dict.
+    def get_metrics_result(self):
+        """Returns the model's metrics values as a dict.
+
+        If any of the metric result is a dict (containing multiple metrics),
+        each of them gets added to the top level returned dict of this method.
 
         Returns:
           A `dict` containing values of the metrics listed in `self.metrics`.
@@ -1166,7 +1169,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Using the results of last step function could lead to incorrect \
         results when used with ParameterServerStrategy"
         try:
-            metric_logs = self._get_metrics_result()
+            metric_logs = self.get_metrics_result()
         except TypeError:
             if self._cluster_coordinator:
                 logging.warning(PSS_WARN_MSG)

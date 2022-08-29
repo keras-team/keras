@@ -258,6 +258,10 @@ tf_class {
     argspec: "args=[\'self\', \'name\', \'index\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "
   }
   member_method {
+    name: "get_metrics_result"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "get_output_at"
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
