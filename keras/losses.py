@@ -75,7 +75,9 @@ class Loss:
     ```
     """
 
-    def __init__(self, reduction=losses_utils.ReductionV2.AUTO, name=None):
+    def __init__(
+        self, reduction=losses_utils.ReductionV2.AUTO, scale=None, name=None
+    ):
         """Initializes `Loss` class.
 
         Args:
@@ -89,11 +91,15 @@ class Loss:
             will raise an error. Please see this custom training [tutorial](
               https://www.tensorflow.org/tutorials/distribute/custom_training)
               for more details.
+          scale: Optional float. The output of the loss will be multipled by
+            this value. This can be used in multi-loss models to scale losses
+            with respect to one another. Defaults to `None` (no scaling).
           name: Optional name for the instance.
         """
         losses_utils.ReductionV2.validate(reduction)
         self.reduction = reduction
         self.name = name
+        self.scale = scale
         # SUM_OVER_BATCH is only allowed in losses managed by `fit` or
         # CannedEstimators.
         self._allow_sum_over_batch_size = False
@@ -155,9 +161,12 @@ class Loss:
             sample_weight = losses_utils.apply_valid_mask(
                 losses, sample_weight, mask, reduction
             )
-            return losses_utils.compute_weighted_loss(
+            result = losses_utils.compute_weighted_loss(
                 losses, sample_weight, reduction=reduction
             )
+            if hasattr(self, "scale") and self.scale is not None:
+                result *= (self.scale,)
+            return result
 
     @classmethod
     def from_config(cls, config):
@@ -173,7 +182,11 @@ class Loss:
 
     def get_config(self):
         """Returns the config dictionary for a `Loss` instance."""
-        return {"reduction": self.reduction, "name": self.name}
+        return {
+            "reduction": self.reduction,
+            "name": self.name,
+            "scale": self.scale,
+        }
 
     @abc.abstractmethod
     @doc_controls.for_subclass_implementers

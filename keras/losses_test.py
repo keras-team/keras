@@ -2440,6 +2440,25 @@ class PoissonTest(tf.test.TestCase):
         expected_loss = np.sum(self.expected_losses) / self.batch_size
         self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
+    def test_scale_parameter(self):
+        self.setup()
+        poisson_obj = losses.Poisson(scale=2.0)
+        sample_weight = 2.3
+        loss = poisson_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+
+        expected_loss = 2 * (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = poisson_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(self.evaluate(loss), self.evaluate(loss_2), 3)
+
     def test_scalar_weighted(self):
         self.setup()
         poisson_obj = losses.Poisson()
