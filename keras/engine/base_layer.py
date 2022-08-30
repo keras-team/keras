@@ -841,7 +841,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 instead of an integer.
 
         Returns:
-            An output shape tuple.
+            A shape tuple or `tf.TensorShape` instance
         """
         if tf.executing_eagerly():
             # In this case we build the model first in order to do shape
