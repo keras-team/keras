@@ -284,11 +284,15 @@ def get_file(
                         total_size = None
                     self.progbar = Progbar(total_size)
                 current = block_num * block_size
-                if current < total_size:
+
+                if total_size is None:
                     self.progbar.update(current)
-                elif not self.finished:
-                    self.progbar.update(self.progbar.target)
-                    self.finished = True
+                else:
+                    if current < total_size:
+                        self.progbar.update(current)
+                    elif not self.finished:
+                        self.progbar.update(self.progbar.target)
+                        self.finished = True
 
         error_msg = "URL fetch failure on {}: {} -- {}"
         try:
