@@ -835,13 +835,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         inputs that match the input shape provided here.
 
         Args:
-            input_shape: Shape tuple (tuple of integers)
-                or list of shape tuples (one per output tensor of the layer).
+            input_shape: Shape tuple (tuple of integers) or `tf.TensorShape`,
+                or structure of shape tuples / `tf.TensorShape` instances
+                (one per output tensor of the layer).
                 Shape tuples can include None for free dimensions,
                 instead of an integer.
 
         Returns:
-            A shape tuple or `tf.TensorShape` instance
+            A `tf.TensorShape` instance
+            or structure of `tf.TensorShape` instances.
         """
         if tf.executing_eagerly():
             # In this case we build the model first in order to do shape
