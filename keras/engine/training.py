@@ -3822,7 +3822,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return saving_lib.save_model(self, filepath)
 
 
-def reduce_per_replica(values, strategy, reduction="auto"):
+def reduce_per_replica(values, strategy, reduction):
     """Attempt to reduce the structure `values` to single values.
 
     Given `values` (a `tf.Tensor` or a `PerReplica` structure),
@@ -3837,18 +3837,25 @@ def reduce_per_replica(values, strategy, reduction="auto"):
     or a `tf.Tensor`, if the strategy has already conducted the reduction
     for the downstream library.
 
-    There are three possible outcomes of reduction:
+    There are five possible outcomes of reduction:
 
     1) if the `values` is a structure of simple `tf.Tensor`s, meaning that
        reduction is not actually needed, `reduce_per_replica` returns the
        structure as-is.
-    2) else, if `reduction="first"`, then `reduce_per_replica`
+    2) else, if `reduction="auto"`, then it assumes "first" if running
+       under `TPUStrategy`, and "sum" otherwise. This should only be used
+       for training cases (`fit()`).
+    3) else, if `reduction="first"`, then `reduce_per_replica`
        returns the values of the first replica. This is used in the case of
        training and evaluation, where `values` is expected to hold the same
        value across the replicas as a result of `Strategy`'s synchronization
        across the replicas.
        `reduce_per_replica` does not synchronize the values.
-    3) else, if `reduction="concat"`, then `reduce_per_replica`
+    4) else, if `reduction="sum"`, then `reduce_per_replica` returns the sum
+       of values for all replicas. This is used in the custom training loop
+       case, where each replica contain different values which are not
+       synchronized.
+    5) else, if `reduction="concat"`, then `reduce_per_replica`
        returns the concatenation of the values across the replicas, along the
        axis of dimension 0. This is used in the inference case (`predict()`).
 
