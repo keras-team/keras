@@ -1105,6 +1105,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """
         del x  # The default implementation does not use `x`.
         self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        return self._get_metrics_result()
+
+    def _get_metrics_result(self):
+        """Returns model metrics as a dict.
+
+        Returns:
+          A `dict` containing values of the metrics listed in `self.metrics`.
+          Example:
+          `{'loss': 0.2, 'accuracy': 0.7}`.
+        """
         # Collect metrics to return
         return_metrics = {}
         for metric in self.metrics:
@@ -1114,6 +1124,50 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             else:
                 return_metrics[metric.name] = result
         return return_metrics
+
+    def _validate_and_get_metrics_result(self, logs):
+        """Returns model metrics as a dict if the keys match with input logs.
+
+        When the training / evalution is performed with asynchronous steps, such
+        as the case with `tf.distribute.ParameterServerStrategy`, the last
+        scheduled `train / test_step` may not give the latest metrics because it
+        is not guaranteed to be executed the last. This method gets metrics from
+        the model directly instead of relying on the return from last step
+        function.
+
+        It logs a warning if the metric results could not be overridden when
+        used with `tf.distribute.ParameterServerStrategy`.
+
+        When the user has custom train / test step functions, the metrics
+        returned may be different from `Model.metrics`. In those instances,
+        this function will be no-op and return the logs.
+
+        Args:
+          logs: A `dict` of metrics returned by train / test step function.
+
+        Returns:
+          A `dict` containing values of the metrics listed in `self.metrics`
+          when logs and model metrics keys match. Otherwise it returns input
+          `logs`.
+        """
+        PSS_WARN_MSG = "Could not get Model metric results. \
+        Using the results of last step function could lead to incorrect \
+        results when used with ParameterServerStrategy"
+        try:
+            metric_logs = self._get_metrics_result()
+        except TypeError:
+            if self._cluster_coordinator:
+                logging.warning(PSS_WARN_MSG)
+        else:
+            # Verify that train / test step logs passed and metric logs have
+            # matching keys. Could be different when using custom step functions
+            if isinstance(logs, dict) and set(logs.keys()) == set(
+                metric_logs.keys()
+            ):
+                logs = tf_utils.sync_to_numpy_or_python_type(metric_logs)
+            elif self._cluster_coordinator:
+                logging.warning(PSS_WARN_MSG)
+        return logs
 
     def make_train_function(self, force=False):
         """Creates a function that executes one step of training.
@@ -1598,6 +1652,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "information of where went wrong, or file a "
                         "issue/bug to `tf.keras`."
                     )
+                # Override with model metrics instead of last step logs
+                logs = self._validate_and_get_metrics_result(logs)
                 epoch_logs = copy.copy(logs)
 
                 # Run validation.
@@ -1970,7 +2026,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             logs = tmp_logs
                             end_step = step + data_handler.step_increment
                             callbacks.on_test_batch_end(end_step, logs)
+
             logs = tf_utils.sync_to_numpy_or_python_type(logs)
+            # Override with model metrics instead of last step logs
+            logs = self._validate_and_get_metrics_result(logs)
             callbacks.on_test_end(logs=logs)
 
             if return_dict:

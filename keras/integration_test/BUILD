@@ -304,3 +304,19 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
     ],
 )
+
+tf_py_test(
+    name = "parameter_server_training_metric_test",
+    srcs = ["parameter_server_training_metric_test.py"],
+    python_version = "PY3",
+    tags = [
+        "nomac",  # TODO(mihaimaruseac): b/127695564
+    ],
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
