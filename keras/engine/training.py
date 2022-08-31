@@ -3842,8 +3842,8 @@ def reduce_per_replica(values, strategy, reduction):
     1) if the `values` is a structure of simple `tf.Tensor`s, meaning that
        reduction is not actually needed, `reduce_per_replica` returns the
        structure as-is.
-    2) else, if `reduction="auto"`, then it assumes "first" if running
-       under `TPUStrategy`, and "sum" otherwise. This should only be used
+    2) else, if `reduction="auto"`, then the best reduction strategy is
+       chosen based on the current environment. This should only be used
        for training cases (`fit()`).
     3) else, if `reduction="first"`, then `reduce_per_replica`
        returns the values of the first replica. This is used in the case of
@@ -3852,7 +3852,7 @@ def reduce_per_replica(values, strategy, reduction):
        across the replicas.
        `reduce_per_replica` does not synchronize the values.
     4) else, if `reduction="sum"`, then `reduce_per_replica` returns the sum
-       of values for all replicas. This is used in the custom training loop
+       of values for all replicas. This may be used in the custom training loop
        case, where each replica contain different values which are not
        synchronized.
     5) else, if `reduction="concat"`, then `reduce_per_replica`
