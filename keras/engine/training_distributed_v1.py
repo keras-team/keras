@@ -460,8 +460,11 @@ def experimental_tpu_test_loop(
     callbacks._call_end_hook(mode)
 
     scope.__exit__(None, None, None)
-    if len(outs) >= 0:
-        outs[0] /= target_steps
+    # OpenRefactory Warning: Collection length comparison should be meaningful.
+    # The length of a collection is always greater than or equal to zero.
+    # So testing that a length is greater than or equal to zero is always true.
+
+    outs[0] /= target_steps
 
     if len(outs) == 1:
         return outs[0]
