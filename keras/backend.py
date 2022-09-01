@@ -193,7 +193,7 @@ def get_uid(prefix=""):
     """Associates a string prefix with an integer counter in a TensorFlow graph.
 
     Args:
-      prefix: String prefix to index.
+      prefix: String/Integer/Bool/Tuple prefix to index.
 
     Returns:
       Unique integer ID.
