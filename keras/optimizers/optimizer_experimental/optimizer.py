@@ -684,6 +684,41 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         """
         return self._variables
 
+    def _get_state(self):
+        """Get the state of this optimizer object."""
+        result = {}
+        for variable in self.variables():
+            result[variable.name] = variable.numpy()
+        return result
+
+    def _set_state(self, state):
+        """Set the state of this optimizer object."""
+        for variable in self.variables():
+            variable.assign(state[variable.name])
+
+    def _save_state(self, dir_path):
+        # To avoid circular import
+        from keras.saving.experimental import saving_lib
+
+        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
+        weights = self._get_state()
+        if weights:
+            # Only save the state if that of the trackable is available.
+            np.savez(file_path, **weights)
+            logging.debug(f"Saved state to {file_path}")
+
+    def _load_state(self, dir_path):
+        # To avoid circular import
+        from keras.saving.experimental import saving_lib
+
+        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
+        if tf.io.gfile.exists(file_path):
+            loaded_npz = np.load(file_path)
+            logging.debug(f"Loaded state from {file_path}")
+            self._set_state(
+                {file: loaded_npz[file] for file in loaded_npz.files}
+            )
+
 
 base_optimizer_keyword_args = """name: String. The name to use
         for momentum accumulator weights created by
@@ -1056,41 +1091,6 @@ class Optimizer(_BaseOptimizer):
                     false_fn=lambda: None,
                 )
         return self.iterations.assign_add(1)
-
-    def _get_state(self):
-        """Get the state of this optimizer object."""
-        result = {}
-        for variable in self.variables():
-            result[variable.name] = variable.numpy()
-        return result
-
-    def _set_state(self, state):
-        """Set the state of this optimizer object."""
-        for variable in self.variables():
-            variable.assign(state[variable.name])
-
-    def _save_state(self, dir_path):
-        # To avoid circular import
-        from keras.saving.experimental import saving_lib
-
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
-        weights = self._get_state()
-        if weights:
-            # Only save the state if that of the trackable is available.
-            np.savez(file_path, **weights)
-            logging.debug(f"Saved state to {file_path}")
-
-    def _load_state(self, dir_path):
-        # To avoid circular import
-        from keras.saving.experimental import saving_lib
-
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
-        if tf.io.gfile.exists(file_path):
-            loaded_npz = np.load(file_path)
-            logging.debug(f"Loaded state from {file_path}")
-            self._set_state(
-                {file: loaded_npz[file] for file in loaded_npz.files}
-            )
 
 
 class RestoredOptimizer(Optimizer):
