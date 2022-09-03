@@ -1080,8 +1080,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(
-                    f'layer "{self.name}" "                 f"(type'
-                    f" {self.__class__.__name__})"
+                    f"layer '{self.name}' (type {self.__class__.__name__})"
                 ),
             )
             with contextlib.ExitStack() as namescope_stack:
