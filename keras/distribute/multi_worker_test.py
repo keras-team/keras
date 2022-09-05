@@ -251,7 +251,7 @@ class KerasMultiWorkerTestIndependentWorker(
         # A model that always outputs `sum(inputs*1) + 1 = 28**2 + 1 = 785`
         with strategy.scope():
             inputs = keras.Input(shape=(28, 28, 1))
-            x = keras.layers.Flatten(inputs)
+            x = keras.layers.Flatten()(inputs)
             x = keras.layers.Dense(
                 1, kernel_initializer="ones", bias_initializer="ones"
             )(x)
@@ -324,7 +324,7 @@ class KerasMultiWorkerTestIndependentWorker(
 
         with strategy.scope():
             inputs = keras.Input(shape=(28, 28, 1))
-            x = keras.layers.Flatten(inputs)
+            x = keras.layers.Flatten()(inputs)
             x = keras.layers.Dense(
                 1, kernel_initializer="ones", bias_initializer="ones"
             )(x)
