@@ -145,6 +145,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     * in the first invocation of `call()`, with some caveats discussed
       below.
 
+    Layers are recursively composable: If you assign a Layer instance as an
+    attribute of another Layer, the outer layer will start tracking the weights
+    created by the inner layer. Nested layers should be instantiated in the
+    `__init__()` method.
+
     Users will just instantiate a layer and then treat it as a callable.
 
     Args:
@@ -502,9 +507,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         The `call()` method may not create state (except in its first
         invocation, wrapping the creation of variables or other resources in
-        `tf.init_scope()`).  It is recommended to create state in `__init__()`,
-        or the `build()` method that is called automatically before `call()`
-        executes the first time.
+        `tf.init_scope()`).  It is recommended to create state, including
+        `tf.Variable` instances and nested `Layer` instances,
+         in `__init__()`, or in the `build()` method that is
+        called automatically before `call()` executes for the first time.
 
         Args:
           inputs: Input tensor, or dict/list/tuple of input tensors.
