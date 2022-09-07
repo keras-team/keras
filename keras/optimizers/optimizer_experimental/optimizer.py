@@ -222,7 +222,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
           loss: `Tensor` or callable. If a callable, `loss` should take no
             arguments and return the value to minimize.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects. Use callable when the variable list would otherwise be
+            incomplete before `minimize` since the variables are created at the
+            first time `loss` is called.
           tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
             `Tensor`, the tape that computed the `loss` must be provided.
 
@@ -239,8 +242,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             tape = tf.GradientTape()
         if callable(loss):
             with tape:
-                tape.watch(var_list)
+                if not callable(var_list):
+                    tape.watch(var_list)
                 loss = loss()
+                if callable(var_list):
+                    var_list = var_list()
+
         grads = tape.gradient(loss, var_list)
         return list(zip(grads, var_list))
 
@@ -490,7 +497,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
           loss: `Tensor` or callable. If a callable, `loss` should take no
             arguments and return the value to minimize.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects.  Use callable when the variable list would otherwise be
+            incomplete before `minimize` since the variables are created at the
+            first time `loss` is called.
           tape: (Optional) `tf.GradientTape`.
 
         Returns:

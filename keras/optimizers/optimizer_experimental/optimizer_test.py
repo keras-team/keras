@@ -115,6 +115,29 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             optimizer._index_dict[optimizer._var_key(var_list[7])], 7
         )
 
+    def testComputeGradients(self):
+        optimizer = adam_new.Adam()
+        x = tf.Variable([1.0, 2.0], dtype=tf.float32)
+        loss_fn = lambda: x
+        # Test Tensor-type var_list.
+        var_list = [x]
+        grads_and_vars = optimizer.compute_gradients(loss_fn, var_list)
+        grads, _ = zip(*grads_and_vars)
+        self.assertAllEqual(grads[0], tf.constant([1.0, 1.0]))
+        # Test callable-type var_list, and create variable in loss fn.
+        x = []
+
+        def loss_fn():
+            variable = tf.Variable([1.0, 2.0], dtype=tf.float32)
+            x.append(variable)
+            return variable
+
+        var_list = lambda: x
+
+        grads_and_vars = optimizer.compute_gradients(loss_fn, var_list)
+        grads, _ = zip(*grads_and_vars)
+        self.assertAllEqual(grads[0], tf.constant([1.0, 1.0]))
+
     def testClipNorm(self):
         optimizer = adam_new.Adam(clipnorm=1)
         grad = [tf.convert_to_tensor([100.0, 100.0])]
