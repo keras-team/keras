@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras 2D transposed convolution layer (sometimes called deconvolution)."""
+"""Keras 2D transposed convolution layer (sometimes wrongly called deconvolution)."""
 
 
 import tensorflow.compat.v2 as tf
