@@ -151,11 +151,10 @@ class MultiHeadAttention(Layer):
     Finally, the result tensor with the last dimension as value_dim can take an
     linear projection and return.
 
-    When using MultiHeadAttention inside a custom Layer, the custom Layer must
-    implement `build()` and call MultiHeadAttention's `_build_from_signature()`.
+    When using `MultiHeadAttention` inside a custom layer, the custom layer must
+    implement its own `build()` method and call `MultiHeadAttention`'s
+    `_build_from_signature()` there.
     This enables weights to be restored correctly when the model is loaded.
-    TODO(b/172609172): link to documentation about calling custom build
-    functions when used in a custom Layer.
 
     Examples:
 
