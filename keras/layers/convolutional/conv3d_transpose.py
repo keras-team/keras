@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras 3D transposed convolution layer (sometimes called deconvolution)."""
+"""Keras 3D transposed convolution layer (sometimes wrongly called deconvolution)."""
 
 
 import tensorflow.compat.v2 as tf
@@ -34,7 +34,7 @@ from tensorflow.python.util.tf_export import keras_export
     "keras.layers.Conv3DTranspose", "keras.layers.Convolution3DTranspose"
 )
 class Conv3DTranspose(Conv3D):
-    """Transposed convolution layer (sometimes called Deconvolution).
+    """Transposed convolution layer (sometimes wrongly called Deconvolution).
 
     The need for transposed convolutions generally arises
     from the desire to use a transformation going in the opposite direction
