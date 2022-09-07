@@ -13,6 +13,3 @@
 # limitations under the License.
 # ==============================================================================
 """Keras' Distribution Strategy library."""
-
-
-from keras.distribute import sidecar_evaluator
