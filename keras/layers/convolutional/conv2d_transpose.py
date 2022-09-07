@@ -35,7 +35,7 @@ from tensorflow.python.util.tf_export import keras_export
     "keras.layers.Conv2DTranspose", "keras.layers.Convolution2DTranspose"
 )
 class Conv2DTranspose(Conv2D):
-    """Transposed convolution layer (sometimes called Deconvolution).
+    """Transposed convolution layer (sometimes wrongly called Deconvolution).
 
     The need for transposed convolutions generally arises
     from the desire to use a transformation going in the opposite direction
