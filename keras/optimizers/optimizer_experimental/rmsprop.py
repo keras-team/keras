@@ -158,7 +158,7 @@ class RMSprop(optimizer.Optimizer):
                 average_grad.assign(rho * average_grad)
                 average_grad.scatter_add(
                     tf.IndexedSlices(
-                        tf.square(gradient.values) * (1 - rho), gradient.indices
+                        gradient.values * (1 - rho), gradient.indices
                     )
                 )
                 velocity.assign_add(-tf.square(average_grad))
@@ -182,9 +182,7 @@ class RMSprop(optimizer.Optimizer):
             # Dense gradients.
             velocity.assign(rho * velocity + (1 - rho) * tf.square(gradient))
             if self.centered:
-                average_grad.assign(
-                    rho * average_grad + (1 - rho) * tf.square(gradient)
-                )
+                average_grad.assign(rho * average_grad + (1 - rho) * gradient)
                 velocity.assign_add(-tf.square(average_grad))
             transformed_grad = gradient / (tf.sqrt(velocity) + self.epsilon)
             if self.momentum > 0:
