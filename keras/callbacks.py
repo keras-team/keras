@@ -1,3 +1,4 @@
+# flake8: noqa
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -2349,12 +2350,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         write_steps_per_second: whether to log the training steps per second
           into Tensorboard. This supports both epoch and batch frequency
           logging.
-        update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`,
-          writes the losses and metrics to TensorBoard after each batch. The
-          same applies for `'epoch'`. If using an integer, let's say `1000`, the
-          callback will write the metrics and losses to TensorBoard every 1000
-          batches. Note that writing too frequently to TensorBoard can slow down
-          your training.
+        update_freq: **disabled**
+
+          Warning: Batch-level summary writing using `update_freq` is
+          currently unsupported. A suggested workaround is shown in the
+          [TensorBoard Scalars tutorial](https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging). # pylint: disable=protected-access
+
         profile_batch: Profile the batch(es) to sample compute characteristics.
           profile_batch must be a non-negative integer or a tuple of integers.
           A pair of positive integers signify a range of batches to profile.
@@ -2376,48 +2377,6 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     # Then run the tensorboard command to view the visualizations.
     ```
 
-    Custom batch-level summaries in a subclassed Model:
-
-    ```python
-    class MyModel(tf.keras.Model):
-
-      def build(self, _):
-        self.dense = tf.keras.layers.Dense(10)
-
-      def call(self, x):
-        outputs = self.dense(x)
-        tf.summary.histogram('outputs', outputs)
-        return outputs
-
-    model = MyModel()
-    model.compile('sgd', 'mse')
-
-    # Make sure to set `update_freq=N` to log a batch-level summary every N
-    # batches.  In addition to any `tf.summary` contained in `Model.call`,
-    # metrics added in `Model.compile` will be logged every N batches.
-    tb_callback = tf.keras.callbacks.TensorBoard('./logs', update_freq=1)
-    model.fit(x_train, y_train, callbacks=[tb_callback])
-    ```
-
-    Custom batch-level summaries in a Functional API Model:
-
-    ```python
-    def my_summary(x):
-      tf.summary.histogram('x', x)
-      return x
-
-    inputs = tf.keras.Input(10)
-    x = tf.keras.layers.Dense(10)(inputs)
-    outputs = tf.keras.layers.Lambda(my_summary)(x)
-    model = tf.keras.Model(inputs, outputs)
-    model.compile('sgd', 'mse')
-
-    # Make sure to set `update_freq=N` to log a batch-level summary every N
-    # batches. In addition to any `tf.summary` contained in `Model.call`,
-    # metrics added in `Model.compile` will be logged every N batches.
-    tb_callback = tf.keras.callbacks.TensorBoard('./logs', update_freq=1)
-    model.fit(x_train, y_train, callbacks=[tb_callback])
-    ```
 
     Profiling:
 
