@@ -391,6 +391,86 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
             attention_mask=float_mask,
         )
 
+    @parameterized.named_parameters(
+        ("without_key_same_proj", [40, 80], [20, 80], None, None),
+        ("with_key_same_proj", [40, 80], [20, 80], [20, 30], None),
+        ("wihtout_key_different_proj", [40, 80], [20, 80], None, [30, 40]),
+        ("with_key_different_proj", [40, 80], [20, 80], [20, 30], [15, 50]),
+        (
+            "high_dim_same_proj",
+            [40, 20, 30, 80],
+            [10, 10, 50, 80],
+            [10, 10, 50, 20],
+            None,
+        ),
+        (
+            "high_dim_different_proj",
+            [40, 20, 30, 80],
+            [10, 10, 50, 80],
+            [10, 10, 50, 20],
+            [30, 20],
+        ),
+    )
+    def test_compute_output_shape(
+        self, query_dims, value_dims, key_dims, output_shape
+    ):
+        """Test computed shape is equal to the layer output's shape."""
+        test_layer = keras.layers.MultiHeadAttention(
+            num_heads=2,
+            key_dim=2,
+            value_dim=2,
+            output_shape=output_shape,
+        )
+        batch_size = None
+        query_shape = [batch_size] + query_dims
+        value_shape = [batch_size] + value_dims
+
+        if key_dims:
+            key_shape = [batch_size] + key_dims
+        else:
+            key_shape = None
+
+        query = keras.Input(query_shape[1:])
+        value = keras.Input(value_shape[1:])
+        if key_shape:
+            key = keras.Input(key_shape[1:])
+        else:
+            key = None
+        output = test_layer(query=query, value=value, key=key)
+        comp_output_shape = test_layer.compute_output_shape(
+            query_shape, value_shape, key_shape
+        )
+        self.assertListEqual(
+            output.shape.as_list(), comp_output_shape.as_list()
+        )
+
+    @parameterized.named_parameters(
+        ("query_value_dim_mismatch", (None, 40, 80), (None, 20, 70), None),
+        (
+            "key_value_dim_mismatch",
+            (None, 40, 80),
+            (None, 20, 80),
+            (None, 10, 70),
+        ),
+        (
+            "key_value_dim_mismatch_high_dim",
+            (None, 40, 20, 30, 80),
+            (None, 10, 10, 50, 80),
+            (None, 10, 15, 50, 20),
+        ),
+    )
+    def test_compute_output_shape_raises_error(
+        self, query_shape, value_shape, key_shape
+    ):
+        """Test dimension mismatches"""
+        test_layer = keras.layers.MultiHeadAttention(
+            num_heads=4,
+            key_dim=2,
+            value_dim=2,
+        )
+        with self.assertRaisesRegex(ValueError, r"must be equal"):
+            test_layer.compute_output_shape(query_shape, value_shape, key_shape)
+
 
 class SubclassAttention(keras.layers.MultiHeadAttention):
     def _build_attention(self, qkv_rank):
