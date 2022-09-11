@@ -1266,6 +1266,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
           A list of trainable variables.
         """
+        self._update_trackables()
         if self.trainable:
             children_weights = self._gather_children_attribute(
                 "trainable_variables"
@@ -1286,6 +1287,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
           A list of non-trainable variables.
         """
+        self._update_trackables()
         if self.trainable:
             children_weights = self._gather_children_attribute(
                 "non_trainable_variables"
@@ -3144,6 +3146,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
             name, value
         )
+
+    def _update_trackables(self):
+        """Track variables added to lists/dicts after creation
+        """
+        for trackable_obj in self._self_tracked_trackables:
+            if isinstance(
+                    trackable_obj,
+                    tf.__internal__.tracking.TrackableDataStructure
+            ):
+                self._track_variables(trackable_obj)
 
     def _track_variables(self, value):
         """Tracks `Variable`s including `Variable`s in `CompositeTensor`s."""
