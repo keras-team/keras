@@ -1039,7 +1039,6 @@ class BaseLayerTest(test_combinations.TestCase):
 
     def test_tf_tracking_lists(self):
         class MyLayer(base_layer.Layer):
-
             def __init__(self, num_weights):
                 super().__init__()
                 self.num_weights = num_weights
@@ -1051,12 +1050,12 @@ class BaseLayerTest(test_combinations.TestCase):
                 for i in range(self.num_weights):
                     self.my_weights.append(
                         tf.Variable(
-                            name=f'w_{i}',
+                            name=f"w_{i}",
                             initial_value=w_init(
                                 shape=(input_shape[1], input_shape[1]),
-                                dtype="float32"
+                                dtype="float32",
                             ),
-                            trainable=True
+                            trainable=True,
                         )
                     )
 

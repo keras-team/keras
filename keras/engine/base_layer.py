@@ -3148,12 +3148,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         )
 
     def _update_trackables(self):
-        """Track variables added to lists/dicts after creation
-        """
+        """Track variables added to lists/dicts after creation"""
         for trackable_obj in self._self_tracked_trackables:
             if isinstance(
-                    trackable_obj,
-                    tf.__internal__.tracking.TrackableDataStructure
+                trackable_obj, tf.__internal__.tracking.TrackableDataStructure
             ):
                 self._track_variables(trackable_obj)
 
