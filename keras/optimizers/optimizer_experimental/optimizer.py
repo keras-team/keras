@@ -542,11 +542,11 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                     dtype=current_learning_rate.dtype,
                     trainable=False,
                 )
-        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
-        if len(list(grads_and_vars)) == 0:
+        grads_and_vars = list(grads_and_vars)
+        if len(grads_and_vars) == 0:
             # It is possible that the grad is empty. In this case,
             # `apply_gradients` is a no-op.
-            return
+            return self._iterations
         grads, trainable_variables = zip(*grads_and_vars)
         scope_name = name or self.name or "optimizer"
         with tf.name_scope(scope_name):
@@ -554,6 +554,14 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
+        grads_and_vars = list(zip(grads, trainable_variables))
+        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
+        if len(list(grads_and_vars)) == 0:
+            # Check again after filtering gradients.
+            return self._iterations
+
+        grads, trainable_variables = zip(*grads_and_vars)
+
         grads = self._clip_gradients(grads)
         grads = self._deduplicate_sparse_grad(grads)
         grads_and_vars = list(zip(grads, trainable_variables))
