@@ -111,6 +111,20 @@ classes = model.predict(x_test, batch_size=128)
 
 What you just saw is the most elementary way to use Keras.
 
+Here is a very minimal use of Keras to train, compile and score a model:
+
+```python
+from tensorflow.keras.models import Sequential
+
+model = Sequential()
+
+model.compile(loss='categorical_crossentropy')
+
+model.fit(x_train, y_train)
+loss_and_metrics = model.evaluate(x_test, y_test)
+classes = model.predict(x_test)
+```
+
 However, Keras is also a highly-flexible framework suitable to iterate on state-of-the-art research ideas.
 Keras follows the principle of **progressive disclosure of complexity**: it makes it easy to get started,
 yet it makes it possible to handle arbitrarily advanced use cases,
@@ -152,10 +166,49 @@ For more in-depth tutorials about Keras, you can check out:
 
 ---
 
-## Installation
+## Installation for Keras
 
 Keras comes packaged with TensorFlow 2 as `tensorflow.keras`.
-To start using Keras, simply [install TensorFlow 2](https://www.tensorflow.org/install).
+To start using Keras, simply [install TensorFlow 2](https://www.tensorflow.org/install) through pip or conda.
+
+---
+
+## Installation for pip
+To install pip, which is needed to install TensorFlow 2, download through ensure.pip (with python) or [get-pip.py](https://bootstrap.pypa.io/get-pip.py)
+
+If using the ensure.pip method, run this command to install pip:
+
+**Windows:**
+```C:> py -m ensurepip --upgrade```
+
+**MacOS:**
+```$ python -m ensurepip --upgrade```
+
+**Linux:**
+```$ python -m ensurepip --upgrade```
+
+If using the [get-pip.py](https://bootstrap.pypa.io/get-pip.py) method, download get-pip.py with the link and cd to the directory containing the file, then run this command:
+
+**Windows:**
+```C:> py get-pip.py```
+
+**MacOS:**
+```$ python get-pip.py```
+
+**Linux:**
+```$ python get-pip.py```
+
+
+**To upgrade pip:**
+
+**Windows:**
+```C:> py -m pip install --upgrade pip```
+
+**MacOS:**
+```$ python -m pip install --upgrade pip```
+
+**Linux:**
+```$ python -m pip install --upgrade pip```
 
 ---
 
