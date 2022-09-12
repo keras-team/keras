@@ -15,7 +15,9 @@
 """Python-based idempotent model-saving functionality."""
 
 import json
+import os
 import tempfile
+import uuid
 import zipfile
 
 import tensorflow.compat.v2 as tf
@@ -30,8 +32,6 @@ from keras.utils import io_utils
 
 # isort: off
 
-_ARCHIVE_FILENAME = "archive.keras"
-STATE_FILENAME = "states.npz"
 _SELF_DIRNAME = "self"
 _CONFIG_FILENAME = "config.json"
 _STATES_ROOT_DIRNAME = "model"
@@ -83,18 +83,18 @@ def _extract_dir(zipfile_to_load, root_system_path, zip_dir):
             )
 
 
-def _load_state(trackable, zip_dir_path, temp_path, zipfile_to_load):
-    states_dir_path = tf.io.gfile.join(zip_dir_path, _SELF_DIRNAME)
+def _load_state(trackable, zip_dirpath, temp_path, zipfile_to_load):
+    states_dirpath = tf.io.gfile.join(zip_dirpath, _SELF_DIRNAME)
     # Extract the whole directory that represents the states of the trackable
-    # into a temporary path.
-    _extract_dir(zipfile_to_load, temp_path, states_dir_path)
-    dir_path_to_load_state = tf.io.gfile.join(temp_path, states_dir_path)
+    # into a temporary directory to be removed at the end.
+    _extract_dir(zipfile_to_load, temp_path, states_dirpath)
+    dirpath_to_load_state = tf.io.gfile.join(temp_path, states_dirpath)
     # TODO(rchao): Make `.set_state()` and `.load_state()` exported methods
     # and remove the attr check.
     if hasattr(trackable, "_load_state"):
-        trackable._load_state(dir_path_to_load_state)
-    if tf.io.gfile.exists(dir_path_to_load_state):
-        tf.io.gfile.rmtree(dir_path_to_load_state)
+        trackable._load_state(dirpath_to_load_state)
+    if tf.io.gfile.exists(dirpath_to_load_state):
+        tf.io.gfile.rmtree(dirpath_to_load_state)
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr in dir(trackable):
@@ -109,55 +109,62 @@ def _load_state(trackable, zip_dir_path, temp_path, zipfile_to_load):
         try:
             child_obj = getattr(trackable, child_attr)
         except Exception:
-            # Avoid raising the exception when visiting the attributes.
+            # Avoid raising exceptions when visiting attributes.
             continue
         if _is_keras_trackable(child_obj):
             _load_state(
                 child_obj,
-                tf.io.gfile.join(zip_dir_path, child_attr),
+                tf.io.gfile.join(zip_dirpath, child_attr),
                 temp_path,
                 zipfile_to_load,
             )
         elif is_container(child_obj):
             _load_container_state(
                 child_obj,
-                tf.io.gfile.join(zip_dir_path, child_attr),
+                tf.io.gfile.join(zip_dirpath, child_attr),
                 temp_path,
                 zipfile_to_load,
             )
 
 
-def _load_container_state(container, zip_dir_path, temp_path, zipfile_to_load):
+def _load_container_state(container, zip_dirpath, temp_path, zipfile_to_load):
     for trackable in container:
         if _is_keras_trackable(trackable):
             _load_state(
                 trackable,
-                tf.io.gfile.join(zip_dir_path, trackable.name),
+                tf.io.gfile.join(zip_dirpath, trackable.name),
                 temp_path,
                 zipfile_to_load,
             )
 
 
-def load_model(dirpath, custom_objects=None):
-    """Load a zip-archive representing a Keras model given the container dir."""
-    file_path = tf.io.gfile.join(dirpath, _ARCHIVE_FILENAME)
-    temp_path = tempfile.mkdtemp(dir=dirpath)
-
-    with zipfile.ZipFile(file_path, "r") as zipfile_to_load:
-        _print_archive(zipfile_to_load, "loaded from")
-        with zipfile_to_load.open(_CONFIG_FILENAME, "r") as c:
-            config_json = c.read()
-        logging.debug(f"Read config: {config_json} from {c}")
-        # Note: we should NOT use a custom JSON decoder. Anything that
-        # needs custom decoding must be handled in deserialize_keras_object.
-        config_dict = json.loads(config_json)
-        # Construct the model from the configuration file saved in the archive.
-        model = deserialize_keras_object(config_dict, custom_objects)
-        _load_state(model, _STATES_ROOT_DIRNAME, temp_path, zipfile_to_load)
-
-    if tf.io.gfile.exists(temp_path):
-        tf.io.gfile.rmtree(temp_path)
-    return model
+def load_model(filepath, custom_objects=None):
+    """Load a zip archive representing a Keras model."""
+    if not filepath.endswith(".keras"):
+        raise ValueError(
+            "Invalid filename: expected a `.keras` extension. "
+            f"Received: filepath={filepath}"
+        )
+    temp_path = _get_temp_dir()
+    try:
+        with zipfile.ZipFile(filepath, "r") as zipfile_to_load:
+            _print_archive(zipfile_to_load, "loaded from")
+            with zipfile_to_load.open(_CONFIG_FILENAME, "r") as c:
+                config_json = c.read()
+            logging.debug(f"Read config: {config_json} from {c}")
+            # Note: we should NOT use a custom JSON decoder. Anything that
+            # needs custom decoding must be handled in deserialize_keras_object.
+            config_dict = json.loads(config_json)
+            # Construct the model from the configuration file in the archive.
+            model = deserialize_keras_object(config_dict, custom_objects)
+            _load_state(model, _STATES_ROOT_DIRNAME, temp_path, zipfile_to_load)
+    except Exception as e:
+        raise e
+    else:
+        return model
+    finally:
+        if tf.io.gfile.exists(temp_path):
+            tf.io.gfile.rmtree(temp_path)
 
 
 def _write_recursively(zipfile_to_save, system_path, zip_path):
@@ -172,7 +179,7 @@ def _write_recursively(zipfile_to_save, system_path, zip_path):
 
 
 def _save_state(
-    trackable, zip_dir_path, temp_path, zipfile_to_save, saved_trackables
+    trackable, zip_dirpath, temp_path, zipfile_to_save, saved_trackables
 ):
     # Check whether this trackable has been saved; if so, do not duplicate the
     # saving.
@@ -183,19 +190,19 @@ def _save_state(
     # and remove the attr check.
     if hasattr(trackable, "_save_state"):
         # Designate a `self` directory for the trackable object to save.
-        states_dir_path = tf.io.gfile.join(temp_path, _SELF_DIRNAME)
-        if not tf.io.gfile.exists(states_dir_path):
-            tf.io.gfile.mkdir(states_dir_path)
-        trackable._save_state(states_dir_path)
-        if states_dir_path is not None:
+        states_dirpath = tf.io.gfile.join(temp_path, _SELF_DIRNAME)
+        if not tf.io.gfile.exists(states_dirpath):
+            tf.io.gfile.mkdir(states_dirpath)
+        trackable._save_state(states_dirpath)
+        if states_dirpath is not None:
             # Recursively write the states (represented by files inside the
             # directory) into the zip file.
             _write_recursively(
                 zipfile_to_save,
-                states_dir_path,
-                tf.io.gfile.join(zip_dir_path, _SELF_DIRNAME),
+                states_dirpath,
+                tf.io.gfile.join(zip_dirpath, _SELF_DIRNAME),
             )
-            tf.io.gfile.rmtree(states_dir_path)
+            tf.io.gfile.rmtree(states_dirpath)
         saved_trackables.add(trackable)
 
     # Recursively ask contained trackable (layers, optimizers,
@@ -217,7 +224,7 @@ def _save_state(
         if _is_keras_trackable(child_obj):
             _save_state(
                 child_obj,
-                tf.io.gfile.join(zip_dir_path, child_attr),
+                tf.io.gfile.join(zip_dirpath, child_attr),
                 temp_path,
                 zipfile_to_save,
                 saved_trackables,
@@ -225,7 +232,7 @@ def _save_state(
         elif is_container(child_obj):
             _save_container_state(
                 child_obj,
-                tf.io.gfile.join(zip_dir_path, child_attr),
+                tf.io.gfile.join(zip_dirpath, child_attr),
                 temp_path,
                 zipfile_to_save,
                 saved_trackables,
@@ -233,21 +240,21 @@ def _save_state(
 
 
 def _save_container_state(
-    container, zip_dir_path, temp_path, zipfile_to_save, saved_trackables
+    container, zip_dirpath, temp_path, zipfile_to_save, saved_trackables
 ):
     for trackable in container:
         if _is_keras_trackable(trackable):
             _save_state(
                 trackable,
-                tf.io.gfile.join(zip_dir_path, trackable.name),
+                tf.io.gfile.join(zip_dirpath, trackable.name),
                 temp_path,
                 zipfile_to_save,
                 saved_trackables,
             )
 
 
-def save_model(model, dirpath):
-    """Save a zip-archive representing a Keras model given the container dir.
+def save_model(model, filepath):
+    """Save a zip-archive representing a Keras model to the given filepath.
 
     The zip-based archive contains the following structure:
 
@@ -270,29 +277,49 @@ def save_model(model, dirpath):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
-    if not tf.io.gfile.exists(dirpath):
-        tf.io.gfile.mkdir(dirpath)
-    file_path = tf.io.gfile.join(dirpath, _ARCHIVE_FILENAME)
+    if not filepath.endswith(".keras"):
+        raise ValueError(
+            "Invalid filename: expected a `.keras` extension. "
+            f"Received: filepath={filepath}"
+        )
 
     # TODO(rchao): Save the model's metadata (e.g. Keras version) in a separate
     # file in the archive.
     serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict).encode()
 
-    # Utilize a temporary directory for the interim npz files.
-    temp_path = tempfile.mkdtemp(dir=dirpath)
-    if not tf.io.gfile.exists(temp_path):
-        tf.io.gfile.mkdir(temp_path)
+    # Utilize a temporary directory for the storing files prior to zipping.
+    temp_path = _get_temp_dir()
 
-    # Save the configuration json and state npz's.
-    with zipfile.ZipFile(file_path, "x") as zipfile_to_save:
-        with zipfile_to_save.open(_CONFIG_FILENAME, "w") as c:
-            c.write(config_json)
-            logging.debug(f"Written config: {config_json} into {c}.")
-        _save_state(
-            model, _STATES_ROOT_DIRNAME, temp_path, zipfile_to_save, set()
-        )
-        _print_archive(zipfile_to_save, "saved in")
+    try:
+        # Save the configuration json and state files.
+        with zipfile.ZipFile(filepath, "x") as zipfile_to_save:
+            with zipfile_to_save.open(_CONFIG_FILENAME, "w") as c:
+                c.write(config_json)
+                logging.debug(f"Written config: {config_json} into {c}.")
+            _save_state(
+                model, _STATES_ROOT_DIRNAME, temp_path, zipfile_to_save, set()
+            )
+            _print_archive(zipfile_to_save, "saved in")
+    except Exception as e:
+        raise e
+    finally:
+        # Remove the directory temporarily used.
+        tf.io.gfile.rmtree(temp_path)
 
-    # Remove the directory temporarily used.
-    tf.io.gfile.rmtree(temp_path)
+
+def _get_temp_dir():
+    temp_dir = tempfile.mkdtemp()
+    try:
+        testfile = tempfile.TemporaryFile(dir=temp_dir)
+        testfile.close()
+        stats = os.statvfs(temp_dir)
+        available_space = stats.f_frsize * stats.f_bavail
+    except OSError:
+        # Non-writable
+        available_space = 0
+    if available_space < 2000000000:
+        # Fallback on RAM if disk is nonwritable or if less than 2GB available.
+        temp_dir = f"ram://{uuid.uuid4()}"
+        tf.io.gfile.mkdir(temp_dir)
+    return temp_dir

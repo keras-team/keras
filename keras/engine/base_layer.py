@@ -3433,22 +3433,22 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                             state[f"{child_attr}-{contained_obj}"]
                         )
 
-    def _save_state(self, dir_path):
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
+    def _save_state(self, dirpath):
+        filepath = tf.io.gfile.join(dirpath, "weights.npz")
         weights = self._get_state()
         if weights:
             # Only save the state if that of the trackable is available.
-            np.savez(file_path, **weights)
-            logging.debug(f"Saved state to {file_path}")
+            np.savez(filepath, **weights)
+            logging.debug(f"Saved state to {filepath}")
 
-    def _load_state(self, dir_path):
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
-        if tf.io.gfile.exists(file_path):
-            loaded_npz = np.load(file_path)
-            logging.debug(f"Loaded state from {file_path}")
+    def _load_state(self, dirpath):
+        filepath = tf.io.gfile.join(dirpath, "weights.npz")
+        if tf.io.gfile.exists(filepath):
+            loaded_npz = np.load(filepath)
             self._set_state(
                 {file: loaded_npz[file] for file in loaded_npz.files}
             )
+            logging.debug(f"Loaded state from {filepath}")
 
 
 class TensorFlowOpLayer(Layer):

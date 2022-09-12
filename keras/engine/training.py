@@ -3834,8 +3834,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def _compile_was_called(self):
         return self._is_compiled
 
-    def _save_new(self, dirpath):
-        return saving_lib.save_model(self, dirpath)
+    def _save_experimental(self, filepath):
+        return saving_lib.save_model(self, filepath)
 
 
 def reduce_per_replica(values, strategy, reduction="auto"):

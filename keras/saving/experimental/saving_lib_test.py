@@ -177,9 +177,9 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         return functional_model
 
     def test_saving_after_compile_but_before_fit(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
-        subclassed_model._save_new(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
 
         # This is so that we can register another function with the same custom
         # object key, and make sure the newly registered function is used while
@@ -197,7 +197,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
                 tf.math.squared_difference(y_pred, y_true), axis=-1
             )
 
-        loaded_model = saving_lib.load_model(temp_dir)
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -238,14 +238,14 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertIsNot(module_my_mean_squared_error, my_mean_squared_error)
 
     def test_saving_after_fit(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
 
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load_model(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -297,10 +297,10 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             )
 
     def test_saving_preserve_unbuilt_state(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = CustomModelX()
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load_model(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -308,13 +308,13 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertFalse(loaded_model.built)
 
     def test_saving_preserve_built_state(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load_model(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -328,15 +328,14 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         )
 
     def test_saved_module_paths_and_class_names(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
 
-        file_path = tf.io.gfile.join(temp_dir, saving_lib._ARCHIVE_FILENAME)
-        with zipfile.ZipFile(file_path, "r") as z:
+        with zipfile.ZipFile(temp_filepath, "r") as z:
             with z.open(saving_lib._CONFIG_FILENAME, "r") as c:
                 config_json = c.read()
         config_dict = json_utils.decode(config_json)
@@ -372,7 +371,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             def __call__(self, msg):
                 self.contents += msg + "\n"
 
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
 
         if layer == "lambda":
             func = tf.function(lambda x: tf.math.cos(x) + tf.math.sin(x))
@@ -393,8 +392,8 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         x = np.random.random((1000, 32))
         y = np.random.random((1000, 1))
         functional_model.fit(x, y, epochs=3)
-        functional_model._save_new(temp_dir)
-        loaded_model = saving_lib.load_model(temp_dir)
+        functional_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             functional_model._is_compiled, loaded_model._is_compiled
         )
@@ -426,16 +425,14 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     def test_saving_model_state(self, model_type):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         model = getattr(self, f"_get_{model_type}_model")()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         model.fit(x, y, epochs=1)
 
         # Assert that the archive has not been saved.
-        self.assertFalse(
-            os.path.exists(os.path.join(temp_dir, saving_lib._ARCHIVE_FILENAME))
-        )
+        self.assertFalse(os.path.exists(temp_filepath))
 
         # Mutate the `Dense` layer custom weights to ensure that list and
         # dict-contained weights get restored.
@@ -443,19 +440,12 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         model.layers[1].weights_in_dict["my_weight"].assign(2)
         model.layers[1].nested_layer.kernel.assign([[1]])
 
-        model._save_new(temp_dir)
+        model._save_experimental(temp_filepath)
 
         # Assert that the archive has been saved.
-        self.assertTrue(
-            os.path.exists(os.path.join(temp_dir, saving_lib._ARCHIVE_FILENAME))
-        )
-
-        # Assert the temporarily created dir does not persist before and after
-        # loading.
-        self.assertFalse(os.path.exists(os.path.join(temp_dir, "tmp")))
-        loaded_model = saving_lib.load_model(temp_dir)
+        self.assertTrue(os.path.exists(temp_filepath))
+        loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(model._is_compiled, loaded_model._is_compiled)
-        self.assertFalse(os.path.exists(os.path.join(temp_dir, "tmp")))
 
         # The weights are supposed to be the same (between original and loaded
         # models).
@@ -479,8 +469,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
     def test_compile_overridden_model_raises_if_no_from_config_overridden(
         self, model_type
     ):
-
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         model = (
             CompileOverridingModel()
             if model_type == "subclassed"
@@ -488,10 +477,10 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
                 [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
             )
         )
-        model._save_new(temp_dir)
+        model._save_experimental(temp_filepath)
 
         with mock.patch.object(logging, "warning") as mock_warn:
-            saving_lib.load_model(temp_dir)
+            saving_lib.load_model(temp_filepath)
         self.assertIn(
             "`compile()` was not called as part of model loading "
             "because the model's `compile()` method is custom. ",

@@ -715,10 +715,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             variable.assign(state[variable.name])
 
     def _save_state(self, dir_path):
-        # To avoid circular import
-        from keras.saving.experimental import saving_lib
-
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
+        file_path = tf.io.gfile.join(dir_path, "state.npz")
         weights = self._get_state()
         if weights:
             # Only save the state if that of the trackable is available.
@@ -726,10 +723,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             logging.debug(f"Saved state to {file_path}")
 
     def _load_state(self, dir_path):
-        # To avoid circular import
-        from keras.saving.experimental import saving_lib
-
-        file_path = tf.io.gfile.join(dir_path, saving_lib.STATE_FILENAME)
+        file_path = tf.io.gfile.join(dir_path, "state.npz")
         if tf.io.gfile.exists(file_path):
             loaded_npz = np.load(file_path)
             logging.debug(f"Loaded state from {file_path}")
