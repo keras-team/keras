@@ -343,10 +343,13 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
-        self.assertIsNone(config_dict["config"]["optimizer"]["module"])
+        self.assertEqual(
+            config_dict["config"]["optimizer"]["module"],
+            "keras.optimizers.experimental",
+        )
         self.assertEqual(
             config_dict["config"]["optimizer"]["class_name"],
-            "keras.optimizers.experimental.Adam",
+            "Adam",
         )
         self.assertEqual(
             config_dict["config"]["loss"]["module"],
