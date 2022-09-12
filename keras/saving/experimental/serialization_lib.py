@@ -315,14 +315,8 @@ def _retrieve_class_or_fn(
 ):
     # If there is a custom object registered via
     # `register_keras_serializable`, that takes precedence.
-    custom_obj = generic_utils.get_custom_objects_by_name(registered_name)
-    if custom_obj is not None:
-        return custom_obj
-
-    # If there is a custom object by this name in `custom_objects`,
-    # that takes precedence.
     custom_obj = generic_utils.get_custom_objects_by_name(
-        name, custom_objects=custom_objects
+        registered_name, custom_objects=custom_objects
     )
     if custom_obj is not None:
         return custom_obj
