@@ -692,15 +692,34 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
         return cls(**config)
 
-    @doc_controls.do_not_generate_docs
     def variables(self):
-        """Returns variables of this Optimizer.
-
-        We override the `variable` property method of `tf.Module` for the
-        sake of backward compatibility with `optimizer_v2.Optimizer`'s
-        `variable()` method.
-        """
+        """Returns variables of this optimizer."""
         return self._variables
+
+    def set_weights(self, weights):
+        """Set the weights of the optimizer.
+
+        Args:
+            weights: a list of `tf.Variable`s or numpy arrays, the target values
+                of optimizer variables. It should have the same order as
+                `self._variables`.
+        """
+        if not getattr(self, "_built", False):
+            raise ValueError(
+                "You are calling `set_weights()` on an optimizer that has not "
+                "yet been built. Please call "
+                "`optimizer.build(trainable_variables)` to create the "
+                "optimizer weights before calling `set_weights()`."
+            )
+
+        for variable, weight in zip(self._variables, weights):
+            if variable.shape != weight.shape:
+                raise ValueError(
+                    f"Optimizer variable {self._var_key(variable)} has shape "
+                    f"{str(variable.shape)} not compatible with provided "
+                    f"weight shape {str(weight.shape)}."
+                )
+            variable.assign(weight)
 
     def _get_state(self):
         """Get the state of this optimizer object."""

@@ -211,6 +211,18 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             ],
         )
 
+    def testSetWeights(self):
+        x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
+        optimizer_1 = adam_new.Adam()
+        grads = tf.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        optimizer_1.apply_gradients(zip([grads], [x]))
+        optimizer_2 = adam_new.Adam()
+        with self.assertRaisesRegex(ValueError, "You are calling*"):
+            optimizer_2.set_weights(optimizer_1.variables())
+        optimizer_2.build([x])
+        optimizer_2.set_weights(optimizer_1.variables())
+        self.assertAllClose(optimizer_1.variables(), optimizer_2.variables())
+
     def testSetLearningRate(self):
         optimizer = adam_new.Adam(learning_rate=1.0)
         self.assertIsInstance(optimizer._learning_rate, tf.Variable)
