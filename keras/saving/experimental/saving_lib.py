@@ -18,6 +18,7 @@ import json
 import os
 import tempfile
 import uuid
+import warnings
 import zipfile
 
 import tensorflow.compat.v2 as tf
@@ -207,12 +208,15 @@ def _save_state(
 
     # Recursively ask contained trackable (layers, optimizers,
     # etc.) to save states.
+    attr_skiplist = {
+        "_self_tracked_trackables",
+        "_layer_call_argspecs",
+        "_output_layers",
+        "updates",  # Would raise a warning if visited.
+        "state_updates",  # Would raise a warning if visited.
+    }
     for child_attr in dir(trackable):
-        if (
-            child_attr == "_self_tracked_trackables"
-            or child_attr == "_layer_call_argspecs"
-            or child_attr == "_output_layers"
-        ):
+        if child_attr in attr_skiplist:
             # Avoid certain attribute names to allow readable state file paths,
             # e.g., `layers`.
             continue
@@ -281,6 +285,14 @@ def save_model(model, filepath):
         raise ValueError(
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
+        )
+    if not model.built:
+        warnings.warn(
+            "You are saving a model that has not yet been built. "
+            "It might not contain any weights yet. "
+            "Consider building the model first by calling it "
+            "on some data.",
+            stacklevel=2,
         )
 
     # TODO(rchao): Save the model's metadata (e.g. Keras version) in a separate
