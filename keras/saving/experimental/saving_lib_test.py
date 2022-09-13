@@ -135,14 +135,6 @@ module_my_mean_squared_error = my_mean_squared_error
 
 
 class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
-    def setUp(self):
-        super().setUp()
-        saving_lib._ENABLED = True
-
-    def tearDown(self):
-        super().tearDown()
-        saving_lib._ENABLED = False
-
     def _get_subclassed_model(self):
         subclassed_model = CustomModelX()
         subclassed_model.compile(

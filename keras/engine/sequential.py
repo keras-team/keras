@@ -478,7 +478,7 @@ class Sequential(functional.Functional):
             )
             model.add(layer)
 
-        if saving_lib._ENABLED:
+        if saving_lib._SAVING_V3_ENABLED.value:
 
             # Grab the information from the `config` for `compile()` and
             # `build()`.

@@ -24,7 +24,6 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
-from keras.saving.experimental import saving_lib
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 
@@ -39,16 +38,7 @@ class CustomObjectSavingTest(tf.test.TestCase, parameterized.TestCase):
         super().setUp()
         generic_utils.get_custom_objects().clear()
 
-    @tf.__internal__.distribute.combinations.generate(
-        tf.__internal__.test.combinations.combine(
-            mode=["eager"], idempotent_saving_enabled=[True, False]
-        )
-    )
-    def test_register_keras_serializable_correct_class(
-        self, idempotent_saving_enabled
-    ):
-        saving_lib._ENABLED = idempotent_saving_enabled
-
+    def test_register_keras_serializable_correct_class(self):
         train_step_message = "This is my training step"
         temp_dir = os.path.join(self.get_temp_dir(), "my_model")
 
