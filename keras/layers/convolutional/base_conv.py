@@ -305,7 +305,7 @@ class Conv(Layer):
                         outputs, self.bias, data_format=self._tf_data_format
                     )
 
-        if not tf.executing_eagerly():
+        if not tf.executing_eagerly() and input_shape.rank:
             # Infer the static output shape:
             out_shape = self.compute_output_shape(input_shape)
             outputs.set_shape(out_shape)
