@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import tempfile
+import threading
 import uuid
 import warnings
 import zipfile
@@ -41,7 +42,8 @@ _METADATA_FILENAME = "metadata.json"
 _STATES_ROOT_DIRNAME = "model"
 
 # A temporary flag to enable the new idempotent saving framework.
-_ENABLED = False
+_SAVING_V3_ENABLED = threading.local()
+_SAVING_V3_ENABLED.value = False
 
 
 def _print_archive(zipfile, action):
@@ -149,6 +151,8 @@ def load_model(filepath, custom_objects=None):
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
+    saving_v3_enabled_value = _SAVING_V3_ENABLED.value
+    _SAVING_V3_ENABLED.value = True
     temp_path = _get_temp_dir()
     try:
         with zipfile.ZipFile(filepath, "r") as zipfile_to_load:
@@ -167,6 +171,7 @@ def load_model(filepath, custom_objects=None):
     else:
         return model
     finally:
+        _SAVING_V3_ENABLED.value = saving_v3_enabled_value
         if tf.io.gfile.exists(temp_path):
             tf.io.gfile.rmtree(temp_path)
 
@@ -297,6 +302,8 @@ def save_model(model, filepath):
             "on some data.",
             stacklevel=2,
         )
+    saving_v3_enabled_value = _SAVING_V3_ENABLED.value
+    _SAVING_V3_ENABLED.value = True
 
     serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict).encode()
@@ -324,6 +331,7 @@ def save_model(model, filepath):
     except Exception as e:
         raise e
     finally:
+        _SAVING_V3_ENABLED.value = saving_v3_enabled_value
         # Remove the directory temporarily used.
         tf.io.gfile.rmtree(temp_path)
 
