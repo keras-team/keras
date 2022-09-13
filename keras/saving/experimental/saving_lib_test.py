@@ -487,6 +487,17 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             mock_warn.call_args_list[0][0][0],
         )
 
+    def test_metadata(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = CompileOverridingModel()
+        model._save_experimental(temp_filepath)
+        with zipfile.ZipFile(temp_filepath, "r") as z:
+            with z.open(saving_lib._METADATA_FILENAME, "r") as c:
+                metadata_json = c.read()
+        metadata = json_utils.decode(metadata_json)
+        self.assertIn("keras_version", metadata)
+        self.assertIn("date_saved", metadata)
+
 
 if __name__ == "__main__":
     if tf.__internal__.tf2.enabled():

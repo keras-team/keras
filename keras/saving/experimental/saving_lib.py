@@ -14,6 +14,7 @@
 # ==============================================================================
 """Python-based idempotent model-saving functionality."""
 
+import datetime
 import json
 import os
 import tempfile
@@ -24,6 +25,7 @@ import zipfile
 import tensorflow.compat.v2 as tf
 from absl import logging
 
+import keras
 from keras import losses
 from keras.engine import base_layer
 from keras.optimizers.optimizer_experimental import optimizer
@@ -35,6 +37,7 @@ from keras.utils import io_utils
 
 _SELF_DIRNAME = "self"
 _CONFIG_FILENAME = "config.json"
+_METADATA_FILENAME = "metadata.json"
 _STATES_ROOT_DIRNAME = "model"
 
 # A temporary flag to enable the new idempotent saving framework.
@@ -295,20 +298,25 @@ def save_model(model, filepath):
             stacklevel=2,
         )
 
-    # TODO(rchao): Save the model's metadata (e.g. Keras version) in a separate
-    # file in the archive.
     serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict).encode()
+    # TODO(fchollet): consider saving dependencies list / versions in metadata.
+    metadata_json = json.dumps(
+        {
+            "keras_version": keras.__version__,
+            "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
+        }
+    ).encode()
 
     # Utilize a temporary directory for the storing files prior to zipping.
     temp_path = _get_temp_dir()
-
     try:
         # Save the configuration json and state files.
         with zipfile.ZipFile(filepath, "x") as zipfile_to_save:
+            with zipfile_to_save.open(_METADATA_FILENAME, "w") as c:
+                c.write(metadata_json)
             with zipfile_to_save.open(_CONFIG_FILENAME, "w") as c:
                 c.write(config_json)
-                logging.debug(f"Written config: {config_json} into {c}.")
             _save_state(
                 model, _STATES_ROOT_DIRNAME, temp_path, zipfile_to_save, set()
             )
