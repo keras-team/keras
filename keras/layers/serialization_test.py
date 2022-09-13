@@ -76,7 +76,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
         # Because we're passing an unknown class here, deserialization should
         # fail unless we add SerializableInt to the custom object dict.
         with self.assertRaisesRegex(
-            ValueError, "Unknown config_item: SerializableInt.*"
+            ValueError, "Unknown config_item: 'SerializableInt.*"
         ):
             _ = keras.layers.deserialize(config)
 

@@ -603,9 +603,9 @@ def class_and_config_for_serialized_keras_object(
     cls = get_registered_object(class_name, custom_objects, module_objects)
     if cls is None:
         raise ValueError(
-            f"Unknown {printable_module_name}: {class_name}. "
-            "Please ensure this "
-            "object is passed to the `custom_objects` argument. See "
+            f"Unknown {printable_module_name}: '{class_name}'. "
+            "Please ensure you are using a `keras.utils.custom_object_scope` "
+            "and that this object is included in the scope. See "
             "https://www.tensorflow.org/guide/keras/save_and_serialize"
             "#registering_the_custom_object for details."
         )
@@ -767,9 +767,10 @@ def deserialize_keras_object(
             obj = module_objects.get(object_name)
             if obj is None:
                 raise ValueError(
-                    f"Unknown {printable_module_name}: {object_name}. Please "
-                    "ensure this object is passed to the `custom_objects` "
-                    "argument. See "
+                    f"Unknown {printable_module_name}: '{object_name}'. "
+                    "Please ensure you are using a "
+                    "`keras.utils.custom_object_scope` "
+                    "and that this object is included in the scope. See "
                     "https://www.tensorflow.org/guide/keras/save_and_serialize"
                     "#registering_the_custom_object for details."
                 )

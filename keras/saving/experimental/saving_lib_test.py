@@ -28,6 +28,7 @@ from keras import backend
 from keras.optimizers.optimizer_experimental import adam
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 from keras.utils import io_utils
 
@@ -134,7 +135,8 @@ def my_mean_squared_error(y_true, y_pred):
 module_my_mean_squared_error = my_mean_squared_error
 
 
-class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
+@test_utils.run_v2_only
+class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
     def _get_subclassed_model(self):
         subclassed_model = CustomModelX()
         subclassed_model.compile(
@@ -492,5 +494,4 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-    if tf.__internal__.tf2.enabled():
-        tf.test.main()
+    tf.test.main()

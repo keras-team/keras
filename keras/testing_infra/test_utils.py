@@ -494,6 +494,8 @@ class SmallSubclassMLP(models.Model):
         self, num_hidden, num_classes, use_bn=False, use_dp=False, **kwargs
     ):
         super().__init__(name="test_model", **kwargs)
+        self.num_hidden = num_hidden
+        self.num_classes = num_classes
         self.use_bn = use_bn
         self.use_dp = use_dp
 
@@ -512,6 +514,18 @@ class SmallSubclassMLP(models.Model):
         if self.use_bn:
             x = self.bn(x)
         return self.layer_b(x)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "num_hidden": self.num_hidden,
+                "num_classes": self.num_classes,
+                "use_bn": self.use_bn,
+                "use_dp": self.use_dp,
+            }
+        )
+        return config
 
 
 class _SmallSubclassMLPCustomBuild(models.Model):
