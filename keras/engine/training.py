@@ -1701,7 +1701,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if self.stop_training:
                     break
 
-            if isinstance(self.optimizer, optimizer_experimental.Optimizer):
+            if (
+                isinstance(self.optimizer, optimizer_experimental.Optimizer)
+                and epochs > 0
+            ):
                 self.optimizer.finalize_variable_values(
                     self.trainable_variables
                 )
