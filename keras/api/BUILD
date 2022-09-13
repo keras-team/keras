@@ -130,7 +130,6 @@ keras_packages = [
     "keras.regularizers",
     "keras.saving.model_config",
     "keras.saving.save",
-    "keras.saving.saved_model_experimental",
     "keras.testing_infra.test_utils",
     "keras.utils.data_utils",
     "keras.utils.generic_utils",
