@@ -134,6 +134,11 @@ def _get_class_or_fn_config(obj):
     # All classes:
     if hasattr(obj, "get_config"):
         config = obj.get_config()
+        if not isinstance(config, dict):
+            raise TypeError(
+                f"The `get_config()` method of {obj} should return "
+                f"a dict. It returned: {config}"
+            )
         return serialize_dict(config)
     else:
         raise TypeError(

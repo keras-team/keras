@@ -22,6 +22,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.saving.experimental import serialization_lib
+from keras.testing_infra import test_utils
 
 
 def custom_fn(x):
@@ -67,6 +68,7 @@ class NestedCustomLayer(keras.layers.Layer):
         }
 
 
+@test_utils.run_v2_only
 class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
     def roundtrip(self, obj, custom_objects=None):
         serialized = serialization_lib.serialize_keras_object(obj)
@@ -149,5 +151,4 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-    if tf.__internal__.tf2.enabled():
-        tf.test.main()
+    tf.test.main()

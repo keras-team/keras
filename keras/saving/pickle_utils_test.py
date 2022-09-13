@@ -23,6 +23,7 @@ from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
 
+@test_utils.run_v2_only
 class TestPickleProtocol(test_combinations.TestCase):
     """Tests pickle protocol support."""
 
@@ -52,8 +53,8 @@ class TestPickleProtocol(test_combinations.TestCase):
         model.compile(optimizer="sgd", loss="sparse_categorical_crossentropy")
 
         # train
-        x = np.random.random(size=(1000, 3))
-        y = np.random.randint(low=0, high=2, size=(1000,))
+        x = np.random.random(size=(10, 3))
+        y = np.random.randint(low=0, high=2, size=(10,))
         model.fit(x, y)  # builds model
         y1 = model.predict(x)
         # roundtrip with training

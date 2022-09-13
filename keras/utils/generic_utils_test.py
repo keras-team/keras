@@ -412,7 +412,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
         layer = CustomLayer()
         config = keras.utils.generic_utils.serialize_keras_object(layer)
         with self.assertRaisesRegexp(
-            ValueError, "passed to the `custom_objects` arg"
+            ValueError, "using a `keras.utils.custom_object_scope`"
         ):
             keras.utils.generic_utils.deserialize_keras_object(config)
         restored = keras.utils.generic_utils.deserialize_keras_object(

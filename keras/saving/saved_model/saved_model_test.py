@@ -415,7 +415,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         )
         model.save(saved_model_dir, save_format="tf")
         with self.assertRaisesRegex(
-            ValueError, "Unknown layer: LayerThatShouldFailIfNotAdded"
+            ValueError, "Unknown layer: 'LayerThatShouldFailIfNotAdded'"
         ):
             _ = keras_load.load(saved_model_dir)
 

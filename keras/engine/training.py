@@ -363,7 +363,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.built:
             return (
                 pickle_utils.deserialize_model_from_bytecode,
-                pickle_utils.serialize_model_as_bytecode(self),
+                (pickle_utils.serialize_model_as_bytecode(self),),
             )
         else:
             # SavedModel (and hence serialize_model_as_bytecode) only support
@@ -378,7 +378,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def __deepcopy__(self, memo):
         if self.built:
             new = pickle_utils.deserialize_model_from_bytecode(
-                *pickle_utils.serialize_model_as_bytecode(self)
+                pickle_utils.serialize_model_as_bytecode(self)
             )
             memo[id(self)] = new
         else:
