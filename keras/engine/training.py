@@ -3073,7 +3073,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # as a result.
         config = {}
 
-        if saving_lib._SAVING_V3_ENABLED.value:
+        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
             config["is_compiled"] = self._is_compiled
             if self.optimizer:
                 config["optimizer"] = saving_lib.serialize_keras_object(
@@ -3150,7 +3150,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f"Error encountered during deserialization:\n{e}"
                     )
 
-            if saving_lib._SAVING_V3_ENABLED.value:
+            if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
                 has_overridden_compile = cls.compile != Model.compile
                 has_overridden_from_config = (
                     cls.from_config.__func__.__qualname__
