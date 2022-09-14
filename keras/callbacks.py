@@ -1946,6 +1946,10 @@ class EarlyStopping(Callback):
           of the performance relative to the `baseline`. If no epoch
           improves on `baseline`, training will run for `patience`
           epochs and restore weights from the best epoch in that set.
+      start_from_epoch: Number of initial epochs to wait before starting
+          to monitor improvement. This allows a warm-up period in which
+          no improvement is expected and thus training will not be stopped.
+
 
     Example:
 
@@ -1970,6 +1974,7 @@ class EarlyStopping(Callback):
         mode="auto",
         baseline=None,
         restore_best_weights=False,
+        start_from_epoch=0,
     ):
         super().__init__()
 
@@ -1982,6 +1987,7 @@ class EarlyStopping(Callback):
         self.stopped_epoch = 0
         self.restore_best_weights = restore_best_weights
         self.best_weights = None
+        self.start_from_epoch = start_from_epoch
 
         if mode not in ["auto", "min", "max"]:
             logging.warning(
@@ -2019,7 +2025,8 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         current = self.get_monitor_value(logs)
-        if current is None:
+        if current is None or epoch <= self.start_from_epoch:
+            # If no monitor value exists or still in initial warm-up stage.
             return
         if self.restore_best_weights and self.best_weights is None:
             # Restore the weights after first epoch if no progress is ever made.
