@@ -1869,6 +1869,46 @@ class KerasCallbacksTest(test_combinations.TestCase):
         self.assertEqual(epochs_trained, 5)
         self.assertEqual(early_stop.model.get_weights(), 2)
 
+    def test_EarlyStopping_with_start_from_epoch(self):
+        with self.cached_session():
+            np.random.seed(1337)
+
+            (data, labels), _ = test_utils.get_test_data(
+                train_samples=100,
+                test_samples=50,
+                input_shape=(1,),
+                num_classes=NUM_CLASSES,
+            )
+            model = test_utils.get_small_sequential_mlp(
+                num_hidden=1, num_classes=1, input_dim=1
+            )
+            model.compile(
+                optimizer="sgd", loss="binary_crossentropy", metrics=["acc"]
+            )
+            start_from_epoch = 2
+            patience = 3
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="acc",
+                patience=patience,
+                start_from_epoch=start_from_epoch,
+            )
+            hist = model.fit(
+                data, labels, callbacks=[stopper], verbose=0, epochs=20
+            )
+            assert len(hist.epoch) >= patience + start_from_epoch
+
+            start_from_epoch = 2
+            patience = 0
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="acc",
+                patience=patience,
+                start_from_epoch=start_from_epoch,
+            )
+            hist = model.fit(
+                data, labels, callbacks=[stopper], verbose=0, epochs=20
+            )
+            assert len(hist.epoch) >= start_from_epoch
+
     def test_RemoteMonitor(self):
         if requests is None:
             self.skipTest("`requests` required to run this test")
