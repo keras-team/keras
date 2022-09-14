@@ -1974,7 +1974,9 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         elif self._rng_type == self.RNG_STATEFUL:
             with tf_utils.maybe_init_scope(self):
                 seed = self._create_seed(self._seed)
-                self._generator = tf.random.Generator.from_seed(seed)
+                self._generator = tf.random.Generator.from_seed(
+                    seed, alg=tf.random.Algorithm.AUTO_SELECT
+                )
         else:
             # In legacy stateful, we use stateful op, regardless whether user
             # provide seed or not. Seeded stateful op will ensure generating
