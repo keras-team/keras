@@ -1946,7 +1946,7 @@ class EarlyStopping(Callback):
           of the performance relative to the `baseline`. If no epoch
           improves on `baseline`, training will run for `patience`
           epochs and restore weights from the best epoch in that set.
-      start_from_epoch: Number of initial epochs to wait before starting
+      start_from_epoch: Number of epochs to wait before starting
           to monitor improvement. This allows a warm-up period in which
           no improvement is expected and thus training will not be stopped.
 
