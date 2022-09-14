@@ -165,7 +165,7 @@ tf_class {
   }
   member_method {
     name: "compute_output_shape"
-    argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'query_shape\', \'value_shape\', \'key_shape\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "compute_output_signature"
