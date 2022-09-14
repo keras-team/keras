@@ -1823,7 +1823,7 @@ _USE_GENERATOR_FOR_RNG = False
 # way, so that each client of the program could start with same seed. This is
 # very important for certain use case that requires all the client to have their
 # state in sync. This instance will be set when user call
-# `tf.keras.util.set_random_seed()`
+# `tf.keras.utils.set_random_seed()`
 _SEED_GENERATOR = threading.local()
 
 
