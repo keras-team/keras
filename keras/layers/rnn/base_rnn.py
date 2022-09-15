@@ -186,8 +186,10 @@ class RNN(base_layer.Layer):
     Examples:
 
     ```python
-    # First, let's define a RNN Cell, as a layer subclass.
+    from keras.layers import RNN
+    from keras import backend
 
+    # First, let's define a RNN Cell, as a layer subclass.
     class MinimalRNNCell(keras.layers.Layer):
 
         def __init__(self, units, **kwargs):
