@@ -21,6 +21,7 @@ import os
 import pickle
 import shutil
 import sys
+import tempfile
 import time
 import timeit
 
@@ -28,6 +29,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 import keras
+from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
 
@@ -592,6 +594,142 @@ class LayerUtilsTest(tf.test.TestCase):
         size_check_instance = MyPickleableObject()
         _ = size_check_instance.my_id
         self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
+
+    def test_warmstart_embedding_matrix_with_list(self):
+        vocab_base = ["unk", "a", "b", "c"]
+        vocab_new = ["unk", "unk", "a", "b", "c", "d", "e"]
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_embedding_matrix_with_nparray(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    @test_utils.run_v2_only
+    def test_warmstart_embedding_matrix_with_tensor(self):
+        vocab_base = tf.convert_to_tensor(["unk", "a", "b", "c"])
+        vocab_new = tf.convert_to_tensor(
+            ["unk", "unk", "a", "b", "c", "d", "e"]
+        )
+        vectorized_vocab_base = np.random.rand(vocab_base.shape[0], 3)
+        vectorized_vocab_new = np.random.rand(vocab_new.shape[0], 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_embedding_matrix_with_file_name(self):
+        def _write_list_to_file(filename, content_list):
+            with tf.io.gfile.GFile(filename, "w") as output_file:
+                for line in content_list:
+                    output_file.write(line + "\n")
+
+        vocab_base = ["UNK", "a", "b", "c"]
+        vocab_base_file = tempfile.mktemp(".tsv")
+        _write_list_to_file(vocab_base_file, vocab_base)
+        vocab_new = ["UNK", "UNK", "a", "b", "c", "d", "e"]
+        vocab_new_file = tempfile.mktemp(".tsv")
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        _write_list_to_file(vocab_new_file, vocab_new)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base_file,
+            new_vocabulary=vocab_new_file,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[2],
+        )
+
+    def test_warmstart_default_initialization(self):
+        def _write_list_to_file(filename, content_list):
+            with tf.io.gfile.GFile(filename, "w") as output_file:
+                for line in content_list:
+                    output_file.write(line + "\n")
+
+        vocab_base = ["UNK", "a", "b", "c"]
+        vocab_base_file = tempfile.mktemp(".tsv")
+        _write_list_to_file(vocab_base_file, vocab_base)
+        vocab_new = ["UNK", "UNK", "a", "b", "c", "d", "e"]
+        vocab_new_file = tempfile.mktemp(".tsv")
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        _write_list_to_file(vocab_new_file, vocab_new)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base_file,
+            new_vocabulary=vocab_new_file,
+            base_embeddings=vectorized_vocab_base,
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[2],
+        )
+
+    def test_warmstart_default_value(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_with_randomuniform_initializer(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer="RandomUniform",
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
 
 
 if __name__ == "__main__":
