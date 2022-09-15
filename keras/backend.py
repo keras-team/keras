@@ -1470,7 +1470,10 @@ def is_placeholder(x):
         if tf.compat.v1.executing_eagerly_outside_functions():
             return hasattr(x, "_is_backend_placeholder")
 
-        if tf_utils.is_extension_type(x):
+        # TODO(b/246438937): Remove the special case for tf.Variable once
+        # tf.Variable becomes CompositeTensor and will be expanded into
+        # dt_resource tensors.
+        if tf_utils.is_extension_type(x) and not isinstance(x, tf.Variable):
             flat_components = tf.nest.flatten(x, expand_composites=True)
             return py_any(is_placeholder(c) for c in flat_components)
         else:
