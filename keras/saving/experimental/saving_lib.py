@@ -151,7 +151,7 @@ def load_model(filepath, custom_objects=None):
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
-    saving_v3_enabled_value = _SAVING_V3_ENABLED.value
+    saving_v3_enabled_value = getattr(_SAVING_V3_ENABLED, "value", False)
     _SAVING_V3_ENABLED.value = True
     temp_path = _get_temp_dir()
     try:
@@ -302,7 +302,7 @@ def save_model(model, filepath):
             "on some data.",
             stacklevel=2,
         )
-    saving_v3_enabled_value = _SAVING_V3_ENABLED.value
+    saving_v3_enabled_value = getattr(_SAVING_V3_ENABLED, "value", False)
     _SAVING_V3_ENABLED.value = True
 
     serialized_model_dict = serialize_keras_object(model)
