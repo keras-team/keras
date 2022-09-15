@@ -87,7 +87,7 @@ class Conv1D(Conv):
         `channels_last` corresponds to inputs with shape `(batch_size, width,
         channels)` while `channels_first` corresponds to inputs with shape
         `(batch_size, channels, width)`. Note that the `channels_first` format
-        is currently not supported on CPU.
+        is currently not supported by TensorFlow on CPU.
       dilation_rate: an integer or tuple/list of a single integer, specifying
         the dilation rate to use for dilated convolution.
         Currently, specifying any `dilation_rate` value != 1 is
