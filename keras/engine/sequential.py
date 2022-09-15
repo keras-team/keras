@@ -479,11 +479,39 @@ class Sequential(functional.Functional):
             model.add(layer)
 
         if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
-            compile_config = config.get("compile_config", None)
-            if compile_config is not None:
-                model._compile_from_config(
-                    compile_config, base_class=Sequential
+            # Grab the information from the `config` for `compile()` and
+            # `build()`.
+            is_compiled = config.pop("is_compiled", False)
+            optimizer, loss = None, None
+            optimizer_dict = config.pop("optimizer", {})
+            if optimizer_dict:
+                optimizer = saving_lib.deserialize_keras_object(
+                    optimizer_dict, custom_objects
                 )
+            loss_dict = config.pop("loss", {})
+            if loss_dict:
+                loss = saving_lib.deserialize_keras_object(
+                    loss_dict, custom_objects
+                )
+
+            has_overridden_compile = cls.compile != Sequential.compile
+            has_overridden_from_config = (
+                cls.from_config.__func__.__qualname__
+                != Sequential.from_config.__func__.__qualname__
+            )
+            if has_overridden_compile and (not has_overridden_from_config):
+                logging.warning(
+                    "`compile()` was not called as part of model loading "
+                    "because the model's `compile()` method is custom. "
+                    "All subclassed Models that have `compile()` "
+                    "overridden should also override `from_config()` in order "
+                    "to call `compile()`. Alternatively, you can call "
+                    "`compile()` manually after loading."
+                )
+
+            if (not has_overridden_compile) and is_compiled:
+                # TODO(rchao): Handle other compile args.
+                model.compile(optimizer=optimizer, loss=loss)
 
         if (
             not model.inputs
