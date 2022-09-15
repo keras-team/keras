@@ -15,6 +15,7 @@
 """Object config serialization and deserialization logic."""
 
 import importlib
+import inspect
 import types
 
 import numpy as np
@@ -51,9 +52,6 @@ def serialize_keras_object(obj):
     if isinstance(obj, (list, tuple)):
         return [serialize_keras_object(x) for x in obj]
     if isinstance(obj, dict):
-        if "class_name" in obj and "config" in obj:
-            # Already serialized.
-            return obj
         return serialize_dict(obj)
 
     # Special cases:
@@ -84,6 +82,8 @@ def serialize_keras_object(obj):
         else:
             # Treat numpy floats / etc as plain types.
             return obj.item()
+    if isinstance(obj, tf.DType):
+        return obj.name
 
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
@@ -133,7 +133,12 @@ def _get_class_or_fn_config(obj):
         return obj.__name__
     # All classes:
     if hasattr(obj, "get_config"):
-        config = obj.get_config()
+        if "include_vocabulary" in inspect.signature(obj.get_config).parameters:
+            # Special-case vocabulary preprocessing layers, which
+            # can optionally return a vocabulary as part of their config.
+            config = obj.get_config(include_vocabulary=False)
+        else:
+            config = obj.get_config()
         if not isinstance(config, dict):
             raise TypeError(
                 f"The `get_config()` method of {obj} should return "

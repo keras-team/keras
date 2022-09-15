@@ -199,7 +199,7 @@ tf_class {
   }
   member_method {
     name: "get_config"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'include_vocabulary\'], varargs=None, keywords=None, defaults=[\'True\'], "
   }
   member_method {
     name: "get_input_at"

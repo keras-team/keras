@@ -14,8 +14,8 @@
 # ==============================================================================
 """Keras index lookup preprocessing layer."""
 
-
 import collections
+import os
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -418,7 +418,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         logging.warning("vocab_size is deprecated, please use vocabulary_size.")
         return self.vocabulary_size()
 
-    def get_config(self):
+    def get_config(self, include_vocabulary=True):
         config = {
             "invert": self.invert,
             "max_tokens": self.max_tokens,
@@ -428,10 +428,13 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             "output_mode": self.output_mode,
             "sparse": self.sparse,
             "pad_to_max_tokens": self.pad_to_max_tokens,
-            "vocabulary": utils.listify_tensors(self.input_vocabulary),
             "vocabulary_dtype": self.vocabulary_dtype,
-            "idf_weights": utils.listify_tensors(self.input_idf_weights),
         }
+        if include_vocabulary:
+            config["vocabulary"] = utils.listify_tensors(self.input_vocabulary)
+            config["idf_weights"] = utils.listify_tensors(
+                self.input_idf_weights
+            )
 
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -475,11 +478,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
                     f"Vocabulary file {vocabulary} does not exist."
-                )
-            if self.output_mode == TF_IDF:
-                raise ValueError(
-                    "output_mode `'tf_idf'` does not support loading a "
-                    "vocabulary from file."
                 )
             self.lookup_table = self._lookup_table_from_file(vocabulary)
             return
@@ -725,6 +723,25 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                 self.token_document_counts.export()[0]
             )
             self.num_documents.assign(0)
+
+    def _save_state(self, dir_path):
+        vocabulary = self.get_vocabulary(include_special_tokens=True)
+        vocabulary_filepath = os.path.join(dir_path, "vocabulary.txt")
+        with open(vocabulary_filepath, "w") as f:
+            f.write("\n".join([str(w) for w in vocabulary]))
+        if self.output_mode == TF_IDF:
+            idf_weights_filepath = os.path.join(dir_path, "idf_weight.npz")
+            np.savez(
+                idf_weights_filepath,
+                utils.listify_tensors(self.input_idf_weights),
+            )
+
+    def _load_state(self, dir_path):
+        vocabulary_filepath = os.path.join(dir_path, "vocabulary.txt")
+        if self.output_mode == TF_IDF:
+            idf_weights_filepath = os.path.join(dir_path, "idf_weight.npz")
+            idf_weights = np.load(idf_weights_filepath)
+        self.set_vocabulary(vocabulary_filepath, idf_weights)
 
     def call(self, inputs):
         self._maybe_freeze_vocab_size()

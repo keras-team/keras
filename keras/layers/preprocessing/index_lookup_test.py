@@ -27,6 +27,7 @@ from absl.testing import parameterized
 import keras
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
+from keras.saving.experimental import saving_lib
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils.generic_utils import CustomObjectScope
@@ -486,6 +487,7 @@ def _get_end_to_end_test_cases():
     return crossed_test_cases
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupLayerTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -550,6 +552,7 @@ class IndexLookupLayerTest(
             self.assertAllClose(expected_output, output_data)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingInputTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -674,6 +677,7 @@ class CategoricalEncodingInputTest(
         self.assertAllEqual(expected_output, output_dataset)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingMultiOOVTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -777,6 +781,7 @@ class CategoricalEncodingMultiOOVTest(
         self.assertAllEqual(expected_output, output_dataset)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class CategoricalEncodingAdaptTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -908,6 +913,7 @@ class CategoricalEncodingAdaptTest(
         layer.adapt(batched_ds)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupOutputTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -1708,6 +1714,7 @@ class IndexLookupOutputTest(
         self.assertAllEqual(list(ds.as_numpy_iterator()), [[0], [1], [2]])
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupVocabularyTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -2024,6 +2031,7 @@ class IndexLookupVocabularyTest(
             )
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupInverseVocabularyTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -2161,6 +2169,7 @@ class IndexLookupInverseVocabularyTest(
             layer.set_vocabulary(vocab_data)
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupErrorTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -2191,6 +2200,7 @@ class IndexLookupErrorTest(
             )
 
 
+@test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupSavingTest(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
@@ -2675,6 +2685,64 @@ class IndexLookupSavingTest(
         self.assertAllEqual(tf.sparse.to_dense(output), expected_output)
 
 
+@test_utils.run_v2_only
+class TestIndexLookupSavingV3(tf.test.TestCase):
+    def test_string_lookup_saving_v3(self):
+        vocab_data = ["earth", "wind", "and", "fire"]
+        input_array = np.array(
+            [
+                ["earth", "wind", "and", "fire"],
+                ["fire", "and", "earth", "michigan"],
+            ]
+        )
+        idf_weights = [0.1, 0.2, 0.3, 0.4]
+
+        model = keras.Sequential(
+            [
+                keras.layers.StringLookup(
+                    vocabulary=vocab_data,
+                    idf_weights=idf_weights,
+                    output_mode="tf_idf",
+                ),
+                keras.layers.Dense(1),
+            ]
+        )
+        original_output = model(input_array)
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        saving_lib.save_model(model, filepath=temp_filepath)
+        reloaded_model = saving_lib.load_model(temp_filepath)
+        new_output = model(input_array)
+        self.assertAllClose(original_output, new_output, atol=1e-5)
+
+    def test_integer_lookup_saving_v3(self):
+        vocab_data = [1, 2, 3, 4]
+        input_array = np.array(
+            [
+                [2, 3],
+                [4, 5],
+            ]
+        )
+        idf_weights = [0.1, 0.2, 0.3, 0.4]
+
+        model = keras.Sequential(
+            [
+                keras.layers.IntegerLookup(
+                    vocabulary=vocab_data,
+                    idf_weights=idf_weights,
+                    output_mode="tf_idf",
+                ),
+                keras.layers.Dense(1),
+            ]
+        )
+        original_output = model(input_array)
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        saving_lib.save_model(model, filepath=temp_filepath)
+        reloaded_model = saving_lib.load_model(temp_filepath)
+        new_output = model(input_array)
+        self.assertAllClose(original_output, new_output, atol=1e-5)
+
+
+@test_utils.run_v2_only
 class EagerExecutionDisabled(
     test_combinations.TestCase, preprocessing_test_utils.PreprocessingLayerTest
 ):
@@ -2708,6 +2776,4 @@ class EagerExecutionDisabled(
 
 
 if __name__ == "__main__":
-    # IndexLookup is only exported as a TF2 API.
-    tf.compat.v1.enable_v2_behavior()
     tf.test.main()
