@@ -701,6 +701,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
         base_layer.keras_api_gauge.get_cell("compile").set(True)
+        self._compile_config = CompileConfig(
+            optimizer=optimizer,
+            loss=loss,
+            metrics=metrics,
+            loss_weights=loss_weights,
+            weighted_metrics=weighted_metrics,
+            run_eagerly=run_eagerly,
+            steps_per_execution=steps_per_execution,
+            jit_compile=jit_compile,
+        )
         with self.distribute_strategy.scope():
             if "experimental_steps_per_execution" in kwargs:
                 logging.warning(
@@ -3072,40 +3082,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # they don't override `from_config()`, which would use `cls(**config)`
         # as a result.
         config = {}
-
         if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
-            config["is_compiled"] = self._is_compiled
-            if self.optimizer:
-                config["optimizer"] = saving_lib.serialize_keras_object(
-                    self.optimizer
-                )
-            if self.compiled_loss:
-                config["loss"] = saving_lib.serialize_keras_object(
-                    self.compiled_loss
-                )
+            if self._is_compiled and hasattr(self, "_compile_config"):
+                config["compile_config"] = self._compile_config.serialize()
             if self.built:
-                config["input_shape"] = self._build_input_shape
-
+                config["build_input_shape"] = self._build_input_shape
         return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-
-        # Grab the information from the `config` for `compile()` and
-        # `build()`.
-        is_compiled = config.pop("is_compiled", False)
-        optimizer, loss = None, None
-        optimizer_dict = config.pop("optimizer", {})
-        if optimizer_dict:
-            optimizer = saving_lib.deserialize_keras_object(
-                optimizer_dict, custom_objects
-            )
-        loss_dict = config.pop("loss", {})
-        if loss_dict:
-            loss = saving_lib.deserialize_keras_object(
-                loss_dict, custom_objects
-            )
-        input_shape = config.pop("input_shape", {})
+        compile_config = config.pop("compile_config", None)
+        build_input_shape = config.pop("build_input_shape", None)
 
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
@@ -3151,27 +3138,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     )
 
             if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
-                has_overridden_compile = cls.compile != Model.compile
-                has_overridden_from_config = (
-                    cls.from_config.__func__.__qualname__
-                    != Model.from_config.__func__.__qualname__
-                )
-
-                if has_overridden_compile and (not has_overridden_from_config):
-                    logging.warning(
-                        "`compile()` was not called as part of model loading "
-                        "because the model's `compile()` method is custom. "
-                        "All subclassed Models that have `compile()` "
-                        "overridden should also override `from_config()` in "
-                        "order to call `compile()`. Alternatively, you can "
-                        "call `compile()` manually after loading."
-                    )
-                elif (not has_overridden_compile) and is_compiled:
-                    # TODO(rchao): Handle other compile args.
-                    model.compile(optimizer=optimizer, loss=loss)
-
-                if input_shape:
-                    model.build(input_shape)
+                if build_input_shape:
+                    model.build(build_input_shape)
+                if compile_config is not None:
+                    model._compile_from_config(compile_config, base_class=Model)
 
             return model
 
@@ -3791,6 +3761,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"type {type(validation_freq)}."
             )
 
+    def _compile_from_config(self, compile_config, base_class):
+        has_overridden_compile = self.__class__.compile != base_class.compile
+        has_overridden_from_config = (
+            self.__class__.from_config.__func__.__qualname__
+            != base_class.from_config.__func__.__qualname__
+        )
+
+        if not has_overridden_compile:
+            compile_config = saving_lib.deserialize_keras_object(compile_config)
+            self.compile(**compile_config)
+        else:
+            if not has_overridden_from_config:
+                logging.warning(
+                    "`compile()` was not called as part of model loading "
+                    "because the model's `compile()` method is custom. "
+                    "All subclassed Models that have `compile()` "
+                    "overridden should also override `from_config()` in "
+                    "order to call `compile()`. Alternatively, you can "
+                    "call `compile()` manually after loading."
+                )
+
     ######################################################################
     # Functions below exist only as v1 / v2 compatibility shims.
     ######################################################################
@@ -3806,7 +3797,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           Dictionary of arguments that were used when compiling the model.
         """
         self._assert_compile_was_called()
-
         saved_metrics = self.compiled_metrics._user_metrics
         saved_weighted_metrics = self.compiled_metrics._user_weighted_metrics
 
@@ -3823,7 +3813,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "weighted_metrics": saved_weighted_metrics,
             "loss_weights": self.compiled_loss._user_loss_weights,
         }
-
         return compile_args
 
     def _get_callback_model(self):
@@ -4188,3 +4177,11 @@ def is_functional_model_init_params(args, kwargs):
         or "inputs" in kwargs
         and "outputs" in kwargs
     )
+
+
+class CompileConfig:
+    def __init__(self, **config):
+        self.config = config
+
+    def serialize(self):
+        return saving_lib.serialize_keras_object(self.config)

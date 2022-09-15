@@ -108,8 +108,8 @@ class CompileOverridingModel(keras.Model):
         super().__init__(*args, **kwargs)
         self.dense1 = MyDense(1)
 
-    def compile(self, some_random_arg):
-        pass
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
 
     def call(self, inputs):
         return self.dense1(inputs)
@@ -119,8 +119,8 @@ class CompileOverridingModel(keras.Model):
     package="my_custom_package"
 )
 class CompileOverridingSequential(keras.Sequential):
-    def compile(self, some_random_arg):
-        pass
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
 
 
 @keras.utils.generic_utils.register_keras_serializable(
@@ -337,19 +337,17 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
         self.assertEqual(
-            config_dict["config"]["optimizer"]["module"],
+            config_dict["config"]["compile_config"]["optimizer"]["module"],
             "keras.optimizers.experimental",
         )
         self.assertEqual(
-            config_dict["config"]["optimizer"]["class_name"],
+            config_dict["config"]["compile_config"]["optimizer"]["class_name"],
             "Adam",
         )
+        self.assertLen(config_dict["config"]["compile_config"]["loss"], 4)
         self.assertEqual(
-            config_dict["config"]["loss"]["module"],
-            "keras.engine.compile_utils",
-        )
-        self.assertEqual(
-            config_dict["config"]["loss"]["class_name"], "LossesContainer"
+            config_dict["config"]["compile_config"]["loss"][0],
+            "mse",
         )
 
     @tf.__internal__.distribute.combinations.generate(
@@ -471,10 +469,13 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
                 [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
             )
         )
+        model.compile("rmsprop", "mse")
         model._save_experimental(temp_filepath)
 
         with mock.patch.object(logging, "warning") as mock_warn:
             saving_lib.load_model(temp_filepath)
+        if not mock_warn.call_args_list:
+            raise AssertionError("Did not warn.")
         self.assertIn(
             "`compile()` was not called as part of model loading "
             "because the model's `compile()` method is custom. ",
