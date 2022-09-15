@@ -28,7 +28,7 @@ py_library(
 
 tf_py_test(
     name = "saving_lib_test",
-    size = "small",
+    size = "medium",
     srcs = ["saving_lib_test.py"],
     python_version = "PY3",
     deps = [
