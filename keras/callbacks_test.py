@@ -1872,15 +1872,17 @@ class KerasCallbacksTest(test_combinations.TestCase):
     def test_EarlyStopping_with_start_from_epoch(self):
         with self.cached_session():
             np.random.seed(1337)
-
             (data, labels), _ = test_utils.get_test_data(
-                train_samples=100,
-                test_samples=50,
-                input_shape=(1,),
+                train_samples=TRAIN_SAMPLES,
+                test_samples=TEST_SAMPLES,
+                input_shape=(INPUT_DIM,),
                 num_classes=NUM_CLASSES,
             )
+            labels = np_utils.to_categorical(labels)
             model = test_utils.get_small_sequential_mlp(
-                num_hidden=1, num_classes=1, input_dim=1
+                num_hidden=NUM_HIDDEN,
+                num_classes=NUM_CLASSES,
+                input_dim=INPUT_DIM,
             )
             model.compile(
                 optimizer="sgd", loss="binary_crossentropy", metrics=["acc"]
@@ -1892,10 +1894,12 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 patience=patience,
                 start_from_epoch=start_from_epoch,
             )
-            hist = model.fit(
+            history = model.fit(
                 data, labels, callbacks=[stopper], verbose=0, epochs=20
             )
-            assert len(hist.epoch) >= patience + start_from_epoch
+            # Test 'patience' argument functions correctly when used
+            # in conjunction with 'start_from_epoch'.
+            assert len(history.epoch) >= patience + start_from_epoch
 
             start_from_epoch = 2
             patience = 0
@@ -1904,10 +1908,11 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 patience=patience,
                 start_from_epoch=start_from_epoch,
             )
-            hist = model.fit(
+            history = model.fit(
                 data, labels, callbacks=[stopper], verbose=0, epochs=20
             )
-            assert len(hist.epoch) >= start_from_epoch
+            # Test for boundary condition when 'patience' = 0.
+            assert len(history.epoch) >= start_from_epoch
 
     def test_RemoteMonitor(self):
         if requests is None:
