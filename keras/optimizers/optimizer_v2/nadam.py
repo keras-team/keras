@@ -49,7 +49,7 @@ class Nadam(optimizer_v2.OptimizerV2):
         clipped so that their global norm is no higher than this value.
 
     Usage Example:
-      >>> opt = tf.keras.optimizers.Nadam(learning_rate=0.2)
+      >>> opt = tf.keras.optimizers.legacy.Nadam(learning_rate=0.2)
       >>> var1 = tf.Variable(10.0)
       >>> loss = lambda: (var1 ** 2) / 2.0
       >>> step_count = opt.minimize(loss, [var1]).numpy()
