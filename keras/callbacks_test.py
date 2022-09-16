@@ -517,17 +517,16 @@ class KerasCallbacksTest(test_combinations.TestCase):
             backup_dir=self.get_temp_dir(), save_freq=save_freq_arg
         )
         # epoch where the restore should resume from
-        init_epoch = (
-            epoch_int
-            if save_freq_arg == "epoch"
-            else int(((steps_int // 7) * 7) // 5)
-        )
-        # step from where the restore should resume from
-        init_step = (
-            0
-            if save_freq_arg == "epoch"
-            else int((((steps_int // 7) * 7) % 5) - 1)
-        )
+        if save_freq_arg == "epoch":
+            init_epoch = epoch_int
+            init_step = 0
+        elif save_freq_arg:
+            init_epoch = int(((steps_int // 7) * 7) // 5)
+            init_step = int((((steps_int // 7) * 7) % 5) - 1)
+        else:
+            init_epoch = 0
+            init_step = 0
+
         # callback to verify accurate training state restore
         verify_restore_callback = VerifyRestore(
             initial_epoch=init_epoch, initial_step=init_step
@@ -650,6 +649,44 @@ class KerasCallbacksTest(test_combinations.TestCase):
         )
         self.assertNotIn(warning_msg, "\n".join(warning_messages))
         warning_msg = "***Handling interruption at Nth step***"
+        self.assertIn(warning_msg, "\n".join(warning_messages))
+
+    def test_backup_and_restore_steps_false_save_freq(self):
+        """Ensure the public endpoint of `BackupAndRestore` is working."""
+        warning_messages = []
+
+        def warning(msg):
+            warning_messages.append(msg)
+
+        with tf.compat.v1.test.mock.patch.object(logging, "warning", warning):
+            # interrupt at steps before 1 epoch
+            self._test_backup_and_restore_callback_at_steps(
+                BackupAndRestore, epoch_int=20, steps_int=3, mode=False
+            )
+        warning_msg = (
+            "`tf.keras.callbacks.experimental.BackupAndRestore` "
+            "endpoint is deprecated"
+        )
+        self.assertNotIn(warning_msg, "\n".join(warning_messages))
+        warning_msg = "***Handling interruption at Nth step***"
+        self.assertIn(warning_msg, "\n".join(warning_messages))
+
+        # interrupt at steps after 1 epoch
+        warning_messages = []
+        with tf.compat.v1.test.mock.patch.object(logging, "warning", warning):
+            self._test_backup_and_restore_callback_at_steps(
+                BackupAndRestore, epoch_int=20, steps_int=8, mode="batch"
+            )
+        warning_msg = "***Handling interruption at Nth step***"
+        self.assertIn(warning_msg, "\n".join(warning_messages))
+
+        # interrupt at epoch before steps
+        warning_messages = []
+        with tf.compat.v1.test.mock.patch.object(logging, "warning", warning):
+            self._test_backup_and_restore_callback_at_steps(
+                BackupAndRestore, epoch_int=1, steps_int=12, mode="epoch"
+            )
+        warning_msg = "***Handling interruption at epoch***"
         self.assertIn(warning_msg, "\n".join(warning_messages))
 
     def test_backup_and_restore_steps_clean_up(self):
