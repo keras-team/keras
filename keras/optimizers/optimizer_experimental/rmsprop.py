@@ -161,35 +161,35 @@ class RMSprop(optimizer.Optimizer):
                         gradient.values * (1 - rho), gradient.indices
                     )
                 )
-                denominator = velocity - tf.square(average_grad) + self.epsilon
-            else:
-                denominator = velocity + self.epsilon
-            denominator_slices = tf.gather(denominator, gradient.indices)
-            increment = tf.IndexedSlices(
-                lr * gradient.values * tf.math.rsqrt(denominator_slices),
+                velocity.assign_add(-tf.square(average_grad))
+            velocity_value = tf.gather(velocity, gradient.indices)
+            transformed_grad = tf.IndexedSlices(
+                gradient.values / (tf.sqrt(velocity_value) + self.epsilon),
                 gradient.indices,
             )
 
             if self.momentum > 0:
                 momentum.assign(self.momentum * momentum)
-                momentum.scatter_add(increment)
-                variable.assign_add(-momentum)
+                momentum.scatter_add(transformed_grad)
+                variable.assign_add(-lr * momentum)
             else:
-                variable.scatter_add(-increment)
+                variable.scatter_add(
+                    tf.IndexedSlices(
+                        -lr * transformed_grad.values, transformed_grad.indices
+                    )
+                )
         else:
             # Dense gradients.
             velocity.assign(rho * velocity + (1 - rho) * tf.square(gradient))
             if self.centered:
                 average_grad.assign(rho * average_grad + (1 - rho) * gradient)
-                denominator = velocity - tf.square(average_grad) + self.epsilon
-            else:
-                denominator = velocity + self.epsilon
-            increment = lr * gradient * tf.math.rsqrt(denominator)
+                velocity.assign_add(-tf.square(average_grad))
+            transformed_grad = gradient / (tf.sqrt(velocity) + self.epsilon)
             if self.momentum > 0:
-                momentum.assign(self.momentum * momentum + increment)
-                variable.assign_add(-momentum)
+                momentum.assign(self.momentum * momentum + transformed_grad)
+                variable.assign_add(-lr * momentum)
             else:
-                variable.assign_add(-increment)
+                variable.assign_add(-lr * transformed_grad)
 
     def get_config(self):
         config = super().get_config()

@@ -41,7 +41,6 @@ from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
-from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -3409,18 +3408,14 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             # TODO(rchao): Store non-variable states in the dict as well.
             if isinstance(child_obj, tf.Variable):
                 result[child_attr] = child_obj.numpy()
-            elif saving_lib.is_container(child_obj):
+            elif isinstance(child_obj, (list, tuple)):
                 for k, contained_obj in enumerate(child_obj):
                     if isinstance(contained_obj, tf.Variable):
-                        # Handling the case where `child_obj` is a list/tuple.
                         result[f"{child_attr}-{k}"] = contained_obj.numpy()
-                    elif isinstance(child_obj, dict) and isinstance(
-                        child_obj[contained_obj], tf.Variable
-                    ):
-                        # Handling the case where `child_obj` is a dict.
-                        result[f"{child_attr}-{contained_obj}"] = child_obj[
-                            contained_obj
-                        ].numpy()
+            elif isinstance(child_obj, dict):
+                for k, v in child_obj.items():
+                    if isinstance(v, tf.Variable):
+                        result[f"{child_attr}-{k}"] = v.numpy()
         return result
 
     def _set_state(self, state):
@@ -3430,18 +3425,14 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             # TODO(rchao): Give a warning for mismatches.
             if isinstance(child_obj, tf.Variable):
                 child_obj.assign(state[child_attr])
-            elif saving_lib.is_container(child_obj):
+            elif isinstance(child_obj, (list, tuple)):
                 for k, contained_obj in enumerate(child_obj):
                     if isinstance(contained_obj, tf.Variable):
-                        # Handling the case where `child_obj` is a list/tuple.
                         contained_obj.assign(state[f"{child_attr}-{k}"])
-                    elif isinstance(child_obj, dict) and isinstance(
-                        child_obj[contained_obj], tf.Variable
-                    ):
-                        # Handling the case where `child_obj` is a dict.
-                        child_obj[contained_obj].assign(
-                            state[f"{child_attr}-{contained_obj}"]
-                        )
+            elif isinstance(child_obj, dict):
+                for k, v in child_obj.items():
+                    if isinstance(v, tf.Variable):
+                        child_obj[k].assign(state[f"{child_attr}-{k}"])
 
     def _save_state(self, dirpath):
         filepath = tf.io.gfile.join(dirpath, "weights.npz")

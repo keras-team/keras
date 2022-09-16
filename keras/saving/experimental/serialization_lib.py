@@ -51,9 +51,6 @@ def serialize_keras_object(obj):
     if isinstance(obj, (list, tuple)):
         return [serialize_keras_object(x) for x in obj]
     if isinstance(obj, dict):
-        if "class_name" in obj and "config" in obj:
-            # Already serialized.
-            return obj
         return serialize_dict(obj)
 
     # Special cases:
@@ -84,6 +81,8 @@ def serialize_keras_object(obj):
         else:
             # Treat numpy floats / etc as plain types.
             return obj.item()
+    if isinstance(obj, tf.DType):
+        return obj.name
 
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
