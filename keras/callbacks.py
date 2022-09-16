@@ -2025,7 +2025,7 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         current = self.get_monitor_value(logs)
-        if current is None or epoch <= self.start_from_epoch:
+        if current is None or epoch < self.start_from_epoch:
             # If no monitor value exists or still in initial warm-up stage.
             return
         if self.restore_best_weights and self.best_weights is None:
