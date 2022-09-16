@@ -149,15 +149,43 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         tf.__internal__.test.combinations.combine(
             mode=["eager"],
             use_adapt=[True, False],
-            # TODO(b/1949359300): `load_under_strategy=True` flakily times out.
-            load_under_strategy=[False],
+            test_training_with_loaded=[True, False],
+            # TODO(b/1949359300): `load_for_serving_under_strategy=True` flakily
+            # times out.
+            load_for_serving_under_strategy=[False],
         )
     )
-    def testTrainAndServe(self, use_adapt, load_under_strategy):
+    def testTrainAndLoadAndServe(
+        self,
+        use_adapt,
+        test_training_with_loaded,
+        load_for_serving_under_strategy,
+    ):
+
+        # test_training_with_loaded=False tests distributed training with newly
+        # constructed KPL, while test_training_with_loaded=True tests
+        # distributed training with a loaded KPL which was created under
+        # strategy scope as well.
+        #
+        # load_for_serving_under_strategy test serving with a model loaded
+        # under distribution strategy or not.
 
         with self.coordinator.strategy.scope():
 
             feature_ps, label_ps = self.define_kpls_for_training(use_adapt)
+
+            if test_training_with_loaded:
+                saved_kpl_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
+                feature_ps_dir = os.path.join(saved_kpl_dir, "feature")
+                label_ps_dir = os.path.join(saved_kpl_dir, "label")
+
+                feature_ps.save(feature_ps_dir)
+                label_ps.save(label_ps_dir)
+
+                del feature_ps, label_ps
+
+                feature_ps = tf.keras.models.load_model(feature_ps_dir)
+                label_ps = tf.keras.models.load_model(label_ps_dir)
 
             def dataset_fn():
                 def feature_and_label_gen():
@@ -266,7 +294,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         saved_model_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
         model.save(saved_model_dir, signatures={"serving_default": serving_fn})
 
-        if load_under_strategy:
+        if load_for_serving_under_strategy:
             with self.coordinator.strategy.scope():
 
                 loaded_serving_fn = tf.keras.models.load_model(
