@@ -89,7 +89,7 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       unit_forget_bias: Boolean (default `True`). If True, add 1 to the bias of
         the forget gate at initialization. Setting it to true will also force
         `bias_initializer="zeros"`. This is recommended in [Jozefowicz et
-          al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+          al.](https://github.com/mlresearch/v37/blob/gh-pages/jozefowicz15.pdf)
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to
