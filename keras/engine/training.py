@@ -1013,6 +1013,35 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `tf.keras.callbacks.CallbackList.on_train_batch_end`. Typically, the
           values of the `Model`'s metrics are returned. Example:
           `{'loss': 0.2, 'accuracy': 0.7}`.
+
+        Sharing training step across multiple models:
+        ```python
+        class MyTrainer(tf.keras.Model):
+            def __init__(self, model):
+                super().__init__()
+                self.model = model
+
+            def train_step(self, data):
+                x, y = data
+                with tf.GradientTape() as tape:
+                    y_pred = self.model(x, training=True)
+                    loss = self.compiled_loss(y, y_pred)
+                self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+                return self.compute_metrics(x, y, y_pred, None)
+                
+        tensors = tf.random.uniform((10, 10)), tf.random.uniform((10,))
+        dataset = tf.data.Dataset.from_tensor_slices(tensors).repeat().batch(1)
+
+        keras_model_1 = MyModel(inputs, outputs)
+        trainer_1 = MyTrainer(keras_model_1)
+        trainer_1.compile(tf.keras.optimizers.SGD(), loss='mse')
+        trainer_1.fit(dataset, epochs=5, steps_per_epoch=10)
+        
+        keras_model_2 = YourModel(inputs, outputs)
+        trainer_2 = MyTrainer(keras_model_2)
+        trainer_2.compile(tf.keras.optimizers.Adam(), loss='categorical_crossentropy')
+        trainer_2.fit(dataset, epochs=2, steps_per_epoch=15)
+        ```
         """
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
         # Run forward pass.
