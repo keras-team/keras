@@ -68,6 +68,19 @@ class NestedCustomLayer(keras.layers.Layer):
         }
 
 
+class WrapperLayer(keras.layers.Layer):
+    def __init__(self, layer, **kwargs):
+        super().__init__(**kwargs)
+        self.layer = layer
+
+    def call(self, x):
+        return self.layer(x)
+
+    def get_config(self):
+        config = super().get_config()
+        return {"layer": self.layer, **config}
+
+
 @test_utils.run_v2_only
 class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
     def roundtrip(self, obj, custom_objects=None):
@@ -148,6 +161,21 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         new_layer.set_weights(layer.get_weights())
         y2 = new_layer(x)
         self.assertAllClose(y1, y2, atol=1e-5)
+
+    def test_shared_object(self):
+        input_1 = keras.Input((2,))
+        input_2 = keras.Input((2,))
+        shared_layer = keras.layers.Dense(1)
+        output_1 = shared_layer(input_1)
+        wrapper_layer = WrapperLayer(shared_layer)
+        output_2 = wrapper_layer(input_2)
+        model = keras.Model([input_1, input_2], [output_1, output_2])
+        _, new_model, _ = self.roundtrip(
+            model, custom_objects={"WrapperLayer": WrapperLayer}
+        )
+
+        self.assertIs(model.layers[2], model.layers[3].layer)
+        self.assertIs(new_model.layers[2], new_model.layers[3].layer)
 
 
 if __name__ == "__main__":
