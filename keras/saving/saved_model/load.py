@@ -28,6 +28,7 @@ from keras.engine import input_spec
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
+from keras.saving import object_registration
 from keras.saving import saving_utils
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import json_utils
@@ -533,7 +534,7 @@ class KerasObjectLoader:
             return None
 
         class_name = tf.compat.as_str(metadata["class_name"])
-        if generic_utils.get_registered_object(class_name) is not None:
+        if object_registration.get_registered_object(class_name) is not None:
             return None
         model_is_functional_or_sequential = (
             metadata.get("is_graph_network", False)

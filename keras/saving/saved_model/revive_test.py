@@ -31,7 +31,7 @@ from keras import backend
 from keras.saving.saved_model import load as keras_load
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
+from keras.utils import CustomObjectScope
 
 
 class SubclassedModelNoConfig(keras.Model):
@@ -456,7 +456,7 @@ class TestModelRevive(ReviveTestBase):
 
 if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution()
-    with generic_utils.CustomObjectScope(
+    with CustomObjectScope(
         {
             "CustomLayerWithConfig": CustomLayerWithConfig,
             "CustomNetworkWithConfig": CustomNetworkWithConfig,

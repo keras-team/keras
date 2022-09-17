@@ -24,6 +24,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":object_registration",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -38,6 +39,25 @@ py_library(
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
+    ],
+)
+
+py_library(
+    name = "object_registration",
+    srcs = [
+        "object_registration.py",
+    ],
+    srcs_version = "PY3",
+)
+
+tf_py_test(
+    name = "object_registration_test",
+    size = "small",
+    srcs = ["object_registration_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 

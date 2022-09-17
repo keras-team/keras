@@ -21,13 +21,14 @@ import tensorflow.compat.v2 as tf
 from keras.engine import data_adapter
 from keras.layers import deserialize as deserialize_layer
 from keras.models import Model
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
+from keras.utils.generic_utils import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
+@register_keras_serializable()
 @keras_export("keras.models.experimental.SharpnessAwareMinimization", v1=[])
 class SharpnessAwareMinimization(Model):
     """Sharpness aware minimization (SAM) training flow.
@@ -143,7 +144,7 @@ class SharpnessAwareMinimization(Model):
         config = super().get_config()
         config.update(
             {
-                "model": generic_utils.serialize_keras_object(self.model),
+                "model": serialize_keras_object(self.model),
                 "rho": self.rho,
             }
         )

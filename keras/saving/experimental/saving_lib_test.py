@@ -26,18 +26,16 @@ from tensorflow.python.platform import tf_logging as logging
 import keras
 from keras import backend
 from keras.optimizers.optimizer_experimental import adam
+from keras.saving import object_registration
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 from keras.utils import io_utils
 
 train_step_message = "This is my training step"
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class MyDense(keras.layers.Dense):
     def build(self, input_shape):
         self.additional_weights = [
@@ -76,9 +74,7 @@ class MyDense(keras.layers.Dense):
         return 2
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -106,9 +102,7 @@ class CustomModelX(keras.Model):
         return 1
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CompileOverridingModel(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -121,17 +115,13 @@ class CompileOverridingModel(keras.Model):
         return self.dense1(inputs)
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CompileOverridingSequential(keras.Sequential):
     def compile(self, *args, **kwargs):
         super().compile(*args, **kwargs)
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, added here as a custom
     func."""
@@ -184,13 +174,11 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         # This is so that we can register another function with the same custom
         # object key, and make sure the newly registered function is used while
         # loading.
-        del generic_utils._GLOBAL_CUSTOM_OBJECTS[
+        del object_registration._GLOBAL_CUSTOM_OBJECTS[
             "my_custom_package>my_mean_squared_error"
         ]
 
-        @keras.utils.generic_utils.register_keras_serializable(
-            package="my_custom_package"
-        )
+        @keras.utils.register_keras_serializable(package="my_custom_package")
         def my_mean_squared_error(y_true, y_pred):
             """Function-local `mean_squared_error`."""
             return backend.mean(

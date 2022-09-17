@@ -16,9 +16,9 @@
 
 import tensorflow.compat.v2 as tf
 
+from keras.saving import object_registration
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
-from keras.utils import generic_utils
 
 
 class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
@@ -30,7 +30,7 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
 
     def _python_properties_internal(self):
         metadata = dict(
-            class_name=generic_utils.get_registered_name(type(self.obj)),
+            class_name=object_registration.get_registered_name(type(self.obj)),
             name=self.obj.name,
             dtype=self.obj.dtype,
         )

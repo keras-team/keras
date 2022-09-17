@@ -20,7 +20,7 @@ import types
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras.utils import generic_utils
+from keras.saving import object_registration
 
 # isort: off
 from tensorflow.python.util import tf_export
@@ -99,9 +99,9 @@ def serialize_keras_object(obj):
             registered_name = None
         else:
             if isinstance(obj, types.FunctionType):
-                registered_name = generic_utils.get_registered_name(obj)
+                registered_name = object_registration.get_registered_name(obj)
             else:
-                registered_name = generic_utils.get_registered_name(
+                registered_name = object_registration.get_registered_name(
                     obj.__class__
                 )
     else:
@@ -220,7 +220,7 @@ def deserialize_keras_object(config, custom_objects=None):
     loss:
 
     ```python
-    @keras.utils.generic_utils.register_keras_serializable(package='my_package')
+    @keras.utils.register_keras_serializable(package='my_package')
     class ModifiedMeanSquaredError(keras.losses.MeanSquaredError):
       ...
 
@@ -314,7 +314,7 @@ def deserialize_keras_object(config, custom_objects=None):
         )
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
-    with generic_utils.custom_object_scope(custom_objects):
+    with object_registration.custom_object_scope(custom_objects):
         return cls.from_config(inner_config)
 
 
@@ -323,7 +323,7 @@ def _retrieve_class_or_fn(
 ):
     # If there is a custom object registered via
     # `register_keras_serializable`, that takes precedence.
-    custom_obj = generic_utils.get_custom_objects_by_name(
+    custom_obj = object_registration.get_registered_object(
         registered_name, custom_objects=custom_objects
     )
     if custom_obj is not None:
