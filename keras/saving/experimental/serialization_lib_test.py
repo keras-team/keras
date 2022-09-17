@@ -23,6 +23,7 @@ from absl.testing import parameterized
 import keras
 from keras.saving.experimental import serialization_lib
 from keras.testing_infra import test_utils
+from keras.utils import generic_utils
 
 
 def custom_fn(x):
@@ -107,6 +108,10 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         serialized, _, reserialized = self.roundtrip(obj)
         self.assertEqual(serialized, reserialized)
 
+    def test_builtin_layers(self):
+        serialized, _, reserialized = self.roundtrip(keras.layers.Dense(3))
+        self.assertEqual(serialized, reserialized)
+
     def test_tensors_and_tensorshape(self):
         x = tf.random.normal((2, 2), dtype="float64")
         obj = {"x": x}
@@ -176,6 +181,58 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
 
         self.assertIs(model.layers[2], model.layers[3].layer)
         self.assertIs(new_model.layers[2], new_model.layers[3].layer)
+
+
+@test_utils.run_v2_only
+class BackwardsCompatibilityTest(tf.test.TestCase, parameterized.TestCase):
+    def assert_old_format_can_be_deserialized(self, obj, custom_objects=None):
+        old_config = generic_utils.serialize_keras_object(obj)
+        revived = serialization_lib.deserialize_keras_object(
+            old_config, custom_objects=custom_objects
+        )
+        new_config_1 = serialization_lib.serialize_keras_object(obj)
+        new_config_2 = serialization_lib.serialize_keras_object(revived)
+        self.assertEqual(new_config_1, new_config_2)
+
+    def test_backwards_compatibility_with_old_serialized_format(self):
+        optimizer = keras.optimizers.Adam(learning_rate=0.1)
+        self.assert_old_format_can_be_deserialized(
+            optimizer, custom_objects=vars(keras.optimizers)
+        )
+        activation = keras.activations.relu
+        self.assert_old_format_can_be_deserialized(
+            activation, custom_objects=vars(keras.activations)
+        )
+        initializer = keras.initializers.VarianceScaling(scale=2.0)
+        self.assert_old_format_can_be_deserialized(
+            initializer, custom_objects=vars(keras.initializers)
+        )
+        regularizer = keras.regularizers.L2(0.3)
+        self.assert_old_format_can_be_deserialized(
+            regularizer, custom_objects=vars(keras.regularizers)
+        )
+        constraint = keras.constraints.UnitNorm()
+        self.assert_old_format_can_be_deserialized(
+            constraint, custom_objects=vars(keras.constraints)
+        )
+        layer = keras.layers.Dense(2)
+        self.assert_old_format_can_be_deserialized(
+            layer, custom_objects=vars(keras.layers)
+        )
+        layer = keras.layers.MultiHeadAttention(2, 4)
+        self.assert_old_format_can_be_deserialized(
+            layer, custom_objects=vars(keras.layers)
+        )
+
+        # Custom objects
+        layer = CustomLayer(2)
+        self.assert_old_format_can_be_deserialized(
+            layer, custom_objects={"CustomLayer": CustomLayer}
+        )
+        layer = keras.layers.Dense(1, activation=custom_fn)
+        self.assert_old_format_can_be_deserialized(
+            layer, custom_objects={**vars(keras.layers), "custom_fn": custom_fn}
+        )
 
 
 if __name__ == "__main__":

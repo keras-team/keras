@@ -79,6 +79,26 @@ class Constraint:
         """
         return {}
 
+    @classmethod
+    def from_config(cls, config):
+        """Instantiates a weight constraint from a configuration dictionary.
+
+        Example:
+
+        ```python
+        constraint = UnitNorm()
+        config = constraint.get_config()
+        constraint = UnitNorm.from_config(config)
+        ```
+
+        Args:
+          config: A Python dictionary, the output of `get_config`.
+
+        Returns:
+          A `tf.keras.constraints.Constraint` instance.
+        """
+        return cls(**config)
+
 
 @keras_export("keras.constraints.MaxNorm", "keras.constraints.max_norm")
 class MaxNorm(Constraint):

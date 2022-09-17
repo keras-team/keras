@@ -245,9 +245,14 @@ def deserialize_keras_object(config, custom_objects=None):
       The object described by the `config` dictionary.
 
     """
+    custom_objects = custom_objects or {}
     if config is None:
         return None
     if isinstance(config, PLAIN_TYPES):
+        if isinstance(config, str) and custom_objects.get(config) is not None:
+            # This is to deserialize plain functions which are serialized as
+            # string names by legacy saving formats.
+            return custom_objects[config]
         return config
     if isinstance(config, (list, tuple)):
         return [
@@ -265,7 +270,6 @@ def deserialize_keras_object(config, custom_objects=None):
 
     class_name = config["class_name"]
     inner_config = config["config"]
-    custom_objects = custom_objects or {}
 
     # Special cases:
     if class_name == "__tensor__":
@@ -279,8 +283,8 @@ def deserialize_keras_object(config, custom_objects=None):
     # deserialized as lists).
 
     # Below: classes and functions.
-    module = config["module"]
-    registered_name = config["registered_name"]
+    module = config.get("module", None)
+    registered_name = config.get("registered_name", class_name)
 
     if class_name == "function":
         fn_name = inner_config
@@ -305,7 +309,7 @@ def deserialize_keras_object(config, custom_objects=None):
     if not hasattr(cls, "from_config"):
         raise TypeError(
             f"Unable to reconstruct an instance of '{class_name}' because "
-            "it is missing a `from_config()` method. "
+            f"the class is missing a `from_config()` method. "
             f"Full object config: {config}"
         )
     # Instantiate the class from its config inside a custom object scope
@@ -325,28 +329,29 @@ def _retrieve_class_or_fn(
     if custom_obj is not None:
         return custom_obj
 
-    # If it's a Keras built-in object,
-    # we cannot always use direct import, because the exported
-    # module name might not match the package structure
-    # (e.g. experimental symbols).
-    if module == "keras" or module.startswith("keras."):
-        obj = tf_export.get_symbol_from_name(module + "." + name)
+    if module:
+        # If it's a Keras built-in object,
+        # we cannot always use direct import, because the exported
+        # module name might not match the package structure
+        # (e.g. experimental symbols).
+        if module == "keras" or module.startswith("keras."):
+            obj = tf_export.get_symbol_from_name(module + "." + name)
+            if obj is not None:
+                return obj
+
+        # Otherwise, attempt to retrieve the class object given the `module`
+        # and `class_name`. Import the module, find the class.
+        try:
+            mod = importlib.import_module(module)
+        except ModuleNotFoundError:
+            raise TypeError(
+                f"Could not deserialize {obj_type} '{name}' because "
+                f"its parent module {module} cannot be imported. "
+                f"Full object config: {full_config}"
+            )
+        obj = vars(mod).get(name, None)
         if obj is not None:
             return obj
-
-    # Otherwise, attempt to retrieve the class object given the `module`
-    # and `class_name`. Import the module, find the class.
-    try:
-        mod = importlib.import_module(module)
-    except ModuleNotFoundError:
-        raise TypeError(
-            f"Could not deserialize {obj_type} '{name}' because "
-            f"its parent module {module} cannot be imported. "
-            f"Full object config: {full_config}"
-        )
-    obj = vars(mod).get(name, None)
-    if obj is not None:
-        return obj
 
     raise TypeError(
         f"Could not locate {obj_type} '{name}'. "
