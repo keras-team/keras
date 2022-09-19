@@ -241,7 +241,7 @@ class KerasMultiWorkerTestIndependentWorker(
     def test_distribution_reduction_method_auto_default_train_step(
         self, strategy
     ):
-        batch_size = 8
+        batch_size = 32
         epochs = 2
         steps = 2
         train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
@@ -290,7 +290,7 @@ class KerasMultiWorkerTestIndependentWorker(
     def test_distribution_reduction_method_auto_custom_train_step(
         self, strategy
     ):
-        batch_size = 8
+        batch_size = 32
         steps = 2
         epochs = 2
         train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
@@ -300,10 +300,10 @@ class KerasMultiWorkerTestIndependentWorker(
         class MyModel(keras.Model):
             @staticmethod
             def reduce_loss(loss_value, global_batch_size):
-                REDUCTION_AXES = range(1, backend.ndim(loss_value))
+                REDUCTION_AXES = range(1, loss_value.shape.rank)
                 loss_value = tf.reduce_mean(loss_value, axis=REDUCTION_AXES)
                 return tf.nn.compute_average_loss(
-                    loss_value, global_batch_size=global_batch_size
+                    loss_value, global_batch_size=batch_size
                 )
 
             def train_step(self, data):

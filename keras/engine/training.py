@@ -3893,8 +3893,7 @@ def reduce_per_replica(values, strategy, reduction):
             else:
                 return concat(strategy.experimental_local_results(v))
         elif reduction == "sum":
-            values = strategy.experimental_local_results(v)
-            return tf.reduce_sum(values)
+            return tf.reduce_sum(strategy.experimental_local_results(v))
         else:
             raise ValueError(
                 '`reduction` must be "first", "concat", "sum", or "auto". '
