@@ -2561,7 +2561,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 # If the train_function is a `tf.function`, we can write out a
                 # graph
                 if hasattr(train_fn, "function_spec"):
-                    tf.summary.graph(train_fn._concrete_stateful_fn.graph)
+                    # TODO(b/243822285): Use _variable_creation_fn directly.
+                    if hasattr(train_fn, "_concrete_stateful_fn"):
+                        tf.summary.graph(train_fn._concrete_stateful_fn.graph)
+                    else:
+                        tf.summary.graph(
+                            train_fn._concrete_variable_creation_fn.graph
+                        )
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
