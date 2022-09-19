@@ -59,6 +59,7 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
         `channels_last` corresponds to inputs with shape
         `(batch, length, channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, length)`.
+        Note: channels_first only works on GPUs.
       dilation_rate: An integer or tuple/list of a single integer, specifying
         the dilation rate to use for dilated convolution.
         Currently, specifying any `dilation_rate` value != 1 is
