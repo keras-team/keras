@@ -91,7 +91,7 @@ def serialize(optimizer):
     The configuration can be used for persistence and reconstruct the
     `Optimizer` instance again.
 
-    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.SGD())
+    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.legacy.SGD())
     {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
                                      'decay': 0.0, 'momentum': 0.0,
                                      'nesterov': False}}

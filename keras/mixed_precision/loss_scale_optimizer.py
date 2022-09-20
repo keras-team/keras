@@ -376,12 +376,12 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
     to do is wrap your optimizer with a `LossScaleOptimizer` if you use
     `minimize`. For example:
 
-    >>> opt = tf.keras.optimizers.SGD(0.25)
+    >>> opt = tf.keras.optimizers.experimental.SGD(0.25)
     >>> opt = tf.keras.mixed_precision.LossScaleOptimizer(opt)
     >>> var = tf.Variable(1.)
     >>> loss_fn = lambda: var ** 2
     >>> # 'minimize' applies loss scaling and updates the loss sale.
-    >>> opt.minimize(loss_fn, var_list=var)
+    >>> opt.minimize(loss_fn, var_list=[var])
     >>> var.numpy()
     0.5
 
@@ -454,7 +454,7 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
     accessed and set on the LossScaleOptimizer, which will be delegated to the
     wrapped optimizer.
 
-    >>> opt = tf.keras.optimizers.Adam(beta_1=0.8, epsilon=1e-5)
+    >>> opt = tf.keras.optimizers.legacy.Adam(beta_1=0.8, epsilon=1e-5)
     >>> opt = tf.keras.mixed_precision.LossScaleOptimizer(opt)
     >>> opt.beta_1  # Equivalent to `opt.inner_optimizer.beta_1`
     0.8

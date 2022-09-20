@@ -58,10 +58,10 @@ class RMSprop(optimizer.Optimizer):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.RMSprop(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.experimental.RMSprop(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
-    >>> loss = lambda: (var1 ** 2) / 2.0    # d(loss) / d(var1) = var1
-    >>> step_count = opt.minimize(loss, [var1]).numpy()
+    >>> loss = lambda: (var1 ** 2) / 2.0  # d(loss) / d(var1) = var1
+    >>> opt.minimize(loss, [var1])
     >>> var1.numpy()
     9.683772
 
