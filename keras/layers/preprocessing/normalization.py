@@ -354,8 +354,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         # explicitly cast here to also allow integer inputs to be passed
         inputs = tf.cast(inputs, self.compute_dtype)
         if self.invert:
-            return (inputs + self.mean) * tf.maximum(
-                tf.sqrt(self.variance), backend.epsilon()
+            return self.mean + (inputs * tf.maximum(
+                tf.sqrt(self.variance), backend.epsilon())
             )
         else:
             return (inputs - self.mean) / tf.maximum(
