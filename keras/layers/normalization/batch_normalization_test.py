@@ -408,11 +408,19 @@ class BatchNormalizationV2Test(test_combinations.TestCase):
         wrapped_fn()
 
     @test_combinations.run_all_keras_modes
-    def test_basic_batchnorm_v2_none_shape_and_virtual_batch_size(self):
+    def test_basic_batchnorm_v2_input_shape_and_virtual_batch_size(self):
         # Test case for GitHub issue for 32380
         norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
         inp = keras.layers.Input(shape=(None, None, 3))
         _ = norm(inp)
+
+        # Test case for https://github.com/tensorflow/tensorflow/issues/23050
+        norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
+        _ = norm(np.ones((1, 28, 28)))
+
+        with self.assertRaisesRegex(Exception, "requested shape requires"):
+            norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
+            _ = norm(np.ones((1, 28, 28)), training=True)
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_fused_batchnorm_empty_batch(self):
