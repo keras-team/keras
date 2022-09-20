@@ -485,12 +485,18 @@ class Sequential(functional.Functional):
                     compile_config, base_class=Sequential
                 )
 
-        if (
-            not model.inputs
-            and build_input_shape
-            and isinstance(build_input_shape, (tuple, list))
-        ):
-            model.build(build_input_shape)
+            if build_input_shape:
+                model.build(build_input_shape)
+                if model.optimizer is not None:
+                    model.optimizer.build(model.trainable_variables)
+
+        else:
+            if (
+                not model.inputs
+                and build_input_shape
+                and isinstance(build_input_shape, (tuple, list))
+            ):
+                model.build(build_input_shape)
 
         return model
 
