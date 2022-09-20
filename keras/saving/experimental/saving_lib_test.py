@@ -337,8 +337,10 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
         self.assertEqual(
-            config_dict["config"]["compile_config"]["optimizer"]["module"],
-            "keras.optimizers.experimental",
+            config_dict["config"]["compile_config"]["optimizer"]["config"][
+                "is_legacy_optimizer"
+            ],
+            False,
         )
         self.assertEqual(
             config_dict["config"]["compile_config"]["optimizer"]["class_name"],
