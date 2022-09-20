@@ -2767,6 +2767,18 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 1.0 / batch_run_time,
                 step=self._train_step,
             )
+
+        should_record = False
+        if type(self.update_freq) == int:
+            should_record = tf.equal(self._train_step % self.update_freq, 0)
+        with tf.summary.record_if(should_record):
+            if logs:
+                with self._train_writer.as_default():
+                    for name, value in logs.items():
+                        tf.summary.scalar(
+                            "batch_" + name, value, step=self._train_step
+                        )
+
         if not self._should_trace:
             return
 
