@@ -77,7 +77,17 @@ class DistributedTrainingTest(tf.test.TestCase):
 
         x = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
 
-        model.fit(x, epochs=2, steps_per_epoch=10)
+        model.fit(
+            x,
+            epochs=2,
+            steps_per_epoch=10,
+            callbacks=[
+                tf.keras.callbacks.TensorBoard(
+                    update_freq=5,
+                    write_steps_per_second=True,
+                )
+            ],
+        )
 
 
 if __name__ == "__main__":

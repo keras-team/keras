@@ -2733,6 +2733,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 1.0 / batch_run_time,
                 step=self._train_step,
             )
+
+        # `logs` is a `RemoteValue` when using asynchronous strategies, for now
+        # we just disable `update_freq` entirely in those cases.
+        if isinstance(logs, dict):
+            for name, value in logs.items():
+                tf.summary.scalar("batch_" + name, value, step=self._train_step)
+
         if not self._should_trace:
             return
 
