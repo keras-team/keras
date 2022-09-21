@@ -24,7 +24,8 @@ def gen_api_init_files(
         package_deps = ["//keras:keras"],
         output_package = "keras.api",
         output_dir = "",
-        root_file_name = "__init__.py"):
+        root_file_name = "__init__.py",
+        use_proxy = False):
     """Creates API directory structure and __init__.py files.
 
     Creates a genrule that generates a directory structure with __init__.py
@@ -59,6 +60,8 @@ def gen_api_init_files(
       output_dir: Subdirectory to output API to.
         If non-empty, must end with '/'.
       root_file_name: Name of the root file with all the root imports.
+      use_proxy: True if we choose to use proxy format when adding imports, this
+        is used to deal with Keras import resolution.
     """
     root_init_template_flag = ""
     if root_init_template:
@@ -75,6 +78,10 @@ def gen_api_init_files(
         visibility = ["//visibility:public"],
         deps = package_deps,
     )
+
+    if use_proxy:
+        # Avoid conflicts between Tensorflow and Keras __init__.py conflicts.
+        output_files = [f for f in output_files if f != "__init__.py"]
 
     # Replace name of root file with root_file_name.
     output_files = [
@@ -97,6 +104,7 @@ def gen_api_init_files(
     # from create_python_api.py
     packages_to_ignore = ["tensorflow.python.keras", "tensorflow.keras"]
 
+    use_proxy_str = "True" if use_proxy else '""'
     flags = [
         root_init_template_flag,
         "--apidir=$(@D)" + output_dir,
@@ -107,6 +115,7 @@ def gen_api_init_files(
         "--packages=" + ",".join(packages),
         "--packages_to_ignore=" + ",".join(packages_to_ignore),
         "--output_package=" + output_package,
+        "--use_proxy=" + use_proxy_str,
     ]
 
     native.genrule(
