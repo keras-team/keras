@@ -14,8 +14,14 @@
 # ==============================================================================
 """Public Keras utilities."""
 
+# Serialization related
+from keras.saving.object_registration import CustomObjectScope
+from keras.saving.object_registration import custom_object_scope
+from keras.saving.object_registration import get_custom_objects
+from keras.saving.object_registration import get_registered_name
+from keras.saving.object_registration import register_keras_serializable
 
-# Audio related
+# Dataset related
 from keras.utils.audio_dataset import audio_dataset_from_directory
 
 # Sequence related
@@ -26,13 +32,8 @@ from keras.utils.data_utils import SequenceEnqueuer
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import pad_sequences
 from keras.utils.dataset_utils import split_dataset
-
-# Serialization related
-from keras.utils.generic_utils import CustomObjectScope
 from keras.utils.generic_utils import Progbar
-from keras.utils.generic_utils import custom_object_scope
 from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import get_custom_objects
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.image_dataset import image_dataset_from_directory
 
@@ -44,10 +45,14 @@ from keras.utils.image_utils import save_img
 
 # Internal
 from keras.utils.layer_utils import get_source_inputs
+
+# Deprecated
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
 from keras.utils.text_dataset import text_dataset_from_directory
 from keras.utils.tf_utils import set_random_seed
 from keras.utils.timeseries_dataset import timeseries_dataset_from_array
+
+# Visualization related
 from keras.utils.vis_utils import model_to_dot
 from keras.utils.vis_utils import plot_model

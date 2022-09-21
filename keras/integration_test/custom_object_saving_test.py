@@ -25,7 +25,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
+from keras.utils import get_custom_objects
 
 
 # `tf.print` message is only available in stderr in TF2, which this test checks.
@@ -36,7 +36,7 @@ class CustomObjectSavingTest(tf.test.TestCase, parameterized.TestCase):
 
     def setUp(self):
         super().setUp()
-        generic_utils.get_custom_objects().clear()
+        get_custom_objects().clear()
 
     def test_register_keras_serializable_correct_class(self):
         train_step_message = "This is my training step"

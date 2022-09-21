@@ -77,7 +77,6 @@ from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import get_registered_name
 from keras.utils.generic_utils import serialize_keras_object
 
 # isort: off
