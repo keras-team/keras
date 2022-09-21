@@ -41,13 +41,11 @@ class MyDense(keras.layers.Dense):
         self.additional_weights = [
             self.add_weight(
                 "my_additional_weight",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
             self.add_weight(
                 "my_additional_weight_2",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
@@ -55,7 +53,6 @@ class MyDense(keras.layers.Dense):
         self.weights_in_dict = {
             "my_weight": self.add_weight(
                 "my_dict_weight",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
@@ -64,11 +61,8 @@ class MyDense(keras.layers.Dense):
         return super().build(input_shape)
 
     def call(self, inputs):
-        outputs = super().call(inputs)
-        outputs = self.nested_layer(outputs)
-        outputs = tf.matmul(outputs, self.additional_weights[0])
-        outputs = tf.matmul(outputs, self.additional_weights[1])
-        return tf.matmul(outputs, self.weights_in_dict["my_weight"])
+        call_result = super().call(inputs)
+        return self.nested_layer(call_result)
 
     def two(self):
         return 2
@@ -424,8 +418,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
         # Mutate the `Dense` layer custom weights to ensure that list and
         # dict-contained weights get restored.
-        model.layers[1].additional_weights[0].assign([[2]])
-        model.layers[1].weights_in_dict["my_weight"].assign([[2]])
+        model.layers[1].additional_weights[0].assign(2)
+        model.layers[1].weights_in_dict["my_weight"].assign(2)
         model.layers[1].nested_layer.kernel.assign([[1]])
 
         model._save_experimental(temp_filepath)
@@ -488,29 +482,6 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         metadata = json_utils.decode(metadata_json)
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
-
-    @tf.__internal__.distribute.combinations.generate(
-        tf.__internal__.test.combinations.combine(
-            model_type=["subclassed", "functional", "sequential"],
-        )
-    )
-    def test_saving_optimizer_variables(self, model_type):
-        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
-        model = getattr(self, f"_get_{model_type}_model")()
-        x = np.random.random((100, 32))
-        y = np.random.random((100, 1))
-        model.fit(x, y, epochs=1)
-        model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
-
-        self.assertEqual(
-            len(model.optimizer.variables()),
-            len(loaded_model.optimizer.variables()),
-        )
-        for original_weights, loaded_weights in zip(
-            model.optimizer.variables(), loaded_model.optimizer.variables()
-        ):
-            np.testing.assert_allclose(original_weights, loaded_weights)
 
 
 if __name__ == "__main__":
