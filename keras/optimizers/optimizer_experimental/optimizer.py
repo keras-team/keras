@@ -724,14 +724,14 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def _get_state(self):
         """Get the state of this optimizer object."""
         result = {}
-        for k, variable in enumerate(self.variables()):
-            result[str(k)] = variable.numpy()
+        for variable in self.variables():
+            result[variable.name] = variable.numpy()
         return result
 
     def _set_state(self, state):
         """Set the state of this optimizer object."""
-        for k, variable in enumerate(self.variables()):
-            variable.assign(state[str(k)])
+        for variable in self.variables():
+            variable.assign(state[variable.name])
 
     def _save_state(self, dir_path):
         file_path = tf.io.gfile.join(dir_path, "state.npz")

@@ -3143,17 +3143,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if compile_config is not None:
                     model._compile_from_config(compile_config, base_class=Model)
 
-                    # Checking the existence of optimizer attribute because
-                    # `compile()` may not have been called (if overridden).
-                    if model.optimizer is not None:
-                        # To bring the optimizer's state back to when it was
-                        # saved, we build it so that the variables are created
-                        # (and available for further state loading). Otherwise,
-                        # the optimizer's variables are not there until the next
-                        # time `Model.fit()` or `optimizer.apply_gradient()` is
-                        # called.
-                        model.optimizer.build(model.trainable_variables)
-
             return model
 
     def to_json(self, **kwargs):
