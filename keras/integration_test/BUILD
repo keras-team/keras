@@ -89,6 +89,7 @@ cuda_py_test(
     name = "gradient_checkpoint_test",
     srcs = ["gradient_checkpoint_test.py"],
     python_version = "PY3",
+    tags = ["no_oss"],  # TODO(b/249526796)
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",

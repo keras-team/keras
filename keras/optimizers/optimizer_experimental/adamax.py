@@ -24,7 +24,9 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adamax", v1=[])
+@keras_export(
+    "keras.optimizers.experimental.Adamax", "keras.optimizers.Adamax", v1=[]
+)
 class Adamax(optimizer.Optimizer):
     """Optimizer that implements the Adamax algorithm.
 

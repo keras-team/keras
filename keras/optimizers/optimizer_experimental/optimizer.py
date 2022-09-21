@@ -859,7 +859,11 @@ base_optimizer_keyword_args = """name: String. The name to use
       **kwargs: keyword arguments only used for backward compatibility."""
 
 
-@keras_export("keras.optimizers.experimental.Optimizer", v1=[])
+@keras_export(
+    "keras.optimizers.Optimizer",
+    "keras.optimizers.experimental.Optimizer",
+    v1=[],
+)
 class Optimizer(_BaseOptimizer):
     """Abstract optimizer base class.
 

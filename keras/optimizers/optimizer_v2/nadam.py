@@ -24,7 +24,10 @@ from keras.optimizers.schedules import learning_rate_schedule
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.Nadam")
+@keras_export(
+    "keras.optimizers.legacy.Nadam",
+    v1=["keras.optimizers.Nadam", "keras.optimizers.legacy.Nadam"],
+)
 class Nadam(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the NAdam algorithm.
     Much like Adam is essentially RMSprop with momentum, Nadam is Adam with
