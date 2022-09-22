@@ -311,6 +311,7 @@ tf_py_test(
     python_version = "PY3",
     tags = [
         "nomac",  # TODO(mihaimaruseac): b/127695564
+        "notsan",  # TODO(b/156029134)
     ],
     deps = [
         "//:expect_numpy_installed",
