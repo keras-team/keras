@@ -209,9 +209,11 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if self._var_key(variable) not in self._index_dict:
             raise KeyError(
                 f"The optimizer cannot recognize variable {variable.name}. "
-                "This usually means that you're reusing an optimizer "
-                "previously created for a different model. Try creating a "
-                "new optimizer instance."
+                "This usually means you are trying to call the optimizer to "
+                "update different parts of the model separately. Please call "
+                "`optimizer.build(variables)` with the full list of trainable "
+                "variables before the training loop or use legacy optimizer "
+                "`tf.keras.optimizers.legacy.{self.__class__.__name__}."
             )
         self.update_step(gradient, variable)
 
@@ -673,7 +675,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         return config
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         """Creates an optimizer from its config.
 
         This method is the reverse of `get_config`, capable of instantiating the
@@ -681,6 +683,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         Args:
             config: A Python dictionary, typically the output of get_config.
+            custom_objects: A Python dictionary mapping names to additional
+              user-defined Python objects needed to recreate this optimizer.
 
         Returns:
             An optimizer instance.
@@ -688,7 +692,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if "learning_rate" in config:
             if isinstance(config["learning_rate"], dict):
                 config["learning_rate"] = learning_rate_schedule.deserialize(
-                    config["learning_rate"]
+                    config["learning_rate"], custom_objects=custom_objects
                 )
         return cls(**config)
 
