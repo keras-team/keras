@@ -486,11 +486,6 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 keras.optimizers.optimizer_experimental.Optimizer,
             ):
                 loaded_model.optimizer.build(loaded_model.trainable_variables)
-                save_format = test_utils.get_save_format()
-                if save_format == "h5":
-                    # Experimental optimizer does not restore weights if saved
-                    # in h5 format.
-                    return
                 self.assertAllClose(
                     model.optimizer.variables(),
                     loaded_model.optimizer.variables(),

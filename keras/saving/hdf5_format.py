@@ -127,13 +127,7 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
 
         # TODO(b/128683857): Add integration tests between tf.keras and external
         # Keras, to avoid breaking TF.js users.
-        if isinstance(model.optimizer, optimizer_experimental.Optimizer):
-            logging.warning(
-                "HDF5 format does not save weights of"
-                " `optimizer_experimental.Optimizer`, your optimizer will"
-                " be recompiled at loading time."
-            )
-        elif (
+        if (
             include_optimizer
             and model.optimizer
             and not isinstance(model.optimizer, optimizer_v1.TFOptimizer)
@@ -227,17 +221,16 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
             saving_utils.try_build_compiled_arguments(model)
 
             # Set optimizer weights.
-            if isinstance(model.optimizer, optimizer_experimental.Optimizer):
-                logging.warning(
-                    "Loading model from HDF5 will not restore the "
-                    "optimizer's weights, since the optimizer is an "
-                    "instance of `optimizer_experimental.Optimizer`"
-                )
-            elif "optimizer_weights" in f:
+            if "optimizer_weights" in f:
                 try:
-                    model.optimizer._create_all_weights(
-                        model.trainable_variables
-                    )
+                    if isinstance(
+                        model.optimizer, optimizer_experimental.Optimizer
+                    ):
+                        model.optimizer.build(model.trainable_variables)
+                    else:
+                        model.optimizer._create_all_weights(
+                            model.trainable_variables
+                        )
                 except (NotImplementedError, AttributeError):
                     logging.warning(
                         "Error when creating the weights of optimizer {}, "
@@ -675,8 +668,10 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
         hdf5_group: HDF5 group.
         optimizer: optimizer instance.
     """
-
-    symbolic_weights = getattr(optimizer, "weights")
+    if isinstance(optimizer, optimizer_experimental.Optimizer):
+        symbolic_weights = optimizer.variables()
+    else:
+        symbolic_weights = getattr(optimizer, "weights")
     if symbolic_weights:
         weights_group = hdf5_group.create_group("optimizer_weights")
         weight_names = [str(w.name).encode("utf8") for w in symbolic_weights]
