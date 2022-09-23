@@ -49,6 +49,9 @@ from keras.utils.layer_utils import get_source_inputs
 # Deprecated
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
+
+# Evaluation related
+from keras.utils.sidecar_evaluator import SidecarEvaluator
 from keras.utils.text_dataset import text_dataset_from_directory
 from keras.utils.tf_utils import set_random_seed
 from keras.utils.timeseries_dataset import timeseries_dataset_from_array

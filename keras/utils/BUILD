@@ -27,6 +27,7 @@ py_library(
         ":image_utils",
         ":layer_utils",
         ":np_utils",
+        ":sidecar_evaluator",
         ":text_dataset",
         ":timeseries_dataset",
         ":vis_utils",
@@ -297,6 +298,30 @@ py_library(
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "sidecar_evaluator",
+    srcs = ["sidecar_evaluator.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorboard_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "sidecar_evaluator_test",
+    size = "medium",
+    srcs = ["sidecar_evaluator_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":sidecar_evaluator",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_utils",
     ],
 )
 

@@ -26,7 +26,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":distribute_coordinator_utils",
-        ":sidecar_evaluator",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras:callbacks",
@@ -832,30 +831,6 @@ tf_py_test(
     deps = [
         ":distributed_file_utils",
         "//:expect_tensorflow_installed",
-    ],
-)
-
-py_library(
-    name = "sidecar_evaluator",
-    srcs = ["sidecar_evaluator.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorboard_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-tf_py_test(
-    name = "sidecar_evaluator_test",
-    size = "medium",
-    srcs = ["sidecar_evaluator_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":sidecar_evaluator",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/testing_infra:test_utils",
     ],
 )
 

@@ -1,6 +1,6 @@
 path: "tensorflow.keras.utils.SidecarEvaluator"
 tf_class {
-  is_instance: "<class \'keras.distribute.sidecar_evaluator.SidecarEvaluator\'>"
+  is_instance: "<class \'keras.utils.sidecar_evaluator.SidecarEvaluator\'>"
   is_instance: "<type \'object\'>"
   member_method {
     name: "__init__"
