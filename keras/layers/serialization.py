@@ -33,6 +33,7 @@ from keras.layers import reshaping
 from keras.layers import rnn
 from keras.layers.normalization import batch_normalization
 from keras.layers.normalization import batch_normalization_v1
+from keras.layers.normalization import group_normalization
 from keras.layers.normalization import layer_normalization
 from keras.layers.normalization import unit_normalization
 from keras.layers.preprocessing import category_encoding
@@ -66,6 +67,7 @@ ALL_MODULES = (
     locally_connected,
     merging,
     batch_normalization_v1,
+    group_normalization,
     layer_normalization,
     unit_normalization,
     pooling,
