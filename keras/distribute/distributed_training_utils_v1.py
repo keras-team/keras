@@ -1057,8 +1057,8 @@ def _make_graph_execution_function(model, mode):
             all_inputs,
             all_outputs,
             updates=all_updates,
-            name="distributed_{}_function".format(mode),
-            **all_session_args
+            name=f"distributed_{mode}_function",
+            **all_session_args,
         )
 
 
@@ -1105,7 +1105,7 @@ def _make_eager_execution_function(model, mode):
         return backend.function(
             all_inputs,
             all_outputs,
-            name="eager_distributed_{}_function".format(mode),
+            name=f"eager_distributed_{mode}_function",
         )
 
 

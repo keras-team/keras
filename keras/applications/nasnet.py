@@ -26,12 +26,11 @@ Only the NASNet-A models, and their respective weights, which are suited
 for ImageNet 2012 are provided.
 
 The below table describes the performance on ImageNet 2012:
---------------------------------------------------------------------------------
-      Architecture       | Top-1 Acc | Top-5 Acc |  Multiply-Adds |  Params (M)
---------------------------------------------------------------------------------
-|   NASNet-A (4 @ 1056)  |   74.0 %  |   91.6 %  |       564 M    |     5.3    |
-|   NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9    |
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+Architecture         | Top-1 Acc | Top-5 Acc |  Multiply-Adds |  Params (M)
+---------------------|-----------|-----------|----------------|------------
+NASNet-A (4 @ 1056)  |   74.0 %  |   91.6 %  |       564 M    |     5.3
+NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9
 
 Reference:
   - [Learning Transferable Architectures for Scalable Image Recognition](
@@ -52,7 +51,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHTS_PATH = (
-    "https://storage.googleapis.com/tensorflow/" "keras-applications/nasnet/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/nasnet/"
 )
 NASNET_MOBILE_WEIGHT_PATH = BASE_WEIGHTS_PATH + "NASNet-mobile.h5"
 NASNET_MOBILE_WEIGHT_PATH_NO_TOP = BASE_WEIGHTS_PATH + "NASNet-mobile-no-top.h5"
@@ -547,12 +546,12 @@ def _separable_conv_block(
     """
     channel_dim = 1 if backend.image_data_format() == "channels_first" else -1
 
-    with backend.name_scope("separable_conv_block_%s" % block_id):
+    with backend.name_scope(f"separable_conv_block_{block_id}"):
         x = layers.Activation("relu")(ip)
         if strides == (2, 2):
             x = layers.ZeroPadding2D(
                 padding=imagenet_utils.correct_pad(x, kernel_size),
-                name="separable_conv_1_pad_%s" % block_id,
+                name=f"separable_conv_1_pad_{block_id}",
             )(x)
             conv_pad = "valid"
         else:
@@ -561,7 +560,7 @@ def _separable_conv_block(
             filters,
             kernel_size,
             strides=strides,
-            name="separable_conv_1_%s" % block_id,
+            name=f"separable_conv_1_{block_id}",
             padding=conv_pad,
             use_bias=False,
             kernel_initializer="he_normal",
@@ -570,13 +569,13 @@ def _separable_conv_block(
             axis=channel_dim,
             momentum=0.9997,
             epsilon=1e-3,
-            name="separable_conv_1_bn_%s" % (block_id),
+            name=f"separable_conv_1_bn_{block_id}",
         )(x)
         x = layers.Activation("relu")(x)
         x = layers.SeparableConv2D(
             filters,
             kernel_size,
-            name="separable_conv_2_%s" % block_id,
+            name=f"separable_conv_2_{block_id}",
             padding="same",
             use_bias=False,
             kernel_initializer="he_normal",
@@ -585,7 +584,7 @@ def _separable_conv_block(
             axis=channel_dim,
             momentum=0.9997,
             epsilon=1e-3,
-            name="separable_conv_2_bn_%s" % (block_id),
+            name=f"separable_conv_2_bn_{block_id}",
         )(x)
     return x
 
@@ -617,22 +616,22 @@ def _adjust_block(p, ip, filters, block_id=None):
             p = ip
 
         elif p_shape[img_dim] != ip_shape[img_dim]:
-            with backend.name_scope("adjust_reduction_block_%s" % block_id):
-                p = layers.Activation(
-                    "relu", name="adjust_relu_1_%s" % block_id
-                )(p)
+            with backend.name_scope(f"adjust_reduction_block_{block_id}"):
+                p = layers.Activation("relu", name=f"adjust_relu_1_{block_id}")(
+                    p
+                )
                 p1 = layers.AveragePooling2D(
                     (1, 1),
                     strides=(2, 2),
                     padding="valid",
-                    name="adjust_avg_pool_1_%s" % block_id,
+                    name=f"adjust_avg_pool_1_{block_id}",
                 )(p)
                 p1 = layers.Conv2D(
                     filters // 2,
                     (1, 1),
                     padding="same",
                     use_bias=False,
-                    name="adjust_conv_1_%s" % block_id,
+                    name=f"adjust_conv_1_{block_id}",
                     kernel_initializer="he_normal",
                 )(p1)
 
@@ -642,14 +641,14 @@ def _adjust_block(p, ip, filters, block_id=None):
                     (1, 1),
                     strides=(2, 2),
                     padding="valid",
-                    name="adjust_avg_pool_2_%s" % block_id,
+                    name=f"adjust_avg_pool_2_{block_id}",
                 )(p2)
                 p2 = layers.Conv2D(
                     filters // 2,
                     (1, 1),
                     padding="same",
                     use_bias=False,
-                    name="adjust_conv_2_%s" % block_id,
+                    name=f"adjust_conv_2_{block_id}",
                     kernel_initializer="he_normal",
                 )(p2)
 
@@ -658,18 +657,18 @@ def _adjust_block(p, ip, filters, block_id=None):
                     axis=channel_dim,
                     momentum=0.9997,
                     epsilon=1e-3,
-                    name="adjust_bn_%s" % block_id,
+                    name=f"adjust_bn_{block_id}",
                 )(p)
 
         elif p_shape[channel_dim] != filters:
-            with backend.name_scope("adjust_projection_block_%s" % block_id):
+            with backend.name_scope(f"adjust_projection_block_{block_id}"):
                 p = layers.Activation("relu")(p)
                 p = layers.Conv2D(
                     filters,
                     (1, 1),
                     strides=(1, 1),
                     padding="same",
-                    name="adjust_conv_projection_%s" % block_id,
+                    name=f"adjust_conv_projection_{block_id}",
                     use_bias=False,
                     kernel_initializer="he_normal",
                 )(p)
@@ -677,7 +676,7 @@ def _adjust_block(p, ip, filters, block_id=None):
                     axis=channel_dim,
                     momentum=0.9997,
                     epsilon=1e-3,
-                    name="adjust_bn_%s" % block_id,
+                    name=f"adjust_bn_{block_id}",
                 )(p)
     return p
 
@@ -696,7 +695,7 @@ def _normal_a_cell(ip, p, filters, block_id=None):
     """
     channel_dim = 1 if backend.image_data_format() == "channels_first" else -1
 
-    with backend.name_scope("normal_A_block_%s" % block_id):
+    with backend.name_scope(f"normal_A_block_{block_id}"):
         p = _adjust_block(p, ip, filters, block_id)
 
         h = layers.Activation("relu")(ip)
@@ -705,7 +704,7 @@ def _normal_a_cell(ip, p, filters, block_id=None):
             (1, 1),
             strides=(1, 1),
             padding="same",
-            name="normal_conv_1_%s" % block_id,
+            name=f"normal_conv_1_{block_id}",
             use_bias=False,
             kernel_initializer="he_normal",
         )(h)
@@ -713,7 +712,7 @@ def _normal_a_cell(ip, p, filters, block_id=None):
             axis=channel_dim,
             momentum=0.9997,
             epsilon=1e-3,
-            name="normal_bn_1_%s" % block_id,
+            name=f"normal_bn_1_{block_id}",
         )(h)
 
         with backend.name_scope("block_1"):
@@ -721,56 +720,56 @@ def _normal_a_cell(ip, p, filters, block_id=None):
                 h,
                 filters,
                 kernel_size=(5, 5),
-                block_id="normal_left1_%s" % block_id,
+                block_id=f"normal_left1_{block_id}",
             )
             x1_2 = _separable_conv_block(
-                p, filters, block_id="normal_right1_%s" % block_id
+                p, filters, block_id=f"normal_right1_{block_id}"
             )
-            x1 = layers.add([x1_1, x1_2], name="normal_add_1_%s" % block_id)
+            x1 = layers.add([x1_1, x1_2], name=f"normal_add_1_{block_id}")
 
         with backend.name_scope("block_2"):
             x2_1 = _separable_conv_block(
-                p, filters, (5, 5), block_id="normal_left2_%s" % block_id
+                p, filters, (5, 5), block_id=f"normal_left2_{block_id}"
             )
             x2_2 = _separable_conv_block(
-                p, filters, (3, 3), block_id="normal_right2_%s" % block_id
+                p, filters, (3, 3), block_id=f"normal_right2_{block_id}"
             )
-            x2 = layers.add([x2_1, x2_2], name="normal_add_2_%s" % block_id)
+            x2 = layers.add([x2_1, x2_2], name=f"normal_add_2_{block_id}")
 
         with backend.name_scope("block_3"):
             x3 = layers.AveragePooling2D(
                 (3, 3),
                 strides=(1, 1),
                 padding="same",
-                name="normal_left3_%s" % (block_id),
+                name=f"normal_left3_{block_id}",
             )(h)
-            x3 = layers.add([x3, p], name="normal_add_3_%s" % block_id)
+            x3 = layers.add([x3, p], name=f"normal_add_3_{block_id}")
 
         with backend.name_scope("block_4"):
             x4_1 = layers.AveragePooling2D(
                 (3, 3),
                 strides=(1, 1),
                 padding="same",
-                name="normal_left4_%s" % (block_id),
+                name=f"normal_left4_{block_id}",
             )(p)
             x4_2 = layers.AveragePooling2D(
                 (3, 3),
                 strides=(1, 1),
                 padding="same",
-                name="normal_right4_%s" % (block_id),
+                name=f"normal_right4_{block_id}",
             )(p)
-            x4 = layers.add([x4_1, x4_2], name="normal_add_4_%s" % block_id)
+            x4 = layers.add([x4_1, x4_2], name=f"normal_add_4_{block_id}")
 
         with backend.name_scope("block_5"):
             x5 = _separable_conv_block(
-                h, filters, block_id="normal_left5_%s" % block_id
+                h, filters, block_id=f"normal_left5_{block_id}"
             )
-            x5 = layers.add([x5, h], name="normal_add_5_%s" % block_id)
+            x5 = layers.add([x5, h], name=f"normal_add_5_{block_id}")
 
         x = layers.concatenate(
             [p, x1, x2, x3, x4, x5],
             axis=channel_dim,
-            name="normal_concat_%s" % block_id,
+            name=f"normal_concat_{block_id}",
         )
     return x, ip
 
@@ -789,7 +788,7 @@ def _reduction_a_cell(ip, p, filters, block_id=None):
     """
     channel_dim = 1 if backend.image_data_format() == "channels_first" else -1
 
-    with backend.name_scope("reduction_A_block_%s" % block_id):
+    with backend.name_scope(f"reduction_A_block_{block_id}"):
         p = _adjust_block(p, ip, filters, block_id)
 
         h = layers.Activation("relu")(ip)
@@ -798,7 +797,7 @@ def _reduction_a_cell(ip, p, filters, block_id=None):
             (1, 1),
             strides=(1, 1),
             padding="same",
-            name="reduction_conv_1_%s" % block_id,
+            name=f"reduction_conv_1_{block_id}",
             use_bias=False,
             kernel_initializer="he_normal",
         )(h)
@@ -806,11 +805,11 @@ def _reduction_a_cell(ip, p, filters, block_id=None):
             axis=channel_dim,
             momentum=0.9997,
             epsilon=1e-3,
-            name="reduction_bn_1_%s" % block_id,
+            name=f"reduction_bn_1_{block_id}",
         )(h)
         h3 = layers.ZeroPadding2D(
             padding=imagenet_utils.correct_pad(h, 3),
-            name="reduction_pad_1_%s" % block_id,
+            name=f"reduction_pad_1_{block_id}",
         )(h)
 
         with backend.name_scope("block_1"):
@@ -819,74 +818,74 @@ def _reduction_a_cell(ip, p, filters, block_id=None):
                 filters,
                 (5, 5),
                 strides=(2, 2),
-                block_id="reduction_left1_%s" % block_id,
+                block_id=f"reduction_left1_{block_id}",
             )
             x1_2 = _separable_conv_block(
                 p,
                 filters,
                 (7, 7),
                 strides=(2, 2),
-                block_id="reduction_right1_%s" % block_id,
+                block_id=f"reduction_right1_{block_id}",
             )
-            x1 = layers.add([x1_1, x1_2], name="reduction_add_1_%s" % block_id)
+            x1 = layers.add([x1_1, x1_2], name=f"reduction_add_1_{block_id}")
 
         with backend.name_scope("block_2"):
             x2_1 = layers.MaxPooling2D(
                 (3, 3),
                 strides=(2, 2),
                 padding="valid",
-                name="reduction_left2_%s" % block_id,
+                name=f"reduction_left2_{block_id}",
             )(h3)
             x2_2 = _separable_conv_block(
                 p,
                 filters,
                 (7, 7),
                 strides=(2, 2),
-                block_id="reduction_right2_%s" % block_id,
+                block_id=f"reduction_right2_{block_id}",
             )
-            x2 = layers.add([x2_1, x2_2], name="reduction_add_2_%s" % block_id)
+            x2 = layers.add([x2_1, x2_2], name=f"reduction_add_2_{block_id}")
 
         with backend.name_scope("block_3"):
             x3_1 = layers.AveragePooling2D(
                 (3, 3),
                 strides=(2, 2),
                 padding="valid",
-                name="reduction_left3_%s" % block_id,
+                name=f"reduction_left3_{block_id}",
             )(h3)
             x3_2 = _separable_conv_block(
                 p,
                 filters,
                 (5, 5),
                 strides=(2, 2),
-                block_id="reduction_right3_%s" % block_id,
+                block_id=f"reduction_right3_{block_id}",
             )
-            x3 = layers.add([x3_1, x3_2], name="reduction_add3_%s" % block_id)
+            x3 = layers.add([x3_1, x3_2], name=f"reduction_add3_{block_id}")
 
         with backend.name_scope("block_4"):
             x4 = layers.AveragePooling2D(
                 (3, 3),
                 strides=(1, 1),
                 padding="same",
-                name="reduction_left4_%s" % block_id,
+                name=f"reduction_left4_{block_id}",
             )(x1)
             x4 = layers.add([x2, x4])
 
         with backend.name_scope("block_5"):
             x5_1 = _separable_conv_block(
-                x1, filters, (3, 3), block_id="reduction_left4_%s" % block_id
+                x1, filters, (3, 3), block_id=f"reduction_left4_{block_id}"
             )
             x5_2 = layers.MaxPooling2D(
                 (3, 3),
                 strides=(2, 2),
                 padding="valid",
-                name="reduction_right5_%s" % block_id,
+                name=f"reduction_right5_{block_id}",
             )(h3)
-            x5 = layers.add([x5_1, x5_2], name="reduction_add4_%s" % block_id)
+            x5 = layers.add([x5_1, x5_2], name=f"reduction_add4_{block_id}")
 
         x = layers.concatenate(
             [x2, x3, x4, x5],
             axis=channel_dim,
-            name="reduction_concat_%s" % block_id,
+            name=f"reduction_concat_{block_id}",
         )
         return x, ip
 

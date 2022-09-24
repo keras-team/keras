@@ -29,7 +29,7 @@ from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils.generic_utils import CustomObjectScope
+from keras.utils import CustomObjectScope
 
 
 def zip_and_sort(weight_values):

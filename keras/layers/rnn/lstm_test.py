@@ -265,8 +265,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_return_state(self):
         num_states = 2
@@ -349,8 +350,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
     @parameterized.named_parameters(("v0", 0), ("v1", 1), ("v2", 2))
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_implementation_mode_LSTM(self, implementation_mode):
         num_samples = 2
@@ -396,8 +398,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_masking_with_stacking_LSTM(self):
         inputs = np.random.random((2, 3, 4))
@@ -532,8 +535,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_statefulness_LSTM(self):
         num_samples = 2
@@ -680,8 +684,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask(self):
@@ -834,8 +839,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_LSTM_runtime_with_mask(self):

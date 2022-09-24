@@ -268,7 +268,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
                     variables = VAR_MAP_V1[name]
 
                 extended_variables = [
-                    v + "/replica_{}".format(replica)
+                    v + f"/replica_{replica}"
                     for v in variables
                     for replica in range(1, num_parameter_devices)
                 ]

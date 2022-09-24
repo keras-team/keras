@@ -108,20 +108,15 @@ def verify_python_files_in_pip(pip_root, bazel_root):
             file_excluded = file_name.lstrip("./") in PIP_EXCLUDED_FILES
             if not path_exists and not file_excluded:
                 raise PipPackagingError(
-                    (
-                        "Pip package missing the file %s. If this is expected, "
-                        "add it to PIP_EXCLUDED_FILES in "
-                        "create_pip_helper.py. Otherwise, "
-                        "make sure it is a build dependency of the pip package"
-                    )
+                    "Pip package missing the file %s. If this is expected, "
+                    "add it to PIP_EXCLUDED_FILES in "
+                    "create_pip_helper.py. Otherwise, "
+                    "make sure it is a build dependency of the pip package"
                     % file_name
                 )
             if path_exists and file_excluded:
                 raise PipPackagingError(
-                    (
-                        "File in PIP_EXCLUDED_FILES included in pip. %s"
-                        % file_name
-                    )
+                    f"File in PIP_EXCLUDED_FILES included in pip. {file_name}"
                 )
 
 

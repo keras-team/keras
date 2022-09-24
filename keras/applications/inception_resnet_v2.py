@@ -52,7 +52,7 @@ def InceptionResNetV2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     """Instantiates the Inception-ResNet v2 architecture.
 
@@ -122,7 +122,7 @@ def InceptionResNetV2(
     else:
         layers = VersionAwareLayers()
     if kwargs:
-        raise ValueError("Unknown argument(s): %s" % (kwargs,))
+        raise ValueError(f"Unknown argument(s): {kwargs}")
     if not (weights in {"imagenet", None} or tf.io.gfile.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "

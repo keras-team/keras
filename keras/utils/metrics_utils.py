@@ -213,7 +213,7 @@ def assert_thresholds_range(thresholds):
         ]
         if invalid_thresholds:
             raise ValueError(
-                f"Threshold values must be in [0, 1]. "
+                "Threshold values must be in [0, 1]. "
                 f"Received: {invalid_thresholds}"
             )
 

@@ -36,6 +36,7 @@ from keras.utils import tf_inspect
 
 # isort: off
 from tensorflow.python.util.tf_export import tf_export
+from tensorflow.python.util.deprecation import deprecated
 
 
 class _RNNCellWrapper(AbstractRNNCell):
@@ -142,6 +143,7 @@ class _RNNCellWrapper(AbstractRNNCell):
         return cls(cell, **config)
 
 
+@deprecated(None, "Please use tf.keras.layers.RNN instead.")
 @tf_export("nn.RNNCellDropoutWrapper", v1=[])
 class DropoutWrapper(_RNNCellWrapper):
     """Operator adding dropout to inputs and outputs of the given cell."""
@@ -263,9 +265,9 @@ class DropoutWrapper(_RNNCellWrapper):
                             f"Parameter {attr} must be between 0 and 1. "
                             f"Received {const_prob}"
                         )
-                    setattr(self, "_%s" % attr, float(const_prob))
+                    setattr(self, f"_{attr}", float(const_prob))
                 else:
-                    setattr(self, "_%s" % attr, tensor_prob)
+                    setattr(self, f"_{attr}", tensor_prob)
 
         # Set variational_recurrent, seed before running the code below
         self._variational_recurrent = variational_recurrent
@@ -488,6 +490,7 @@ class DropoutWrapper(_RNNCellWrapper):
         )
 
 
+@deprecated(None, "Please use tf.keras.layers.RNN instead.")
 @tf_export("nn.RNNCellResidualWrapper", v1=[])
 class ResidualWrapper(_RNNCellWrapper):
     """RNNCell wrapper that ensures cell inputs are added to the outputs."""
@@ -577,6 +580,7 @@ class ResidualWrapper(_RNNCellWrapper):
         )
 
 
+@deprecated(None, "Please use tf.keras.layers.RNN instead.")
 @tf_export("nn.RNNCellDeviceWrapper", v1=[])
 class DeviceWrapper(_RNNCellWrapper):
     """Operator that ensures an RNNCell runs on a particular device."""

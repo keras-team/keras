@@ -42,10 +42,10 @@ from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.saving import object_registration
 from keras.saving import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 # If called outside any strategy.scope() calls, this will return the default
 # strategy.
@@ -75,16 +75,14 @@ class KerasModelTest(test_combinations.TestCase):
             and test_utils.get_model_type() == "subclass"
         ):
             self.skipTest(
-                "Non-default strategies are unsupported with subclassed "
-                "models"
+                "Non-default strategies are unsupported with subclassed models"
             )
 
     def _skip_if_save_format_unsupported(self, save_format):
         model_type = test_utils.get_model_type()
         if save_format == "h5" and model_type == "subclass":
             self.skipTest(
-                "Saving subclassed models with the HDF5 format is "
-                "unsupported"
+                "Saving subclassed models with the HDF5 format is unsupported"
             )
         if (
             save_format == "tf"
@@ -92,8 +90,7 @@ class KerasModelTest(test_combinations.TestCase):
             and not tf.executing_eagerly()
         ):
             self.skipTest(
-                "b/148820505: This combination of features is currently "
-                "broken."
+                "b/148820505: This combination of features is currently broken."
             )
 
     @test_combinations.run_with_all_model_types
@@ -238,7 +235,7 @@ class KerasModelTest(test_combinations.TestCase):
         self.assertEqual(backend.eval(layer.v), expected)
 
         if save_format:
-            with generic_utils.CustomObjectScope(
+            with object_registration.CustomObjectScope(
                 {
                     "MultiplyLayer": mp_test_util.MultiplyLayer,
                     "loss_fn": loss_fn,
@@ -560,7 +557,11 @@ class KerasModelTest(test_combinations.TestCase):
             model = models.Model(x, y)
             model.compile("sgd", "mse")
             self.assertIsInstance(
-                model.optimizer, loss_scale_optimizer.LossScaleOptimizer
+                model.optimizer,
+                (
+                    loss_scale_optimizer.LossScaleOptimizer,
+                    loss_scale_optimizer.LossScaleOptimizerV3,
+                ),
             )
 
             # Test if an LSO is passed, optimizer is not automatically wrapped

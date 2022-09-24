@@ -120,9 +120,7 @@ def generate_keras_metadata(saved_nodes, node_paths):
             if not path:
                 node_path = "root"
             else:
-                node_path = "root.{}".format(
-                    ".".join([ref.name for ref in path])
-                )
+                node_path = f"root.{'.'.join([ref.name for ref in path])}"
 
             metadata.nodes.add(
                 node_id=node_id,

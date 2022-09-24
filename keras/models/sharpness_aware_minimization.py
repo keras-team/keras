@@ -21,13 +21,14 @@ import tensorflow.compat.v2 as tf
 from keras.engine import data_adapter
 from keras.layers import deserialize as deserialize_layer
 from keras.models import Model
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
+from keras.utils.generic_utils import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
+@register_keras_serializable()
 @keras_export("keras.models.experimental.SharpnessAwareMinimization", v1=[])
 class SharpnessAwareMinimization(Model):
     """Sharpness aware minimization (SAM) training flow.
@@ -77,7 +78,7 @@ class SharpnessAwareMinimization(Model):
 
         gradients_all_batches = []
         pred_all_batches = []
-        for (x_batch, y_batch) in zip(x_split, y_split):
+        for x_batch, y_batch in zip(x_split, y_split):
             epsilon_w_cache = []
             with tf.GradientTape() as tape:
                 pred = self.model(x_batch)
@@ -89,7 +90,7 @@ class SharpnessAwareMinimization(Model):
             gradients_order2_norm = self._gradients_order2_norm(gradients)
             scale = self.rho / (gradients_order2_norm + 1e-12)
 
-            for (gradient, variable) in zip(gradients, trainable_variables):
+            for gradient, variable in zip(gradients, trainable_variables):
                 epsilon_w = gradient * scale
                 self._distributed_apply_epsilon_w(
                     variable, epsilon_w, tf.distribute.get_strategy()
@@ -104,11 +105,11 @@ class SharpnessAwareMinimization(Model):
                 for gradient in gradients:
                     gradients_all_batches.append([gradient])
             else:
-                for (gradient, gradient_all_batches) in zip(
+                for gradient, gradient_all_batches in zip(
                     gradients, gradients_all_batches
                 ):
                     gradient_all_batches.append(gradient)
-            for (variable, epsilon_w) in zip(
+            for variable, epsilon_w in zip(
                 trainable_variables, epsilon_w_cache
             ):
                 # Restore the variable to its original value before
@@ -143,7 +144,7 @@ class SharpnessAwareMinimization(Model):
         config = super().get_config()
         config.update(
             {
-                "model": generic_utils.serialize_keras_object(self.model),
+                "model": serialize_keras_object(self.model),
                 "rho": self.rho,
             }
         )

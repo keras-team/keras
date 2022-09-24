@@ -174,6 +174,8 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
       sparse: Boolean. Only applicable to `"multi_hot"`, `"count"`, and
         `"tf_idf"` output modes. If True, returns a `SparseTensor` instead of a
         dense `Tensor`. Defaults to False.
+      encoding: Optional. The text encoding to use to interpret the input
+        strings. Defaults to `"utf-8"`.
 
     Example:
 
@@ -255,6 +257,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         idf_weights=None,
         sparse=False,
         ragged=False,
+        encoding="utf-8",
         **kwargs,
     ):
 
@@ -262,7 +265,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         # a dtype of 'string'.
         if "dtype" in kwargs and kwargs["dtype"] != tf.string:
             raise ValueError(
-                f"`TextVectorization` may only have a dtype of string. "
+                "`TextVectorization` may only have a dtype of string. "
                 f"Received dtype: {kwargs['dtype']}."
             )
         elif "dtype" not in kwargs:
@@ -316,7 +319,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             and all(isinstance(item, int) for item in ngrams)
         ):
             raise ValueError(
-                f"`ngrams` must be None, an integer, or a tuple of "
+                "`ngrams` must be None, an integer, or a tuple of "
                 f"integers. Received: ngrams={ngrams}"
             )
 
@@ -327,28 +330,28 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             or (output_sequence_length is None)
         ):
             raise ValueError(
-                f"`output_sequence_length` must be either None or an "
-                f"integer when `output_mode` is 'int'. Received: "
+                "`output_sequence_length` must be either None or an "
+                "integer when `output_mode` is 'int'. Received: "
                 f"output_sequence_length={output_sequence_length}"
             )
 
         if output_mode != INT and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if `output_mode` is "
-                f"not 'int'. "
+                "`output_sequence_length` must not be set if `output_mode` is "
+                "not 'int'. "
                 f"Received output_sequence_length={output_sequence_length}."
             )
 
         if ragged and output_mode != INT:
             raise ValueError(
-                f"`ragged` must not be true if `output_mode` is "
+                "`ragged` must not be true if `output_mode` is "
                 f"`'int'`. Received: ragged={ragged} and "
                 f"output_mode={output_mode}"
             )
 
         if ragged and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if ragged "
+                "`output_sequence_length` must not be set if ragged "
                 f"is True. Received: ragged={ragged} and "
                 f"output_sequence_length={output_sequence_length}"
             )
@@ -365,6 +368,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
         self._output_mode = output_mode
         self._output_sequence_length = output_sequence_length
+        self._encoding = encoding
 
         # VocabularySavedModelSaver will clear the config vocabulary to restore
         # the lookup table ops directly. We persist this hidden option to
@@ -391,6 +395,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             output_mode=output_mode if output_mode is not None else INT,
             sparse=sparse,
             has_input_vocabulary=self._has_input_vocabulary,
+            encoding=encoding,
         )
 
     def compute_output_shape(self, input_shape):
@@ -510,6 +515,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "ragged": self._ragged,
             "vocabulary": utils.listify_tensors(vocab),
             "idf_weights": utils.listify_tensors(idf_weights),
+            "encoding": self._encoding,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -579,11 +585,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                 inputs = self._split(inputs)
             else:
                 raise ValueError(
-                    (
-                        "%s is not a supported splitting."
-                        "TextVectorization supports the following options "
-                        "for `split`: None, 'whitespace', or a Callable."
-                    )
+                    "%s is not a supported splitting."
+                    "TextVectorization supports the following options "
+                    "for `split`: None, 'whitespace', or a Callable."
                     % self._split
                 )
 

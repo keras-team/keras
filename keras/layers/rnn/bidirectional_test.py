@@ -27,7 +27,6 @@ from keras.layers import core
 from keras.layers.rnn.cell_wrappers import ResidualWrapper
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.checkpoint import (
@@ -505,7 +504,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             c = keras.Input((3,))
             cell = _RNNCellWithConstants(32, 3)
             custom_objects = {"_RNNCellWithConstants": _RNNCellWithConstants}
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional(keras.layers.RNN(cell))
             y = layer(x, constants=c)
             model = keras.Model([x, c], y)
@@ -521,7 +520,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             weights = model.get_weights()
             config = layer.get_config()
 
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -532,7 +531,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllClose(y_np, y_np_2, atol=1e-4)
 
             # Test flat list inputs
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -551,7 +550,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             s_bac = keras.Input((32,))
             cell = _RNNCellWithConstants(32, 3)
             custom_objects = {"_RNNCellWithConstants": _RNNCellWithConstants}
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional(keras.layers.RNN(cell))
             y = layer(x, initial_state=[s_for, s_bac], constants=c)
             model = keras.Model([x, s_for, s_bac, c], y)
@@ -575,7 +574,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             weights = model.get_weights()
             config = layer.get_config()
 
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -592,7 +591,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             assert np.mean(y_np - y_np_2_different_s) != 0
 
             # Test flat list inputs
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -663,8 +662,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_last_output_with_masking(self):
         rnn = keras.layers.LSTM
@@ -696,8 +696,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters([keras.layers.LSTM, keras.layers.GRU])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_sequence_output_with_masking(self, rnn):
         samples = 2
@@ -925,8 +926,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters(["ave", "concat", "mul"])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm RNN does not support ragged "
-        "tensors yet.",
+        skip_message=(
+            "Skipping as ROCm RNN does not support ragged tensors yet."
+        ),
     )
     def test_Bidirectional_ragged_input(self, merge_mode):
         np.random.seed(100)

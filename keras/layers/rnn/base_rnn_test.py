@@ -32,7 +32,6 @@ from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.checkpoint import (
@@ -188,9 +187,7 @@ class RNNTest(test_combinations.TestCase):
         y_np = model.predict(x_np)
         weights = model.get_weights()
         config = layer.get_config()
-        with generic_utils.CustomObjectScope(
-            {"MinimalRNNCell": MinimalRNNCell}
-        ):
+        with keras.utils.CustomObjectScope({"MinimalRNNCell": MinimalRNNCell}):
             layer = keras.layers.RNN.from_config(config)
         y = layer(x)
         model = keras.models.Model(x, y)
@@ -215,9 +212,7 @@ class RNNTest(test_combinations.TestCase):
         y_np = model.predict(x_np)
         weights = model.get_weights()
         config = layer.get_config()
-        with generic_utils.CustomObjectScope(
-            {"MinimalRNNCell": MinimalRNNCell}
-        ):
+        with keras.utils.CustomObjectScope({"MinimalRNNCell": MinimalRNNCell}):
             layer = keras.layers.RNN.from_config(config)
         y = layer(x)
         model = keras.models.Model(x, y)
@@ -423,7 +418,7 @@ class RNNTest(test_combinations.TestCase):
         weights = model.get_weights()
         config = layer.get_config()
         custom_objects = {"RNNCellWithConstants": RNNCellWithConstants}
-        with generic_utils.CustomObjectScope(custom_objects):
+        with keras.utils.CustomObjectScope(custom_objects):
             layer = keras.layers.RNN.from_config(config.copy())
         y = layer(x, constants=c)
         model = keras.models.Model([x, c], y)
@@ -432,7 +427,7 @@ class RNNTest(test_combinations.TestCase):
         self.assertAllClose(y_np, y_np_2, atol=1e-4)
 
         # test flat list inputs.
-        with generic_utils.CustomObjectScope(custom_objects):
+        with keras.utils.CustomObjectScope(custom_objects):
             layer = keras.layers.RNN.from_config(config.copy())
         y = layer([x, c])
         model = keras.models.Model([x, c], y)
@@ -480,7 +475,7 @@ class RNNTest(test_combinations.TestCase):
         y_np = model.predict([x_np, c_np])
         weights = model.get_weights()
         config = layer.get_config()
-        with generic_utils.CustomObjectScope(custom_objects):
+        with keras.utils.CustomObjectScope(custom_objects):
             layer = keras.layers.RNN.from_config(config.copy())
         y = layer(x, constants=c)
         model = keras.models.Model([x, c], y)
@@ -547,7 +542,7 @@ class RNNTest(test_combinations.TestCase):
         weights = model.get_weights()
         config = layer.get_config()
         custom_objects = {"RNNCellWithConstants": RNNCellWithConstants}
-        with generic_utils.CustomObjectScope(custom_objects):
+        with keras.utils.CustomObjectScope(custom_objects):
             layer = keras.layers.RNN.from_config(config.copy())
         y = layer(x, initial_state=s, constants=c)
         model = keras.models.Model([x, s, c], y)
@@ -561,7 +556,7 @@ class RNNTest(test_combinations.TestCase):
             self.assertAllClose(y_np, y_np_2_different_s, atol=1e-4)
 
         # test flat list inputs
-        with generic_utils.CustomObjectScope(custom_objects):
+        with keras.utils.CustomObjectScope(custom_objects):
             layer = keras.layers.RNN.from_config(config.copy())
         y = layer([x, s, c])
         model = keras.models.Model([x, s, c], y)
@@ -707,9 +702,7 @@ class RNNTest(test_combinations.TestCase):
         model.predict(inputs)
 
     def test_builtin_and_custom_rnn_cell_serialization(self):
-        @keras.utils.generic_utils.register_keras_serializable(
-            package="TestOnly"
-        )
+        @keras.utils.register_keras_serializable(package="TestOnly")
         class CustomRNNCell(keras.layers.Layer):
             def __init__(self, units, **kwargs):
                 self.units = units

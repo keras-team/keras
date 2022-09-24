@@ -15,39 +15,71 @@
 """Tests for Keras python-based idempotent saving functions (experimental)."""
 import os
 import sys
+import zipfile
+from unittest import mock
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import backend
+from keras.optimizers.optimizer_experimental import adam
+from keras.saving import object_registration
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
-from keras.utils import generic_utils
+from keras.testing_infra import test_utils
 from keras.utils import io_utils
 
 train_step_message = "This is my training step"
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class MyDense(keras.layers.Dense):
+    def build(self, input_shape):
+        self.additional_weights = [
+            self.add_weight(
+                "my_additional_weight",
+                initializer="ones",
+                trainable=True,
+            ),
+            self.add_weight(
+                "my_additional_weight_2",
+                initializer="ones",
+                trainable=True,
+            ),
+        ]
+        self.weights_in_dict = {
+            "my_weight": self.add_weight(
+                "my_dict_weight",
+                initializer="ones",
+                trainable=True,
+            ),
+        }
+        self.nested_layer = keras.layers.Dense(1)
+        return super().build(input_shape)
+
+    def call(self, inputs):
+        call_result = super().call(inputs)
+        return self.nested_layer(call_result)
+
     def two(self):
         return 2
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.embedding = keras.layers.Embedding(4, 1)
         self.dense1 = MyDense(1)
+        self.dense2 = MyDense(1)
 
     def call(self, inputs):
-        return self.dense1(inputs)
+        out = self.embedding(inputs)
+        out = self.dense1(out)
+        return self.dense2(out)
 
     def train_step(self, data):
         tf.print(train_step_message)
@@ -64,9 +96,26 @@ class CustomModelX(keras.Model):
         return 1
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
+class CompileOverridingModel(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = MyDense(1)
+
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+
+    def call(self, inputs):
+        return self.dense1(inputs)
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
+class CompileOverridingSequential(keras.Sequential):
+    def compile(self, *args, **kwargs):
+        super().compile(*args, **kwargs)
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, added here as a custom
     func."""
@@ -76,19 +125,12 @@ def my_mean_squared_error(y_true, y_pred):
 module_my_mean_squared_error = my_mean_squared_error
 
 
-class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
-    def setUp(self):
-        super().setUp()
-        saving_lib._ENABLED = True
-
-    def tearDown(self):
-        super().tearDown()
-        saving_lib._ENABLED = False
-
+@test_utils.run_v2_only
+class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
     def _get_subclassed_model(self):
         subclassed_model = CustomModelX()
         subclassed_model.compile(
-            optimizer="adam",
+            optimizer=adam.Adam(),
             loss=[
                 "mse",
                 keras.losses.mean_squared_error,
@@ -98,35 +140,56 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         )
         return subclassed_model
 
+    def _get_sequential_model(self):
+        sequential_model = keras.Sequential(
+            [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
+        )
+        sequential_model.compile(
+            optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
+        )
+        return sequential_model
+
+    def _get_functional_model(self):
+        inputs = keras.Input(shape=(32,))
+        inputs = keras.layers.Embedding(4, 1)(inputs)
+        inputs = MyDense(1, name="first_dense")(inputs)
+        outputs = MyDense(1, name="second_dense")(inputs)
+        functional_model = keras.Model(inputs, outputs)
+        functional_model.compile(
+            optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
+        )
+        return functional_model
+
     def test_saving_after_compile_but_before_fit(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
-        subclassed_model._save_new(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
 
         # This is so that we can register another function with the same custom
         # object key, and make sure the newly registered function is used while
         # loading.
-        del generic_utils._GLOBAL_CUSTOM_OBJECTS[
+        del object_registration._GLOBAL_CUSTOM_OBJECTS[
             "my_custom_package>my_mean_squared_error"
         ]
 
-        @keras.utils.generic_utils.register_keras_serializable(
-            package="my_custom_package"
-        )
+        @keras.utils.register_keras_serializable(package="my_custom_package")
         def my_mean_squared_error(y_true, y_pred):
             """Function-local `mean_squared_error`."""
             return backend.mean(
                 tf.math.squared_difference(y_pred, y_true), axis=-1
             )
 
-        loaded_model = saving_lib.load(temp_dir)
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(
+            subclassed_model._is_compiled, loaded_model._is_compiled
+        )
 
         # Everything should be the same class or function for the original model
         # and the loaded model.
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
                 model.optimizer.__class__,
-                keras.optimizers.optimizer_v2.adam.Adam,
+                adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,
@@ -157,14 +220,17 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertIsNot(module_my_mean_squared_error, my_mean_squared_error)
 
     def test_saving_after_fit(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
 
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(
+            subclassed_model._is_compiled, loaded_model._is_compiled
+        )
 
         io_utils.enable_interactive_logging()
         # `tf.print` writes to stderr. This is to make sure the custom training
@@ -185,7 +251,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         for model in [subclassed_model, loaded_model]:
             self.assertIs(
                 model.optimizer.__class__,
-                keras.optimizers.optimizer_v2.adam.Adam,
+                adam.Adam,
             )
             self.assertIs(
                 model.compiled_loss.__class__,
@@ -213,21 +279,27 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             )
 
     def test_saving_preserve_unbuilt_state(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = CustomModelX()
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(
+            subclassed_model._is_compiled, loaded_model._is_compiled
+        )
         self.assertFalse(subclassed_model.built)
         self.assertFalse(loaded_model.built)
 
     def test_saving_preserve_built_state(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
-        loaded_model = saving_lib.load(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(
+            subclassed_model._is_compiled, loaded_model._is_compiled
+        )
         self.assertTrue(subclassed_model.built)
         self.assertTrue(loaded_model.built)
         self.assertEqual(
@@ -238,31 +310,34 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         )
 
     def test_saved_module_paths_and_class_names(self):
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_new(temp_dir)
+        subclassed_model._save_experimental(temp_filepath)
 
-        file_path = os.path.join(temp_dir, saving_lib._CONFIG_FILE)
-        with tf.io.gfile.GFile(file_path, "r") as f:
-            config_json = f.read()
+        with zipfile.ZipFile(temp_filepath, "r") as z:
+            with z.open(saving_lib._CONFIG_FILENAME, "r") as c:
+                config_json = c.read()
         config_dict = json_utils.decode(config_json)
         self.assertEqual(
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
-        self.assertIsNone(config_dict["config"]["optimizer"]["module"])
         self.assertEqual(
-            config_dict["config"]["optimizer"]["class_name"],
-            "keras.optimizers.Adam",
+            config_dict["config"]["compile_config"]["optimizer"]["config"][
+                "is_legacy_optimizer"
+            ],
+            False,
         )
         self.assertEqual(
-            config_dict["config"]["loss"]["module"],
-            "keras.engine.compile_utils",
+            config_dict["config"]["compile_config"]["optimizer"]["class_name"],
+            "Adam",
         )
+        self.assertLen(config_dict["config"]["compile_config"]["loss"], 4)
         self.assertEqual(
-            config_dict["config"]["loss"]["class_name"], "LossesContainer"
+            config_dict["config"]["compile_config"]["loss"][0],
+            "mse",
         )
 
     @tf.__internal__.distribute.combinations.generate(
@@ -278,7 +353,7 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             def __call__(self, msg):
                 self.contents += msg + "\n"
 
-        temp_dir = os.path.join(self.get_temp_dir(), "my_model")
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
 
         if layer == "lambda":
             func = tf.function(lambda x: tf.math.cos(x) + tf.math.sin(x))
@@ -299,8 +374,12 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
         x = np.random.random((1000, 32))
         y = np.random.random((1000, 1))
         functional_model.fit(x, y, epochs=3)
-        functional_model._save_new(temp_dir)
-        loaded_model = saving_lib.load(temp_dir)
+        functional_model._save_experimental(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(
+            functional_model._is_compiled, loaded_model._is_compiled
+        )
+
         loaded_model.fit(x, y, epochs=3)
         loaded_to_string = ToString()
         loaded_model.summary(print_fn=loaded_to_string)
@@ -310,7 +389,100 @@ class NewSavingTest(tf.test.TestCase, parameterized.TestCase):
             functional_to_string.contents, loaded_to_string.contents
         )
 
+    def test_get_state(self):
+        i = keras.Input((4,))
+        o = keras.layers.Dense(2)(i)
+        model = keras.Model(i, o)
+        input_layer = model.layers[0]
+        dense_layer = model.layers[1]
+        self.assertEmpty(input_layer._get_state().keys())
+        self.assertIn("kernel", dense_layer._get_state().keys())
+        self.assertIn("bias", dense_layer._get_state().keys())
+        self.assertEqual(dense_layer._get_state()["kernel"].shape, (4, 2))
+        self.assertEqual(dense_layer._get_state()["bias"].shape, (2,))
+
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            model_type=["sequential", "functional", "subclassed"],
+        )
+    )
+    def test_saving_model_state(self, model_type):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = getattr(self, f"_get_{model_type}_model")()
+        x = np.random.random((100, 32))
+        y = np.random.random((100, 1))
+        model.fit(x, y, epochs=1)
+
+        # Assert that the archive has not been saved.
+        self.assertFalse(os.path.exists(temp_filepath))
+
+        # Mutate the `Dense` layer custom weights to ensure that list and
+        # dict-contained weights get restored.
+        model.layers[1].additional_weights[0].assign(2)
+        model.layers[1].weights_in_dict["my_weight"].assign(2)
+        model.layers[1].nested_layer.kernel.assign([[1]])
+
+        model._save_experimental(temp_filepath)
+
+        # Assert that the archive has been saved.
+        self.assertTrue(os.path.exists(temp_filepath))
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(model._is_compiled, loaded_model._is_compiled)
+
+        # The weights are supposed to be the same (between original and loaded
+        # models).
+        for original_weights, loaded_weights in zip(
+            model.get_weights(), loaded_model.get_weights()
+        ):
+            np.testing.assert_allclose(original_weights, loaded_weights)
+
+        # The optimizer variables are supposed to be the same (between original
+        # and loaded models).
+        for original_weights, loaded_weights in zip(
+            model.optimizer.variables(), loaded_model.optimizer.variables()
+        ):
+            np.testing.assert_allclose(original_weights, loaded_weights)
+
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            model_type=["subclassed", "sequential"],
+        )
+    )
+    def test_compile_overridden_model_raises_if_no_from_config_overridden(
+        self, model_type
+    ):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = (
+            CompileOverridingModel()
+            if model_type == "subclassed"
+            else CompileOverridingSequential(
+                [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
+            )
+        )
+        model.compile("rmsprop", "mse")
+        model._save_experimental(temp_filepath)
+
+        with mock.patch.object(logging, "warning") as mock_warn:
+            saving_lib.load_model(temp_filepath)
+        if not mock_warn.call_args_list:
+            raise AssertionError("Did not warn.")
+        self.assertIn(
+            "`compile()` was not called as part of model loading "
+            "because the model's `compile()` method is custom. ",
+            mock_warn.call_args_list[0][0][0],
+        )
+
+    def test_metadata(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = CompileOverridingModel()
+        model._save_experimental(temp_filepath)
+        with zipfile.ZipFile(temp_filepath, "r") as z:
+            with z.open(saving_lib._METADATA_FILENAME, "r") as c:
+                metadata_json = c.read()
+        metadata = json_utils.decode(metadata_json)
+        self.assertIn("keras_version", metadata)
+        self.assertIn("date_saved", metadata)
+
 
 if __name__ == "__main__":
-    if tf.__internal__.tf2.enabled():
-        tf.test.main()
+    tf.test.main()

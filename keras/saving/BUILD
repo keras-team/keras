@@ -20,11 +20,11 @@ py_library(
         "model_config.py",
         "pickle_utils.py",
         "save.py",
-        "saved_model_experimental.py",
         "saving_utils.py",
     ],
     srcs_version = "PY3",
     deps = [
+        ":object_registration",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -36,10 +36,28 @@ py_library(
         "//keras/optimizers",
         "//keras/protobuf:saved_metadata_proto_py_pb2",
         "//keras/saving/saved_model",
-        "//keras/saving/utils_v1",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
+    ],
+)
+
+py_library(
+    name = "object_registration",
+    srcs = [
+        "object_registration.py",
+    ],
+    srcs_version = "PY3",
+)
+
+tf_py_test(
+    name = "object_registration_test",
+    size = "small",
+    srcs = ["object_registration_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 
@@ -126,24 +144,6 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
-    ],
-)
-
-tf_py_test(
-    name = "saved_model_experimental_test",
-    size = "medium",
-    srcs = ["saved_model_experimental_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_oss",  # TODO(b/119349471): Re-enable
-        "no_windows",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
     ],
 )
 

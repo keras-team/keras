@@ -23,7 +23,9 @@ from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
 from keras.engine import input_layer
+from keras.engine import training
 from keras.engine import training_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -452,7 +454,9 @@ class Sequential(functional.Functional):
             # `self._self_tracked_trackables` is managed by the tracking
             # infrastructure and should not be used.
             layer_configs.append(generic_utils.serialize_keras_object(layer))
-        config = {"name": self.name, "layers": copy.deepcopy(layer_configs)}
+        config = training.Model.get_config(self)
+        config["name"] = self.name
+        config["layers"] = copy.deepcopy(layer_configs)
         if not self._is_graph_network and self._build_input_shape is not None:
             config["build_input_shape"] = self._build_input_shape
         return config
@@ -473,12 +477,21 @@ class Sequential(functional.Functional):
                 layer_config, custom_objects=custom_objects
             )
             model.add(layer)
+
+        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+            compile_config = config.get("compile_config", None)
+            if compile_config is not None:
+                model._compile_from_config(
+                    compile_config, base_class=Sequential
+                )
+
         if (
             not model.inputs
             and build_input_shape
             and isinstance(build_input_shape, (tuple, list))
         ):
             model.build(build_input_shape)
+
         return model
 
     @property

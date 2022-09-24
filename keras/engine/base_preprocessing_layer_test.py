@@ -194,7 +194,7 @@ class PreprocessingLayerTest(test_combinations.TestCase):
         model.save(output_path, save_format="tf")
 
         with self.assertRaisesRegex(
-            ValueError, "Unknown layer: AddingPreprocessingLayer"
+            ValueError, "Unknown layer: 'AddingPreprocessingLayer'"
         ):
             _ = keras.models.load_model(output_path)
 

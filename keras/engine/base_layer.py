@@ -27,6 +27,7 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras import constraints
@@ -142,6 +143,11 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       which may not have been known at initialization time;
     * in the first invocation of `call()`, with some caveats discussed
       below.
+
+    Layers are recursively composable: If you assign a Layer instance as an
+    attribute of another Layer, the outer layer will start tracking the weights
+    created by the inner layer. Nested layers should be instantiated in the
+    `__init__()` method.
 
     Users will just instantiate a layer and then treat it as a callable.
 
@@ -500,9 +506,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         The `call()` method may not create state (except in its first
         invocation, wrapping the creation of variables or other resources in
-        `tf.init_scope()`).  It is recommended to create state in `__init__()`,
-        or the `build()` method that is called automatically before `call()`
-        executes the first time.
+        `tf.init_scope()`).  It is recommended to create state, including
+        `tf.Variable` instances and nested `Layer` instances,
+         in `__init__()`, or in the `build()` method that is
+        called automatically before `call()` executes for the first time.
 
         Args:
           inputs: Input tensor, or dict/list/tuple of input tensors.
@@ -574,7 +581,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           use_resource: Whether to use a `ResourceVariable` or not.
             See [this guide](
             https://www.tensorflow.org/guide/migrate/tf1_vs_tf2#resourcevariables_instead_of_referencevariables)
-            for more information.
+             for more information.
           synchronization: Indicates when a distributed a variable will be
             aggregated. Accepted values are constants defined in the class
             `tf.VariableSynchronization`. By default the synchronization is set
@@ -835,13 +842,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         inputs that match the input shape provided here.
 
         Args:
-            input_shape: Shape tuple (tuple of integers)
-                or list of shape tuples (one per output tensor of the layer).
+            input_shape: Shape tuple (tuple of integers) or `tf.TensorShape`,
+                or structure of shape tuples / `tf.TensorShape` instances
+                (one per output tensor of the layer).
                 Shape tuples can include None for free dimensions,
                 instead of an integer.
 
         Returns:
-            An input shape tuple.
+            A `tf.TensorShape` instance
+            or structure of `tf.TensorShape` instances.
         """
         if tf.executing_eagerly():
             # In this case we build the model first in order to do shape
@@ -1075,8 +1084,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
-                object_name=f'layer "{self.name}" " \
-                f"(type {self.__class__.__name__})',
+                object_name=(
+                    f"layer '{self.name}' (type {self.__class__.__name__})"
+                ),
             )
             with contextlib.ExitStack() as namescope_stack:
                 if _is_name_scope_on_model_declaration_enabled:
@@ -1255,6 +1265,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
           A list of trainable variables.
         """
+        self._update_trackables()
         if self.trainable:
             children_weights = self._gather_children_attribute(
                 "trainable_variables"
@@ -1275,6 +1286,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
           A list of non-trainable variables.
         """
+        self._update_trackables()
         if self.trainable:
             children_weights = self._gather_children_attribute(
                 "non_trainable_variables"
@@ -1439,7 +1451,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         """
         kwargs.pop("inputs", None)
         if kwargs:
-            raise TypeError("Unknown keyword arguments: %s" % (kwargs.keys(),))
+            raise TypeError(f"Unknown keyword arguments: {kwargs.keys()}")
 
         def _tag_callable(loss):
             """Tags callable loss tensor as `_unconditional_loss`."""
@@ -1612,8 +1624,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         if not in_call_context and not is_symbolic:
             raise ValueError(
-                "Expected a symbolic Tensor for the metric value, "
-                "received: " + str(value)
+                "Expected a symbolic Tensor for the metric value, received: "
+                + str(value)
             )
 
         # If a metric was added in a Layer's `call` or `build`.
@@ -2268,7 +2280,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             self.__class__, api_name="keras", add_prefix_to_v1_names=True
         )
         if canonical_name is not None:
-            return "tf.{}".format(canonical_name)
+            return f"tf.{canonical_name}"
         return self.__class__.__module__ + "." + self.__class__.__name__
 
     def _instrument_layer_creation(self):
@@ -3126,30 +3138,49 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Append value to list of trainable / non-trainable weights if relevant
         # TODO(b/125122625): This won't pick up on any variables added to a
         # list/dict after creation.
-        for val in tf.nest.flatten(value, expand_composites=True):
-            if not isinstance(val, tf.Variable):
-                continue
-
-            # Users may add extra weights/variables simply by assigning them to
-            # attributes (invalid for graph networks)
-            self._maybe_create_attribute("_trainable_weights", [])
-            self._maybe_create_attribute("_non_trainable_weights", [])
-            if val.trainable:
-                if any(val is w for w in self._trainable_weights):
-                    continue
-                self._trainable_weights.append(val)
-            else:
-                if any(val is w for w in self._non_trainable_weights):
-                    continue
-                self._non_trainable_weights.append(val)
-
-            backend.track_variable(val)
+        self._track_variables(value)
 
         # TODO(b/180760306) Skip the auto trackable from tf.Module to keep
         # status quo. See the comment at __delattr__.
         super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
             name, value
         )
+
+    def _update_trackables(self):
+        """Track variables added to lists/dicts after creation"""
+        for trackable_obj in self._self_tracked_trackables:
+            if isinstance(
+                trackable_obj, tf.__internal__.tracking.TrackableDataStructure
+            ):
+                self._track_variables(trackable_obj)
+
+    def _track_variables(self, value):
+        """Tracks `Variable`s including `Variable`s in `CompositeTensor`s."""
+        for val in tf.nest.flatten(value):
+            if isinstance(val, tf.Variable):
+                self._track_variable(val)
+            elif tf_utils.is_extension_type(val):
+                # Manually expand extension types to track resource variables.
+                nested_vals = tf_utils.type_spec_from_value(val)._to_components(
+                    val
+                )
+                self._track_variables(nested_vals)
+
+    def _track_variable(self, val):
+        """Tracks the given `tf.Variable`."""
+        # Users may add extra weights/variables simply by assigning them to
+        # attributes (invalid for graph networks)
+        self._maybe_create_attribute("_trainable_weights", [])
+        self._maybe_create_attribute("_non_trainable_weights", [])
+        if val.trainable:
+            if any(val is w for w in self._trainable_weights):
+                return
+            self._trainable_weights.append(val)
+        else:
+            if any(val is w for w in self._non_trainable_weights):
+                return
+            self._non_trainable_weights.append(val)
+        backend.track_variable(val)
 
     def _gather_children_attribute(self, attribute):
         assert attribute in {
@@ -3369,6 +3400,56 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         state["_metrics_lock"] = threading.Lock()
         # Bypass Trackable logic as `__dict__` already contains this info.
         object.__setattr__(self, "__dict__", state)
+
+    def _get_state(self):
+        """Experimental method for getting the state of this layer object."""
+        result = {}
+        for child_attr, child_obj in self.__dict__.items():
+            # TODO(rchao): Store non-variable states in the dict as well.
+            if isinstance(child_obj, tf.Variable):
+                result[child_attr] = child_obj.numpy()
+            elif isinstance(child_obj, (list, tuple)):
+                for k, contained_obj in enumerate(child_obj):
+                    if isinstance(contained_obj, tf.Variable):
+                        result[f"{child_attr}-{k}"] = contained_obj.numpy()
+            elif isinstance(child_obj, dict):
+                for k, v in child_obj.items():
+                    if isinstance(v, tf.Variable):
+                        result[f"{child_attr}-{k}"] = v.numpy()
+        return result
+
+    def _set_state(self, state):
+        """Experimental method for setting the state of this layer object."""
+        for child_attr, child_obj in self.__dict__.items():
+            # TODO(rchao): Retrieve non-variable states from the dict as well.
+            # TODO(rchao): Give a warning for mismatches.
+            if isinstance(child_obj, tf.Variable):
+                child_obj.assign(state[child_attr])
+            elif isinstance(child_obj, (list, tuple)):
+                for k, contained_obj in enumerate(child_obj):
+                    if isinstance(contained_obj, tf.Variable):
+                        contained_obj.assign(state[f"{child_attr}-{k}"])
+            elif isinstance(child_obj, dict):
+                for k, v in child_obj.items():
+                    if isinstance(v, tf.Variable):
+                        child_obj[k].assign(state[f"{child_attr}-{k}"])
+
+    def _save_state(self, dirpath):
+        filepath = tf.io.gfile.join(dirpath, "weights.npz")
+        weights = self._get_state()
+        if weights:
+            # Only save the state if that of the trackable is available.
+            np.savez(filepath, **weights)
+            logging.debug(f"Saved state to {filepath}")
+
+    def _load_state(self, dirpath):
+        filepath = tf.io.gfile.join(dirpath, "weights.npz")
+        if tf.io.gfile.exists(filepath):
+            loaded_npz = np.load(filepath)
+            self._set_state(
+                {file: loaded_npz[file] for file in loaded_npz.files}
+            )
+            logging.debug(f"Loaded state from {filepath}")
 
 
 class TensorFlowOpLayer(Layer):
@@ -3598,7 +3679,7 @@ def _apply_name_scope_on_model_declaration(enable):
     """
     if not isinstance(enable, bool):
         raise TypeError(
-            "`enable` argument must be `True` or `False`, got {}".format(enable)
+            f"`enable` argument must be `True` or `False`, got {enable}"
         )
 
     global _is_name_scope_on_model_declaration_enabled

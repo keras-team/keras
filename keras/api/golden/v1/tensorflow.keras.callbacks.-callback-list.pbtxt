@@ -11,6 +11,10 @@ tf_class {
     argspec: "args=[\'self\', \'callback\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "make_logs"
+    argspec: "args=[\'self\', \'model\', \'logs\', \'outputs\', \'mode\', \'prefix\'], varargs=None, keywords=None, defaults=[\'\'], "
+  }
+  member_method {
     name: "on_batch_begin"
     argspec: "args=[\'self\', \'batch\', \'logs\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }

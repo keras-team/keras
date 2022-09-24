@@ -61,14 +61,14 @@ class SplitDatasetTest(tf.test.TestCase):
     def test_dataset_with_invalid_shape(self):
         with self.assertRaisesRegex(
             ValueError,
-            "Received a list of NumPy arrays " "with different lengths",
+            "Received a list of NumPy arrays with different lengths",
         ):
             dataset = [np.ones(shape=(200, 32)), np.zeros(shape=(100, 32))]
             dataset_utils.split_dataset(dataset, left_size=4)
 
         with self.assertRaisesRegex(
             ValueError,
-            "Received a tuple of NumPy arrays " "with different lengths",
+            "Received a tuple of NumPy arrays with different lengths",
         ):
             dataset = (np.ones(shape=(200, 32)), np.zeros(shape=(201, 32)))
             dataset_utils.split_dataset(dataset, left_size=4)

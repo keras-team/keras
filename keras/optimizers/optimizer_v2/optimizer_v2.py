@@ -105,14 +105,14 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     """Base class for Keras optimizers.
 
     You should not use this class directly, but instead instantiate one of its
-    subclasses such as `tf.keras.optimizers.SGD`, `tf.keras.optimizers.Adam`,
-    etc.
+    subclasses such as `tf.keras.optimizers.legacy.SGD`,
+    `tf.keras.optimizers.legacy.Adam`, etc.
 
     ### Usage
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
     var1 = tf.Variable(2.0)
@@ -136,7 +136,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     Example:
 
     ```python
-    opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1)
     model = tf.keras.Sequential()
     model.add(tf.keras.layers.Dense(num_hidden, activation='relu'))
     model.add(tf.keras.layers.Dense(num_classes, activation='sigmoid'))
@@ -160,7 +160,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     ```python
     # Create an optimizer.
-    opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1)
 
     # Compute the gradients for a list of variables.
     with tf.GradientTape() as tape:
@@ -236,7 +236,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
     loss = lambda: 3 * var1 + 2 * var2
@@ -260,7 +260,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     >>> var = tf.Variable(np.random.random(size=(1,)))
     >>> learning_rate = tf.keras.optimizers.schedules.ExponentialDecay(
     ... initial_learning_rate=.01, decay_steps=20, decay_rate=.1)
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+    >>> opt = tf.keras.optimizers.legacy.SGD(learning_rate=learning_rate)
     >>> loss = lambda: 3 * var
     >>> opt.minimize(loss, var_list=[var])
     <tf.Variable...
@@ -273,7 +273,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     >>> var = tf.Variable(np.random.random(size=(1,)))
     >>> def lr_callable():
     ...   return .1
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=lr_callable)
+    >>> opt = tf.keras.optimizers.legacy.SGD(learning_rate=lr_callable)
     >>> loss = lambda: 3 * var
     >>> opt.minimize(loss, var_list=[var])
     <tf.Variable...
@@ -327,7 +327,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           # Simple example, double the gradients.
           return [(2. * g, v) for g, v in grads_and_vars]
 
-        optimizer = tf.keras.optimizers.SGD(
+        optimizer = tf.keras.optimizers.legacy.SGD(
             1e-3, gradient_transformers=[my_gradient_transformer])
         ```
 
@@ -753,7 +753,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             """Apply gradient to variable."""
             if isinstance(var, tf.Tensor):
                 raise NotImplementedError(
-                    f"Updating a `Tensor` is not implemented. "
+                    "Updating a `Tensor` is not implemented. "
                     f"Received: var={var}."
                 )
 
@@ -1252,7 +1252,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         of three values-- the iteration count, followed by the root-mean-square
         value of the kernel and bias of the single Dense layer:
 
-        >>> opt = tf.keras.optimizers.RMSprop()
+        >>> opt = tf.keras.optimizers.legacy.RMSprop()
         >>> m = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
         >>> m.compile(opt, loss='mse')
         >>> data = np.arange(100).reshape(5, 20)
@@ -1282,7 +1282,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         three values-- the iteration count, followed by the root-mean-square
         value of the kernel and bias of the single Dense layer:
 
-        >>> opt = tf.keras.optimizers.RMSprop()
+        >>> opt = tf.keras.optimizers.legacy.RMSprop()
         >>> m = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
         >>> m.compile(opt, loss='mse')
         >>> data = np.arange(100).reshape(5, 20)
@@ -1420,7 +1420,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           An `Operation` which updates the value of the variable.
         """
         raise NotImplementedError(
-            "`_resource_apply_dense` must be implemented in " "subclasses."
+            "`_resource_apply_dense` must be implemented in subclasses."
         )
 
     def _resource_apply_sparse_duplicate_indices(
@@ -1474,7 +1474,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           An `Operation` which updates the value of the variable.
         """
         raise NotImplementedError(
-            "`_resource_apply_sparse` Must be implemented in " "subclasses."
+            "`_resource_apply_sparse` Must be implemented in subclasses."
         )
 
     def _resource_scatter_add(self, x, i, v):

@@ -32,7 +32,7 @@ class KerasIntegrationTest(test_combinations.TestCase):
     def _save_and_reload_model(self, model):
         self.temp_dir = self.get_temp_dir()
         fpath = os.path.join(
-            self.temp_dir, "test_model_%s" % (random.randint(0, 1e7),)
+            self.temp_dir, f"test_model_{random.randint(0, 10000000.0)}"
         )
         if tf.executing_eagerly():
             save_format = "tf"

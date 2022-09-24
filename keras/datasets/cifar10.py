@@ -82,7 +82,9 @@ def load_data():
         dirname,
         origin=origin,
         untar=True,
-        file_hash="6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce",  # noqa: E501
+        file_hash=(  # noqa: E501
+            "6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce"
+        ),
     )
 
     num_train_samples = 50000

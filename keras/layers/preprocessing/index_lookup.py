@@ -73,6 +73,10 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
     """Adds the vocabulary as a layer weight during serialization."""
 
     def __init__(self, lookup_layer):
+        # Note that this class doesn't call super().__init__() in order to
+        # have customized behavior. The fileds like '_dtype' and
+        # '_distribute_strategy' are required by the parent class, as well as
+        # tf.distribute. See `strategy.extended.variable_created_in_scope`
         self._layer = lookup_layer
         self._dtype = lookup_layer.vocabulary_dtype
         self._distribute_strategy = tf.distribute.get_strategy()
@@ -179,19 +183,19 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # are creating a 0-element vocab, which doesn't make sense.
         if max_tokens is not None and max_tokens <= 1:
             raise ValueError(
-                f"If set, `max_tokens` must be greater than 1. "
+                "If set, `max_tokens` must be greater than 1. "
                 f"Received: max_tokens={max_tokens}"
             )
 
         if pad_to_max_tokens and max_tokens is None:
             raise ValueError(
-                f"If pad_to_max_tokens is True, must set `max_tokens`. "
+                "If pad_to_max_tokens is True, must set `max_tokens`. "
                 f"Received: max_tokens={max_tokens}"
             )
 
         if num_oov_indices < 0:
             raise ValueError(
-                f"`num_oov_indices` must be greater than or equal to 0. "
+                "`num_oov_indices` must be greater than or equal to 0. "
                 f"Received: num_oov_indices={num_oov_indices}"
             )
 
@@ -210,21 +214,21 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         if invert and output_mode != INT:
             raise ValueError(
-                f"`output_mode` must be `'int'` when `invert` is true. "
+                "`output_mode` must be `'int'` when `invert` is true. "
                 f"Received: output_mode={output_mode}"
             )
 
         if sparse and output_mode == INT:
             raise ValueError(
-                f"`sparse` may only be true if `output_mode` is "
-                f"`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
+                "`sparse` may only be true if `output_mode` is "
+                "`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
                 f"Received: sparse={sparse} and "
                 f"output_mode={output_mode}"
             )
 
         if idf_weights is not None and output_mode != TF_IDF:
             raise ValueError(
-                f"`idf_weights` should only be set if `output_mode` is "
+                "`idf_weights` should only be set if `output_mode` is "
                 f"`'tf_idf'`. Received: idf_weights={idf_weights} and "
                 f"output_mode={output_mode}"
             )
@@ -462,7 +466,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         """
         if self.output_mode != TF_IDF and idf_weights is not None:
             raise ValueError(
-                f"`idf_weights` should only be set if output_mode is "
+                "`idf_weights` should only be set if output_mode is "
                 f"`'tf_idf'`. Received: output_mode={self.output_mode} "
                 f"and idf_weights={idf_weights}"
             )
@@ -470,7 +474,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         if isinstance(vocabulary, str):
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
-                    "Vocabulary file {} does not exist.".format(vocabulary)
+                    f"Vocabulary file {vocabulary} does not exist."
                 )
             if self.output_mode == TF_IDF:
                 raise ValueError(
@@ -504,9 +508,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         if vocabulary.size == 0:
             raise ValueError(
-                "Cannot set an empty vocabulary, you passed {}.".format(
-                    vocabulary
-                )
+                f"Cannot set an empty vocabulary, you passed {vocabulary}."
             )
 
         oov_start = self._oov_start_index()

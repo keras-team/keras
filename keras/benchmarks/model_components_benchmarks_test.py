@@ -130,13 +130,11 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
             metrics=[
                 {
                     "name": "exp_per_sec",
-                    "value": float("{0:.3f}".format(num_iters / total_time)),
+                    "value": float(f"{num_iters / total_time:.3f}"),
                 },
                 {
                     "name": "us_per_exp",
-                    "value": float(
-                        "{0:.3f}".format(total_time * 1e6 / num_iters)
-                    ),
+                    "value": float(f"{total_time * 1000000.0 / num_iters:.3f}"),
                 },
             ],
         )

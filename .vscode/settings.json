@@ -1,0 +1,26 @@
+{
+  "python.linting.flake8Enabled": true,
+  "python.linting.enabled": true,
+  "editor.rulers": [
+      80
+  ],
+  "editor.formatOnSave": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+      "--line-length",
+      "80"
+  ],
+  "python.sortImports.args": [
+      "--profile",
+      "black",
+      "--sl"
+  ],
+  "[python]": {
+      "editor.codeActionsOnSave": {
+          "source.organizeImports": true
+      }
+  },
+  "python.analysis.diagnosticSeverityOverrides": {
+      "reportMissingImports": "none"
+  }
+}

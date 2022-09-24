@@ -18,13 +18,13 @@ import tensorflow.compat.v2 as tf
 
 from keras import initializers
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
+@register_keras_serializable()
 @keras_export("keras.optimizers.experimental.Adagrad", v1=[])
 class Adagrad(optimizer.Optimizer):
     r"""Optimizer that implements the Adagrad algorithm.

@@ -37,9 +37,6 @@ from keras.utils import tf_inspect
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
-_GLOBAL_CUSTOM_OBJECTS = {}
-_GLOBAL_CUSTOM_NAMES = {}
-
 # Flag that determines whether to skip the NotImplementedError when calling
 # get_config in custom models and layers. This is only enabled when saving to
 # SavedModel, when the config isn't required.
@@ -47,75 +44,6 @@ _SKIP_FAILED_SERIALIZATION = False
 # If a layer does not have a defined config, then the returned config will be a
 # dictionary with the below key.
 _LAYER_UNDEFINED_CONFIG_KEY = "layer was saved without config"
-# Thread-local custom objects set by custom_object_scope.
-_THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
-
-
-@keras_export(
-    "keras.utils.custom_object_scope",
-    "keras.utils.CustomObjectScope",
-)
-class CustomObjectScope:
-    """Exposes custom classes/functions to Keras deserialization internals.
-
-    Under a scope `with custom_object_scope(objects_dict)`, Keras methods such
-    as `tf.keras.models.load_model` or `tf.keras.models.model_from_config`
-    will be able to deserialize any custom object referenced by a
-    saved config (e.g. a custom layer or metric).
-
-    Example:
-
-    Consider a custom regularizer `my_regularizer`:
-
-    ```python
-    layer = Dense(3, kernel_regularizer=my_regularizer)
-    # Config contains a reference to `my_regularizer`
-    config = layer.get_config()
-    ...
-    # Later:
-    with custom_object_scope({'my_regularizer': my_regularizer}):
-      layer = Dense.from_config(config)
-    ```
-
-    Args:
-        *args: Dictionary or dictionaries of `{name: object}` pairs.
-    """
-
-    def __init__(self, *args):
-        self.custom_objects = args
-        self.backup = None
-
-    def __enter__(self):
-        self.backup = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.copy()
-        for objects in self.custom_objects:
-            _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(objects)
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.clear()
-        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
-
-
-@keras_export("keras.utils.get_custom_objects")
-def get_custom_objects():
-    """Retrieves a live reference to the global dictionary of custom objects.
-
-    Custom objects set using using `custom_object_scope` are not added to the
-    global dictionary of custom objects, and will not appear in the returned
-    dictionary.
-
-    Example:
-
-    ```python
-    get_custom_objects().clear()
-    get_custom_objects()['MyObject'] = MyObject
-    ```
-
-    Returns:
-        Global dictionary of names to classes (`_GLOBAL_CUSTOM_OBJECTS`).
-    """
-    return _GLOBAL_CUSTOM_OBJECTS
-
 
 # Store a unique, per-object ID for shared objects.
 #
@@ -124,7 +52,6 @@ def get_custom_objects():
 # determining whether a config is a description of a new object that
 # should be created or is merely a reference to an already-created object.
 SHARED_OBJECT_KEY = "shared_object_id"
-
 
 SHARED_OBJECT_DISABLED = threading.local()
 SHARED_OBJECT_LOADING = threading.local()
@@ -351,98 +278,6 @@ def serialize_keras_class_and_config(
     return base_config
 
 
-@keras_export("keras.utils.register_keras_serializable")
-def register_keras_serializable(package="Custom", name=None):
-    """Registers an object with the Keras serialization framework.
-
-    This decorator injects the decorated class or function into the Keras custom
-    object dictionary, so that it can be serialized and deserialized without
-    needing an entry in the user-provided custom object dict. It also injects a
-    function that Keras will call to get the object's serializable string key.
-
-    Note that to be serialized and deserialized, classes must implement the
-    `get_config()` method. Functions do not have this requirement.
-
-    The object will be registered under the key 'package>name' where `name`,
-    defaults to the object name if not passed.
-
-    Example:
-
-    ```python
-    # Note that `'my_package'` is used as the `package` argument here, and since
-    # the `name` argument is not provided, `'MyDense'` is used as the `name`.
-    @keras.utils.register_keras_serializable('my_package')
-    class MyDense(keras.layers.Dense):
-      pass
-
-    assert keras.utils.get_registered_object('my_package>MyDense') == MyDense
-    assert keras.utils.get_registered_name(MyDense) == 'my_package>MyDense'
-    ```
-
-    Args:
-      package: The package that this class belongs to. This is used for the
-        `key` (which is 'package>name') to idenfify the class. Note that this is
-        the first argument passed into the decorator.
-      name: The name to serialize this class under in this package. If not
-        provided or `None`, the class' name will be used (note that this is the
-        case when the decorator is used with only one argument, which becomes
-        the `package`).
-
-    Returns:
-      A decorator that registers the decorated class with the passed names.
-    """
-
-    def decorator(arg):
-        """Registers a class with the Keras serialization framework."""
-        class_name = name if name is not None else arg.__name__
-        registered_name = package + ">" + class_name
-
-        if tf_inspect.isclass(arg) and not hasattr(arg, "get_config"):
-            raise ValueError(
-                "Cannot register a class that does not have a "
-                "get_config() method."
-            )
-
-        if registered_name in _GLOBAL_CUSTOM_OBJECTS:
-            raise ValueError(
-                f"{registered_name} has already been registered to "
-                f"{_GLOBAL_CUSTOM_OBJECTS[registered_name]}"
-            )
-
-        if arg in _GLOBAL_CUSTOM_NAMES:
-            raise ValueError(
-                f"{arg} has already been registered to "
-                f"{_GLOBAL_CUSTOM_NAMES[arg]}"
-            )
-        _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
-        _GLOBAL_CUSTOM_NAMES[arg] = registered_name
-
-        return arg
-
-    return decorator
-
-
-@keras_export("keras.utils.get_registered_name")
-def get_registered_name(obj):
-    """Returns the name registered to an object within the Keras framework.
-
-    This function is part of the Keras serialization and deserialization
-    framework. It maps objects to the string names associated with those objects
-    for serialization/deserialization.
-
-    Args:
-      obj: The object to look up.
-
-    Returns:
-      The name associated with the object, or the default Python name if the
-        object is not registered.
-    """
-    if obj in _GLOBAL_CUSTOM_NAMES:
-        return _GLOBAL_CUSTOM_NAMES[obj]
-    else:
-        return obj.__name__
-
-
 @tf_contextlib.contextmanager
 def skip_failed_serialization():
     global _SKIP_FAILED_SERIALIZATION
@@ -452,44 +287,6 @@ def skip_failed_serialization():
         yield
     finally:
         _SKIP_FAILED_SERIALIZATION = prev
-
-
-@keras_export("keras.utils.get_registered_object")
-def get_registered_object(name, custom_objects=None, module_objects=None):
-    """Returns the class associated with `name` if it is registered with Keras.
-
-    This function is part of the Keras serialization and deserialization
-    framework. It maps strings to the objects associated with them for
-    serialization/deserialization.
-
-    Example:
-    ```
-    def from_config(cls, config, custom_objects=None):
-      if 'my_custom_object_name' in config:
-        config['hidden_cls'] = tf.keras.utils.get_registered_object(
-            config['my_custom_object_name'], custom_objects=custom_objects)
-    ```
-
-    Args:
-      name: The name to look up.
-      custom_objects: A dictionary of custom objects to look the name up in.
-        Generally, custom_objects is provided by the user.
-      module_objects: A dictionary of custom objects to look the name up in.
-        Generally, module_objects is provided by midlevel library implementers.
-
-    Returns:
-      An instantiable class associated with 'name', or None if no such class
-        exists.
-    """
-    if name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
-        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[name]
-    elif name in _GLOBAL_CUSTOM_OBJECTS:
-        return _GLOBAL_CUSTOM_OBJECTS[name]
-    elif custom_objects and name in custom_objects:
-        return custom_objects[name]
-    elif module_objects and name in module_objects:
-        return module_objects[name]
-    return None
 
 
 class CustomMaskWarning(Warning):
@@ -511,11 +308,12 @@ def serialize_keras_object(instance):
     Returns:
       A dict-like, JSON-compatible representation of the object's config.
     """
+    from keras.saving import object_registration
+
     _, instance = tf.__internal__.decorator.unwrap(instance)
     if instance is None:
         return None
 
-    #
     # For v1 layers, checking supports_masking is not enough. We have to also
     # check whether compute_mask has been overridden.
     supports_masking = getattr(instance, "supports_masking", False) or (
@@ -532,7 +330,7 @@ def serialize_keras_object(instance):
         )
 
     if hasattr(instance, "get_config"):
-        name = get_registered_name(instance.__class__)
+        name = object_registration.get_registered_name(instance.__class__)
         try:
             config = instance.get_config()
         except NotImplementedError as e:
@@ -559,27 +357,16 @@ def serialize_keras_object(instance):
             except ValueError:
                 serialization_config[key] = item
 
-        name = get_registered_name(instance.__class__)
+        name = object_registration.get_registered_name(instance.__class__)
         return serialize_keras_class_and_config(
             name, serialization_config, instance
         )
     if hasattr(instance, "__name__"):
-        return get_registered_name(instance)
+        return object_registration.get_registered_name(instance)
     raise ValueError(
         f"Cannot serialize {instance} since it doesn't implement "
         "`get_config()`, and also doesn\t have `__name__`"
     )
-
-
-def get_custom_objects_by_name(item, custom_objects=None):
-    """Returns the item if it is in either local or global custom objects."""
-    if item in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
-        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[item]
-    elif item in _GLOBAL_CUSTOM_OBJECTS:
-        return _GLOBAL_CUSTOM_OBJECTS[item]
-    elif custom_objects and item in custom_objects:
-        return custom_objects[item]
-    return None
 
 
 def class_and_config_for_serialized_keras_object(
@@ -589,6 +376,8 @@ def class_and_config_for_serialized_keras_object(
     printable_module_name="object",
 ):
     """Returns the class name and config for a serialized keras object."""
+    from keras.saving import object_registration
+
     if (
         not isinstance(config, dict)
         or "class_name" not in config
@@ -600,12 +389,14 @@ def class_and_config_for_serialized_keras_object(
         )
 
     class_name = config["class_name"]
-    cls = get_registered_object(class_name, custom_objects, module_objects)
+    cls = object_registration.get_registered_object(
+        class_name, custom_objects, module_objects
+    )
     if cls is None:
         raise ValueError(
-            f"Unknown {printable_module_name}: {class_name}. "
-            "Please ensure this "
-            "object is passed to the `custom_objects` argument. See "
+            f"Unknown {printable_module_name}: '{class_name}'. "
+            "Please ensure you are using a `keras.utils.custom_object_scope` "
+            "and that this object is included in the scope. See "
             "https://www.tensorflow.org/guide/keras/save_and_serialize"
             "#registering_the_custom_object for details."
         )
@@ -637,7 +428,7 @@ def class_and_config_for_serialized_keras_object(
             )
         # TODO(momernick): Should this also have 'module_objects'?
         elif isinstance(item, str) and tf_inspect.isfunction(
-            get_registered_object(item, custom_objects)
+            object_registration.get_registered_object(item, custom_objects)
         ):
             # Handle custom functions here. When saving functions, we only save
             # the function's name as a string. If we find a matching string in
@@ -648,9 +439,9 @@ def class_and_config_for_serialized_keras_object(
             # rare case.  This issue does not occur if a string field has a
             # naming conflict with a custom object, since the config of an
             # object will always be a dict.
-            deserialized_objects[key] = get_registered_object(
-                item, custom_objects
-            )
+            deserialized_objects[
+                key
+            ] = object_registration.get_registered_object(item, custom_objects)
     for key, item in deserialized_objects.items():
         cls_config[key] = deserialized_objects[key]
 
@@ -709,6 +500,8 @@ def deserialize_keras_object(
 
     This is how e.g. `keras.layers.deserialize()` is implemented.
     """
+    from keras.saving import object_registration
+
     if identifier is None:
         return None
 
@@ -731,23 +524,24 @@ def deserialize_keras_object(
             custom_objects = custom_objects or {}
 
             if "custom_objects" in arg_spec.args:
+                tlco = object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__
                 deserialized_obj = cls.from_config(
                     cls_config,
-                    custom_objects=dict(
-                        list(_GLOBAL_CUSTOM_OBJECTS.items())
-                        + list(_THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.items())
-                        + list(custom_objects.items())
-                    ),
+                    custom_objects={
+                        **object_registration._GLOBAL_CUSTOM_OBJECTS,
+                        **tlco,
+                        **custom_objects,
+                    },
                 )
             else:
-                with CustomObjectScope(custom_objects):
+                with object_registration.CustomObjectScope(custom_objects):
                     deserialized_obj = cls.from_config(cls_config)
         else:
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
             custom_objects = custom_objects or {}
-            with CustomObjectScope(custom_objects):
+            with object_registration.CustomObjectScope(custom_objects):
                 deserialized_obj = cls(**cls_config)
 
         # Add object to shared objects, in case we find it referenced again.
@@ -759,17 +553,23 @@ def deserialize_keras_object(
         object_name = identifier
         if custom_objects and object_name in custom_objects:
             obj = custom_objects.get(object_name)
-        elif object_name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
-            obj = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[object_name]
-        elif object_name in _GLOBAL_CUSTOM_OBJECTS:
-            obj = _GLOBAL_CUSTOM_OBJECTS[object_name]
+        elif (
+            object_name
+            in object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__
+        ):
+            obj = object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[
+                object_name
+            ]
+        elif object_name in object_registration._GLOBAL_CUSTOM_OBJECTS:
+            obj = object_registration._GLOBAL_CUSTOM_OBJECTS[object_name]
         else:
             obj = module_objects.get(object_name)
             if obj is None:
                 raise ValueError(
-                    f"Unknown {printable_module_name}: {object_name}. Please "
-                    "ensure this object is passed to the `custom_objects` "
-                    "argument. See "
+                    f"Unknown {printable_module_name}: '{object_name}'. "
+                    "Please ensure you are using a "
+                    "`keras.utils.custom_object_scope` "
+                    "and that this object is included in the scope. See "
                     "https://www.tensorflow.org/guide/keras/save_and_serialize"
                     "#registering_the_custom_object for details."
                 )
@@ -784,7 +584,7 @@ def deserialize_keras_object(
         return identifier
     else:
         raise ValueError(
-            f"Could not interpret serialized "
+            "Could not interpret serialized "
             f"{printable_module_name}: {identifier}"
         )
 
@@ -975,7 +775,7 @@ class Progbar:
 
         message = ""
         now = time.time()
-        info = " - %.0fs" % (now - self._start)
+        info = f" - {now - self._start:.0f}s"
         if current == self.target:
             self._time_at_epoch_end = now
         if self.verbose == 1:
@@ -1025,20 +825,20 @@ class Progbar:
                 else:
                     eta_format = "%ds" % eta
 
-                info = " - ETA: %s" % eta_format
+                info = f" - ETA: {eta_format}"
 
             for k in self._values_order:
-                info += " - %s:" % k
+                info += f" - {k}:"
                 if isinstance(self._values[k], list):
                     avg = np.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if abs(avg) > 1e-3:
-                        info += " %.4f" % avg
+                        info += f" {avg:.4f}"
                     else:
-                        info += " %.4e" % avg
+                        info += f" {avg:.4e}"
                 else:
-                    info += " %s" % self._values[k]
+                    info += f" {self._values[k]}"
 
             self._total_width += len(info)
             if prev_total_width > self._total_width:
@@ -1057,14 +857,14 @@ class Progbar:
                 count = ("%" + str(numdigits) + "d/%d") % (current, self.target)
                 info = count + info
                 for k in self._values_order:
-                    info += " - %s:" % k
+                    info += f" - {k}:"
                     avg = np.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if avg > 1e-3:
-                        info += " %.4f" % avg
+                        info += f" {avg:.4f}"
                     else:
-                        info += " %.4e" % avg
+                        info += f" {avg:.4e}"
                 if self._time_at_epoch_end:
                     time_per_epoch = (
                         self._time_at_epoch_end - self._time_at_epoch_start
@@ -1099,11 +899,11 @@ class Progbar:
         """
         formatted = ""
         if time_per_unit >= 1 or time_per_unit == 0:
-            formatted += " %.0fs/%s" % (time_per_unit, unit_name)
+            formatted += f" {time_per_unit:.0f}s/{unit_name}"
         elif time_per_unit >= 1e-3:
-            formatted += " %.0fms/%s" % (time_per_unit * 1e3, unit_name)
+            formatted += f" {time_per_unit * 1000.0:.0f}ms/{unit_name}"
         else:
-            formatted += " %.0fus/%s" % (time_per_unit * 1e6, unit_name)
+            formatted += f" {time_per_unit * 1000000.0:.0f}us/{unit_name}"
         return formatted
 
     def _estimate_step_duration(self, current, now):
@@ -1317,8 +1117,3 @@ class LazyLoader(python_types.ModuleType):
     def __getattr__(self, item):
         module = self._load()
         return getattr(module, item)
-
-
-# Aliases
-
-custom_object_scope = CustomObjectScope

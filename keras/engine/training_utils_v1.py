@@ -194,14 +194,10 @@ def _append_ragged_tensor_value(target, to_append):
     """Append ragged tensor value objects."""
     # Make sure the ragged tensors are of the same size (save for the 0th dim).
     if len(target.shape) != len(to_append.shape):
-        raise RuntimeError(
-            "Unable to concatenate %s and %s" % (target, to_append)
-        )
+        raise RuntimeError(f"Unable to concatenate {target} and {to_append}")
 
     if target.shape[1:] != to_append.shape[1:]:
-        raise RuntimeError(
-            "Unable to concatenate %s and %s" % (target, to_append)
-        )
+        raise RuntimeError(f"Unable to concatenate {target} and {to_append}")
 
     adjusted_row_splits = to_append.row_splits[1:] + target.row_splits[-1]
     new_row_splits = np.append(target.row_splits, adjusted_row_splits)
@@ -238,7 +234,7 @@ def _append_composite_tensor(target, to_append):
     """
     if type(target) is not type(to_append):
         raise RuntimeError(
-            "Unable to concatenate %s and %s" % (type(target), type(to_append))
+            f"Unable to concatenate {type(target)} and {type(to_append)}"
         )
 
     # Perform type-specific concatenation.
@@ -263,7 +259,7 @@ def _append_composite_tensor(target, to_append):
         return _append_ragged_tensor_value(target, to_append)
     else:
         raise RuntimeError(
-            "Attempted to concatenate unsupported object %s." % type(target)
+            f"Attempted to concatenate unsupported object {type(target)}."
         )
 
 
@@ -555,7 +551,7 @@ def standardize_single_array(x, expected_shape=None):
 
     if isinstance(x, int):
         raise ValueError(
-            "Expected an array data type but received an integer: {}".format(x)
+            f"Expected an array data type but received an integer: {x}"
         )
 
     if (
@@ -612,8 +608,9 @@ def standardize_input_data(
     if not names:
         if data_len and not isinstance(data, dict):
             raise ValueError(
-                "Error when checking model " + exception_prefix + ": "
-                "expected no data, but got:",
+                "Error when checking model "
+                + exception_prefix
+                + ": expected no data, but got:",
                 data,
             )
         return []
@@ -630,8 +627,10 @@ def standardize_input_data(
             ]
         except KeyError as e:
             raise ValueError(
-                'No data provided for "' + e.args[0] + '". Need data '
-                "for each key in: " + str(names)
+                'No data provided for "'
+                + e.args[0]
+                + '". Need data for each key in: '
+                + str(names)
             )
     elif isinstance(data, (list, tuple)):
         if isinstance(data[0], (list, tuple)):
@@ -667,8 +666,7 @@ def standardize_input_data(
                 + " array(s), "
                 + "for inputs "
                 + str(names)
-                + " but instead got the "
-                "following list of "
+                + " but instead got the following list of "
                 + str(len(data))
                 + " arrays: "
                 + str(data)[:200]
@@ -718,8 +716,8 @@ def standardize_input_data(
                         + names[i]
                         + " to have "
                         + str(len(shape))
-                        + " dimensions, but got array "
-                        "with shape " + str(data_shape)
+                        + " dimensions, but got array with shape "
+                        + str(data_shape)
                     )
                 if not check_batch_axis:
                     data_shape = data_shape[1:]
@@ -778,9 +776,9 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
                 + str(len(x_weight))
                 + " elements, but the model has "
                 + str(len(output_names))
-                + " outputs. "
-                "You should provide one `" + weight_type + "`"
-                "array per model output."
+                + " outputs. You should provide one `"
+                + weight_type
+                + "`array per model output."
             )
         return x_weight
     if isinstance(x_weight, collections.abc.Mapping):
@@ -793,9 +791,9 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
         return x_weights
     else:
         raise TypeError(
-            "The model has multiple outputs, so `" + weight_type + "` "
-            "should be either a list or a dict. "
-            "Provided `"
+            "The model has multiple outputs, so `"
+            + weight_type
+            + "` should be either a list or a dict. Provided `"
             + weight_type
             + "` type not understood: "
             + str(x_weight)
@@ -862,8 +860,11 @@ def check_array_lengths(inputs, targets, weights=None):
         raise ValueError(
             "Input arrays should have "
             "the same number of samples as target arrays. "
-            "Found " + str(list(set_x)[0]) + " input samples "
-            "and " + str(list(set_y)[0]) + " target samples."
+            "Found "
+            + str(list(set_x)[0])
+            + " input samples and "
+            + str(list(set_y)[0])
+            + " target samples."
         )
     if len(set_w) > 1:
         raise ValueError(
@@ -1110,14 +1111,14 @@ def standardize_weights(
     if sample_weight_mode is not None and sample_weight_mode != "samplewise":
         if sample_weight_mode != "temporal":
             raise ValueError(
-                '"sample_weight_mode '
-                'should be None or "temporal". '
-                "Found: " + str(sample_weight_mode)
+                '"sample_weight_mode should be None or "temporal". Found: '
+                + str(sample_weight_mode)
             )
         if len(y.shape) < 3:
             raise ValueError(
-                "Found a sample_weight array for "
-                "an input with shape " + str(y.shape) + ". "
+                "Found a sample_weight array for an input with shape "
+                + str(y.shape)
+                + ". "
                 "Timestep-wise sample weighting (use of "
                 'sample_weight_mode="temporal") is restricted to '
                 "outputs that are at least 3D, i.e. that have "
@@ -1148,9 +1149,8 @@ def standardize_weights(
             raise ValueError(
                 "Found a sample_weight with shape"
                 + str(sample_weight.shape)
-                + "."
-                "Expected sample_weight with rank "
-                "less than or equal to " + str(len(y.shape))
+                + ".Expected sample_weight with rank less than or equal to "
+                + str(len(y.shape))
             )
 
         if (
@@ -1162,8 +1162,7 @@ def standardize_weights(
                 + str(sample_weight.shape)
                 + " for an input with shape "
                 + str(y.shape)
-                + ". "
-                "sample_weight cannot be broadcast."
+                + ". sample_weight cannot be broadcast."
             )
 
     # Class weights applied per-sample.
@@ -1171,7 +1170,7 @@ def standardize_weights(
     if isinstance(class_weight, dict):
         if len(y.shape) > 2:
             raise ValueError(
-                "`class_weight` not supported for " "3+ dimensional targets."
+                "`class_weight` not supported for 3+ dimensional targets."
             )
 
         if tf.is_tensor(y):
@@ -1447,7 +1446,7 @@ def validate_input_types(inp, orig_inp, allow_dict=True, field_name="inputs"):
     elif isinstance(inp, dict):
         if not allow_dict:
             raise ValueError(
-                "You cannot pass a dictionary as model {}.".format(field_name)
+                f"You cannot pass a dictionary as model {field_name}."
             )
     elif not isinstance(inp, np.ndarray) and not tf.is_tensor(inp):
         raise ValueError(

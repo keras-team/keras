@@ -203,7 +203,7 @@ class TestImage(test_combinations.TestCase):
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
-            class_directory = "class-{}".format(cl)
+            class_directory = f"class-{cl}"
             classpaths = [
                 class_directory,
                 os.path.join(class_directory, "subfolder-1"),
@@ -225,7 +225,7 @@ class TestImage(test_combinations.TestCase):
                 classpaths = paths[im_class]
                 filename = os.path.join(
                     classpaths[count % len(classpaths)],
-                    "image-{}.jpg".format(count),
+                    f"image-{count}.jpg",
                 )
                 filenames.append(filename)
                 im.save(os.path.join(temp_dir, filename))
@@ -294,7 +294,7 @@ class TestImage(test_combinations.TestCase):
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
-            class_directory = "class-{}".format(cl)
+            class_directory = f"class-{cl}"
             classpaths = [
                 class_directory,
                 os.path.join(class_directory, "subfolder-1"),
@@ -316,7 +316,7 @@ class TestImage(test_combinations.TestCase):
                 classpaths = paths[im_class]
                 filename = os.path.join(
                     classpaths[count % len(classpaths)],
-                    "image-{}.jpg".format(count),
+                    f"image-{count}.jpg",
                 )
                 filenames.append(filename)
                 im.save(os.path.join(tmp_folder, filename))
@@ -426,7 +426,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
-            class_directory = "class-{}".format(cl)
+            class_directory = f"class-{cl}"
             classpaths = [
                 class_directory,
                 os.path.join(class_directory, "subfolder-1"),
@@ -448,7 +448,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
                 classpaths = paths[im_class]
                 filename = os.path.join(
                     classpaths[count % len(classpaths)],
-                    "image-{}.png".format(count),
+                    f"image-{count}.png",
                 )
                 filenames.append(filename)
                 im.save(os.path.join(tmpdir.full_path, filename))
@@ -509,9 +509,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
         count = 0
         for test_images in all_test_images:
             for im in test_images:
-                filename = os.path.join(
-                    tmpdir, "class-1", "image-{}.png".format(count)
-                )
+                filename = os.path.join(tmpdir, "class-1", f"image-{count}.png")
                 im.save(filename)
                 count += 1
 
@@ -549,7 +547,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
-            class_directory = "class-{}".format(cl)
+            class_directory = f"class-{cl}"
             classpaths = [
                 class_directory,
                 os.path.join(class_directory, "subfolder-1"),
@@ -571,7 +569,7 @@ class TestDirectoryIterator(test_combinations.TestCase):
                 classpaths = paths[im_class]
                 filename = os.path.join(
                     classpaths[count % len(classpaths)],
-                    "image-{}.png".format(count),
+                    f"image-{count}.png",
                 )
                 filenames.append(filename)
                 im.save(os.path.join(tmpdir.full_path, filename))
@@ -856,8 +854,8 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames_without = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
-                filename_without = "image-{}".format(count)
+                filename = f"image-{count}.png"
+                filename_without = f"image-{count}"
                 filenames.append(filename)
                 filepaths.append(os.path.join(tmpdir.full_path, filename))
                 filenames_without.append(filename_without)
@@ -954,7 +952,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -977,7 +975,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -1021,7 +1019,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -1071,7 +1069,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         count = 0
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -1126,7 +1124,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         count = 0
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -1205,7 +1203,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         count = 0
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1
@@ -1264,8 +1262,8 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames_without = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
-                filename_without = "image-{}".format(count)
+                filename = f"image-{count}.png"
+                filename_without = f"image-{count}"
                 filenames.append(filename)
                 filenames_without.append(filename_without)
                 im.save(os.path.join(tmpdir.full_path, filename))
@@ -1315,7 +1313,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 filenames.append(filename)
                 im.save(os.path.join(tmpdir.full_path, filename))
                 count += 1
@@ -1364,7 +1362,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 filenames.append(filename)
                 im.save(os.path.join(tmpdir.full_path, filename))
                 count += 1
@@ -1401,7 +1399,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         file_paths = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{:0>5}.png".format(count)
+                filename = f"image-{count:0>5}.png"
                 file_path = os.path.join(tmpdir.full_path, filename)
                 file_paths.append(file_path)
                 im.save(file_path)
@@ -1490,7 +1488,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
-            class_directory = "class-{}".format(cl)
+            class_directory = f"class-{cl}"
             classpaths = [
                 class_directory,
                 os.path.join(class_directory, "subfolder-1"),
@@ -1512,7 +1510,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
                 classpaths = paths[im_class]
                 filename = os.path.join(
                     classpaths[count % len(classpaths)],
-                    "image-{}.png".format(count),
+                    f"image-{count}.png",
                 )
                 filenames.append(filename)
                 im.save(os.path.join(tmpdir.full_path, filename))
@@ -1541,7 +1539,7 @@ class TestDataFrameIterator(test_combinations.TestCase):
         filenames = []
         for test_images in all_test_images:
             for im in test_images:
-                filename = "image-{}.png".format(count)
+                filename = f"image-{count}.png"
                 im.save(os.path.join(tmpdir.full_path, filename))
                 filenames.append(filename)
                 count += 1

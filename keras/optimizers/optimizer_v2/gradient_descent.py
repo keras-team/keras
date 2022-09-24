@@ -70,7 +70,7 @@ class SGD(optimizer_v2.OptimizerV2):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1)
     >>> var = tf.Variable(1.0)
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1
     >>> step_count = opt.minimize(loss, [var]).numpy()
@@ -78,7 +78,7 @@ class SGD(optimizer_v2.OptimizerV2):
     >>> var.numpy()
     0.9
 
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=0.1, momentum=0.9)
+    >>> opt = tf.keras.optimizers.legacy.SGD(learning_rate=0.1, momentum=0.9)
     >>> var = tf.Variable(1.0)
     >>> val0 = var.value()
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1
@@ -123,7 +123,7 @@ class SGD(optimizer_v2.OptimizerV2):
             momentum < 0 or momentum > 1
         ):
             raise ValueError(
-                f"`momentum` must be between [0, 1]. Received: "
+                "`momentum` must be between [0, 1]. Received: "
                 f"momentum={momentum} (of type {type(momentum)})."
             )
         self._set_hyper("momentum", momentum)

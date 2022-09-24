@@ -260,7 +260,7 @@ def get_file(
                 io_utils.print_msg(
                     "A local file was found, but it seems to be "
                     f"incomplete or outdated because the {hash_algorithm} "
-                    f"file hash does not match the original value of "
+                    "file hash does not match the original value of "
                     f"{file_hash} "
                     "so we will re-download the data."
                 )
@@ -284,11 +284,15 @@ def get_file(
                         total_size = None
                     self.progbar = Progbar(total_size)
                 current = block_num * block_size
-                if current < total_size:
+
+                if total_size is None:
                     self.progbar.update(current)
-                elif not self.finished:
-                    self.progbar.update(self.progbar.target)
-                    self.finished = True
+                else:
+                    if current < total_size:
+                        self.progbar.update(current)
+                    elif not self.finished:
+                        self.progbar.update(self.progbar.target)
+                        self.finished = True
 
         error_msg = "URL fetch failure on {}: {} -- {}"
         try:
@@ -309,9 +313,9 @@ def get_file(
         if os.path.exists(fpath) and file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
                 raise ValueError(
-                    f"Incomplete or corrupted file detected. "
+                    "Incomplete or corrupted file detected. "
                     f"The {hash_algorithm} "
-                    f"file hash does not match the provided value "
+                    "file hash does not match the provided value "
                     f"of {file_hash}."
                 )
 
@@ -836,7 +840,7 @@ def init_pool_generator(gens, random_seed=None, id_queue=None):
 
     # name isn't used for anything, but setting a more descriptive name is
     # helpful when diagnosing orphaned processes.
-    worker_proc.name = "Keras_worker_{}".format(worker_proc.name)
+    worker_proc.name = f"Keras_worker_{worker_proc.name}"
 
     if random_seed is not None:
         np.random.seed(random_seed + worker_proc.ident)

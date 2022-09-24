@@ -53,7 +53,7 @@ class PreprocessingStage(
             data, (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)
         ):
             raise ValueError(
-                f"`adapt()` requires a batched Dataset, an EagerTensor, or a "
+                "`adapt()` requires a batched Dataset, an EagerTensor, or a "
                 f"Numpy array as input. Received data={data}"
             )
         if isinstance(data, tf.data.Dataset):

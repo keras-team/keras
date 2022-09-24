@@ -228,9 +228,7 @@ class Lambda(Layer):
             v for v in created_variables if v.ref() not in tracked_weights
         ]
         if untracked_new_vars:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_new_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_new_vars)
             error_str = textwrap.dedent(
                 """
           The following Variables were created within a Lambda layer ({name})
@@ -248,9 +246,7 @@ class Lambda(Layer):
             v for v in accessed_variables if v.ref() not in tracked_weights
         ]
         if untracked_used_vars and not self._already_warned:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_used_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_used_vars)
             self._warn(
                 textwrap.dedent(
                     """
@@ -316,7 +312,7 @@ class Lambda(Layer):
             module = None
         else:
             raise ValueError(
-                "Invalid input for serialization, type: %s " % type(inputs)
+                f"Invalid input for serialization, type: {type(inputs)} "
             )
 
         return output, output_type, module
@@ -399,7 +395,7 @@ class Lambda(Layer):
         else:
             supported_types = ["function", "lambda", "raw"]
             raise TypeError(
-                f"Unsupported value for `function_type` argument. Received: "
+                "Unsupported value for `function_type` argument. Received: "
                 f"function_type={function_type}. "
                 f"Expected one of {supported_types}"
             )

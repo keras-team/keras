@@ -78,7 +78,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.RMSprop(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.legacy.RMSprop(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
     >>> loss = lambda: (var1 ** 2) / 2.0    # d(loss) / d(var1) = var1
     >>> step_count = opt.minimize(loss, [var1]).numpy()
@@ -153,7 +153,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
             momentum < 0 or momentum > 1
         ):
             raise ValueError(
-                f"`momentum` must be between [0, 1]. Received: "
+                "`momentum` must be between [0, 1]. Received: "
                 f"momentum={momentum} (of type {type(momentum)})."
             )
         self._set_hyper("momentum", momentum)

@@ -134,7 +134,7 @@ def _test_gradients(
     gradients."""
     if order < 1:
         raise ValueError(
-            "`order` should be a positive integer, got '{}'.".format(order)
+            f"`order` should be a positive integer, got '{order}'."
         )
     if order > 1:
         _test_gradients(

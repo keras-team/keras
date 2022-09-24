@@ -228,18 +228,18 @@ class TensorBoard(callbacks.TensorBoard):
                             for grad in grads
                         ]
                         tf.compat.v1.summary.histogram(
-                            "{}_grad".format(mapped_weight_name), grads
+                            f"{mapped_weight_name}_grad", grads
                         )
 
                 if hasattr(layer, "output"):
                     if isinstance(layer.output, list):
                         for i, output in enumerate(layer.output):
                             tf.compat.v1.summary.histogram(
-                                "{}_out_{}".format(layer.name, i), output
+                                f"{layer.name}_out_{i}", output
                             )
                     else:
                         tf.compat.v1.summary.histogram(
-                            "{}_out".format(layer.name), layer.output
+                            f"{layer.name}_out", layer.output
                         )
 
     def set_model(self, model):
@@ -456,7 +456,7 @@ class TensorBoard(callbacks.TensorBoard):
 
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError(
-                "To visualize embeddings, embeddings_data must " "be provided."
+                "To visualize embeddings, embeddings_data must be provided."
             )
 
         if self.embeddings_freq and self.embeddings_data is not None:

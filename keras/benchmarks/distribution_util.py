@@ -128,8 +128,7 @@ def get_distribution_strategy(
             return tf.distribute.OneDeviceStrategy("device:CPU:0")
         if num_gpus > 1:
             raise ValueError(
-                "`OneDeviceStrategy` can not be used for more than "
-                "one device."
+                "`OneDeviceStrategy` can not be used for more than one device."
             )
         return tf.distribute.OneDeviceStrategy("device:GPU:0")
 
@@ -146,7 +145,7 @@ def get_distribution_strategy(
         )
 
     raise ValueError(
-        "Unrecognized Distribution Strategy: %r" % distribution_strategy
+        f"Unrecognized Distribution Strategy: {distribution_strategy}"
     )
 
 

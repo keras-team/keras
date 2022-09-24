@@ -16,8 +16,8 @@
 """ResNet v2 models for Keras.
 
 Reference:
-  - [Identity Mappings in Deep Residual Networks]
-    (https://arxiv.org/abs/1603.05027) (CVPR 2016)
+  - [Identity Mappings in Deep Residual Networks](
+      https://arxiv.org/abs/1603.05027) (CVPR 2016)
 """
 
 from keras.applications import imagenet_utils
@@ -154,8 +154,8 @@ decode_predictions.__doc__ = imagenet_utils.decode_predictions.__doc__
 DOC = """
 
   Reference:
-  - [Identity Mappings in Deep Residual Networks]
-    (https://arxiv.org/abs/1603.05027) (CVPR 2016)
+  - [Identity Mappings in Deep Residual Networks](
+      https://arxiv.org/abs/1603.05027) (CVPR 2016)
 
   For image classification use cases, see
   [this page for detailed examples](

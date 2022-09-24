@@ -333,8 +333,10 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
             )
             with self.assertRaises(
                 ValueError,
-                msg="Weight count mismatch for layer #0 (named d1). "
-                "Layer expects 1 weight(s). Received 2 saved weight(s)",
+                msg=(
+                    "Weight count mismatch for layer #0 (named d1). "
+                    "Layer expects 1 weight(s). Received 2 saved weight(s)"
+                ),
             ):
                 hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
 
@@ -388,9 +390,11 @@ class TestWeightSavingAndLoading(tf.test.TestCase, parameterized.TestCase):
             )
             with self.assertRaises(
                 ValueError,
-                msg="Shape mismatch in layer #0 (named d1) for weight "
-                "d1_1/kernel:0. Weight expects shape (3, 10). "
-                "Received saved weight with shape (3, 5)",
+                msg=(
+                    "Shape mismatch in layer #0 (named d1) for weight "
+                    "d1_1/kernel:0. Weight expects shape (3, 10). "
+                    "Received saved weight with shape (3, 5)"
+                ),
             ):
                 hdf5_format.load_weights_from_hdf5_group_by_name(f_model, model)
 

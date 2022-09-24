@@ -31,6 +31,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.distribute import distributed_file_utils
 from keras.distribute import worker_training_state
+from keras.optimizers import optimizer_experimental
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import generic_utils
 from keras.utils import io_utils
@@ -143,9 +144,11 @@ def set_callback_parameters(
         mode: String. One of ModeKeys.TRAIN, ModeKeys.TEST, or ModeKeys.PREDICT.
           Which loop mode to configure callbacks for.
     """
-    metric_names = model.metrics_names
+    metric_names = None
     for cbk in callback_list:
         if isinstance(cbk, (BaseLogger, ProgbarLogger)):
+            if not metric_names:
+                metric_names = model.metrics_names
             cbk.stateful_metrics = metric_names[1:]  # Exclude `loss`
 
     # Set callback parameters
@@ -153,6 +156,8 @@ def set_callback_parameters(
     # When we have deferred build scenario with iterator input, we will compile
     # when we standardize first batch of data.
     if mode != ModeKeys.PREDICT:
+        if not metric_names:
+            metric_names = model.metrics_names
         callback_metrics = copy.copy(metric_names)
         if do_validation:
             callback_metrics += ["val_" + n for n in metric_names]
@@ -323,7 +328,7 @@ class CallbackList:
 
     def _call_batch_begin_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_begin` methods."""
-        hook_name = "on_{mode}_batch_begin".format(mode=mode)
+        hook_name = f"on_{mode}_batch_begin"
         self._call_batch_hook_helper(hook_name, batch, logs)
 
         if self._check_timing:
@@ -331,7 +336,7 @@ class CallbackList:
 
     def _call_batch_end_hook(self, mode, batch, logs):
         """Helper function for `on_*_batch_end` methods."""
-        hook_name = "on_{mode}_batch_end".format(mode=mode)
+        hook_name = f"on_{mode}_batch_end"
 
         if self._check_timing and batch >= 1:
             batch_time = time.time() - self._batch_start_time
@@ -341,7 +346,7 @@ class CallbackList:
 
         if len(self._batch_times) >= self._num_batches_for_timing_check:
             end_hook_name = hook_name
-            begin_hook_name = "on_{mode}_batch_begin".format(mode=mode)
+            begin_hook_name = f"on_{mode}_batch_begin"
             avg_batch_time = sum(self._batch_times) / len(self._batch_times)
             avg_end_hook_time = sum(self._hook_times[end_hook_name]) / len(
                 self._hook_times[end_hook_name]
@@ -604,6 +609,13 @@ class CallbackList:
                     "`ParameterServerStrategy`. Found unsupported "
                     f"callbacks: {unsupported_callbacks}"
                 )
+
+    def make_logs(self, model, logs, outputs, mode, prefix=""):
+        """Computes logs for sending to `on_batch_end` methods."""
+        if not self.callbacks:
+            return logs
+
+        return make_logs(model, logs, outputs, mode, prefix=prefix)
 
 
 @keras_export("keras.callbacks.Callback")
@@ -1350,7 +1362,7 @@ class ModelCheckpoint(Callback):
             else:
                 raise TypeError(
                     "If save_weights_only is True, then `options` must be "
-                    f"either None or a tf.train.CheckpointOptions. "
+                    "either None or a tf.train.CheckpointOptions. "
                     f"Got {options}."
                 )
         else:
@@ -1361,7 +1373,7 @@ class ModelCheckpoint(Callback):
             else:
                 raise TypeError(
                     "If save_weights_only is False, then `options` must be "
-                    f"either None or a tf.saved_model.SaveOptions. "
+                    "either None or a tf.saved_model.SaveOptions. "
                     f"Got {options}."
                 )
 
@@ -1391,7 +1403,7 @@ class ModelCheckpoint(Callback):
 
         if mode not in ["auto", "min", "max"]:
             logging.warning(
-                "ModelCheckpoint mode %s is unknown, " "fallback to auto mode.",
+                "ModelCheckpoint mode %s is unknown, fallback to auto mode.",
                 mode,
             )
             mode = "auto"
@@ -1769,6 +1781,14 @@ class BackupAndRestore(Callback):
     >>> len(history.history['loss'])
     6
 
+    Besides the option to save at the end of every epoch or every N steps, if
+    you are doing distributed training with
+    `tf.distribute.MultiWorkerMirroredStrategy` on Google Cloud Platform or
+    Google Borg, you can also use the `save_before_preemption` argument
+    to enable saving a checkpoint right before a worker gets preempted
+    by other jobs and training gets interrupted. See
+    `tf.distribute.experimental.PreemptionCheckpointHandler` for more details.
+
     Args:
         backup_dir: String, path to store the checkpoint.
           e.g. backup_dir = os.path.join(working_dir, 'backup')
@@ -1777,18 +1797,30 @@ class BackupAndRestore(Callback):
           cannot be reused elsewhere to store other files, e.g. by
           BackupAndRestore callback of another training, or by another callback
           (ModelCheckpoint) of the same training.
-        save_freq: `'epoch'` or integer. When set to `'epoch'`
+        save_freq: `'epoch'`, integer, or `False`. When set to `'epoch'`
           the callback saves the checkpoint at the end of each epoch.
           When set to an integer, the callback saves the checkpoint every
-          `save_freq` batches.
+          `save_freq` batches. Set `save_freq` to `False` if only using
+          preemption checkpointing (with `save_before_preemption=True`).
         delete_checkpoint: Boolean, default to True. This `BackupAndRestore`
           callback works by saving a checkpoint to back up the training state.
           If `delete_checkpoint=True`, the checkpoint will be deleted after
           training is finished. Use `False` if you'd like to keep the checkpoint
           for future usage.
+        save_before_preemption: A boolean value instructing whether to turn on
+          the automatic checkpoint saving for preemption/maintenance events.
+          This only supports
+          `tf.distribute.MultiWorkerMirroredStrategy` on Google Cloud Platform
+          or Google Borg for now.
     """
 
-    def __init__(self, backup_dir, save_freq="epoch", delete_checkpoint=True):
+    def __init__(
+        self,
+        backup_dir,
+        save_freq="epoch",
+        delete_checkpoint=True,
+        save_before_preemption=False,
+    ):
         super().__init__()
         self.backup_dir = backup_dir
         self._supports_tf_logs = True
@@ -1801,6 +1833,7 @@ class BackupAndRestore(Callback):
         )
         self.save_freq = save_freq
         self.delete_checkpoint = delete_checkpoint
+        self.save_before_preemption = save_before_preemption
         self._batches_count = 0
         self._current_epoch = 0
 
@@ -1818,6 +1851,10 @@ class BackupAndRestore(Callback):
                     "providing `initial_epoch` in `model.fit()` for fault "
                     "tolerance."
                 )
+        if (not save_freq) and (not save_before_preemption):
+            raise ValueError(
+                "Either `save_freq` or `save_before_preemption` " "must be set."
+            )
 
         # Only the chief worker writes model checkpoints, but all workers
         # restore checkpoint at on_train_begin().
@@ -1837,13 +1874,20 @@ class BackupAndRestore(Callback):
                 "MirroredStrategy, MultiWorkerMirroredStrategy and TPUStrategy."
             )
         self.model._training_state = worker_training_state.WorkerTrainingState(
-            self.model, self.backup_dir, self.save_freq
+            self.model,
+            self.backup_dir,
+            self.save_freq,
+            self.save_before_preemption,
         )
         self._training_state = self.model._training_state
         self._training_state.restore()
 
+    def on_train_batch_begin(self, batch, logs=None):
+        self._training_state._ckpt_saved_batch.assign(batch)
+
     def on_train_batch_end(self, batch, logs=None):
-        if self.save_freq != "epoch":
+        self._training_state.backup_if_preempted()
+        if self.save_freq and self.save_freq != "epoch":
             self._batches_count += 1
             if self._batches_count >= self.save_freq:
                 self._batches_count = 0
@@ -1864,6 +1908,7 @@ class BackupAndRestore(Callback):
         del self.model._training_state
 
     def on_epoch_begin(self, epoch, logs=None):
+        self._training_state._ckpt_saved_epoch.assign(epoch)
         self._current_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
@@ -1973,7 +2018,7 @@ class EarlyStopping(Callback):
 
         if mode not in ["auto", "min", "max"]:
             logging.warning(
-                "EarlyStopping mode %s is unknown, " "fallback to auto mode.",
+                "EarlyStopping mode %s is unknown, fallback to auto mode.",
                 mode,
             )
             mode = "auto"
@@ -2127,8 +2172,8 @@ class RemoteMonitor(Callback):
                 )
         except requests.exceptions.RequestException:
             logging.warning(
-                "Warning: could not reach RemoteMonitor "
-                "root server at " + str(self.root)
+                "Warning: could not reach RemoteMonitor root server at "
+                + str(self.root)
             )
 
 
@@ -2516,7 +2561,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 # If the train_function is a `tf.function`, we can write out a
                 # graph
                 if hasattr(train_fn, "function_spec"):
-                    tf.summary.graph(train_fn._concrete_stateful_fn.graph)
+                    # TODO(b/243822285): Use _variable_creation_fn directly.
+                    if hasattr(train_fn, "_concrete_stateful_fn"):
+                        tf.summary.graph(train_fn._concrete_stateful_fn.graph)
+                    else:
+                        tf.summary.graph(
+                            train_fn._concrete_variable_creation_fn.graph
+                        )
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
@@ -2757,7 +2808,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         self._is_tracing = False
 
     def _collect_learning_rate(self, logs):
-        lr_schedule = getattr(self.model.optimizer, "lr", None)
+        if isinstance(self.model.optimizer, optimizer_experimental.Optimizer):
+            lr_schedule = getattr(self.model.optimizer, "_learning_rate", None)
+        else:
+            lr_schedule = getattr(self.model.optimizer, "lr", None)
         if isinstance(lr_schedule, learning_rate_schedule.LearningRateSchedule):
             logs["learning_rate"] = lr_schedule(self.model.optimizer.iterations)
         return logs
@@ -2846,7 +2900,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         embeddings_ckpt = os.path.join(
             self._log_write_dir,
             "train",
-            "keras_embedding.ckpt-{}".format(epoch),
+            f"keras_embedding.ckpt-{epoch}",
         )
         self.model.save_weights(embeddings_ckpt)
 
@@ -2936,7 +2990,7 @@ class ReduceLROnPlateau(Callback):
         self.monitor = monitor
         if factor >= 1.0:
             raise ValueError(
-                f"ReduceLROnPlateau does not support "
+                "ReduceLROnPlateau does not support "
                 f"a factor >= 1.0. Got {factor}"
             )
         if "epsilon" in kwargs:
@@ -3012,7 +3066,7 @@ class ReduceLROnPlateau(Callback):
                         if self.verbose > 0:
                             io_utils.print_msg(
                                 f"\nEpoch {epoch +1}: "
-                                f"ReduceLROnPlateau reducing "
+                                "ReduceLROnPlateau reducing "
                                 f"learning rate to {new_lr}."
                             )
                         self.cooldown_counter = self.cooldown
@@ -3073,7 +3127,7 @@ class CSVLogger(Callback):
                 isinstance(k, collections.abc.Iterable)
                 and not is_zero_dim_ndarray
             ):
-                return '"[%s]"' % (", ".join(map(str, k)))
+                return f"\"[{', '.join(map(str, k))}]\""
             else:
                 return k
 

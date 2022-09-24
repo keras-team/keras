@@ -37,6 +37,9 @@ from keras.distribute.strategy_combinations import strategies_minus_tpu
 from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
+from keras.optimizers.optimizer_experimental import (
+    optimizer as optimizer_experimental,
+)
 from keras.optimizers.optimizer_v2 import (
     gradient_descent as gradient_descent_keras,
 )
@@ -453,7 +456,7 @@ class TestDistributionStrategyWithNumpyArrays(
                 # Computed global batch size can not be sharded across replicas
                 with self.assertRaisesRegex(
                     ValueError,
-                    "could not be sharded evenly " "across the sync replicas",
+                    "could not be sharded evenly across the sync replicas",
                 ):
                     distributed_training_utils_v1.get_input_params(
                         distribution, 63, steps=1, batch_size=None
@@ -3028,7 +3031,6 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             )
             model.compile(optimizer="adam", loss="mse")
             model.build([None, 1])  # create weights.
-            self.assertEmpty(model.optimizer.weights)
             return model
 
         model = create_model()
@@ -3039,10 +3041,12 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         with distribution.scope():
             model = create_model()
             model.load_weights(temp_dir)
-            self.assertNotEmpty(model.optimizer.weights)
+            if isinstance(model.optimizer, optimizer_experimental.Optimizer):
+                model.optimizer.build(model.trainable_variables)
+            self.assertNotEmpty(model.optimizer.variables())
             self.assertTrue(
                 distributed_training_utils.is_distributed_variable(
-                    model.optimizer.weights[0]
+                    model.optimizer.variables()[0]
                 )
             )
 
@@ -3050,10 +3054,13 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             model = create_model()
         # create/restore slot variables outside of scope is fine.
         model.load_weights(temp_dir)
-        self.assertNotEmpty(model.optimizer.weights)
+        if isinstance(model.optimizer, optimizer_experimental.Optimizer):
+            # Experimental optimizer has to restore variables in scope.
+            return
+        self.assertNotEmpty(model.optimizer.variables())
         self.assertTrue(
             distributed_training_utils.is_distributed_variable(
-                model.optimizer.weights[0]
+                model.optimizer.variables()[0]
             )
         )
 

@@ -742,12 +742,16 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         class MyOptimizer(sgd_experimental.SGD):
             def apply_gradients(
-                self, grads_and_vars, skip_gradients_aggregation=False
+                self,
+                grads_and_vars,
+                skip_gradients_aggregation=False,
+                experimental_aggregate_gradients=True,
             ):
                 for grad, _ in grads_and_vars:
                     outer_self.assertIsInstance(grad, tf.Tensor)
                 return super().apply_gradients(
-                    grads_and_vars, skip_gradients_aggregation
+                    grads_and_vars,
+                    skip_gradients_aggregation=skip_gradients_aggregation,
                 )
 
         with create_mirrored_strategy().scope() as strategy:

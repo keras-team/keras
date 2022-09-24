@@ -36,6 +36,7 @@ from keras.layers import core
 from keras.optimizers import optimizer_v1
 from keras.premade_models.linear import LinearModel
 from keras.saving import model_config
+from keras.saving import object_registration
 from keras.saving import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -57,7 +58,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         if h5py is not None:
             self.assertTrue(
                 h5py.is_hdf5(path),
-                "Model saved at path {} is not a valid hdf5 file.".format(path),
+                f"Model saved at path {path} is not a valid hdf5 file.",
             )
 
     def assert_saved_model(self, path):
@@ -227,9 +228,9 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     def test_saving_model_with_custom_object(self):
-        with generic_utils.custom_object_scope(), self.cached_session():
+        with object_registration.custom_object_scope(), self.cached_session():
 
-            @generic_utils.register_keras_serializable()
+            @object_registration.register_keras_serializable()
             class CustomLoss(losses.MeanSquaredError):
                 pass
 
@@ -285,7 +286,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         self.assertEmpty(matched)
 
 
-@generic_utils.register_keras_serializable(package="Foo")
+@object_registration.register_keras_serializable(package="Foo")
 class RegisteredSubLayer(keras.layers.Layer):
     pass
 
@@ -480,9 +481,19 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 # TODO(b/153110928): Keras TF format doesn't restore optimizer
                 # weights currently.
                 return
-            self.assertAllClose(
-                model.optimizer.weights, loaded_model.optimizer.weights
-            )
+            if isinstance(
+                loaded_model.optimizer,
+                keras.optimizers.optimizer_experimental.Optimizer,
+            ):
+                loaded_model.optimizer.build(loaded_model.trainable_variables)
+                self.assertAllClose(
+                    model.optimizer.variables(),
+                    loaded_model.optimizer.variables(),
+                )
+            else:
+                self.assertAllClose(
+                    model.optimizer.weights, loaded_model.optimizer.weights
+                )
 
         # In V1/Graph mode, the model isn't built, so the metrics are not loaded
         # immediately (requires model to be called on some data before building
@@ -1212,7 +1223,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 except TypeError:
                     return
 
-        with generic_utils.CustomObjectScope(
+        with object_registration.CustomObjectScope(
             {"OuterLayer": OuterLayer, "InnerLayer": InnerLayer}
         ):
 
@@ -1383,6 +1394,32 @@ class TestWholeModelSaving(test_combinations.TestCase):
         saved_model_dir = self._save_model_dir()
         model.save(saved_model_dir)
         keras.models.load_model(saved_model_dir)
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    @test_utils.run_v2_only
+    def test_save_functional_with_constant_string_input(self):
+        input1 = keras.Input(shape=[2], dtype=tf.string)
+        input2 = tf.constant([["単", "に"]])
+        outputs = keras.layers.Concatenate()([input1, input2])
+        model = keras.Model(input1, outputs)
+        saved_model_dir = self._save_model_dir()
+        model.save(saved_model_dir)
+        loaded_model = keras.models.load_model(saved_model_dir)
+        x = tf.constant([["a", "b"]])
+        self.assertAllEqual(model(x), loaded_model(x))
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    @test_utils.run_v2_only
+    def test_save_functional_with_ragged_constant_string_input(self):
+        input1 = keras.Input(shape=[1], dtype=tf.string)
+        input2 = tf.ragged.constant([["単", "に"], ["単"]])
+        outputs = keras.layers.Concatenate(axis=0)([input1, input2])
+        model = keras.Model(input1, outputs)
+        saved_model_dir = self._save_model_dir()
+        model.save(saved_model_dir)
+        loaded_model = keras.models.load_model(saved_model_dir)
+        x = tf.constant([["a"]])
+        self.assertAllEqual(model(x), loaded_model(x))
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     @test_utils.run_v2_only

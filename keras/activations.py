@@ -89,8 +89,7 @@ def softmax(x, axis=-1):
             output = e / s
     else:
         raise ValueError(
-            "Cannot apply softmax to a tensor that is 1D. "
-            f"Received input: {x}"
+            f"Cannot apply softmax to a tensor that is 1D. Received input: {x}"
         )
 
     # Cache the logits to use for crossentropy loss.

@@ -265,7 +265,7 @@ class RNNCell(base_layer.Layer):
                 if inputs.shape.dims[0].value != static_batch_size:
                     raise ValueError(
                         "batch size from input tensor is different from the "
-                        f"input param. Input tensor batch: "
+                        "input param. Input tensor batch: "
                         f"{inputs.shape.dims[0].value}, "
                         f"batch_size: {batch_size}"
                     )
@@ -575,12 +575,12 @@ class GRUCell(LayerRNNCell):
         _check_supported_dtypes(self.dtype)
         input_depth = inputs_shape[-1]
         self._gate_kernel = self.add_weight(
-            "gates/%s" % _WEIGHTS_VARIABLE_NAME,
+            f"gates/{_WEIGHTS_VARIABLE_NAME}",
             shape=[input_depth + self._num_units, 2 * self._num_units],
             initializer=self._kernel_initializer,
         )
         self._gate_bias = self.add_weight(
-            "gates/%s" % _BIAS_VARIABLE_NAME,
+            f"gates/{_BIAS_VARIABLE_NAME}",
             shape=[2 * self._num_units],
             initializer=(
                 self._bias_initializer
@@ -589,12 +589,12 @@ class GRUCell(LayerRNNCell):
             ),
         )
         self._candidate_kernel = self.add_weight(
-            "candidate/%s" % _WEIGHTS_VARIABLE_NAME,
+            f"candidate/{_WEIGHTS_VARIABLE_NAME}",
             shape=[input_depth + self._num_units, self._num_units],
             initializer=self._kernel_initializer,
         )
         self._candidate_bias = self.add_weight(
-            "candidate/%s" % _BIAS_VARIABLE_NAME,
+            f"candidate/{_BIAS_VARIABLE_NAME}",
             shape=[self._num_units],
             initializer=(
                 self._bias_initializer
@@ -1075,7 +1075,7 @@ class LSTMCell(LayerRNNCell):
                 else None
             )
             self._proj_kernel = self.add_weight(
-                "projection/%s" % _WEIGHTS_VARIABLE_NAME,
+                f"projection/{_WEIGHTS_VARIABLE_NAME}",
                 shape=[self._num_units, self._num_proj],
                 initializer=self._initializer,
                 partitioner=maybe_proj_partitioner,
@@ -1311,7 +1311,7 @@ class MultiRNNCell(RNNCell):
                 if self._state_is_tuple:
                     if not tf.nest.is_nested(state):
                         raise ValueError(
-                            f"Expected state to be a tuple of length "
+                            "Expected state to be a tuple of length "
                             f"{len(self.state_size)}"
                             f", but received: {state}"
                         )

@@ -17,13 +17,13 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
+@register_keras_serializable()
 @keras_export("keras.optimizers.experimental.RMSprop", v1=[])
 class RMSprop(optimizer.Optimizer):
     r"""Optimizer that implements the RMSprop algorithm.
@@ -58,10 +58,10 @@ class RMSprop(optimizer.Optimizer):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.RMSprop(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.experimental.RMSprop(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
-    >>> loss = lambda: (var1 ** 2) / 2.0    # d(loss) / d(var1) = var1
-    >>> step_count = opt.minimize(loss, [var1]).numpy()
+    >>> loss = lambda: (var1 ** 2) / 2.0  # d(loss) / d(var1) = var1
+    >>> opt.minimize(loss, [var1])
     >>> var1.numpy()
     9.683772
 
@@ -158,7 +158,7 @@ class RMSprop(optimizer.Optimizer):
                 average_grad.assign(rho * average_grad)
                 average_grad.scatter_add(
                     tf.IndexedSlices(
-                        tf.square(gradient.values) * (1 - rho), gradient.indices
+                        gradient.values * (1 - rho), gradient.indices
                     )
                 )
                 velocity.assign_add(-tf.square(average_grad))
@@ -182,9 +182,7 @@ class RMSprop(optimizer.Optimizer):
             # Dense gradients.
             velocity.assign(rho * velocity + (1 - rho) * tf.square(gradient))
             if self.centered:
-                average_grad.assign(
-                    rho * average_grad + (1 - rho) * tf.square(gradient)
-                )
+                average_grad.assign(rho * average_grad + (1 - rho) * gradient)
                 velocity.assign_add(-tf.square(average_grad))
             transformed_grad = gradient / (tf.sqrt(velocity) + self.epsilon)
             if self.momentum > 0:

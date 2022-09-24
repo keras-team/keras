@@ -17,6 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from keras.saving import hdf5_format
+from keras.saving import object_registration
 from keras.saving import saving_utils
 from keras.saving.saved_model import load as saved_model_load
 from keras.saving.saved_model import load_context
@@ -218,7 +219,7 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):
         IOError: In case of an invalid savefile.
     """
     with generic_utils.SharedObjectLoadingScope():
-        with generic_utils.CustomObjectScope(custom_objects or {}):
+        with object_registration.CustomObjectScope(custom_objects or {}):
             with load_context.load_context(options):
                 filepath_str = path_to_string(filepath)
                 if isinstance(filepath_str, str):

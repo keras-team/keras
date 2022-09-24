@@ -2135,8 +2135,9 @@ class Layer(base_layer.Layer):
         """
         if not self._inbound_nodes:
             raise RuntimeError(
-                "The layer has never been called "
-                "and thus has no defined " + attr_name + "."
+                "The layer has never been called and thus has no defined "
+                + attr_name
+                + "."
             )
         if not len(self._inbound_nodes) > node_index:
             raise ValueError(

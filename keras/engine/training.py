@@ -71,9 +71,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     """`Model` groups layers into an object with training and inference features.
 
     Args:
-        inputs: The input(s) of the model: a `keras.Input` object or list of
-            `keras.Input` objects.
-        outputs: The output(s) of the model. See Functional API example below.
+        inputs: The input(s) of the model: a `keras.Input` object or a
+            combination of `keras.Input` objects in a dict, list or tuple.
+        outputs: The output(s) of the model: a tensor that originated from
+            `keras.Input` objects or a combination of such tensors in a dict,
+            list or tuple. See Functional API example below.
         name: String, the name of the model.
 
     There are two ways to instantiate a `Model`:
@@ -300,6 +302,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._distribution_strategy = tf.distribute.get_strategy()
         else:
             self._distribution_strategy = None
+        self._distribute_reduction_method = None
 
         self._cluster_coordinator = None
 
@@ -360,7 +363,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.built:
             return (
                 pickle_utils.deserialize_model_from_bytecode,
-                pickle_utils.serialize_model_as_bytecode(self),
+                (pickle_utils.serialize_model_as_bytecode(self),),
             )
         else:
             # SavedModel (and hence serialize_model_as_bytecode) only support
@@ -375,7 +378,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def __deepcopy__(self, memo):
         if self.built:
             new = pickle_utils.deserialize_model_from_bytecode(
-                *pickle_utils.serialize_model_as_bytecode(self)
+                pickle_utils.serialize_model_as_bytecode(self)
             )
             memo[id(self)] = new
         else:
@@ -652,8 +655,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               strings 'accuracy' or 'acc', we convert this to one of
               `tf.keras.metrics.BinaryAccuracy`,
               `tf.keras.metrics.CategoricalAccuracy`,
-              `tf.keras.metrics.SparseCategoricalAccuracy` based on the loss
-              function used and the model output shape. We do a similar
+              `tf.keras.metrics.SparseCategoricalAccuracy` based on the shapes
+              of the targets and of the model output. We do a similar
               conversion for the strings 'crossentropy' and 'ce' as well.
               The metrics passed here are evaluated without sample weighting; if
               you would like sample weighting to apply, you can specify your
@@ -698,6 +701,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
         base_layer.keras_api_gauge.get_cell("compile").set(True)
+        self._compile_config = CompileConfig(
+            optimizer=optimizer,
+            loss=loss,
+            metrics=metrics,
+            loss_weights=loss_weights,
+            weighted_metrics=weighted_metrics,
+            run_eagerly=run_eagerly,
+            steps_per_execution=steps_per_execution,
+            jit_compile=jit_compile,
+        )
         with self.distribute_strategy.scope():
             if "experimental_steps_per_execution" in kwargs:
                 logging.warning(
@@ -928,6 +941,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def run_eagerly(self, value):
         self._run_eagerly = value
 
+    @property
+    def distribute_reduction_method(self):
+        """Indicates how to reduce loss & metric values from replicas.
+
+        Default: `"auto"`. This should be good for general use cases.
+        It selects `"sum"` or `"first"` conditioned on the
+        specific implementation of the `tf.distribute` strategy.
+        """
+        return self._distribute_reduction_method or "auto"
+
+    @distribute_reduction_method.setter
+    def distribute_reduction_method(self, value):
+        self._distribute_reduction_method = value
+
     def _validate_target_and_loss(self, y, loss):
         """Raises error if target or loss is not found.
 
@@ -1090,6 +1117,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """
         del x  # The default implementation does not use `x`.
         self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        return self.get_metrics_result()
+
+    def get_metrics_result(self):
+        """Returns the model's metrics values as a dict.
+
+        If any of the metric result is a dict (containing multiple metrics),
+        each of them gets added to the top level returned dict of this method.
+
+        Returns:
+          A `dict` containing values of the metrics listed in `self.metrics`.
+          Example:
+          `{'loss': 0.2, 'accuracy': 0.7}`.
+        """
         # Collect metrics to return
         return_metrics = {}
         for metric in self.metrics:
@@ -1099,6 +1139,50 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             else:
                 return_metrics[metric.name] = result
         return return_metrics
+
+    def _validate_and_get_metrics_result(self, logs):
+        """Returns model metrics as a dict if the keys match with input logs.
+
+        When the training / evalution is performed with asynchronous steps, such
+        as the case with `tf.distribute.ParameterServerStrategy`, the last
+        scheduled `train / test_step` may not give the latest metrics because it
+        is not guaranteed to be executed the last. This method gets metrics from
+        the model directly instead of relying on the return from last step
+        function.
+
+        It logs a warning if the metric results could not be overridden when
+        used with `tf.distribute.ParameterServerStrategy`.
+
+        When the user has custom train / test step functions, the metrics
+        returned may be different from `Model.metrics`. In those instances,
+        this function will be no-op and return the logs.
+
+        Args:
+          logs: A `dict` of metrics returned by train / test step function.
+
+        Returns:
+          A `dict` containing values of the metrics listed in `self.metrics`
+          when logs and model metrics keys match. Otherwise it returns input
+          `logs`.
+        """
+        PSS_WARN_MSG = "Could not get Model metric results. \
+        Using the results of last step function could lead to incorrect \
+        results when used with ParameterServerStrategy"
+        try:
+            metric_logs = self.get_metrics_result()
+        except TypeError:
+            if self._cluster_coordinator:
+                logging.warning(PSS_WARN_MSG)
+        else:
+            # Verify that train / test step logs passed and metric logs have
+            # matching keys. Could be different when using custom step functions
+            if isinstance(logs, dict) and set(logs.keys()) == set(
+                metric_logs.keys()
+            ):
+                logs = tf_utils.sync_to_numpy_or_python_type(metric_logs)
+            elif self._cluster_coordinator:
+                logging.warning(PSS_WARN_MSG)
+        return logs
 
     def make_train_function(self, force=False):
         """Creates a function that executes one step of training.
@@ -1145,7 +1229,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             data = next(iterator)
             outputs = model.distribute_strategy.run(run_step, args=(data,))
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy, reduction="first"
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -1549,9 +1635,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 self.reset_metrics()
                 callbacks.on_epoch_begin(epoch)
                 with data_handler.catch_stop_iteration():
-                    data_handler._initial_step = data_handler._initial_step or (
-                        self._maybe_load_initial_step_from_ckpt()
-                    )
                     for step in data_handler.steps():
                         with tf.profiler.experimental.Trace(
                             "train",
@@ -1581,6 +1664,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "information of where went wrong, or file a "
                         "issue/bug to `tf.keras`."
                     )
+                # Override with model metrics instead of last step logs
+                logs = self._validate_and_get_metrics_result(logs)
                 epoch_logs = copy.copy(logs)
 
                 # Run validation.
@@ -1626,7 +1711,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if self.stop_training:
                     break
 
-            if isinstance(self.optimizer, optimizer_experimental.Optimizer):
+            if (
+                isinstance(self.optimizer, optimizer_experimental.Optimizer)
+                and epochs > 0
+            ):
                 self.optimizer.finalize_variable_values(
                     self.trainable_variables
                 )
@@ -1712,7 +1800,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             data = next(iterator)
             outputs = model.distribute_strategy.run(run_step, args=(data,))
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy, reduction="first"
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -1845,7 +1935,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               argument is not supported with array inputs.
             callbacks: List of `keras.callbacks.Callback` instances. List of
               callbacks to apply during evaluation. See
-              [callbacks](/api_docs/python/tf/keras/callbacks).
+              [callbacks](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks).
             max_queue_size: Integer. Used for generator or
               `keras.utils.Sequence` input only. Maximum size for the generator
               queue. If unspecified, `max_queue_size` will default to 10.
@@ -1951,7 +2041,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             logs = tmp_logs
                             end_step = step + data_handler.step_increment
                             callbacks.on_test_batch_end(end_step, logs)
+
             logs = tf_utils.sync_to_numpy_or_python_type(logs)
+            # Override with model metrics instead of last step logs
+            logs = self._validate_and_get_metrics_result(logs)
             callbacks.on_test_end(logs=logs)
 
             if return_dict:
@@ -2141,7 +2234,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 run until the input dataset is exhausted.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during prediction.
-                See [callbacks](/api_docs/python/tf/keras/callbacks).
+                See [callbacks](
+                https://www.tensorflow.org/api_docs/python/tf/keras/callbacks).
             max_queue_size: Integer. Used for generator or
                 `keras.utils.Sequence` input only. Maximum size for the
                 generator queue. If unspecified, `max_queue_size` will default
@@ -2988,34 +3082,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # they don't override `from_config()`, which would use `cls(**config)`
         # as a result.
         config = {}
-
-        if saving_lib._ENABLED:
-            if self.optimizer:
-                config["optimizer"] = saving_lib.serialize_keras_object(
-                    self.optimizer
-                )
-            if self.compiled_loss:
-                config["loss"] = saving_lib.serialize_keras_object(
-                    self.compiled_loss
-                )
+        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+            if self._is_compiled and hasattr(self, "_compile_config"):
+                config["compile_config"] = self._compile_config.serialize()
             if self.built:
-                config["input_shape"] = self._build_input_shape
-
+                config["build_input_shape"] = self._build_input_shape
         return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-
-        # Grab the optimizer and loss from the `config` for `compile()` and
-        # `build()`.
-        optimizer, loss = None, None
-        optimizer_dict = config.pop("optimizer", {})
-        if optimizer_dict:
-            optimizer = saving_lib.deserialize_keras_object(optimizer_dict)
-        loss_dict = config.pop("loss", {})
-        if loss_dict:
-            loss = saving_lib.deserialize_keras_object(loss_dict)
-        input_shape = config.pop("input_shape", {})
+        compile_config = config.pop("compile_config", None)
+        build_input_shape = config.pop("build_input_shape", None)
 
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
@@ -3060,13 +3137,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f"Error encountered during deserialization:\n{e}"
                     )
 
-            if saving_lib._ENABLED:
-
-                if optimizer or loss:
-                    model.compile(optimizer=optimizer, loss=loss)
-
-                if input_shape:
-                    model.build(input_shape)
+            if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+                if build_input_shape:
+                    model.build(build_input_shape)
+                if compile_config is not None:
+                    model._compile_from_config(compile_config, base_class=Model)
 
             return model
 
@@ -3277,7 +3352,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"{list(layer.name for layer in self.layers)}."
             )
         raise ValueError(
-            "Provide either a layer name or layer index at " "`get_layer`."
+            "Provide either a layer name or layer index at `get_layer`."
         )
 
     def get_weight_paths(self):
@@ -3603,12 +3678,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
         return (initial_epoch, initial_step)
 
-    def _maybe_load_initial_step_from_ckpt(self):
-        if getattr(self, "_callback_step", 0) > 0:
-            return self._callback_step.numpy() + 1
-
-        return 0
-
     def _assert_compile_was_called(self):
         # Checks whether `compile` has been called. If it has been called,
         # then the optimizer is set. This is different from whether the
@@ -3686,6 +3755,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"type {type(validation_freq)}."
             )
 
+    def _compile_from_config(self, compile_config, base_class):
+        has_overridden_compile = self.__class__.compile != base_class.compile
+        has_overridden_from_config = (
+            self.__class__.from_config.__func__.__qualname__
+            != base_class.from_config.__func__.__qualname__
+        )
+
+        if not has_overridden_compile:
+            compile_config = saving_lib.deserialize_keras_object(compile_config)
+            self.compile(**compile_config)
+        else:
+            if not has_overridden_from_config:
+                logging.warning(
+                    "`compile()` was not called as part of model loading "
+                    "because the model's `compile()` method is custom. "
+                    "All subclassed Models that have `compile()` "
+                    "overridden should also override `from_config()` in "
+                    "order to call `compile()`. Alternatively, you can "
+                    "call `compile()` manually after loading."
+                )
+
     ######################################################################
     # Functions below exist only as v1 / v2 compatibility shims.
     ######################################################################
@@ -3701,7 +3791,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           Dictionary of arguments that were used when compiling the model.
         """
         self._assert_compile_was_called()
-
         saved_metrics = self.compiled_metrics._user_metrics
         saved_weighted_metrics = self.compiled_metrics._user_weighted_metrics
 
@@ -3718,7 +3807,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "weighted_metrics": saved_weighted_metrics,
             "loss_weights": self.compiled_loss._user_loss_weights,
         }
-
         return compile_args
 
     def _get_callback_model(self):
@@ -3731,11 +3819,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def _compile_was_called(self):
         return self._is_compiled
 
-    def _save_new(self, dirpath):
-        return saving_lib.save(self, dirpath)
+    def _save_experimental(self, filepath):
+        return saving_lib.save_model(self, filepath)
 
 
-def reduce_per_replica(values, strategy, reduction="first"):
+def reduce_per_replica(values, strategy, reduction="auto"):
     """Attempt to reduce the structure `values` to single values.
 
     Given `values` (a `tf.Tensor` or a `PerReplica` structure),
@@ -3769,7 +3857,9 @@ def reduce_per_replica(values, strategy, reduction="first"):
       values: Structure of `PerReplica` objects or `tf.Tensor`s. `tf.Tensor`s
         are returned as-is.
       strategy: `tf.distribute.Strategy` object.
-      reduction: One of `"first"`, `"concat"`.
+      reduction: One of `"auto"`, `"first"`, `"concat"`, or `"sum"`.
+        `"auto"` will select `"first"` when used under a TPUStrategy, or
+        `"sum"` otherwise.
 
     Returns:
       Structure of `Tensor`s, representing the result of reduction.
@@ -3777,6 +3867,9 @@ def reduce_per_replica(values, strategy, reduction="first"):
     Raises:
       ValueError: if the reduction method is not supported.
     """
+
+    if reduction == "auto":
+        reduction = "first" if backend.is_tpu_strategy(strategy) else "sum"
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
@@ -3793,10 +3886,13 @@ def reduce_per_replica(values, strategy, reduction="first"):
                 return _tpu_multi_host_concat(v, strategy)
             else:
                 return concat(strategy.experimental_local_results(v))
+        elif reduction == "sum":
+            values = strategy.experimental_local_results(v)
+            return tf.reduce_sum(values)
         else:
             raise ValueError(
-                '`reduction` must be "first" or "concat". Received: '
-                f"reduction={reduction}."
+                '`reduction` must be "first", "concat", "sum", or "auto". '
+                f"Received: reduction={reduction}."
             )
 
     return tf.nest.map_structure(_reduce, values)
@@ -3806,7 +3902,10 @@ def concat(tensors, axis=0):
     """Concats `tensor`s along `axis`."""
     if isinstance(tensors[0], tf.SparseTensor):
         return tf.sparse.concat(axis=axis, sp_inputs=tensors)
-    return tf.concat(tensors, axis=axis)
+    elif _is_scalar(tensors[0]):
+        return tf.stack(tensors, axis=axis)
+    else:
+        return tf.concat(tensors, axis=axis)
 
 
 def potentially_ragged_concat(tensors):
@@ -3834,7 +3933,10 @@ def potentially_ragged_concat(tensors):
     )
     if tf.math.reduce_all(constant_dims).numpy().item():
         # All non-batch dims are constant
-        return tf.concat(tensors, axis=0)
+        if _is_scalar(tensors[0]):
+            return tf.stack(tensors, axis=0)
+        else:
+            return tf.concat(tensors, axis=0)
 
     # First, identify constant inner dimensions by finding the
     # rightmost dimension that is not constant
@@ -4069,3 +4171,11 @@ def is_functional_model_init_params(args, kwargs):
         or "inputs" in kwargs
         and "outputs" in kwargs
     )
+
+
+class CompileConfig:
+    def __init__(self, **config):
+        self.config = config
+
+    def serialize(self):
+        return saving_lib.serialize_keras_object(self.config)
