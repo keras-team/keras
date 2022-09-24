@@ -77,7 +77,9 @@ rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
 )
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
-    lambda: sgd_new.SGD(0.002, use_ema=True, ema_overwrite_frequency=1),
+    lambda: sgd_new.SGD(
+        0.002, weight_decay=0.004, use_ema=True, ema_overwrite_frequency=1
+    ),
 )
 
 OPTIMIZER_FN = [
@@ -167,13 +169,34 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
 
         optimizer_2 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
-        optimizer_2.apply_gradients(zip([grads], [var2]))
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
 
         optimizer_3 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_3.exclude_from_weight_decay(var_list=[var3])
-        optimizer_3.apply_gradients(zip([grads], [var3]))
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
 
-        self.assertEqual(var1, 1.992)
+        self.assertEqual(var1, 1.9760959)
+        self.assertEqual(var2, 2.0)
+        self.assertEqual(var3, 2.0)
+
+        grads, var1, var2, var3 = (
+            tf.zeros(()),
+            tf.Variable(2.0),
+            tf.Variable(2.0, name="exclude"),
+            tf.Variable(2.0),
+        )
+        optimizer_1 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_1.apply_gradients(zip([grads], [var1]))
+
+        optimizer_2 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
+
+        optimizer_3 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_3.exclude_from_weight_decay(var_list=[var3])
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
+
+        self.assertEqual(var1, 1.9760959)
         self.assertEqual(var2, 2.0)
         self.assertEqual(var3, 2.0)
 
@@ -569,6 +592,12 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
     def testSgd(self, nesterov):
         self._compare_numerical(
             sgd_old.SGD(nesterov=nesterov), sgd_new.SGD(nesterov=nesterov)
+        )
+
+    def testWeightDecay(self):
+        self._compare_numerical(
+            adam_new.Adam(learning_rate=1, weight_decay=0.5, epsilon=0),
+            adamw_new.AdamW(learning_rate=1, weight_decay=0.5, epsilon=0),
         )
 
 

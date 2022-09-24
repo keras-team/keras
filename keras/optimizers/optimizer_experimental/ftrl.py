@@ -103,6 +103,7 @@ class Ftrl(optimizer.Optimizer):
         l2_regularization_strength=0.0,
         l2_shrinkage_regularization_strength=0.0,
         beta=0.0,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -115,6 +116,7 @@ class Ftrl(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

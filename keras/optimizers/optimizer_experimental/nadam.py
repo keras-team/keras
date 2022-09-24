@@ -59,6 +59,7 @@ class Nadam(optimizer.Optimizer):
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -71,6 +72,7 @@ class Nadam(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

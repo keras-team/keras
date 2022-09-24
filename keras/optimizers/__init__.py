@@ -212,6 +212,7 @@ def convert_to_legacy_optimizer(optimizer):
     config = optimizer.get_config()
     # Remove fields that only exist in experimental optimizer.
     keys_to_remove = [
+        "weight_decay",
         "use_ema",
         "ema_momentum",
         "ema_overwrite_frequency",

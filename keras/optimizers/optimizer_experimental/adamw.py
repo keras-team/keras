@@ -14,7 +14,6 @@
 # ==============================================================================
 """AdamW optimizer implementation."""
 
-import re
 
 import tensorflow.compat.v2 as tf
 
@@ -166,20 +165,6 @@ class AdamW(optimizer.Optimizer):
                     )
                 )
 
-    def _use_weight_decay(self, variable):
-        exclude_from_weight_decay = getattr(
-            self, "_exclude_from_weight_decay", []
-        )
-        exclude_from_weight_decay_names = getattr(
-            self, "_exclude_from_weight_decay_names", []
-        )
-        if variable in exclude_from_weight_decay:
-            return False
-        for name in exclude_from_weight_decay_names:
-            if re.search(name, variable.name) is not None:
-                return False
-        return True
-
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
         beta_1_power = None
@@ -194,11 +179,6 @@ class AdamW(optimizer.Optimizer):
         v = self._velocities[self._index_dict[var_key]]
 
         alpha = lr * tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)
-
-        # Apply step weight decay
-        if self._use_weight_decay(variable):
-            wd = tf.cast(self.weight_decay, variable.dtype)
-            variable.assign_sub(variable * wd * lr)
 
         if isinstance(gradient, tf.IndexedSlices):
             # Sparse gradients.
@@ -246,30 +226,6 @@ class AdamW(optimizer.Optimizer):
             }
         )
         return config
-
-    def exclude_from_weight_decay(self, var_list=None, var_names=None):
-        """Exclude variables from weight decays.
-
-        This method must be called before the optimizer's `build` method is
-        called. You can set specific variables to exclude out, or set a list of
-        strings as the anchor words, if any of which appear in a variable's
-        name, then the variable is excluded.
-
-        Args:
-            var_list: A list of `tf.Variable`s to exclude from weight decay.
-            var_names: A list of strings. If any string in `var_names` appear
-                in the model variable's name, then this model variable is
-                excluded from weight decay. For example, `var_names=['bias']`
-                excludes all bias variables from weight decay.
-        """
-        if hasattr(self, "_built") and self._built:
-            raise ValueError(
-                "`exclude_from_weight_decay()` can only be configued before "
-                "the optimizer is built."
-            )
-
-        self._exclude_from_weight_decay = var_list or []
-        self._exclude_from_weight_decay_names = var_names or []
 
 
 AdamW.__doc__ = AdamW.__doc__.replace(
