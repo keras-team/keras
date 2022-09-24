@@ -138,13 +138,12 @@ class SGD(optimizer.Optimizer):
         if hasattr(self, "_built") and self._built:
             return
         self.momentums = []
-        if self.momentum != 0:
-            for var in var_list:
-                self.momentums.append(
-                    self.add_variable_from_reference(
-                        model_variable=var, variable_name="m"
-                    )
+        for var in var_list:
+            self.momentums.append(
+                self.add_variable_from_reference(
+                    model_variable=var, variable_name="m"
                 )
+            )
         self._built = True
 
     def update_step(self, gradient, variable):
@@ -152,9 +151,8 @@ class SGD(optimizer.Optimizer):
         lr = tf.cast(self.learning_rate, variable.dtype)
         m = None
         var_key = self._var_key(variable)
-        if self.momentum != 0:
-            momentum = tf.cast(self.momentum, variable.dtype)
-            m = self.momentums[self._index_dict[var_key]]
+        momentum = tf.cast(self.momentum, variable.dtype)
+        m = self.momentums[self._index_dict[var_key]]
 
         # TODO(b/204321487): Add nesterov acceleration.
         if isinstance(gradient, tf.IndexedSlices):
