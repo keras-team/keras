@@ -121,18 +121,14 @@ class GlobalMaxPoolingTest(tf.test.TestCase, parameterized.TestCase):
             input_shape=(3, 4, 3, 4, 3),
             expected_output_shape=(None, 1, 1, 1, 3),
         )
-    
+
     def test_global_max_pooling_1d_invalid_input_dimension(self):
-        with self.assertRaisesRegex(
-            ValueError, r"""Incorrect input shape"""
-        ):
+        with self.assertRaisesRegex(ValueError, r"""Incorrect input shape"""):
             layer = keras.layers.GlobalMaxPooling1D()
             layer.build((None, 0, 2))
-    
+
     def test_global_max_pooling_3d_invalid_input_dimension(self):
-        with self.assertRaisesRegex(
-            ValueError, r"""Incorrect input shape"""
-        ):
+        with self.assertRaisesRegex(ValueError, r"""Incorrect input shape"""):
             layer = keras.layers.GlobalMaxPooling3D(keepdims=True)
             layer.build((None, 0, 16, 16, 3))
 
