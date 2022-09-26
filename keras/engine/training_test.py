@@ -2139,6 +2139,83 @@ class TrainingTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_custom_compute_metrics_disable_on_train(self):
+        class CustomMetric(metrics_module.BinaryAccuracy):
+            def __init__(self, name, disable_train_compute):
+                super().__init__(name=name)
+                self.disable_train_compute = disable_train_compute
+
+        metric = CustomMetric(name="metric", disable_train_compute=False)
+        test_only_metric = CustomMetric(
+            name="test_only_metric", disable_train_compute=True
+        )
+
+        class MyModel(sequential.Sequential):
+            def compile(self, *args, **kwargs):
+                metrics = kwargs.get("metrics", None)
+                super().compile(*args, **kwargs)
+                on_train_metrics = [
+                    m for m in metrics if not m.disable_train_compute
+                ]
+                self.on_train_compiled_metrics = compile_utils.MetricsContainer(
+                    on_train_metrics,
+                    weighted_metrics=None,
+                    output_names=self.output_names,
+                    from_serialized=False,
+                )
+
+            def compute_metrics(
+                self, x, y, y_pred, sample_weight, training=None
+            ):
+                if training:
+                    self.on_train_compiled_metrics.update_state(
+                        y, y_pred, sample_weight
+                    )
+                    if not self.compiled_metrics.built:
+                        self.compiled_metrics.build(y_pred, y)
+                else:
+                    self.compiled_metrics.update_state(y, y_pred, sample_weight)
+                return self.get_metrics_result()
+
+        test_suite = self
+
+        class MetricCheck(keras.callbacks.Callback):
+            def test_logs(self, logs, training):
+                test_suite.assertIsNotNone(logs)
+                test_suite.assertIn("loss", logs)
+                test_suite.assertIn("metric", logs)
+                test_suite.assertIn("test_only_metric", logs)
+                test_suite.assertGreater(metric.count, 0)
+                if training:
+                    test_suite.assertEqual(test_only_metric.count, 0)
+                else:
+                    test_suite.assertGreater(test_only_metric.count, 0)
+
+            def on_train_batch_end(self, batch, logs=None):
+                self.test_logs(logs, training=True)
+
+            def on_test_batch_end(self, batch, logs=None):
+                self.test_logs(logs, training=False)
+
+        x, y = np.random.random((100, 10)), np.random.randint(0, 2, (100,))
+
+        optimizer = optimizer_v2.gradient_descent.SGD()
+        metrics = [metric, test_only_metric]
+        model = MyModel(
+            [layers_module.Dense(10)],
+        )
+        model.compile(optimizer, loss="mse", metrics=metrics)
+        model.fit(
+            x,
+            y,
+            epochs=2,
+            validation_split=0.5,
+            steps_per_epoch=10,
+            callbacks=[MetricCheck()],
+            verbose=2,
+        )
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_custom_compute_loss(self):
         class MyModel(training_module.Model):
             def __init__(self, *args, **kwargs):
