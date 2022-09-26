@@ -205,7 +205,7 @@ def model_metadata(model, include_optimizer=True, require_config=True):
                 )
             else:
                 optimizer_config = {
-                    "class_name": generic_utils.get_registered_name(
+                    "class_name": keras.utils.get_registered_name(
                         model.optimizer.__class__
                     ),
                     "config": model.optimizer.get_config(),
@@ -227,7 +227,7 @@ def compile_args_from_training_config(training_config, custom_objects=None):
     if custom_objects is None:
         custom_objects = {}
 
-    with generic_utils.CustomObjectScope(custom_objects):
+    with keras.utils.CustomObjectScope(custom_objects):
         optimizer_config = training_config["optimizer_config"]
         optimizer = optimizers.deserialize(optimizer_config)
 

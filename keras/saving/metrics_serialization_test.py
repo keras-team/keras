@@ -27,7 +27,7 @@ from keras import metrics
 from keras.optimizers import optimizer_v2
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
+from keras.utils import custom_object_scope
 
 try:
     import h5py
@@ -176,7 +176,7 @@ class MetricsSerialization(test_combinations.TestCase):
         metric_input = tf.nest.map_structure(get_instance, value)
         weighted_metric_input = tf.nest.map_structure(get_instance, value)
 
-        with generic_utils.custom_object_scope(
+        with custom_object_scope(
             {
                 "MyMeanAbsoluteError": MyMeanAbsoluteError,
                 "_my_mae": _my_mae,

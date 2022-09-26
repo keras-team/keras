@@ -26,30 +26,26 @@ from tensorflow.python.platform import tf_logging as logging
 import keras
 from keras import backend
 from keras.optimizers.optimizer_experimental import adam
+from keras.saving import object_registration
 from keras.saving.experimental import saving_lib
 from keras.saving.saved_model import json_utils
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 from keras.utils import io_utils
 
 train_step_message = "This is my training step"
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class MyDense(keras.layers.Dense):
     def build(self, input_shape):
         self.additional_weights = [
             self.add_weight(
                 "my_additional_weight",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
             self.add_weight(
                 "my_additional_weight_2",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
@@ -57,7 +53,6 @@ class MyDense(keras.layers.Dense):
         self.weights_in_dict = {
             "my_weight": self.add_weight(
                 "my_dict_weight",
-                shape=(1, 1),
                 initializer="ones",
                 trainable=True,
             ),
@@ -66,19 +61,14 @@ class MyDense(keras.layers.Dense):
         return super().build(input_shape)
 
     def call(self, inputs):
-        outputs = super().call(inputs)
-        outputs = self.nested_layer(outputs)
-        outputs = tf.matmul(outputs, self.additional_weights[0])
-        outputs = tf.matmul(outputs, self.additional_weights[1])
-        return tf.matmul(outputs, self.weights_in_dict["my_weight"])
+        call_result = super().call(inputs)
+        return self.nested_layer(call_result)
 
     def two(self):
         return 2
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -106,9 +96,7 @@ class CustomModelX(keras.Model):
         return 1
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CompileOverridingModel(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -121,17 +109,13 @@ class CompileOverridingModel(keras.Model):
         return self.dense1(inputs)
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CompileOverridingSequential(keras.Sequential):
     def compile(self, *args, **kwargs):
         super().compile(*args, **kwargs)
 
 
-@keras.utils.generic_utils.register_keras_serializable(
-    package="my_custom_package"
-)
+@keras.utils.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, added here as a custom
     func."""
@@ -184,13 +168,11 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         # This is so that we can register another function with the same custom
         # object key, and make sure the newly registered function is used while
         # loading.
-        del generic_utils._GLOBAL_CUSTOM_OBJECTS[
+        del object_registration._GLOBAL_CUSTOM_OBJECTS[
             "my_custom_package>my_mean_squared_error"
         ]
 
-        @keras.utils.generic_utils.register_keras_serializable(
-            package="my_custom_package"
-        )
+        @keras.utils.register_keras_serializable(package="my_custom_package")
         def my_mean_squared_error(y_true, y_pred):
             """Function-local `mean_squared_error`."""
             return backend.mean(
@@ -436,8 +418,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
         # Mutate the `Dense` layer custom weights to ensure that list and
         # dict-contained weights get restored.
-        model.layers[1].additional_weights[0].assign([[2]])
-        model.layers[1].weights_in_dict["my_weight"].assign([[2]])
+        model.layers[1].additional_weights[0].assign(2)
+        model.layers[1].weights_in_dict["my_weight"].assign(2)
         model.layers[1].nested_layer.kernel.assign([[1]])
 
         model._save_experimental(temp_filepath)
@@ -500,29 +482,6 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         metadata = json_utils.decode(metadata_json)
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
-
-    @tf.__internal__.distribute.combinations.generate(
-        tf.__internal__.test.combinations.combine(
-            model_type=["subclassed", "functional", "sequential"],
-        )
-    )
-    def test_saving_optimizer_variables(self, model_type):
-        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
-        model = getattr(self, f"_get_{model_type}_model")()
-        x = np.random.random((100, 32))
-        y = np.random.random((100, 1))
-        model.fit(x, y, epochs=1)
-        model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
-
-        self.assertEqual(
-            len(model.optimizer.variables()),
-            len(loaded_model.optimizer.variables()),
-        )
-        for original_weights, loaded_weights in zip(
-            model.optimizer.variables(), loaded_model.optimizer.variables()
-        ):
-            np.testing.assert_allclose(original_weights, loaded_weights)
 
 
 if __name__ == "__main__":

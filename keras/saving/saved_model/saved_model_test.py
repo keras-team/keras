@@ -36,13 +36,13 @@ from keras import regularizers
 from keras.feature_column.dense_features import DenseFeatures
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
+from keras.saving import object_registration
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import load as keras_load
 from keras.saving.saved_model import save_impl as keras_save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
-from keras.utils import generic_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 
@@ -94,7 +94,7 @@ class LayerWithUpdate(keras.layers.Layer):
         return inputs * 2.0
 
 
-@generic_utils.register_keras_serializable("Testing")
+@object_registration.register_keras_serializable("Testing")
 class GlobalLayerThatShouldFailIfNotAdded(keras.layers.Layer):
     _must_restore_from_config = True
 
@@ -429,7 +429,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         )
         saved_model_dir = self._save_model_dir()
         model.save(saved_model_dir, save_format="tf")
-        with generic_utils.CustomObjectScope(
+        with object_registration.CustomObjectScope(
             {"LayerThatShouldFailIfNotAdded": LayerThatShouldFailIfNotAdded}
         ):
             _ = keras_load.load(saved_model_dir)
@@ -718,7 +718,7 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
         saved_model_dir = self._save_model_dir()
         model.save(saved_model_dir, save_format="tf")
 
-        with keras.utils.generic_utils.custom_object_scope({"Model": Model}):
+        with object_registration.custom_object_scope({"Model": Model}):
             loaded = keras_load.load(saved_model_dir)
         self.assertAllClose(
             prediction, loaded.predict(np.ones([1, 3]).astype("float32"))
@@ -1155,7 +1155,7 @@ class TestSavedModelFormat(tf.test.TestCase):
 
         # Even if the `CustomLayer` is not provided in `custom_object_scope`,
         # `Model` still has that reference.
-        with keras.utils.generic_utils.custom_object_scope({"Model": Model}):
+        with object_registration.custom_object_scope({"Model": Model}):
             loaded = keras_load.load(saved_model_dir)
         self.assertAllEqual([[1.0]], self.evaluate(loaded(inp)))
         self.assertAllEqual([[1.0]], self.evaluate(loaded.layer(inp)))
@@ -1163,7 +1163,7 @@ class TestSavedModelFormat(tf.test.TestCase):
 
         # If `CustomLayer` is provided in `custom_object_scope`, it should of
         # course use that custom class.
-        with keras.utils.generic_utils.custom_object_scope(
+        with object_registration.custom_object_scope(
             {"Model": Model, "CustomLayer": CustomLayer}
         ):
             loaded = keras_load.load(saved_model_dir)
@@ -1173,7 +1173,7 @@ class TestSavedModelFormat(tf.test.TestCase):
 
         # If the symbol is no longer available, loading should raise an error.
         del CustomLayer
-        with keras.utils.generic_utils.custom_object_scope({"Model": Model}):
+        with object_registration.custom_object_scope({"Model": Model}):
             with self.assertRaisesRegex(
                 NameError,
                 "free variable 'CustomLayer' referenced "
@@ -1220,7 +1220,7 @@ class TestSavedModelFormat(tf.test.TestCase):
             loaded.attached_layer(tf.constant([1.0]))
 
         # Try loading with the custom objects
-        with generic_utils.CustomObjectScope({"DoNotTrace": DoNotTrace}):
+        with object_registration.CustomObjectScope({"DoNotTrace": DoNotTrace}):
             loaded = keras_load.load(saved_model_dir)
         with self.assertRaisesRegex(ValueError, "I said do not trace"):
             loaded.attached_layer(tf.constant([1.0]))
@@ -1365,7 +1365,7 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
         )
 
 
-@generic_utils.register_keras_serializable("Testing")
+@object_registration.register_keras_serializable("Testing")
 class CustomMeanMetric(keras.metrics.Mean):
     def update_state(self, *args):
         # Sometimes built-in metrics return an op in update_state. Custom
@@ -1491,7 +1491,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
                 self._test_metric_save_and_load(
                     metric, save_dir, num_tensor_args
                 )
-            with generic_utils.CustomObjectScope(
+            with object_registration.CustomObjectScope(
                 {"CustomMetric": CustomMetric}
             ):
                 loaded = self._test_metric_save_and_load(
@@ -1530,7 +1530,9 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
 
         metric = NegativeMean()
         self.evaluate([v.initializer for v in metric.variables])
-        with generic_utils.CustomObjectScope({"NegativeMean": NegativeMean}):
+        with object_registration.CustomObjectScope(
+            {"NegativeMean": NegativeMean}
+        ):
             self._test_metric_save_and_load(
                 metric, self._save_model_dir(), 1, test_sample_weight=False
             )
@@ -1563,7 +1565,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaisesRegex(ValueError, "custom_objects"):
             keras_load.load(saved_model_dir)
 
-        with generic_utils.CustomObjectScope(
+        with object_registration.CustomObjectScope(
             {"CustomMetric": CustomMetric, "zero_metric": zero_metric}
         ):
             loaded = keras_load.load(saved_model_dir)

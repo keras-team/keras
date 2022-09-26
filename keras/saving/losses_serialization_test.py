@@ -27,7 +27,6 @@ from keras import losses
 from keras.optimizers import optimizer_v2
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 from keras.utils import losses_utils
 
 try:
@@ -126,7 +125,7 @@ class LossesSerialization(test_combinations.TestCase):
         self.w = np.array([1.25, 0.5, 1.25], dtype="float32")
 
     def test_serializing_model_with_loss_with_custom_object_scope(self, value):
-        with generic_utils.custom_object_scope(
+        with keras.utils.custom_object_scope(
             {
                 "MyMeanAbsoluteError": MyMeanAbsoluteError,
                 "my_mae": my_mae,

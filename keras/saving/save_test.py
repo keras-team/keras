@@ -36,6 +36,7 @@ from keras.layers import core
 from keras.optimizers import optimizer_v1
 from keras.premade_models.linear import LinearModel
 from keras.saving import model_config
+from keras.saving import object_registration
 from keras.saving import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -227,9 +228,9 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     def test_saving_model_with_custom_object(self):
-        with generic_utils.custom_object_scope(), self.cached_session():
+        with object_registration.custom_object_scope(), self.cached_session():
 
-            @generic_utils.register_keras_serializable()
+            @object_registration.register_keras_serializable()
             class CustomLoss(losses.MeanSquaredError):
                 pass
 
@@ -285,7 +286,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
         self.assertEmpty(matched)
 
 
-@generic_utils.register_keras_serializable(package="Foo")
+@object_registration.register_keras_serializable(package="Foo")
 class RegisteredSubLayer(keras.layers.Layer):
     pass
 
@@ -485,11 +486,6 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 keras.optimizers.optimizer_experimental.Optimizer,
             ):
                 loaded_model.optimizer.build(loaded_model.trainable_variables)
-                save_format = test_utils.get_save_format()
-                if save_format == "h5":
-                    # Experimental optimizer does not restore weights if saved
-                    # in h5 format.
-                    return
                 self.assertAllClose(
                     model.optimizer.variables(),
                     loaded_model.optimizer.variables(),
@@ -1227,7 +1223,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 except TypeError:
                     return
 
-        with generic_utils.CustomObjectScope(
+        with object_registration.CustomObjectScope(
             {"OuterLayer": OuterLayer, "InnerLayer": InnerLayer}
         ):
 

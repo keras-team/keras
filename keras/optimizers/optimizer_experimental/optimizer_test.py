@@ -327,8 +327,20 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllEqual([var1.numpy(), var2.numpy()], [-0.125, -0.125])
 
     def testGetAndFromConfig(self):
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        learning_rate = CustomLRSchedule(0.05)
         optimizer = adam_new.Adam(
-            learning_rate=np.float64(0.05),
+            learning_rate=learning_rate,
             beta_1=0.7,
             beta_2=0.77,
             amsgrad=True,
@@ -342,7 +354,6 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         config = optimizer.get_config()
         expected_config = {
             "name": "custom_adam",
-            "learning_rate": np.float32(0.05),
             "beta_1": 0.7,
             "beta_2": 0.77,
             "epsilon": 0.001,
@@ -355,8 +366,16 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             "ema_overwrite_frequency": 50,
             "is_legacy_optimizer": False,
         }
+        expected_learning_rate = {
+            "class_name": "CustomLRSchedule",
+            "config": {"initial_learning_rate": 0.05},
+        }
         self.assertDictContainsSubset(expected_config, config)
-        restored_optimizer = adam_new.Adam.from_config(config)
+        self.assertDictEqual(expected_learning_rate, config["learning_rate"])
+
+        restored_optimizer = adam_new.Adam.from_config(
+            config, custom_objects={"CustomLRSchedule": CustomLRSchedule}
+        )
         self.assertDictEqual(
             restored_optimizer.get_config(), optimizer.get_config()
         )
@@ -460,6 +479,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(type(optimizer), type(loaded_optimizer))
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
+        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
 
         # Save in Keras SavedModel format.
         model.fit(x, y)
@@ -471,6 +491,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(type(optimizer), type(loaded_optimizer))
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
+        loaded_optimizer.build(loaded_model.trainable_variables)
+        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
 
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSparseGradientsWorkAsExpected(self, optimizer_fn):

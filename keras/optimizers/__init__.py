@@ -77,7 +77,6 @@ from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import get_registered_name
 from keras.utils.generic_utils import serialize_keras_object
 
 # isort: off
@@ -91,7 +90,7 @@ def serialize(optimizer):
     The configuration can be used for persistence and reconstruct the
     `Optimizer` instance again.
 
-    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.SGD())
+    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.legacy.SGD())
     {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
                                      'decay': 0.0, 'momentum': 0.0,
                                      'nesterov': False}}
