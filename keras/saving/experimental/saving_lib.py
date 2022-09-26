@@ -16,10 +16,8 @@
 
 import datetime
 import json
-import os
 import tempfile
 import threading
-import uuid
 import warnings
 import zipfile
 
@@ -262,18 +260,10 @@ def _load_container_state(container, temp_path):
 
 def _get_temp_dir():
     temp_dir = tempfile.mkdtemp()
-    try:
-        testfile = tempfile.TemporaryFile(dir=temp_dir)
-        testfile.close()
-        stats = os.statvfs(temp_dir)
-        available_space = stats.f_frsize * stats.f_bavail
-    except OSError:
-        # Non-writable
-        available_space = 0
-    if available_space < 2000000000:
-        # Fallback on RAM if disk is nonwritable or if less than 2GB available.
-        temp_dir = f"ram://{uuid.uuid4()}"
-        tf.io.gfile.mkdir(temp_dir)
+    testfile = tempfile.TemporaryFile(dir=temp_dir)
+    testfile.close()
+    # TODO(fchollet): Fallback on RAM if disk is nonwritable or if less than 2GB
+    # available.
     return temp_dir
 
 
