@@ -1108,7 +1108,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           y: Target data.
           y_pred: Predictions returned by the model (output of `model.call(x)`)
           sample_weight: Sample weights for weighting the loss function.
-          training: Whether the metrics are computed during train or evaluation.
+          training: Whether the metrics are computed in training mode or
+          in inference mode.
 
         Returns:
           A `dict` containing values that will be passed to
