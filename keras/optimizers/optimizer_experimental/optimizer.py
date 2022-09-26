@@ -473,8 +473,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         """
         if initial_value is None:
             if shape is None:
-                initial_value = tf.zeros(
-                    shape=model_variable.shape, dtype=model_variable.dtype
+                initial_value = tf.zeros_like(
+                    model_variable, dtype=model_variable.dtype
                 )
             else:
                 initial_value = tf.zeros(shape, dtype=model_variable.dtype)
