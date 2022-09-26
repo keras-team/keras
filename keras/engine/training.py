@@ -691,7 +691,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.
               `jit_compile` is not enabled for by default.
-              This option cannot be enabled with `run_eagerly=True`.
               Note that `jit_compile=True`
               may not necessarily work for all models.
               For more information on supported operations please refer to the
@@ -941,6 +940,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     @run_eagerly.setter
     def run_eagerly(self, value):
         self._run_eagerly = value
+
+    @property
+    def jit_compile(self):
+        """Specify whether to compile the model with XLA.
+
+        [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
+        for machine learning. `jit_compile` is not enabled by default.
+        Note that `jit_compile=True` may not necessarily work for all models.
+
+        For more information on supported operations please refer to the
+        [XLA documentation](https://www.tensorflow.org/xla). Also refer to
+        [known XLA issues](https://www.tensorflow.org/xla/known_issues)
+        for more details.
+        """
+        return self._jit_compile
+
+    @jit_compile.setter
+    def jit_compile(self, value):
+        # Function remains cached with previous jit_compile settings
+        if self._jit_compile == value:
+            # Avoid reseting compiler cache if possible if the value is the same
+            return
+
+        self._jit_compile = value
+
+        # Setting `jit_compile` should invalidate previously cached functions.
+        self._reset_compile_cache()
 
     @property
     def distribute_reduction_method(self):
@@ -1225,7 +1251,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._train_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
@@ -1795,7 +1821,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._test_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
@@ -2114,7 +2140,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._predict_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )

@@ -58,6 +58,10 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
+    name: "jit_compile"
+    mtype: "<type \'property\'>"
+  }
+  member {
     name: "layers"
     mtype: "<type \'property\'>"
   }
