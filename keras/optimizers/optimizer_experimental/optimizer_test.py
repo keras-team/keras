@@ -524,19 +524,22 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         x1 = tf.Variable(np.ones([10]), dtype=tf.float64)
         x2 = tf.Variable(np.ones([10]), dtype=tf.float64)
         grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
+        first_grads = tf.constant([0.01] * 10, dtype=tf.float64)
         sparse_grads = tf.IndexedSlices(
             tf.convert_to_tensor([0, 0.2, 0.4, 0.8, 0.8], dtype=tf.float64),
             tf.convert_to_tensor([0, 2, 4, 6, 6]),
             dense_shape=tf.convert_to_tensor([len(grads)]),
         )
 
+        old_optimizer.apply_gradients(zip([first_grads], [x1]))
+        new_optimizer.apply_gradients(zip([first_grads], [x2]))
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([grads], [x1]))
             new_optimizer.apply_gradients(zip([grads], [x2]))
 
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([sparse_grads], [x1]))
             new_optimizer.apply_gradients(zip([sparse_grads], [x2]))
 
@@ -557,7 +560,10 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         self._compare_numerical(ftrl_old.Ftrl(), ftrl_new.Ftrl())
 
     def testRMSprop(self):
-        self._compare_numerical(rmsprop_old.RMSprop(), rmsprop_new.RMSprop())
+        self._compare_numerical(
+            rmsprop_old.RMSprop(centered=True),
+            rmsprop_new.RMSprop(centered=True),
+        )
 
     @parameterized.product(nesterov=[True, False])
     def testSgd(self, nesterov):
