@@ -44,7 +44,7 @@ class Dropout(base_layer.BaseRandomLayer):
     `trainable` does not affect the layer's behavior, as Dropout does
     not have any variables/weights that can be frozen during training.)
 
-    >>> tf.random.set_seed(0)
+    >>> tf.keras.utils.set_random_seed(0)
     >>> layer = tf.keras.layers.Dropout(.2, input_shape=(2,))
     >>> data = np.arange(10).reshape(5, 2).astype(np.float32)
     >>> print(data)
@@ -57,7 +57,7 @@ class Dropout(base_layer.BaseRandomLayer):
     >>> print(outputs)
     tf.Tensor(
     [[ 0.    1.25]
-     [ 2.5   3.75]
+     [ 0.    3.75]
      [ 5.    6.25]
      [ 7.5   8.75]
      [10.    0.  ]], shape=(5, 2), dtype=float32)
