@@ -1022,7 +1022,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self._validate_target_and_loss(y, loss)
         # Run backwards pass.
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return self.compute_metrics(x, y, y_pred, sample_weight)
+        return self.compute_metrics(x, y, y_pred, sample_weight, training=True)
 
     def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None):
         """Compute the total loss, validate it, and return it.
@@ -1080,7 +1080,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             y, y_pred, sample_weight, regularization_losses=self.losses
         )
 
-    def compute_metrics(self, x, y, y_pred, sample_weight):
+    def compute_metrics(self, x, y, y_pred, sample_weight, training=False):
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric
@@ -1090,12 +1090,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         ```python
         class MyModel(tf.keras.Sequential):
 
-          def compute_metrics(self, x, y, y_pred, sample_weight):
+          def compute_metrics(self, x, y, y_pred, sample_weight, training):
 
             # This super call updates `self.compiled_metrics` and returns
             # results for all metrics listed in `self.metrics`.
             metric_results = super(MyModel, self).compute_metrics(
-                x, y, y_pred, sample_weight)
+                x, y, y_pred, sample_weight, training)
 
             # Note that `self.custom_metric` is not listed in `self.metrics`.
             self.custom_metric.update_state(x, y, y_pred, sample_weight)
@@ -1108,6 +1108,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           y: Target data.
           y_pred: Predictions returned by the model (output of `model.call(x)`)
           sample_weight: Sample weights for weighting the loss function.
+          training: Whether the metrics are computed during train or evaluation.
 
         Returns:
           A `dict` containing values that will be passed to
@@ -1753,7 +1754,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         y_pred = self(x, training=False)
         # Updates stateful loss metrics.
         self.compute_loss(x, y, y_pred, sample_weight)
-        return self.compute_metrics(x, y, y_pred, sample_weight)
+        return self.compute_metrics(x, y, y_pred, sample_weight, training=False)
 
     def make_test_function(self, force=False):
         """Creates a function that executes one step of evaluation.
