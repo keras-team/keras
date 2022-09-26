@@ -30,6 +30,7 @@ from keras import layers as layers_module
 from keras import losses
 from keras import metrics as metrics_module
 from keras.callbacks import Callback
+from keras.engine import compile_utils
 from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_module
