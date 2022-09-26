@@ -35,6 +35,7 @@ from keras.optimizers.legacy import sgd as sgd_legacy
 from keras.optimizers.optimizer_experimental import (
     adadelta as adadelta_experimental,
 )
+from keras.optimizers.optimizer_experimental import adafactor
 from keras.optimizers.optimizer_experimental import (
     adagrad as adagrad_experimental,
 )

@@ -13,6 +13,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
+from keras.optimizers.optimizer_experimental import adafactor as adafactor_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
 from keras.optimizers.optimizer_experimental import adamax as adamax_new
@@ -53,6 +54,9 @@ adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002)
 )
+adafactor_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "adafactor", lambda: adafactor_new.Adafactor(0.002)
+)
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002)
 )
@@ -79,6 +83,7 @@ sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
 OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
+    adafactor_new_fn,
     adam_new_fn,
     adamax_new_fn,
     adamw_new_fn,
