@@ -14,6 +14,7 @@ py_library(
     srcs = [
         "__init__.py",
         "adadelta.py",
+        "adafactor.py",
         "adagrad.py",
         "adam.py",
         "adamax.py",
