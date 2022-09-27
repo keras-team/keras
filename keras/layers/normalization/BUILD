@@ -18,6 +18,7 @@ py_library(
     deps = [
         ":batch_normalization",
         ":batch_normalization_v1",
+        ":group_normalization",
         ":layer_normalization",
         ":unit_normalization",
     ],
@@ -51,6 +52,20 @@ py_library(
 )
 
 py_library(
+    name = "group_normalization",
+    srcs = ["group_normalization.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:constraints",
+        "//keras:regularizers",
+        "//keras/dtensor:utils",
+        "//keras/engine:base_layer",
+        "//keras/initializers",
+    ],
+)
+
+py_library(
     name = "layer_normalization",
     srcs = ["layer_normalization.py"],
     srcs_version = "PY3",
@@ -71,6 +86,30 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/engine:base_layer",
+    ],
+)
+
+cuda_py_test(
+    name = "group_normalization_test",
+    size = "medium",
+    srcs = ["group_normalization_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    tags = [
+        "notsan",
+    ],
+    xla_tags = [
+        "no_cuda_asan",  # times out
+    ],
+    deps = [
+        ":group_normalization",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 

@@ -88,6 +88,7 @@ class Adam(optimizer.Optimizer):
         beta_2=0.999,
         epsilon=1e-7,
         amsgrad=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -100,6 +101,7 @@ class Adam(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

@@ -102,6 +102,7 @@ from keras.layers.normalization.batch_normalization import (
 )
 
 # Normalization layers.
+from keras.layers.normalization.group_normalization import GroupNormalization
 from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.unit_normalization import UnitNormalization
 

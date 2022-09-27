@@ -64,6 +64,7 @@ class Adadelta(optimizer.Optimizer):
         learning_rate=0.001,
         rho=0.95,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -75,6 +76,7 @@ class Adadelta(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

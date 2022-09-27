@@ -13,6 +13,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
+from keras.optimizers.optimizer_experimental import adafactor as adafactor_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
 from keras.optimizers.optimizer_experimental import adamax as adamax_new
@@ -53,6 +54,9 @@ adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002)
 )
+adafactor_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "adafactor", lambda: adafactor_new.Adafactor(0.002)
+)
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002)
 )
@@ -73,12 +77,15 @@ rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
 )
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
-    lambda: sgd_new.SGD(0.002, use_ema=True, ema_overwrite_frequency=1),
+    lambda: sgd_new.SGD(
+        0.002, weight_decay=0.004, use_ema=True, ema_overwrite_frequency=1
+    ),
 )
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
+    adafactor_new_fn,
     adam_new_fn,
     adamax_new_fn,
     adamw_new_fn,
@@ -162,13 +169,34 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
 
         optimizer_2 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
-        optimizer_2.apply_gradients(zip([grads], [var2]))
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
 
         optimizer_3 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_3.exclude_from_weight_decay(var_list=[var3])
-        optimizer_3.apply_gradients(zip([grads], [var3]))
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
 
-        self.assertEqual(var1, 1.992)
+        self.assertEqual(var1, 1.9760959)
+        self.assertEqual(var2, 2.0)
+        self.assertEqual(var3, 2.0)
+
+        grads, var1, var2, var3 = (
+            tf.zeros(()),
+            tf.Variable(2.0),
+            tf.Variable(2.0, name="exclude"),
+            tf.Variable(2.0),
+        )
+        optimizer_1 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_1.apply_gradients(zip([grads], [var1]))
+
+        optimizer_2 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
+
+        optimizer_3 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_3.exclude_from_weight_decay(var_list=[var3])
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
+
+        self.assertEqual(var1, 1.9760959)
         self.assertEqual(var2, 2.0)
         self.assertEqual(var3, 2.0)
 
@@ -519,19 +547,22 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         x1 = tf.Variable(np.ones([10]), dtype=tf.float64)
         x2 = tf.Variable(np.ones([10]), dtype=tf.float64)
         grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
+        first_grads = tf.constant([0.01] * 10, dtype=tf.float64)
         sparse_grads = tf.IndexedSlices(
             tf.convert_to_tensor([0, 0.2, 0.4, 0.8, 0.8], dtype=tf.float64),
             tf.convert_to_tensor([0, 2, 4, 6, 6]),
             dense_shape=tf.convert_to_tensor([len(grads)]),
         )
 
+        old_optimizer.apply_gradients(zip([first_grads], [x1]))
+        new_optimizer.apply_gradients(zip([first_grads], [x2]))
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([grads], [x1]))
             new_optimizer.apply_gradients(zip([grads], [x2]))
 
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([sparse_grads], [x1]))
             new_optimizer.apply_gradients(zip([sparse_grads], [x2]))
 
@@ -552,12 +583,21 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         self._compare_numerical(ftrl_old.Ftrl(), ftrl_new.Ftrl())
 
     def testRMSprop(self):
-        self._compare_numerical(rmsprop_old.RMSprop(), rmsprop_new.RMSprop())
+        self._compare_numerical(
+            rmsprop_old.RMSprop(centered=True),
+            rmsprop_new.RMSprop(centered=True),
+        )
 
     @parameterized.product(nesterov=[True, False])
     def testSgd(self, nesterov):
         self._compare_numerical(
             sgd_old.SGD(nesterov=nesterov), sgd_new.SGD(nesterov=nesterov)
+        )
+
+    def testWeightDecay(self):
+        self._compare_numerical(
+            adam_new.Adam(learning_rate=1, weight_decay=0.5, epsilon=0),
+            adamw_new.AdamW(learning_rate=1, weight_decay=0.5, epsilon=0),
         )
 
 
