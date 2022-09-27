@@ -247,7 +247,7 @@ class NormalizationTest(
         inv_norm.adapt(input_data)
         output = norm(input_data)
         output2 = inv_norm(output)
-        self.assertListEqual(output2.shape.as_list(), [4])
+        self.assertListEqual(output2.shape.as_list(), [4, 1])
         self.assertAllClose(input_data, output2)
 
 
