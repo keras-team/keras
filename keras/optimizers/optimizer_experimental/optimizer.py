@@ -18,6 +18,7 @@ This is under development, and subject to interface/implementation changes.
 """
 
 import abc
+import re
 
 import tensorflow.compat.v2 as tf
 from absl import logging
@@ -41,6 +42,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def __init__(
         self,
         name,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -51,6 +53,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         **kwargs,
     ):
         self.name = name
+        self.weight_decay = weight_decay
         self.clipnorm = clipnorm
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
@@ -511,20 +514,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
         self.apply_gradients(grads_and_vars)
 
-    def apply_gradients(self, grads_and_vars, name=None):
-        """Apply gradients to variables.
-
-        Args:
-          grads_and_vars: List of `(gradient, variable)` pairs.
-          name: string, defaults to None. The name of the namescope to
-            use when creating variables. If None, `self.name` will be used.
-
-        Returns:
-          A `tf.Variable`, representing the current iteration.
-
-        Raises:
-          TypeError: If `grads_and_vars` is malformed.
-        """
+    def _compute_current_learning_rate(self):
         if isinstance(
             self._learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
@@ -544,6 +534,67 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                     dtype=current_learning_rate.dtype,
                     trainable=False,
                 )
+
+    def exclude_from_weight_decay(self, var_list=None, var_names=None):
+        """Exclude variables from weight decay.
+
+        This method must be called before the optimizer's `build` method is
+        called. You can set specific variables to exclude out, or set a list of
+        strings as the anchor words, if any of which appear in a variable's
+        name, then the variable is excluded.
+
+        Args:
+            var_list: A list of `tf.Variable`s to exclude from weight decay.
+            var_names: A list of strings. If any string in `var_names` appear
+                in the model variable's name, then this model variable is
+                excluded from weight decay. For example, `var_names=['bias']`
+                excludes all bias variables from weight decay.
+        """
+        if hasattr(self, "_built") and self._built:
+            raise ValueError(
+                "`exclude_from_weight_decay()` can only be configued before "
+                "the optimizer is built."
+            )
+
+        if var_list:
+            self._exclude_from_weight_decay = [
+                self._var_key(variable) for variable in var_list
+            ]
+        else:
+            self._exclude_from_weight_decay = []
+        self._exclude_from_weight_decay_names = var_names or []
+
+    def _use_weight_decay(self, variable):
+        exclude_from_weight_decay = getattr(
+            self, "_exclude_from_weight_decay", []
+        )
+        exclude_from_weight_decay_names = getattr(
+            self, "_exclude_from_weight_decay_names", []
+        )
+        variable_id = self._var_key(variable)
+        for exclude_id in exclude_from_weight_decay:
+            if variable_id == exclude_id:
+                return False
+        for name in exclude_from_weight_decay_names:
+            if re.search(name, variable.name) is not None:
+                return False
+        return True
+
+    def apply_gradients(self, grads_and_vars, name=None):
+        """Apply gradients to variables.
+
+        Args:
+          grads_and_vars: List of `(gradient, variable)` pairs.
+          name: string, defaults to None. The name of the namescope to
+            use when creating variables. If None, `self.name` will be used.
+
+        Returns:
+          A `tf.Variable`, representing the current iteration.
+
+        Raises:
+          TypeError: If `grads_and_vars` is malformed.
+        """
+        self._compute_current_learning_rate()
         grads_and_vars = list(grads_and_vars)
         if len(grads_and_vars) == 0:
             # It is possible that the grad is empty. In this case,
@@ -566,6 +617,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         grads = self._clip_gradients(grads)
         grads = self._deduplicate_sparse_grad(grads)
+        self._apply_weight_decay(trainable_variables)
         grads_and_vars = list(zip(grads, trainable_variables))
         iteration = self._internal_apply_gradients(grads_and_vars)
 
@@ -574,6 +626,15 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             if variable.constraint is not None:
                 variable.assign(variable.constraint(variable))
         return iteration
+
+    def _apply_weight_decay(self, variables):
+        if self.weight_decay is None:
+            return
+        for variable in variables:
+            if self._use_weight_decay(variable):
+                lr = tf.cast(self.learning_rate, variable.dtype)
+                wd = tf.cast(self.weight_decay, variable.dtype)
+                variable.assign_sub(variable * wd * lr)
 
     def _internal_apply_gradients(self, grads_and_vars):
         """Helper function of apply gradients.
@@ -663,6 +724,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         """
         config = {
             "name": self.name,
+            "weight_decay": self.weight_decay,
             "clipnorm": self.clipnorm,
             "global_clipnorm": self.global_clipnorm,
             "clipvalue": self.clipvalue,
@@ -758,6 +820,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 base_optimizer_keyword_args = """name: String. The name to use
         for momentum accumulator weights created by
         the optimizer.
+      weight_decay: Float, defaults to None. If set, weight decay is applied.
       clipnorm: Float. If set, the gradient of each weight is individually
         clipped so that its norm is no higher than this value.
       clipvalue: Float. If set, the gradient of each weight is clipped to be no
@@ -870,10 +933,25 @@ class Optimizer(_BaseOptimizer):
     [2.0, 2.0]
     >>> opt.apply_gradients(zip(grads, [var1, var2]))
     >>> # Without clipping, we should get [0, 0], but as gradients are clipped
-    >>> # to
-    >>> # have max value 1, we get [1.0, 1.0].
+    >>> # to have max value 1, we get [1.0, 1.0].
     >>> print([var1.numpy(), var2.numpy()])
     [1.0, 1.0]
+
+    ### Using weight decay.
+
+    Weight decay in certain scenarios can boost the model's performance. Keras
+    has built-in support for weight decay in all optimizers. Users can apply
+    weight decay by setting `weight_decay` argument.
+
+    >>> opt = tf.keras.optimizers.experimental.SGD(1, weight_decay=0.004)
+    >>> grads, var1, var2 = tf.zeros(()), tf.Variable(2.0), tf.Variable(2.0)
+    >>> # You can exclude variables from weight decay, in this case we
+    >>> # exclude `var2`.
+    >>> opt.exclude_from_weight_decay(var_list=[var2])
+    >>> opt.apply_gradients(zip([grads, grads], [var1, var2]))
+    >>> print([var1.numpy(), var2.numpy()])
+    [1.992, 2.0]
+
 
     ### Using exponential moving average.
 
@@ -963,6 +1041,7 @@ class Optimizer(_BaseOptimizer):
     def __init__(
         self,
         name,
+        weight_decay=0,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -976,6 +1055,7 @@ class Optimizer(_BaseOptimizer):
 
         super().__init__(
             name,
+            weight_decay,
             clipnorm,
             clipvalue,
             global_clipnorm,
@@ -1053,6 +1133,29 @@ class Optimizer(_BaseOptimizer):
         if not skip_gradients_aggregation and experimental_aggregate_gradients:
             grads_and_vars = self.aggregate_gradients(grads_and_vars)
         return super().apply_gradients(grads_and_vars, name=name)
+
+    def _apply_weight_decay(self, variables):
+        # Apply weight decay in distributed setup.
+        if self.weight_decay is None:
+            return
+
+        def distributed_apply_weight_decay(distribution, variables, **kwargs):
+            def weight_decay_fn(variable):
+                if self._use_weight_decay(variable):
+                    lr = tf.cast(self.learning_rate, variable.dtype)
+                    wd = tf.cast(self.weight_decay, variable.dtype)
+                    variable.assign_sub(variable * wd * lr)
+
+            for variable in variables:
+                distribution.extended.update(
+                    variable, weight_decay_fn, group=False
+                )
+
+        tf.__internal__.distribute.interim.maybe_merge_call(
+            distributed_apply_weight_decay,
+            self._distribution_strategy,
+            variables,
+        )
 
     def _internal_apply_gradients(self, grads_and_vars):
         return tf.__internal__.distribute.interim.maybe_merge_call(

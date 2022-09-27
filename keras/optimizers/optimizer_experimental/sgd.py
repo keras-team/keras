@@ -96,6 +96,7 @@ class SGD(optimizer.Optimizer):
         momentum=0.0,
         nesterov=False,
         amsgrad=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -108,6 +109,7 @@ class SGD(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

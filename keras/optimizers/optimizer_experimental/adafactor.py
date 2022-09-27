@@ -69,6 +69,7 @@ class Adafactor(optimizer.Optimizer):
         epsilon_2=1e-3,
         clip_threshold=1.0,
         relative_step=True,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -81,6 +82,7 @@ class Adafactor(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

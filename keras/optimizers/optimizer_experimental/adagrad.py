@@ -58,6 +58,7 @@ class Adagrad(optimizer.Optimizer):
         learning_rate=0.001,
         initial_accumulator_value=0.1,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -69,6 +70,7 @@ class Adagrad(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

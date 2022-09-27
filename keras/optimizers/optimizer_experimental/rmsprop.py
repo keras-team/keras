@@ -78,6 +78,7 @@ class RMSprop(optimizer.Optimizer):
         momentum=0.0,
         epsilon=1e-7,
         centered=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -89,6 +90,7 @@ class RMSprop(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
