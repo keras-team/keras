@@ -1212,6 +1212,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.train_function is not None and not force:
             return self.train_function
 
+        @tf.autograph.experimental.do_not_convert
         def step_function(model, iterator):
             """Runs a single training step."""
 
@@ -1782,6 +1783,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.test_function is not None and not force:
             return self.test_function
 
+        @tf.autograph.experimental.do_not_convert
         def step_function(model, iterator):
             """Runs a single evaluation step."""
 
@@ -2101,6 +2103,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self.predict_function is not None and not force:
             return self.predict_function
 
+        @tf.autograph.experimental.do_not_convert
         def step_function(model, iterator):
             """Runs a single evaluation step."""
 
