@@ -350,6 +350,27 @@ class KerasOptimizersTest(test_combinations.TestCase):
             legacy_optimizer.get_config()["learning_rate"],
         )
 
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        lr_schedule = CustomLRSchedule(0.001)
+        optimizer = adam_experimental.Adam(learning_rate=lr_schedule)
+        legacy_optimizer = keras.optimizers.convert_to_legacy_optimizer(
+            optimizer
+        )
+        self.assertDictEqual(
+            optimizer.get_config()["learning_rate"],
+            legacy_optimizer.get_config()["learning_rate"],
+        )
+
 
 if __name__ == "__main__":
     tf.test.main()
