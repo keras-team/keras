@@ -24,7 +24,9 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Nadam", v1=[])
+@keras_export(
+    "keras.optimizers.experimental.Nadam", "keras.optimizers.Nadam", v1=[]
+)
 class Nadam(optimizer.Optimizer):
     r"""Optimizer that implements the Nadam algorithm.
 

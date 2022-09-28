@@ -23,7 +23,10 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.SGD")
+@keras_export(
+    "keras.optimizers.legacy.SGD",
+    v1=["keras.optimizers.SGD", "keras.optimizers.legacy.SGD"],
+)
 class SGD(optimizer_v2.OptimizerV2):
     r"""Gradient descent (with momentum) optimizer.
 

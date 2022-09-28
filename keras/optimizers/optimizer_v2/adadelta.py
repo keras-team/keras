@@ -24,7 +24,10 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.Adadelta")
+@keras_export(
+    "keras.optimizers.legacy.Adadelta",
+    v1=["keras.optimizers.Adadelta", "keras.optimizers.legacy.Adadelta"],
+)
 class Adadelta(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the Adadelta algorithm.
 

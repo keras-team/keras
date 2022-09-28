@@ -24,7 +24,9 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adadelta", v1=[])
+@keras_export(
+    "keras.optimizers.experimental.Adadelta", "keras.optimizers.Adadelta", v1=[]
+)
 class Adadelta(optimizer.Optimizer):
     r"""Optimizer that implements the Adadelta algorithm.
 

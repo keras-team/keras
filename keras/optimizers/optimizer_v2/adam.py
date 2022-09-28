@@ -23,7 +23,10 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.Adam")
+@keras_export(
+    "keras.optimizers.legacy.Adam",
+    v1=["keras.optimizers.Adam", "keras.optimizers.legacy.Adam"],
+)
 class Adam(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the Adam algorithm.
 
@@ -334,7 +337,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.Adam(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.legacy.Adam(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
     >>> loss = lambda: (var1 ** 2)/2.0       # d(loss)/d(var1) == var1
     >>> step_count = opt.minimize(loss, [var1]).numpy()
