@@ -1899,7 +1899,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
             # Test 'patience' argument functions correctly when used
             # in conjunction with 'start_from_epoch'.
-            assert len(history.epoch) >= patience + start_from_epoch
+            self.assertGreaterEqual(
+                len(history.epoch), patience + start_from_epoch
+            )
 
             start_from_epoch = 2
             patience = 0
@@ -1912,7 +1914,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 data, labels, callbacks=[stopper], verbose=0, epochs=20
             )
             # Test for boundary condition when 'patience' = 0.
-            assert len(history.epoch) >= start_from_epoch
+            self.assertGreaterEqual(len(history.epoch), start_from_epoch)
 
     def test_RemoteMonitor(self):
         if requests is None:
