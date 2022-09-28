@@ -510,7 +510,7 @@ class CuDNNV1OnlyTest(test_combinations.TestCase):
 
         def assert_not_compatible(src, dest, message):
             with self.assertRaises(ValueError) as ex:
-                keras.saving.hdf5_format.preprocess_weights_for_loading(
+                keras.saving.legacy.hdf5_format.preprocess_weights_for_loading(
                     dest, get_layer_weights(src)
                 )
             self.assertIn(message, str(ex.exception))

@@ -17,8 +17,8 @@
 import tensorflow.compat.v2 as tf
 
 from keras.saving import object_registration
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import layer_serialization
 
 
 class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):

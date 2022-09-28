@@ -611,7 +611,7 @@ def is_subclassed(layer):
 
 def from_saved_model(layer):
     """Returns whether the layer is loaded from a SavedModel."""
-    return layer.__module__.find("keras.saving.saved_model") != -1
+    return layer.__module__.find("keras.saving.legacy.saved_model") != -1
 
 
 def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):

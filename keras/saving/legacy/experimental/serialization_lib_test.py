@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.saving.experimental import serialization_lib
+from keras.saving.legacy.experimental import serialization_lib
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 

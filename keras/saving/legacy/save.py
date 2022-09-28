@@ -16,12 +16,12 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.saving import hdf5_format
 from keras.saving import object_registration
-from keras.saving import saving_utils
-from keras.saving.saved_model import load as saved_model_load
-from keras.saving.saved_model import load_context
-from keras.saving.saved_model import save as saved_model_save
+from keras.saving.legacy import hdf5_format
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import load as saved_model_load
+from keras.saving.legacy.saved_model import load_context
+from keras.saving.legacy.saved_model import save as saved_model_save
 from keras.utils import generic_utils
 from keras.utils import traceback_utils
 from keras.utils.io_utils import path_to_string

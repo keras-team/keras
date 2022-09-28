@@ -28,7 +28,7 @@ from absl.testing import parameterized
 
 import keras
 from keras import backend
-from keras.saving.saved_model import load as keras_load
+from keras.saving.legacy.saved_model import load as keras_load
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import CustomObjectScope

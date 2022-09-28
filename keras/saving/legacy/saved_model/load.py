@@ -29,11 +29,13 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration
-from keras.saving import saving_utils
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import json_utils
-from keras.saving.saved_model import utils
-from keras.saving.saved_model.serialized_attributes import CommonEndpoints
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import json_utils
+from keras.saving.legacy.saved_model import utils
+from keras.saving.legacy.saved_model.serialized_attributes import (
+    CommonEndpoints,
+)
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import metrics_utils

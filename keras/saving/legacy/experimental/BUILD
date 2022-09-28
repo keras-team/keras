@@ -21,7 +21,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/saving/saved_model",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:generic_utils",
     ],
 )

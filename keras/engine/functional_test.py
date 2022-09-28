@@ -28,7 +28,7 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.engine import sequential
 from keras.engine import training as training_lib
-from keras.saving import save
+from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import layer_utils

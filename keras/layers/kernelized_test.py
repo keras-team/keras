@@ -29,7 +29,7 @@ from keras.engine import base_layer_utils
 from keras.engine import input_layer
 from keras.engine import training
 from keras.layers import kernelized as kernel_layers
-from keras.saving import save
+from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import kernelized_utils

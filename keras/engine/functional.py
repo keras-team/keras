@@ -33,8 +33,8 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
-from keras.saving.saved_model import json_utils
-from keras.saving.saved_model import network_serialization
+from keras.saving.legacy.saved_model import json_utils
+from keras.saving.legacy.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils

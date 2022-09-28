@@ -21,8 +21,8 @@ from __future__ import print_function
 
 import abc
 
-from keras.saving.saved_model import json_utils
-from keras.saving.saved_model import utils
+from keras.saving.legacy.saved_model import json_utils
+from keras.saving.legacy.saved_model import utils
 
 
 class SavedModelSaver(object, metaclass=abc.ABCMeta):

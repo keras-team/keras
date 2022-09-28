@@ -25,7 +25,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.engine import base_layer_utils
-from keras.saving.saved_model import json_utils
+from keras.saving.legacy.saved_model import json_utils
 from keras.utils import tf_utils
 
 _CONSTANT_VALUE = "_CONSTANT_VALUE"

@@ -180,7 +180,7 @@ py_library(
         "//keras:backend",
         "//keras/engine:base_layer",
         "//keras/engine:input_spec",
-        "//keras/saving/saved_model",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:generic_utils",
     ],
 )

@@ -36,8 +36,8 @@ from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_v2 import optimizer_v2
-from keras.saving import saving_utils
-from keras.saving.saved_model import model_serialization
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import data_utils
 from keras.utils import layer_utils
 from keras.utils import losses_utils

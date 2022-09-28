@@ -17,9 +17,9 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import order_preserving_set as ops
-from keras.saving.saved_model import save_impl
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import order_preserving_set as ops
+from keras.saving.legacy.saved_model import save_impl
 from keras.utils.generic_utils import LazyLoader
 
 # TODO(b/134426265): Switch back to single-quotes to match the rest of the file

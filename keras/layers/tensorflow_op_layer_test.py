@@ -23,7 +23,7 @@ from absl.testing import parameterized
 import keras
 from keras.engine import keras_tensor
 from keras.optimizers.optimizer_v2 import adam
-from keras.saving import model_config
+from keras.saving.legacy import model_config
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
