@@ -77,6 +77,7 @@ from keras.optimizers.optimizer_v2.ftrl import Ftrl
 from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 
@@ -221,6 +222,12 @@ def convert_to_legacy_optimizer(optimizer):
     ]
     for key in keys_to_remove:
         config.pop(key, None)
+    # Learning rate can be a custom LearningRateSchedule, which is stored as
+    # a dict in config, and cannot be deserialized.
+    if isinstance(
+        optimizer._learning_rate, learning_rate_schedule.LearningRateSchedule
+    ):
+        config["learning_rate"] = optimizer._learning_rate
     legacy_optimizer_config = {
         "class_name": optimizer_name,
         "config": config,
