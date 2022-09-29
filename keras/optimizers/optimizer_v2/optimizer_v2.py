@@ -105,11 +105,17 @@ def name_scope_only_in_function_or_graph(name):
     v1=["keras.optimizers.Optimizer", "keras.optimizers.legacy.Optimizer"],
 )
 class OptimizerV2(tf.__internal__.tracking.Trackable):
-    """Base class for Keras optimizers.
+    """Base class for legacy Keras optimizers.
 
     You should not use this class directly, but instead instantiate one of its
     subclasses such as `tf.keras.optimizers.legacy.SGD`,
     `tf.keras.optimizers.legacy.Adam`, etc.
+
+    This is the default Keras optimizer base class until v2.10 (included).
+    In v2.11 and later, `tf.keras.optimizers.Optimizer`
+    points to a new base class implementation. The legacy class won't be
+    deleted in the future and will continue to be available at
+    `tf.keras.optimizers.legacy.Optimizer`.
 
     ### Usage
 
