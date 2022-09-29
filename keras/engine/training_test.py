@@ -2111,9 +2111,7 @@ class TrainingTest(test_combinations.TestCase):
                 return super().update_state(matches)
 
         class MyModel(sequential.Sequential):
-            def compute_metrics(
-                self, x, y, y_pred, sample_weight, training=False
-            ):
+            def compute_metrics(self, x, y, y_pred, sample_weight, training):
                 metric_results = super().compute_metrics(
                     x, y, y_pred, sample_weight, training
                 )
