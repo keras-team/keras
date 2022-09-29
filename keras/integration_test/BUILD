@@ -150,7 +150,7 @@ distribute_py_test(
     name = "parameter_server_keras_preprocessing_test",
     srcs = ["parameter_server_keras_preprocessing_test.py"],
     python_version = "PY3",
-    shard_count = 4,  # TODO(b/184290570): Investigate why only 1 shard times out.
+    shard_count = 6,  # TODO(b/184290570): Investigate why only 1 shard times out.
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/194935930): Flaky test

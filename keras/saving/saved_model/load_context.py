@@ -17,6 +17,8 @@
 import contextlib
 import threading
 
+import tensorflow.compat.v2 as tf
+
 
 class LoadContext(threading.local):
     """A context for loading a model."""
@@ -61,3 +63,6 @@ def get_load_options():
 def in_load_context():
     """Returns whether under a load context."""
     return _load_context.in_load_context()
+
+
+tf.__internal__.register_load_context_function(in_load_context)
