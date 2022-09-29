@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Base class of optimizer.
-
-This is under development, and subject to interface/implementation changes.
-"""
+"""Base class of optimizer."""
 
 import abc
 import re
@@ -104,6 +101,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         self._variables.append(self._iterations)
 
     def _process_kwargs(self, kwargs):
+        # Remove the `is_legacy_optimizer` arg, which is for serialization only.
         kwargs.pop("is_legacy_optimizer", None)
         legacy_kwargs = {
             "lr",
