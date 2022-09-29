@@ -2164,9 +2164,7 @@ class TrainingTest(test_combinations.TestCase):
                     from_serialized=False,
                 )
 
-            def compute_metrics(
-                self, x, y, y_pred, sample_weight, training=None
-            ):
+            def compute_metrics(self, x, y, y_pred, sample_weight, training):
                 if training:
                     self.on_train_compiled_metrics.update_state(
                         y, y_pred, sample_weight

@@ -1080,7 +1080,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             y, y_pred, sample_weight, regularization_losses=self.losses
         )
 
-    def compute_metrics(self, x, y, y_pred, sample_weight, training=False):
+    def compute_metrics(self, x, y, y_pred, sample_weight, training):
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric
