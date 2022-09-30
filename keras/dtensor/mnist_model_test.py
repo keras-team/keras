@@ -15,8 +15,6 @@
 """E2E Tests for mnist_model."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.dtensor.python import mesh_util
-from tensorflow.dtensor.python import tpu_util
 
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
@@ -37,7 +35,7 @@ class MnistTest(test_util.DTensorBaseTest):
             * 8,
         )
 
-        mesh = mesh_util.create_mesh(
+        mesh = dtensor.create_mesh(
             devices=["CPU:%d" % i for i in range(8)], mesh_dims=[("batch", 8)]
         )
 
@@ -66,10 +64,10 @@ class MnistTest(test_util.DTensorBaseTest):
     def DISABLED_test_mnist_training_tpu(self):
         # TODO(scottzhu): Enable TPU test once the dtensor_test rule is migrated
         # out of learning/brain
-        tpu_util.dtensor_initialize_tpu_system()
+        dtensor.initialize_accelerator_system()
         total_tpu_device_count = dtensor.num_global_devices("TPU")
         mesh_shape = [total_tpu_device_count]
-        mesh = tpu_util.create_tpu_mesh(["batch"], mesh_shape, "tpu_mesh")
+        mesh = dtensor.create_tpu_mesh(["batch"], mesh_shape, "tpu_mesh")
 
         # Needed by keras initializers.
         tf_utils.set_random_seed(1337)
