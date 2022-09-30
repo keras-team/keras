@@ -300,11 +300,12 @@ class KerasMultiWorkerTestIndependentWorker(
         EPOCHS = 1
         STEPS = 2
 
-        # Dataset's targets are [0, 1, 2, 3]:
+        # Dataset's targets are [0, 1, 2, 3, 4, 5, 6, 7]:
         train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
             BATCH, STEPS, target_values="increasing"
         )
 
+        # A model that has loss=sum(targets) / BATCH:
         class MyModel(keras.Model):
             def train_step(self, data):
                 _, y = data
@@ -344,7 +345,6 @@ class KerasMultiWorkerTestIndependentWorker(
         #   loss_e0_s1_r0 = [4+5]/BATCH =  9/4
         #   loss_e0_s2_r1 = [6+7]/BATCH = 13/4
         #   loss_e0_s1    = 9/4 + 13/4   = 5.5
-        #
         #   loss_e0       = last([1.5, 5.5])
         history = model.fit(train_ds, epochs=EPOCHS, steps_per_epoch=STEPS)
         self.assertAllClose([5.5], history.history["loss"])

@@ -3879,13 +3879,10 @@ def reduce_per_replica(values, strategy, reduction):
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
-        if reduction in (
-            "concat",
-            "sum",
-        ) and _collective_all_reduce_multi_worker(strategy):
+        if _collective_all_reduce_multi_worker(strategy):
             if reduction == "concat":
                 return _multi_worker_concat(v, strategy)
-            else:
+            elif reduction == "sum":
                 return strategy.reduce("SUM", v, axis=None)
 
         if not _is_per_replica_instance(v):
