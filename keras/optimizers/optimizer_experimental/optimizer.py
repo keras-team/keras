@@ -30,9 +30,6 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
 
-import numpy as np
-
-
 class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     """Optimizer base class, which only supports non-distribute use case."""
 
@@ -794,34 +791,15 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
             variable.assign(weight)
 
-    def _get_state(self):
+    def _save_own_variables(self, store):
         """Get the state of this optimizer object."""
-        result = {}
-        for variable in self.variables():
-            result[variable.name] = variable.numpy()
-        return result
+        for i, variable in enumerate(self.variables()):
+            store[str(i)] = variable.numpy()
 
-    def _set_state(self, state):
+    def _load_own_variables(self, store):
         """Set the state of this optimizer object."""
-        for variable in self.variables():
-            variable.assign(state[variable.name])
-
-    def _save_state(self, dir_path):
-        file_path = tf.io.gfile.join(dir_path, "state.npz")
-        weights = self._get_state()
-        if weights:
-            # Only save the state if that of the trackable is available.
-            np.savez(file_path, **weights)
-            logging.debug(f"Saved state to {file_path}")
-
-    def _load_state(self, dir_path):
-        file_path = tf.io.gfile.join(dir_path, "state.npz")
-        if tf.io.gfile.exists(file_path):
-            loaded_npz = np.load(file_path)
-            logging.debug(f"Loaded state from {file_path}")
-            self._set_state(
-                {file: loaded_npz[file] for file in loaded_npz.files}
-            )
+        for i, variable in enumerate(self.variables()):
+            variable.assign(store[str(i)])
 
 
 base_optimizer_keyword_args = """name: String. The name to use

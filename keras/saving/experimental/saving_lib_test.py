@@ -291,19 +291,17 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
     def test_saving_preserve_built_state(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
-        subclassed_model = self._get_subclassed_model()
+        model = self._get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
-        subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_experimental(temp_filepath)
+        model.fit(x, y, epochs=1)
+        model._save_experimental(temp_filepath)
         loaded_model = saving_lib.load_model(temp_filepath)
-        self.assertEqual(
-            subclassed_model._is_compiled, loaded_model._is_compiled
-        )
-        self.assertTrue(subclassed_model.built)
+        self.assertEqual(model._is_compiled, loaded_model._is_compiled)
+        self.assertTrue(model.built)
         self.assertTrue(loaded_model.built)
         self.assertEqual(
-            subclassed_model._build_input_shape, loaded_model._build_input_shape
+            model._build_input_shape, loaded_model._build_input_shape
         )
         self.assertEqual(
             tf.TensorShape([None, 32]), loaded_model._build_input_shape
@@ -388,18 +386,6 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(
             functional_to_string.contents, loaded_to_string.contents
         )
-
-    def test_get_state(self):
-        i = keras.Input((4,))
-        o = keras.layers.Dense(2)(i)
-        model = keras.Model(i, o)
-        input_layer = model.layers[0]
-        dense_layer = model.layers[1]
-        self.assertEmpty(input_layer._get_state().keys())
-        self.assertIn("0", dense_layer._get_state().keys())
-        self.assertIn("1", dense_layer._get_state().keys())
-        self.assertEqual(dense_layer._get_state()["0"].shape, (4, 2))
-        self.assertEqual(dense_layer._get_state()["1"].shape, (2,))
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
