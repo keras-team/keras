@@ -148,4 +148,8 @@ tf_module {
     name: "unpack_x_y_sample_weight"
     argspec: "args=[\'data\'], varargs=None, keywords=None, defaults=None"
   }
+  member_method {
+    name: "warmstart_embedding_matrix"
+    argspec: "args=[\'base_vocabulary\', \'new_vocabulary\', \'base_embeddings\', \'new_embeddings_initializer\'], varargs=None, keywords=None, defaults=[\'uniform\'], "
+  }
 }

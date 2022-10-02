@@ -120,4 +120,8 @@ tf_module {
     name: "track_tf1_style_variables"
     argspec: "args=[\'method\'], varargs=None, keywords=None, defaults=None"
   }
+  member_method {
+    name: "warmstart_embedding_matrix"
+    argspec: "args=[\'base_vocabulary\', \'new_vocabulary\', \'base_embeddings\', \'new_embeddings_initializer\'], varargs=None, keywords=None, defaults=[\'uniform\'], "
+  }
 }
