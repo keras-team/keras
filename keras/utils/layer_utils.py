@@ -914,13 +914,14 @@ def warmstart_embedding_matrix(
             indices_new_vocabulary.append(int(index))
 
     # update embedding matrix
-    values_to_update = tf.gather(base_embeddings, indices_base_vocabulary)
-    warmstarted_embedding_matrix = tf.tensor_scatter_nd_update(
-        new_embedding,
-        tf.expand_dims(indices_new_vocabulary, axis=1),
-        values_to_update,
-    )
-    return warmstarted_embedding_matrix
+    if indices_base_vocabulary:
+        values_to_update = tf.gather(base_embeddings, indices_base_vocabulary)
+        new_embedding = tf.tensor_scatter_nd_update(
+            new_embedding,
+            tf.expand_dims(indices_new_vocabulary, axis=1),
+            values_to_update,
+        )
+    return new_embedding
 
 
 def convert_vocab_to_list(vocab):
