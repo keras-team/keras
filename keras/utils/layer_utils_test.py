@@ -731,6 +731,39 @@ class LayerUtilsTest(tf.test.TestCase):
             vectorized_vocab_base[1],
         )
 
+    def test_warmstart_with_nothing_in_common(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["d", "e", "f", "g", "h"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix,
+            vectorized_vocab_new,
+        )
+
+    def test_warmstart_with_new_vocab_smaller(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["d", "e", "f", "a"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer="uniform",
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[1],
+        )
+
 
 if __name__ == "__main__":
     tf.test.main()
