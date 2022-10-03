@@ -1776,7 +1776,7 @@ class BackupAndRestore(Callback):
     >>> history = model.fit(np.arange(100).reshape(5, 20), np.zeros(5),
     ...                     epochs=10, batch_size=1, callbacks=[callback],
     ...                     verbose=0)
-    >>> # Only 6 more epochs are run, since first trainning got interrupted at
+    >>> # Only 6 more epochs are run, since first training got interrupted at
     >>> # zero-indexed epoch 4, second training will continue from 4 to 9.
     >>> len(history.history['loss'])
     6
