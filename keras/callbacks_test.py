@@ -1906,6 +1906,53 @@ class KerasCallbacksTest(test_combinations.TestCase):
         self.assertEqual(epochs_trained, 5)
         self.assertEqual(early_stop.model.get_weights(), 2)
 
+    def test_EarlyStopping_with_start_from_epoch(self):
+        with self.cached_session():
+            np.random.seed(1337)
+            (data, labels), _ = test_utils.get_test_data(
+                train_samples=TRAIN_SAMPLES,
+                test_samples=TEST_SAMPLES,
+                input_shape=(INPUT_DIM,),
+                num_classes=NUM_CLASSES,
+            )
+            labels = np_utils.to_categorical(labels)
+            model = test_utils.get_small_sequential_mlp(
+                num_hidden=NUM_HIDDEN,
+                num_classes=NUM_CLASSES,
+                input_dim=INPUT_DIM,
+            )
+            model.compile(
+                optimizer="sgd", loss="binary_crossentropy", metrics=["acc"]
+            )
+            start_from_epoch = 2
+            patience = 3
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="acc",
+                patience=patience,
+                start_from_epoch=start_from_epoch,
+            )
+            history = model.fit(
+                data, labels, callbacks=[stopper], verbose=0, epochs=20
+            )
+            # Test 'patience' argument functions correctly when used
+            # in conjunction with 'start_from_epoch'.
+            self.assertGreaterEqual(
+                len(history.epoch), patience + start_from_epoch
+            )
+
+            start_from_epoch = 2
+            patience = 0
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="acc",
+                patience=patience,
+                start_from_epoch=start_from_epoch,
+            )
+            history = model.fit(
+                data, labels, callbacks=[stopper], verbose=0, epochs=20
+            )
+            # Test for boundary condition when 'patience' = 0.
+            self.assertGreaterEqual(len(history.epoch), start_from_epoch)
+
     def test_RemoteMonitor(self):
         if requests is None:
             self.skipTest("`requests` required to run this test")

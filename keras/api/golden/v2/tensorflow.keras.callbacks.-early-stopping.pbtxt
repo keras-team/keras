@@ -5,7 +5,7 @@ tf_class {
   is_instance: "<type \'object\'>"
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'monitor\', \'min_delta\', \'patience\', \'verbose\', \'mode\', \'baseline\', \'restore_best_weights\'], varargs=None, keywords=None, defaults=[\'val_loss\', \'0\', \'0\', \'0\', \'auto\', \'None\', \'False\'], "
+    argspec: "args=[\'self\', \'monitor\', \'min_delta\', \'patience\', \'verbose\', \'mode\', \'baseline\', \'restore_best_weights\', \'start_from_epoch\'], varargs=None, keywords=None, defaults=[\'val_loss\', \'0\', \'0\', \'0\', \'auto\', \'None\', \'False\', \'0\'], "
   }
   member_method {
     name: "get_monitor_value"
