@@ -396,10 +396,10 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         input_layer = model.layers[0]
         dense_layer = model.layers[1]
         self.assertEmpty(input_layer._get_state().keys())
-        self.assertIn("kernel", dense_layer._get_state().keys())
-        self.assertIn("bias", dense_layer._get_state().keys())
-        self.assertEqual(dense_layer._get_state()["kernel"].shape, (4, 2))
-        self.assertEqual(dense_layer._get_state()["bias"].shape, (2,))
+        self.assertIn("0", dense_layer._get_state().keys())
+        self.assertIn("1", dense_layer._get_state().keys())
+        self.assertEqual(dense_layer._get_state()["0"].shape, (4, 2))
+        self.assertEqual(dense_layer._get_state()["1"].shape, (2,))
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(

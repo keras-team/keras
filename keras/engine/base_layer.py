@@ -3404,35 +3404,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     def _get_state(self):
         """Experimental method for getting the state of this layer object."""
         result = {}
-        for child_attr, child_obj in self.__dict__.items():
-            # TODO(rchao): Store non-variable states in the dict as well.
-            if isinstance(child_obj, tf.Variable):
-                result[child_attr] = child_obj.numpy()
-            elif isinstance(child_obj, (list, tuple)):
-                for k, contained_obj in enumerate(child_obj):
-                    if isinstance(contained_obj, tf.Variable):
-                        result[f"{child_attr}-{k}"] = contained_obj.numpy()
-            elif isinstance(child_obj, dict):
-                for k, v in child_obj.items():
-                    if isinstance(v, tf.Variable):
-                        result[f"{child_attr}-{k}"] = v.numpy()
+        all_vars = self._trainable_weights + self._non_trainable_weights
+        for i, v in enumerate(all_vars):
+            result[str(i)] = v
         return result
 
     def _set_state(self, state):
         """Experimental method for setting the state of this layer object."""
-        for child_attr, child_obj in self.__dict__.items():
-            # TODO(rchao): Retrieve non-variable states from the dict as well.
-            # TODO(rchao): Give a warning for mismatches.
-            if isinstance(child_obj, tf.Variable):
-                child_obj.assign(state[child_attr])
-            elif isinstance(child_obj, (list, tuple)):
-                for k, contained_obj in enumerate(child_obj):
-                    if isinstance(contained_obj, tf.Variable):
-                        contained_obj.assign(state[f"{child_attr}-{k}"])
-            elif isinstance(child_obj, dict):
-                for k, v in child_obj.items():
-                    if isinstance(v, tf.Variable):
-                        child_obj[k].assign(state[f"{child_attr}-{k}"])
+        all_vars = self._trainable_weights + self._non_trainable_weights
+        for i, v in enumerate(all_vars):
+            v.assign(state[str(i)])
 
     def _save_state(self, dirpath):
         filepath = tf.io.gfile.join(dirpath, "weights.npz")
