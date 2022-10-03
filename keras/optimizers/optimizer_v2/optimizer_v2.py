@@ -1652,8 +1652,18 @@ def _var_key(var):
     """
 
     # Get the distributed variable if it exists.
+    # TODO(b/246438937): Remove the first branch after tf-nightly is
+    # updated.
     if hasattr(var, "_distributed_container"):
         var = var._distributed_container()
+    else:
+        try:
+            if hasattr(var, "handle") and hasattr(
+                var.handle, "_distributed_container"
+            ):
+                var = var.handle._distributed_container()
+        except ValueError:
+            pass
     if getattr(var, "_in_graph_mode", False):
         return var._shared_name
     return var._unique_id
