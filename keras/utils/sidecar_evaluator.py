@@ -207,7 +207,9 @@ class SidecarEvaluator:
         if self.model.optimizer and isinstance(
             self.model.optimizer, optimizer_experimental.Optimizer
         ):
-            checkpoint = tf.train.Checkpoint(model=self.model)
+            checkpoint = tf.train.Checkpoint(
+                model=self.model, optimizer=self.model.optimizer
+            )
         else:
             optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
             checkpoint = tf.train.Checkpoint(
