@@ -794,13 +794,14 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 textwrap.dedent(
                     f"""
           Layer {self.__class__.__name__} has arguments {extra_args}
-          in `__init__` and therefore must override `get_config()`.
+          in `__init__()` and therefore must override `get_config()` in
+          order to be serializable.
 
           Example:
 
           class CustomLayer(keras.layers.Layer):
-              def __init__(self, arg1, arg2):
-                  super().__init__()
+              def __init__(self, arg1, arg2, **kwargs):
+                  super().__init__(**kwargs)
                   self.arg1 = arg1
                   self.arg2 = arg2
 
