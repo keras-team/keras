@@ -418,7 +418,7 @@ class BatchNormalizationV2Test(test_combinations.TestCase):
         norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
         _ = norm(np.ones((1, 28, 28)))
 
-        with self.assertRaisesRegex(Exception, "requested shape requires"):
+        with self.assertRaisesRegex(Exception, "Reshape"):
             norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
             _ = norm(np.ones((1, 28, 28)), training=True)
 
