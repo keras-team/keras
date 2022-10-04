@@ -943,11 +943,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @property
     def distribute_reduction_method(self):
-        """Indicates how to reduce loss & metric values from replicas.
+        """The method employed to reduce per-replica values during training.
 
-        Default: `"auto"`. This should be good for general use cases.
-        It selects `"sum"` or `"first"` conditioned on the
-        specific implementation of the `tf.distribute` strategy.
+        Unless specified, the value "auto" will be assumed, indicating that
+        the reduction strategy should be chosen based on the current
+        running environment.
+        See `reduce_per_replica` function for more details.
+
         """
         return self._distribute_reduction_method or "auto"
 
@@ -3823,7 +3825,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return saving_lib.save_model(self, filepath)
 
 
-def reduce_per_replica(values, strategy, reduction="auto"):
+def reduce_per_replica(values, strategy, reduction):
     """Attempt to reduce the structure `values` to single values.
 
     Given `values` (a `tf.Tensor` or a `PerReplica` structure),
@@ -3838,18 +3840,25 @@ def reduce_per_replica(values, strategy, reduction="auto"):
     or a `tf.Tensor`, if the strategy has already conducted the reduction
     for the downstream library.
 
-    There are three possible outcomes of reduction:
+    There are five possible outcomes of reduction:
 
     1) if the `values` is a structure of simple `tf.Tensor`s, meaning that
        reduction is not actually needed, `reduce_per_replica` returns the
        structure as-is.
-    2) else, if `reduction="first"`, then `reduce_per_replica`
+    2) else, if `reduction="auto"`, then the best reduction strategy is
+       chosen based on the current environment. This should only be used
+       for training cases (`fit()`).
+    3) else, if `reduction="first"`, then `reduce_per_replica`
        returns the values of the first replica. This is used in the case of
        training and evaluation, where `values` is expected to hold the same
        value across the replicas as a result of `Strategy`'s synchronization
        across the replicas.
        `reduce_per_replica` does not synchronize the values.
-    3) else, if `reduction="concat"`, then `reduce_per_replica`
+    4) else, if `reduction="sum"`, then `reduce_per_replica` returns the sum
+       of values for all replicas. This may be used in the custom training loop
+       case, where each replica contain different values which are not
+       synchronized.
+    5) else, if `reduction="concat"`, then `reduce_per_replica`
        returns the concatenation of the values across the replicas, along the
        axis of dimension 0. This is used in the inference case (`predict()`).
 
@@ -3873,10 +3882,12 @@ def reduce_per_replica(values, strategy, reduction="auto"):
 
     def _reduce(v):
         """Reduce a single `PerReplica` object."""
-        if reduction == "concat" and _collective_all_reduce_multi_worker(
-            strategy
-        ):
-            return _multi_worker_concat(v, strategy)
+        if _collective_all_reduce_multi_worker(strategy):
+            if reduction == "concat":
+                return _multi_worker_concat(v, strategy)
+            elif reduction == "sum":
+                return strategy.reduce("SUM", v, axis=None)
+
         if not _is_per_replica_instance(v):
             return v
         elif reduction == "first":
@@ -3887,8 +3898,7 @@ def reduce_per_replica(values, strategy, reduction="auto"):
             else:
                 return concat(strategy.experimental_local_results(v))
         elif reduction == "sum":
-            values = strategy.experimental_local_results(v)
-            return tf.reduce_sum(values)
+            return tf.reduce_sum(strategy.experimental_local_results(v))
         else:
             raise ValueError(
                 '`reduction` must be "first", "concat", "sum", or "auto". '
