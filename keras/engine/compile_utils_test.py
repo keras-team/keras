@@ -294,19 +294,74 @@ class LossesContainerTest(test_combinations.TestCase):
         self.assertIsInstance(total_loss, tf.Tensor)
         self.assertEqual(total_loss.dtype, tf.float64)
 
+    @test_combinations.generate(
+        test_combinations.combine(
+            input_type=["dense", "masked", "ragged"],
+            reduction=["auto", "sum"],
+            use_sample_weights=[True, False],
+        ),
+    )
+    def test_loss_consistency(self, input_type, reduction, use_sample_weights):
+        y_p = tf.ragged.constant(
+            [[[1], [1], [1]], [[1], [1]]], dtype=tf.float32
+        )
+        y_t = tf.ragged.constant(
+            [[[1], [0], [0]], [[1], [1]]], dtype=tf.float32
+        )
+
+        if input_type == "masked":
+            mask = tf.ones_like(y_p).to_tensor()
+            y_p = y_p.to_tensor()
+            y_t = y_t.to_tensor()
+            y_p._keras_mask = mask
+        elif input_type == "dense":
+            y_p = y_p.to_tensor()
+            y_t = y_t.to_tensor()
+
+        if input_type == "dense":
+            count = 6
+        else:
+            count = 5
+
+        if use_sample_weights:
+            wrong = 4
+            maybe_sample_weight = {
+                "sample_weight": tf.constant([[2], [1]], dtype=tf.float32)
+            }
+        else:
+            wrong = 2
+            maybe_sample_weight = {}
+
+        expected = wrong
+        if reduction != "sum":
+            expected /= count
+
+        loss_obj = losses_mod.MeanAbsoluteError(reduction=reduction)
+
+        result = loss_obj(y_t, y_p, **maybe_sample_weight)
+        self.assertAlmostEqual(result.numpy(), expected)
+
+        container = compile_utils.LossesContainer(loss_obj)
+        container_result = container(y_t, y_p, **maybe_sample_weight)
+        self.assertAlmostEqual(container_result.numpy(), expected)
+
     def test_loss_masking(self):
         loss_container = compile_utils.LossesContainer("mae")
         y_p = tf.constant([[[1], [1]], [[0], [0]]], dtype=tf.float32)
         y_t = tf.constant([[[1], [1]], [[1], [1]]], dtype=tf.float32)
+        # Reduction is "sum_over_batch_size" that's not the literal batch size,
+        # but the number of elements being summed: The number of valid
+        # emlements. So since the mask has two valid items, the number of
+        # elements is 2.
         y_p._keras_mask = tf.constant([[1, 0], [1, 0]], dtype=tf.float32)
 
         total_loss = loss_container(y_t, y_p)
-        self.assertAlmostEqual(total_loss.numpy(), 0.25)  # sum over batch size
+        self.assertAlmostEqual(total_loss.numpy(), 0.5)  # sum over num valid
 
         self.assertLen(loss_container.metrics, 1)
         loss_metric = loss_container.metrics[0]
         self.assertEqual(loss_metric.name, "loss")
-        self.assertAlmostEqual(loss_metric.result().numpy(), 0.25)
+        self.assertAlmostEqual(loss_metric.result().numpy(), 0.5)
 
     def test_loss_sample_weight(self):
         loss_container = compile_utils.LossesContainer("mae")
@@ -331,13 +386,13 @@ class LossesContainerTest(test_combinations.TestCase):
         y_p._keras_mask = tf.constant([[1, 0], [1, 0]], dtype=tf.float32)
 
         total_loss = loss_container(y_t, y_p, sample_weight=sw)
-        # (0 * .2 + 1 * .5) / 4
-        self.assertAlmostEqual(total_loss.numpy(), 0.125)  # sum over batch size
+        # (0 * .2 + 1 * .5) / 2
+        self.assertAlmostEqual(total_loss.numpy(), 0.25)  # sum over num valid
 
         self.assertLen(loss_container.metrics, 1)
         loss_metric = loss_container.metrics[0]
         self.assertEqual(loss_metric.name, "loss")
-        self.assertAlmostEqual(loss_metric.result().numpy(), 0.125)
+        self.assertAlmostEqual(loss_metric.result().numpy(), 0.25)
 
     def test_custom_loss_callables(self):
         def custom_loss_fn(y_true, y_pred):
