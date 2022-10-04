@@ -720,12 +720,9 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                                 and tf.config.list_logical_devices("GPU")
                             )
                         )
-                        and (
-                            mask is None
-                            or gru_lstm_utils.is_cudnn_supported_inputs(
-                                mask, self.time_major
+                        and gru_lstm_utils.is_cudnn_supported_inputs(
+                                mask, self.time_major, row_lengths
                             )
-                        )
                     )
                     # Under eager context, check the device placement and prefer
                     # the GPU implementation when GPU is available.
@@ -1256,21 +1253,6 @@ def lstm_with_backend_selection(
         return_sequences,
     ):
         """Use cuDNN kernel when mask is none or strictly right padded."""
-        if mask is None:
-            return gpu_lstm(
-                inputs=inputs,
-                init_h=init_h,
-                init_c=init_c,
-                kernel=kernel,
-                recurrent_kernel=recurrent_kernel,
-                bias=bias,
-                mask=mask,
-                time_major=time_major,
-                go_backwards=go_backwards,
-                sequence_lengths=sequence_lengths,
-                return_sequences=return_sequences,
-            )
-
         def cudnn_lstm_fn():
             return gpu_lstm(
                 inputs=inputs,
@@ -1303,7 +1285,7 @@ def lstm_with_backend_selection(
             )
 
         return tf.cond(
-            gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major),
+            gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major, sequence_lengths),
             true_fn=cudnn_lstm_fn,
             false_fn=stardard_lstm_fn,
         )

@@ -168,7 +168,19 @@ def has_fully_masked_sequence(mask):
     return tf.reduce_any(tf.reduce_all(tf.logical_not(mask), axis=1))
 
 
-def is_cudnn_supported_inputs(mask, time_major):
+def is_cudnn_supported_inputs(mask, time_major, sequence_lengths):
+    if tf.sysconfig.get_build_info()['is_rocm_build']:
+       if not time_major:
+          return tf.constant(False)
+       if mask!=None:
+          return tf.reduce_all(mask)
+       elif sequence_lengths!=None:
+          return tf.math.equal(tf.reduce_min(sequence_lengths), tf.reduce_max(sequence_lengths))
+       else:
+          return tf.constant(True)
+
+    if mask==None:
+        return tf.constant(True)
     if time_major:
         mask = tf.transpose(mask)
 

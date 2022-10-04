@@ -414,7 +414,6 @@ cuda_py_test(
     srcs = ["gru_test.py"],
     python_version = "PY3",
     shard_count = 12,
-    tags = ["no_rocm"],
     deps = [
         ":gru_lstm_utils",
         "//:expect_absl_installed",
@@ -501,7 +500,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 12,
     tags = [
-        "no_rocm",
         "notsan",  # TODO(b/170870794)
     ],
     deps = [
@@ -544,7 +542,6 @@ tf_py_test(
     srcs = ["conv_lstm_test.py"],
     python_version = "PY3",
     shard_count = 8,
-    tags = ["no_rocm"],
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
