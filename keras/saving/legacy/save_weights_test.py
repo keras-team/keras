@@ -25,7 +25,7 @@ from absl.testing import parameterized
 import keras
 from keras.engine import training
 from keras.optimizers import optimizer_v1
-from keras.saving import hdf5_format
+from keras.saving.legacy import hdf5_format
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 

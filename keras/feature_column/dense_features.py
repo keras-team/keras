@@ -24,7 +24,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
-from keras.saving.saved_model import json_utils
+from keras.saving.legacy.saved_model import json_utils
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export

@@ -41,7 +41,7 @@ from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity

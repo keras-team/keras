@@ -29,11 +29,11 @@ from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.mixed_precision import autocast_variable
-from keras.saving import saving_utils
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import load as keras_load
-from keras.saving.saved_model import serialized_attributes
-from keras.saving.saved_model import utils
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import load as keras_load
+from keras.saving.legacy.saved_model import serialized_attributes
+from keras.saving.legacy.saved_model import utils
 from keras.utils import layer_utils
 from keras.utils import tf_contextlib
 from keras.utils import tf_utils

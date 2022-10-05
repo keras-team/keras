@@ -22,7 +22,7 @@ from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 

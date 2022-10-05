@@ -189,7 +189,7 @@ class DistributeKplTestUtils(tf.test.TestCase):
         )
 
         # Test the saved_model.
-        loaded_serving_fn = keras.saving.save.load_model(
+        loaded_serving_fn = keras.saving.legacy.save.load_model(
             saved_model_dir
         ).signatures["serving_default"]
 

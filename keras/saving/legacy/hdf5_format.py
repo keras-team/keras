@@ -26,9 +26,9 @@ from keras.optimizers import optimizer_v1
 from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
-from keras.saving import model_config as model_config_lib
-from keras.saving import saving_utils
-from keras.saving.saved_model import json_utils
+from keras.saving.legacy import model_config as model_config_lib
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import json_utils
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 

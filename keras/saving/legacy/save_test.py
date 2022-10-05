@@ -35,9 +35,9 @@ from keras.feature_column import sequence_feature_column as ksfc
 from keras.layers import core
 from keras.optimizers import optimizer_v1
 from keras.premade_models.linear import LinearModel
-from keras.saving import model_config
 from keras.saving import object_registration
-from keras.saving import save
+from keras.saving.legacy import model_config
+from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import generic_utils

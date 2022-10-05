@@ -50,7 +50,7 @@ from keras.layers.preprocessing import text_vectorization
 from keras.layers.rnn import cell_wrappers
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
-from keras.saving.saved_model import json_utils
+from keras.saving.legacy.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 

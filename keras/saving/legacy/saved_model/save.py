@@ -23,10 +23,10 @@ from keras import backend
 from keras.layers import serialization
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
-from keras.saving import saving_utils
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import save_impl
-from keras.saving.saved_model import utils
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import save_impl
+from keras.saving.legacy.saved_model import utils
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 

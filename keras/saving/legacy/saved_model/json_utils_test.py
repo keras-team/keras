@@ -19,7 +19,7 @@ import enum
 
 import tensorflow.compat.v2 as tf
 
-from keras.saving.saved_model import json_utils
+from keras.saving.legacy.saved_model import json_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 

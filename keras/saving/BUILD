@@ -16,11 +16,11 @@ py_library(
     name = "saving",
     srcs = [
         "__init__.py",
-        "hdf5_format.py",
-        "model_config.py",
+        "legacy/hdf5_format.py",
+        "legacy/model_config.py",
+        "legacy/save.py",
+        "legacy/saving_utils.py",
         "pickle_utils.py",
-        "save.py",
-        "saving_utils.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -35,7 +35,7 @@ py_library(
         "//keras/mixed_precision:autocast_variable",
         "//keras/optimizers",
         "//keras/protobuf:saved_metadata_proto_py_pb2",
-        "//keras/saving/saved_model",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
@@ -64,7 +64,7 @@ tf_py_test(
 tf_py_test(
     name = "metrics_serialization_test",
     size = "medium",
-    srcs = ["metrics_serialization_test.py"],
+    srcs = ["legacy/metrics_serialization_test.py"],
     python_version = "PY3",
     shard_count = 8,
     tags = [
@@ -82,7 +82,7 @@ tf_py_test(
 tf_py_test(
     name = "losses_serialization_test",
     size = "medium",
-    srcs = ["losses_serialization_test.py"],
+    srcs = ["legacy/losses_serialization_test.py"],
     python_version = "PY3",
     shard_count = 4,
     deps = [
@@ -112,7 +112,7 @@ tf_py_test(
 tf_py_test(
     name = "save_weights_test",
     size = "medium",
-    srcs = ["save_weights_test.py"],
+    srcs = ["legacy/save_weights_test.py"],
     python_version = "PY3",
     shard_count = 4,
     tags = [
@@ -132,7 +132,7 @@ tf_py_test(
 tf_py_test(
     name = "save_test",
     size = "medium",
-    srcs = ["save_test.py"],
+    srcs = ["legacy/save_test.py"],
     python_version = "PY3",
     shard_count = 4,
     tags = [
@@ -150,7 +150,7 @@ tf_py_test(
 tf_py_test(
     name = "saving_utils_test",
     size = "medium",
-    srcs = ["saving_utils_test.py"],
+    srcs = ["legacy/saving_utils_test.py"],
     python_version = "PY3",
     tags = ["notsan"],
     deps = [

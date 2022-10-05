@@ -30,7 +30,7 @@ from keras.dtensor import utils as dtensor_utils
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import keras_tensor
-from keras.saving.saved_model import metric_serialization
+from keras.saving.legacy.saved_model import metric_serialization
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils

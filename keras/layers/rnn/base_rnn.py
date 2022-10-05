@@ -26,7 +26,7 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 
 # isort: off

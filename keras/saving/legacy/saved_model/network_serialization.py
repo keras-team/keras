@@ -14,8 +14,8 @@
 # ==============================================================================
 """Classes and functions implementing to Network SavedModel serialization."""
 
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import model_serialization
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import model_serialization
 
 
 # FunctionalModel serialization is pretty much the same as Model serialization.

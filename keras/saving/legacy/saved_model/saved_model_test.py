@@ -37,9 +37,9 @@ from keras.feature_column.dense_features import DenseFeatures
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration
-from keras.saving.saved_model import json_utils
-from keras.saving.saved_model import load as keras_load
-from keras.saving.saved_model import save_impl as keras_save
+from keras.saving.legacy.saved_model import json_utils
+from keras.saving.legacy.saved_model import load as keras_load
+from keras.saving.legacy.saved_model import save_impl as keras_save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util

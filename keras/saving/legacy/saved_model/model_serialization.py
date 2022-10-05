@@ -14,10 +14,10 @@
 # ==============================================================================
 """Classes and functions implementing to Model SavedModel serialization."""
 
-from keras.saving import saving_utils
-from keras.saving.saved_model import constants
-from keras.saving.saved_model import layer_serialization
-from keras.saving.saved_model import save_impl
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import constants
+from keras.saving.legacy.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import save_impl
 
 
 class ModelSavedModelSaver(layer_serialization.LayerSavedModelSaver):

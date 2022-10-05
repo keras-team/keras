@@ -183,7 +183,7 @@ py_library(
     deps = [
         ":backend",
         "//:expect_tensorflow_installed",
-        "//keras/saving/experimental",
+        "//keras/saving/legacy/experimental",
         "//keras/utils:engine_utils",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
