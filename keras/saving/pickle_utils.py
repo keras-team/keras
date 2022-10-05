@@ -18,7 +18,7 @@ import tempfile
 
 import tensorflow.compat.v2 as tf
 
-from keras.saving.legacy.experimental import saving_lib
+from keras.saving.experimental import saving_lib
 
 
 def deserialize_model_from_bytecode(serialized_model):

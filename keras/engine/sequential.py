@@ -25,7 +25,7 @@ from keras.engine import functional
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_utils
-from keras.saving.legacy.experimental import saving_lib
+from keras.saving.experimental import saving_lib
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
