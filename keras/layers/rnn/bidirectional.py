@@ -24,6 +24,7 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_wrapper import Wrapper
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -148,7 +149,7 @@ class Bidirectional(Wrapper):
             # Keep the custom backward layer config, so that we can save it
             # later. The layer's name might be updated below with prefix
             # 'backward_', and we want to preserve the original config.
-            self._backward_layer_config = generic_utils.serialize_keras_object(
+            self._backward_layer_config = serialization.serialize_keras_object(
                 backward_layer
             )
 

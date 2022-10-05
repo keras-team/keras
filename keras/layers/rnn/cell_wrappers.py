@@ -31,6 +31,7 @@ import tensorflow.compat.v2 as tf
 
 from keras.layers.rnn import lstm
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 
@@ -657,7 +658,7 @@ def _parse_config_to_function(
     function_type = config.pop(func_type_attr_name)
     if function_type == "function":
         # Simple lookup in custom objects
-        function = generic_utils.deserialize_keras_object(
+        function = serialization.deserialize_keras_object(
             config[func_attr_name],
             custom_objects=custom_objects,
             printable_module_name="function in wrapper",

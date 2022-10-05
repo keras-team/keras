@@ -33,6 +33,7 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import network_serialization
 from keras.utils import generic_utils
@@ -1533,7 +1534,7 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
       Config dictionary.
     """
     serialize_layer_fn = (
-        serialize_layer_fn or generic_utils.serialize_keras_object
+        serialize_layer_fn or serialization.serialize_keras_object
     )
     config = config or {}
     config["name"] = network.name
@@ -1547,7 +1548,7 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
                 kept_nodes += 1
     layer_configs = []
 
-    with generic_utils.SharedObjectSavingScope():
+    with serialization.SharedObjectSavingScope():
         for layer in network.layers:  # From the earliest layers on.
             filtered_inbound_nodes = []
             for original_node_index, node in enumerate(layer._inbound_nodes):

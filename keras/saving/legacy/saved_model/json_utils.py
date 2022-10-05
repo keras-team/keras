@@ -30,7 +30,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 import wrapt
 
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 
 # isort: off
 from tensorflow.python.framework import type_spec
@@ -129,7 +129,7 @@ def _decode_helper(
             # __passive_serialization__ is added by the JSON encoder when
             # encoding an object that has a `get_config()` method.
             try:
-                return generic_utils.deserialize_keras_object(
+                return serialization.deserialize_keras_object(
                     obj,
                     module_objects=module_objects,
                     custom_objects=custom_objects,
@@ -156,7 +156,7 @@ def get_json_type(obj):
     # if obj is a serializable Keras class instance
     # e.g. optimizer, layer
     if hasattr(obj, "get_config"):
-        serialized = generic_utils.serialize_keras_object(obj)
+        serialized = serialization.serialize_keras_object(obj)
         serialized["__passive_serialization__"] = True
         return serialized
 

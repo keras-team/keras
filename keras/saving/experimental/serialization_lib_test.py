@@ -22,8 +22,8 @@ from absl.testing import parameterized
 
 import keras
 from keras.saving.experimental import serialization_lib
+from keras.saving.legacy import serialization
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 
 def custom_fn(x):
@@ -186,7 +186,7 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
 @test_utils.run_v2_only
 class BackwardsCompatibilityTest(tf.test.TestCase, parameterized.TestCase):
     def assert_old_format_can_be_deserialized(self, obj, custom_objects=None):
-        old_config = generic_utils.serialize_keras_object(obj)
+        old_config = serialization.serialize_keras_object(obj)
         revived = serialization_lib.deserialize_keras_object(
             old_config, custom_objects=custom_objects
         )

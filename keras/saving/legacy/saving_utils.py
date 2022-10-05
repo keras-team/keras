@@ -25,7 +25,7 @@ from keras import losses
 from keras import optimizers
 from keras.engine import base_layer_utils
 from keras.optimizers import optimizer_v1
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 
@@ -305,7 +305,7 @@ def _serialize_nested_config(config):
 
     def _serialize_fn(obj):
         if callable(obj):
-            return generic_utils.serialize_keras_object(obj)
+            return serialization.serialize_keras_object(obj)
         return obj
 
     return tf.nest.map_structure(_serialize_fn, config)

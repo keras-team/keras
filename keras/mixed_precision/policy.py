@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -501,7 +501,7 @@ def serialize(policy):
         # versions of Keras. If the policy name is returned, it is a dtype
         # string such as 'float32'.
         return None if policy.name == "_infer" else policy.name
-    return generic_utils.serialize_keras_object(policy)
+    return serialization.serialize_keras_object(policy)
 
 
 def deserialize(config, custom_objects=None):
@@ -512,7 +512,7 @@ def deserialize(config, custom_objects=None):
     # PolicyV1 was an old version of Policy that was removed. Deserializing it
     # turns it into a (non-V1) Policy.
     module_objects = {"Policy": Policy, "PolicyV1": Policy}
-    return generic_utils.deserialize_keras_object(
+    return serialization.deserialize_keras_object(
         config,
         module_objects=module_objects,
         custom_objects=custom_objects,

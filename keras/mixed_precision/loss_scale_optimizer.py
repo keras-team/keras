@@ -23,7 +23,7 @@ from keras.optimizers.optimizer_experimental import (
 )
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 
 # isort: off
 from tensorflow.python.keras.optimizer_v2 import (
@@ -895,7 +895,7 @@ class LossScaleOptimizer(
             # If loss_scale is in config, we assume we are deserializing a
             # LossScaleOptimizer from TF 2.3 or below. We convert the config so
             # it can be deserialized in the current LossScaleOptimizer.
-            loss_scale = generic_utils.deserialize_keras_object(
+            loss_scale = serialization.deserialize_keras_object(
                 config.pop("loss_scale"),
                 module_objects={
                     "FixedLossScale": tf.compat.v1.mixed_precision.FixedLossScale,  # noqa: E501

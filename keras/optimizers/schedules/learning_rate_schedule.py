@@ -20,7 +20,7 @@ import math
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -1106,7 +1106,7 @@ def serialize(learning_rate_schedule):
     >>> tf.keras.optimizers.schedules.serialize(lr_schedule)
     {'class_name': 'ExponentialDecay', 'config': {...}}
     """
-    return generic_utils.serialize_keras_object(learning_rate_schedule)
+    return serialization.serialize_keras_object(learning_rate_schedule)
 
 
 @keras_export("keras.optimizers.schedules.deserialize")
@@ -1137,7 +1137,7 @@ def deserialize(config, custom_objects=None):
     lr_schedule = tf.keras.optimizers.schedules.deserialize(config)
     ```
     """
-    return generic_utils.deserialize_keras_object(
+    return serialization.deserialize_keras_object(
         config,
         module_objects=globals(),
         custom_objects=custom_objects,

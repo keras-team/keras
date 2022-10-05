@@ -14,6 +14,9 @@
 # ==============================================================================
 """Public Keras utilities."""
 
+from keras.saving.legacy.serialization import deserialize_keras_object
+from keras.saving.legacy.serialization import serialize_keras_object
+
 # Serialization related
 from keras.saving.object_registration import CustomObjectScope
 from keras.saving.object_registration import custom_object_scope
@@ -33,8 +36,6 @@ from keras.utils.data_utils import get_file
 from keras.utils.data_utils import pad_sequences
 from keras.utils.dataset_utils import split_dataset
 from keras.utils.generic_utils import Progbar
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.image_dataset import image_dataset_from_directory
 
 # Image related

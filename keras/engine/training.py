@@ -44,6 +44,7 @@ from keras.saving.experimental import saving_lib
 from keras.saving.legacy import hdf5_format
 from keras.saving.legacy import save
 from keras.saving.legacy import saving_utils
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -3102,7 +3103,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # have to call `cls(...)` instead of `Functional.from_config`.
         from keras.engine import functional
 
-        with generic_utils.SharedObjectLoadingScope():
+        with serialization.SharedObjectLoadingScope():
             functional_model_keys = [
                 "name",
                 "layers",
