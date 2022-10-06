@@ -40,10 +40,10 @@ from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
 from keras.saving import pickle_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.legacy import hdf5_format
 from keras.saving.legacy import save
 from keras.saving.legacy import saving_utils
-from keras.saving.legacy.experimental import saving_lib
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
