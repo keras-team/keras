@@ -1092,18 +1092,8 @@ class Optimizer(_BaseOptimizer):
 
         # Get the distributed variable if it exists.
         # TODO(b/197554203): replace _distributed_container() with a public api.
-        # TODO(b/246438937): Remove the first branch after tf-nightly is
-        # updated.
         if hasattr(variable, "_distributed_container"):
             variable = variable._distributed_container()
-        else:
-            try:
-                if hasattr(variable, "handle") and hasattr(
-                    variable.handle, "_distributed_container"
-                ):
-                    variable = variable.handle._distributed_container()
-            except ValueError:
-                pass
         return super()._var_key(variable)
 
     def aggregate_gradients(self, grads_and_vars):
