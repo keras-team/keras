@@ -26,6 +26,7 @@ from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_utils
 from keras.saving.experimental import saving_lib
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -453,7 +454,7 @@ class Sequential(functional.Functional):
             # filtered out of `self.layers`). Note that
             # `self._self_tracked_trackables` is managed by the tracking
             # infrastructure and should not be used.
-            layer_configs.append(generic_utils.serialize_keras_object(layer))
+            layer_configs.append(serialization.serialize_keras_object(layer))
         config = training.Model.get_config(self)
         config["name"] = self.name
         config["layers"] = copy.deepcopy(layer_configs)

@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras.saving import object_registration
+from keras.saving.legacy import serialization
 
 
 class TestObjectRegistration(tf.test.TestCase):
@@ -61,9 +62,9 @@ class TestObjectRegistration(tf.test.TestCase):
         inst = TestClass(value=10)
         class_name = object_registration._GLOBAL_CUSTOM_NAMES[TestClass]
         self.assertEqual(serialized_name, class_name)
-        config = keras.utils.generic_utils.serialize_keras_object(inst)
+        config = serialization.serialize_keras_object(inst)
         self.assertEqual(class_name, config["class_name"])
-        new_inst = keras.utils.generic_utils.deserialize_keras_object(config)
+        new_inst = serialization.deserialize_keras_object(config)
         self.assertIsNot(inst, new_inst)
         self.assertIsInstance(new_inst, TestClass)
         self.assertEqual(10, new_inst._value)
@@ -102,9 +103,9 @@ class TestObjectRegistration(tf.test.TestCase):
         cls = object_registration.get_registered_object(fn_class_name)
         self.assertEqual(OtherTestClass, cls)
 
-        config = keras.utils.generic_utils.serialize_keras_object(inst)
+        config = keras.utils.serialization.serialize_keras_object(inst)
         self.assertEqual(class_name, config["class_name"])
-        new_inst = keras.utils.generic_utils.deserialize_keras_object(config)
+        new_inst = keras.utils.serialization.deserialize_keras_object(config)
         self.assertIsNot(inst, new_inst)
         self.assertIsInstance(new_inst, OtherTestClass)
         self.assertEqual(5, new_inst._val)
@@ -120,9 +121,9 @@ class TestObjectRegistration(tf.test.TestCase):
         fn_class_name = object_registration.get_registered_name(my_fn)
         self.assertEqual(fn_class_name, class_name)
 
-        config = keras.utils.generic_utils.serialize_keras_object(my_fn)
+        config = keras.utils.serialization.serialize_keras_object(my_fn)
         self.assertEqual(class_name, config)
-        fn = keras.utils.generic_utils.deserialize_keras_object(config)
+        fn = keras.utils.serialization.deserialize_keras_object(config)
         self.assertEqual(42, fn())
 
         fn_2 = object_registration.get_registered_object(fn_class_name)

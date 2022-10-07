@@ -30,13 +30,13 @@ from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration
 from keras.saving.legacy import saving_utils
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import constants
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import utils
 from keras.saving.legacy.saved_model.serialized_attributes import (
     CommonEndpoints,
 )
-from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import metrics_utils
 from keras.utils import tf_inspect
@@ -487,7 +487,7 @@ class KerasObjectLoader:
             _maybe_add_serialized_attributes(node, metadata)
 
             config = metadata.get("config")
-            if _is_graph_network(node) and generic_utils.validate_config(
+            if _is_graph_network(node) and serialization.validate_config(
                 config
             ):
                 child_nodes = self._get_child_layer_node_ids(node_id)
@@ -532,7 +532,7 @@ class KerasObjectLoader:
         # Determine whether the metadata contains information for reviving a
         # functional or Sequential model.
         config = metadata.get("config")
-        if not generic_utils.validate_config(config):
+        if not serialization.validate_config(config):
             return None
 
         class_name = tf.compat.as_str(metadata["class_name"])
@@ -581,12 +581,12 @@ class KerasObjectLoader:
         config = metadata.get("config")
         shared_object_id = metadata.get("shared_object_id")
         must_restore_from_config = metadata.get("must_restore_from_config")
-        if not generic_utils.validate_config(config):
+        if not serialization.validate_config(config):
             return None
 
         try:
             obj = layers_module.deserialize(
-                generic_utils.serialize_keras_class_and_config(
+                serialization.serialize_keras_class_and_config(
                     class_name, config, shared_object_id=shared_object_id
                 )
             )
@@ -649,12 +649,12 @@ class KerasObjectLoader:
         class_name = tf.compat.as_str(metadata["class_name"])
         config = metadata.get("config")
 
-        if not generic_utils.validate_config(config):
+        if not serialization.validate_config(config):
             return None
 
         try:
             obj = metrics.deserialize(
-                generic_utils.serialize_keras_class_and_config(
+                serialization.serialize_keras_class_and_config(
                     class_name, config
                 )
             )
@@ -1175,7 +1175,7 @@ class RevivedLayer:
                 "expects_training_arg"
             ]
             config = metadata.get("config")
-            if generic_utils.validate_config(config):
+            if serialization.validate_config(config):
                 revived_obj._config = config
             if metadata.get("input_spec") is not None:
                 revived_obj.input_spec = recursively_deserialize_keras_object(
@@ -1269,7 +1269,7 @@ def recursively_deserialize_keras_object(config, module_objects=None):
     """Deserialize Keras object from a nested structure."""
     if isinstance(config, dict):
         if "class_name" in config:
-            return generic_utils.deserialize_keras_object(
+            return serialization.deserialize_keras_object(
                 config, module_objects=module_objects
             )
         else:
@@ -1341,7 +1341,7 @@ class RevivedNetwork(RevivedLayer):
                 "expects_training_arg"
             ]
             config = metadata.get("config")
-            if generic_utils.validate_config(config):
+            if serialization.validate_config(config):
                 revived_obj._config = config
 
             if metadata.get("activity_regularizer") is not None:

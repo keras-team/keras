@@ -38,9 +38,9 @@ from keras.premade_models.linear import LinearModel
 from keras.saving import object_registration
 from keras.saving.legacy import model_config
 from keras.saving.legacy import save
+from keras.saving.legacy import serialization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 try:
     import h5py
@@ -1150,7 +1150,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
 
             def get_config(self):
                 return {
-                    "inner_layer": generic_utils.serialize_keras_object(
+                    "inner_layer": serialization.serialize_keras_object(
                         self.inner_layer
                     )
                 }
@@ -1158,7 +1158,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             @classmethod
             def from_config(cls, config):
                 return cls(
-                    generic_utils.deserialize_keras_object(
+                    serialization.deserialize_keras_object(
                         config["inner_layer"]
                     )
                 )
@@ -1239,7 +1239,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             # Test recreating directly from config
             config = model.get_config()
             key_count = collections.Counter(_get_all_keys_recursive(config))
-            self.assertEqual(key_count[generic_utils.SHARED_OBJECT_KEY], 2)
+            self.assertEqual(key_count[serialization.SHARED_OBJECT_KEY], 2)
             loaded = keras.Model.from_config(config)
             _do_assertions(loaded)
 
@@ -1344,7 +1344,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
         with warnings.catch_warnings(record=True) as w:
             model.save(self._save_model_dir(), test_utils.get_save_format())
         self.assertIn(
-            generic_utils.CustomMaskWarning, {warning.category for warning in w}
+            serialization.CustomMaskWarning, {warning.category for warning in w}
         )
 
         # Test that setting up a custom mask correctly does not issue a warning.
@@ -1368,7 +1368,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
         with warnings.catch_warnings(record=True) as w:
             model.save(self._save_model_dir(), test_utils.get_save_format())
         self.assertNotIn(
-            generic_utils.CustomMaskWarning, {warning.category for warning in w}
+            serialization.CustomMaskWarning, {warning.category for warning in w}
         )
 
     # Test only in eager mode because ragged tensor inputs

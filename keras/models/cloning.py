@@ -28,6 +28,7 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.optimizers import optimizer_v1
+from keras.saving.legacy import serialization
 from keras.saving.object_registration import CustomObjectScope
 from keras.utils import generic_utils
 from keras.utils import version_utils
@@ -493,7 +494,7 @@ def clone_model(model, input_tensors=None, clone_function=None):
     new_model = model.__class__.from_config(model.get_config())
     ```
     """
-    with generic_utils.DisableSharedObjectScope():
+    with serialization.DisableSharedObjectScope():
         if clone_function is None:
             clone_function = _clone_layer
 

@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import keras.layers.activation as activation_layers
 from keras import backend
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 
 # isort: off
@@ -514,7 +515,7 @@ def serialize(activation):
         and activation.__name__ in _TF_ACTIVATIONS_V2
     ):
         return _TF_ACTIVATIONS_V2[activation.__name__]
-    return generic_utils.serialize_keras_object(activation)
+    return serialization.serialize_keras_object(activation)
 
 
 # Add additional globals so that deserialize can find these common activation
@@ -564,7 +565,7 @@ def deserialize(name, custom_objects=None):
         obj_filter=callable,
     )
 
-    return generic_utils.deserialize_keras_object(
+    return serialization.deserialize_keras_object(
         name,
         module_objects=activation_functions,
         custom_objects=custom_objects,

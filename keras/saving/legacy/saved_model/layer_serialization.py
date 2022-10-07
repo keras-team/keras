@@ -17,11 +17,11 @@
 import tensorflow.compat.v2 as tf
 
 from keras.mixed_precision import policy
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import base_serialization
 from keras.saving.legacy.saved_model import constants
 from keras.saving.legacy.saved_model import save_impl
 from keras.saving.legacy.saved_model import serialized_attributes
-from keras.utils import generic_utils
 
 
 class LayerSavedModelSaver(base_serialization.SavedModelSaver):
@@ -58,7 +58,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
             # Layer's input_spec has already been type-checked in the property
             # setter.
             metadata["input_spec"] = tf.nest.map_structure(
-                lambda x: generic_utils.serialize_keras_object(x)
+                lambda x: serialization.serialize_keras_object(x)
                 if x
                 else None,
                 self.obj.input_spec,
@@ -68,7 +68,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
         ):
             metadata[
                 "activity_regularizer"
-            ] = generic_utils.serialize_keras_object(
+            ] = serialization.serialize_keras_object(
                 self.obj.activity_regularizer
             )
         if self.obj._build_input_shape is not None:
@@ -126,12 +126,12 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
 # TODO(kathywu): Move serialization utils (and related utils from
 # generic_utils.py) to a separate file.
 def get_serialized(obj):
-    with generic_utils.skip_failed_serialization():
+    with serialization.skip_failed_serialization():
         # Store the config dictionary, which may be used when reviving the
         # object.  When loading, the program will attempt to revive the object
         # from config, and if that fails, the object will be revived from the
         # SavedModel.
-        return generic_utils.serialize_keras_object(obj)
+        return serialization.serialize_keras_object(obj)
 
 
 class InputLayerSavedModelSaver(base_serialization.SavedModelSaver):

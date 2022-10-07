@@ -25,6 +25,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_registration",
+        ":serialization",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -48,6 +49,21 @@ py_library(
         "object_registration.py",
     ],
     srcs_version = "PY3",
+)
+
+py_library(
+    name = "serialization",
+    srcs = [
+        "legacy/serialization.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":object_registration",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/utils:tf_contextlib",
+        "//keras/utils:tf_inspect",
+    ],
 )
 
 tf_py_test(

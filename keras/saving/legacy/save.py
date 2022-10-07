@@ -19,10 +19,10 @@ import tensorflow.compat.v2 as tf
 from keras.saving import object_registration
 from keras.saving.legacy import hdf5_format
 from keras.saving.legacy import saving_utils
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import load as saved_model_load
 from keras.saving.legacy.saved_model import load_context
 from keras.saving.legacy.saved_model import save as saved_model_save
-from keras.utils import generic_utils
 from keras.utils import traceback_utils
 from keras.utils.io_utils import path_to_string
 
@@ -163,7 +163,7 @@ def save_model(
             model, filepath, overwrite, include_optimizer
         )
     else:
-        with generic_utils.SharedObjectSavingScope():
+        with serialization.SharedObjectSavingScope():
             saved_model_save.save(
                 model,
                 filepath,
@@ -218,7 +218,7 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):
         ImportError: if loading from an hdf5 file and h5py is not available.
         IOError: In case of an invalid savefile.
     """
-    with generic_utils.SharedObjectLoadingScope():
+    with serialization.SharedObjectLoadingScope():
         with object_registration.CustomObjectScope(custom_objects or {}):
             with load_context.load_context(options):
                 filepath_str = path_to_string(filepath)

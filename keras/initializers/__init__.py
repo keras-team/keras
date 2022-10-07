@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 
 from keras.initializers import initializers_v1
 from keras.initializers import initializers_v2
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 
@@ -134,14 +135,14 @@ globals().update(LOCAL.ALL_OBJECTS)
 
 @keras_export("keras.initializers.serialize")
 def serialize(initializer):
-    return generic_utils.serialize_keras_object(initializer)
+    return serialization.serialize_keras_object(initializer)
 
 
 @keras_export("keras.initializers.deserialize")
 def deserialize(config, custom_objects=None):
     """Return an `Initializer` object from its config."""
     populate_deserializable_objects()
-    return generic_utils.deserialize_keras_object(
+    return serialization.deserialize_keras_object(
         config,
         module_objects=LOCAL.ALL_OBJECTS,
         custom_objects=custom_objects,
