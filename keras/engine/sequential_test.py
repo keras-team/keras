@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
+from keras.layers.preprocessing import image_preprocessing
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -408,12 +409,6 @@ class TestSequential(test_combinations.TestCase):
                 [keras.layers.Dense(1, input_shape=(3,)), MultiOutputLayer()]
             )
 
-        # Should also raise error in a deferred build mode
-        with self.assertRaisesRegex(
-            ValueError, "should have a single output tensor"
-        ):
-            keras.Sequential([MultiOutputLayer()])(np.zeros((10, 10)))
-
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_layer_add_after_compile_deferred(self):
         model = keras.Sequential([keras.layers.Dense(3)])
@@ -544,6 +539,42 @@ class TestSequential(test_combinations.TestCase):
         with self.assertRaisesRegex(ValueError, "is not defined"):
             model.add(MyModule())
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_multi_inputs_outputs(self):
+        model = keras.Sequential(
+            [
+                ImageAugmentLayer(),
+                ImageAugmentLayer(),
+            ]
+        )
+
+        image_inputs = tf.ones((2, 512, 512, 3))
+        label_inputs = tf.ones((2, 2))
+
+        output = model({"images": image_inputs, "labels": label_inputs})
+        self.assertAllClose(output["images"], image_inputs)
+        self.assertAllClose(output["labels"], label_inputs)
+
+        model.compile(loss="mse")
+        model.fit(
+            x={"images": image_inputs, "labels": label_inputs},
+            y={"images": image_inputs, "labels": label_inputs},
+            steps_per_epoch=1,
+        )
+        self.assertIsNone(model.inputs)
+        self.assertIsNone(model.outputs)
+
+        # Use the same model with image input only
+        model({"images": image_inputs})
+        model.fit(
+            x={"images": image_inputs},
+            y={"images": image_inputs},
+            steps_per_epoch=1,
+        )
+
+        model(image_inputs)
+        model.fit(x=image_inputs, y=image_inputs, steps_per_epoch=1)
+
 
 class TestSequentialEagerIntegration(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes
@@ -610,6 +641,14 @@ class TestSequentialEagerIntegration(test_combinations.TestCase):
 
         model.build((None, 6))
         self.assertTrue(model.built)
+
+
+class ImageAugmentLayer(image_preprocessing.BaseImageAugmentationLayer):
+    def augment_image(self, image, transformation=None):
+        return image
+
+    def augment_label(self, label, transformation=None):
+        return label
 
 
 if __name__ == "__main__":

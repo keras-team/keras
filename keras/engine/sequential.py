@@ -427,11 +427,12 @@ class Sequential(functional.Functional):
 
             outputs = layer(inputs, **kwargs)
 
-            if len(tf.nest.flatten(outputs)) != 1:
-                raise ValueError(SINGLE_LAYER_OUTPUT_ERROR_MSG)
-            # `outputs` will be the inputs to the next layer.
             inputs = outputs
-            mask = getattr(outputs, "_keras_mask", None)
+
+            def _get_mask_from_keras_tensor(kt):
+                return getattr(kt, "_keras_mask", None)
+
+            mask = tf.nest.map_structure(_get_mask_from_keras_tensor, outputs)
         return outputs
 
     def compute_output_shape(self, input_shape):
