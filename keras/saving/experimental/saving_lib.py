@@ -21,6 +21,7 @@ import threading
 import warnings
 import zipfile
 
+import numpy as np
 import tensorflow.compat.v2 as tf
 
 import keras
@@ -39,10 +40,9 @@ except ImportError:
 
 # isort: off
 
-_SELF_DIRNAME = "self"
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
-_VARS_FNAME = "variables.h5"
+_VARS_FNAME = "variables"
 _ASSETS_DIRNAME = "assets"
 
 # A temporary flag to enable the new idempotent saving framework.
@@ -72,24 +72,25 @@ ATTR_SKIPLIST = frozenset(
 )
 
 
-def save_model(model, filepath):
-    """Save a zip-archive representing a Keras model to the given filepath.
+def save_model(model, filepath, weights_format="h5", use_zip=True):
+    """Save an archive representing a Keras model to the given filepath.
 
     The zip-based archive contains the following structure:
 
-    - JSON-based configuration file (config.json): Records of model, layer, and
-        other trackables' configuration.
-    - NPZ-based trackable state files, found in respective directories, such as
-        model/states.npz, model/dense_layer/states.npz, etc.
-    - Metadata file (this is a TODO).
+    - JSON configuration file (`config.json`): Records of model, layer, and
+        other object configurations.
+    - Npz or h5 model variables file (`variables.npz` or `variables.h5`).
+    - Assets files (if any) found in the `assets/` directory structure,
+        which mirrors the model's inner structure.
+    - JSON metadata file (`metdata.json`).
 
     The states of Keras trackables (layers, optimizers, loss, and metrics) are
     automatically saved as long as they can be discovered through the attributes
-    returned by `dir(Model)`. Typically, the state includes the variables
+    returned by `dir(model)`. Typically, the state includes the variables
     associated with the trackable, but some specially purposed layers may
     contain more such as the vocabularies stored in the hashmaps. The trackables
-    define how their states are saved by exposing `save_state()` and
-    `load_state()` APIs.
+    define how their asset state is saved by exposing `save_assets()` and
+    `load_assets()` APIs.
 
     For the case of layer states, the variables will be visited as long as
     they are either 1) referenced via layer attributes, or 2) referenced via a
@@ -101,8 +102,11 @@ def save_model(model, filepath):
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
-    if h5py is None:
-        raise ImportError("h5py must be installed in order to save a model.")
+    if weights_format == "h5" and h5py is None:
+        raise ImportError(
+            "h5py must be installed in order to save a model in hdf5 format."
+        )
+
     if not model.built:
         warnings.warn(
             "You are saving a model that has not yet been built. "
@@ -123,93 +127,131 @@ def save_model(model, filepath):
             "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
         }
     )
-
-    # Use a temporary directory for the storing files prior to zipping.
-    temp_path = _get_temp_dir()
+    if use_zip:
+        # Use a temporary directory for the storing files prior to zipping.
+        write_path = _get_temp_dir()
+    else:
+        tf.io.gfile.makedirs(filepath)
+        write_path = filepath
     try:
         # Write files locally before zipping.
-        with open(tf.io.gfile.join(temp_path, _METADATA_FILENAME), "w") as f:
+        with open(tf.io.gfile.join(write_path, _METADATA_FILENAME), "w") as f:
             f.write(metadata_json)
-        with open(tf.io.gfile.join(temp_path, _CONFIG_FILENAME), "w") as f:
+        with open(tf.io.gfile.join(write_path, _CONFIG_FILENAME), "w") as f:
             f.write(config_json)
 
-        h5_file = h5py.File(tf.io.gfile.join(temp_path, _VARS_FNAME), "w")
-        assets_dir = tf.io.gfile.join(temp_path, _ASSETS_DIRNAME)
+        weights_path = tf.io.gfile.join(write_path, _VARS_FNAME)
+        assets_path = tf.io.gfile.join(write_path, _ASSETS_DIRNAME)
+
+        if weights_format == "h5":
+            weights_store = H5IOStore(weights_path, mode="w")
+        elif weights_format == "npz":
+            weights_store = NpzIOStore(weights_path, mode="w")
+        else:
+            raise ValueError(
+                "Unknown `weights_format`. Expected 'h5' or 'npz'.  "
+                f"Received: {weights_format}"
+            )
         _save_state(
             model,
-            weights_handler=H5IOHandler(h5_file),
-            assets_handler=DiskIOHandler(assets_dir),
+            weights_handler=weights_store,
+            assets_handler=DiskIOStore(assets_path),
             inner_path="",
             visited_trackables=set(),
         )
-        _print_h5_file(h5_file, action="saving")
-        h5_file.close()
+        weights_store.close()
 
-        # Zip local files into an archive.
-        with zipfile.ZipFile(filepath, "w") as zipfile_to_save:
-            _write_recursively(zipfile_to_save, temp_path, "")
-        _print_zip_file(zipfile_to_save, "saving")
+        if use_zip:
+            # Zip local files into an archive.
+            with zipfile.ZipFile(filepath, "w") as zipfile_to_save:
+                _write_to_zip_recursively(zipfile_to_save, write_path, "")
     except Exception as e:
         raise e
     finally:
         _SAVING_V3_ENABLED.value = saving_v3_enabled_value
-        # Remove the directory temporarily used.
-        tf.io.gfile.rmtree(temp_path)
+        if use_zip and tf.io.gfile.exists(write_path):
+            # Remove the directory temporarily used.
+            tf.io.gfile.rmtree(write_path)
 
 
 def load_model(filepath, custom_objects=None):
-    """Load a zip archive representing a Keras model."""
+    """Load an archive representing a Keras model."""
     if not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
-    if h5py is None:
-        raise ImportError("h5py must be installed in order to load a model.")
+    use_zip = not tf.io.gfile.isdir(filepath)
+
     saving_v3_enabled_value = getattr(_SAVING_V3_ENABLED, "value", False)
     _SAVING_V3_ENABLED.value = True
-    temp_path = _get_temp_dir()
-    try:
-        with zipfile.ZipFile(filepath, "r") as zipfile_to_load:
-            _print_zip_file(zipfile_to_load, "loading")
-            zipfile_to_load.extractall(temp_path)
 
-        with open(tf.io.gfile.join(temp_path, _CONFIG_FILENAME), "r") as f:
+    if use_zip:
+        read_path = _get_temp_dir()
+    else:
+        read_path = filepath
+    try:
+        if use_zip:
+            with zipfile.ZipFile(filepath, "r") as zipfile_to_load:
+                zipfile_to_load.extractall(read_path)
+
+        with open(tf.io.gfile.join(read_path, _CONFIG_FILENAME), "r") as f:
             config_json = f.read()
         # Note: we should NOT use a custom JSON decoder. Anything that
         # needs custom decoding must be handled in deserialize_keras_object.
         config_dict = json.loads(config_json)
         # Construct the model from the configuration file in the archive.
         model = deserialize_keras_object(config_dict, custom_objects)
-        h5_file = h5py.File(tf.io.gfile.join(temp_path, _VARS_FNAME), "r")
-        _print_h5_file(h5_file, action="loading")
-        assets_dir = tf.io.gfile.join(temp_path, _ASSETS_DIRNAME)
+
+        weights_path = tf.io.gfile.join(read_path, _VARS_FNAME)
+        if tf.io.gfile.exists(weights_path + ".h5"):
+            weights_format = "h5"
+            if h5py is None:
+                raise ImportError(
+                    "h5py must be installed in order to save "
+                    "a model in hdf5 format."
+                )
+        elif tf.io.gfile.exists(weights_path + ".npz"):
+            weights_format = "npz"
+
+        if weights_format == "h5":
+            weights_store = H5IOStore(weights_path, mode="r")
+        elif weights_format == "npz":
+            weights_store = NpzIOStore(weights_path, mode="r")
+        else:
+            raise ValueError(
+                f"Expected a {weights_path}.h5 or {weights_path}.npz file."
+            )
+
+        assets_path = tf.io.gfile.join(read_path, _ASSETS_DIRNAME)
         _load_state(
             model,
-            weights_handler=H5IOHandler(h5_file),
-            assets_handler=DiskIOHandler(assets_dir),
+            weights_handler=weights_store,
+            assets_handler=DiskIOStore(assets_path),
             inner_path="",
             visited_trackables=set(),
         )
-        h5_file.close()
+        weights_store.close()
     except Exception as e:
         raise e
     else:
         return model
     finally:
         _SAVING_V3_ENABLED.value = saving_v3_enabled_value
-        if tf.io.gfile.exists(temp_path):
-            tf.io.gfile.rmtree(temp_path)
+        if use_zip and tf.io.gfile.exists(read_path):
+            tf.io.gfile.rmtree(read_path)
 
 
-def _write_recursively(zipfile_to_save, system_path, zip_path):
+def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
     if not tf.io.gfile.isdir(system_path):
         zipfile_to_save.write(system_path, zip_path)
     else:
         for file_name in tf.io.gfile.listdir(system_path):
             system_file_path = tf.io.gfile.join(system_path, file_name)
             zip_file_path = tf.io.gfile.join(zip_path, file_name)
-            _write_recursively(zipfile_to_save, system_file_path, zip_file_path)
+            _write_to_zip_recursively(
+                zipfile_to_save, system_file_path, zip_file_path
+            )
 
 
 def _save_state(
@@ -339,9 +381,9 @@ def _load_container_state(
             )
 
 
-class DiskIOHandler:
-    def __init__(self, base_directory):
-        self.base_directory = base_directory
+class DiskIOStore:
+    def __init__(self, root_path, mode=None):
+        self.base_directory = root_path
 
     def make(self, path):
         if not path:
@@ -359,10 +401,13 @@ class DiskIOHandler:
             return path
         return None
 
+    def close(self):
+        pass
 
-class H5IOHandler:
-    def __init__(self, h5_file):
-        self.h5_file = h5_file
+
+class H5IOStore:
+    def __init__(self, root_path, mode="r"):
+        self.h5_file = h5py.File(root_path + ".h5", mode=mode)
 
     def make(self, path):
         if not path:
@@ -372,10 +417,46 @@ class H5IOHandler:
     def get(self, path):
         if not path:
             return self.h5_file["vars"]
-        if path in self.h5_file:
+        if path in self.h5_file and "vars" in self.h5_file[path]:
             return self.h5_file[path]["vars"]
-        print(f"Warning: asset missing from file: {path}")
         return {}
+
+    def close(self):
+        self.h5_file.close()
+
+
+class NpzIOStore:
+    def __init__(self, root_path, mode="r"):
+        self.root_path = root_path
+        self.mode = mode
+        if mode == "w":
+            self.contents = {}
+        else:
+            f = open(root_path + ".npz", mode="rb")
+            self.contents = np.load(f)
+            f.close()
+
+    def make(self, path):
+        if not path:
+            self.contents["vars"] = {}
+            return self.contents["vars"]
+        self.contents[path] = {"vars": {}}
+        return self.contents[path]["vars"]
+
+    def get(self, path):
+        if not path:
+            if "vars" in self.contents:
+                return self.contents["vars"]
+            return {}
+        if path in self.contents and "vars" in self.contents[path]:
+            return self.contents[path]["vars"]
+        return {}
+
+    def close(self):
+        if self.mode == "w":
+            f = open(self.root_path + ".npz", mode="wb")
+            np.savez(f, **self.contents)
+            f.close()
 
 
 def _get_temp_dir():
