@@ -27,7 +27,6 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from absl import logging
 
 from keras import backend
 from keras import constraints
@@ -3402,36 +3401,25 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Bypass Trackable logic as `__dict__` already contains this info.
         object.__setattr__(self, "__dict__", state)
 
-    def _get_state(self):
-        """Experimental method for getting the state of this layer object."""
-        result = {}
+    def _save_own_variables(self, store):
+        """Experimental method for saving the state of this layer object."""
         all_vars = self._trainable_weights + self._non_trainable_weights
         for i, v in enumerate(all_vars):
-            result[str(i)] = v
-        return result
+            store[f"{i}"] = v.numpy()
 
-    def _set_state(self, state):
-        """Experimental method for setting the state of this layer object."""
+    def _load_own_variables(self, store):
+        """Experimental method for loading the state of this layer object."""
         all_vars = self._trainable_weights + self._non_trainable_weights
-        for i, v in enumerate(all_vars):
-            v.assign(state[str(i)])
-
-    def _save_state(self, dirpath):
-        filepath = tf.io.gfile.join(dirpath, "weights.npz")
-        weights = self._get_state()
-        if weights:
-            # Only save the state if that of the trackable is available.
-            np.savez(filepath, **weights)
-            logging.debug(f"Saved state to {filepath}")
-
-    def _load_state(self, dirpath):
-        filepath = tf.io.gfile.join(dirpath, "weights.npz")
-        if tf.io.gfile.exists(filepath):
-            loaded_npz = np.load(filepath)
-            self._set_state(
-                {file: loaded_npz[file] for file in loaded_npz.files}
+        if len(store.keys()) != len(all_vars):
+            raise ValueError(
+                f"Layer '{self.name}' expected {len(all_vars)} variables, "
+                "but received "
+                f"{len(store.keys())} variables during loading. "
+                f"Names of variables received: {list(store.keys())}"
             )
-            logging.debug(f"Loaded state from {filepath}")
+        for i, v in enumerate(all_vars):
+            # TODO(rchao): check shapes and raise errors.
+            v.assign(store[f"{i}"])
 
 
 class TensorFlowOpLayer(Layer):

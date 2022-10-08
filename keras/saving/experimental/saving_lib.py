@@ -29,14 +29,21 @@ from keras.engine import base_layer
 from keras.optimizers.optimizer_experimental import optimizer
 from keras.saving.experimental.serialization_lib import deserialize_keras_object
 from keras.saving.experimental.serialization_lib import serialize_keras_object
+from keras.utils import generic_utils
 from keras.utils import io_utils
+
+try:
+    import h5py
+except ImportError:
+    h5py = None
 
 # isort: off
 
 _SELF_DIRNAME = "self"
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
-_STATES_ROOT_DIRNAME = "model"
+_VARS_FNAME = "variables.h5"
+_ASSETS_DIRNAME = "assets"
 
 # A temporary flag to enable the new idempotent saving framework.
 _SAVING_V3_ENABLED = threading.local()
@@ -44,11 +51,14 @@ _SAVING_V3_ENABLED.value = False
 
 ATTR_SKIPLIST = frozenset(
     {
+        "__dict__",
         "_self_tracked_trackables",
         "_layer_call_argspecs",
         "_self_unconditional_dependency_names",
         "_output_layers",
         "_input_layers",
+        "_trainable_weights",
+        "_non_trainable_weights",
         "submodules",
         "weights",
         "non_trainable_weights",
@@ -91,6 +101,8 @@ def save_model(model, filepath):
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
+    if h5py is None:
+        raise ImportError("h5py must be installed in order to save a model.")
     if not model.built:
         warnings.warn(
             "You are saving a model that has not yet been built. "
@@ -120,14 +132,23 @@ def save_model(model, filepath):
             f.write(metadata_json)
         with open(tf.io.gfile.join(temp_path, _CONFIG_FILENAME), "w") as f:
             f.write(config_json)
+
+        h5_file = h5py.File(tf.io.gfile.join(temp_path, _VARS_FNAME), "w")
+        assets_dir = tf.io.gfile.join(temp_path, _ASSETS_DIRNAME)
         _save_state(
-            model, tf.io.gfile.join(temp_path, _STATES_ROOT_DIRNAME), set()
+            model,
+            weights_handler=H5IOHandler(h5_file),
+            assets_handler=DiskIOHandler(assets_dir),
+            inner_path="",
+            visited_trackables=set(),
         )
+        _print_h5_file(h5_file, action="saving")
+        h5_file.close()
 
         # Zip local files into an archive.
         with zipfile.ZipFile(filepath, "w") as zipfile_to_save:
             _write_recursively(zipfile_to_save, temp_path, "")
-        _print_archive(zipfile_to_save, "saving")
+        _print_zip_file(zipfile_to_save, "saving")
     except Exception as e:
         raise e
     finally:
@@ -143,12 +164,14 @@ def load_model(filepath, custom_objects=None):
             "Invalid filename: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
+    if h5py is None:
+        raise ImportError("h5py must be installed in order to load a model.")
     saving_v3_enabled_value = getattr(_SAVING_V3_ENABLED, "value", False)
     _SAVING_V3_ENABLED.value = True
     temp_path = _get_temp_dir()
     try:
         with zipfile.ZipFile(filepath, "r") as zipfile_to_load:
-            _print_archive(zipfile_to_load, "loading")
+            _print_zip_file(zipfile_to_load, "loading")
             zipfile_to_load.extractall(temp_path)
 
         with open(tf.io.gfile.join(temp_path, _CONFIG_FILENAME), "r") as f:
@@ -158,7 +181,17 @@ def load_model(filepath, custom_objects=None):
         config_dict = json.loads(config_json)
         # Construct the model from the configuration file in the archive.
         model = deserialize_keras_object(config_dict, custom_objects)
-        _load_state(model, tf.io.gfile.join(temp_path, _STATES_ROOT_DIRNAME))
+        h5_file = h5py.File(tf.io.gfile.join(temp_path, _VARS_FNAME), "r")
+        _print_h5_file(h5_file, action="loading")
+        assets_dir = tf.io.gfile.join(temp_path, _ASSETS_DIRNAME)
+        _load_state(
+            model,
+            weights_handler=H5IOHandler(h5_file),
+            assets_handler=DiskIOHandler(assets_dir),
+            inner_path="",
+            visited_trackables=set(),
+        )
+        h5_file.close()
     except Exception as e:
         raise e
     else:
@@ -179,17 +212,20 @@ def _write_recursively(zipfile_to_save, system_path, zip_path):
             _write_recursively(zipfile_to_save, system_file_path, zip_file_path)
 
 
-def _save_state(trackable, temp_path, saved_trackables):
+def _save_state(
+    trackable, weights_handler, assets_handler, inner_path, visited_trackables
+):
     # If the trackable has already been saved, skip it.
-    if id(trackable) in saved_trackables:
+    if id(trackable) in visited_trackables:
         return
 
-    # TODO(rchao): Make `.get_state()` and `.save_state()` exported methods.
-    if hasattr(trackable, "_save_state"):
-        if not tf.io.gfile.exists(temp_path):
-            tf.io.gfile.makedirs(temp_path)
-        trackable._save_state(temp_path)
-        saved_trackables.add(id(trackable))
+    # TODO(fchollet): better name?
+    if hasattr(trackable, "_save_own_variables"):
+        trackable._save_own_variables(weights_handler.make(inner_path))
+    if hasattr(trackable, "_save_assets"):
+        trackable._save_assets(assets_handler.make(inner_path))
+
+    visited_trackables.add(id(trackable))
 
     # Recursively save state of children trackables (layers, optimizers, etc.)
     for child_attr in dir(trackable):
@@ -203,20 +239,33 @@ def _save_state(trackable, temp_path, saved_trackables):
         if _is_keras_trackable(child_obj):
             _save_state(
                 child_obj,
-                tf.io.gfile.join(temp_path, child_attr),
-                saved_trackables,
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, child_attr),
+                visited_trackables=visited_trackables,
             )
         elif isinstance(child_obj, (list, dict, tuple)):
             _save_container_state(
                 child_obj,
-                tf.io.gfile.join(temp_path, child_attr),
-                saved_trackables,
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, child_attr),
+                visited_trackables=visited_trackables,
             )
 
 
-def _load_state(trackable, temp_path):
-    if hasattr(trackable, "_load_state"):
-        trackable._load_state(temp_path)
+def _load_state(
+    trackable, weights_handler, assets_handler, inner_path, visited_trackables
+):
+    if id(trackable) in visited_trackables:
+        return
+
+    if hasattr(trackable, "_load_own_variables"):
+        trackable._load_own_variables(weights_handler.get(inner_path))
+    if hasattr(trackable, "_load_assets"):
+        trackable._load_assets(assets_handler.get(inner_path))
+
+    visited_trackables.add(id(trackable))
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr in dir(trackable):
@@ -230,46 +279,125 @@ def _load_state(trackable, temp_path):
         if _is_keras_trackable(child_obj):
             _load_state(
                 child_obj,
-                tf.io.gfile.join(temp_path, child_attr),
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, child_attr),
+                visited_trackables=visited_trackables,
             )
         elif isinstance(child_obj, (list, dict, tuple)):
             _load_container_state(
                 child_obj,
-                tf.io.gfile.join(temp_path, child_attr),
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, child_attr),
+                visited_trackables=visited_trackables,
             )
 
 
-def _save_container_state(container, temp_path, saved_trackables):
+def _save_container_state(
+    container, weights_handler, assets_handler, inner_path, visited_trackables
+):
+    used_names = {}
     for trackable in container:
         if _is_keras_trackable(trackable):
+            # Do NOT address the trackable via `trackable.name`, since
+            # names are usually autogenerated and thus not reproducible
+            # (i.e. they may vary across two instances of the same model).
+            name = generic_utils.to_snake_case(trackable.__class__.__name__)
+            if name in used_names:
+                used_names[name] += 1
+                name = f"{name}_{used_names[name]}"
+            else:
+                used_names[name] = 0
             _save_state(
                 trackable,
-                tf.io.gfile.join(temp_path, trackable.name),
-                saved_trackables,
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, name),
+                visited_trackables=visited_trackables,
             )
 
 
-def _load_container_state(container, temp_path):
+def _load_container_state(
+    container, weights_handler, assets_handler, inner_path, visited_trackables
+):
+    used_names = {}
     for trackable in container:
         if _is_keras_trackable(trackable):
+            name = generic_utils.to_snake_case(trackable.__class__.__name__)
+            if name in used_names:
+                used_names[name] += 1
+                name = f"{name}_{used_names[name]}"
+            else:
+                used_names[name] = 0
             _load_state(
                 trackable,
-                tf.io.gfile.join(temp_path, trackable.name),
+                weights_handler,
+                assets_handler,
+                inner_path=tf.io.gfile.join(inner_path, name),
+                visited_trackables=visited_trackables,
             )
+
+
+class DiskIOHandler:
+    def __init__(self, base_directory):
+        self.base_directory = base_directory
+
+    def make(self, path):
+        if not path:
+            return self.base_directory
+        path = tf.io.gfile.join(self.base_directory, path)
+        if not tf.io.gfile.exists(path):
+            tf.io.gfile.makedirs(path)
+        return path
+
+    def get(self, path):
+        if not path:
+            return self.base_directory
+        path = tf.io.gfile.join(self.base_directory, path)
+        if tf.io.gfile.exists(path):
+            return path
+        return None
+
+
+class H5IOHandler:
+    def __init__(self, h5_file):
+        self.h5_file = h5_file
+
+    def make(self, path):
+        if not path:
+            return self.h5_file.create_group("vars")
+        return self.h5_file.create_group(path).create_group("vars")
+
+    def get(self, path):
+        if not path:
+            return self.h5_file["vars"]
+        if path in self.h5_file:
+            return self.h5_file[path]["vars"]
+        print(f"Warning: asset missing from file: {path}")
+        return {}
 
 
 def _get_temp_dir():
     temp_dir = tempfile.mkdtemp()
     testfile = tempfile.TemporaryFile(dir=temp_dir)
     testfile.close()
-    # TODO(fchollet): Fallback on RAM if disk is nonwritable or if less than 2GB
-    # available.
     return temp_dir
 
 
-def _print_archive(zipfile, action):
+def _print_h5_file(h5_file, prefix="", action=None):
+    if not prefix:
+        print(f"Keras weights file ({h5_file}) {action}:")
+    if not hasattr(h5_file, "keys"):
+        return
+    for key in h5_file.keys():
+        print(f"...{prefix}{key}")
+        _print_h5_file(h5_file[key], prefix=prefix + "...")
+
+
+def _print_zip_file(zipfile, action):
     # TODO(fchollet): move to debugging logs.
-    io_utils.print_msg(f"Keras model {action}:")
+    io_utils.print_msg(f"Keras model archive {action}:")
     # Same as `ZipFile.printdir()` except for using Keras' printing utility.
     io_utils.print_msg(
         "%-46s %19s %12s" % ("File Name", "Modified    ", "Size")
