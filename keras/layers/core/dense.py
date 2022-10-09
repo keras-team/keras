@@ -119,7 +119,7 @@ class Dense(Layer):
         self.units = int(units) if not isinstance(units, int) else units
         if self.units < 0:
             raise ValueError(
-                f"Received an invalid value for `units`, expected "
+                "Received an invalid value for `units`, expected "
                 f"a positive integer. Received: units={units}"
             )
         self.activation = activations.get(activation)

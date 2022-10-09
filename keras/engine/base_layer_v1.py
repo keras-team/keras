@@ -33,7 +33,7 @@ from keras.engine import input_spec
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity
@@ -2135,8 +2135,9 @@ class Layer(base_layer.Layer):
         """
         if not self._inbound_nodes:
             raise RuntimeError(
-                "The layer has never been called "
-                "and thus has no defined " + attr_name + "."
+                "The layer has never been called and thus has no defined "
+                + attr_name
+                + "."
             )
         if not len(self._inbound_nodes) > node_index:
             raise ValueError(

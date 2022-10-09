@@ -382,19 +382,19 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
                 core_layers.dense(inputs, 2, name="my_dense")
                 var_dict = _get_variable_dict_from_varstore()
                 var_key = "test/my_dense/kernel"
-                self.assertEqual(var_dict[var_key].name, "%s:0" % var_key)
+                self.assertEqual(var_dict[var_key].name, f"{var_key}:0")
             with tf.compat.v1.variable_scope("test1") as scope:
                 inputs = tf.random.uniform((5, 3), seed=1)
                 core_layers.dense(inputs, 2, name=scope)
                 var_dict = _get_variable_dict_from_varstore()
                 var_key = "test1/kernel"
-                self.assertEqual(var_dict[var_key].name, "%s:0" % var_key)
+                self.assertEqual(var_dict[var_key].name, f"{var_key}:0")
             with tf.compat.v1.variable_scope("test2"):
                 inputs = tf.random.uniform((5, 3), seed=1)
                 core_layers.dense(inputs, 2)
                 var_dict = _get_variable_dict_from_varstore()
                 var_key = "test2/dense/kernel"
-                self.assertEqual(var_dict[var_key].name, "%s:0" % var_key)
+                self.assertEqual(var_dict[var_key].name, f"{var_key}:0")
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])

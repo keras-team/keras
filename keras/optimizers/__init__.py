@@ -35,6 +35,7 @@ from keras.optimizers.legacy import sgd as sgd_legacy
 from keras.optimizers.optimizer_experimental import (
     adadelta as adadelta_experimental,
 )
+from keras.optimizers.optimizer_experimental import adafactor
 from keras.optimizers.optimizer_experimental import (
     adagrad as adagrad_experimental,
 )
@@ -76,8 +77,9 @@ from keras.optimizers.optimizer_v2.ftrl import Ftrl
 from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import serialize_keras_object
+from keras.optimizers.schedules import learning_rate_schedule
+from keras.saving.legacy.serialization import deserialize_keras_object
+from keras.saving.legacy.serialization import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -90,7 +92,7 @@ def serialize(optimizer):
     The configuration can be used for persistence and reconstruct the
     `Optimizer` instance again.
 
-    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.SGD())
+    >>> tf.keras.optimizers.serialize(tf.keras.optimizers.legacy.SGD())
     {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
                                      'decay': 0.0, 'momentum': 0.0,
                                      'nesterov': False}}
@@ -123,7 +125,7 @@ def deserialize(config, custom_objects=None, **kwargs):
         loss_scale_optimizer,
     )
 
-    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
     if len(config["config"]) > 0:
         # If the optimizer config is not empty, then we use the value of
         # `is_legacy_optimizer` to override `use_legacy_optimizer`. If
@@ -186,6 +188,53 @@ def deserialize(config, custom_objects=None, **kwargs):
     )
 
 
+@keras_export(
+    "keras.__internal__.optimizers.convert_to_legacy_optimizer", v1=[]
+)
+def convert_to_legacy_optimizer(optimizer):
+    """Convert experimental optimizer to legacy optimizer.
+
+    This function takes in a `tf.keras.optimizers.experimental.Optimizer`
+    instance and converts it to the corresponding
+    `tf.keras.optimizer.legacy.Optimizer` instance.
+    For example, `tf.keras.optimizers.experimental.Adam(...)` to
+    `tf.keras.optimizers.legacy.Adam(...)`.
+
+    Args:
+        optimizer: An instance of `tf.keras.optimizers.experimental.Optimizer`.
+    """
+    if not isinstance(optimizer, optimizer_experimental.Optimizer):
+        raise ValueError(
+            "`convert_to_legacy_optimizer` should only be called "
+            "on instances of `tf.keras.optimizers.Optimizer`, but "
+            f"received {optimizer} of type {type(optimizer)}."
+        )
+    optimizer_name = optimizer.__class__.__name__.lower()
+    config = optimizer.get_config()
+    # Remove fields that only exist in experimental optimizer.
+    keys_to_remove = [
+        "weight_decay",
+        "use_ema",
+        "ema_momentum",
+        "ema_overwrite_frequency",
+        "jit_compile",
+        "is_legacy_optimizer",
+    ]
+    for key in keys_to_remove:
+        config.pop(key, None)
+    # Learning rate can be a custom LearningRateSchedule, which is stored as
+    # a dict in config, and cannot be deserialized.
+    if isinstance(
+        optimizer._learning_rate, learning_rate_schedule.LearningRateSchedule
+    ):
+        config["learning_rate"] = optimizer._learning_rate
+    legacy_optimizer_config = {
+        "class_name": optimizer_name,
+        "config": config,
+    }
+    return deserialize(legacy_optimizer_config, use_legacy_optimizer=True)
+
+
 @keras_export("keras.optimizers.get")
 def get(identifier, **kwargs):
     """Retrieves a Keras Optimizer instance.
@@ -204,16 +253,22 @@ def get(identifier, **kwargs):
     Raises:
         ValueError: If `identifier` cannot be interpreted.
     """
-    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", True)
+    use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
     if isinstance(
         identifier,
         (
             Optimizer,
             base_optimizer_v2.OptimizerV2,
-            optimizer_experimental.Optimizer,
         ),
     ):
         return identifier
+    elif isinstance(identifier, optimizer_experimental.Optimizer):
+        if tf.__internal__.tf2.enabled():
+            return identifier
+        else:
+            # If TF2 is disabled, we convert to the legacy optimizer.
+            return convert_to_legacy_optimizer(identifier)
+
     # Wrap legacy TF optimizer instances
     elif isinstance(identifier, tf.compat.v1.train.Optimizer):
         opt = TFOptimizer(identifier)

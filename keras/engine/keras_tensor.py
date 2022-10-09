@@ -323,9 +323,9 @@ class KerasTensor:
                 layer.name,
             )
         if self._inferred_value is not None:
-            inferred_value_string = ", inferred_value=%s" % self._inferred_value
+            inferred_value_string = f", inferred_value={self._inferred_value}"
         if self.name is not None:
-            name_string = ", name='%s'" % self._name
+            name_string = f", name='{self._name}'"
         return "KerasTensor(type_spec=%s%s%s%s)" % (
             self.type_spec,
             inferred_value_string,
@@ -337,18 +337,15 @@ class KerasTensor:
         symbolic_description = ""
         inferred_value_string = ""
         if isinstance(self.type_spec, tf.TensorSpec):
-            type_spec_string = "shape=%s dtype=%s" % (
-                self.shape,
-                self.dtype.name,
-            )
+            type_spec_string = f"shape={self.shape} dtype={self.dtype.name}"
         else:
-            type_spec_string = "type_spec=%s" % self.type_spec
+            type_spec_string = f"type_spec={self.type_spec}"
 
         if hasattr(self, "_keras_history"):
             layer = self._keras_history.layer
-            symbolic_description = " (created by layer '%s')" % (layer.name,)
+            symbolic_description = f" (created by layer '{layer.name}')"
         if self._inferred_value is not None:
-            inferred_value_string = " inferred_value=%s" % self._inferred_value
+            inferred_value_string = f" inferred_value={self._inferred_value}"
         return "<KerasTensor: %s%s%s>" % (
             type_spec_string,
             inferred_value_string,
@@ -595,8 +592,8 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
     @classmethod
     def from_type_spec(cls, type_spec, name=None):
         raise NotImplementedError(
-            "You cannot instantiate a KerasTensor "
-            "directly from TypeSpec: %s" % type_spec
+            "You cannot instantiate a KerasTensor directly from TypeSpec: %s"
+            % type_spec
         )
 
     def _to_placeholder(self):

@@ -139,7 +139,7 @@ class DistributionStrategyLstmModelCorrectnessTest(
             ),
         ):
             self.skipTest(
-                "CentralStorageStrategy is not supported by " "mixed precision."
+                "CentralStorageStrategy is not supported by mixed precision."
             )
         if isinstance(
             distribution,

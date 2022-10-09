@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Base class of optimizer.
-
-This is under development, and subject to interface/implementation changes.
-"""
+"""Base class of optimizer."""
 
 import abc
+import re
 
 import tensorflow.compat.v2 as tf
 from absl import logging
@@ -38,6 +36,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def __init__(
         self,
         name,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -48,6 +47,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         **kwargs,
     ):
         self.name = name
+        self.weight_decay = weight_decay
         self.clipnorm = clipnorm
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
@@ -70,7 +70,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             ):
                 raise ValueError(
                     "`ema_overwrite_frequency` must be an integer > 1 or None. "
-                    f"Received: ema_overwrite_frequency="
+                    "Received: ema_overwrite_frequency="
                     f"{ema_overwrite_frequency}"
                 )
         self.ema_momentum = ema_momentum
@@ -78,14 +78,14 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         if self.clipnorm is not None and self.global_clipnorm is not None:
             raise ValueError(
-                f"At most one of `clipnorm` and `global_clipnorm` can "
+                "At most one of `clipnorm` and `global_clipnorm` can "
                 f"be set. Received: clipnorm={self.clipnorm}, "
                 f"global_clipnorm={self.global_clipnorm}."
             )
 
+        self._variables = []
         self._create_iteration_variable()
         self._process_kwargs(kwargs)
-        self._variables = []
 
     def _create_iteration_variable(self):
         """Create the iterations counter variable."""
@@ -95,8 +95,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             self._iterations = tf.Variable(
                 0, name="iteration", dtype=tf.int64, trainable=False
             )
+        self._variables.append(self._iterations)
 
     def _process_kwargs(self, kwargs):
+        # Remove the `is_legacy_optimizer` arg, which is for serialization only.
         kwargs.pop("is_legacy_optimizer", None)
         legacy_kwargs = {
             "lr",
@@ -116,6 +118,16 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                     f"{k} is not a valid argument, kwargs should be empty "
                     " for `optimizer_experimental.Optimizer`."
                 )
+
+    def _create_or_restore_slot_variable(self, **kwargs):
+        raise ValueError(
+            "You are trying to restore a checkpoint from a legacy Keras "
+            "optimizer into a v2.11+ Optimizer, which can cause "
+            "errors. Please update the optimizer referenced in your code "
+            "to be an instance of "
+            "`tf.keras.optimizers.legacy.Optimizer`, e.g.: "
+            f"`tf.keras.optimizer.legacy.{self.__class__.__name__}`."
+        )
 
     def _var_key(self, variable):
         """Get a unique identifier of the given variable."""
@@ -195,9 +207,11 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if self._var_key(variable) not in self._index_dict:
             raise KeyError(
                 f"The optimizer cannot recognize variable {variable.name}. "
-                f"This usually means that you're reusing an optimizer "
-                f"previously created for a different model. Try creating a "
-                "new optimizer instance."
+                "This usually means you are trying to call the optimizer to "
+                "update different parts of the model separately. Please call "
+                "`optimizer.build(variables)` with the full list of trainable "
+                "variables before the training loop or use legacy optimizer "
+                "`tf.keras.optimizers.legacy.{self.__class__.__name__}."
             )
         self.update_step(gradient, variable)
 
@@ -208,7 +222,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
           loss: `Tensor` or callable. If a callable, `loss` should take no
             arguments and return the value to minimize.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects. Use callable when the variable list would otherwise be
+            incomplete before `minimize` since the variables are created at the
+            first time `loss` is called.
           tape: (Optional) `tf.GradientTape`. If `loss` is provided as a
             `Tensor`, the tape that computed the `loss` must be provided.
 
@@ -225,8 +242,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             tape = tf.GradientTape()
         if callable(loss):
             with tape:
-                tape.watch(var_list)
+                if not callable(var_list):
+                    tape.watch(var_list)
                 loss = loss()
+                if callable(var_list):
+                    var_list = var_list()
+
         grads = tape.gradient(loss, var_list)
         return list(zip(grads, var_list))
 
@@ -330,23 +351,28 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         self.learning_rate = learning_rate
 
     def _build_learning_rate(self, learning_rate):
-        if isinstance(
-            learning_rate, learning_rate_schedule.LearningRateSchedule
-        ):
-            # Create a variable to hold the current learning rate.
-            self._current_learning_rate = tf.Variable(
-                learning_rate(self.iterations),
+        with tf.init_scope():
+            if isinstance(
+                learning_rate, learning_rate_schedule.LearningRateSchedule
+            ):
+                # Create a variable to hold the current learning rate.
+                current_learning_rate = tf.convert_to_tensor(
+                    learning_rate(self.iterations)
+                )
+                self._current_learning_rate = tf.Variable(
+                    current_learning_rate,
+                    name="current_learning_rate",
+                    dtype=current_learning_rate.dtype,
+                    trainable=False,
+                )
+                return learning_rate
+
+            return tf.Variable(
+                learning_rate,
                 name="learning_rate",
-                dtype=tf.float32,
+                dtype=backend.floatx(),
                 trainable=False,
             )
-            return learning_rate
-        return tf.Variable(
-            learning_rate,
-            name="learning_rate",
-            dtype=backend.floatx(),
-            trainable=False,
-        )
 
     @abc.abstractmethod
     def build(self, var_list):
@@ -445,9 +471,18 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         """
         if initial_value is None:
             if shape is None:
-                initial_value = tf.zeros(
-                    shape=model_variable.shape, dtype=model_variable.dtype
-                )
+                if model_variable.shape.rank is None:
+                    # When the rank is None, we cannot get a concrete
+                    # `model_variable.shape`, we use dynamic shape.
+                    initial_value = tf.zeros_like(
+                        model_variable, dtype=model_variable.dtype
+                    )
+                else:
+                    # We cannot always use `zeros_like`, because some cases
+                    # the shape exists while values don't.
+                    initial_value = tf.zeros(
+                        model_variable.shape, dtype=model_variable.dtype
+                    )
             else:
                 initial_value = tf.zeros(shape, dtype=model_variable.dtype)
         variable = tf.Variable(
@@ -471,7 +506,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
           loss: `Tensor` or callable. If a callable, `loss` should take no
             arguments and return the value to minimize.
           var_list: list or tuple of `Variable` objects to update to minimize
-            `loss`.
+            `loss`, or a callable returning the list or tuple of `Variable`
+            objects.  Use callable when the variable list would otherwise be
+            incomplete before `minimize` since the variables are created at the
+            first time `loss` is called.
           tape: (Optional) `tf.GradientTape`.
 
         Returns:
@@ -480,18 +518,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         grads_and_vars = self.compute_gradients(loss, var_list, tape)
         self.apply_gradients(grads_and_vars)
 
-    def apply_gradients(self, grads_and_vars):
-        """Apply gradients to variables.
-
-        Args:
-          grads_and_vars: List of (gradient, variable) pairs.
-
-        Returns:
-          None
-
-        Raises:
-          TypeError: If `grads_and_vars` is malformed.
-        """
+    def _compute_current_learning_rate(self):
         if isinstance(
             self._learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
@@ -502,28 +529,116 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                     self._learning_rate(self.iterations)
                 )
             else:
+                current_learning_rate = tf.convert_to_tensor(
+                    self._learning_rate(self.iterations)
+                )
                 self._current_learning_rate = tf.Variable(
-                    self._learning_rate(self.iterations),
-                    name="learning_rate",
-                    dtype=tf.float32,
+                    current_learning_rate,
+                    name="current_learning_rate",
+                    dtype=current_learning_rate.dtype,
                     trainable=False,
                 )
-        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
-        if len(list(grads_and_vars)) == 0:
+
+    def exclude_from_weight_decay(self, var_list=None, var_names=None):
+        """Exclude variables from weight decay.
+
+        This method must be called before the optimizer's `build` method is
+        called. You can set specific variables to exclude out, or set a list of
+        strings as the anchor words, if any of which appear in a variable's
+        name, then the variable is excluded.
+
+        Args:
+            var_list: A list of `tf.Variable`s to exclude from weight decay.
+            var_names: A list of strings. If any string in `var_names` appear
+                in the model variable's name, then this model variable is
+                excluded from weight decay. For example, `var_names=['bias']`
+                excludes all bias variables from weight decay.
+        """
+        if hasattr(self, "_built") and self._built:
+            raise ValueError(
+                "`exclude_from_weight_decay()` can only be configued before "
+                "the optimizer is built."
+            )
+
+        if var_list:
+            self._exclude_from_weight_decay = [
+                self._var_key(variable) for variable in var_list
+            ]
+        else:
+            self._exclude_from_weight_decay = []
+        self._exclude_from_weight_decay_names = var_names or []
+
+    def _use_weight_decay(self, variable):
+        exclude_from_weight_decay = getattr(
+            self, "_exclude_from_weight_decay", []
+        )
+        exclude_from_weight_decay_names = getattr(
+            self, "_exclude_from_weight_decay_names", []
+        )
+        variable_id = self._var_key(variable)
+        for exclude_id in exclude_from_weight_decay:
+            if variable_id == exclude_id:
+                return False
+        for name in exclude_from_weight_decay_names:
+            if re.search(name, variable.name) is not None:
+                return False
+        return True
+
+    def apply_gradients(self, grads_and_vars, name=None):
+        """Apply gradients to variables.
+
+        Args:
+          grads_and_vars: List of `(gradient, variable)` pairs.
+          name: string, defaults to None. The name of the namescope to
+            use when creating variables. If None, `self.name` will be used.
+
+        Returns:
+          A `tf.Variable`, representing the current iteration.
+
+        Raises:
+          TypeError: If `grads_and_vars` is malformed.
+        """
+        self._compute_current_learning_rate()
+        grads_and_vars = list(grads_and_vars)
+        if len(grads_and_vars) == 0:
             # It is possible that the grad is empty. In this case,
             # `apply_gradients` is a no-op.
-            return
+            return self._iterations
         grads, trainable_variables = zip(*grads_and_vars)
-        scope_name = self.name or "optimizer"
+        scope_name = name or self.name or "optimizer"
         with tf.name_scope(scope_name):
             with tf.init_scope():
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
+        grads_and_vars = list(zip(grads, trainable_variables))
+        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
+        if len(list(grads_and_vars)) == 0:
+            # Check again after filtering gradients.
+            return self._iterations
+
+        grads, trainable_variables = zip(*grads_and_vars)
+
         grads = self._clip_gradients(grads)
         grads = self._deduplicate_sparse_grad(grads)
+        self._apply_weight_decay(trainable_variables)
         grads_and_vars = list(zip(grads, trainable_variables))
-        self._internal_apply_gradients(grads_and_vars)
+        iteration = self._internal_apply_gradients(grads_and_vars)
+
+        # Apply variable constraints after applying gradients.
+        for variable in trainable_variables:
+            if variable.constraint is not None:
+                variable.assign(variable.constraint(variable))
+        return iteration
+
+    def _apply_weight_decay(self, variables):
+        if self.weight_decay is None:
+            return
+        for variable in variables:
+            if self._use_weight_decay(variable):
+                lr = tf.cast(self.learning_rate, variable.dtype)
+                wd = tf.cast(self.weight_decay, variable.dtype)
+                variable.assign_sub(variable * wd * lr)
 
     def _internal_apply_gradients(self, grads_and_vars):
         """Helper function of apply gradients.
@@ -539,13 +654,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         else:
             for grad, var in grads_and_vars:
                 self._update_step(grad, var)
-
-        self.iterations.assign_add(1)
+        return self.iterations.assign_add(1)
 
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
-            for (var, average) in zip(
+            for var, average in zip(
                 var_list, self._model_variables_moving_average
             ):
                 average.assign(
@@ -557,10 +671,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if len(var_list) != len(self._model_variables_moving_average):
             raise ValueError(
                 f"The length of model variables ({len(var_list)}) to "
-                f"override does not match the length of model variables "
-                f"stored in the optimizer "
+                "override does not match the length of model variables "
+                "stored in the optimizer "
                 f"({len(self._model_variables_moving_average)}). Please "
-                f"check if the optimizer was called on your model."
+                "check if the optimizer was called on your model."
             )
         self._overwrite_model_variables_with_average_value_helper(var_list)
 
@@ -613,6 +727,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             Python dictionary.
         """
         config = {
+            "name": self.name,
+            "weight_decay": self.weight_decay,
             "clipnorm": self.clipnorm,
             "global_clipnorm": self.global_clipnorm,
             "clipvalue": self.clipvalue,
@@ -625,7 +741,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         return config
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None):
         """Creates an optimizer from its config.
 
         This method is the reverse of `get_config`, capable of instantiating the
@@ -633,6 +749,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         Args:
             config: A Python dictionary, typically the output of get_config.
+            custom_objects: A Python dictionary mapping names to additional
+              user-defined Python objects needed to recreate this optimizer.
 
         Returns:
             An optimizer instance.
@@ -640,24 +758,54 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         if "learning_rate" in config:
             if isinstance(config["learning_rate"], dict):
                 config["learning_rate"] = learning_rate_schedule.deserialize(
-                    config["learning_rate"]
+                    config["learning_rate"], custom_objects=custom_objects
                 )
         return cls(**config)
 
-    @doc_controls.do_not_generate_docs
     def variables(self):
-        """Returns variables of this Optimizer.
-
-        We override the `variable` property method of `tf.Module` for the
-        sake of backward compatibility with `optimizer_v2.Optimizer`'s
-        `variable()` method.
-        """
+        """Returns variables of this optimizer."""
         return self._variables
+
+    def set_weights(self, weights):
+        """Set the weights of the optimizer.
+
+        Args:
+            weights: a list of `tf.Variable`s or numpy arrays, the target values
+                of optimizer variables. It should have the same order as
+                `self._variables`.
+        """
+        if not getattr(self, "_built", False):
+            raise ValueError(
+                "You are calling `set_weights()` on an optimizer that has not "
+                "yet been built. Please call "
+                "`optimizer.build(trainable_variables)` to create the "
+                "optimizer weights before calling `set_weights()`."
+            )
+
+        for variable, weight in zip(self._variables, weights):
+            if variable.shape != weight.shape:
+                raise ValueError(
+                    f"Optimizer variable {self._var_key(variable)} has shape "
+                    f"{str(variable.shape)} not compatible with provided "
+                    f"weight shape {str(weight.shape)}."
+                )
+            variable.assign(weight)
+
+    def _save_own_variables(self, store):
+        """Get the state of this optimizer object."""
+        for i, variable in enumerate(self.variables()):
+            store[str(i)] = variable.numpy()
+
+    def _load_own_variables(self, store):
+        """Set the state of this optimizer object."""
+        for i, variable in enumerate(self.variables()):
+            variable.assign(store[str(i)])
 
 
 base_optimizer_keyword_args = """name: String. The name to use
         for momentum accumulator weights created by
         the optimizer.
+      weight_decay: Float, defaults to None. If set, weight decay is applied.
       clipnorm: Float. If set, the gradient of each weight is individually
         clipped so that its norm is no higher than this value.
       clipvalue: Float. If set, the gradient of each weight is clipped to be no
@@ -687,7 +835,11 @@ base_optimizer_keyword_args = """name: String. The name to use
       **kwargs: keyword arguments only used for backward compatibility."""
 
 
-@keras_export("keras.optimizers.experimental.Optimizer", v1=[])
+@keras_export(
+    "keras.optimizers.Optimizer",
+    "keras.optimizers.experimental.Optimizer",
+    v1=[],
+)
 class Optimizer(_BaseOptimizer):
     """Abstract optimizer base class.
 
@@ -770,10 +922,25 @@ class Optimizer(_BaseOptimizer):
     [2.0, 2.0]
     >>> opt.apply_gradients(zip(grads, [var1, var2]))
     >>> # Without clipping, we should get [0, 0], but as gradients are clipped
-    >>> # to
-    >>> # have max value 1, we get [1.0, 1.0].
+    >>> # to have max value 1, we get [1.0, 1.0].
     >>> print([var1.numpy(), var2.numpy()])
     [1.0, 1.0]
+
+    ### Using weight decay.
+
+    Weight decay in certain scenarios can boost the model's performance. Keras
+    has built-in support for weight decay in all optimizers. Users can apply
+    weight decay by setting `weight_decay` argument.
+
+    >>> opt = tf.keras.optimizers.experimental.SGD(1, weight_decay=0.004)
+    >>> grads, var1, var2 = tf.zeros(()), tf.Variable(2.0), tf.Variable(2.0)
+    >>> # You can exclude variables from weight decay, in this case we
+    >>> # exclude `var2`.
+    >>> opt.exclude_from_weight_decay(var_list=[var2])
+    >>> opt.apply_gradients(zip([grads, grads], [var1, var2]))
+    >>> print([var1.numpy(), var2.numpy()])
+    [1.992, 2.0]
+
 
     ### Using exponential moving average.
 
@@ -863,6 +1030,7 @@ class Optimizer(_BaseOptimizer):
     def __init__(
         self,
         name,
+        weight_decay=0,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -876,6 +1044,7 @@ class Optimizer(_BaseOptimizer):
 
         super().__init__(
             name,
+            weight_decay,
             clipnorm,
             clipvalue,
             global_clipnorm,
@@ -919,28 +1088,66 @@ class Optimizer(_BaseOptimizer):
         """
         return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
-    def apply_gradients(self, grads_and_vars, skip_gradients_aggregation=False):
+    def apply_gradients(
+        self,
+        grads_and_vars,
+        name=None,
+        skip_gradients_aggregation=False,
+        **kwargs,
+    ):
         """Apply gradients to variables.
 
         Args:
-          grads_and_vars: List of (gradient, variable) pairs.
+          grads_and_vars: List of `(gradient, variable)` pairs.
+          name: string, defaults to None. The name of the namescope to
+            use when creating variables. If None, `self.name` will be used.
           skip_gradients_aggregation: If true, gradients aggregation will not be
             performed inside optimizer. Usually this arg is set to True when you
             write custom code aggregating gradients outside the optimizer.
+          **kwargs: keyword arguments only used for backward compatibility.
 
         Returns:
-          None
+          A `tf.Variable`, representing the current iteration.
 
         Raises:
           TypeError: If `grads_and_vars` is malformed.
           RuntimeError: If called in a cross-replica context.
         """
-        if not skip_gradients_aggregation:
+        # `experimental_aggregate_gradients` is an arg in `apply_gradients` of
+        # v2 optimizer -- the reverse of `skip_gradients_aggregation`.
+        # We read it from kwargs for backward compatibility.
+        experimental_aggregate_gradients = kwargs.pop(
+            "experimental_aggregate_gradients", True
+        )
+        if not skip_gradients_aggregation and experimental_aggregate_gradients:
             grads_and_vars = self.aggregate_gradients(grads_and_vars)
-        super().apply_gradients(grads_and_vars)
+        return super().apply_gradients(grads_and_vars, name=name)
+
+    def _apply_weight_decay(self, variables):
+        # Apply weight decay in distributed setup.
+        if self.weight_decay is None:
+            return
+
+        def distributed_apply_weight_decay(distribution, variables, **kwargs):
+            def weight_decay_fn(variable):
+                if self._use_weight_decay(variable):
+                    lr = tf.cast(self.learning_rate, variable.dtype)
+                    wd = tf.cast(self.weight_decay, variable.dtype)
+                    variable.assign_sub(variable * wd * lr)
+
+            for variable in variables:
+                distribution.extended.update(
+                    variable, weight_decay_fn, group=False
+                )
+
+        tf.__internal__.distribute.interim.maybe_merge_call(
+            distributed_apply_weight_decay,
+            self._distribution_strategy,
+            variables,
+        )
 
     def _internal_apply_gradients(self, grads_and_vars):
-        tf.__internal__.distribute.interim.maybe_merge_call(
+        return tf.__internal__.distribute.interim.maybe_merge_call(
             self._distributed_apply_gradients_fn,
             self._distribution_strategy,
             grads_and_vars,
@@ -971,7 +1178,7 @@ class Optimizer(_BaseOptimizer):
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
-            for (var, average) in zip(
+            for var, average in zip(
                 var_list, self._model_variables_moving_average
             ):
                 self._distribution_strategy.extended.update(
@@ -993,7 +1200,6 @@ class Optimizer(_BaseOptimizer):
             distribution.extended.update(
                 var, apply_grad_to_update_var, args=(grad,), group=False
             )
-        self.iterations.assign_add(1)
 
         if self.use_ema:
             _, var_list = zip(*grads_and_vars)
@@ -1002,8 +1208,8 @@ class Optimizer(_BaseOptimizer):
                 # Only when self.ema_overwrite_frequency is not None, we
                 # overwrite the model variables.
                 should_overwrite_model_vars = (
-                    self.iterations % self.ema_overwrite_frequency == 0
-                )
+                    self.iterations + 1
+                ) % self.ema_overwrite_frequency == 0
                 tf.cond(
                     tf.cast(should_overwrite_model_vars, tf.bool),
                     true_fn=lambda: self._overwrite_model_variables_with_average_value(  # noqa: E501
@@ -1011,6 +1217,7 @@ class Optimizer(_BaseOptimizer):
                     ),
                     false_fn=lambda: None,
                 )
+        return self.iterations.assign_add(1)
 
 
 class RestoredOptimizer(Optimizer):

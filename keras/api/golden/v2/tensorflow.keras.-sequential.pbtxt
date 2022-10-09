@@ -19,6 +19,10 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
+    name: "distribute_reduction_method"
+    mtype: "<type \'property\'>"
+  }
+  member {
     name: "distribute_strategy"
     mtype: "<type \'property\'>"
   }
@@ -257,6 +261,10 @@ tf_class {
   member_method {
     name: "get_layer"
     argspec: "args=[\'self\', \'name\', \'index\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "
+  }
+  member_method {
+    name: "get_metrics_result"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "get_output_at"

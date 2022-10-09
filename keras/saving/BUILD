@@ -16,15 +16,16 @@ py_library(
     name = "saving",
     srcs = [
         "__init__.py",
-        "hdf5_format.py",
-        "model_config.py",
+        "legacy/hdf5_format.py",
+        "legacy/model_config.py",
+        "legacy/save.py",
+        "legacy/saving_utils.py",
         "pickle_utils.py",
-        "save.py",
-        "saved_model_experimental.py",
-        "saving_utils.py",
     ],
     srcs_version = "PY3",
     deps = [
+        ":object_registration",
+        ":serialization",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -35,18 +36,51 @@ py_library(
         "//keras/mixed_precision:autocast_variable",
         "//keras/optimizers",
         "//keras/protobuf:saved_metadata_proto_py_pb2",
-        "//keras/saving/saved_model",
-        "//keras/saving/utils_v1",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
     ],
 )
 
+py_library(
+    name = "object_registration",
+    srcs = [
+        "object_registration.py",
+    ],
+    srcs_version = "PY3",
+)
+
+py_library(
+    name = "serialization",
+    srcs = [
+        "legacy/serialization.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":object_registration",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/utils:tf_contextlib",
+        "//keras/utils:tf_inspect",
+    ],
+)
+
+tf_py_test(
+    name = "object_registration_test",
+    size = "small",
+    srcs = ["object_registration_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
 tf_py_test(
     name = "metrics_serialization_test",
     size = "medium",
-    srcs = ["metrics_serialization_test.py"],
+    srcs = ["legacy/metrics_serialization_test.py"],
     python_version = "PY3",
     shard_count = 8,
     tags = [
@@ -64,7 +98,7 @@ tf_py_test(
 tf_py_test(
     name = "losses_serialization_test",
     size = "medium",
-    srcs = ["losses_serialization_test.py"],
+    srcs = ["legacy/losses_serialization_test.py"],
     python_version = "PY3",
     shard_count = 4,
     deps = [
@@ -94,7 +128,7 @@ tf_py_test(
 tf_py_test(
     name = "save_weights_test",
     size = "medium",
-    srcs = ["save_weights_test.py"],
+    srcs = ["legacy/save_weights_test.py"],
     python_version = "PY3",
     shard_count = 4,
     tags = [
@@ -114,7 +148,7 @@ tf_py_test(
 tf_py_test(
     name = "save_test",
     size = "medium",
-    srcs = ["save_test.py"],
+    srcs = ["legacy/save_test.py"],
     python_version = "PY3",
     shard_count = 4,
     tags = [
@@ -130,27 +164,9 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "saved_model_experimental_test",
-    size = "medium",
-    srcs = ["saved_model_experimental_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "no_oss",  # TODO(b/119349471): Re-enable
-        "no_windows",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-    ],
-)
-
-tf_py_test(
     name = "saving_utils_test",
     size = "medium",
-    srcs = ["saving_utils_test.py"],
+    srcs = ["legacy/saving_utils_test.py"],
     python_version = "PY3",
     tags = ["notsan"],
     deps = [

@@ -118,7 +118,7 @@ def _build_proj_equation(free_dims, bound_dims, output_dims):
         kernel_str += char
         output_str += char
         bias_axes += char
-    equation = "%s,%s->%s" % (input_str, kernel_str, output_str)
+    equation = f"{input_str},{kernel_str}->{output_str}"
 
     return equation, bias_axes, len(output_str)
 
@@ -151,11 +151,10 @@ class MultiHeadAttention(Layer):
     Finally, the result tensor with the last dimension as value_dim can take an
     linear projection and return.
 
-    When using MultiHeadAttention inside a custom Layer, the custom Layer must
-    implement `build()` and call MultiHeadAttention's `_build_from_signature()`.
+    When using `MultiHeadAttention` inside a custom layer, the custom layer must
+    implement its own `build()` method and call `MultiHeadAttention`'s
+    `_build_from_signature()` there.
     This enables weights to be restored correctly when the model is loaded.
-    TODO(b/172609172): link to documentation about calling custom build
-    functions when used in a custom Layer.
 
     Examples:
 
@@ -246,7 +245,7 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
@@ -362,7 +361,7 @@ class MultiHeadAttention(Layer):
                 ),
                 bias_axes=bias_axes if self._use_bias else None,
                 name="query",
-                **self._get_common_kwargs_for_sublayer()
+                **self._get_common_kwargs_for_sublayer(),
             )
             einsum_equation, bias_axes, output_rank = _build_proj_equation(
                 self._key_shape.rank - 1, bound_dims=1, output_dims=2
@@ -374,7 +373,7 @@ class MultiHeadAttention(Layer):
                 ),
                 bias_axes=bias_axes if self._use_bias else None,
                 name="key",
-                **self._get_common_kwargs_for_sublayer()
+                **self._get_common_kwargs_for_sublayer(),
             )
             einsum_equation, bias_axes, output_rank = _build_proj_equation(
                 self._value_shape.rank - 1, bound_dims=1, output_dims=2
@@ -386,7 +385,7 @@ class MultiHeadAttention(Layer):
                 ),
                 bias_axes=bias_axes if self._use_bias else None,
                 name="value",
-                **self._get_common_kwargs_for_sublayer()
+                **self._get_common_kwargs_for_sublayer(),
             )
 
             # Builds the attention computations for multi-head dot product
@@ -446,7 +445,7 @@ class MultiHeadAttention(Layer):
             output_shape=_get_output_shape(output_rank - 1, output_shape),
             bias_axes=bias_axes if self._use_bias else None,
             name=name,
-            **common_kwargs
+            **common_kwargs,
         )
 
     def _build_attention(self, rank):
@@ -697,3 +696,31 @@ class MultiHeadAttention(Layer):
         return tf.linalg.band_part(  # creates a lower triangular matrix
             tf.ones((1, q_seq_length, v_seq_length), tf.bool), -1, 0
         )
+
+    def compute_output_shape(self, query_shape, value_shape, key_shape=None):
+
+        if key_shape is None:
+            key_shape = value_shape
+
+        query_shape = tf.TensorShape(query_shape)
+        value_shape = tf.TensorShape(value_shape)
+        key_shape = tf.TensorShape(key_shape)
+
+        if query_shape[-1] != value_shape[-1]:
+            raise ValueError(
+                "The last dimension of `query_shape` and `value_shape` "
+                f"must be equal, but are {query_shape[-1]}, {value_shape[-1]}. "
+                "Received: query_shape={query_shape}, value_shape={value_shape}"
+            )
+
+        if value_shape[1:-1] != key_shape[1:-1]:
+            raise ValueError(
+                "All dimensions of `value` and `key`, except the last one, "
+                f"must be equal. Received {value_shape} and "
+                f"{key_shape}"
+            )
+
+        if self._output_shape:
+            return query_shape[:-1].concatenate(self._output_shape)
+
+        return query_shape

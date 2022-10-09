@@ -21,7 +21,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
-from keras.utils import generic_utils
+from keras.saving.legacy import serialization
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -194,7 +194,7 @@ class Policy:
                 "Instead, pass DType.name. Got: %s" % (name.name,)
             )
         elif not isinstance(name, str):
-            raise TypeError("'name' must be a string, but got: %s" % (name,))
+            raise TypeError(f"'name' must be a string, but got: {name}")
         self._name = name
         self._compute_dtype, self._variable_dtype = self._parse_name(name)
         if name in ("mixed_float16", "mixed_bloat16"):
@@ -223,7 +223,7 @@ class Policy:
                 error_msg += " Please use the 'mixed_float16' policy instead."
             elif name == "bfloat16_with_float32_vars":
                 error_msg += " Please use the 'mixed_bfloat16' policy instead."
-            error_msg += " Got policy name: '%s'" % name
+            error_msg += f" Got policy name: '{name}'"
             raise ValueError(error_msg)
 
         if name == "mixed_float16":
@@ -306,7 +306,7 @@ class Policy:
         return self._name
 
     def __repr__(self):
-        return '<Policy "%s">' % self._name
+        return f'<Policy "{self._name}">'
 
     def get_config(self):
         return {"name": self.name}
@@ -501,7 +501,7 @@ def serialize(policy):
         # versions of Keras. If the policy name is returned, it is a dtype
         # string such as 'float32'.
         return None if policy.name == "_infer" else policy.name
-    return generic_utils.serialize_keras_object(policy)
+    return serialization.serialize_keras_object(policy)
 
 
 def deserialize(config, custom_objects=None):
@@ -512,7 +512,7 @@ def deserialize(config, custom_objects=None):
     # PolicyV1 was an old version of Policy that was removed. Deserializing it
     # turns it into a (non-V1) Policy.
     module_objects = {"Policy": Policy, "PolicyV1": Policy}
-    return generic_utils.deserialize_keras_object(
+    return serialization.deserialize_keras_object(
         config,
         module_objects=module_objects,
         custom_objects=custom_objects,

@@ -49,10 +49,7 @@ def create_identity_with_grad_check_fn(expected_gradient, expected_dtype=None):
             if expected_dtype:
                 assert (
                     dx.dtype == expected_dtype
-                ), "dx.dtype should be %s but is: %s" % (
-                    expected_dtype,
-                    dx.dtype,
-                )
+                ), f"dx.dtype should be {expected_dtype} but is: {dx.dtype}"
             expected_tensor = tf.convert_to_tensor(
                 expected_gradient, dtype=dx.dtype, name="expected_gradient"
             )
@@ -143,7 +140,7 @@ class MultiplyLayer(AssertTypeLayer):
         activity_regularizer=None,
         use_operator=False,
         var_name="v",
-        **kwargs
+        **kwargs,
     ):
         """Initializes the MultiplyLayer.
 

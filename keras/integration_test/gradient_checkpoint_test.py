@@ -101,7 +101,7 @@ def _limit_gpu_memory():
             gpus[0],
             [
                 tf.config.experimental.VirtualDeviceConfiguration(
-                    memory_limit=1024
+                    memory_limit=2048
                 )
             ],
         )

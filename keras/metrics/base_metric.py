@@ -30,7 +30,7 @@ from keras.dtensor import utils as dtensor_utils
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import keras_tensor
-from keras.saving.saved_model import metric_serialization
+from keras.saving.legacy.saved_model import metric_serialization
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
@@ -816,7 +816,7 @@ class MeanTensor(Metric):
         elif values.shape != self._shape:
             raise ValueError(
                 "MeanTensor input values must always have the same "
-                f"shape. Expected shape (set during the first call): "
+                "shape. Expected shape (set during the first call): "
                 f"{self._shape}. "
                 f"Got: {values.shape}."
             )

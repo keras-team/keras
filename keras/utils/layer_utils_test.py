@@ -21,6 +21,7 @@ import os
 import pickle
 import shutil
 import sys
+import tempfile
 import time
 import timeit
 
@@ -28,6 +29,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 import keras
+from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
 
@@ -75,9 +77,8 @@ class LayerUtilsTest(tf.test.TestCase):
             layer_utils.print_summary(model, print_fn=print_to_file)
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             self.assertEqual(len(lines), 15)
         except ImportError:
             pass
@@ -153,9 +154,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
@@ -226,9 +225,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The output content are slightly different for the input shapes
             # between v1 and v2.
             if tf.__internal__.tf2.enabled():
@@ -264,9 +262,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "trainable"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
@@ -286,9 +283,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 15)
@@ -331,9 +326,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model_2"\n'
                 "____________________________________________________________________________\n"  # noqa: E501
@@ -362,9 +356,7 @@ class LayerUtilsTest(tf.test.TestCase):
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
-            fin_str = ""
-            for line in lines:
-                fin_str += line
+            fin_str = "".join(lines)
 
             self.assertIn(fin_str, check_str)
             self.assertEqual(len(lines), 25)
@@ -399,9 +391,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             # The expected lenght with no layer filter is 15
             # we filtered out 2 lines by excluding the layer 'dense'
             self.assertEqual(len(lines), 15 - 2)
@@ -447,9 +438,8 @@ class LayerUtilsTest(tf.test.TestCase):
             )
             self.assertTrue(tf.io.gfile.exists(fpath))
             writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
+            with open(fpath, "r") as reader:
+                lines = reader.readlines()
             check_str = (
                 'Model: "model"\n'
                 "_________________________________________________________________\n"  # noqa: E501
@@ -604,6 +594,175 @@ class LayerUtilsTest(tf.test.TestCase):
         size_check_instance = MyPickleableObject()
         _ = size_check_instance.my_id
         self.assertEqual(expected_size, len(pickle.dumps(size_check_instance)))
+
+    def test_warmstart_embedding_matrix_with_list(self):
+        vocab_base = ["unk", "a", "b", "c"]
+        vocab_new = ["unk", "unk", "a", "b", "c", "d", "e"]
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_embedding_matrix_with_nparray(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    @test_utils.run_v2_only
+    def test_warmstart_embedding_matrix_with_tensor(self):
+        vocab_base = tf.convert_to_tensor(["unk", "a", "b", "c"])
+        vocab_new = tf.convert_to_tensor(
+            ["unk", "unk", "a", "b", "c", "d", "e"]
+        )
+        vectorized_vocab_base = np.random.rand(vocab_base.shape[0], 3)
+        vectorized_vocab_new = np.random.rand(vocab_new.shape[0], 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_embedding_matrix_with_file_name(self):
+        def _write_list_to_file(filename, content_list):
+            with tf.io.gfile.GFile(filename, "w") as output_file:
+                for line in content_list:
+                    output_file.write(line + "\n")
+
+        vocab_base = ["UNK", "a", "b", "c"]
+        vocab_base_file = tempfile.mktemp(".tsv")
+        _write_list_to_file(vocab_base_file, vocab_base)
+        vocab_new = ["UNK", "UNK", "a", "b", "c", "d", "e"]
+        vocab_new_file = tempfile.mktemp(".tsv")
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        _write_list_to_file(vocab_new_file, vocab_new)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base_file,
+            new_vocabulary=vocab_new_file,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[2],
+        )
+
+    def test_warmstart_default_initialization(self):
+        def _write_list_to_file(filename, content_list):
+            with tf.io.gfile.GFile(filename, "w") as output_file:
+                for line in content_list:
+                    output_file.write(line + "\n")
+
+        vocab_base = ["UNK", "a", "b", "c"]
+        vocab_base_file = tempfile.mktemp(".tsv")
+        _write_list_to_file(vocab_base_file, vocab_base)
+        vocab_new = ["UNK", "UNK", "a", "b", "c", "d", "e"]
+        vocab_new_file = tempfile.mktemp(".tsv")
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        _write_list_to_file(vocab_new_file, vocab_new)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base_file,
+            new_vocabulary=vocab_new_file,
+            base_embeddings=vectorized_vocab_base,
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[2],
+        )
+
+    def test_warmstart_default_value(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_with_randomuniform_initializer(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["unk", "unk", "a", "b", "c", "d", "e"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer="RandomUniform",
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[2],
+            vectorized_vocab_base[1],
+        )
+
+    def test_warmstart_with_nothing_in_common(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["d", "e", "f", "g", "h"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        vectorized_vocab_new = np.random.rand(len(vocab_new), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer=keras.initializers.Constant(
+                vectorized_vocab_new
+            ),
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix,
+            vectorized_vocab_new,
+        )
+
+    def test_warmstart_with_new_vocab_smaller(self):
+        vocab_base = np.array(["unk", "a", "b", "c"])
+        vocab_new = np.array(["d", "e", "f", "a"])
+        vectorized_vocab_base = np.random.rand(len(vocab_base), 3)
+        warmstarted_embedding_matrix = layer_utils.warmstart_embedding_matrix(
+            base_vocabulary=vocab_base,
+            new_vocabulary=vocab_new,
+            base_embeddings=vectorized_vocab_base,
+            new_embeddings_initializer="uniform",
+        )
+        self.assertAllEqual(
+            warmstarted_embedding_matrix[3],
+            vectorized_vocab_base[1],
+        )
 
 
 if __name__ == "__main__":

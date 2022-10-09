@@ -52,7 +52,7 @@ def model_iteration(
     mode=ModeKeys.TRAIN,
     batch_size=None,
     steps_name="steps",
-    **kwargs
+    **kwargs,
 ):
     """Loop function for arrays of data with modes TRAIN/TEST/PREDICT.
 
@@ -306,7 +306,9 @@ def model_iteration(
             aggregator.aggregate(batch_outs)
 
             # Callbacks batch end.
-            batch_logs = cbks.make_logs(model, batch_logs, batch_outs, mode)
+            batch_logs = callbacks.make_logs(
+                model, batch_logs, batch_outs, mode
+            )
             callbacks._call_batch_hook(mode, "end", step, batch_logs)
             step += 1
 
@@ -315,7 +317,7 @@ def model_iteration(
 
         aggregator.finalize()
         results = aggregator.results
-        epoch_logs = cbks.make_logs(model, epoch_logs, results, mode)
+        epoch_logs = callbacks.make_logs(model, epoch_logs, results, mode)
         if len(results) == 1:
             results = results[0]
 
@@ -342,7 +344,7 @@ def model_iteration(
 
             if not isinstance(val_results, list):
                 val_results = [val_results]
-            epoch_logs = cbks.make_logs(
+            epoch_logs = callbacks.make_logs(
                 model, epoch_logs, val_results, mode, prefix="val_"
             )
 
@@ -455,8 +457,7 @@ def _validate_arguments(
     if steps_per_epoch is None and not is_dataset:
         arg_name = "steps_per_epoch" if mode == ModeKeys.TRAIN else "steps"
         raise ValueError(
-            "Please specify the number of steps via the "
-            "`{}` argument.".format(arg_name)
+            f"Please specify the number of steps via the `{arg_name}` argument."
         )
 
     val_gen = data_utils.is_generator_or_sequence(
@@ -471,9 +472,7 @@ def _validate_arguments(
 
     if any(k != "steps" for k in kwargs):
         raise ValueError(
-            "Invalid arguments passed: {}".format(
-                [k for k in kwargs if k != "steps"]
-            )
+            f"Invalid arguments passed: {[k for k in kwargs if k != 'steps']}"
         )
 
 
@@ -538,7 +537,7 @@ def convert_to_generator_like(
             if shuffle:
                 np.random.shuffle(index_array)
             batches = generic_utils.make_batches(num_samples, batch_size)
-            for (batch_start, batch_end) in batches:
+            for batch_start, batch_end in batches:
                 batch_ids = index_array[batch_start:batch_end]
                 flat_batch_data = training_utils.slice_arrays(
                     tf.nest.flatten(data), batch_ids, contiguous=(not shuffle)
@@ -737,7 +736,7 @@ class EagerDatasetOrIteratorTrainingLoop(training_utils_v1.TrainingLoop):
         steps_per_epoch=None,
         validation_steps=None,
         validation_freq=1,
-        **kwargs
+        **kwargs,
     ):
         model._validate_or_infer_batch_size(batch_size, steps_per_epoch, x)
         # Make sure that y, sample_weights, validation_split are not passed.
@@ -777,7 +776,7 @@ class EagerDatasetOrIteratorTrainingLoop(training_utils_v1.TrainingLoop):
         sample_weight=None,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         model._validate_or_infer_batch_size(batch_size, steps, x)
         # Make sure that y, sample_weights, validation_split are not passed.
@@ -799,7 +798,7 @@ class EagerDatasetOrIteratorTrainingLoop(training_utils_v1.TrainingLoop):
         verbose=0,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         model._validate_or_infer_batch_size(batch_size, steps, x)
         return predict_generator(
@@ -839,7 +838,7 @@ class GeneratorLikeTrainingLoop(training_utils_v1.TrainingLoop):
         steps_per_epoch=None,
         validation_steps=None,
         validation_freq=1,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(
             batch_size, steps_per_epoch, x
@@ -907,7 +906,7 @@ class GeneratorLikeTrainingLoop(training_utils_v1.TrainingLoop):
         sample_weight=None,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(batch_size, steps, x)
         x, y, sample_weights = model._standardize_user_data(
@@ -937,7 +936,7 @@ class GeneratorLikeTrainingLoop(training_utils_v1.TrainingLoop):
         verbose=0,
         steps=None,
         callbacks=None,
-        **kwargs
+        **kwargs,
     ):
         batch_size = model._validate_or_infer_batch_size(batch_size, steps, x)
         x, _, _ = model._standardize_user_data(

@@ -17,14 +17,16 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adadelta", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.Adadelta", "keras.optimizers.Adadelta", v1=[]
+)
 class Adadelta(optimizer.Optimizer):
     r"""Optimizer that implements the Adadelta algorithm.
 
@@ -64,6 +66,7 @@ class Adadelta(optimizer.Optimizer):
         learning_rate=0.001,
         rho=0.95,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -75,6 +78,7 @@ class Adadelta(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

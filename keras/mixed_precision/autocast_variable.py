@@ -72,13 +72,13 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         """
         if not isinstance(variable, tf.Variable):
             raise ValueError(
-                "variable must be of type tf.ResourceVariable, but got: "
-                "%s" % variable
+                "variable must be of type tf.ResourceVariable, but got: %s"
+                % variable
             )
         if not variable.dtype.is_floating:
             raise ValueError(
-                "variable must be a floating point variable but has "
-                "type: %s" % variable.dtype.name
+                "variable must be a floating point variable but has type: %s"
+                % variable.dtype.name
             )
         self._variable = variable
         # 'delegate' means AutoCastVariable.op return self._variable.op, which

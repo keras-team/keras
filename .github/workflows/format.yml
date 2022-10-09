@@ -3,8 +3,13 @@ name: Format the code
 on:
   workflow_dispatch:
 
+permissions: {}
 jobs:
   createPullRequest:
+    permissions:
+      contents: write # to create branch (peter-evans/create-pull-request)
+      pull-requests: write # to create a PR (peter-evans/create-pull-request)
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

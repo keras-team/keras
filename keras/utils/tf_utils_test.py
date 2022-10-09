@@ -309,6 +309,60 @@ class TestIsTensorOrExtensionType(tf.test.TestCase):
         self.assertFalse(tf_utils.is_tensor_or_extension_type([1.0, 2.0, 3.0]))
 
 
+@test_combinations.generate(test_combinations.combine(mode=["eager"]))
+class TestConvertVariablesToTensors(tf.test.TestCase):
+    def test_convert_variables_to_tensors(self):
+        x = tf.Variable([1.0])
+        result = tf_utils.convert_variables_to_tensors(x)
+        self.assertIsInstance(result, tf.Tensor)
+        self.assertAllEqual(result, [1.0])
+
+    def test_convert_variables_in_list_to_tensors(self):
+        x = [tf.Variable([1.0]), tf.constant([2.0])]
+        result = tf_utils.convert_variables_to_tensors(x)
+        self.assertLen(result, 2)
+        self.assertIsInstance(result[0], tf.Tensor)
+        self.assertAllEqual(result[0], [1.0])
+        self.assertIs(result[1], x[1])
+
+    def test_convert_variables_in_composite_tensor_to_tensors(self):
+        class Spec(tf.TypeSpec):
+            value_type = property(lambda self: CompositeVariable)
+
+            def _serialize(self):
+                pass
+
+            def _component_specs(self):
+                pass
+
+            def _to_components(self, value):
+                return value.variables
+
+            def _from_components(self, variable_list):
+                return CompositeVariable(variable_list)
+
+        class CompositeVariable(tf.__internal__.CompositeTensor):
+            def __init__(self, variable_list):
+                self.variables = variable_list
+
+            @property
+            def _type_spec(self):
+                return Spec()
+
+            def _convert_variables_to_tensors(self):
+                self.variables = tf.nest.map_structure(
+                    tf_utils.convert_variables_to_tensors, self.variables
+                )
+                return self
+
+        cv = CompositeVariable([tf.Variable([1.0])])
+        self.assertIsInstance(cv.variables[0], tf.Variable)
+        result = tf_utils.convert_variables_to_tensors(cv)
+        self.assertLen(result.variables, 1)
+        self.assertIsInstance(result.variables[0], tf.Tensor)
+        self.assertAllEqual(result.variables[0], [1.0])
+
+
 class TestRandomSeedSetting(tf.test.TestCase):
     def test_seeds(self):
         if not tf.__internal__.tf2.enabled():

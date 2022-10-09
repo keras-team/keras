@@ -448,7 +448,7 @@ def experimental_tpu_test_loop(
                 # mirrored vars.
                 outs[i] = batch_outs[label]
 
-        batch_logs = cbks.make_logs(model, batch_logs, outs, mode)
+        batch_logs = callbacks.make_logs(model, batch_logs, outs, mode)
         callbacks._call_batch_hook(mode, "end", current_step, batch_logs)
         if verbose == 1:
             progbar.update(current_step + 1)
@@ -460,7 +460,7 @@ def experimental_tpu_test_loop(
     callbacks._call_end_hook(mode)
 
     scope.__exit__(None, None, None)
-    if len(outs) >= 0:
+    if len(outs) > 0:
         outs[0] /= target_steps
 
     if len(outs) == 1:
@@ -617,7 +617,7 @@ def experimental_tpu_predict_loop(
             ]
             unconcatenated_outs[i].extend(single_model_output)
 
-        batch_logs = cbks.make_logs(model, batch_logs, batch_outs, mode)
+        batch_logs = callbacks.make_logs(model, batch_logs, batch_outs, mode)
         callbacks._call_batch_hook(mode, "end", current_step, batch_logs)
         if verbose == 1:
             progbar.update(current_step + 1)

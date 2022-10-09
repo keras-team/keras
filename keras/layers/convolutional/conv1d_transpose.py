@@ -256,7 +256,7 @@ class Conv1DTranspose(Conv1D):
             dilations=self.dilation_rate,
         )
 
-        if not tf.executing_eagerly():
+        if not tf.executing_eagerly() and inputs.shape.rank:
             # Infer the static output shape:
             out_shape = self.compute_output_shape(inputs.shape)
             outputs.set_shape(out_shape)

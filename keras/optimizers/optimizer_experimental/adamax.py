@@ -17,14 +17,16 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adamax", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.Adamax", "keras.optimizers.Adamax", v1=[]
+)
 class Adamax(optimizer.Optimizer):
     """Optimizer that implements the Adamax algorithm.
 
@@ -76,6 +78,7 @@ class Adamax(optimizer.Optimizer):
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -88,6 +91,7 @@ class Adamax(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,

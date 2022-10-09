@@ -36,6 +36,7 @@ from keras.utils import control_flow_util
 from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+from keras.utils import tf_utils
 
 # isort: off
 from tensorflow.core.protobuf import config_pb2
@@ -688,7 +689,7 @@ def _current_graph(op_input_list, graph=None):
 
     op_input_list = tuple(op_input_list)  # Handle generators correctly
     if graph and not isinstance(graph, tf.Graph):
-        raise TypeError("Input graph needs to be a Graph: %s" % (graph,))
+        raise TypeError(f"Input graph needs to be a Graph: {graph}")
 
     # 1. We validate that all of the inputs are from the same graph. This is
     #    either the supplied graph parameter, or the first one selected from one
@@ -717,7 +718,7 @@ def _current_graph(op_input_list, graph=None):
                 _assert_same_graph(original_graph_element, graph_element)
             elif graph_element.graph is not graph:
                 raise ValueError(
-                    "%s is not from the passed-in graph." % graph_element
+                    f"{graph_element} is not from the passed-in graph."
                 )
 
     # 2. If all else fails, we use the default graph, which is always there.
@@ -1468,9 +1469,11 @@ def is_placeholder(x):
     try:
         if tf.compat.v1.executing_eagerly_outside_functions():
             return hasattr(x, "_is_backend_placeholder")
-        from keras.utils import tf_utils
 
-        if tf_utils.is_extension_type(x):
+        # TODO(b/246438937): Remove the special case for tf.Variable once
+        # tf.Variable becomes CompositeTensor and will be expanded into
+        # dt_resource tensors.
+        if tf_utils.is_extension_type(x) and not isinstance(x, tf.Variable):
             flat_components = tf.nest.flatten(x, expand_composites=True)
             return py_any(is_placeholder(c) for c in flat_components)
         else:
@@ -1823,7 +1826,7 @@ _USE_GENERATOR_FOR_RNG = False
 # way, so that each client of the program could start with same seed. This is
 # very important for certain use case that requires all the client to have their
 # state in sync. This instance will be set when user call
-# `tf.keras.util.set_random_seed()`
+# `tf.keras.utils.set_random_seed()`
 _SEED_GENERATOR = threading.local()
 
 
@@ -1972,13 +1975,11 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._seed = self._create_seed(self._seed)
             self._generator = None
         elif self._rng_type == self.RNG_STATEFUL:
-            from keras.utils import (
-                tf_utils,
-            )
-
             with tf_utils.maybe_init_scope(self):
                 seed = self._create_seed(self._seed)
-                self._generator = tf.random.Generator.from_seed(seed)
+                self._generator = tf.random.Generator.from_seed(
+                    seed, alg=tf.random.Algorithm.AUTO_SELECT
+                )
         else:
             # In legacy stateful, we use stateful op, regardless whether user
             # provide seed or not. Seeded stateful op will ensure generating
@@ -2580,8 +2581,8 @@ def batch_dot(x, y, axes=None):
             + str(y_shape)
             + " with axes="
             + str(axes)
-            + ". x.shape[%d] != "
-            "y.shape[%d] (%d != %d)." % (axes[0], axes[1], d1, d2)
+            + ". x.shape[%d] != y.shape[%d] (%d != %d)."
+            % (axes[0], axes[1], d1, d2)
         )
 
     # backup ndims. Need them later.
@@ -3665,7 +3666,7 @@ def resize_images(
     elif data_format == "channels_last":
         rows, cols = 1, 2
     else:
-        raise ValueError("Invalid `data_format` argument: %s" % (data_format,))
+        raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
     new_shape = x.shape[rows : cols + 1]
     if new_shape.is_fully_defined():
@@ -4407,11 +4408,13 @@ class GraphExecutionFunction:
                 "should be a list or tuple."
             )
 
-        self._inputs_structure = inputs
-        self.inputs = tf.nest.flatten(inputs, expand_composites=True)
-        self._outputs_structure = outputs
-        self.outputs = cast_variables_to_tensor(
-            tf.nest.flatten(outputs, expand_composites=True)
+        self.inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True,
+        )
+        self._outputs_structure = tf_utils.convert_variables_to_tensors(outputs)
+        self.outputs = tf.nest.flatten(
+            self._outputs_structure, expand_composites=True
         )
         # TODO(b/127668432): Consider using autograph to generate these
         # dependencies in call.
@@ -4448,8 +4451,8 @@ class GraphExecutionFunction:
 
         if session_kwargs:
             raise ValueError(
-                "Some keys in session_kwargs are not supported at this "
-                "time: %s" % (session_kwargs.keys(),)
+                "Some keys in session_kwargs are not supported at this time: %s"
+                % (session_kwargs.keys(),)
             )
 
         self._callable_fn = None
@@ -4522,7 +4525,6 @@ class GraphExecutionFunction:
         # the CompositeTensors. E.g., if output_structure contains a
         # SparseTensor, then this ensures that we return its value as a
         # SparseTensorValue rather than a SparseTensor.
-        from keras.utils import tf_utils
 
         if tf_utils.is_extension_type(tensor):
             return self._session.run(tensor)
@@ -4530,7 +4532,10 @@ class GraphExecutionFunction:
             return tensor
 
     def __call__(self, inputs):
-        inputs = tf.nest.flatten(inputs, expand_composites=True)
+        inputs = tf.nest.flatten(
+            tf_utils.convert_variables_to_tensors(inputs),
+            expand_composites=True,
+        )
 
         session = get_session(inputs)
         feed_arrays = []
@@ -4620,7 +4625,6 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
                 "eager execution. You passed: %s" % (updates,)
             )
         from keras import models
-        from keras.utils import tf_utils
 
         model = models.Model(inputs=inputs, outputs=outputs)
 
@@ -4641,8 +4645,8 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
             ] and key not in ["inputs", "outputs", "updates", "name"]:
                 msg = (
                     'Invalid argument "%s" passed to K.function with '
-                    "TensorFlow backend"
-                ) % key
+                    "TensorFlow backend" % key
+                )
                 raise ValueError(msg)
     return GraphExecutionFunction(
         inputs, outputs, updates=updates, name=name, **kwargs
@@ -4810,11 +4814,11 @@ def rnn(
     def _expand_mask(mask_t, input_t, fixed_dim=1):
         if tf.nest.is_nested(mask_t):
             raise ValueError(
-                "mask_t is expected to be tensor, but got %s" % mask_t
+                f"mask_t is expected to be tensor, but got {mask_t}"
             )
         if tf.nest.is_nested(input_t):
             raise ValueError(
-                "input_t is expected to be tensor, but got %s" % input_t
+                f"input_t is expected to be tensor, but got {input_t}"
             )
         rank_diff = len(input_t.shape) - len(mask_t.shape)
         for _ in range(rank_diff):
@@ -4932,7 +4936,7 @@ def rnn(
             tf.TensorArray(
                 dtype=inp.dtype,
                 size=time_steps_t,
-                tensor_array_name="input_ta_%s" % i,
+                tensor_array_name=f"input_ta_{i}",
             )
             for i, inp in enumerate(flatted_inputs)
         )
@@ -4961,7 +4965,7 @@ def rnn(
                 dtype=out.dtype,
                 size=output_ta_size,
                 element_shape=out.shape,
-                tensor_array_name="output_ta_%s" % i,
+                tensor_array_name=f"output_ta_{i}",
             )
             for i, out in enumerate(tf.nest.flatten(output_time_zero))
         )
@@ -5225,8 +5229,8 @@ def switch(condition, then_expression, else_expression):
                 " equal to rank of `then_expression` and "
                 "`else_expression`. ndim(condition)="
                 + str(cond_ndim)
-                + ", ndim(then_expression)"
-                "=" + str(expr_ndim)
+                + ", ndim(then_expression)="
+                + str(expr_ndim)
             )
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim
@@ -7242,15 +7246,6 @@ def _is_tpu_strategy_class(clz):
 def is_tpu_strategy(strategy):
     """Returns whether input is a TPUStrategy instance or subclass instance."""
     return _is_tpu_strategy_class(strategy.__class__)
-
-
-def cast_variables_to_tensor(tensors):
-    def _cast_variables_to_tensor(tensor):
-        if isinstance(tensor, tf.Variable):
-            return tf.identity(tensor)
-        return tensor
-
-    return tf.nest.map_structure(_cast_variables_to_tensor, tensors)
 
 
 def _is_symbolic_tensor(x):

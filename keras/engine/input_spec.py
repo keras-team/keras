@@ -126,7 +126,7 @@ class InputSpec:
             ("min_ndim=" + str(self.min_ndim)) if self.min_ndim else "",
             ("axes=" + str(self.axes)) if self.axes else "",
         ]
-        return "InputSpec(%s)" % ", ".join(x for x in spec if x)
+        return f"InputSpec({', '.join(x for x in spec if x)})"
 
     def get_config(self):
         return {

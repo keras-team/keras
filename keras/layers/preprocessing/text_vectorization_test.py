@@ -29,7 +29,7 @@ from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
+from keras.utils import register_keras_serializable
 
 
 def _get_end_to_end_test_cases():
@@ -2187,12 +2187,12 @@ class TextVectorizationErrorTest(
 
 # Custom functions for the custom callable serialization test. Declared here
 # to avoid multiple registrations from run_all_keras_modes().
-@generic_utils.register_keras_serializable(package="Test")
+@register_keras_serializable(package="Test")
 def custom_standardize_fn(x):
     return tf.strings.lower(x)
 
 
-@generic_utils.register_keras_serializable(package="Test")
+@register_keras_serializable(package="Test")
 def custom_split_fn(x):
     return tf.strings.split(x, sep=">")
 

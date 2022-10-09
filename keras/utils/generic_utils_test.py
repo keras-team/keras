@@ -23,6 +23,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 import keras
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import io_utils
 
@@ -80,141 +81,12 @@ class HasArgTest(tf.test.TestCase):
         )
 
 
-class TestCustomObjectScope(tf.test.TestCase):
-    def test_custom_object_scope(self):
-        def custom_fn():
-            pass
-
-        class CustomClass:
-            pass
-
-        def check_get_in_thread():
-            with keras.utils.generic_utils.custom_object_scope(
-                {"CustomClass": CustomClass, "custom_fn": custom_fn}
-            ):
-                actual_custom_fn = keras.activations.get("custom_fn")
-                self.assertEqual(actual_custom_fn, custom_fn)
-                actual_custom_class = keras.regularizers.get("CustomClass")
-                self.assertEqual(actual_custom_class.__class__, CustomClass)
-
-            with keras.utils.generic_utils.custom_object_scope(
-                {"CustomClass": CustomClass, "custom_fn": custom_fn}
-            ):
-                actual_custom_fn = keras.activations.get("custom_fn")
-                self.assertEqual(actual_custom_fn, custom_fn)
-                actual_custom_class = keras.regularizers.get("CustomClass")
-                self.assertEqual(actual_custom_class.__class__, CustomClass)
-                checked_thread = self.checkedThread(check_get_in_thread)
-                checked_thread.start()
-                checked_thread.join()
-
-
 class SerializeKerasObjectTest(tf.test.TestCase):
     def test_serialize_none(self):
-        serialized = keras.utils.generic_utils.serialize_keras_object(None)
+        serialized = serialization.serialize_keras_object(None)
         self.assertEqual(serialized, None)
-        deserialized = keras.utils.generic_utils.deserialize_keras_object(
-            serialized
-        )
+        deserialized = serialization.deserialize_keras_object(serialized)
         self.assertEqual(deserialized, None)
-
-    def test_serialize_custom_class_with_default_name(self):
-        @keras.utils.generic_utils.register_keras_serializable()
-        class TestClass:
-            def __init__(self, value):
-                self._value = value
-
-            def get_config(self):
-                return {"value": self._value}
-
-        serialized_name = "Custom>TestClass"
-        inst = TestClass(value=10)
-        class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[TestClass]
-        self.assertEqual(serialized_name, class_name)
-        config = keras.utils.generic_utils.serialize_keras_object(inst)
-        self.assertEqual(class_name, config["class_name"])
-        new_inst = keras.utils.generic_utils.deserialize_keras_object(config)
-        self.assertIsNot(inst, new_inst)
-        self.assertIsInstance(new_inst, TestClass)
-        self.assertEqual(10, new_inst._value)
-
-        # Make sure registering a new class with same name will fail.
-        with self.assertRaisesRegex(
-            ValueError, ".*has already been registered.*"
-        ):
-
-            @keras.utils.generic_utils.register_keras_serializable()
-            class TestClass:
-                def __init__(self, value):
-                    self._value = value
-
-                def get_config(self):
-                    return {"value": self._value}
-
-    def test_serialize_custom_class_with_custom_name(self):
-        @keras.utils.generic_utils.register_keras_serializable(
-            "TestPackage", "CustomName"
-        )
-        class OtherTestClass:
-            def __init__(self, val):
-                self._val = val
-
-            def get_config(self):
-                return {"val": self._val}
-
-        serialized_name = "TestPackage>CustomName"
-        inst = OtherTestClass(val=5)
-        class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[
-            OtherTestClass
-        ]
-        self.assertEqual(serialized_name, class_name)
-        fn_class_name = keras.utils.generic_utils.get_registered_name(
-            OtherTestClass
-        )
-        self.assertEqual(fn_class_name, class_name)
-
-        cls = keras.utils.generic_utils.get_registered_object(fn_class_name)
-        self.assertEqual(OtherTestClass, cls)
-
-        config = keras.utils.generic_utils.serialize_keras_object(inst)
-        self.assertEqual(class_name, config["class_name"])
-        new_inst = keras.utils.generic_utils.deserialize_keras_object(config)
-        self.assertIsNot(inst, new_inst)
-        self.assertIsInstance(new_inst, OtherTestClass)
-        self.assertEqual(5, new_inst._val)
-
-    def test_serialize_custom_function(self):
-        @keras.utils.generic_utils.register_keras_serializable()
-        def my_fn():
-            return 42
-
-        serialized_name = "Custom>my_fn"
-        class_name = keras.utils.generic_utils._GLOBAL_CUSTOM_NAMES[my_fn]
-        self.assertEqual(serialized_name, class_name)
-        fn_class_name = keras.utils.generic_utils.get_registered_name(my_fn)
-        self.assertEqual(fn_class_name, class_name)
-
-        config = keras.utils.generic_utils.serialize_keras_object(my_fn)
-        self.assertEqual(class_name, config)
-        fn = keras.utils.generic_utils.deserialize_keras_object(config)
-        self.assertEqual(42, fn())
-
-        fn_2 = keras.utils.generic_utils.get_registered_object(fn_class_name)
-        self.assertEqual(42, fn_2())
-
-    def test_serialize_custom_class_without_get_config_fails(self):
-
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot register a class that does " "not have a get_config.*",
-        ):
-
-            @keras.utils.generic_utils.register_keras_serializable(
-                "TestPackage", "TestClass"
-            )
-            class TestClass:
-                def __init__(self, value):
-                    self._value = value
 
     def test_serializable_object(self):
         class SerializableInt(int):
@@ -390,7 +262,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
                 }
             ],
         }
-        old_model = keras.utils.generic_utils.deserialize_keras_object(
+        old_model = serialization.deserialize_keras_object(
             old_model_config, module_objects={"Sequential": keras.Sequential}
         )
         new_model = keras.Sequential(
@@ -410,12 +282,12 @@ class SerializeKerasObjectTest(tf.test.TestCase):
             pass
 
         layer = CustomLayer()
-        config = keras.utils.generic_utils.serialize_keras_object(layer)
+        config = serialization.serialize_keras_object(layer)
         with self.assertRaisesRegexp(
-            ValueError, "passed to the `custom_objects` arg"
+            ValueError, "using a `keras.utils.custom_object_scope`"
         ):
-            keras.utils.generic_utils.deserialize_keras_object(config)
-        restored = keras.utils.generic_utils.deserialize_keras_object(
+            serialization.deserialize_keras_object(config)
+        restored = serialization.deserialize_keras_object(
             config, custom_objects={"CustomLayer": CustomLayer}
         )
         self.assertIsInstance(restored, CustomLayer)
@@ -446,24 +318,24 @@ class MaybeSharedObject:
 
 class SharedObjectScopeTest(tf.test.TestCase):
     def test_shared_object_saving_scope_single_object_doesnt_export_id(self):
-        with generic_utils.SharedObjectSavingScope() as scope:
+        with serialization.SharedObjectSavingScope() as scope:
             single_object = MaybeSharedObject()
             self.assertIsNone(scope.get_config(single_object))
             single_object_config = scope.create_config({}, single_object)
             self.assertIsNotNone(single_object_config)
             self.assertNotIn(
-                generic_utils.SHARED_OBJECT_KEY, single_object_config
+                serialization.SHARED_OBJECT_KEY, single_object_config
             )
 
     def test_shared_object_saving_scope_shared_object_exports_id(self):
-        with generic_utils.SharedObjectSavingScope() as scope:
+        with serialization.SharedObjectSavingScope() as scope:
             shared_object = MaybeSharedObject()
             self.assertIsNone(scope.get_config(shared_object))
             scope.create_config({}, shared_object)
             first_object_config = scope.get_config(shared_object)
             second_object_config = scope.get_config(shared_object)
-            self.assertIn(generic_utils.SHARED_OBJECT_KEY, first_object_config)
-            self.assertIn(generic_utils.SHARED_OBJECT_KEY, second_object_config)
+            self.assertIn(serialization.SHARED_OBJECT_KEY, first_object_config)
+            self.assertIn(serialization.SHARED_OBJECT_KEY, second_object_config)
             self.assertIs(first_object_config, second_object_config)
 
     def test_shared_object_loading_scope_noop(self):
@@ -471,29 +343,29 @@ class SharedObjectScopeTest(tf.test.TestCase):
         # nothing.
         obj_id = 1
         obj = MaybeSharedObject()
-        generic_utils._shared_object_loading_scope().set(obj_id, obj)
+        serialization._shared_object_loading_scope().set(obj_id, obj)
         self.assertIsNone(
-            generic_utils._shared_object_loading_scope().get(obj_id)
+            serialization._shared_object_loading_scope().get(obj_id)
         )
 
     def test_shared_object_loading_scope_returns_shared_obj(self):
         obj_id = 1
         obj = MaybeSharedObject()
-        with generic_utils.SharedObjectLoadingScope() as scope:
+        with serialization.SharedObjectLoadingScope() as scope:
             scope.set(obj_id, obj)
             self.assertIs(scope.get(obj_id), obj)
 
     def test_nested_shared_object_saving_scopes(self):
         my_obj = MaybeSharedObject()
-        with generic_utils.SharedObjectSavingScope() as scope_1:
+        with serialization.SharedObjectSavingScope() as scope_1:
             scope_1.create_config({}, my_obj)
-            with generic_utils.SharedObjectSavingScope() as scope_2:
+            with serialization.SharedObjectSavingScope() as scope_2:
                 # Nesting saving scopes should return the original scope and
                 # should not clear any objects we're tracking.
                 self.assertIs(scope_1, scope_2)
                 self.assertIsNotNone(scope_2.get_config(my_obj))
             self.assertIsNotNone(scope_1.get_config(my_obj))
-        self.assertIsNone(generic_utils._shared_object_saving_scope())
+        self.assertIsNone(serialization._shared_object_saving_scope())
 
     def test_custom_object_scope_correct_class(self):
         train_step_message = "This is my training step"
@@ -531,9 +403,7 @@ class SharedObjectScopeTest(tf.test.TestCase):
         subclassed_model.fit(x, y, epochs=1)
         subclassed_model.save(temp_dir, save_format="tf")
 
-        with keras.utils.generic_utils.custom_object_scope(
-            {"CustomModelX": CustomModelX}
-        ):
+        with keras.utils.custom_object_scope({"CustomModelX": CustomModelX}):
             loaded_model = keras.models.load_model(temp_dir)
 
         io_utils.enable_interactive_logging()

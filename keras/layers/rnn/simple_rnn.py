@@ -121,9 +121,9 @@ class SimpleRNNCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         recurrent_dropout=0.0,
         **kwargs,
     ):
-        if units < 0:
+        if units <= 0:
             raise ValueError(
-                f"Received an invalid value for argument `units`, "
+                "Received an invalid value for argument `units`, "
                 f"expected a positive integer, got {units}."
             )
         # By default use cached variable under v2 mode, see b/143699808.

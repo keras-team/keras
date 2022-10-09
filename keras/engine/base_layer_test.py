@@ -1037,6 +1037,44 @@ class BaseLayerTest(test_combinations.TestCase):
         self.assertLen(model.trainable_variables, 0)
         self.assertLen(model.non_trainable_variables, 2)
 
+    def test_tf_tracking_lists(self):
+        class MyLayer(base_layer.Layer):
+            def __init__(self, num_weights):
+                super().__init__()
+                self.num_weights = num_weights
+
+            def build(self, input_shape):
+                super().build(input_shape)
+                self.my_weights = []
+                w_init = tf.random_normal_initializer()
+                for i in range(self.num_weights):
+                    self.my_weights.append(
+                        tf.Variable(
+                            name=f"w_{i}",
+                            initial_value=w_init(
+                                shape=(input_shape[1], input_shape[1]),
+                                dtype="float32",
+                            ),
+                            trainable=True,
+                        )
+                    )
+
+            def call(self, x):
+                for w in self.my_weights:
+                    x = tf.matmul(x, w)
+                return x
+
+        layer = MyLayer(3)
+        layer(tf.constant([[1.0, 1.0, 1.0, 1.0]]))
+        self.assertLen(layer.variables, 3)
+        self.assertLen(layer.trainable_variables, 3)
+        self.assertLen(layer.non_trainable_variables, 0)
+
+        layer.trainable = False
+        self.assertLen(layer.variables, 3)
+        self.assertLen(layer.trainable_variables, 0)
+        self.assertLen(layer.non_trainable_variables, 3)
+
 
 @test_utils.run_v2_only
 class SymbolicSupportTest(test_combinations.TestCase):
@@ -1530,12 +1568,12 @@ class NameScopingTest(test_combinations.TestCase):
                 "MatMul/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "MatMul/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "MatMul",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "BiasAdd",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp/resource",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp",
                 "call_scope/model/OuterDense/MatMul",

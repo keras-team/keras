@@ -121,8 +121,7 @@ class LayoutMap(collections.abc.MutableMapping):
             )
         if not isinstance(layout, dtensor.Layout):
             raise ValueError(
-                f"{layout} should be a dtensor.Layout type, "
-                f"got {type(layout)}"
+                f"{layout} should be a dtensor.Layout type, got {type(layout)}"
             )
 
         self._layout_map[key] = layout
@@ -488,7 +487,7 @@ def _config_dvariable_regularization(
         ID and newly created DVariable.
     """
 
-    for (name, variable, regualarizer) in layer._captured_weight_regularizer:
+    for name, variable, regualarizer in layer._captured_weight_regularizer:
         if not _is_lazy_init_variable(variable):
             raise ValueError(
                 "Expect the regularization loss are created from "

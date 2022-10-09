@@ -17,14 +17,16 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Ftrl", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.Ftrl", "keras.optimizers.Ftrl", v1=[]
+)
 class Ftrl(optimizer.Optimizer):
     r"""Optimizer that implements the FTRL algorithm.
 
@@ -103,6 +105,7 @@ class Ftrl(optimizer.Optimizer):
         l2_regularization_strength=0.0,
         l2_shrinkage_regularization_strength=0.0,
         beta=0.0,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -115,6 +118,7 @@ class Ftrl(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -128,7 +132,7 @@ class Ftrl(optimizer.Optimizer):
         if initial_accumulator_value < 0.0:
             raise ValueError(
                 "`initial_accumulator_value` needs to be positive or zero. "
-                f"Received: initial_accumulator_value="
+                "Received: initial_accumulator_value="
                 f"{initial_accumulator_value}."
             )
         if learning_rate_power > 0.0:
@@ -139,13 +143,13 @@ class Ftrl(optimizer.Optimizer):
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength="
+                "Received: l1_regularization_strength="
                 f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength="
+                "Received: l2_regularization_strength="
                 f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:

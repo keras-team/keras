@@ -19,8 +19,8 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import serialize_keras_object
+from keras.saving.legacy.serialization import deserialize_keras_object
+from keras.saving.legacy.serialization import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -78,6 +78,26 @@ class Constraint:
           Python dict containing the configuration of the constraint object.
         """
         return {}
+
+    @classmethod
+    def from_config(cls, config):
+        """Instantiates a weight constraint from a configuration dictionary.
+
+        Example:
+
+        ```python
+        constraint = UnitNorm()
+        config = constraint.get_config()
+        constraint = UnitNorm.from_config(config)
+        ```
+
+        Args:
+          config: A Python dictionary, the output of `get_config`.
+
+        Returns:
+          A `tf.keras.constraints.Constraint` instance.
+        """
+        return cls(**config)
 
 
 @keras_export("keras.constraints.MaxNorm", "keras.constraints.max_norm")

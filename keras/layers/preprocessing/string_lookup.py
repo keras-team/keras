@@ -123,6 +123,8 @@ class StringLookup(index_lookup.IndexLookup):
       sparse: Boolean. Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, returns a `SparseTensor` instead of a
         dense `Tensor`. Defaults to False.
+      encoding: Optional. The text encoding to use to interpret the input
+        strings. Defaults to `"utf-8"`.
 
     Examples:
 
@@ -312,7 +314,7 @@ class StringLookup(index_lookup.IndexLookup):
         oov_token="[UNK]",
         vocabulary=None,
         idf_weights=None,
-        encoding=None,
+        encoding="utf-8",
         invert=False,
         output_mode="int",
         sparse=False,
@@ -325,9 +327,6 @@ class StringLookup(index_lookup.IndexLookup):
             kwargs["dtype"] == tf.string or kwargs["dtype"] == "string"
         ):
             del kwargs["dtype"]
-
-        if encoding is None:
-            encoding = "utf-8"
 
         self.encoding = encoding
 

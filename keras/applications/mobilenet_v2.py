@@ -44,8 +44,8 @@ The following table describes the performance of
 MobileNet on various input sizes:
 ------------------------------------------------------------------------
 MACs stands for Multiply Adds
- Classification Checkpoint|MACs (M)|Parameters (M)|Top 1 Accuracy|Top 5 Accuracy
---------------------------|------------|---------------|---------|----|---------
+Classification Checkpoint|MACs (M)|Parameters (M)|Top 1 Accuracy|Top 5 Accuracy
+--------------------------|------------|---------------|---------|------------
 | [mobilenet_v2_1.4_224]  | 582 | 6.06 |          75.0 | 92.5 |
 | [mobilenet_v2_1.3_224]  | 509 | 5.34 |          74.4 | 92.1 |
 | [mobilenet_v2_1.0_224]  | 300 | 3.47 |          71.8 | 91.0 |
@@ -88,8 +88,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_PATH = (
-    "https://storage.googleapis.com/tensorflow/"
-    "keras-applications/mobilenet_v2/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/mobilenet_v2/"
 )
 layers = None
 
@@ -450,9 +449,7 @@ def MobileNetV2(
         inputs = img_input
 
     # Create model.
-    model = training.Model(
-        inputs, x, name="mobilenetv2_%0.2f_%s" % (alpha, rows)
-    )
+    model = training.Model(inputs, x, name=f"mobilenetv2_{alpha:0.2f}_{rows}")
 
     # Load weights.
     if weights == "imagenet":
@@ -498,7 +495,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     # 8.
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
-    prefix = "block_{}_".format(block_id)
+    prefix = f"block_{block_id}_"
 
     if block_id:
         # Expand with a pointwise 1x1 convolution.

@@ -159,7 +159,7 @@ tf_class {
   }
   member_method {
     name: "augment_bounding_boxes"
-    argspec: "args=[\'self\', \'image\', \'bounding_boxes\', \'transformation\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'image\', \'bounding_boxes\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "augment_image"

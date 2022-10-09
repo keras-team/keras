@@ -13,6 +13,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
+from keras.optimizers.optimizer_experimental import adafactor as adafactor_new
 from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
 from keras.optimizers.optimizer_experimental import adam as adam_new
 from keras.optimizers.optimizer_experimental import adamax as adamax_new
@@ -53,6 +54,9 @@ adadelta_new_fn = tf.__internal__.test.combinations.NamedObject(
 adagrad_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladagrad", lambda: adagrad_new.Adagrad(0.002)
 )
+adafactor_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "adafactor", lambda: adafactor_new.Adafactor(0.002)
+)
 adam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentaladam", lambda: adam_new.Adam(0.002)
 )
@@ -73,12 +77,15 @@ rmsprop_new_fn = tf.__internal__.test.combinations.NamedObject(
 )
 sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalsgdaverage",
-    lambda: sgd_new.SGD(0.002, use_ema=True, ema_overwrite_frequency=1),
+    lambda: sgd_new.SGD(
+        0.002, weight_decay=0.004, use_ema=True, ema_overwrite_frequency=1
+    ),
 )
 
 OPTIMIZER_FN = [
     adadelta_new_fn,
     adagrad_new_fn,
+    adafactor_new_fn,
     adam_new_fn,
     adamax_new_fn,
     adamw_new_fn,
@@ -115,6 +122,29 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             optimizer._index_dict[optimizer._var_key(var_list[7])], 7
         )
 
+    def testComputeGradients(self):
+        optimizer = adam_new.Adam()
+        x = tf.Variable([1.0, 2.0], dtype=tf.float32)
+        loss_fn = lambda: x
+        # Test Tensor-type var_list.
+        var_list = [x]
+        grads_and_vars = optimizer.compute_gradients(loss_fn, var_list)
+        grads, _ = zip(*grads_and_vars)
+        self.assertAllEqual(grads[0], tf.constant([1.0, 1.0]))
+        # Test callable-type var_list, and create variable in loss fn.
+        x = []
+
+        def loss_fn():
+            variable = tf.Variable([1.0, 2.0], dtype=tf.float32)
+            x.append(variable)
+            return variable
+
+        var_list = lambda: x
+
+        grads_and_vars = optimizer.compute_gradients(loss_fn, var_list)
+        grads, _ = zip(*grads_and_vars)
+        self.assertAllEqual(grads[0], tf.constant([1.0, 1.0]))
+
     def testClipNorm(self):
         optimizer = adam_new.Adam(clipnorm=1)
         grad = [tf.convert_to_tensor([100.0, 100.0])]
@@ -139,13 +169,34 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
 
         optimizer_2 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
-        optimizer_2.apply_gradients(zip([grads], [var2]))
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
 
         optimizer_3 = adamw_new.AdamW(learning_rate=1, weight_decay=0.004)
         optimizer_3.exclude_from_weight_decay(var_list=[var3])
-        optimizer_3.apply_gradients(zip([grads], [var3]))
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
 
-        self.assertEqual(var1, 1.992)
+        self.assertEqual(var1, 1.9760959)
+        self.assertEqual(var2, 2.0)
+        self.assertEqual(var3, 2.0)
+
+        grads, var1, var2, var3 = (
+            tf.zeros(()),
+            tf.Variable(2.0),
+            tf.Variable(2.0, name="exclude"),
+            tf.Variable(2.0),
+        )
+        optimizer_1 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_1.apply_gradients(zip([grads], [var1]))
+
+        optimizer_2 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
+        optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
+
+        optimizer_3 = sgd_new.SGD(learning_rate=1, weight_decay=0.004)
+        optimizer_3.exclude_from_weight_decay(var_list=[var3])
+        optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
+
+        self.assertEqual(var1, 1.9760959)
         self.assertEqual(var2, 2.0)
         self.assertEqual(var3, 2.0)
 
@@ -178,14 +229,27 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer.apply_gradients(zip([grads], [x]))
         optimizer_variables = optimizer.variables()
         all_names = [var._shared_name for var in optimizer_variables]
-        self.assertLen(optimizer_variables, 2)
+        self.assertLen(optimizer_variables, 3)
         self.assertCountEqual(
             all_names,
             [
+                "iteration",
                 "Adam/m/Variable",
                 "Adam/v/Variable",
             ],
         )
+
+    def testSetWeights(self):
+        x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
+        optimizer_1 = adam_new.Adam()
+        grads = tf.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        optimizer_1.apply_gradients(zip([grads], [x]))
+        optimizer_2 = adam_new.Adam()
+        with self.assertRaisesRegex(ValueError, "You are calling*"):
+            optimizer_2.set_weights(optimizer_1.variables())
+        optimizer_2.build([x])
+        optimizer_2.set_weights(optimizer_1.variables())
+        self.assertAllClose(optimizer_1.variables(), optimizer_2.variables())
 
     def testSetLearningRate(self):
         optimizer = adam_new.Adam(learning_rate=1.0)
@@ -231,14 +295,32 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(optimizer.iterations, 2)
         var_list = [tf.Variable(2.0), tf.Variable(2.0)]
         grads = tf.convert_to_tensor([1.0, 1.0])
-        optimizer.apply_gradients(zip(grads, var_list))
+        iterations = optimizer.apply_gradients(zip(grads, var_list))
+        self.assertEqual(iterations, 3)
         self.assertEqual(optimizer.iterations, 3)
         with self.assertRaisesRegex(RuntimeError, "Cannot set*"):
             optimizer.iterations = 2
 
+    def testVariableConstraints(self):
+        optimizer = adam_new.Adam()
+        inputs = keras.layers.Input(shape=[1])
+        outputs = keras.layers.Dense(1, kernel_constraint="NonNeg")(inputs)
+        model = keras.models.Model(inputs=inputs, outputs=outputs)
+        model.trainable_variables[0] = -999999  # Set as a negative number.
+        grads = [tf.zeros(1, 1), tf.zeros(1)]
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.assertEqual(model.trainable_variables[0], 0.0)
+
     def testNoGradients(self):
         optimizer = adam_new.Adam(jit_compile=False)
         optimizer.apply_gradients(zip([], []))
+
+    def testApplyGradientsNameArg(self):
+        optimizer = adam_new.Adam(jit_compile=False)
+        var_list = [tf.Variable(2.0), tf.Variable(2.0)]
+        grads = tf.convert_to_tensor([1.0, 1.0])
+        optimizer.apply_gradients(zip(grads, var_list), name="dummy")
+        self.assertIn("dummy", optimizer._velocities[0].name)
 
     def testPassingMissingWDError(self):
         with self.assertRaises(ValueError):
@@ -273,8 +355,20 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllEqual([var1.numpy(), var2.numpy()], [-0.125, -0.125])
 
     def testGetAndFromConfig(self):
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        learning_rate = CustomLRSchedule(0.05)
         optimizer = adam_new.Adam(
-            learning_rate=np.float64(0.05),
+            learning_rate=learning_rate,
             beta_1=0.7,
             beta_2=0.77,
             amsgrad=True,
@@ -283,10 +377,11 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             use_ema=True,
             ema_momentum=0.5,
             ema_overwrite_frequency=50,
+            name="custom_adam",
         )
         config = optimizer.get_config()
         expected_config = {
-            "learning_rate": np.float32(0.05),
+            "name": "custom_adam",
             "beta_1": 0.7,
             "beta_2": 0.77,
             "epsilon": 0.001,
@@ -299,8 +394,16 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             "ema_overwrite_frequency": 50,
             "is_legacy_optimizer": False,
         }
+        expected_learning_rate = {
+            "class_name": "CustomLRSchedule",
+            "config": {"initial_learning_rate": 0.05},
+        }
         self.assertDictContainsSubset(expected_config, config)
-        restored_optimizer = adam_new.Adam.from_config(config)
+        self.assertDictEqual(expected_learning_rate, config["learning_rate"])
+
+        restored_optimizer = adam_new.Adam.from_config(
+            config, custom_objects={"CustomLRSchedule": CustomLRSchedule}
+        )
         self.assertDictEqual(
             restored_optimizer.get_config(), optimizer.get_config()
         )
@@ -363,6 +466,26 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             model.optimizer.iterations.numpy(),
         )
 
+    def testRestoreOldOptimizerCheckpoint(self):
+        inputs = keras.layers.Input(shape=(1,))
+        outputs = keras.layers.Dense(1)(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
+        optimizer = adam_old.Adam()
+        x = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
+        y = tf.expand_dims(tf.convert_to_tensor([1, 1, 1, 0, 0, 0]), axis=1)
+        model.compile(loss="mse", optimizer=optimizer)
+        path = os.path.join(self.get_temp_dir(), "ckpt")
+        checkpoint_callback = keras.callbacks.ModelCheckpoint(path)
+        model.fit(x, y, callbacks=[checkpoint_callback])
+
+        new_model = keras.Model(inputs=inputs, outputs=outputs)
+        new_optimizer = adam_new.Adam()
+        new_model.compile(loss="mse", optimizer=new_optimizer)
+        with self.assertRaisesRegex(
+            ValueError, "You are trying to restore a checkpoint.*Adam.*"
+        ):
+            new_model.load_weights(path)
+
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSaveAndLoadOptimizerWithModel(self, optimizer_fn):
         inputs = keras.layers.Input(shape=(1,))
@@ -384,6 +507,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(type(optimizer), type(loaded_optimizer))
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
+        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
 
         # Save in Keras SavedModel format.
         model.fit(x, y)
@@ -395,6 +519,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(type(optimizer), type(loaded_optimizer))
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
+        loaded_optimizer.build(loaded_model.trainable_variables)
+        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
 
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSparseGradientsWorkAsExpected(self, optimizer_fn):
@@ -421,19 +547,22 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         x1 = tf.Variable(np.ones([10]), dtype=tf.float64)
         x2 = tf.Variable(np.ones([10]), dtype=tf.float64)
         grads = tf.convert_to_tensor(np.arange(0.1, 1.1, 0.1))
+        first_grads = tf.constant([0.01] * 10, dtype=tf.float64)
         sparse_grads = tf.IndexedSlices(
             tf.convert_to_tensor([0, 0.2, 0.4, 0.8, 0.8], dtype=tf.float64),
             tf.convert_to_tensor([0, 2, 4, 6, 6]),
             dense_shape=tf.convert_to_tensor([len(grads)]),
         )
 
+        old_optimizer.apply_gradients(zip([first_grads], [x1]))
+        new_optimizer.apply_gradients(zip([first_grads], [x2]))
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([grads], [x1]))
             new_optimizer.apply_gradients(zip([grads], [x2]))
 
         for _ in range(5):
-            self.assertAllClose(x1, x2)
+            self.assertAllClose(x1, x2, rtol=5e-4, atol=5e-4)
             old_optimizer.apply_gradients(zip([sparse_grads], [x1]))
             new_optimizer.apply_gradients(zip([sparse_grads], [x2]))
 
@@ -454,12 +583,21 @@ class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
         self._compare_numerical(ftrl_old.Ftrl(), ftrl_new.Ftrl())
 
     def testRMSprop(self):
-        self._compare_numerical(rmsprop_old.RMSprop(), rmsprop_new.RMSprop())
+        self._compare_numerical(
+            rmsprop_old.RMSprop(centered=True),
+            rmsprop_new.RMSprop(centered=True),
+        )
 
     @parameterized.product(nesterov=[True, False])
     def testSgd(self, nesterov):
         self._compare_numerical(
             sgd_old.SGD(nesterov=nesterov), sgd_new.SGD(nesterov=nesterov)
+        )
+
+    def testWeightDecay(self):
+        self._compare_numerical(
+            adam_new.Adam(learning_rate=1, weight_decay=0.5, epsilon=0),
+            adamw_new.AdamW(learning_rate=1, weight_decay=0.5, epsilon=0),
         )
 
 
@@ -591,7 +729,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
                         )(labels, output_1)
                     grads_1 = tape.gradient(loss_1, model_1.trainable_variables)
                     optimizer_1.apply_gradients(
-                        zip(grads_1, model_1.trainable_variables)
+                        zip(grads_1, model_1.trainable_variables),
+                        skip_gradients_aggregation=False,
                     )
 
                     with tf.GradientTape() as tape:
@@ -601,7 +740,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
                         )(labels, output_2)
                     grads_2 = tape.gradient(loss_2, model_2.trainable_variables)
                     optimizer_2.apply_gradients(
-                        zip(grads_2, model_2.trainable_variables)
+                        zip(grads_2, model_2.trainable_variables),
+                        experimental_aggregate_gradients=True,
                     )
 
                 strategy.run(replica_fn, args=(next(iter(ds)),))

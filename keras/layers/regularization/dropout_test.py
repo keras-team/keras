@@ -51,6 +51,22 @@ class DropoutTest(test_combinations.TestCase):
         # Test that dropout mask is shared across second dim.
         self.assertAllClose(out_np[:, 0, :], out_np[:, 1, :])
 
+    @test_utils.run_v2_only
+    def test_dropout_with_zero_rate(self):
+        inputs = np.ones((20, 5, 10))
+        dropout = keras.layers.Dropout(0.0, force_generator=True)
+        dropout.build((20, 5, 10))
+        # Make sure we don't use the RNG when the dropout rate is 0
+        # (for performance).
+        rng_state_var = tf.constant(
+            dropout._random_generator._generator._state_var
+        )
+        output = dropout(inputs, training=True)
+        self.assertAllClose(inputs, output)
+        self.assertAllClose(
+            rng_state_var, dropout._random_generator._generator._state_var
+        )
+
     def test_dropout_with_savemodel(self):
         inputs = keras.Input(shape=(5, 10))
         layer = keras.layers.Dropout(0.5, force_generator=True)

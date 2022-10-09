@@ -26,7 +26,8 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 
 # isort: off
@@ -186,8 +187,10 @@ class RNN(base_layer.Layer):
     Examples:
 
     ```python
-    # First, let's define a RNN Cell, as a layer subclass.
+    from keras.layers import RNN
+    from keras import backend
 
+    # First, let's define a RNN Cell, as a layer subclass.
     class MinimalRNNCell(keras.layers.Layer):
 
         def __init__(self, units, **kwargs):
@@ -955,7 +958,7 @@ class RNN(base_layer.Layer):
         if self.zero_output_for_mask:
             config["zero_output_for_mask"] = self.zero_output_for_mask
 
-        config["cell"] = generic_utils.serialize_keras_object(self.cell)
+        config["cell"] = serialization.serialize_keras_object(self.cell)
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

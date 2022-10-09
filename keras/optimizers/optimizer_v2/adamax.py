@@ -23,7 +23,10 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.Adamax")
+@keras_export(
+    "keras.optimizers.legacy.Adamax",
+    v1=["keras.optimizers.Adamax", "keras.optimizers.legacy.Adamax"],
+)
 class Adamax(optimizer_v2.OptimizerV2):
     """Optimizer that implements the Adamax algorithm.
 

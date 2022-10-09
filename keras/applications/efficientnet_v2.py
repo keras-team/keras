@@ -999,7 +999,7 @@ def EfficientNetV2(
     b = 0
     blocks = float(sum(args["num_repeat"] for args in blocks_args))
 
-    for (i, args) in enumerate(blocks_args):
+    for i, args in enumerate(blocks_args):
         assert args["num_repeat"] > 0
 
         # Update block input and output filters based on depth multiplier.
@@ -1032,7 +1032,7 @@ def EfficientNetV2(
                 activation=activation,
                 bn_momentum=bn_momentum,
                 survival_probability=drop_connect_rate * b / blocks,
-                name="block{}{}_".format(i + 1, chr(j + 97)),
+                name=f"block{i + 1}{chr(j + 97)}_",
                 **args,
             )(x)
             b += 1

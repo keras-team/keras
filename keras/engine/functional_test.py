@@ -28,7 +28,7 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.engine import sequential
 from keras.engine import training as training_lib
-from keras.saving import save
+from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import layer_utils
@@ -1702,7 +1702,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1739,7 +1739,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1772,7 +1772,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)

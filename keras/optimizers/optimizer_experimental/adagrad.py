@@ -18,14 +18,16 @@ import tensorflow.compat.v2 as tf
 
 from keras import initializers
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adagrad", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.Adagrad", "keras.optimizers.Adagrad", v1=[]
+)
 class Adagrad(optimizer.Optimizer):
     r"""Optimizer that implements the Adagrad algorithm.
 
@@ -58,6 +60,7 @@ class Adagrad(optimizer.Optimizer):
         learning_rate=0.001,
         initial_accumulator_value=0.1,
         epsilon=1e-7,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -69,6 +72,7 @@ class Adagrad(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -111,10 +115,17 @@ class Adagrad(optimizer.Optimizer):
             accumulator.scatter_add(
                 tf.IndexedSlices(grad.values * grad.values, grad.indices)
             )
+            denominator = tf.sqrt(accumulator + self.epsilon)
+            sparse_denominator = tf.gather(denominator, indices=grad.indices)
+            variable.scatter_add(
+                tf.IndexedSlices(
+                    -lr * grad.values / sparse_denominator, grad.indices
+                )
+            )
         else:
             # Dense gradients.
             accumulator.assign_add(grad * grad)
-        variable.assign_sub(lr * grad / tf.sqrt(accumulator + self.epsilon))
+            variable.assign_sub(lr * grad / tf.sqrt(accumulator + self.epsilon))
 
     def get_config(self):
         config = super().get_config()

@@ -17,14 +17,16 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.SGD", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.SGD", "keras.optimizers.SGD", v1=[]
+)
 class SGD(optimizer.Optimizer):
     r"""Gradient descent (with momentum) optimizer.
 
@@ -62,25 +64,25 @@ class SGD(optimizer.Optimizer):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
     >>> var = tf.Variable(1.0)
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1
-    >>> step_count = opt.minimize(loss, [var]).numpy()
+    >>> opt.minimize(loss, [var])
     >>> # Step is `- learning_rate * grad`
     >>> var.numpy()
     0.9
 
-    >>> opt = tf.keras.optimizers.SGD(learning_rate=0.1, momentum=0.9)
+    >>> opt = tf.keras.optimizers.experimental.SGD(0.1, momentum=0.9)
     >>> var = tf.Variable(1.0)
     >>> val0 = var.value()
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1
     >>> # First step is `- learning_rate * grad`
-    >>> step_count = opt.minimize(loss, [var]).numpy()
+    >>> opt.minimize(loss, [var])
     >>> val1 = var.value()
     >>> (val0 - val1).numpy()
     0.1
     >>> # On later steps, step-size increases because of momentum
-    >>> step_count = opt.minimize(loss, [var]).numpy()
+    >>> opt.minimize(loss, [var])
     >>> val2 = var.value()
     >>> (val1 - val2).numpy()
     0.18
@@ -96,6 +98,7 @@ class SGD(optimizer.Optimizer):
         momentum=0.0,
         nesterov=False,
         amsgrad=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -108,6 +111,7 @@ class SGD(optimizer.Optimizer):
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -138,13 +142,12 @@ class SGD(optimizer.Optimizer):
         if hasattr(self, "_built") and self._built:
             return
         self.momentums = []
-        if self.momentum != 0:
-            for var in var_list:
-                self.momentums.append(
-                    self.add_variable_from_reference(
-                        model_variable=var, variable_name="m"
-                    )
+        for var in var_list:
+            self.momentums.append(
+                self.add_variable_from_reference(
+                    model_variable=var, variable_name="m"
                 )
+            )
         self._built = True
 
     def update_step(self, gradient, variable):
@@ -152,9 +155,8 @@ class SGD(optimizer.Optimizer):
         lr = tf.cast(self.learning_rate, variable.dtype)
         m = None
         var_key = self._var_key(variable)
-        if self.momentum != 0:
-            momentum = tf.cast(self.momentum, variable.dtype)
-            m = self.momentums[self._index_dict[var_key]]
+        momentum = tf.cast(self.momentum, variable.dtype)
+        m = self.momentums[self._index_dict[var_key]]
 
         # TODO(b/204321487): Add nesterov acceleration.
         if isinstance(gradient, tf.IndexedSlices):

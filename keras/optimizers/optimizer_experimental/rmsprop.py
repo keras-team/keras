@@ -17,14 +17,16 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.utils import generic_utils
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@generic_utils.register_keras_serializable()
-@keras_export("keras.optimizers.experimental.RMSprop", v1=[])
+@register_keras_serializable()
+@keras_export(
+    "keras.optimizers.experimental.RMSprop", "keras.optimizers.RMSprop", v1=[]
+)
 class RMSprop(optimizer.Optimizer):
     r"""Optimizer that implements the RMSprop algorithm.
 
@@ -58,10 +60,10 @@ class RMSprop(optimizer.Optimizer):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.RMSprop(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.experimental.RMSprop(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
-    >>> loss = lambda: (var1 ** 2) / 2.0    # d(loss) / d(var1) = var1
-    >>> step_count = opt.minimize(loss, [var1]).numpy()
+    >>> loss = lambda: (var1 ** 2) / 2.0  # d(loss) / d(var1) = var1
+    >>> opt.minimize(loss, [var1])
     >>> var1.numpy()
     9.683772
 
@@ -78,6 +80,7 @@ class RMSprop(optimizer.Optimizer):
         momentum=0.0,
         epsilon=1e-7,
         centered=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -89,6 +92,7 @@ class RMSprop(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -158,40 +162,38 @@ class RMSprop(optimizer.Optimizer):
                 average_grad.assign(rho * average_grad)
                 average_grad.scatter_add(
                     tf.IndexedSlices(
-                        tf.square(gradient.values) * (1 - rho), gradient.indices
+                        gradient.values * (1 - rho), gradient.indices
                     )
                 )
-                velocity.assign_add(-tf.square(average_grad))
-            velocity_value = tf.gather(velocity, gradient.indices)
-            transformed_grad = tf.IndexedSlices(
-                gradient.values / (tf.sqrt(velocity_value) + self.epsilon),
+                denominator = velocity - tf.square(average_grad) + self.epsilon
+            else:
+                denominator = velocity + self.epsilon
+            denominator_slices = tf.gather(denominator, gradient.indices)
+            increment = tf.IndexedSlices(
+                lr * gradient.values * tf.math.rsqrt(denominator_slices),
                 gradient.indices,
             )
 
             if self.momentum > 0:
                 momentum.assign(self.momentum * momentum)
-                momentum.scatter_add(transformed_grad)
-                variable.assign_add(-lr * momentum)
+                momentum.scatter_add(increment)
+                variable.assign_add(-momentum)
             else:
-                variable.scatter_add(
-                    tf.IndexedSlices(
-                        -lr * transformed_grad.values, transformed_grad.indices
-                    )
-                )
+                variable.scatter_add(-increment)
         else:
             # Dense gradients.
             velocity.assign(rho * velocity + (1 - rho) * tf.square(gradient))
             if self.centered:
-                average_grad.assign(
-                    rho * average_grad + (1 - rho) * tf.square(gradient)
-                )
-                velocity.assign_add(-tf.square(average_grad))
-            transformed_grad = gradient / (tf.sqrt(velocity) + self.epsilon)
-            if self.momentum > 0:
-                momentum.assign(self.momentum * momentum + transformed_grad)
-                variable.assign_add(-lr * momentum)
+                average_grad.assign(rho * average_grad + (1 - rho) * gradient)
+                denominator = velocity - tf.square(average_grad) + self.epsilon
             else:
-                variable.assign_add(-lr * transformed_grad)
+                denominator = velocity + self.epsilon
+            increment = lr * gradient * tf.math.rsqrt(denominator)
+            if self.momentum > 0:
+                momentum.assign(self.momentum * momentum + increment)
+                variable.assign_add(-momentum)
+            else:
+                variable.assign_add(-increment)
 
     def get_config(self):
         config = super().get_config()

@@ -228,7 +228,7 @@ class BatchNormalizationBase(Layer):
             keys = ["rmax", "rmin", "dmax"]
             if set(renorm_clipping) - set(keys):
                 raise ValueError(
-                    f"Received invalid keys for `renorm_clipping` argument: "
+                    "Received invalid keys for `renorm_clipping` argument: "
                     f"{renorm_clipping}. Supported values: {keys}."
                 )
             self.renorm_clipping = renorm_clipping
@@ -250,8 +250,7 @@ class BatchNormalizationBase(Layer):
         # when no virtual batch size or adjustment is used.
         if self.renorm:
             raise ValueError(
-                "Passing both `fused=True` and `renorm=True` is "
-                "not supported"
+                "Passing both `fused=True` and `renorm=True` is not supported"
             )
         axis = [self.axis] if isinstance(self.axis, int) else self.axis
         # Axis -3 is equivalent to 1, and axis -1 is equivalent to 3, when the
@@ -328,8 +327,8 @@ class BatchNormalizationBase(Layer):
         if self.virtual_batch_size is not None:
             if self.virtual_batch_size <= 0:
                 raise ValueError(
-                    f"`virtual_batch_size` must be a positive integer that "
-                    f"divides the true batch size of the input tensor. "
+                    "`virtual_batch_size` must be a positive integer that "
+                    "divides the true batch size of the input tensor. "
                     f"Received: virtual_batch_size={self.virtual_batch_size}"
                 )
             # If using virtual batches, the first dimension must be the batch

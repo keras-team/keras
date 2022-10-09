@@ -23,7 +23,10 @@ from keras.optimizers.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.optimizers.Ftrl")
+@keras_export(
+    "keras.optimizers.legacy.Ftrl",
+    v1=["keras.optimizers.Ftrl", "keras.optimizers.legacy.Ftrl"],
+)
 class Ftrl(optimizer_v2.OptimizerV2):
     r"""Optimizer that implements the FTRL algorithm.
 
@@ -132,13 +135,13 @@ class Ftrl(optimizer_v2.OptimizerV2):
         if l1_regularization_strength < 0.0:
             raise ValueError(
                 "`l1_regularization_strength` needs to be positive or zero. "
-                f"Received: l1_regularization_strength="
+                "Received: l1_regularization_strength="
                 f"{l1_regularization_strength}."
             )
         if l2_regularization_strength < 0.0:
             raise ValueError(
                 "`l2_regularization_strength` needs to be positive or zero. "
-                f"Received: l2_regularization_strength="
+                "Received: l2_regularization_strength="
                 f"{l2_regularization_strength}."
             )
         if l2_shrinkage_regularization_strength < 0.0:

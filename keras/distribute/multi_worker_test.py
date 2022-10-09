@@ -229,6 +229,129 @@ class KerasMultiWorkerTestIndependentWorker(
 
         verification_callback.verify(self)
 
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            mode=["eager"],
+            strategy=[
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
+            ],
+        )
+    )
+    def test_distribution_reduction_method_auto_default_train_step(
+        self, strategy
+    ):
+        BATCH = 4
+        EPOCHS = 1
+        STEPS = 2
+
+        # Dataset's targets are [0, 1, 2, 3, 4, 5, 6, 7]:
+        train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
+            BATCH, STEPS, target_values="increasing"
+        )
+
+        # A model that always outputs `sum(inputs*0) + 1 = 1`
+        with strategy.scope():
+            inputs = keras.Input(shape=(28, 28, 1))
+            x = keras.layers.Flatten()(inputs)
+            x = keras.layers.Dense(
+                1, kernel_initializer="zeros", bias_initializer="ones"
+            )(x)
+            model = keras.Model(inputs=inputs, outputs=x)
+            model.trainable = False
+            # model.distribute_reduction_method = 'auto'
+
+            model.compile(
+                loss=keras.losses.MeanAbsoluteError(
+                    reduction=keras.losses.losses_utils.ReductionV2.NONE
+                ),
+                optimizer=multi_worker_testing_utils.gradient_descent.SGD(
+                    learning_rate=0.001
+                ),
+                metrics=["mse"],
+            )
+
+        # For every output x_i = 1, and increasing target values in [0, 8):
+        #   loss_i = |i-1|
+        #   loss   = (|0-1| + |1-1| + |2-1| + ... |7-1|) / (BATCH*STEPS)
+        #          = (1+0+1+2+3+4+5+6) / 8 = 2.75
+        orig_loss, _ = model.evaluate(train_ds, steps=STEPS)
+        self.assertEqual(2.75, orig_loss)
+
+        history = model.fit(train_ds, epochs=EPOCHS, steps_per_epoch=STEPS)
+        self.assertAllClose(history.history["loss"], [2.75] * EPOCHS)
+
+        trained_loss, _ = model.evaluate(train_ds, steps=STEPS)
+        self.assertEqual(2.75, trained_loss)
+
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            mode=["eager"],
+            strategy=[
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,  # noqa: E501
+                tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,  # noqa: E501
+            ],
+        )
+    )
+    def test_distribution_reduction_method_auto_custom_train_step(
+        self, strategy
+    ):
+        BATCH = 4
+        EPOCHS = 1
+        STEPS = 2
+
+        # Dataset's targets are [0, 1, 2, 3, 4, 5, 6, 7]:
+        train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
+            BATCH, STEPS, target_values="increasing"
+        )
+
+        # A model that has loss=sum(targets) / BATCH:
+        class MyModel(keras.Model):
+            def train_step(self, data):
+                _, y = data
+                loss_value = tf.cast(y, tf.float32)
+                loss_value = tf.nn.compute_average_loss(
+                    loss_value, global_batch_size=BATCH
+                )
+                return {"loss": loss_value}
+
+            def test_step(self, data):
+                _, y = data
+                loss_value = tf.cast(y, tf.float32)
+                loss_value = tf.nn.compute_average_loss(
+                    loss_value, global_batch_size=BATCH
+                )
+                return {"loss": loss_value}
+
+        with strategy.scope():
+            inputs = keras.Input(shape=(28, 28, 1))
+            x = keras.layers.Flatten()(inputs)
+            x = keras.layers.Dense(
+                1, kernel_initializer="ones", bias_initializer="ones"
+            )(x)
+            model = MyModel(inputs=inputs, outputs=x)
+            # model.distribute_reduction_method = 'auto'
+
+            model.compile(
+                optimizer=multi_worker_testing_utils.gradient_descent.SGD(
+                    learning_rate=0.001
+                ),
+            )
+
+        # For epochs=1 steps=2 replicas=2 batch=4, and increasing target vals,
+        #   loss_e0_s0_r0 = [0+1]/BATCH =  1/4
+        #   loss_e0_s0_r1 = [2+3]/BATCH =  5/4
+        #   loss_e0_s0    = 1/4 + 5/4   = 1.5
+        #   loss_e0_s1_r0 = [4+5]/BATCH =  9/4
+        #   loss_e0_s2_r1 = [6+7]/BATCH = 13/4
+        #   loss_e0_s1    = 9/4 + 13/4   = 5.5
+        #   loss_e0       = last([1.5, 5.5])
+        history = model.fit(train_ds, epochs=EPOCHS, steps_per_epoch=STEPS)
+        self.assertAllClose([5.5], history.history["loss"])
+
+        eval_output = model.evaluate(train_ds, steps=STEPS)
+        self.assertAllClose(5.5, eval_output)
+
 
 class KPLMultiWorkerTest(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(

@@ -28,9 +28,10 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.optimizers import optimizer_v1
+from keras.saving.legacy import serialization
+from keras.saving.object_registration import CustomObjectScope
 from keras.utils import generic_utils
 from keras.utils import version_utils
-from keras.utils.generic_utils import CustomObjectScope
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
@@ -64,7 +65,7 @@ def _insert_ancillary_layers(model, ancillary_layers, metrics_names, new_nodes):
 
 
 def _make_new_nodes(nodes_by_depth, layer_fn, layer_map, tensor_map):
-    """Uses the layers in `layer_map` to make new nodes based on `nodes_by_depth`.
+    """Make new nodes with the layers in `layer_map` based on `nodes_by_depth`.
 
     Args:
       nodes_by_depth: Provides structure information to create new nodes.
@@ -241,7 +242,7 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
 
 
 def _clone_layers_and_model_config(model, input_layers, layer_fn):
-    """Clones all layers, and returns the model config without serializing layers.
+    """Clones all layers; returns the model config without serializing layers.
 
     This function ensures that only the node graph is retrieved when getting the
     model config. The `layer_fn` used to clone layers might not rely on
@@ -493,7 +494,7 @@ def clone_model(model, input_tensors=None, clone_function=None):
     new_model = model.__class__.from_config(model.get_config())
     ```
     """
-    with generic_utils.DisableSharedObjectScope():
+    with serialization.DisableSharedObjectScope():
         if clone_function is None:
             clone_function = _clone_layer
 

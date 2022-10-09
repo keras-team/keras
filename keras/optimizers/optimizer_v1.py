@@ -43,8 +43,7 @@ class Optimizer:
         for k in kwargs:
             if k not in allowed_kwargs:
                 raise TypeError(
-                    "Unexpected keyword argument "
-                    "passed to optimizer: " + str(k)
+                    "Unexpected keyword argument passed to optimizer: " + str(k)
                 )
             # checks that clipnorm >= 0 and clipvalue >= 0
             if kwargs[k] < 0:
@@ -123,8 +122,9 @@ class Optimizer:
             raise ValueError(
                 "Length of the specified weight list ("
                 + str(len(weights))
-                + ") does not match the number of weights "
-                "of the optimizer (" + str(len(params)) + ")"
+                + ") does not match the number of weights of the optimizer ("
+                + str(len(params))
+                + ")"
             )
         weight_value_tuples = []
         param_values = backend.batch_get_value(params)
@@ -133,8 +133,8 @@ class Optimizer:
                 raise ValueError(
                     "Optimizer weight shape "
                     + str(pv.shape)
-                    + " not compatible with "
-                    "provided weight shape " + str(w.shape)
+                    + " not compatible with provided weight shape "
+                    + str(w.shape)
                 )
             weight_value_tuples.append((p, w))
         backend.batch_set_value(weight_value_tuples)

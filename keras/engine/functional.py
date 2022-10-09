@@ -33,8 +33,9 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
-from keras.saving.saved_model import json_utils
-from keras.saving.saved_model import network_serialization
+from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model import json_utils
+from keras.saving.legacy.saved_model import network_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -422,7 +423,7 @@ class Functional(training_lib.Model):
             proposal = layer.name
             while proposal in output_names:
                 existing_count = prefix_count.get(layer.name, 1)
-                proposal = "{}_{}".format(layer.name, existing_count)
+                proposal = f"{layer.name}_{existing_count}"
                 prefix_count[layer.name] = existing_count + 1
             output_names.add(proposal)
             uniquified.append(proposal)
@@ -589,14 +590,14 @@ class Functional(training_lib.Model):
                     for j, shape in enumerate(
                         tf.nest.flatten(layer_output_shapes)
                     ):
-                        shape_key = layer.name + "_%s_%s" % (node_index, j)
+                        shape_key = layer.name + f"_{node_index}_{j}"
                         layers_to_output_shapes[shape_key] = shape
 
             # Read final output shapes from layers_to_output_shapes.
             output_shapes = []
             for i in range(len(self._output_layers)):
                 layer, node_index, tensor_index = self._output_coordinates[i]
-                shape_key = layer.name + "_%s_%s" % (node_index, tensor_index)
+                shape_key = layer.name + f"_{node_index}_{tensor_index}"
                 output_shapes.append(layers_to_output_shapes[shape_key])
             output_shapes = tf.nest.pack_sequence_as(
                 self._nested_outputs, output_shapes
@@ -916,7 +917,7 @@ class Functional(training_lib.Model):
             # Model are being relied on.
             if i > 10000:
                 raise ValueError(
-                    "Layers could not be added due to missing " "dependencies."
+                    "Layers could not be added due to missing dependencies."
                 )
 
             node = unprocessed_nodes.pop(0)
@@ -1126,7 +1127,7 @@ def _map_graph_network(inputs, outputs):
                 for x in tf.nest.flatten(node.keras_inputs):
                     if id(x) not in computable_tensors:
                         raise ValueError(
-                            f"Graph disconnected: cannot obtain value for "
+                            "Graph disconnected: cannot obtain value for "
                             f'tensor {x} at layer "{layer.name}". '
                             "The following previous layers were accessed "
                             f"without issue: {layers_with_complete_input}"
@@ -1205,7 +1206,7 @@ def _build_map_helper(
     # Prevent cycles.
     if node in nodes_in_progress:
         raise ValueError(
-            f'Tensor {tensor} from layer "{layer.name}" ' "is part of a cycle."
+            f'Tensor {tensor} from layer "{layer.name}" is part of a cycle.'
         )
 
     # Store the traversal order for layer sorting.
@@ -1533,7 +1534,7 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
       Config dictionary.
     """
     serialize_layer_fn = (
-        serialize_layer_fn or generic_utils.serialize_keras_object
+        serialize_layer_fn or serialization.serialize_keras_object
     )
     config = config or {}
     config["name"] = network.name
@@ -1547,7 +1548,7 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
                 kept_nodes += 1
     layer_configs = []
 
-    with generic_utils.SharedObjectSavingScope():
+    with serialization.SharedObjectSavingScope():
         for layer in network.layers:  # From the earliest layers on.
             filtered_inbound_nodes = []
             for original_node_index, node in enumerate(layer._inbound_nodes):
@@ -1639,9 +1640,7 @@ class ModuleWrapper(base_layer.Layer):
             elif hasattr(module, "call"):
                 method_name = "call"
         if method_name is None or not hasattr(module, method_name):
-            raise ValueError(
-                "{} is not defined on object {}".format(method_name, module)
-            )
+            raise ValueError(f"{method_name} is not defined on object {module}")
 
         self._module = module
         self._method_name = method_name

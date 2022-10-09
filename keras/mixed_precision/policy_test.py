@@ -61,7 +61,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
             "_infer",
         ):
             self.assertEqual(
-                repr(mp_policy.Policy(policy)), '<Policy "%s">' % policy
+                repr(mp_policy.Policy(policy)), f'<Policy "{policy}">'
             )
 
     @test_utils.enable_v2_dtype_behavior

@@ -24,7 +24,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.feature_column import sequence_feature_column as ksfc
-from keras.saving import model_config
+from keras.saving.legacy import model_config
 from keras.testing_infra import test_combinations
 
 

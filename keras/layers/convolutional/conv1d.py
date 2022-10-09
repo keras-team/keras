@@ -82,8 +82,12 @@ class Conv1D(Conv):
         where the model should not violate the temporal order.
         See [WaveNet: A Generative Model for Raw Audio, section
           2.1](https://arxiv.org/abs/1609.03499).
-      data_format: A string,
-        one of `channels_last` (default) or `channels_first`.
+      data_format: A string, one of `channels_last` (default) or
+        `channels_first`. The ordering of the dimensions in the inputs.
+        `channels_last` corresponds to inputs with shape `(batch_size, width,
+        channels)` while `channels_first` corresponds to inputs with shape
+        `(batch_size, channels, width)`. Note that the `channels_first` format
+        is currently not supported by TensorFlow on CPU.
       dilation_rate: an integer or tuple/list of a single integer, specifying
         the dilation rate to use for dilated convolution.
         Currently, specifying any `dilation_rate` value != 1 is

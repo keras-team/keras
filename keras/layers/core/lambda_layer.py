@@ -23,6 +23,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
+from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -228,9 +229,7 @@ class Lambda(Layer):
             v for v in created_variables if v.ref() not in tracked_weights
         ]
         if untracked_new_vars:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_new_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_new_vars)
             error_str = textwrap.dedent(
                 """
           The following Variables were created within a Lambda layer ({name})
@@ -248,9 +247,7 @@ class Lambda(Layer):
             v for v in accessed_variables if v.ref() not in tracked_weights
         ]
         if untracked_used_vars and not self._already_warned:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_used_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_used_vars)
             self._warn(
                 textwrap.dedent(
                     """
@@ -316,7 +313,7 @@ class Lambda(Layer):
             module = None
         else:
             raise ValueError(
-                "Invalid input for serialization, type: %s " % type(inputs)
+                f"Invalid input for serialization, type: {type(inputs)} "
             )
 
         return output, output_type, module
@@ -384,7 +381,7 @@ class Lambda(Layer):
         function_type = config.pop(func_type_attr_name)
         if function_type == "function":
             # Simple lookup in custom objects
-            function = generic_utils.deserialize_keras_object(
+            function = serialization.deserialize_keras_object(
                 config[func_attr_name],
                 custom_objects=custom_objects,
                 printable_module_name="function in Lambda layer",
@@ -399,7 +396,7 @@ class Lambda(Layer):
         else:
             supported_types = ["function", "lambda", "raw"]
             raise TypeError(
-                f"Unsupported value for `function_type` argument. Received: "
+                "Unsupported value for `function_type` argument. Received: "
                 f"function_type={function_type}. "
                 f"Expected one of {supported_types}"
             )

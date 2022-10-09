@@ -180,8 +180,8 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
                         f"lengths. Mismatch found at index {i}, "
                         f"Expected shape={expected_shape} "
                         f"Received shape={np.array(element).shape}."
-                        f"Please provide a list of NumPy arrays with "
-                        f"the same length."
+                        "Please provide a list of NumPy arrays with "
+                        "the same length."
                     )
         else:
             raise ValueError(
@@ -206,7 +206,7 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
                         f"lengths. Mismatch found at index {i}, "
                         f"Expected shape={expected_shape} "
                         f"Received shape={np.array(element).shape}."
-                        f"Please provide a tuple of NumPy arrays with "
+                        "Please provide a tuple of NumPy arrays with "
                         "the same length."
                     )
         else:
@@ -358,7 +358,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
     # check right_size is a integer or float
     if right_size is not None and right_size_type not in [int, float]:
         raise TypeError(
-            f"Invalid `right_size` Type. "
+            "Invalid `right_size` Type. "
             "Expected: int or float or None,"
             f"Received: type(right_size)={right_size_type}."
         )

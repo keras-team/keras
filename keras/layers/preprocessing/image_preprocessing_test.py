@@ -704,46 +704,7 @@ class RandomFlipTest(test_combinations.TestCase):
         self.assertAllEqual(layer(inputs).dtype, "uint8")
 
     @test_utils.run_v2_only
-    def test_augment_bbox_horizontal(self):
-        image = tf.zeros([1, 20, 20, 3])
-        bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype="int32")
-        layer = image_preprocessing.RandomFlip()
-        output = layer.augment_bounding_boxes(
-            image,
-            bboxes,
-            transformation={"flip_horizontal": True, "flip_vertical": False},
-        )
-        expected_output = [[10, 0, 20, 10], [8, 4, 16, 12]]
-        self.assertAllClose(expected_output, output)
-
-    @test_utils.run_v2_only
-    def test_augment_bbox_vertical(self):
-        image = tf.zeros([1, 20, 20, 3])
-        bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype="int32")
-        layer = image_preprocessing.RandomFlip()
-        output = layer.augment_bounding_boxes(
-            image,
-            bboxes,
-            transformation={"flip_horizontal": False, "flip_vertical": True},
-        )
-        expected_output = [[0, 10, 10, 20], [4, 8, 12, 16]]
-        self.assertAllClose(expected_output, output)
-
-    @test_utils.run_v2_only
-    def test_augment_bbox_both(self):
-        image = tf.zeros([1, 20, 20, 3])
-        bboxes = np.array([[0, 0, 10, 10], [4, 4, 12, 12]], dtype="int32")
-        layer = image_preprocessing.RandomFlip()
-        output = layer.augment_bounding_boxes(
-            image,
-            bboxes,
-            transformation={"flip_horizontal": True, "flip_vertical": True},
-        )
-        expected_output = [[10, 10, 20, 20], [8, 8, 16, 16]]
-        self.assertAllClose(expected_output, output)
-
-    @test_utils.run_v2_only
-    def test_augment_bbox_batched_input(self):
+    def test_bounding_box_error(self):
         image = tf.zeros([20, 20, 3])
         bboxes = np.array(
             [
@@ -753,19 +714,16 @@ class RandomFlipTest(test_combinations.TestCase):
             dtype="int32",
         )
         input = {"images": [image, image], "bounding_boxes": bboxes}
-        mock_random = [True, True, True, True]
-        with tf.compat.v1.test.mock.patch.object(
-            np.random,
-            "choice",
-            side_effect=mock_random,
+        layer = "RandomFlip"
+        with self.assertRaisesRegex(
+            NotImplementedError,
+            "In order to use bounding_boxes, "
+            "please use "
+            f"keras_cv.layers.{layer} "
+            f"instead of keras.layers.{layer}.",
         ):
             layer = image_preprocessing.RandomFlip()
-            output = layer(input, training=True)
-        expected_output = [
-            [[10, 10, 20, 20], [8, 8, 16, 16]],
-            [[10, 10, 20, 20], [8, 8, 16, 16]],
-        ]
-        self.assertAllClose(expected_output, output["bounding_boxes"])
+            layer(input)
 
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
@@ -2000,41 +1958,6 @@ class RandomRotationTest(test_combinations.TestCase):
             ).astype(np.float32)
             expected_output = np.reshape(expected_output, (5, 5, 1))
             self.assertAllClose(expected_output, output_image)
-
-    def test_augment_bbox(self):
-        with test_utils.use_gpu():
-            input_image = np.random.random((512, 512, 3)).astype(np.float32)
-            bboxes = tf.convert_to_tensor(
-                [[200, 200, 400, 400], [100, 100, 300, 300]]
-            )
-            # 180 rotation.
-            layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
-            output_bbox = layer.augment_bounding_boxes(
-                input_image,
-                bboxes,
-                transformation=layer.get_random_transformation(),
-            )
-            expected_output = np.asarray(
-                [[111, 112, 312, 312], [212, 211, 412, 412]]
-            ).astype(np.int32)
-            expected_output = np.reshape(expected_output, (2, 4))
-            self.assertAllClose(expected_output, output_bbox)
-
-    def test_augment_bbox_dict_input(self):
-        with test_utils.use_gpu():
-            input_image = np.random.random((512, 512, 3)).astype(np.float32)
-            bboxes = tf.convert_to_tensor(
-                [[200, 200, 400, 400], [100, 100, 300, 300]]
-            )
-            input = {"images": input_image, "bounding_boxes": bboxes}
-            # 180 rotation.
-            layer = image_preprocessing.RandomRotation(factor=(0.0833, 0.0833))
-            output_bbox = layer(input)
-            expected_output = np.asarray(
-                [[179, 135, 452, 408], [42, 98, 316, 372]]
-            ).astype(np.int32)
-            expected_output = np.reshape(expected_output, (2, 4))
-            self.assertAllClose(expected_output, output_bbox["bounding_boxes"])
 
     @test_utils.run_v2_only
     def test_output_dtypes(self):

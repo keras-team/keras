@@ -216,7 +216,7 @@ def image_dataset_from_directory(
 
     if label_mode == "binary" and len(class_names) != 2:
         raise ValueError(
-            f'When passing `label_mode="binary"`, there must be exactly 2 '
+            'When passing `label_mode="binary"`, there must be exactly 2 '
             f"class_names. Received: class_names={class_names}"
         )
 

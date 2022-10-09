@@ -138,7 +138,7 @@ class BenchmarkLayer(tf.test.Benchmark):
                 ends.append(time.time())
 
         avg_time = np.mean(np.array(ends) - np.array(starts)) / count
-        name = "image_preprocessing|batch_%s" % batch_size
+        name = f"image_preprocessing|batch_{batch_size}"
         baseline = self.run_dataset_implementation(batch_size)
         extras = {
             "dataset implementation baseline": baseline,

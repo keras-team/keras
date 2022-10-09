@@ -91,8 +91,7 @@ class Cropping3D(Layer):
         elif hasattr(cropping, "__len__"):
             if len(cropping) != 3:
                 raise ValueError(
-                    "`cropping` should have 3 elements. "
-                    f"Received: {cropping}."
+                    f"`cropping` should have 3 elements. Received: {cropping}."
                 )
             dim1_cropping = conv_utils.normalize_tuple(
                 cropping[0], 2, "1st entry of cropping", allow_zero=True

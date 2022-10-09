@@ -16,24 +16,40 @@ py_library(
     name = "experimental",
     srcs = [
         "saving_lib.py",
+        "serialization_lib.py",
     ],
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/saving/saved_model",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:generic_utils",
     ],
 )
 
 tf_py_test(
     name = "saving_lib_test",
-    size = "small",
+    size = "medium",
     srcs = ["saving_lib_test.py"],
     python_version = "PY3",
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
         "//keras/utils:generic_utils",
+    ],
+)
+
+tf_py_test(
+    name = "serialization_lib_test",
+    size = "small",
+    srcs = ["serialization_lib_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/saving:serialization",
+        "//keras/testing_infra:test_combinations",
     ],
 )

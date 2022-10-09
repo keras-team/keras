@@ -59,7 +59,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # Generate paths to class subdirectories
         paths = []
         for class_index in range(num_classes):
-            class_directory = "class_%s" % (class_index,)
+            class_directory = f"class_{class_index}"
             if nested_dirs:
                 class_paths = [
                     class_directory,
@@ -82,7 +82,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         ):
             path = paths[i % len(paths)]
             ext = "wav"
-            filename = os.path.join(path, "audio_%s.%s" % (i, ext))
+            filename = os.path.join(path, f"audio_{i}.{ext}")
             with open(os.path.join(temp_dir, filename), "wb") as f:
                 f.write(audio.numpy())
             i += 1
@@ -94,7 +94,7 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
         # Save a few extra audio in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
         for i, audio in enumerate(self._get_audio_samples(3)):
-            filename = "audio_%s.wav" % (i,)
+            filename = f"audio_{i}.wav"
             with open(os.path.join(directory, filename), "wb") as f:
                 f.write(audio.numpy())
 

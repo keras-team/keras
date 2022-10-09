@@ -67,8 +67,12 @@ def compare_single_input_op_to_numpy(
         np.testing.assert_allclose(keras_output, np_output, atol=1e-4)
     except AssertionError:
         raise AssertionError(
-            "Test for op `" + str(keras_op.__name__) + "` failed; "
-            "Expected " + str(np_output) + " but got " + str(keras_output)
+            "Test for op `"
+            + str(keras_op.__name__)
+            + "` failed; Expected "
+            + str(np_output)
+            + " but got "
+            + str(keras_output)
         )
 
 
@@ -93,7 +97,7 @@ def compare_two_inputs_op_to_numpy(
         backend.variable(input_a, dtype=dtype),
         backend.variable(input_b, dtype=dtype),
         *keras_args,
-        **keras_kwargs
+        **keras_kwargs,
     )
     keras_output = backend.eval(keras_output)
     np_output = np_op(
@@ -103,8 +107,12 @@ def compare_two_inputs_op_to_numpy(
         np.testing.assert_allclose(keras_output, np_output, atol=1e-4)
     except AssertionError:
         raise AssertionError(
-            "Test for op `" + str(keras_op.__name__) + "` failed; "
-            "Expected " + str(np_output) + " but got " + str(keras_output)
+            "Test for op `"
+            + str(keras_op.__name__)
+            + "` failed; Expected "
+            + str(np_output)
+            + " but got "
+            + str(keras_output)
         )
 
 
@@ -295,7 +303,7 @@ class BackendUtilsTest(tf.test.TestCase):
         # we cannot test correctness.
         # The message gets correctly printed in practice.
         x = backend.placeholder(shape=())
-        y = backend.print_tensor(x, "eager=%s" % tf.executing_eagerly())
+        y = backend.print_tensor(x, f"eager={tf.executing_eagerly()}")
         f = backend.function(x, y)
         f(0)
 
@@ -1445,7 +1453,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
             state_list[i].append(backend.eval(new_states[0]))
 
             def assert_list_pairwise(z_list, atol=1e-05):
-                for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+                for z1, z2 in zip(z_list[1:], z_list[:-1]):
                     self.assertAllClose(z1, z2, atol=atol)
 
             assert_list_pairwise(last_output_list[0], atol=1e-04)
@@ -1557,7 +1565,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
             additional_state_list[i].append(backend.eval(new_states[1]))
 
             def assert_list_pairwise(z_list, atol=1e-05):
-                for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+                for z1, z2 in zip(z_list[1:], z_list[:-1]):
                     self.assertAllClose(z1, z2, atol=atol)
 
             assert_list_pairwise(last_output_list[0], atol=1e-04)
@@ -2597,6 +2605,63 @@ class FunctionTest(tf.test.TestCase):
 
         f = backend.function(inputs=placeholders, outputs=outputs)
         results = f({"x": 2.0, "y": 3.0})
+        self.assertEqual(results[0], 6.0)
+
+    def test_function_variable_inputs(self):
+        placeholders = {
+            "x": backend.placeholder(shape=()),
+            "y": backend.placeholder(shape=()),
+        }
+        outputs = [placeholders["x"] * placeholders["y"]]
+
+        f = backend.function(inputs=placeholders, outputs=outputs)
+        results = f({"x": backend.variable(2.0), "y": 3.0})
+        self.assertEqual(results[0], 6.0)
+
+    def test_function_composite_variable_inputs(self):
+        if context.executing_eagerly():
+            self.skipTest(
+                "Only graph mode flattens composite tensor inputs into flat "
+                "tensors."
+            )
+
+        class Spec(tf.TypeSpec):
+            value_type = property(lambda self: CompositeVariable)
+
+            def _serialize(self):
+                pass
+
+            def _component_specs(self):
+                pass
+
+            def _to_components(self, value):
+                return value.variables
+
+            def _from_components(self, variable_list):
+                return CompositeVariable(variable_list)
+
+        class CompositeVariable(tf.__internal__.CompositeTensor):
+            def __init__(self, variable_list):
+                self.variables = variable_list
+
+            @property
+            def _type_spec(self):
+                return Spec()
+
+            def _convert_variables_to_tensors(self):
+                self.variables = tf.nest.map_structure(
+                    tf_utils.convert_variables_to_tensors, self.variables
+                )
+                return self
+
+        placeholders = {
+            "x": backend.placeholder(shape=()),
+            "y": backend.placeholder(shape=()),
+        }
+        outputs = [placeholders["x"] * placeholders["y"]]
+
+        f = backend.function(inputs=placeholders, outputs=outputs)
+        results = f({"x": CompositeVariable([backend.variable(2.0)]), "y": 3.0})
         self.assertEqual(results[0], 6.0)
 
     def test_function_single_input_output(self):

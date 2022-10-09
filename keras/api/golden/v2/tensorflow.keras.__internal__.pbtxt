@@ -17,6 +17,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "optimizers"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "utils"
     mtype: "<type \'module\'>"
   }

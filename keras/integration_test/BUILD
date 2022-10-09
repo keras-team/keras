@@ -89,6 +89,7 @@ cuda_py_test(
     name = "gradient_checkpoint_test",
     srcs = ["gradient_checkpoint_test.py"],
     python_version = "PY3",
+    tags = ["no_oss"],  # TODO(b/249526796)
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
@@ -149,7 +150,7 @@ distribute_py_test(
     name = "parameter_server_keras_preprocessing_test",
     srcs = ["parameter_server_keras_preprocessing_test.py"],
     python_version = "PY3",
-    shard_count = 4,  # TODO(b/184290570): Investigate why only 1 shard times out.
+    shard_count = 6,  # TODO(b/184290570): Investigate why only 1 shard times out.
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/194935930): Flaky test
@@ -300,6 +301,23 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "parameter_server_training_metric_test",
+    srcs = ["parameter_server_training_metric_test.py"],
+    python_version = "PY3",
+    tags = [
+        "nomac",  # TODO(mihaimaruseac): b/127695564
+        "notsan",  # TODO(b/156029134)
+    ],
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
         "//keras/api:keras_api",
         "//keras/testing_infra:test_combinations",
     ],

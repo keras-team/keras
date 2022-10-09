@@ -491,7 +491,7 @@ class Tokenizer(object):
 
         if mode == "tfidf" and not self.document_count:
             raise ValueError(
-                "Fit the Tokenizer on some data " "before using tfidf mode."
+                "Fit the Tokenizer on some data before using tfidf mode."
             )
 
         x = np.zeros((len(sequences), num_words))

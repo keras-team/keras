@@ -326,7 +326,7 @@ class TestConvUtils(tf.test.TestCase, parameterized.TestCase):
             ):
                 p = list(p)
                 p[d] = slice(None)
-                mask[p * 2] = True
+                mask[tuple(p * 2)] = True
 
             mask = np.take(mask, range(0, min(1, input_shape[d])), ndims + d)
 
