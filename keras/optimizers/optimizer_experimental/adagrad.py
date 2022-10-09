@@ -115,8 +115,8 @@ class Adagrad(optimizer.Optimizer):
             accumulator.scatter_add(
                 tf.IndexedSlices(grad.values * grad.values, grad.indices)
             )
-            denominator = tf.sqrt(accumulator + self.epsilon)
-            sparse_denominator = tf.gather(denominator, indices=grad.indices)
+            sparse_accumulator = tf.gather(accumulator, indices=grad.indices)
+            sparse_denominator = tf.sqrt(sparse_accumulator + self.epsilon)
             variable.scatter_add(
                 tf.IndexedSlices(
                     -lr * grad.values / sparse_denominator, grad.indices
