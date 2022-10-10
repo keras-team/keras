@@ -347,10 +347,9 @@ def learning_phase():
             # subgraph.
             if context.executing_eagerly():
                 if _DUMMY_EAGER_GRAPH.key not in _GRAPH_LEARNING_PHASES:
-                    phase = _default_learning_phase()
-                    _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, phase)
-                    _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
-                return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
+                    return _default_learning_phase()
+                else:
+                    return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
             else:
                 learning_phase = symbolic_learning_phase()
     _mark_func_graph_as_unsaveable(graph, learning_phase)

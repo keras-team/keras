@@ -2578,6 +2578,14 @@ class VectorizeDisabledLayer(image_preprocessing.BaseImageAugmentationLayer):
         super().__init__(**kwargs)
 
 
+class FilterLayer(image_preprocessing.BaseImageAugmentationLayer):
+    # Testing layer for check whether the training flag is set properly for KPL
+
+    def augment_image(self, image, transformation):
+        # Returns zeros based on the original image
+        return tf.zeros_like(image)
+
+
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class BaseImageAugmentationLayerTest(test_combinations.TestCase):
     def test_augment_single_image(self):
@@ -2647,6 +2655,18 @@ class BaseImageAugmentationLayerTest(test_combinations.TestCase):
         # Make sure the first image and second image get different augmentation
         self.assertNotAllClose(image_diff[0], image_diff[1])
         self.assertNotAllClose(label_diff[0], label_diff[1])
+
+    def test_training_flag(self):
+        # See b/251520266 for more details.
+        inputs = tf.ones((10, 8, 8, 3), dtype="float32")
+        dropout = keras.layers.Dropout(rate=0.00001)
+        filter = FilterLayer()
+        output = dropout(inputs)
+        output = filter(output)
+
+        # Make sure the outputs are all zeros, which the behavior for
+        # FilterLayer when `training` is True
+        self.assertAllClose(output, tf.zeros((10, 8, 8, 3), dtype="float32"))
 
 
 if __name__ == "__main__":
