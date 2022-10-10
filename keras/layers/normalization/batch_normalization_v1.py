@@ -24,3 +24,8 @@ from tensorflow.python.util.tf_export import keras_export
 @keras_export(v1=["keras.layers.BatchNormalization"])
 class BatchNormalization(batch_normalization.BatchNormalizationBase):
     _USE_V2_BEHAVIOR = False
+
+    def __init__(self, *args, **kwargs):
+        # synchronized not implemented in V1
+        kwargs.pop("synchronized", None)
+        super().__init__(*args, **kwargs)
