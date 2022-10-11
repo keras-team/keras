@@ -942,6 +942,77 @@ class TrainingTest(test_combinations.TestCase):
         model = MyModel()
         self.assertIn('{"a": {}}', model.to_json())
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_default(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+        # Test default config with named args
+        model = MyModel(units=10)
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+        # Test default config with positinal args
+        model = MyModel(10)
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+        # Test non-serializable
+        model = MyModel(units=np.int32(10))
+        with self.assertRaises(NotImplementedError):
+            model.get_config()
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_kwargs(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units, **kwargs):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+        model = MyModel(10, extra=1)
+        config = model.get_config()
+        self.assertLen(config, 2)
+        self.assertEqual(config["units"], 10)
+        self.assertEqual(config["extra"], 1)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_override(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+            def get_config(self):
+                config = {"units": int(self.units)}
+                config.update(super().get_config())
+                return config
+
+        model = MyModel(units=np.int32(10))
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
     def test_training_on_sparse_data_with_dense_placeholders_v1(self):
         with tf.Graph().as_default():
             if scipy_sparse is None:
@@ -3732,9 +3803,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
         model.add(layers_module.Masking(mask_value=0, input_shape=(2, 1)))
         model.add(
             layers_module.TimeDistributed(
-                layers_module.Dense(
-                    1, kernel_initializer="ones", trainable=False
-                )
+                layers_module.Dense(1, kernel_initializer="ones")
             )
         )
         model.compile(
@@ -3745,10 +3814,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
         )
 
         # verify that masking is applied.
-        x = np.array(
-            # third row is masked
-            [[[1], [1]], [[1], [1]], [[0], [0]]]
-        )
+        x = np.array([[[1], [1]], [[1], [1]], [[0], [0]]])
         y = np.array([[[1], [1]], [[0], [1]], [[1], [1]]])
         scores = model.train_on_batch(x, y)
         self.assertArrayNear(scores, [0.25, 0.75], 0.1)
@@ -3756,7 +3822,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
         # verify that masking is combined with sample weights.
         w = np.array([3, 2, 4])
         scores = model.train_on_batch(x, y, sample_weight=w)
-        self.assertArrayNear(scores, [0.5, 0.8], 0.001)
+        self.assertArrayNear(scores, [0.3328, 0.8], 0.001)
 
     @test_combinations.run_all_keras_modes
     def test_add_metric_with_tensor_on_model(self):
