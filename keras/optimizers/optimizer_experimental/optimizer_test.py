@@ -639,6 +639,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     def testGetGradientsInCustomTrainingLoop(self, strategy, optimizer_fn):
+        # TODO(b/249597052): this test times out with MLIR bridge.
+        tf.config.experimental.disable_mlir_bridge()
         with strategy.scope():
             model = keras.Sequential(
                 [keras.layers.Input(shape=(1,)), keras.layers.Dense(1)]
@@ -687,6 +689,8 @@ class DistributedTrainingTest(tf.test.TestCase, parameterized.TestCase):
         )
     )
     def testJitCompile(self, strategy):
+        # TODO(b/249597052): this test times out with MLIR bridge.
+        tf.config.experimental.disable_mlir_bridge()
         # Test the optimizer yields same numerical results when jit_compile is
         # on and off.
         with strategy.scope():
