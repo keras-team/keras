@@ -233,8 +233,8 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
             **kwargs
         )
 
-    def call(self, inputs, training=False):
-        return super().call(inputs, training=training)
+    def call(self, inputs, mask=None, training=False):
+        return super().call(inputs, mask=mask, training=training)
 
 
 @keras_export(v1=["keras.__internal__.legacy.layers.batch_normalization"])

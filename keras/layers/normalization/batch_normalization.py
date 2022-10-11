@@ -14,6 +14,8 @@
 # ==============================================================================
 """The V2 implementation of Normalization layers."""
 
+import warnings
+
 import tensorflow.compat.v2 as tf
 
 from keras import backend
@@ -112,7 +114,8 @@ class BatchNormalizationBase(Layer):
         the faster implementation if possible. If False, do not used the fused
         implementation. Note that in TensorFlow 1.x, the meaning of
         `fused=True` is different: if `False`, the layer uses the
-        system-recommended implementation.
+        system-recommended implementation. You cannot use `fused=True` if a
+        mask is passed in the `call()` method.
       trainable: Boolean, if `True` the variables will be marked as trainable.
       virtual_batch_size: An `int`. By default, `virtual_batch_size` is `None`,
         which means batch normalization is performed across the whole batch.
@@ -146,6 +149,8 @@ class BatchNormalizationBase(Layer):
           and variance of the current batch of inputs.
         - `training=False`: The layer will normalize its inputs using the mean
           and variance of its moving statistics, learned during training.
+      mask: Binary tensor of shape broadcastable to `inputs` tensor, indicating
+        the positions for which the mean and variance should be computed.
 
     Input shape: Arbitrary. Use the keyword argument `input_shape` (tuple of
       integers, does not include the samples axis) when using this layer as the
@@ -586,8 +591,17 @@ class BatchNormalizationBase(Layer):
                 with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign(variable, value, name=scope)
 
-    def _fused_batch_norm(self, inputs, training):
+    def _fused_batch_norm(self, inputs, mask, training):
         """Returns the output of fused batch norm."""
+        if mask is not None:
+            warnings.warn(
+                "Masking is not supported with `fused=True`. "
+                "You should either turn off fusing "
+                "(`fused=False`) or you should not pass a `mask` "
+                "argument when calling the layer. "
+                "For the moment `mask` will be ignored for the "
+                "normalization."
+            )
         if self.center:
             beta = self.beta
         else:
@@ -802,16 +816,32 @@ class BatchNormalizationBase(Layer):
 
         return (r, d, out_mean, out_variance)
 
-    def _calculate_mean_and_var(self, inputs, reduction_axes, keep_dims):
+    def _calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
         if self.synchronized:
             return self._sync_calculate_mean_and_var(
-                inputs, reduction_axes, keep_dims
+                inputs, reduction_axes, keep_dims, mask=mask
             )
-        return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
+        if mask is None:
+            return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
+        else:
+            mask_weights = tf.cast(
+                mask, self.compute_dtype, name="mask_weights"
+            )
+            mask_weights = tf.expand_dims(
+                mask_weights, axis=-1, name="mask_weights_broadcasted"
+            )
+            return tf.nn.weighted_moments(
+                inputs,
+                axes=reduction_axes,
+                frequency_weights=mask_weights,
+                keepdims=keep_dims,
+            )
 
-    def _moments(self, inputs, reduction_axes, keep_dims):
+    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
         mean, variance = self._calculate_mean_and_var(
-            inputs, reduction_axes, keep_dims
+            inputs, reduction_axes, keep_dims, mask=mask
         )
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
@@ -837,7 +867,7 @@ class BatchNormalizationBase(Layer):
                 training = False
         return training
 
-    def call(self, inputs, training=None):
+    def call(self, inputs, mask=None, training=None):
         inputs = tf.cast(inputs, self.compute_dtype)
         training = self._get_training_value(training)
         # Determine a boolean value for `training`: could be True, False, or
@@ -882,7 +912,9 @@ class BatchNormalizationBase(Layer):
                 return outputs
 
         if self.fused:
-            outputs = self._fused_batch_norm(inputs, training=training)
+            outputs = self._fused_batch_norm(
+                inputs, mask=mask, training=training
+            )
             if self.virtual_batch_size is not None:
                 # Currently never reaches here since fused_batch_norm does not
                 # support virtual batching
@@ -954,6 +986,7 @@ class BatchNormalizationBase(Layer):
                 tf.cast(inputs, self._param_dtype),
                 reduction_axes,
                 keep_dims=keep_dims,
+                mask=mask,
             )
 
             moving_mean = self.moving_mean
@@ -1118,7 +1151,7 @@ class BatchNormalizationBase(Layer):
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    def _sync_calculate_mean_and_var(self, x, axes, keep_dims):
+    def _sync_calculate_mean_and_var(self, x, axes, keep_dims, mask=None):
         with backend.name_scope("moments"):
             # The dynamic range of fp16 is too limited to support the collection
             # of sufficient statistics. As a workaround we simply perform the
@@ -1126,50 +1159,47 @@ class BatchNormalizationBase(Layer):
             # variance back to fp16
             y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
             replica_ctx = tf.distribute.get_replica_context()
-            if replica_ctx:
-                local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-                local_squared_sum = tf.reduce_sum(
-                    tf.square(y), axis=axes, keepdims=True
-                )
-                batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
-                # TODO(b/163099951): batch the all-reduces once we sort out the
-                # ordering issue for NCCL. We don't have a mechanism to launch
-                # NCCL in the same order in each replica nowadays, so we limit
-                # NCCL to batch all-reduces.
-                y_sum = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, local_sum
-                )
-                y_squared_sum = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, local_squared_sum
-                )
-                global_batch_size = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, batch_size
+
+            if not replica_ctx:
+                return super()._calculate_mean_and_var(
+                    x, axes, keep_dims, mask=mask
                 )
 
-                axes_vals = [
-                    (tf.shape(y))[axes[i]] for i in range(1, len(axes))
-                ]
-                multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-                multiplier = multiplier * global_batch_size
-
-                mean = y_sum / multiplier
-                y_squared_mean = y_squared_sum / multiplier
-                # var = E(x^2) - E(x)^2
-                variance = y_squared_mean - tf.square(mean)
-            else:
-                # Compute true mean while keeping the dims for proper
-                # broadcasting.
-                mean = tf.reduce_mean(y, axes, keepdims=True, name="mean")
-                # sample variance, not unbiased variance
-                # Note: stop_gradient does not change the gradient that gets
-                # backpropagated to the mean from the variance calculation,
-                # because that gradient is zero
-                variance = tf.reduce_mean(
-                    tf.math.squared_difference(y, tf.stop_gradient(mean)),
-                    axes,
-                    keepdims=True,
-                    name="variance",
+            if mask is not None:
+                mask_weights = tf.cast(mask, tf.float32, name="mask_weights")
+                mask_weights = tf.expand_dims(
+                    mask_weights, axis=-1, name="mask_weights_broadcasted"
                 )
+                y *= mask_weights
+
+            local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+            local_squared_sum = tf.reduce_sum(
+                tf.square(y), axis=axes, keepdims=True
+            )
+
+            batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
+            # TODO(b/163099951): batch the all-reduces once we sort out the
+            # ordering issue for NCCL. We don't have a mechanism to launch
+            # NCCL in the same order in each replica nowadays, so we limit
+            # NCCL to batch all-reduces.
+            y_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_sum
+            )
+            y_squared_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_squared_sum
+            )
+            global_batch_size = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, batch_size
+            )
+
+            axes_vals = [(tf.shape(y))[axes[i]] for i in range(1, len(axes))]
+            multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
+            multiplier = multiplier * global_batch_size
+
+            mean = y_sum / multiplier
+            y_squared_mean = y_squared_sum / multiplier
+            # var = E(x^2) - E(x)^2
+            variance = y_squared_mean - tf.square(mean)
             if not keep_dims:
                 mean = tf.squeeze(mean, axes)
                 variance = tf.squeeze(variance, axes)
