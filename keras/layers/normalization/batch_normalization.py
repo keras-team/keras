@@ -821,6 +821,9 @@ class BatchNormalizationBase(Layer):
     def call(self, inputs, training=None):
         inputs = tf.cast(inputs, self.compute_dtype)
         training = self._get_training_value(training)
+        # Determine a boolean value for `training`: could be True, False, or
+        # None.
+        training_value = control_flow_util.constant_value(training)
 
         if self.virtual_batch_size is not None:
             # Virtual batches (aka ghost batches) can be simulated by reshaping
@@ -829,13 +832,27 @@ class BatchNormalizationBase(Layer):
             original_shape = tf.concat(
                 [tf.constant([-1]), original_shape[1:]], axis=0
             )
-            expanded_shape = tf.concat(
-                [
-                    tf.constant([self.virtual_batch_size, -1]),
-                    original_shape[1:],
-                ],
-                axis=0,
-            )
+
+            if tf.__internal__.tf2.enabled():
+                expanded_shape = (
+                    [self.virtual_batch_size, -1] if training_value else [-1, 1]
+                )
+                expanded_shape = tf.concat(
+                    [
+                        tf.constant(expanded_shape),
+                        original_shape[1:],
+                    ],
+                    axis=0,
+                )
+            else:
+                # Preserve incorrect legacy behavior for backwards compatibility
+                expanded_shape = tf.concat(
+                    [
+                        tf.constant([self.virtual_batch_size, -1]),
+                        original_shape[1:],
+                    ],
+                    axis=0,
+                )
 
             # Will cause errors if virtual_batch_size does not divide the batch
             # size
@@ -892,9 +909,6 @@ class BatchNormalizationBase(Layer):
                 offset += then_offset
             return (scale, offset)
 
-        # Determine a boolean value for `training`: could be True, False, or
-        # None.
-        training_value = control_flow_util.constant_value(training)
         if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
