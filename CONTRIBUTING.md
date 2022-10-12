@@ -181,6 +181,22 @@ need to follow the output of the command to resolve them manually.
 If you do not want to auto format the code but only show the lint errors, you
 can run `sh shell/lint.sh` **at the root directory of the repo**.
 
+## Setup your dev environment with Bazel
+
+After cloning your forked repo to your local machine. Go to the cloned directory where you update the code.
+
+Here we build and install our new version of Keras. Do not forget to set the correct version instead of <KERAS-VERSION>. Use the following commands to do so:
+
+```shell
+bazel build ./keras/tools/pip_package:build_pip_package
+
+./bazel-bin/keras/tools/pip_package/build_pip_package ./keras_pkg
+
+pip3 install ./keras_pkg/keras-<KERAS-VERSION>-py2.py3-none-any.whl --force-reinstall --user
+```
+
+Now it is time to test this new version of Keras.
+
 ## Run tests
 
 We use [Bazel](https://bazel.build/) to build and run the tests.
