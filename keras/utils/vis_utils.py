@@ -86,6 +86,7 @@ def model_to_dot(
     subgraph=False,
     layer_range=None,
     show_layer_activations=False,
+    show_trainable=False,
 ):
     """Convert a Keras model to dot format.
 
@@ -112,6 +113,8 @@ def model_to_dot(
           must be complete.
       show_layer_activations: Display layer activations (only for layers that
           have an `activation` property).
+      show_trainable: whether to display if a layer is trainable. Displays 'T'
+          when the layer is trainable and 'NT' when it is not trainable.
 
     Returns:
       A `pydot.Dot` instance representing the Keras model or
@@ -209,6 +212,7 @@ def model_to_dot(
                     rankdir,
                     expand_nested,
                     subgraph=True,
+                    show_trainable=show_trainable,
                 )
                 # sub_w : submodel_wrapper
                 sub_w_nodes = submodel_wrapper.get_nodes()
@@ -229,6 +233,7 @@ def model_to_dot(
                 rankdir,
                 expand_nested,
                 subgraph=True,
+                show_trainable=show_trainable,
             )
             # sub_n : submodel_not_wrapper
             sub_n_nodes = submodel_not_wrapper.get_nodes()
@@ -296,6 +301,11 @@ def model_to_dot(
                 inputlabels,
                 outputlabels,
             )
+
+        # Rebuild the label as a table including trainable status
+        if show_trainable:
+            label = f"{'T' if layer.trainable else 'NT'}|{label}"
+
         if not expand_nested or not isinstance(layer, functional.Functional):
             node = pydot.Node(layer_id, label=label)
             dot.add_node(node)
@@ -375,6 +385,7 @@ def plot_model(
     dpi=96,
     layer_range=None,
     show_layer_activations=False,
+    show_trainable=False,
 ):
     """Converts a Keras model to dot format and save to a file.
 
@@ -416,6 +427,8 @@ def plot_model(
         complete.
       show_layer_activations: Display layer activations (only for layers that
         have an `activation` property).
+      show_trainable: whether to display if a layer is trainable. Displays 'T'
+        when the layer is trainable and 'NT' when it is not trainable.
 
     Raises:
       ImportError: if graphviz or pydot are not available.
@@ -458,6 +471,7 @@ def plot_model(
         dpi=dpi,
         layer_range=layer_range,
         show_layer_activations=show_layer_activations,
+        show_trainable=show_trainable,
     )
     to_file = io_utils.path_to_string(to_file)
     if dot is None:
