@@ -259,7 +259,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
             outputs=outputs,
         )
         try:
-            vis_utils.plot_model(
+            vis_utils.model_to_dot(
                 model, show_shapes=True, show_dtype=True, show_layer_names=True
             )
         except ImportError:
