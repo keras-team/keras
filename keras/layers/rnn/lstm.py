@@ -670,6 +670,7 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                     "time_major": self.time_major,
                     "go_backwards": self.go_backwards,
                     "sequence_lengths": row_lengths,
+                    "return_sequences": self.return_sequences,
                     "zero_output_for_mask": self.zero_output_for_mask,
                 }
                 (
