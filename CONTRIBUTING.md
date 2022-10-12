@@ -183,19 +183,22 @@ can run `sh shell/lint.sh` **at the root directory of the repo**.
 
 ## Setup your dev environment with Bazel
 
-After cloning your forked repo to your local machine. Go to the cloned directory where you update the code.
+After cloning the codebase and making some changes, in order
+to locally install your modified version of Keras, you need to 
+build it using Bazel.
 
-Here we build and install our new version of Keras. Do not forget to set the correct version instead of <KERAS-VERSION>. Use the following commands to do so:
+Use the commands below (to be run from the location of your local copy of the code)
+to build and install your modified version of Keras.
+Do not forget to set the correct version instead of <KERAS-VERSION>
+(such as `2.11.0`).
 
 ```shell
 bazel build ./keras/tools/pip_package:build_pip_package
-
 ./bazel-bin/keras/tools/pip_package/build_pip_package ./keras_pkg
-
-pip3 install ./keras_pkg/keras-<KERAS-VERSION>-py2.py3-none-any.whl --force-reinstall --user
+pip install ./keras_pkg/keras-<KERAS-VERSION>-py2.py3-none-any.whl --force-reinstall --user
 ```
 
-Now it is time to test this new version of Keras.
+Now it is time to test your changes.
 
 ## Run tests
 
