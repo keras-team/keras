@@ -24,6 +24,7 @@ from keras import backend
 from keras import initializers
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.utils import tf_utils
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -1072,6 +1073,14 @@ class Optimizer(_BaseOptimizer):
         # TODO(b/197554203): replace _distributed_container() with a public api.
         if hasattr(variable, "_distributed_container"):
             variable = variable._distributed_container()
+        elif (
+            tf_utils.is_extension_type(variable)
+            and hasattr(variable, "handle")
+            and hasattr(variable.handle, "_distributed_container")
+        ):
+            # For ResourceVariables, the _distributed_container attribute
+            # is added to their handle tensors.
+            variable = variable.handle._distributed_container()
         return super()._var_key(variable)
 
     def aggregate_gradients(self, grads_and_vars):

@@ -1654,6 +1654,14 @@ def _var_key(var):
     # Get the distributed variable if it exists.
     if hasattr(var, "_distributed_container"):
         var = var._distributed_container()
+    elif (
+        tf_utils.is_extension_type(var)
+        and hasattr(var, "handle")
+        and hasattr(var.handle, "_distributed_container")
+    ):
+        # For ResourceVariables, the _distributed_container attribute
+        # is added to their handle tensors.
+        var = var.handle._distributed_container()
     if getattr(var, "_in_graph_mode", False):
         return var._shared_name
     return var._unique_id
