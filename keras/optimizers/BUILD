@@ -9,8 +9,10 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         "//keras:friends",
+        "//third_party/tensorflow/cc/saved_model:__pkg__",  # For unit tests.
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/distribute:__pkg__",
+        "//third_party/tensorflow/python/saved_model:__pkg__",  # For unit tests.
         "//third_party/tensorflow/python/training/tracking:__pkg__",
     ],
     licenses = ["notice"],
