@@ -2029,7 +2029,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         elif getattr(_SEED_GENERATOR, "generator", None):
             return _SEED_GENERATOR.generator.randint(1, 1e9)
         else:
-            return random.randint(1, 1e9)
+            return random.randint(1, int(1e9))
 
     def random_normal(
         self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
