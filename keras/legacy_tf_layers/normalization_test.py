@@ -806,7 +806,7 @@ class BNTest(tf.test.TestCase):
         )
 
         updates = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
-        all_vars = dict([(v.name, v) for v in tf.compat.v1.global_variables()])
+        all_vars = {v.name: v for v in tf.compat.v1.global_variables()}
         moving_mean = all_vars["bn/moving_mean:0"]
         moving_variance = all_vars["bn/moving_variance:0"]
         beta = all_vars["bn/beta:0"]
@@ -873,7 +873,7 @@ class BNTest(tf.test.TestCase):
         updates = tf.compat.v1.get_collection(
             tf.compat.v1.GraphKeys.UPDATE_OPS
         )[-2:]
-        all_vars = dict([(v.name, v) for v in tf.compat.v1.global_variables()])
+        all_vars = {v.name: v for v in tf.compat.v1.global_variables()}
         moving_mean = all_vars["bn/moving_mean:0"]
         moving_variance = all_vars["bn/moving_variance:0"]
         beta = all_vars["bn/beta:0"]
