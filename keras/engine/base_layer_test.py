@@ -655,8 +655,12 @@ class BaseLayerTest(test_combinations.TestCase):
 
         # `__init__` includes kwargs but `get_config` is not overridden, so
         # an error should be thrown:
-        with self.assertRaisesRegex(NotImplementedError, "Layer MyLayer has"):
-            MyLayer("custom").get_config()
+        with self.assertRaisesRegex(
+            NotImplementedError, "Layer MyLayer was created by"
+        ):
+            # We pass bytes because it's non-serializable and thus
+            # will not be handled by the auto-get_config
+            MyLayer(b"custom").get_config()
 
         class MyLayerNew(base_layer.Layer):
             def __init__(self, my_kwarg="default", **kwargs):
@@ -1074,6 +1078,27 @@ class BaseLayerTest(test_combinations.TestCase):
         self.assertLen(layer.variables, 3)
         self.assertLen(layer.trainable_variables, 0)
         self.assertLen(layer.non_trainable_variables, 3)
+
+    def test_auto_get_config(self):
+        class MyLayer(base_layer.Layer):
+            def __init__(self, var1, var2, var3=None, **kwargs):
+                super().__init__(**kwargs)
+
+        layer = MyLayer("a", 2, var3=True, name="mylayer")
+        config = layer.get_config()
+        self.assertLen(config, 6)
+        self.assertEqual(config["var1"], "a")
+        self.assertEqual(config["var2"], 2)
+        self.assertEqual(config["var3"], True)
+        self.assertEqual(config["name"], "mylayer")
+        self.assertEqual(config["trainable"], True)
+        self.assertEqual(config["dtype"], "float32")
+        layer = MyLayer.from_config(config)
+        self.assertDictEqual(layer.get_config(), config)
+
+        layer = MyLayer("a", 2, var3=tf.nn.relu)
+        with self.assertRaises(NotImplementedError):
+            config = layer.get_config()
 
 
 @test_utils.run_v2_only

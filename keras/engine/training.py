@@ -702,7 +702,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
         base_layer.keras_api_gauge.get_cell("compile").set(True)
-        self._compile_config = CompileConfig(
+        self._compile_config = generic_utils.Config(
             optimizer=optimizer,
             loss=loss,
             metrics=metrics,
@@ -3078,11 +3078,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Returns:
             Python dictionary containing the configuration of this `Model`.
         """
-
-        # Return an empty dict here because otherwise subclass model developers
-        # may see their model's `__init__()` be fed with unexpected keyword
-        # argument, if their `__init__()` takes no argument for example, and
-        # they don't override `from_config()`, which would use `cls(**config)`
+        # Return an empty dict here because otherwise Model
+        # subclass developers may see
+        # their model's `__init__()` fed with unexpected keyword arguments,
+        # if their `__init__()` takes no argument for example, and they
+        # don't override `from_config()`, which would use `cls(**config)`
         # as a result.
         config = {}
         if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
@@ -4182,11 +4182,3 @@ def is_functional_model_init_params(args, kwargs):
         or "inputs" in kwargs
         and "outputs" in kwargs
     )
-
-
-class CompileConfig:
-    def __init__(self, **config):
-        self.config = config
-
-    def serialize(self):
-        return saving_lib.serialize_keras_object(self.config)

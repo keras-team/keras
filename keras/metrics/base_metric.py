@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-
 """Base Metric classes."""
 
 import abc
-import copy
 import types
 import warnings
 
@@ -218,28 +215,22 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         args = ",".join(f"{k}={v}" for k, v in self.get_config().items())
         return f"{self.__class__.__name__}({args})"
 
-    def __deepcopy__(self, memo):
-        result = type(self)(name=self.name, dtype=self.dtype)
-        memo[id(self)] = result
-
-        for k, v in self.__dict__.items():
-            if k in ["update_state", "result"]:
-                # `update_state` keeps a closure of `update_state_fn`, and deep
-                # copying it would result in copying that old reference. Avoid
-                # that.  Likewise for `result`.
-                continue
-            if k in ["_obj_reference_counts_dict"]:
-                # `Layer.__setattr__` attempts to flatten the
-                # `ObjectIdentityDictionary`, which can't be done since it
-                # stores heterogeneous instances.
-                tf.Module.__setattr__(result, k, copy.deepcopy(v, memo))
-            elif k in ["_thread_local", "_metrics_lock"]:
-                # Can't pickle _thread.lock objects.
-                setattr(result, k, v)
-            else:
-                setattr(result, k, copy.deepcopy(v, memo))
-
-        return result
+    def __deepcopy__(self, memo=None):
+        try:
+            new_self = self.from_config(self.get_config())
+        except NotImplementedError as e:
+            raise NotImplementedError(
+                "Calling `__deepcopy__()` on a Keras metric "
+                "requires the metric to be serializable,  "
+                "i.e. it should implement `get_config()`.\n\n"
+                f"Error encountered during serialization: [{e}]"
+            )
+        # Note that metrics don't implement `build()` so their variables
+        # are readily available after instantiation.
+        if self.weights:
+            new_self.set_weights(self.get_weights())
+        memo[self] = new_self
+        return new_self
 
     @property
     def dtype(self):
