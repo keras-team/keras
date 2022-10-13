@@ -2467,7 +2467,8 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     """
     y_true = tf.linalg.l2_normalize(y_true, axis=axis)
     y_pred = tf.linalg.l2_normalize(y_pred, axis=axis)
-    return -tf.reduce_sum(y_true * y_pred, axis=axis)
+    res = -tf.reduce_sum(y_true * y_pred, axis=axis)
+    return backend.clip(res, -1, 1)
 
 
 @keras_export("keras.losses.CosineSimilarity")
