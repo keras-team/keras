@@ -278,6 +278,7 @@ tf_py_test(
     size = "small",
     srcs = ["losses_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "noasan",  # b/186128525
     ],
