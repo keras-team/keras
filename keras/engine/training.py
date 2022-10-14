@@ -145,7 +145,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     model = MyModel()
     ```
 
-    If you subclass `Model`, you can optionally have
+    In your subclass `Model`, you can optionally have
     a `training` argument (boolean) in `call()`, which you can use to specify
     a different behavior in training and inference:
 
@@ -684,7 +684,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               full epoch will be run each execution. If a number larger than the
               size of the epoch is passed, the execution will be truncated to
               the size of the epoch. Note that if `steps_per_execution` is set
-              to `N`, `Callback.on_batch_begin` and `Callback.on_batch_end`
+              to `N`, `tf.keras.callbacks.Callback.on_batch_begin` and `tf.keras.callbacks.Callback.on_batch_end`
               methods will only be called every `N` batches (i.e. before/after
               each `tf.function` execution).
             jit_compile: If `True`, compile the model training step with XLA.
