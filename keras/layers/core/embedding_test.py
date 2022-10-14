@@ -144,6 +144,88 @@ class EmbeddingTest(test_combinations.TestCase):
         finally:
             policy.set_global_policy("float32")
 
+    @test_combinations.run_all_keras_modes
+    def test_embedding_with_sparse_input_sparse_output(self):
+        layer = keras.layers.Embedding(
+            input_dim=3,
+            output_dim=2,
+            weights=[np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])],
+            sparse=True,
+        )
+        input = tf.SparseTensor(
+            indices=[[0, 1], [1, 2]], values=[1, 2], dense_shape=[3, 3]
+        )
+        output = layer(input)
+        expected_output = tf.SparseTensor(
+            indices=[[0, 1, 0], [0, 1, 1], [1, 2, 0], [1, 2, 1]],
+            values=[1.0, 1.0, 2.0, 2.0],
+            dense_shape=[3, 3, 2],
+        )
+        self.assertAllClose(output.indices, expected_output.indices)
+        self.assertAllClose(output.values, expected_output.values)
+        self.assertAllClose(output.dense_shape, expected_output.dense_shape)
+
+    @test_combinations.run_all_keras_modes
+    def test_embedding_with_sparse_input_dense_output(self):
+        layer = keras.layers.Embedding(
+            input_dim=3,
+            output_dim=2,
+            weights=[np.array([[0.1, 0.1], [1.0, 1.0], [2.0, 2.0]])],
+            sparse=False,
+        )
+        input = tf.SparseTensor(
+            indices=[[0, 1], [1, 2]], values=[1, 2], dense_shape=[3, 3]
+        )
+        output = layer(input)
+        expected_output = tf.constant(
+            [
+                [[0.1, 0.1], [1.0, 1.0], [0.1, 0.1]],
+                [[0.1, 0.1], [0.1, 0.1], [2.0, 2.0]],
+                [[0.1, 0.1], [0.1, 0.1], [0.1, 0.1]],
+            ]
+        )
+        self.assertAllClose(output, expected_output)
+
+    @test_combinations.run_all_keras_modes
+    def test_error_message_for_mask_zero_enabled_with_sparse_tensor(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`mask_zero` cannot be enabled when "
+            "`tf.keras.layers.Embedding` is used with `tf.SparseTensor` "
+            "input.",
+        ):
+            layer = keras.layers.Embedding(
+                input_dim=3,
+                output_dim=2,
+                weights=[np.array([[0.1, 0.1], [1.0, 1.0], [2.0, 2.0]])],
+                sparse=True,
+                mask_zero=True,
+            )
+            inputs = tf.SparseTensor(
+                indices=[[0, 1], [1, 2]], values=[1, 2], dense_shape=[3, 3]
+            )
+            layer(inputs)
+
+    @test_combinations.run_all_keras_modes
+    def test_embedding_with_dense_input_sprase_output(self):
+        layer = keras.layers.Embedding(
+            input_dim=3,
+            output_dim=2,
+            weights=[np.array([[0, 0], [1.0, 1.0], [2.0, 2.0]])],
+            sparse=True,
+            mask_zero=False,
+        )
+        inputs = tf.constant([0, 0, 0, 2, 1])
+        output = layer(inputs)
+        expected_output = tf.SparseTensor(
+            indices=[[3, 0], [3, 1], [4, 0], [4, 1]],
+            values=[2.0, 2.0, 1.0, 1.0],
+            dense_shape=[5, 2],
+        )
+        self.assertAllClose(output.indices, expected_output.indices)
+        self.assertAllClose(output.values, expected_output.values)
+        self.assertAllClose(output.dense_shape, expected_output.dense_shape)
+
 
 if __name__ == "__main__":
     tf.test.main()
