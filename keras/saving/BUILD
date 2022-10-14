@@ -21,6 +21,7 @@ py_library(
         "legacy/save.py",
         "legacy/saving_utils.py",
         "pickle_utils.py",
+        "saving_api.py",
     ],
     srcs_version = "PY3",
     deps = [

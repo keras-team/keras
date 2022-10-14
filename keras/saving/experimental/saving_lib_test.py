@@ -97,13 +97,11 @@ class LayerWithCustomSaving(MyDense):
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.embedding = keras.layers.Embedding(4, 1)
         self.dense1 = MyDense(1)
         self.dense2 = MyDense(1)
 
     def call(self, inputs):
-        out = self.embedding(inputs)
-        out = self.dense1(out)
+        out = self.dense1(inputs)
         return self.dense2(out)
 
     def train_step(self, data):
@@ -176,9 +174,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         return subclassed_model
 
     def _get_sequential_model(self):
-        sequential_model = keras.Sequential(
-            [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
-        )
+        sequential_model = keras.Sequential([MyDense(1), MyDense(1)])
         sequential_model.compile(
             optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
         )
@@ -186,9 +182,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
     def _get_functional_model(self):
         inputs = keras.Input(shape=(32,))
-        inputs = keras.layers.Embedding(4, 1)(inputs)
-        inputs = MyDense(1, name="first_dense")(inputs)
-        outputs = MyDense(1, name="second_dense")(inputs)
+        x = MyDense(1, name="first_dense")(inputs)
+        outputs = MyDense(1, name="second_dense")(x)
         functional_model = keras.Model(inputs, outputs)
         functional_model.compile(
             optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
@@ -532,6 +527,15 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
 
+    def test_load_model_api_endpoint(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        model.save(temp_filepath, save_format="keras_v3")
+        model = keras.models.load_model(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
     def test_save_load_weights_only(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
         model = self._get_functional_model()
@@ -541,8 +545,13 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model = self._get_functional_model()
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+        # Test with Model method
+        model = self._get_functional_model()
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_load_weights_only_with_keras_file(self):
+        # Test loading weights from whole saved model
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
@@ -551,6 +560,51 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model = self._get_functional_model()
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+        # Test with Model method
+        model = self._get_functional_model()
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_compile_arg(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        model.compile("rmsprop", "mse")
+        model.fit(np.random.random((10, 32)), np.random.random((10, 1)))
+        saving_lib.save_model(model, temp_filepath)
+
+        model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(model._is_compiled, True)
+        model = saving_lib.load_model(temp_filepath, compile=False)
+        self.assertEqual(model._is_compiled, False)
+
+    def test_overwrite(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        model.save(temp_filepath, save_format="keras_v3")
+        model.save(temp_filepath, save_format="keras_v3", overwrite=True)
+        with self.assertRaises(EOFError):
+            model.save(temp_filepath, save_format="keras_v3", overwrite=False)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        model = self._get_functional_model()
+        model.save_weights(temp_filepath)
+        model.save_weights(temp_filepath, overwrite=True)
+        with self.assertRaises(EOFError):
+            model.save_weights(temp_filepath, overwrite=False)
+
+    def test_api_errors(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.notkeras")
+        model = self._get_functional_model()
+        with self.assertRaisesRegex(ValueError, "Unknown `save_format`"):
+            model.save(temp_filepath, save_format="invalid")
+        with self.assertRaisesRegex(ValueError, "Invalid `filepath` argument"):
+            model.save(temp_filepath, save_format="keras_v3")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            model.save(
+                temp_filepath, include_optimizer=False, save_format="keras_v3"
+            )
 
 
 if __name__ == "__main__":
