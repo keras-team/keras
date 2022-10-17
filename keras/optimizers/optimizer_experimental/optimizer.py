@@ -127,7 +127,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             "errors. Please update the optimizer referenced in your code "
             "to be an instance of "
             "`tf.keras.optimizers.legacy.Optimizer`, e.g.: "
-            f"`tf.keras.optimizer.legacy.{self.__class__.__name__}`."
+            f"`tf.keras.optimizers.legacy.{self.__class__.__name__}`."
         )
 
     def _var_key(self, variable):
