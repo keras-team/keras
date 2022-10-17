@@ -196,7 +196,7 @@ def convert_to_legacy_optimizer(optimizer):
 
     This function takes in a `tf.keras.optimizers.experimental.Optimizer`
     instance and converts it to the corresponding
-    `tf.keras.optimizer.legacy.Optimizer` instance.
+    `tf.keras.optimizers.legacy.Optimizer` instance.
     For example, `tf.keras.optimizers.experimental.Adam(...)` to
     `tf.keras.optimizers.legacy.Adam(...)`.
 
