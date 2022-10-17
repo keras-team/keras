@@ -1756,10 +1756,15 @@ class Model(training_lib.Model):
                             ) = losses_utils.squeeze_or_expand_dimensions(
                                 mask, sample_weight=sample_weight
                             )
-                            sample_weight *= mask
 
                     if hasattr(loss_fn, "reduction"):
                         per_sample_losses = loss_fn.call(y_true, y_pred)
+                        sample_weight = losses_utils.apply_valid_mask(
+                            per_sample_losses,
+                            sample_weight,
+                            mask,
+                            loss_fn.reduction,
+                        )
                         weighted_losses = losses_utils.compute_weighted_loss(
                             per_sample_losses,
                             sample_weight=sample_weight,
