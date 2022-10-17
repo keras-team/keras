@@ -16,6 +16,7 @@
 import os
 import sys
 import zipfile
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -517,7 +518,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         )
 
     def test_metadata(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "my_model.keras")
+        )
         model = CompileOverridingModel()
         model._save_experimental(temp_filepath)
         with zipfile.ZipFile(temp_filepath, "r") as z:
@@ -527,8 +530,24 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
 
+    def test_gfile_copy_local_called(self):
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "my_model.keras")
+        )
+        model = CompileOverridingModel()
+        with mock.patch("re.match", autospec=True) as mock_re_match, mock.patch(
+            "tensorflow.compat.v2.io.gfile.copy", autospec=True
+        ) as mock_copy:
+            # Mock Remote Path check to true to test gfile copy logic
+            mock_re_match.return_value = True
+            model._save_experimental(temp_filepath)
+            mock_re_match.assert_called_once()
+            mock_copy.assert_called_once()
+            self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
+            self.assertIn(str(temp_filepath), mock_copy.call_args.args)
+
     def test_load_model_api_endpoint(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)
@@ -537,7 +556,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_save_load_weights_only(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        )
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)
@@ -552,7 +573,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
     def test_load_weights_only_with_keras_file(self):
         # Test loading weights from whole saved model
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)

@@ -17,6 +17,8 @@
 import datetime
 import io
 import json
+import os
+import re
 import tempfile
 import threading
 import warnings
@@ -119,6 +121,7 @@ def save_model(model, filepath, weights_format="h5"):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
+    filepath = str(filepath)
     if not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.keras` extension. "
@@ -146,8 +149,16 @@ def save_model(model, filepath, weights_format="h5"):
             "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
         }
     )
+    # TODO(rameshsampath): Need a better logic for local vs remote path
+    if re.match(r"^(/cns|/cfs|.*://).*$", filepath):
+        # Remote path. Zip to local drive and copy to remote
+        is_remote_path = True
+        zip_filepath = os.path.join(_get_temp_dir(), "tmp_model.keras")
+    else:
+        is_remote_path = False
+        zip_filepath = filepath
     try:
-        with zipfile.ZipFile(filepath, "w") as zf:
+        with zipfile.ZipFile(zip_filepath, "w") as zf:
 
             with zf.open(_METADATA_FILENAME, "w") as f:
                 f.write(metadata_json.encode())
@@ -181,6 +192,11 @@ def save_model(model, filepath, weights_format="h5"):
             weights_store.close()
             asset_store.close()
 
+        if is_remote_path:
+            # Using tf.io.gfile context manager doesn't close zip file when
+            # writing to GCS. Hence writing to local and copying to filepath.
+            tf.io.gfile.copy(zip_filepath, filepath, overwrite=True)
+            os.remove(zip_filepath)
     except Exception as e:
         raise e
     finally:
@@ -189,6 +205,7 @@ def save_model(model, filepath, weights_format="h5"):
 
 def load_model(filepath, custom_objects=None, compile=True):
     """Load a zip archive representing a Keras model."""
+    filepath = str(filepath)
     if not filepath.endswith(".keras"):
         raise ValueError(
             "Invalid filename: expected a `.keras` extension. "
@@ -199,7 +216,9 @@ def load_model(filepath, custom_objects=None, compile=True):
     _SAVING_V3_ENABLED.value = True
 
     try:
-        with zipfile.ZipFile(filepath, "r") as zf:
+        with tf.io.gfile.GFile(
+            filepath, mode="r+b"
+        ) as gfile_handle, zipfile.ZipFile(gfile_handle, "r") as zf:
 
             with zf.open(_CONFIG_FILENAME, "r") as f:
                 config_json = f.read()
@@ -258,6 +277,7 @@ def save_weights_only(model, filepath):
     """
     # TODO: if h5 filepath is remote, create the file in a temporary directory
     # then upload it
+    filepath = str(filepath)
     if not filepath.endswith(".weights.h5"):
         raise ValueError(
             "Invalid `filepath` argument: expected a `.weights.h5` extension. "
@@ -281,6 +301,7 @@ def load_weights_only(model, filepath):
     """
     temp_dir = None
     archive = None
+    filepath = str(filepath)
     if filepath.endswith(".weights.h5"):
         # TODO: download file if h5 filepath is remote
         weights_store = H5IOStore(filepath, mode="r")
