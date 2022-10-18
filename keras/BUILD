@@ -203,6 +203,15 @@ py_library(
     ],
 )
 
+py_library(
+    name = "timed_callbacks",
+    srcs = ["timed_callbacks.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
 # Internally urllib.request.urlretrieve library requires Google
 # SSL context to be provided to work in python 3. This isn't needed in OSS.
 # copybara:uncomment_begin(google-only)
@@ -359,6 +368,21 @@ tf_py_test(
     deps = [
         ":backend",
         ":backend_config",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "timed_callbacks_test",
+    size = "small",
+    srcs = ["timed_callbacks_test.py"],
+    python_version = "PY3",
+    shard_count = 6,
+    deps = [
+        ":timed_callbacks",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
