@@ -101,18 +101,25 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def _process_kwargs(self, kwargs):
         # Remove the `is_legacy_optimizer` arg, which is for serialization only.
         kwargs.pop("is_legacy_optimizer", None)
+        lr = kwargs.pop("lr", None)
+        if lr:
+            logging.warning(
+                "`lr` is deprecated in Keras optimizer, please use "
+                "`learning_rate` or use the legacy optimizer, e.g.,"
+                f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
+            )
         legacy_kwargs = {
-            "lr",
             "decay",
-            "gradient_transformers",
             "gradient_aggregator",
+            "gradient_transformers",
         }
         for k in kwargs:
             if k in legacy_kwargs:
-                logging.warning(
-                    "%s is deprecated in `optimizer_experimental.Optimizer`"
-                    ", please check the docstring for valid arguments.",
-                    k,
+                raise ValueError(
+                    f"{k} is deprecated in the new Keras optimizer, please"
+                    "check the docstring for valid arguments, or use the "
+                    "legacy optimizer, e.g., "
+                    f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
                 )
             else:
                 raise TypeError(
