@@ -78,8 +78,8 @@ from keras.optimizers.optimizer_v2.gradient_descent import SGD
 from keras.optimizers.optimizer_v2.nadam import Nadam
 from keras.optimizers.optimizer_v2.rmsprop import RMSprop
 from keras.optimizers.schedules import learning_rate_schedule
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export

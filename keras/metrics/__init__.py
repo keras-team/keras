@@ -91,8 +91,8 @@ from keras.metrics.metrics import sparse_categorical_crossentropy
 from keras.metrics.metrics import sparse_top_k_categorical_accuracy
 from keras.metrics.metrics import squared_hinge
 from keras.metrics.metrics import top_k_categorical_accuracy
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export

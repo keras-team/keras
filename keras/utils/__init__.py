@@ -14,15 +14,14 @@
 # ==============================================================================
 """Public Keras utilities."""
 
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
-
 # Serialization related
 from keras.saving.object_registration import CustomObjectScope
 from keras.saving.object_registration import custom_object_scope
 from keras.saving.object_registration import get_custom_objects
 from keras.saving.object_registration import get_registered_name
 from keras.saving.object_registration import register_keras_serializable
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # Dataset related
 from keras.utils.audio_dataset import audio_dataset_from_directory

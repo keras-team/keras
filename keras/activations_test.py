@@ -68,9 +68,9 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
     def test_serialization_with_layers(self):
         activation = activation_layers.LeakyReLU(alpha=0.1)
         layer = core.Dense(3, activation=activation)
-        config = serialization.serialize(layer)
+        config = serialization_lib.serialize(layer)
         # with custom objects
-        deserialized_layer = serialization.deserialize(
+        deserialized_layer = serialization_lib.deserialize(
             config, custom_objects={"LeakyReLU": activation}
         )
         self.assertEqual(
@@ -81,7 +81,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
             activation.__class__.__name__,
         )
         # without custom objects
-        deserialized_layer = serialization.deserialize(config)
+        deserialized_layer = serialization_lib.deserialize(config)
         self.assertEqual(
             deserialized_layer.__class__.__name__, layer.__class__.__name__
         )

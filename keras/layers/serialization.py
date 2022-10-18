@@ -50,7 +50,7 @@ from keras.layers.preprocessing import text_vectorization
 from keras.layers.rnn import cell_wrappers
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
@@ -207,7 +207,7 @@ def serialize(layer):
     pprint(tf.keras.layers.serialize(model))
     # prints the configuration of the model, as a dict.
     """
-    return serialization.serialize_keras_object(layer)
+    return serialization_lib.serialize_keras_object(layer)
 
 
 @keras_export("keras.layers.deserialize")
@@ -249,7 +249,7 @@ def deserialize(config, custom_objects=None):
     ```
     """
     populate_deserializable_objects()
-    return serialization.deserialize_keras_object(
+    return serialization_lib.deserialize_keras_object(
         config,
         module_objects=LOCAL.ALL_OBJECTS,
         custom_objects=custom_objects,

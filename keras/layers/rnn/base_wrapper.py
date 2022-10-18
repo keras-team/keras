@@ -21,7 +21,7 @@ Wrappers are layers that augment the functionality of another layer.
 import copy
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -58,7 +58,7 @@ class Wrapper(Layer):
             return None
 
     def get_config(self):
-        config = {"layer": serialization.serialize_keras_object(self.layer)}
+        config = {"layer": serialization_lib.serialize_keras_object(self.layer)}
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

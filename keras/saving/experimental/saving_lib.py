@@ -29,8 +29,8 @@ import keras
 from keras import losses
 from keras.engine import base_layer
 from keras.optimizers.optimizer_experimental import optimizer
-from keras.saving.experimental.serialization_lib import deserialize_keras_object
-from keras.saving.experimental.serialization_lib import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 from keras.utils import generic_utils
 from keras.utils import io_utils
 

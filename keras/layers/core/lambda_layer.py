@@ -23,7 +23,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -381,7 +381,7 @@ class Lambda(Layer):
         function_type = config.pop(func_type_attr_name)
         if function_type == "function":
             # Simple lookup in custom objects
-            function = serialization.deserialize_keras_object(
+            function = serialization_lib.deserialize_keras_object(
                 config[func_attr_name],
                 custom_objects=custom_objects,
                 printable_module_name="function in Lambda layer",
