@@ -5484,7 +5484,7 @@ def _get_logits(output, from_logits, op_type, fn_name):
 @keras_export("keras.backend.categorical_crossentropy")
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
-def categorical_crossentropy(target, output, from_logits=False, forced_rescale=True, axis=-1):
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     """Categorical crossentropy between an output tensor and a target tensor.
 
     Args:
@@ -5494,8 +5494,6 @@ def categorical_crossentropy(target, output, from_logits=False, forced_rescale=T
             case `output` is expected to be the logits).
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
-        forced_rescale: Boolean, whether the `output` is rescaled
-            e.i., scale preds so that the class probas of each sample sum to 1
         axis: Int specifying the channels axis. `axis=-1` corresponds to data
             format `channels_last`, and `axis=1` corresponds to data format
             `channels_first`.
@@ -5541,10 +5539,6 @@ def categorical_crossentropy(target, output, from_logits=False, forced_rescale=T
             labels=target, logits=output, axis=axis
         )
 
-    # scale preds so that the class probas of each sample sum to 1
-    if forced_rescale:
-        output = output / tf.reduce_sum(output, axis, True)
-    
     # Compute cross entropy from probabilities.
     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
