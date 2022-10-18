@@ -16,13 +16,25 @@ py_library(
     name = "experimental",
     srcs = [
         "saving_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":serialization_lib",
+        "//:expect_tensorflow_installed",
+        "//keras/saving/legacy/saved_model",
+        "//keras/utils:generic_utils",
+    ],
+)
+
+py_library(
+    name = "serialization_lib",
+    srcs = [
         "serialization_lib.py",
     ],
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/saving/legacy/saved_model",
-        "//keras/utils:generic_utils",
+        "//keras/saving:object_registration",
     ],
 )
 

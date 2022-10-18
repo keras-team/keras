@@ -27,6 +27,7 @@ import types as python_types
 import numpy as np
 import tensorflow.compat.v2 as tf
 
+from keras.saving.experimental import serialization_lib
 from keras.utils import io_utils
 from keras.utils import tf_inspect
 
@@ -555,3 +556,11 @@ class LazyLoader(python_types.ModuleType):
     def __getattr__(self, item):
         module = self._load()
         return getattr(module, item)
+
+
+class Config:
+    def __init__(self, **config):
+        self.config = config
+
+    def serialize(self):
+        return serialization_lib.serialize_keras_object(self.config)

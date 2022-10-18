@@ -209,7 +209,7 @@ class Tokenizer(object):
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
-    (words maybe include the `'` character). These sequences are then
+    (words may include the `'` character). These sequences are then
     split into lists of tokens. They will then be indexed or vectorized.
 
     `0` is a reserved index that won't be assigned to any word.

@@ -1125,14 +1125,14 @@ class LossScaleOptimizerV3(
                 # Give better error message if the OptimizerV2 class is passed
                 # instead of the new experimental optimizer.
                 raise TypeError(
-                    "You passed a `tf.keras.optimizer.Optimizer` instance to "
+                    "You passed a `tf.keras.optimizers.Optimizer` instance to "
                     "LossScaleOptimizerV3, but only the new experimental "
                     "optimizer defined in "
                     "keras/optimizer_expeirmental/optimizer.py can be "
                     "passed. Please use "
                     "`tf.keras.mixed_precision.LossScaleOptimizer` "
                     "instead of LossScaleOptimizerV3, as the former supports "
-                    "`tf.keras.optimizer.Optimizer`s. Got optimizer: "
+                    "`tf.keras.optimizers.Optimizer`s. Got optimizer: "
                     f"{inner_optimizer}"
                 )
             raise TypeError(

@@ -749,6 +749,34 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 self._non_trainable_weights.append(variable)
         return variable
 
+    def __new__(cls, *args, **kwargs):
+        # Generate a config to be returned by default by `get_config()`.
+        arg_names = tf_inspect.getfullargspec(cls.__init__).args
+        kwargs.update(dict(zip(arg_names[1 : len(args) + 1], args)))
+        instance = super(Layer, cls).__new__(cls, *args, **kwargs)
+        # For safety, we only rely on auto-configs for a small set of
+        # serializable types.
+        supported_types = (str, int, float, bool, type(None))
+        try:
+            flat_arg_values = tf.nest.flatten(kwargs)
+            auto_get_config = True
+            for value in flat_arg_values:
+                if not isinstance(value, supported_types):
+                    auto_get_config = False
+                    break
+        except TypeError:
+            auto_get_config = False
+        try:
+            instance._auto_get_config = auto_get_config
+            if auto_get_config:
+                instance._auto_config = generic_utils.Config(**kwargs)
+        except RecursionError:
+            # Setting an instance attribute in __new__ has the potential
+            # to trigger an infinite recursion if a subclass overrides
+            # setattr in an unsafe way.
+            pass
+        return instance
+
     @generic_utils.default
     def get_config(self):
         """Returns the config of the layer.
@@ -769,52 +797,49 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
             Python dictionary.
         """
-        all_args = tf_inspect.getfullargspec(self.__init__).args[1:]
         config = {
             "name": self.name,
             "trainable": self.trainable,
         }
+        config["dtype"] = policy.serialize(self._dtype_policy)
         if hasattr(self, "_batch_input_shape"):
             config["batch_input_shape"] = self._batch_input_shape
-        config["dtype"] = policy.serialize(self._dtype_policy)
-        if hasattr(self, "dynamic"):
-            # Only include `dynamic` in the `config` if it is `True`
-            if self.dynamic:
-                config["dynamic"] = self.dynamic
-            elif "dynamic" in all_args:
-                all_args.remove("dynamic")
-        expected_args = config.keys()
-        # Finds all arguments in the `__init__` that are not in the config:
-        extra_args = [arg for arg in all_args if arg not in expected_args]
-        # Check that either the only argument in the `__init__` is  `self`,
-        # or that `get_config` has been overridden:
-        if extra_args and hasattr(self.get_config, "_is_default"):
+
+        if not generic_utils.is_default(self.get_config):
+            # In this case the subclass implements get_config()
+            return config
+
+        # In this case the subclass doesn't implement get_config():
+        # Let's see if we can autogenerate it.
+        if getattr(self, "_auto_get_config", False):
+            config.update(self._auto_config.config)
+            return config
+        else:
             raise NotImplementedError(
                 textwrap.dedent(
                     f"""
-          Layer {self.__class__.__name__} has arguments {extra_args}
-          in `__init__()` and therefore must override `get_config()` in
-          order to be serializable.
+        Layer {self.__class__.__name__} was created by passing
+        non-serializable argument values in `__init__()`,
+        and therefore the layer must override `get_config()` in
+        order to be serializable. Please implement `get_config()`.
 
-          Example:
+        Example:
 
-          class CustomLayer(keras.layers.Layer):
-              def __init__(self, arg1, arg2, **kwargs):
-                  super().__init__(**kwargs)
-                  self.arg1 = arg1
-                  self.arg2 = arg2
+        class CustomLayer(keras.layers.Layer):
+            def __init__(self, arg1, arg2, **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
 
-              def get_config(self):
-                  config = super().get_config()
-                  config.update({{
-                      "arg1": self.arg1,
-                      "arg2": self.arg2,
-                  }})
-                  return config"""
+            def get_config(self):
+                config = super().get_config()
+                config.update({{
+                    "arg1": self.arg1,
+                    "arg2": self.arg2,
+                }})
+                return config"""
                 )
             )
-
-        return config
 
     @classmethod
     def from_config(cls, config):
