@@ -447,7 +447,7 @@ def ConvNeXt(
             img_input = input_tensor
 
     if input_tensor is not None:
-        inputs = utils.layer_utils.get_source_inputs(input_tensor)
+        inputs = utils.layer_utils.get_source_inputs(input_tensor)[0]
     else:
         inputs = img_input
 

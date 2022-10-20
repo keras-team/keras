@@ -658,6 +658,7 @@ tf_py_test(
     size = "medium",
     srcs = ["sequential_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],

@@ -347,10 +347,9 @@ def learning_phase():
             # subgraph.
             if context.executing_eagerly():
                 if _DUMMY_EAGER_GRAPH.key not in _GRAPH_LEARNING_PHASES:
-                    phase = _default_learning_phase()
-                    _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, phase)
-                    _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
-                return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
+                    return _default_learning_phase()
+                else:
+                    return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
             else:
                 learning_phase = symbolic_learning_phase()
     _mark_func_graph_as_unsaveable(graph, learning_phase)
@@ -2030,7 +2029,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         elif getattr(_SEED_GENERATOR, "generator", None):
             return _SEED_GENERATOR.generator.randint(1, 1e9)
         else:
-            return random.randint(1, 1e9)
+            return random.randint(1, int(1e9))
 
     def random_normal(
         self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
