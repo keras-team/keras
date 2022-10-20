@@ -16,12 +16,11 @@
 
 
 from keras import backend
-from keras.engine.base_layer import Layer
-from keras.engine.input_spec import InputSpec
+from keras.engine import base_layer
 from keras.utils import conv_utils
 
 
-class BaseGeneralizedPooling(Layer):
+class BaseGeneralizedPooling(base_layer.Layer):
     """Abstract class for different generalized mean pooling 1D layers."""
 
     def __init__(
@@ -39,7 +38,7 @@ class BaseGeneralizedPooling(Layer):
         if power <= 0:
             raise ValueError(
                 "The value of `power` in GeneralizedMeanPooling must "
-                f"be positive number. Got: {power}"
+                f"be a positive number. Received: power={power}"
             )
 
         if data_format is None:
@@ -55,55 +54,25 @@ class BaseGeneralizedPooling(Layer):
         self.power = power
 
     def build(self, input_shape):
-        if len(input_shape) == 3:
-            self.pool_size = conv_utils.normalize_tuple(
-                self.pool_size, 1, "pool_size"
-            )
+        ndim = len(input_shape)
+        size = ndim - 2
 
+        if (ndim, size) in [(3, 1), (4, 2), (5, 3)]:
+            self.pool_size = conv_utils.normalize_tuple(
+                self.pool_size, size, "pool_size"
+            )
             self.strides = conv_utils.normalize_tuple(
-                self.strides, 1, "strides", allow_zero=True
+                self.strides, size, "strides", allow_zero=True
             )
             self.padding = conv_utils.normalize_padding(self.padding).upper()
 
             self.data_format = conv_utils.convert_data_format(
-                self.data_format, 3
+                self.data_format, ndim
             )
-            self.input_spec = InputSpec(ndim=3)
-
-        elif len(input_shape) == 4:
-            self.pool_size = conv_utils.normalize_tuple(
-                self.pool_size, 2, "pool_size"
-            )
-
-            self.strides = conv_utils.normalize_tuple(
-                self.strides, 2, "strides", allow_zero=True
-            )
-            self.padding = conv_utils.normalize_padding(self.padding).upper()
-
-            self.data_format = conv_utils.convert_data_format(
-                self.data_format, 4
-            )
-            self.input_spec = InputSpec(ndim=4)
-
-        elif len(input_shape) == 5:
-            self.pool_size = conv_utils.normalize_tuple(
-                self.pool_size, 3, "pool_size"
-            )
-
-            self.strides = conv_utils.normalize_tuple(
-                self.strides, 3, "strides", allow_zero=True
-            )
-            self.padding = conv_utils.normalize_padding(self.padding).upper()
-
-            self.data_format = conv_utils.convert_data_format(
-                self.data_format, 5
-            )
-            self.input_spec = InputSpec(ndim=5)
-
         else:
             raise ValueError(
                 "Invalid input shape. Expected input should be 1D, 2D "
-                f"and 3D data. Got {input_shape}"
+                f"and 3D data. Received input.shape={input_shape}"
             )
 
     def call(self, inputs):

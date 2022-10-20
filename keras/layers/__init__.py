@@ -208,18 +208,6 @@ from keras.layers.pooling.max_pooling2d import MaxPool2D
 from keras.layers.pooling.max_pooling2d import MaxPooling2D
 from keras.layers.pooling.max_pooling3d import MaxPool3D
 from keras.layers.pooling.max_pooling3d import MaxPooling3D
-from keras.layers.pooling.generalized_mean_pooling1d import (
-    BaseGeneralizedPooling,
-)
-from keras.layers.pooling.generalized_mean_pooling1d import (
-    GeneralizedMeanPooling1D,
-)
-from keras.layers.pooling.generalized_mean_pooling2d import (
-    GeneralizedMeanPooling2D,
-)
-from keras.layers.pooling.generalized_mean_pooling3d import (
-    GeneralizedMeanPooling3D,
-)
 from keras.layers.rnn.abstract_rnn_cell import AbstractRNNCell
 
 # Recurrent layers.

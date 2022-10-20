@@ -57,7 +57,7 @@ class GeneralizedMeanPooling2D(BaseGeneralizedPooling):
     ...                  [4., 5., 6.],
     ...                  [7., 8., 9.]])
     >>> x = tf.reshape(x, [1, 3, 3, 1])
-    >>> gem_pool_2d = tf.keras.layers.GeneralizedMeanPooling1D(power=3,
+    >>> gem_pool_2d = tf.keras.layers.GeneralizedMeanPooling2D(power=3,
     ...    pool_size=2, strides=1, padding='same',
     ...    data_format='channels_last')
     >>> gem_pool_2d(x)
@@ -109,7 +109,7 @@ class GeneralizedMeanPooling2D(BaseGeneralizedPooling):
         4D tensor with shape `(batch_size, channels, pooled_rows, pooled_cols)`.
 
      References:
-        - https://arxiv.org/pdf/1711.02512.pdf
+        - [Filip Radenović, et al.](https://arxiv.org/abs/1711.02512)
     """
 
     def __init__(
@@ -136,14 +136,3 @@ class GeneralizedMeanPooling2D(BaseGeneralizedPooling):
         )
         x = tf.pow(x, (1.0 / self.power))
         return x
-
-    def get_config(self):
-        config = {
-            "power": self.power,
-            "strides": self.strides,
-            "pool_size": self.pool_size,
-            "padding": self.padding,
-            "data_format": self.data_format,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))

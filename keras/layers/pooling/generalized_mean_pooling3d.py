@@ -101,7 +101,7 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
         `(batch_size, channels, pooled_dim1, pooled_dim2, pooled_dim3)`.
 
      References:
-        - https://arxiv.org/pdf/1711.02512.pdf
+        - [Filip Radenović, et al.](https://arxiv.org/abs/1711.02512)
     """
 
     def __init__(
@@ -128,14 +128,3 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
         )
         x = tf.pow(x, (1.0 / self.power))
         return x
-
-    def get_config(self):
-        config = {
-            "power": self.power,
-            "strides": self.strides,
-            "pool_size": self.pool_size,
-            "padding": self.padding,
-            "data_format": self.data_format,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))

@@ -24,9 +24,6 @@ from keras.layers.pooling.average_pooling2d import AvgPool2D
 from keras.layers.pooling.average_pooling3d import AveragePooling3D
 from keras.layers.pooling.average_pooling3d import AvgPool3D
 from keras.layers.pooling.generalized_mean_pooling1d import (
-    BaseGeneralizedPooling,
-)
-from keras.layers.pooling.generalized_mean_pooling1d import (
     GeneralizedMeanPooling1D,
 )
 from keras.layers.pooling.generalized_mean_pooling2d import (
