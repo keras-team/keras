@@ -1626,11 +1626,11 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         y_pred = tf.constant(
-            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            [[0.9, 0.05, 0.05], [0.05, 0.89, 0.06], [0.05, 0.01, 0.94]],
             dtype=tf.float32,
         )
         loss = cce_obj(y_true, y_pred)
-        self.assertAlmostEqual(self.evaluate(loss), 0.3239, 3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0946, 3)
 
         # Test with logits.
         logits = tf.constant(
@@ -1644,11 +1644,11 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         y_pred = tf.constant(
-            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            [[0.9, 0.05, 0.05], [0.05, 0.89, 0.06], [0.05, 0.01, 0.94]],
             dtype=tf.float32,
         )
         loss = cce_obj(y_true, y_pred, sample_weight=2.3)
-        self.assertAlmostEqual(self.evaluate(loss), 0.7449, 3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.2176, 3)
 
         # Test with logits.
         logits = tf.constant(
@@ -1662,12 +1662,12 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         y_pred = tf.constant(
-            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            [[0.9, 0.05, 0.05], [0.05, 0.89, 0.06], [0.05, 0.01, 0.94]],
             dtype=tf.float32,
         )
         sample_weight = tf.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
         loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAlmostEqual(self.evaluate(loss), 1.0696, 3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.2897, 3)
 
         # Test with logits.
         logits = tf.constant(
@@ -1739,7 +1739,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     def test_shape_mismatch(self):
         y_true = tf.constant([[0], [1], [2]])
         y_pred = tf.constant(
-            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]]
+            [[0.9, 0.05, 0.05], [0.05, 0.89, 0.06], [0.05, 0.01, 0.94]]
         )
 
         cce_obj = losses.CategoricalCrossentropy()
@@ -1750,14 +1750,14 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         cce_obj = losses.CategoricalCrossentropy()
         y_true = tf.ragged.constant([[[1, 0, 0], [0, 1, 0]], [[0, 0, 1]]])
         y_pred = tf.ragged.constant(
-            [[[0.9, 0.05, 0.05], [0.5, 0.89, 0.6]], [[0.05, 0.01, 0.94]]],
+            [[[0.9, 0.05, 0.05], [0.05, 0.89, 0.06]], [[0.05, 0.01, 0.94]]],
             dtype=tf.float32,
         )
         # batch losses [[0.1054, 0.8047], [0.0619]]
         sample_weight = tf.constant([[1.2], [3.4]], shape=(2, 1))
         loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
         # sum([0.1054, 0.8047, 0.0619]) / 3
-        self.assertAlmostEqual(self.evaluate(loss), 0.4341, 3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.1589, 3)
 
         # Test with logits.
         logits = tf.ragged.constant(
