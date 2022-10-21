@@ -1,6 +1,7 @@
 path: "tensorflow.keras.layers.experimental.SyncBatchNormalization"
 tf_class {
   is_instance: "<class \'keras.layers.normalization.batch_normalization.SyncBatchNormalization\'>"
+  is_instance: "<class \'keras.layers.normalization.batch_normalization.BatchNormalization\'>"
   is_instance: "<class \'keras.layers.normalization.batch_normalization.BatchNormalizationBase\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
