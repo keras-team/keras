@@ -118,8 +118,8 @@ class GeneralizedMeanPooling2D(BaseGeneralizedPooling):
         pool_size=2,
         strides=None,
         padding="valid",
-        data_format=None,
-        name=None,
+        data_format="channels_last",
+        name="GeneralizedMeanPooling2D",
         **kwargs
     ):
         self.power = power

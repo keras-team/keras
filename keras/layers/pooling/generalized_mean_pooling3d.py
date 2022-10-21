@@ -22,31 +22,14 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
 
     1. When pool_size=2, strides=2, padding='valid'
 
-    >>> x = tf.constant(
-    ...     [[[
-    ...          [[3.], [2.]],
-    ...          [[2.], [3.]]],
-    ...       [
-    ...          [[1.], [2.]],
-    ...          [[4.], [2.]]]
-    ...     ]])
-    >>> x = tf.reshape(x, [1, 2, 2, 2, 1])
+    >>> tf.random.uniform(shape=[1, 6, 4, 4, 1], maxval=1)
     >>> gem_pool_3d = tf.keras.layers.GeneralizedMeanPooling3D(power=3,
     ...    pool_size=(2, 2, 2), strides=(2, 2, 2),
     ...    padding='valid', data_format='channels_last')
     >>> gem_pool_3d(x)
-    <tf.Tensor: shape=(1, 2, 2, 2, 1), dtype=float32, numpy=
-    array([[[[[3.],
-            [2.]],
-
-            [[2.],
-            [3.]]],
-
-            [[[1.],
-            [2.]],
-
-            [[4.],
-            [2.]]]]], dtype=float32)>
+    <tf.Tensor: shape=(1, 2, 1, 1, 1), dtype=float32, numpy=
+    array([[[[[0.41377792]]],
+          [[[0.50924826]]]]], dtype=float32)>
 
     2.
     ```python
@@ -87,10 +70,10 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
     Input shape:
       - If `data_format='channels_last'`:
         5D tensor with shape:
-        `(batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
+        `(batch_size, depth, height, width, channels)`
       - If `data_format='channels_first'`:
         5D tensor with shape:
-        `(batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3)`
+        `(batch_size, channels, depth, height, width)`
 
     Output shape:
       - If `data_format='channels_last'`:
@@ -110,7 +93,7 @@ class GeneralizedMeanPooling3D(BaseGeneralizedPooling):
         pool_size=2,
         strides=None,
         padding="valid",
-        data_format=None,
+        data_format="channels_last",
         name="GeneralizedPooling3D",
         **kwargs
     ):

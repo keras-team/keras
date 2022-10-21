@@ -240,7 +240,6 @@ py_library(
     srcs=["generalized_mean_pooling1d.py"],
     srcs_version="PY3",
     deps=[
-        ":base_generalized_pooling",
         "//keras:backend",
     ],
 )
@@ -250,7 +249,6 @@ py_library(
     srcs=["generalized_mean_pooling2d.py"],
     srcs_version="PY3",
     deps=[
-        ":base_generalized_pooling",
         "//keras:backend",
     ],
 )
@@ -260,7 +258,6 @@ py_library(
     srcs=["generalized_mean_pooling3d.py"],
     srcs_version="PY3",
     deps=[
-        ":base_generalized_pooling",
         "//keras:backend",
     ],
 )
