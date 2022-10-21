@@ -764,6 +764,27 @@ distribute_py_test(
 )
 
 distribute_py_test(
+    name = "parameter_server_exact_evaluation_test",
+    srcs = ["parameter_server_exact_evaluation_test.py"],
+    python_version = "PY3",
+    shard_count = 11,
+    tags = [
+        "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/186361027)
+        "no_oss",  # TODO(b/186248973)
+        "no_tfrt",
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_utils",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
     name = "dataset_creator_model_fit_test",
     srcs = ["dataset_creator_model_fit_test.py"],
     disable_mlir_bridge = True,  # TODO(b/170352626)
