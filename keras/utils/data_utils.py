@@ -515,7 +515,7 @@ class Sequence:
         pass
 
     def __iter__(self):
-        """Create a generator that iterate over the Sequence."""
+        """Create a generator that iterates over the Sequence."""
         for item in (self[i] for i in range(len(self))):
             yield item
 
