@@ -65,7 +65,7 @@ def get_model(sync_batchnorm=False):
         )
     )
     if sync_batchnorm:
-        model.add(keras.layers.SyncBatchNormalization())
+        model.add(keras.layers.BatchNormalization(synchronized=True))
     else:
         model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dense(10, activation="relu"))

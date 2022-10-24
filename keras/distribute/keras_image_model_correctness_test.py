@@ -28,6 +28,7 @@ from keras.testing_infra import test_utils
     "float64, the test sometimes fails with TensorFloat-32 enabled for unknown "
     "reasons"
 )
+@test_utils.run_v2_only()
 class DistributionStrategyCnnCorrectnessTest(
     keras_correctness_test_base.TestDistributionStrategyCorrectnessBase
 ):
@@ -48,8 +49,12 @@ class DistributionStrategyCnnCorrectnessTest(
                 c1 = keras.layers.BatchNormalization(name="bn1")(c1)
             elif self.with_batch_norm == "sync":
                 # Test with parallel batch norms to verify all-reduce works OK.
-                bn1 = keras.layers.SyncBatchNormalization(name="bn1")(c1)
-                bn2 = keras.layers.SyncBatchNormalization(name="bn2")(c1)
+                bn1 = keras.layers.BatchNormalization(
+                    name="bn1", synchronized=True
+                )(c1)
+                bn2 = keras.layers.BatchNormalization(
+                    name="bn2", synchronized=True
+                )(c1)
                 c1 = keras.layers.Add()([bn1, bn2])
             c1 = keras.layers.MaxPooling2D(pool_size=(2, 2))(c1)
             logits = keras.layers.Dense(10, activation="softmax", name="pred")(
@@ -133,8 +138,9 @@ class DistributionStrategyCnnCorrectnessTest(
         self, distribution, use_numpy, use_validation_data
     ):
         if not tf.executing_eagerly():
-            self.skipTest("SyncBatchNorm is not enabled in graph mode.")
-
+            self.skipTest(
+                "BatchNorm with `synchronized` is not enabled in graph mode."
+            )
         self.run_correctness_test(
             distribution, use_numpy, use_validation_data, with_batch_norm="sync"
         )
