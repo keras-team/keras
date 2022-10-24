@@ -116,6 +116,36 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
+    def test_categorical_crossentropy_loss_with_one_class(self):
+        t = backend.placeholder()
+        p = backend.placeholder()
+        o = losses.categorical_crossentropy(t, p)
+
+        t_val = tf.convert_to_tensor(
+            [[1.0],[1.0], [1.0], [1.0]]
+        )
+        p_val = tf.convert_to_tensor(
+            [[0.49],[0.51], [0.95], [1.]]
+        )
+        f = backend.function([t, p], o)
+
+        result = f([t_val, p_val])
+        self.assertArrayNear(result, [0.7133, 0.6733, 0.0513, 0.0], 1e-3)
+
+        # from logits
+        p_val = tf.convert_to_tensor(
+            [[-1.1],[0.0],[1.1],[8.]]
+        )
+        o = losses.categorical_crossentropy(t, p, from_logits=True)
+        f = backend.function([t, p], o)
+
+        result = f([t_val, p_val])
+        # In monoclass case softmax(logit) is always 1. So, loss is always 0.
+        self.assertArrayNear(result, [0., 0, 0, 0], 1e-3)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
     def test_categorical_crossentropy_loss_with_unknown_rank_tensor(self):
         t = backend.placeholder()
         p = backend.placeholder()
