@@ -104,8 +104,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         lr = kwargs.pop("lr", None)
         if lr:
             logging.warning(
-                "`lr` is deprecated in Keras optimizer, please use "
-                "`learning_rate` or use the legacy optimizer, e.g.,"
+                "`lr` is deprecated, please use "
+                "`learning_rate` instead, or use the legacy optimizer, e.g.,"
                 f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
             )
         legacy_kwargs = {
