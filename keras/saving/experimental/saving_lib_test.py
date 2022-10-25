@@ -469,6 +469,26 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
 
+    def test_save_load_weights_only(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_weights_only(model, temp_filepath)
+        model = self._get_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_load_weights_only_with_keras_file(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_model(model, temp_filepath)
+        model = self._get_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
 
 if __name__ == "__main__":
     tf.test.main()
