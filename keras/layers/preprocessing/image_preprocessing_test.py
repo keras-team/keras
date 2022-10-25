@@ -1967,6 +1967,28 @@ class RandomRotationTest(test_combinations.TestCase):
         layer = image_preprocessing.RandomRotation(0.5, dtype="uint8")
         self.assertAllEqual(layer(inputs).dtype, "uint8")
 
+    def test_xla_compilation(self):
+        input_image = np.reshape(np.arange(0, 25), (5, 5, 1)).astype(np.float32)
+        # 180 rotation.
+        layer = image_preprocessing.RandomRotation(factor=(0.5, 0.5))
+        expected_output = np.asarray(
+            [
+                [24, 23, 22, 21, 20],
+                [19, 18, 17, 16, 15],
+                [14, 13, 12, 11, 10],
+                [9, 8, 7, 6, 5],
+                [4, 3, 2, 1, 0],
+            ]
+        ).astype(np.float32)
+        expected_output = np.reshape(expected_output, (5, 5, 1))
+
+        @tf.function(jit_compile=True)
+        def augment(input):
+            return layer(input)
+
+        output_image = augment(input_image)
+        self.assertAllClose(expected_output, output_image)
+
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class RandomZoomTest(test_combinations.TestCase):
