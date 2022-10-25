@@ -122,10 +122,10 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         o = losses.categorical_crossentropy(t, p)
 
         t_val = tf.convert_to_tensor(
-            [[1.0],[1.0], [1.0], [1.0]]
+            [[1.0], [1.0], [1.0], [1.0]]
         )
         p_val = tf.convert_to_tensor(
-            [[0.49],[0.51], [0.95], [1.]]
+            [[0.49], [0.51], [0.95], [1.]]
         )
         f = backend.function([t, p], o)
 
@@ -134,7 +134,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
 
         # from logits
         p_val = tf.convert_to_tensor(
-            [[-1.1],[0.0],[1.1],[8.]]
+            [[-1.1], [0.0], [1.1], [8.]]
         )
         o = losses.categorical_crossentropy(t, p, from_logits=True)
         f = backend.function([t, p], o)
