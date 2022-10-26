@@ -39,7 +39,7 @@ def numpy_text(tensor, is_repr=False):
 
 
 class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
-    """Variable that will cast itself to a different dtype in applicable contexts.
+    """Variable that casts itself to a different dtype in applicable contexts.
 
     This class wraps a floating-point `tf.Variable`. It emulates the variable
     interface and delegates to the wrapped variable, but it additionally will

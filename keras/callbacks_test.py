@@ -3486,7 +3486,7 @@ class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
         self.assertEqual(1, self._count_xplane_file(logdir=self.logdir))
 
     def test_TensorBoard_autoTrace_outerProfiler(self):
-        """Runs a profiler session that interferes with the one from the callback.
+        """Runs a profiler session that interferes with the callback's one.
 
         The callback will not generate a profile but execution will proceed
         without crashing due to unhandled exceptions.

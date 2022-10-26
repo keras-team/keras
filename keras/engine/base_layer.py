@@ -95,7 +95,7 @@ _name_scope_unnester_stack = threading.local()
 
 @contextlib.contextmanager
 def _name_scope_unnester(full_name_scope):
-    """Helper to get relative name scope from fully specified nested name scopes.
+    """Helper to get relative name scope from fully-speced nested name scopes.
 
     Args:
       full_name_scope: full(absolute) name scope path.
@@ -481,7 +481,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     @generic_utils.default
     def build(self, input_shape):
-        """Creates the variables of the layer (optional, for subclass implementers).
+        """Creates the variables of the layer (for subclass implementers).
 
         This is a method that implementers of subclasses of `Layer` or `Model`
         can override if they need a state-creation step in-between
@@ -3025,7 +3025,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _maybe_create_attribute(self, name, default_value):
-        """Create the attribute with the default value if it hasn't been created.
+        """Create attribute (with the default value) if it hasn't been created.
 
         This is useful for fields that is used for tracking purpose,
         _trainable_weights, or _layers. Note that user could create a layer
@@ -3331,7 +3331,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
-        """Defines the save spec so that serialization is able to trace layer call.
+        """Defines the save spec so that serialization can trace layer calls.
 
         The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
         saved into a tuple of `([inputs] + args, kwargs)`.

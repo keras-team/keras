@@ -254,7 +254,7 @@ class Layer(base_layer.Layer):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     @generic_utils.default
     def build(self, input_shape):
-        """Creates the variables of the layer (optional, for subclass implementers).
+        """Creates the variables of the layer (for subclass implementers).
 
         This is a method that implementers of subclasses of `Layer` or `Model`
         can override if they need a state-creation step in-between
@@ -2233,7 +2233,7 @@ class Layer(base_layer.Layer):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _maybe_create_attribute(self, name, default_value):
-        """Create the attribute with the default value if it hasn't been created.
+        """Create attribute (with the default value) if it hasn't been created.
 
         This is useful for fields that is used for tracking purpose,
         _trainable_weights, or _layers. Note that user could create a layer

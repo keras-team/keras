@@ -136,7 +136,7 @@ def validate_synchronization_aggregation_trainable(
 
 
 class _EagerVariableStore(tf.Module):
-    """TF2-compatible VariableStore that avoids collections & tracks regularizers.
+    """TF2-safe VariableStore that avoids collections & tracks regularizers.
 
     New variable names and new variables can be created; all stored
     variables are initialized with the initializer passed to __init__.

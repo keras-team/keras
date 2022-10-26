@@ -1522,7 +1522,7 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
 
 
 def get_network_config(network, serialize_layer_fn=None, config=None):
-    """Builds the config, which consists of the node graph and serialized layers.
+    """Build the config, which consists of the node graph and serialized layers.
 
     Args:
       network: A Network object.

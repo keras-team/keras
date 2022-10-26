@@ -180,7 +180,7 @@ def conv1d(
     name=None,
     reuse=None,
 ):
-    """Functional interface for 1D convolution layer (e.g. temporal convolution).
+    """Functional interface for 1D convolution (e.g. temporal convolution).
 
     This layer creates a convolution kernel that is convolved
     (actually cross-correlated) with the layer input to produce a tensor of

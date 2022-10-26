@@ -429,7 +429,7 @@ class KerasTensor:
 
     @classmethod
     def _overload_operator(cls, tensor_class, operator):
-        """Overload an operator with the same implementation as a base Tensor class.
+        """Overload operator with the same implementation as the Tensor class.
 
         We pull the operator out of the class dynamically to avoid ordering
         issues.

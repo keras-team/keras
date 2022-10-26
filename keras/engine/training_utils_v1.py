@@ -1830,7 +1830,7 @@ def initialize_iterator(iterator):
 
 
 def extract_tensors_from_dataset(dataset):
-    """Extract a tuple of tensors `inputs, targets, sample_weight` from a dataset.
+    """Extract tuple of tensors `inputs, targets, sample_weight` from a dataset.
 
     Args:
       dataset: Dataset instance.

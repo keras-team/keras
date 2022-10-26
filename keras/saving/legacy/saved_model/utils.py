@@ -35,7 +35,7 @@ training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
 def use_wrapped_call(
     layer, call_fn, call_spec, default_training_value=None, return_method=False
 ):
-    """Creates fn that adds the losses returned by call_fn & returns the outputs.
+    """Creates fn that adds losses returned by call_fn & returns the outputs.
 
     Args:
       layer: A Keras layer object
@@ -251,7 +251,7 @@ def should_save_traces():
 
 @tf_contextlib.contextmanager
 def no_automatic_dependency_tracking_scope(obj):
-    """A context that disables automatic dependency tracking when assigning attrs.
+    """Context that disables automatic dependency tracking when assigning attrs.
 
     Objects that inherit from Autotrackable automatically creates dependencies
     to trackable objects through attribute assignments, and wraps data
