@@ -55,7 +55,7 @@ except ImportError:
 
 
 class Model(training_lib.Model):
-    """`Model` groups layers into an object with training and inference features.
+    """A model groups layers into an object with training & inference features.
 
     There are two ways to instantiate a `Model`:
 
@@ -165,7 +165,7 @@ class Model(training_lib.Model):
         return base_layer.Layer.get_weights(self)
 
     def load_weights(self, filepath, by_name=False, skip_mismatch=False):
-        """Loads all layer weights, either from a TensorFlow or an HDF5 weight file.
+        """Loads all layer weights, either from a TensorFlow or an HDF5 file.
 
         If `by_name` is False weights are loaded based on the network's
         topology. This means the architecture should be the same as when the
@@ -688,7 +688,7 @@ class Model(training_lib.Model):
         use_multiprocessing=False,
         **kwargs,
     ):
-        """Trains the model for a fixed number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (dataset iterations).
 
         Args:
             x: Input data. It could be:
@@ -1695,7 +1695,7 @@ class Model(training_lib.Model):
             self.total_loss = self._prepare_total_loss(masks)
 
     def _prepare_skip_target_masks(self):
-        """Boolean mask for whether the target in the output list should be skipped.
+        """Boolean mask for whether target in output list should be skipped.
 
         If the loss function corresponding to a model output is None, then this
         output will be skipped during total loss calculation and feed targets
@@ -1859,7 +1859,7 @@ class Model(training_lib.Model):
         self._replicated_model.set_original_model(self)
 
     def _validate_or_infer_batch_size(self, batch_size, steps, x):
-        """Validates that the `batch_size` provided is consistent with InputLayer.
+        """Validates that `batch_size` provided is consistent with InputLayer.
 
         It's possible that the user specified a static batch size in their
         InputLayer. If so, this method checks the provided `batch_size` and `x`
@@ -3127,7 +3127,7 @@ class Model(training_lib.Model):
         ]
 
     def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch, mode):
-        """Maybe load initial epoch from ckpt considering possible worker recovery.
+        """Maybe load 1st epoch from checkpoint, considering worker recovery.
 
         Refer to tensorflow/python/keras/distribute/worker_training_state.py
         for more information.

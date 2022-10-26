@@ -558,7 +558,7 @@ class NormalizationLayersGraphModeOnlyTest(
             self.assertAllClose(x1, x2, atol=1e-7)
 
     def test_batchnorm_trainable(self, layer):
-        """Tests that batchnorm layer is trainable when learning phase is enabled.
+        """Tests that BN layer is trainable when learning phase is enabled.
 
         Computes mean and std for current inputs then
         applies batch normalization using them.

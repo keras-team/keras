@@ -841,7 +841,7 @@ def validate_filename(filename, white_list_formats):
 
 
 class DataFrameIterator(BatchFromFilesMixin, Iterator):
-    """Iterator capable of reading images from a directory on disk as a dataframe.
+    """Iterator capable of reading images from a directory as a dataframe.
 
     Args:
         dataframe: Pandas dataframe containing the filepaths relative to

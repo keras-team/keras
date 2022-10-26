@@ -352,7 +352,7 @@ def print_summary(
         print_row(fields, positions, nested_level)
 
     def print_layer_summary_with_connections(layer, nested_level=0):
-        """Prints a summary for a single layer (including topological connections).
+        """Prints a summary for a single layer (including its connections).
 
         Args:
             layer: target layer.

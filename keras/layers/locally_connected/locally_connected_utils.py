@@ -139,7 +139,7 @@ def local_conv_matmul(inputs, kernel, kernel_mask, output_shape):
 def local_conv_sparse_matmul(
     inputs, kernel, kernel_idxs, kernel_shape, output_shape
 ):
-    """Apply N-D convolution with un-shared weights using a single sparse matmul.
+    """Apply N-D convolution with unshared weights using a single sparse matmul.
 
     This method outputs `inputs . tf.sparse.SparseTensor(indices=kernel_idxs,
     values=kernel, dense_shape=kernel_shape)`, with `.` standing for

@@ -361,7 +361,7 @@ def global_learning_phase_is_set():
 
 
 def _mark_func_graph_as_unsaveable(graph, learning_phase):
-    """Mark func graph as unsaveable due to use of symbolic keras learning phase.
+    """Mark graph as unsaveable due to use of symbolic keras learning phase.
 
     Functions that capture the symbolic learning phase cannot be exported to
     SavedModel. Mark the funcgraph as unsaveable, so that an error will be
@@ -914,7 +914,7 @@ def _get_current_tf_device():
 
 
 def _is_current_explicit_device(device_type):
-    """Check if the current device is explicitly set on the device type specified.
+    """Check if the current device is explicitly set to `device_type`.
 
     Args:
         device_type: A string containing `GPU` or `CPU` (case-insensitive).
@@ -1178,7 +1178,7 @@ def unique_object_name(
     zero_based=False,
     avoid_observed_names=False,
 ):
-    """Makes a object name (or arbitrary string) unique within a TensorFlow graph.
+    """Makes a object name (or any string) unique within a Keras session.
 
     Args:
       name: String name to make unique.
@@ -1510,7 +1510,7 @@ def shape(x):
 @keras_export("keras.backend.int_shape")
 @doc_controls.do_not_generate_docs
 def int_shape(x):
-    """Returns the shape of tensor or variable as a tuple of int or None entries.
+    """Returns shape of tensor/variable as a tuple of int/None entries.
 
     Args:
         x: Tensor or variable.
@@ -2832,7 +2832,7 @@ def cumsum(x, axis=0):
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
 def cumprod(x, axis=0):
-    """Cumulative product of the values in a tensor, alongside the specified axis.
+    """Cumulative product of the values in a tensor alongside `axis`.
 
     Args:
         x: A tensor or variable.

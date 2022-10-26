@@ -250,7 +250,7 @@ def EfficientNet(
     classes=1000,
     classifier_activation="softmax",
 ):
-    """Instantiates the EfficientNet architecture using given scaling coefficients.
+    """Instantiates the EfficientNet architecture.
 
     Args:
       width_coefficient: float, scaling coefficient for network width.

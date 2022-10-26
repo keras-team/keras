@@ -670,7 +670,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
 
 @keras_export("keras.losses.BinaryFocalCrossentropy")
 class BinaryFocalCrossentropy(LossFunctionWrapper):
-    """Computes the focal cross-entropy loss between true labels and predictions.
+    """Computes focal cross-entropy loss between true labels and predictions.
 
     Binary cross-entropy loss is often used for binary (0 or 1) classification
     tasks. The loss function requires the following inputs:

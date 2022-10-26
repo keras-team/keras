@@ -329,7 +329,7 @@ class L2(Regularizer):
     v1=[],
 )
 class OrthogonalRegularizer(Regularizer):
-    """A regularizer that encourages input vectors to be orthogonal to each other.
+    """Regularizer that encourages input vectors to be orthogonal to each other.
 
     It can be applied to either the rows of a matrix (`mode="rows"`) or its
     columns (`mode="columns"`). When applied to a `Dense` kernel of shape

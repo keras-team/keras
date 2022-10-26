@@ -84,7 +84,7 @@ def exact_gaussian_kernel(x, y, stddev):
 
 
 def exact_laplacian_kernel(x, y, stddev):
-    r"""Computes exact Laplacian kernel value(s) for tensors x and y using stddev.
+    r"""Computes exact Laplacian kernel value(s) for tensors x & y using stddev.
 
     The Laplacian kernel for vectors u, v is defined as follows:
          K(u, v) = exp(-||u-v|| / stddev)

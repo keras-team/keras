@@ -185,7 +185,7 @@ class WorkerTrainingState:
     def maybe_load_initial_counters_from_ckpt(
         self, steps_per_epoch, initial_epoch, mode
     ):
-        """Maybe load initial epoch from ckpt considering possible worker recovery.
+        """Maybe load 1st epoch from checkpoint, considering worker recovery.
 
         When `_ckpt_saved_epoch` attribute exists and is not
         `CKPT_SAVED_EPOCH_UNUSED_VALUE`, this is under multi-worker training

@@ -437,7 +437,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
     def set_vocabulary(self, vocabulary, idf_weights=None):
-        """Sets vocabulary (and optionally document frequency) data for this layer.
+        """Sets vocabulary (and optionally document frequency) for this layer.
 
         This method sets the vocabulary and idf weights for this layer directly,
         instead of analyzing a dataset through `adapt`. It should be used

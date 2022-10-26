@@ -1091,7 +1091,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
 
 @keras_export("keras.optimizers.schedules.serialize")
 def serialize(learning_rate_schedule):
-    """Serializes a `LearningRateSchedule` into a JSON-compatible representation.
+    """Serializes a `LearningRateSchedule` into a JSON-compatible dict.
 
     Args:
       learning_rate_schedule: The `LearningRateSchedule` object to serialize.

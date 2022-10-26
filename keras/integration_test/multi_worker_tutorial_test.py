@@ -149,7 +149,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         )
     )
     def testMwmsWithModelFit(self, mode):
-        """Test multi-worker training flow demo'ed in go/multi-worker-with-keras.
+        """Test multi-worker training flow demoed in go/multi-worker-with-keras.
 
         This test should be kept in sync with the code samples in
         go/multi-worker-with-keras.

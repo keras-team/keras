@@ -433,7 +433,7 @@ def Stem(name=None):
 
 
 def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
-    """Implements the Squeeze and excite block (https://arxiv.org/abs/1709.01507).
+    """Implements the Squeeze & Excite block (https://arxiv.org/abs/1709.01507).
 
     Args:
       filters_in: input filters to the block

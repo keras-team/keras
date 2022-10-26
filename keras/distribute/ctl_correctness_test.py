@@ -359,7 +359,7 @@ class TestDistributionStrategyDnnCorrectness(
         )
     )
     def test_fused_batch_norm_uneven_batch(self, distribution):
-        """Test that fused batch norm works when the last device may get empty data.
+        """Test that fused BN works when the last device gets empty data.
 
         Adapted from
         https://www.tensorflow.org/tutorials/distribute/custom_training
