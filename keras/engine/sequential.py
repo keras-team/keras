@@ -508,6 +508,8 @@ class Sequential(functional.Functional):
     def input_spec(self, value):
         self._manual_input_spec = value
 
+    # Please disregard this change. This is just a test by rchao@.
+
     @property
     def _trackable_saved_model_saver(self):
         return model_serialization.SequentialSavedModelSaver(self)
