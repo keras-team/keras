@@ -743,21 +743,6 @@ class Functional(training_lib.Model):
             if keras_history is not None:  # Restore keras history.
                 tensor._keras_history = keras_history
 
-            # Add shape hints to Tensors that may have None shape dims but have
-            # shapes defined by the `keras.Input` (not applicable in eager
-            # mode).
-            if not tf.executing_eagerly():
-                try:
-                    tensor.set_shape(tensor.shape.merge_with(ref_input.shape))
-                except ValueError:
-                    logging.warning(
-                        "Model was constructed with shape {} for input {}, "
-                        "but it was called on an input with incompatible "
-                        "shape {}.".format(
-                            ref_input.shape, ref_input, tensor.shape
-                        )
-                    )
-
             # Dtype casting.
             tensor = tf.cast(tensor, dtype=ref_input.dtype)
         elif tf_utils.is_extension_type(tensor):
