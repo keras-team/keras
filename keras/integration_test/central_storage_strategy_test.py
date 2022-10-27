@@ -18,24 +18,14 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 # isort: off
-from tensorflow.python.distribute import (
-    combinations as ds_combinations,
-)
-from tensorflow.python.distribute import (
-    strategy_combinations,
-)
-from tensorflow.python.framework import (
-    test_combinations as combinations,
-)
-from tensorflow.python.keras.utils import kpl_test_utils
+from tensorflow.compat.v2.__internal__.distribute import combinations
+from keras.utils import kpl_test_utils
 
 
 # TODO(b/182278926): Combine this test with other strategies.
-@ds_combinations.generate(
-    combinations.combine(
-        distribution=[
-            strategy_combinations.central_storage_strategy_with_gpu_and_cpu,
-        ],
+@combinations.generate(
+    tf.__internal__.test.combinations.combine(
+        distribution=[combinations.central_storage_strategy_with_gpu_and_cpu],
         mode=["eager"],
     )
 )
