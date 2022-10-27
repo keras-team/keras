@@ -33,6 +33,8 @@ from keras.testing_infra import test_utils
 from keras.utils import io_utils
 
 train_step_message = "This is my training step"
+assets_data = "These are my assets"
+variables_data = np.random.random((10,))
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
@@ -69,6 +71,29 @@ class MyDense(keras.layers.Dense):
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
+class LayerWithCustomSaving(MyDense):
+    def build(self, input_shape):
+        self.assets = assets_data
+        self.stored_variables = variables_data
+        return super().build(input_shape)
+
+    def _save_assets(self, inner_path):
+        with open(os.path.join(inner_path, "assets.txt"), "w") as f:
+            f.write(self.assets)
+
+    def _save_own_variables(self, store):
+        store["variables"] = self.stored_variables
+
+    def _load_assets(self, inner_path):
+        with open(os.path.join(inner_path, "assets.txt"), "r") as f:
+            text = f.read()
+        self.assets = text
+
+    def _load_own_variables(self, store):
+        self.stored_variables = np.array(store["variables"])
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -94,6 +119,16 @@ class CustomModelX(keras.Model):
 
     def one(self):
         return 1
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
+class ModelWithCustomSaving(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.custom_dense = LayerWithCustomSaving(1)
+
+    def call(self, inputs):
+        return self.custom_dense(inputs)
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
@@ -428,6 +463,34 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             model.optimizer.variables(), loaded_model.optimizer.variables()
         ):
             np.testing.assert_allclose(original_weights, loaded_weights)
+
+    def test_saving_custom_assets_and_variables(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = ModelWithCustomSaving()
+        model.compile(
+            optimizer=adam.Adam(),
+            loss=[
+                "mse",
+                keras.losses.mean_squared_error,
+                keras.losses.MeanSquaredError(),
+                my_mean_squared_error,
+            ],
+        )
+        x = np.random.random((100, 32))
+        y = np.random.random((100, 1))
+        model.fit(x, y, epochs=1)
+
+        # Assert that the archive has not been saved.
+        self.assertFalse(os.path.exists(temp_filepath))
+
+        model._save_experimental(temp_filepath)
+
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(loaded_model.custom_dense.assets, assets_data)
+        self.assertEqual(
+            loaded_model.custom_dense.stored_variables.tolist(),
+            variables_data.tolist(),
+        )
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
