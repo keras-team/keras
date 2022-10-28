@@ -52,14 +52,36 @@ _SAVING_V3_ENABLED.value = False
 
 ATTR_SKIPLIST = frozenset(
     {
-        "__dict__",
-        "_self_tracked_trackables",
-        "_layer_call_argspecs",
-        "_self_unconditional_dependency_names",
+        "_callable_losses",
+        "_captured_weight_regularizer",
+        "_checkpoint_dependencies",
+        "_deferred_dependencies",
+        "_eager_losses",
+        "_inbound_nodes",
+        "_inbound_nodes_value",
         "_output_layers",
         "_input_layers",
+        "_keras_api_names",
+        "_keras_api_names_v1",
+        "_name_based_restores",
+        "_non_trainable_weights",
+        "_outbound_nodes",
+        "_outbound_nodes_value",
+        "_saved_model_arg_spec",
+        "_self_name_based_restores",
+        "_self_saveable_object_factories",
+        "_self_tracked_trackables",
+        "_self_unconditional_checkpoint_dependencies",
+        "_self_unconditional_deferred_dependencies",
+        "_self_unconditional_dependency_names",
+        "_tf_api_names",
+        "_tf_api_names_v1",
         "_trainable_weights",
         "_non_trainable_weights",
+        "_unconditional_checkpoint_dependencies",
+        "_unconditional_dependency_names",
+        "_updates",
+        "inbound_nodes",
         "submodules",
         "weights",
         "non_trainable_weights",
@@ -311,7 +333,7 @@ def _save_state(
 
     # Recursively save state of children trackables (layers, optimizers, etc.)
     for child_attr in dir(trackable):
-        if child_attr in ATTR_SKIPLIST:
+        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
             continue
         try:
             child_obj = getattr(trackable, child_attr)
@@ -326,7 +348,7 @@ def _save_state(
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _save_container_state(
                 child_obj,
                 weights_store,
@@ -351,7 +373,7 @@ def _load_state(
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr in dir(trackable):
-        if child_attr in ATTR_SKIPLIST:
+        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
             continue
         try:
             child_obj = getattr(trackable, child_attr)
@@ -366,7 +388,7 @@ def _load_state(
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _load_container_state(
                 child_obj,
                 weights_store,
