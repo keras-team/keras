@@ -277,7 +277,7 @@ class LossFunctionWrapper(Loss):
                 backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
             )
 
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        if saving_lib.saving_v3_enabled():
             from keras.utils import get_registered_name
 
             config["fn"] = get_registered_name(self.fn)
@@ -295,7 +295,7 @@ class LossFunctionWrapper(Loss):
         Returns:
             A `keras.losses.Loss` instance.
         """
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        if saving_lib.saving_v3_enabled():
             fn_name = config.pop("fn", None)
             if fn_name and cls is LossFunctionWrapper:
                 config["fn"] = get(fn_name)
