@@ -2354,7 +2354,8 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
           same applies for `'epoch'`. If using an integer, let's say `1000`, the
           callback will write the metrics and losses to TensorBoard every 1000
           batches. Note that writing too frequently to TensorBoard can slow down
-          your training.
+          your training. May not work when doing distributed training, as
+          currently only a subset of `tf.distribute.Strategy`s are supported.
         profile_batch: Profile the batch(es) to sample compute characteristics.
           profile_batch must be a non-negative integer or a tuple of integers.
           A pair of positive integers signify a range of batches to profile.
@@ -2775,8 +2776,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 step=self._train_step,
             )
 
-        # `logs` is a `RemoteValue` when using asynchronous strategies, for now
-        # we just disable `update_freq` entirely in those cases.
+        # `logs` is a `tf.distribute.experimental.coordinator.RemoteValue` when
+        # using asynchronous strategies, for now we just disable `update_freq`
+        # entirely in those cases.
         if isinstance(logs, dict):
             for name, value in logs.items():
                 tf.summary.scalar("batch_" + name, value, step=self._train_step)
