@@ -321,3 +321,17 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
     ],
 )
+
+tf_py_test(
+    name = "fit_test",
+    size = "medium",
+    srcs = ["fit_test.py"],
+    python_version = "PY3",
+    shard_count = 28,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/integration_test/models",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
