@@ -25,7 +25,11 @@ from keras import backend
 from keras.engine import base_layer
 from keras.utils import control_flow_util
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
+
+@keras_export("keras.__internal__.layers.BaseDenseAttention", v1=[])
 class BaseDenseAttention(base_layer.BaseRandomLayer):
     """Base Attention class for Dense networks.
 
