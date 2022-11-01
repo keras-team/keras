@@ -222,7 +222,6 @@ class Loss:
         return self.reduction
 
 
-@keras_export("keras.__internal__.losses.LossFunctionWrapper", v1=[])
 class LossFunctionWrapper(Loss):
     """Wraps a loss function in the `Loss` class."""
 
