@@ -874,7 +874,7 @@ class BatchNormalizationBase(Layer):
                 training = False
         return training
 
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, training=None, mask=None):
         inputs = tf.cast(inputs, self.compute_dtype)
         training = self._get_training_value(training)
         # Determine a boolean value for `training`: could be True, False, or
