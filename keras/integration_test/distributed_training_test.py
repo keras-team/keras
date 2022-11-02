@@ -17,6 +17,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import glob
+import os
+
 import tensorflow.compat.v2 as tf
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -73,21 +76,40 @@ class DistributedTrainingTest(tf.test.TestCase):
         with strategy.scope():
             model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
             optimizer = tf.keras.optimizers.SGD()
-            model.compile(optimizer, loss="mse", steps_per_execution=10)
+            model.compile(optimizer, loss="mse", steps_per_execution=5)
 
         x = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
 
+        logdir = os.path.join(self.get_temp_dir(), "logdir")
         model.fit(
             x,
             epochs=2,
-            steps_per_epoch=10,
+            steps_per_epoch=20,
             callbacks=[
                 tf.keras.callbacks.TensorBoard(
+                    logdir,
                     update_freq=5,
                     write_steps_per_second=True,
                 )
             ],
         )
+
+        events = []
+        for event_file in glob.glob(logdir + "/train/events.out.*"):
+            for event in tf.compat.v1.train.summary_iterator(event_file):
+                if not event.summary:
+                    continue
+                for value in event.summary.value:
+                    if value.tag != "batch_loss":
+                        continue
+                    events += [event.step]
+        events.sort()
+
+        if not isinstance(
+            strategy, tf.distribute.experimental.ParameterServerStrategy
+        ):
+            # total steps = epochs * steps_per_epoch
+            self.assertEqual(events, [5, 10, 15, 20, 25, 30, 35, 40])
 
 
 if __name__ == "__main__":
