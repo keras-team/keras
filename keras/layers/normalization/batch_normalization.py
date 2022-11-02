@@ -823,6 +823,13 @@ class BatchNormalizationBase(Layer):
             return self._sync_calculate_mean_and_var(
                 inputs, reduction_axes, keep_dims, mask=mask
             )
+        return self._no_sync_calculate_mean_and_var(
+            inputs, reduction_axes, keep_dims, mask=mask
+        )
+
+    def _no_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
         if mask is None:
             return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
         else:
@@ -1161,7 +1168,7 @@ class BatchNormalizationBase(Layer):
             replica_ctx = tf.distribute.get_replica_context()
 
             if not replica_ctx:
-                return super()._calculate_mean_and_var(
+                return self._no_sync_calculate_mean_and_var(
                     x, axes, keep_dims, mask=mask
                 )
 
