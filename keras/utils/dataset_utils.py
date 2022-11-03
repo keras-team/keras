@@ -474,10 +474,7 @@ def _get_type_spec(dataset):
 
 def is_batched(tf_dataset):
     """ "Check if the `tf.data.Dataset` is batched."""
-    try:
-        return tf_dataset.__class__.__name__ == "BatchDataset"
-    except AttributeError:
-        return False
+    return hasattr(tf_dataset, "_batch_size")
 
 
 def get_batch_size(tf_dataset):
