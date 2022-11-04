@@ -47,6 +47,7 @@ from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
+from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
@@ -2972,6 +2973,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         }
         return model_config
 
+    @generic_utils.default
     def get_config(self):
         """Returns the config of the `Model`.
 
@@ -2987,19 +2989,34 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Developers of subclassed `Model` are advised to override this method,
         and continue to update the dict from `super(MyModel, self).get_config()`
         to provide the proper configuration of this `Model`. The default config
-        is an empty dict. Optionally, raise `NotImplementedError` to allow Keras
-        to attempt a default serialization.
+        will return config dict for init parameters if they are basic types.
+        Raises `NotImplementedError` when in cases where a custom
+        `get_config()` implementation is required for the subclassed model.
 
         Returns:
             Python dictionary containing the configuration of this `Model`.
         """
-        # Return an empty dict here because otherwise Model
-        # subclass developers may see
-        # their model's `__init__()` fed with unexpected keyword arguments,
-        # if their `__init__()` takes no argument for example, and they
-        # don't override `from_config()`, which would use `cls(**config)`
-        # as a result.
-        config = {}
+        # If sublcass doesn't implement `get_config()` parse from init args
+        # otherwise default to empty dict
+        if generic_utils.is_default(self.get_config):
+            try:
+                config = super().get_config()
+            except NotImplementedError:
+                config = {}
+                logging.warning(
+                    "Model's `__init__()` arguments contain non-serializable "
+                    "objects. Please implement a `get_config()` method in the "
+                    "subclassed Model for proper saving and loading. "
+                    "Defaulting to empty config."
+                )
+            # `super.get_config` adds additional keys, keep them if they
+            # are explicitly specified in `__init__`
+            init_args = tf_inspect.getfullargspec(self.__init__).args[1:]
+            xtra_args = set(["name", "trainable", "dtype", "batch_input_shape"])
+            for key in xtra_args - xtra_args.intersection(init_args):
+                config.pop(key, None)
+        else:
+            config = {}
         if saving_lib.saving_v3_enabled():
             if self._is_compiled and hasattr(self, "_compile_config"):
                 config["compile_config"] = self._compile_config.serialize()
