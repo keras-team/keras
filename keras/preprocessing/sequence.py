@@ -228,11 +228,12 @@ class TimeseriesGenerator(data_utils.Sequence):
         }
 
     def to_json(self, **kwargs):
-        """Returns a JSON string containing the timeseries generator configuration.
+        """Returns a JSON string containing the generator's configuration.
 
         Args:
-            **kwargs: Additional keyword arguments
-                to be passed to `json.dumps()`.
+            **kwargs: Additional keyword arguments to be passed
+                to `json.dumps()`.
+
         Returns:
             A JSON string containing the tokenizer configuration.
         """

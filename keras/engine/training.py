@@ -17,7 +17,6 @@
 import copy
 import itertools
 import json
-import os
 import warnings
 import weakref
 
@@ -40,16 +39,15 @@ from keras.optimizers.optimizer_experimental import (
     optimizer as optimizer_experimental,
 )
 from keras.saving import pickle_utils
+from keras.saving import saving_api
 from keras.saving.experimental import saving_lib
-from keras.saving.legacy import hdf5_format
-from keras.saving.legacy import save
-from keras.saving.legacy import saving_utils
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
+from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
@@ -69,7 +67,7 @@ except ImportError:
 
 @keras_export("keras.Model", "keras.models.Model")
 class Model(base_layer.Layer, version_utils.ModelVersionSelector):
-    """`Model` groups layers into an object with training and inference features.
+    """A model grouping layers into an object with training/inference features.
 
     Args:
         inputs: The input(s) of the model: a `keras.Input` object or a
@@ -691,7 +689,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.
               `jit_compile` is not enabled for by default.
-              This option cannot be enabled with `run_eagerly=True`.
               Note that `jit_compile=True`
               may not necessarily work for all models.
               For more information on supported operations please refer to the
@@ -805,7 +802,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @property
     def metrics(self):
-        """Returns the model's metrics added using `compile()`, `add_metric()` APIs.
+        """Return metrics added using `compile()` or `add_metric()`.
 
         Note: Metrics passed to `compile()` are available only after a
         `keras.Model` has been trained/evaluated on actual data.
@@ -941,6 +938,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     @run_eagerly.setter
     def run_eagerly(self, value):
         self._run_eagerly = value
+
+    @property
+    def jit_compile(self):
+        """Specify whether to compile the model with XLA.
+
+        [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
+        for machine learning. `jit_compile` is not enabled by default.
+        Note that `jit_compile=True` may not necessarily work for all models.
+
+        For more information on supported operations please refer to the
+        [XLA documentation](https://www.tensorflow.org/xla). Also refer to
+        [known XLA issues](https://www.tensorflow.org/xla/known_issues)
+        for more details.
+        """
+        return self._jit_compile
+
+    @jit_compile.setter
+    def jit_compile(self, value):
+        # Function remains cached with previous jit_compile settings
+        if self._jit_compile == value:
+            # Avoid reseting compiler cache if possible if the value is the same
+            return
+
+        self._jit_compile = value
+
+        # Setting `jit_compile` should invalidate previously cached functions.
+        self._reset_compile_cache()
 
     @property
     def distribute_reduction_method(self):
@@ -1225,7 +1249,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._train_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
@@ -1323,7 +1347,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         workers=1,
         use_multiprocessing=False,
     ):
-        """Trains the model for a fixed number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (dataset iterations).
 
         Args:
             x: Input data. It could be:
@@ -1795,7 +1819,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._test_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
@@ -2114,7 +2138,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._predict_counter.assign_add(1)
                 return outputs
 
-            if self._jit_compile:
+            if self.jit_compile:
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
@@ -2738,69 +2762,65 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             return super().get_weights()
 
     @traceback_utils.filter_traceback
-    def save(
-        self,
-        filepath,
-        overwrite=True,
-        include_optimizer=True,
-        save_format=None,
-        signatures=None,
-        options=None,
-        save_traces=True,
-    ):
+    def save(self, filepath, overwrite=True, save_format=None, **kwargs):
+        """Saves a model as a TensorFlow SavedModel or HDF5 file.
 
-        """Saves the model to Tensorflow SavedModel or a single HDF5 file.
-
-        Please see `tf.keras.models.save_model` or the
-        [Serialization and Saving guide](
-        https://keras.io/guides/serialization_and_saving/)
-        for details.
+        See the [Serialization and Saving guide](
+            https://keras.io/guides/serialization_and_saving/) for details.
 
         Args:
-            filepath: String, PathLike, path to SavedModel or H5 file to save
-                the model.
-            overwrite: Whether to silently overwrite any existing file at the
-                target location, or provide the user with a manual prompt.
-            include_optimizer: If True, save optimizer's state together.
-            save_format: Either `'tf'` or `'h5'`, indicating whether to save the
-                model to Tensorflow SavedModel or HDF5. Defaults to 'tf' in TF
-                2.X, and 'h5' in TF 1.X.
-            signatures: Signatures to save with the SavedModel. Applicable to
-                the 'tf' format only. Please see the `signatures` argument in
+            model: Keras model instance to be saved.
+            filepath: `str` or `pathlib.Path` object. Path where to save the
+                model.
+            overwrite: Whether we should overwrite any existing model at the
+                target location, or instead ask the user via an interactive
+                prompt.
+            save_format: Either `"keras"`, `"tf"`, `"h5"`,
+                indicating whether to save the model
+                in the native Keras format (`.keras`),
+                in the TensorFlow SavedModel format
+                (referred to as "SavedModel" below),
+                or in the legacy HDF5 format (`.h5`).
+                Defaults to `"tf"` in TF 2.X, and `"h5"` in TF 1.X.
+
+        SavedModel format arguments:
+            include_optimizer: Only applied to SavedModel and legacy HDF5
+                formats. If False, do not save the optimizer state.
+                Defaults to True.
+            signatures: Only applies to SavedModel format. Signatures to save
+                with the SavedModel. See the `signatures` argument in
                 `tf.saved_model.save` for details.
-            options: (only applies to SavedModel format)
-                `tf.saved_model.SaveOptions` object that specifies options for
-                saving to SavedModel.
-            save_traces: (only applies to SavedModel format) When enabled, the
+            options: Only applies to SavedModel format.
+                `tf.saved_model.SaveOptions` object that specifies SavedModel
+                saving options.
+            save_traces: Only applies to SavedModel format. When enabled, the
                 SavedModel will store the function traces for each layer. This
                 can be disabled, so that only the configs of each layer are
-                stored.  Defaults to `True`. Disabling this will decrease
-                serialization time and reduce file size, but it requires that
-                all custom layers/models implement a `get_config()` method.
+                stored. Defaults to `True`.
+                Disabling this will decrease serialization time
+                and reduce file size, but it requires that all custom
+                layers/models implement a `get_config()` method.
 
         Example:
 
         ```python
-        from keras.models import load_model
-
-        model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
-        del model  # deletes the existing model
-
-        # returns a compiled model
-        # identical to the previous one
-        model = load_model('my_model.h5')
+        model = tf.keras.Sequential([
+            tf.keras.layers.Dense(5, input_shape=(3,)),
+            tf.keras.layers.Softmax()])
+        model.save("model.keras")
+        loaded_model = tf.keras.models.load_model("model.keras")
+        x = tf.random.uniform((10, 3))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
         ```
-        """
 
-        save.save_model(
+        Note that `model.save()` is an alias for `tf.keras.models.save_model()`.
+        """
+        saving_api.save_model(
             self,
-            filepath,
-            overwrite,
-            include_optimizer,
-            save_format,
-            signatures,
-            options,
-            save_traces,
+            filepath=filepath,
+            overwrite=overwrite,
+            save_format=save_format,
+            **kwargs,
         )
 
     @traceback_utils.filter_traceback
@@ -2867,69 +2887,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             ImportError: If `h5py` is not available when attempting to save in
                 HDF5 format.
         """
-        self._assert_weights_created()
-        filepath = io_utils.path_to_string(filepath)
-        filepath_is_h5 = saving_utils.is_hdf5_filepath(filepath)
-        if save_format is None:
-            if filepath_is_h5:
-                save_format = "h5"
-            else:
-                save_format = "tf"
-        else:
-            user_format = save_format.lower().strip()
-            if user_format in ("tensorflow", "tf"):
-                save_format = "tf"
-            elif user_format in ("hdf5", "h5", "keras"):
-                save_format = "h5"
-            else:
-                raise ValueError(
-                    f"Unknown format. Received: `save_format`={save_format}. "
-                    'Was expecting one of {"tf", "h5"}.'
-                )
-        if save_format == "tf" and filepath_is_h5:
-            raise ValueError(
-                'save_weights got save_format="tf"/"tensorflow", but the '
-                f"filepath ({filepath}) looks like an HDF5 file. "
-                'Omit the ".h5"/".keras" when saving in TensorFlow format.'
-            )
-
-        if save_format == "h5" and h5py is None:
-            raise ImportError(
-                "`save_weights` requires h5py when saving in hdf5, but h5py is "
-                "not available. Try installing h5py package."
-            )
-        if save_format == "tf":
-            check_filepath = filepath + ".index"
-        else:
-            check_filepath = filepath
-        # If file exists and should not be overwritten:
-        if not overwrite and os.path.isfile(check_filepath):
-            proceed = io_utils.ask_to_proceed_with_overwrite(check_filepath)
-            if not proceed:
-                return
-        if save_format == "h5":
-            with h5py.File(filepath, "w") as f:
-                hdf5_format.save_weights_to_hdf5_group(f, self)
-        else:
-            if not tf.executing_eagerly():
-                # Call `get_session` to initialize any uninitialized variables.
-                backend.get_session()
-            self._checkpoint.write(filepath, options=options)
-
-            # Record this checkpoint so it's visible from
-            # tf.train.latest_checkpoint.
-            tf.__internal__.train.update_checkpoint_state(
-                save_dir=os.path.dirname(filepath),
-                model_checkpoint_path=filepath,
-                save_relative_paths=True,
-                all_model_checkpoint_paths=[filepath],
-            )
+        saving_api.save_weights(
+            self,
+            filepath=filepath,
+            overwrite=overwrite,
+            save_format=save_format,
+            options=options,
+        )
 
     @traceback_utils.filter_traceback
     def load_weights(
         self, filepath, by_name=False, skip_mismatch=False, options=None
     ):
-        """Loads all layer weights, either from a TensorFlow or an HDF5 weight file.
+        """Loads all layer weights, either from a SavedModel or H5 weights file.
 
         If `by_name` is False weights are loaded based on the network's
         topology. This means the architecture should be the same as when the
@@ -2978,67 +2948,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             ValueError: If `skip_mismatch` is set to `True` when `by_name` is
               `False`.
         """
-        if backend.is_tpu_strategy(self._distribution_strategy):
-            if self._distribution_strategy.extended.steps_per_run > 1 and (
-                not saving_utils.is_hdf5_filepath(filepath)
-            ):
-                spr = self._distribution_strategy.extended.steps_per_run
-                raise ValueError(
-                    "Load weights is not implemented with TPUStrategy "
-                    "with `steps_per_run` greater than 1. The "
-                    f"`steps_per_run` is {spr}"
-                )
-        if skip_mismatch and not by_name:
-            raise ValueError(
-                "When calling model.load_weights, skip_mismatch can only be "
-                "set to True when by_name is True."
-            )
-
-        filepath, save_format = _detect_save_format(filepath)
-        if save_format == "tf":
-            status = self._checkpoint.read(filepath, options)
-            if by_name:
-                raise NotImplementedError(
-                    "Weights may only be loaded based on topology into Models "
-                    "when loading TensorFlow-formatted weights "
-                    "(got by_name=True to load_weights)."
-                )
-            if not tf.executing_eagerly():
-                session = backend.get_session()
-                # Restore existing variables (if any) immediately, and set up a
-                # streaming restore for any variables created in the future.
-                tf.__internal__.tracking.streaming_restore(
-                    status=status, session=session
-                )
-            status.assert_nontrivial_match()
-        else:
-            status = None
-            if h5py is None:
-                raise ImportError(
-                    "`load_weights` requires h5py package when loading weights "
-                    "from HDF5. Try installing h5py."
-                )
-            if not self._is_graph_network and not self.built:
-                raise ValueError(
-                    "Unable to load weights saved in HDF5 format into a "
-                    "subclassed Model which has not created its variables yet. "
-                    "Call the Model first, then load the weights."
-                )
-            self._assert_weights_created()
-            with h5py.File(filepath, "r") as f:
-                if "layer_names" not in f.attrs and "model_weights" in f:
-                    f = f["model_weights"]
-                if by_name:
-                    hdf5_format.load_weights_from_hdf5_group_by_name(
-                        f, self, skip_mismatch
-                    )
-                else:
-                    hdf5_format.load_weights_from_hdf5_group(f, self)
-
-        # Perform any layer defined finalization of the layer state.
-        for layer in self.layers:
-            layer.finalize_state()
-        return status
+        return saving_api.load_weights(
+            self,
+            filepath=filepath,
+            by_name=by_name,
+            skip_mismatch=skip_mismatch,
+            options=options,
+        )
 
     def _updated_config(self):
         """Util shared between different serialization methods.
@@ -3057,6 +2973,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         }
         return model_config
 
+    @generic_utils.default
     def get_config(self):
         """Returns the config of the `Model`.
 
@@ -3072,20 +2989,35 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Developers of subclassed `Model` are advised to override this method,
         and continue to update the dict from `super(MyModel, self).get_config()`
         to provide the proper configuration of this `Model`. The default config
-        is an empty dict. Optionally, raise `NotImplementedError` to allow Keras
-        to attempt a default serialization.
+        will return config dict for init parameters if they are basic types.
+        Raises `NotImplementedError` when in cases where a custom
+        `get_config()` implementation is required for the subclassed model.
 
         Returns:
             Python dictionary containing the configuration of this `Model`.
         """
-        # Return an empty dict here because otherwise Model
-        # subclass developers may see
-        # their model's `__init__()` fed with unexpected keyword arguments,
-        # if their `__init__()` takes no argument for example, and they
-        # don't override `from_config()`, which would use `cls(**config)`
-        # as a result.
-        config = {}
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        # If sublcass doesn't implement `get_config()` parse from init args
+        # otherwise default to empty dict
+        if generic_utils.is_default(self.get_config):
+            try:
+                config = super().get_config()
+            except NotImplementedError:
+                config = {}
+                logging.warning(
+                    "Model's `__init__()` arguments contain non-serializable "
+                    "objects. Please implement a `get_config()` method in the "
+                    "subclassed Model for proper saving and loading. "
+                    "Defaulting to empty config."
+                )
+            # `super.get_config` adds additional keys, keep them if they
+            # are explicitly specified in `__init__`
+            init_args = tf_inspect.getfullargspec(self.__init__).args[1:]
+            xtra_args = set(["name", "trainable", "dtype", "batch_input_shape"])
+            for key in xtra_args - xtra_args.intersection(init_args):
+                config.pop(key, None)
+        else:
+            config = {}
+        if saving_lib.saving_v3_enabled():
             if self._is_compiled and hasattr(self, "_compile_config"):
                 config["compile_config"] = self._compile_config.serialize()
             if self.built:
@@ -3140,7 +3072,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f"Error encountered during deserialization:\n{e}"
                     )
 
-            if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+            if saving_lib.saving_v3_enabled():
                 if build_input_shape:
                     model.build(build_input_shape)
                 if compile_config is not None:
@@ -3433,7 +3365,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
-        """Defines the save spec so that serialization is able to trace model call.
+        """Defines the save spec so that serialization can trace `call()`.
 
         The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
         saved into a tuple of `([inputs] + args, kwargs)`. The input
@@ -3474,7 +3406,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
     def save_spec(self, dynamic_batch=True):
-        """Returns the `tf.TensorSpec` of call inputs as a tuple `(args, kwargs)`.
+        """Returns the `tf.TensorSpec` of call args as a tuple `(args, kwargs)`.
 
         This value is automatically defined after calling the model for the
         first time. Afterwards, you can use it when exporting the model for
@@ -3658,7 +3590,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def _maybe_load_initial_counters_from_ckpt(
         self, steps_per_epoch, initial_epoch
     ):
-        """Maybe load initial epoch from ckpt considering possible worker recovery.
+        """Maybe load initial epoch from ckpt, considering worker recovery.
 
         Refer to tensorflow/python/keras/distribute/worker_training_state.py
         for more information.
@@ -4069,49 +4001,6 @@ def _disallow_inside_tf_function(method_name):
             "`model(x)`."
         ).format(method_name=method_name)
         raise RuntimeError(error_msg)
-
-
-def _detect_save_format(filepath):
-    """Returns path to weights file and save format."""
-
-    filepath = io_utils.path_to_string(filepath)
-    if saving_utils.is_hdf5_filepath(filepath):
-        return filepath, "h5"
-
-    # Filepath could be a TensorFlow checkpoint file prefix or SavedModel
-    # directory. It's possible for filepath to be both a prefix and directory.
-    # Prioritize checkpoint over SavedModel.
-    if _is_readable_tf_checkpoint(filepath):
-        save_format = "tf"
-    elif tf.saved_model.contains_saved_model(filepath):
-        ckpt_path = os.path.join(
-            filepath,
-            tf.saved_model.VARIABLES_DIRECTORY,
-            tf.saved_model.VARIABLES_FILENAME,
-        )
-        if _is_readable_tf_checkpoint(ckpt_path):
-            filepath = ckpt_path
-            save_format = "tf"
-        else:
-            raise ValueError(
-                "Unable to load weights. filepath {} appears to be a "
-                "SavedModel directory, but checkpoint either doesn't "
-                "exist, or is incorrectly formatted.".format(filepath)
-            )
-    else:
-        # Not a TensorFlow checkpoint. This filepath is likely an H5 file that
-        # doesn't have the hdf5/keras extensions.
-        save_format = "h5"
-    return filepath, save_format
-
-
-def _is_readable_tf_checkpoint(filepath):
-    try:
-        tf.compat.v1.train.NewCheckpointReader(filepath)
-        return True
-    except tf.errors.DataLossError:
-        # The checkpoint is not readable in TensorFlow format.
-        return False
 
 
 def flatten_metrics_in_order(logs, metrics_names):

@@ -38,9 +38,6 @@ from keras.testing_infra import test_combinations
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
 )
-from tensorflow.python.keras.optimizer_v2 import (
-    gradient_descent as legacy_sgd,
-)
 from tensorflow.python.platform import tf_logging
 
 # If called outside any strategy.scope() calls, this will return the default
@@ -1284,6 +1281,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 "before",
                 mock_warn.call_args_list[0][0][0],
             )
+
+    @test_combinations.generate(opt_combinations_only())
+    def testScalingNoWarning(self, opt_cls):
+        var = tf.Variable(1.0)
         lso = create_lso(create_sgd(opt_cls))
         with mock.patch.object(tf_logging, "warning") as mock_warn:
             lso.get_scaled_loss(tf.constant(1.0))
@@ -1319,13 +1320,6 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             "`tf.keras.optimizers.experimental.Optimizer`, but got: 1",
         ):
             loss_scale_optimizer.BaseLossScaleOptimizer(1)
-
-    def testErrorWhenWrappingLegacyKerasOptimizers(self):
-        sgd = legacy_sgd.SGD()
-        with self.assertRaisesRegex(
-            TypeError, "not an instance of `tensorflow.python.keras.optimizers`"
-        ):
-            loss_scale_optimizer.BaseLossScaleOptimizer(sgd)
 
     def testErrorWhenV3LsoWrapsV2Optimizer(self):
         sgd = gradient_descent.SGD()

@@ -86,7 +86,7 @@ class _BaseFeaturesLayer(Layer):
         super().build(None)
 
     def _output_shape(self, input_shape, num_elements):
-        """Computes expected output shape of the layer or a column's dense tensor.
+        """Computes expected output shape of the dense tensor of the layer.
 
         Args:
           input_shape: Tensor or array with batch shape.

@@ -80,6 +80,10 @@ class Embedding(Layer):
         This argument is required if you are going to connect
         `Flatten` then `Dense` layers upstream
         (without it, the shape of the dense outputs cannot be computed).
+      sparse: If True, calling this layer returns a `tf.SparseTensor`. If False,
+        the layer returns a dense `tf.Tensor`. For an entry with no features in
+        a sparse tensor (entry with value 0), the embedding vector of index 0 is
+        returned by default.
 
     Input shape:
       2D tensor with shape: `(batch_size, input_length)`.
@@ -121,6 +125,7 @@ class Embedding(Layer):
         embeddings_constraint=None,
         mask_zero=False,
         input_length=None,
+        sparse=False,
         **kwargs,
     ):
         if "input_shape" not in kwargs:
@@ -157,6 +162,13 @@ class Embedding(Layer):
         self.mask_zero = mask_zero
         self.supports_masking = mask_zero
         self.input_length = input_length
+        self.sparse = sparse
+        if self.sparse and self.mask_zero:
+            raise ValueError(
+                "`mask_zero` cannot be enabled when "
+                "`tf.keras.layers.Embedding` is used with `tf.SparseTensor` "
+                "input."
+            )
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape=None):
@@ -205,7 +217,50 @@ class Embedding(Layer):
         dtype = backend.dtype(inputs)
         if dtype != "int32" and dtype != "int64":
             inputs = tf.cast(inputs, "int32")
-        out = tf.nn.embedding_lookup(self.embeddings, inputs)
+        if isinstance(inputs, tf.sparse.SparseTensor):
+            if self.sparse:
+                # get sparse embedding values
+                embedding_values = tf.nn.embedding_lookup(
+                    params=self.embeddings, ids=inputs.values
+                )
+                embedding_values = tf.reshape(embedding_values, [-1])
+                # get sparse embedding indices
+                indices_values_embed_axis = tf.range(self.output_dim)
+                repeat_times = [inputs.indices.shape[0]]
+                indices_values_embed_axis = tf.expand_dims(
+                    tf.tile(indices_values_embed_axis, repeat_times), -1
+                )
+                indices_values_embed_axis = tf.cast(
+                    indices_values_embed_axis, dtype=tf.int64
+                )
+                current_indices = tf.repeat(
+                    inputs.indices, [self.output_dim], axis=0
+                )
+                new_indices = tf.concat(
+                    [current_indices, indices_values_embed_axis], 1
+                )
+                new_shape = tf.concat(
+                    [tf.cast(inputs.shape, dtype=tf.int64), [self.output_dim]],
+                    axis=-1,
+                )
+                out = tf.SparseTensor(
+                    indices=new_indices,
+                    values=embedding_values,
+                    dense_shape=new_shape,
+                )
+            else:
+                sparse_inputs_expanded = tf.sparse.expand_dims(inputs, axis=-1)
+                out = tf.nn.safe_embedding_lookup_sparse(
+                    embedding_weights=self.embeddings,
+                    sparse_ids=sparse_inputs_expanded,
+                    default_id=0,
+                )
+        else:
+            out = tf.nn.embedding_lookup(self.embeddings, inputs)
+
+        if self.sparse and not isinstance(out, tf.SparseTensor):
+            out = tf.sparse.from_dense(out)
+
         if (
             self._dtype_policy.compute_dtype
             != self._dtype_policy.variable_dtype

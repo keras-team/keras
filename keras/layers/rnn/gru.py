@@ -878,9 +878,8 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                         )
                     )
                     and (
-                        mask is None
-                        or gru_lstm_utils.is_cudnn_supported_inputs(
-                            mask, self.time_major
+                        gru_lstm_utils.is_cudnn_supported_inputs(
+                            mask, self.time_major, sequence_lengths
                         )
                     )
                 )
@@ -1215,19 +1214,6 @@ def gru_with_backend_selection(
         return_sequences,
     ):
         """Use cuDNN kernel when mask is none or strictly right padded."""
-        if mask is None:
-            return gpu_gru(
-                inputs=inputs,
-                init_h=init_h,
-                kernel=kernel,
-                recurrent_kernel=recurrent_kernel,
-                bias=bias,
-                mask=mask,
-                time_major=time_major,
-                go_backwards=go_backwards,
-                sequence_lengths=sequence_lengths,
-                return_sequences=return_sequences,
-            )
 
         def cudnn_gru_fn():
             return gpu_gru(
@@ -1258,8 +1244,10 @@ def gru_with_backend_selection(
                 return_sequences=return_sequences,
             )
 
-        return tf.cond(
-            gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major),
+        return tf.__internal__.smart_cond.smart_cond(
+            gru_lstm_utils.is_cudnn_supported_inputs(
+                mask, time_major, sequence_lengths
+            ),
             true_fn=cudnn_gru_fn,
             false_fn=standard_gru_fn,
         )

@@ -222,6 +222,7 @@ class Loss:
         return self.reduction
 
 
+@keras_export("keras.__internal__.losses.LossFunctionWrapper", v1=[])
 class LossFunctionWrapper(Loss):
     """Wraps a loss function in the `Loss` class."""
 
@@ -277,7 +278,7 @@ class LossFunctionWrapper(Loss):
                 backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
             )
 
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        if saving_lib.saving_v3_enabled():
             from keras.utils import get_registered_name
 
             config["fn"] = get_registered_name(self.fn)
@@ -295,7 +296,7 @@ class LossFunctionWrapper(Loss):
         Returns:
             A `keras.losses.Loss` instance.
         """
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        if saving_lib.saving_v3_enabled():
             fn_name = config.pop("fn", None)
             if fn_name and cls is LossFunctionWrapper:
                 config["fn"] = get(fn_name)
@@ -670,7 +671,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
 
 @keras_export("keras.losses.BinaryFocalCrossentropy")
 class BinaryFocalCrossentropy(LossFunctionWrapper):
-    """Computes the focal cross-entropy loss between true labels and predictions.
+    """Computes focal cross-entropy loss between true labels and predictions.
 
     Binary cross-entropy loss is often used for binary (0 or 1) classification
     tasks. The loss function requires the following inputs:

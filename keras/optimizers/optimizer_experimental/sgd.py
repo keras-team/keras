@@ -97,7 +97,6 @@ class SGD(optimizer.Optimizer):
         learning_rate=0.01,
         momentum=0.0,
         nesterov=False,
-        amsgrad=False,
         weight_decay=None,
         clipnorm=None,
         clipvalue=None,

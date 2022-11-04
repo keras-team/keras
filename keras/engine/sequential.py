@@ -480,7 +480,7 @@ class Sequential(functional.Functional):
             )
             model.add(layer)
 
-        if getattr(saving_lib._SAVING_V3_ENABLED, "value", False):
+        if saving_lib.saving_v3_enabled():
             compile_config = config.get("compile_config", None)
             if compile_config is not None:
                 model._compile_from_config(

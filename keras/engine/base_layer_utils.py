@@ -57,7 +57,7 @@ def make_variable(
     partitioner=None,
     layout=None,
 ):
-    """Temporary util to create a variable (relies on `variable_scope.variable`).
+    """Util to create a variable (relies on `variable_scope.variable`).
 
     Some reuse-related technicalities prevent us from using
     `variable_scope.get_variable()` directly, so we use a subcomponent
@@ -823,7 +823,7 @@ def v2_dtype_behavior_enabled():
 
 
 class TrackableWeightHandler:
-    """Keras wrapper for handling tracking.Trackable object saving and restoring.
+    """Keras wrapper for handling Trackable object saving and restoring.
 
     This class handles Trackables in both V1 and V2 modes, ensuring that they
     can be saved and restored with the correct data and without adding

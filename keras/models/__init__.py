@@ -32,5 +32,5 @@ from keras.models.sharpness_aware_minimization import SharpnessAwareMinimization
 from keras.saving.legacy.model_config import model_from_config
 from keras.saving.legacy.model_config import model_from_json
 from keras.saving.legacy.model_config import model_from_yaml
-from keras.saving.legacy.save import load_model
-from keras.saving.legacy.save import save_model
+from keras.saving.saving_api import load_model
+from keras.saving.saving_api import save_model

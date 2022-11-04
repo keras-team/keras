@@ -27,6 +27,7 @@ COMMON_PIP_DEPS = [
     "//keras/dtensor:test_util",
     "//keras/distribute:distribute_test_lib_pip",
     "//keras/integration_test:preprocessing_test_utils",
+    "//keras/integration_test/models:models",
     "//keras/layers/preprocessing:preprocessing_test_utils",
     "//keras/layers/preprocessing/benchmarks:feature_column_benchmark",
     "//keras/mixed_precision:test_util",

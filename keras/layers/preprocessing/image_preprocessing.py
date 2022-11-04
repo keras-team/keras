@@ -42,13 +42,13 @@ BOUNDING_BOXES = "bounding_boxes"
 def check_fill_mode_and_interpolation(fill_mode, interpolation):
     if fill_mode not in {"reflect", "wrap", "constant", "nearest"}:
         raise NotImplementedError(
-            "Unknown `fill_mode` {}. Only `reflect`, `wrap`, "
-            "`constant` and `nearest` are supported.".format(fill_mode)
+            f"Unknown `fill_mode` {fill_mode}. Only `reflect`, `wrap`, "
+            "`constant` and `nearest` are supported."
         )
     if interpolation not in {"nearest", "bilinear"}:
         raise NotImplementedError(
-            "Unknown `interpolation` {}. Only `nearest` and "
-            "`bilinear` are supported.".format(interpolation)
+            f"Unknown `interpolation` {interpolation}. Only `nearest` and "
+            "`bilinear` are supported."
         )
 
 
@@ -744,8 +744,8 @@ class RandomFlip(BaseImageAugmentationLayer):
             self.vertical = True
         else:
             raise ValueError(
-                "RandomFlip layer {name} received an unknown mode "
-                "argument {arg}".format(name=self.name, arg=mode)
+                f"RandomFlip layer {self.name} received an unknown mode "
+                f"argument {mode}"
             )
         self.auto_vectorize = False
 
@@ -871,12 +871,12 @@ class RandomTranslation(BaseImageAugmentationLayer):
         if self.height_upper < self.height_lower:
             raise ValueError(
                 "`height_factor` cannot have upper bound less than "
-                "lower bound, got {}".format(height_factor)
+                f"lower bound, got {height_factor}"
             )
         if abs(self.height_lower) > 1.0 or abs(self.height_upper) > 1.0:
             raise ValueError(
                 "`height_factor` must have values between [-1, 1], "
-                "got {}".format(height_factor)
+                f"got {height_factor}"
             )
 
         self.width_factor = width_factor
@@ -889,12 +889,12 @@ class RandomTranslation(BaseImageAugmentationLayer):
         if self.width_upper < self.width_lower:
             raise ValueError(
                 "`width_factor` cannot have upper bound less than "
-                "lower bound, got {}".format(width_factor)
+                f"lower bound, got {width_factor}"
             )
         if abs(self.width_lower) > 1.0 or abs(self.width_upper) > 1.0:
             raise ValueError(
                 "`width_factor` must have values between [-1, 1], "
-                "got {}".format(width_factor)
+                f"got {width_factor}"
             )
 
         check_fill_mode_and_interpolation(fill_mode, interpolation)
@@ -1096,7 +1096,7 @@ def transform(
             raise ValueError(
                 "output_shape must be a 1-D Tensor of 2 elements: "
                 "new_height, new_width, instead got "
-                "{}".format(output_shape)
+                f"{output_shape}"
             )
 
         fill_value = tf.convert_to_tensor(
@@ -1388,7 +1388,7 @@ class RandomZoom(BaseImageAugmentationLayer):
         if abs(self.height_lower) > 1.0 or abs(self.height_upper) > 1.0:
             raise ValueError(
                 "`height_factor` must have values between [-1, 1], "
-                "got {}".format(height_factor)
+                f"got {height_factor}"
             )
 
         self.width_factor = width_factor
@@ -1403,7 +1403,7 @@ class RandomZoom(BaseImageAugmentationLayer):
             if self.width_lower < -1.0 or self.width_upper < -1.0:
                 raise ValueError(
                     "`width_factor` must have values larger than -1, "
-                    "got {}".format(width_factor)
+                    f"got {width_factor}"
                 )
 
         check_fill_mode_and_interpolation(fill_mode, interpolation)
@@ -1573,7 +1573,7 @@ class RandomContrast(BaseImageAugmentationLayer):
         if self.lower < 0.0 or self.upper < 0.0 or self.lower > 1.0:
             raise ValueError(
                 "Factor cannot have negative values or greater than 1.0,"
-                " got {}".format(factor)
+                f" got {factor}"
             )
         self.seed = seed
 
@@ -1824,7 +1824,7 @@ class RandomHeight(BaseImageAugmentationLayer):
         if self.height_upper < self.height_lower:
             raise ValueError(
                 "`factor` cannot have upper bound less than "
-                "lower bound, got {}".format(factor)
+                f"lower bound, got {factor}"
             )
         if self.height_lower < -1.0 or self.height_upper < -1.0:
             raise ValueError(
@@ -1947,7 +1947,7 @@ class RandomWidth(BaseImageAugmentationLayer):
         if self.width_upper < self.width_lower:
             raise ValueError(
                 "`factor` cannot have upper bound less than "
-                "lower bound, got {}".format(factor)
+                f"lower bound, got {factor}"
             )
         if self.width_lower < -1.0 or self.width_upper < -1.0:
             raise ValueError(

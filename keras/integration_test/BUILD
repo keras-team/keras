@@ -96,22 +96,21 @@ cuda_py_test(
     ],
 )
 
-# cuda_py_test(
-#     name = "central_storage_strategy_test",
-#     srcs = ["central_storage_strategy_test.py"],
-#     python_version = "PY3",
-#     tags = [
-#         "multi_and_single_gpu",
-#         "no_windows_gpu",  # TODO(b/130551176)
-#     ],
-#     deps = [
-#         "//:expect_absl_installed",
-#         "//:expect_tensorflow_installed",
-#         "//third_party/tensorflow/python/distribute:combinations",
-#         "//third_party/tensorflow/python/distribute:strategy_combinations",
-#         "//third_party/tensorflow/python/keras/utils:kpl_test_utils",
-#     ],
-# )
+cuda_py_test(
+    name = "central_storage_strategy_test",
+    srcs = ["central_storage_strategy_test.py"],
+    python_version = "PY3",
+    tags = [
+        "multi_and_single_gpu",
+        "no_windows_gpu",  # TODO(b/130551176)
+    ],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/utils:kpl_test_utils",
+    ],
+)
 
 tpu_py_test(
     name = "tpu_strategy_test",
@@ -319,6 +318,20 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "fit_test",
+    size = "medium",
+    srcs = ["fit_test.py"],
+    python_version = "PY3",
+    shard_count = 28,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/integration_test/models",
         "//keras/testing_infra:test_combinations",
     ],
 )

@@ -33,6 +33,8 @@ from keras.testing_infra import test_utils
 from keras.utils import io_utils
 
 train_step_message = "This is my training step"
+assets_data = "These are my assets"
+variables_data = np.random.random((10,))
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
@@ -69,16 +71,37 @@ class MyDense(keras.layers.Dense):
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
+class LayerWithCustomSaving(MyDense):
+    def build(self, input_shape):
+        self.assets = assets_data
+        self.stored_variables = variables_data
+        return super().build(input_shape)
+
+    def _save_assets(self, inner_path):
+        with open(os.path.join(inner_path, "assets.txt"), "w") as f:
+            f.write(self.assets)
+
+    def _save_own_variables(self, store):
+        store["variables"] = self.stored_variables
+
+    def _load_assets(self, inner_path):
+        with open(os.path.join(inner_path, "assets.txt"), "r") as f:
+            text = f.read()
+        self.assets = text
+
+    def _load_own_variables(self, store):
+        self.stored_variables = np.array(store["variables"])
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.embedding = keras.layers.Embedding(4, 1)
         self.dense1 = MyDense(1)
         self.dense2 = MyDense(1)
 
     def call(self, inputs):
-        out = self.embedding(inputs)
-        out = self.dense1(out)
+        out = self.dense1(inputs)
         return self.dense2(out)
 
     def train_step(self, data):
@@ -94,6 +117,16 @@ class CustomModelX(keras.Model):
 
     def one(self):
         return 1
+
+
+@keras.utils.register_keras_serializable(package="my_custom_package")
+class ModelWithCustomSaving(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.custom_dense = LayerWithCustomSaving(1)
+
+    def call(self, inputs):
+        return self.custom_dense(inputs)
 
 
 @keras.utils.register_keras_serializable(package="my_custom_package")
@@ -141,9 +174,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         return subclassed_model
 
     def _get_sequential_model(self):
-        sequential_model = keras.Sequential(
-            [keras.layers.Embedding(4, 1), MyDense(1), MyDense(1)]
-        )
+        sequential_model = keras.Sequential([MyDense(1), MyDense(1)])
         sequential_model.compile(
             optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
         )
@@ -151,9 +182,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
     def _get_functional_model(self):
         inputs = keras.Input(shape=(32,))
-        inputs = keras.layers.Embedding(4, 1)(inputs)
-        inputs = MyDense(1, name="first_dense")(inputs)
-        outputs = MyDense(1, name="second_dense")(inputs)
+        x = MyDense(1, name="first_dense")(inputs)
+        outputs = MyDense(1, name="second_dense")(x)
         functional_model = keras.Model(inputs, outputs)
         functional_model.compile(
             optimizer="adam", loss=["mse", keras.losses.mean_squared_error]
@@ -429,6 +459,34 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         ):
             np.testing.assert_allclose(original_weights, loaded_weights)
 
+    def test_saving_custom_assets_and_variables(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        model = ModelWithCustomSaving()
+        model.compile(
+            optimizer=adam.Adam(),
+            loss=[
+                "mse",
+                keras.losses.mean_squared_error,
+                keras.losses.MeanSquaredError(),
+                my_mean_squared_error,
+            ],
+        )
+        x = np.random.random((100, 32))
+        y = np.random.random((100, 1))
+        model.fit(x, y, epochs=1)
+
+        # Assert that the archive has not been saved.
+        self.assertFalse(os.path.exists(temp_filepath))
+
+        model._save_experimental(temp_filepath)
+
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(loaded_model.custom_dense.assets, assets_data)
+        self.assertEqual(
+            loaded_model.custom_dense.stored_variables.tolist(),
+            variables_data.tolist(),
+        )
+
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
             model_type=["subclassed", "sequential"],
@@ -468,6 +526,85 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         metadata = json_utils.decode(metadata_json)
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
+
+    def test_load_model_api_endpoint(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        model.save(temp_filepath, save_format="keras_v3")
+        model = keras.models.load_model(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_save_load_weights_only(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_weights_only(model, temp_filepath)
+        model = self._get_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+        # Test with Model method
+        model = self._get_functional_model()
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_load_weights_only_with_keras_file(self):
+        # Test loading weights from whole saved model
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        ref_input = np.random.random((10, 32))
+        ref_output = model.predict(ref_input)
+        saving_lib.save_model(model, temp_filepath)
+        model = self._get_functional_model()
+        saving_lib.load_weights_only(model, temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+        # Test with Model method
+        model = self._get_functional_model()
+        model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_compile_arg(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        model.compile("rmsprop", "mse")
+        model.fit(np.random.random((10, 32)), np.random.random((10, 1)))
+        saving_lib.save_model(model, temp_filepath)
+
+        model = saving_lib.load_model(temp_filepath)
+        self.assertEqual(model._is_compiled, True)
+        model = saving_lib.load_model(temp_filepath, compile=False)
+        self.assertEqual(model._is_compiled, False)
+
+    def test_overwrite(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        model = self._get_functional_model()
+        model.save(temp_filepath, save_format="keras_v3")
+        model.save(temp_filepath, save_format="keras_v3", overwrite=True)
+        with self.assertRaises(EOFError):
+            model.save(temp_filepath, save_format="keras_v3", overwrite=False)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        model = self._get_functional_model()
+        model.save_weights(temp_filepath)
+        model.save_weights(temp_filepath, overwrite=True)
+        with self.assertRaises(EOFError):
+            model.save_weights(temp_filepath, overwrite=False)
+
+    def test_api_errors(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.notkeras")
+        model = self._get_functional_model()
+        with self.assertRaisesRegex(ValueError, "Unknown `save_format`"):
+            model.save(temp_filepath, save_format="invalid")
+        with self.assertRaisesRegex(ValueError, "Invalid `filepath` argument"):
+            model.save(temp_filepath, save_format="keras_v3")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            model.save(
+                temp_filepath, include_optimizer=False, save_format="keras_v3"
+            )
 
 
 if __name__ == "__main__":

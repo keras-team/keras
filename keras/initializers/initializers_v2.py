@@ -86,7 +86,7 @@ class Initializer:
         )
 
     def get_config(self):
-        """Returns the configuration of the initializer as a JSON-serializable dict.
+        """Returns the initializer's configuration as a JSON-serializable dict.
 
         Returns:
           A JSON-serializable Python dict.
@@ -474,7 +474,7 @@ class TruncatedNormal(Initializer):
         )
 
     def __call__(self, shape, dtype=None, **kwargs):
-        """Returns a tensor object initialized to random normal values (truncated).
+        """Returns a tensor initialized to random normal values (truncated).
 
         Args:
           shape: Shape of the tensor.
@@ -525,7 +525,7 @@ class TruncatedNormal(Initializer):
     v1=[],
 )
 class VarianceScaling(Initializer):
-    """Initializer capable of adapting its scale to the shape of weights tensors.
+    """Initializer that adapts its scale to the shape of its input tensors.
 
     Also available via the shortcut function
     `tf.keras.initializers.variance_scaling`.

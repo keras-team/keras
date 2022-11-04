@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras SavedModel serialization."""
+"""Keras legacy SavedModel saving."""
 
 import os
 
@@ -20,10 +20,10 @@ import tensorflow.compat.v2 as tf
 from absl import logging
 
 from keras import backend
-from keras.layers import serialization
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving.legacy import saving_utils
+from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import constants
 from keras.saving.legacy.saved_model import save_impl
 from keras.saving.legacy.saved_model import utils
@@ -92,14 +92,15 @@ def save(
     # already-set learning phase placeholder.
     # This is needed for compatibility reasons until learning phase setting
     # is removed from the public apis.
-    with backend.deprecated_internal_learning_phase_scope(0):
-        with utils.keras_option_scope(save_traces):
-            saved_nodes, node_paths = save_lib.save_and_return_nodes(
-                model, filepath, signatures, options
-            )
+    with serialization.SharedObjectSavingScope():
+        with backend.deprecated_internal_learning_phase_scope(0):
+            with utils.keras_option_scope(save_traces):
+                saved_nodes, node_paths = save_lib.save_and_return_nodes(
+                    model, filepath, signatures, options
+                )
 
-        # Save all metadata to a separate file in the SavedModel directory.
-        metadata = generate_keras_metadata(saved_nodes, node_paths)
+            # Save all metadata to a separate file in the SavedModel directory.
+            metadata = generate_keras_metadata(saved_nodes, node_paths)
 
     with tf.io.gfile.GFile(
         tf.io.gfile.join(filepath, constants.SAVED_METADATA_PATH), "wb"
@@ -111,8 +112,7 @@ def save(
 
 
 def generate_keras_metadata(saved_nodes, node_paths):
-    """Constructs a KerasMetadata proto with the metadata of each keras
-    object."""
+    """Constructs a KerasMetadata proto with the metadata of each object."""
     metadata = saved_metadata_pb2.SavedMetadata()
     for node_id, node in enumerate(saved_nodes):
         if isinstance(node, base_layer.Layer):
@@ -135,7 +135,9 @@ def generate_keras_metadata(saved_nodes, node_paths):
             # Log warning if the node's class name conflicts with a Keras
             # built-in object.
             class_name = node.__class__.__name__
-            builtin_layer = serialization.get_builtin_layer(class_name)
+            from keras.layers import serialization as layers_serialization
+
+            builtin_layer = layers_serialization.get_builtin_layer(class_name)
             if builtin_layer:
                 if not isinstance(node, builtin_layer):
                     logging.warning(

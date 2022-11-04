@@ -72,7 +72,7 @@ class PreprocessingStage(
                 continue
 
             def map_fn(x):
-                """Maps `PreprocessingStage` inputs to inputs at `current_layer_index`.
+                """Maps this object's inputs to those at current_layer_index.
 
                 Args:
                   x: Batch of inputs seen in entry of the `PreprocessingStage`
