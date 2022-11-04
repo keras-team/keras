@@ -52,14 +52,36 @@ _SAVING_V3_ENABLED.value = False
 
 ATTR_SKIPLIST = frozenset(
     {
-        "__dict__",
-        "_self_tracked_trackables",
-        "_layer_call_argspecs",
-        "_self_unconditional_dependency_names",
+        "_callable_losses",
+        "_captured_weight_regularizer",
+        "_checkpoint_dependencies",
+        "_deferred_dependencies",
+        "_eager_losses",
+        "_inbound_nodes",
+        "_inbound_nodes_value",
         "_output_layers",
         "_input_layers",
+        "_keras_api_names",
+        "_keras_api_names_v1",
+        "_name_based_restores",
+        "_non_trainable_weights",
+        "_outbound_nodes",
+        "_outbound_nodes_value",
+        "_saved_model_arg_spec",
+        "_self_name_based_restores",
+        "_self_saveable_object_factories",
+        "_self_tracked_trackables",
+        "_self_unconditional_checkpoint_dependencies",
+        "_self_unconditional_deferred_dependencies",
+        "_self_unconditional_dependency_names",
+        "_tf_api_names",
+        "_tf_api_names_v1",
         "_trainable_weights",
         "_non_trainable_weights",
+        "_unconditional_checkpoint_dependencies",
+        "_unconditional_dependency_names",
+        "_updates",
+        "inbound_nodes",
         "submodules",
         "weights",
         "non_trainable_weights",
@@ -99,7 +121,7 @@ def save_model(model, filepath, weights_format="h5"):
     """
     if not filepath.endswith(".keras"):
         raise ValueError(
-            "Invalid filename: expected a `.keras` extension. "
+            "Invalid `filepath` argument: expected a `.keras` extension. "
             f"Received: filepath={filepath}"
         )
     if weights_format == "h5" and h5py is None:
@@ -142,16 +164,17 @@ def save_model(model, filepath, weights_format="h5"):
                 )
             else:
                 raise ValueError(
-                    "Unknown weights_format. Expected 'h5' or 'npz'. "
-                    f"Received: {weights_format}"
+                    "Unknown `weights_format` argument. "
+                    "Expected 'h5' or 'npz'. "
+                    f"Received: weights_format={weights_format}"
                 )
 
             asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
 
             _save_state(
                 model,
-                weights_handler=weights_store,
-                assets_handler=asset_store,
+                weights_store=weights_store,
+                assets_store=asset_store,
                 inner_path="",
                 visited_trackables=set(),
             )
@@ -164,7 +187,7 @@ def save_model(model, filepath, weights_format="h5"):
         _SAVING_V3_ENABLED.value = saving_v3_enabled_value
 
 
-def load_model(filepath, custom_objects=None):
+def load_model(filepath, custom_objects=None, compile=True):
     """Load a zip archive representing a Keras model."""
     if not filepath.endswith(".keras"):
         raise ValueError(
@@ -184,6 +207,9 @@ def load_model(filepath, custom_objects=None):
             # Note: we should NOT use a custom JSON decoder. Anything that
             # needs custom decoding must be handled in deserialize_keras_object.
             config_dict = json.loads(config_json)
+            if not compile:
+                # Disable compilation
+                config_dict["config"]["compile_config"] = None
             # Construct the model from the configuration file in the archive.
             model = deserialize_keras_object(config_dict, custom_objects)
 
@@ -208,8 +234,8 @@ def load_model(filepath, custom_objects=None):
 
             _load_state(
                 model,
-                weights_handler=weights_store,
-                assets_handler=asset_store,
+                weights_store=weights_store,
+                assets_store=asset_store,
                 inner_path="",
                 visited_trackables=set(),
             )
@@ -234,18 +260,18 @@ def save_weights_only(model, filepath):
     # then upload it
     if not filepath.endswith(".weights.h5"):
         raise ValueError(
-            "Invalid filename: expected a `.weights.h5` extension. "
+            "Invalid `filepath` argument: expected a `.weights.h5` extension. "
             f"Received: filepath={filepath}"
         )
-    weights_handler = H5IOStore(filepath, mode="w")
+    weights_store = H5IOStore(filepath, mode="w")
     _save_state(
         model,
-        weights_handler=weights_handler,
-        assets_handler=None,
+        weights_store=weights_store,
+        assets_store=None,
         inner_path="",
         visited_trackables=set(),
     )
-    weights_handler.close()
+    weights_store.close()
 
 
 def load_weights_only(model, filepath):
@@ -266,8 +292,8 @@ def load_weights_only(model, filepath):
 
     _load_state(
         model,
-        weights_handler=weights_store,
-        assets_handler=None,
+        weights_store=weights_store,
+        assets_store=None,
         inner_path="",
         visited_trackables=set(),
     )
@@ -291,23 +317,23 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 
 
 def _save_state(
-    trackable, weights_handler, assets_handler, inner_path, visited_trackables
+    trackable, weights_store, assets_store, inner_path, visited_trackables
 ):
     # If the trackable has already been saved, skip it.
     if id(trackable) in visited_trackables:
         return
 
     # TODO(fchollet): better name?
-    if hasattr(trackable, "_save_own_variables") and weights_handler:
-        trackable._save_own_variables(weights_handler.make(inner_path))
-    if hasattr(trackable, "_save_assets") and assets_handler:
-        trackable._save_assets(assets_handler.make(inner_path))
+    if hasattr(trackable, "_save_own_variables") and weights_store:
+        trackable._save_own_variables(weights_store.make(inner_path))
+    if hasattr(trackable, "_save_assets") and assets_store:
+        trackable._save_assets(assets_store.make(inner_path))
 
     visited_trackables.add(id(trackable))
 
     # Recursively save state of children trackables (layers, optimizers, etc.)
     for child_attr in dir(trackable):
-        if child_attr in ATTR_SKIPLIST:
+        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
             continue
         try:
             child_obj = getattr(trackable, child_attr)
@@ -317,37 +343,37 @@ def _save_state(
         if _is_keras_trackable(child_obj):
             _save_state(
                 child_obj,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _save_container_state(
                 child_obj,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
 
 
 def _load_state(
-    trackable, weights_handler, assets_handler, inner_path, visited_trackables
+    trackable, weights_store, assets_store, inner_path, visited_trackables
 ):
     if id(trackable) in visited_trackables:
         return
 
-    if hasattr(trackable, "_load_own_variables") and weights_handler:
-        trackable._load_own_variables(weights_handler.get(inner_path))
-    if hasattr(trackable, "_load_assets") and assets_handler:
-        trackable._load_assets(assets_handler.get(inner_path))
+    if hasattr(trackable, "_load_own_variables") and weights_store:
+        trackable._load_own_variables(weights_store.get(inner_path))
+    if hasattr(trackable, "_load_assets") and assets_store:
+        trackable._load_assets(assets_store.get(inner_path))
 
     visited_trackables.add(id(trackable))
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr in dir(trackable):
-        if child_attr in ATTR_SKIPLIST:
+        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
             continue
         try:
             child_obj = getattr(trackable, child_attr)
@@ -357,23 +383,23 @@ def _load_state(
         if _is_keras_trackable(child_obj):
             _load_state(
                 child_obj,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _load_container_state(
                 child_obj,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
 
 
 def _save_container_state(
-    container, weights_handler, assets_handler, inner_path, visited_trackables
+    container, weights_store, assets_store, inner_path, visited_trackables
 ):
     used_names = {}
     for trackable in container:
@@ -389,15 +415,15 @@ def _save_container_state(
                 used_names[name] = 0
             _save_state(
                 trackable,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, name),
                 visited_trackables=visited_trackables,
             )
 
 
 def _load_container_state(
-    container, weights_handler, assets_handler, inner_path, visited_trackables
+    container, weights_store, assets_store, inner_path, visited_trackables
 ):
     used_names = {}
     for trackable in container:
@@ -410,8 +436,8 @@ def _load_container_state(
                 used_names[name] = 0
             _load_state(
                 trackable,
-                weights_handler,
-                assets_handler,
+                weights_store,
+                assets_store,
                 inner_path=tf.io.gfile.join(inner_path, name),
                 visited_trackables=visited_trackables,
             )
@@ -582,6 +608,10 @@ def _is_keras_trackable(obj):
             losses.Loss,
         ),
     )
+
+
+def saving_v3_enabled():
+    return getattr(_SAVING_V3_ENABLED, "value", False)
 
 
 # Some debugging utilities.

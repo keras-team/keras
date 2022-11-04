@@ -648,7 +648,7 @@ _LSTMStateTuple = collections.namedtuple("LSTMStateTuple", ("c", "h"))
 @keras_export(v1=["keras.__internal__.legacy.rnn_cell.LSTMStateTuple"])
 @tf_export(v1=["nn.rnn_cell.LSTMStateTuple"])
 class LSTMStateTuple(_LSTMStateTuple):
-    """Tuple used by LSTM Cells for `state_size`, `zero_state`, and output state.
+    """Tuple used by LSTM Cells for `state_size`, `zero_state`, & output state.
 
     Stores two elements: `(c, h)`, in that order. Where `c` is the hidden state
     and `h` is the output.

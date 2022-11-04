@@ -174,6 +174,14 @@ class InputLayerTest(test_combinations.TestCase):
 
         self.assertAllEqual(run_model(tf.ones((10, 8))), tf.ones((10, 8)) * 2.0)
 
+    @test_combinations.run_all_keras_modes
+    def testBasicOutputShapeWithBatchSizeAndNoneDimensionsPlaceholder(self):
+        x = input_layer_lib.Input((2, 3), batch_size=4, dtype=tf.float32)
+        model = functional.Functional(x, x * 2.0)
+        output = model(backend.placeholder(shape=[None, None, 3]))
+        # batch size and dimension defined in Input should not be applied
+        self.assertAllEqual(output.shape.as_list(), [None, None, 3])
+
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )

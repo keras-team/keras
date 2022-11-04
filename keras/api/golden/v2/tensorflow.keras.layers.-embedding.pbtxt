@@ -129,7 +129,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'input_dim\', \'output_dim\', \'embeddings_initializer\', \'embeddings_regularizer\', \'activity_regularizer\', \'embeddings_constraint\', \'mask_zero\', \'input_length\'], varargs=None, keywords=kwargs, defaults=[\'uniform\', \'None\', \'None\', \'None\', \'False\', \'None\'], "
+    argspec: "args=[\'self\', \'input_dim\', \'output_dim\', \'embeddings_initializer\', \'embeddings_regularizer\', \'activity_regularizer\', \'embeddings_constraint\', \'mask_zero\', \'input_length\', \'sparse\'], varargs=None, keywords=kwargs, defaults=[\'uniform\', \'None\', \'None\', \'None\', \'False\', \'None\', \'False\'], "
   }
   member_method {
     name: "add_loss"

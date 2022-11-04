@@ -26,9 +26,6 @@ from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.saving.legacy import serialization
 
 # isort: off
-from tensorflow.python.keras.optimizer_v2 import (
-    optimizer_v2 as legacy_optimizer,
-)
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -345,13 +342,6 @@ class LossScaleOptimizerMetaclass(type):
             "`tf.keras.optimizers.experimental.Optimizer`, but got: "
             f"{inner_optimizer}."
         )
-        if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
-            msg += (
-                ' Please make sure "inner_optimizer" is not an instance of '
-                "`tensorflow.python.keras.optimizers`, which is "
-                "the legacy keras code and will be removed in future release. "
-                "Please use the tf.keras public API instead."
-            )
         raise TypeError(msg)
 
 
@@ -624,13 +614,6 @@ class LossScaleOptimizer(
                 "`tf.keras.optimizers.Optimizer`, but got: %s. "
                 % inner_optimizer
             )
-            if isinstance(inner_optimizer, legacy_optimizer.OptimizerV2):
-                msg += (
-                    'Please make sure "inner_optimizer" is not an instance of '
-                    "`tensorflow.python.keras.optimizers`, which is "
-                    "the legacy keras code and will be removed in future "
-                    "release. Please use the tf.keras public API instead."
-                )
             raise TypeError(msg)
         if not isinstance(dynamic, bool):
             # Catch errors if a user incorrectly passes a string or float to the

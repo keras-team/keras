@@ -468,7 +468,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
         return os.path.join(temp_dir, dirname)
 
     def _assert_same_weights_and_metrics(self, model, loaded_model):
-        """Checks that the loaded weights and metrics are the same as the original.
+        """Checks that loaded weights & metrics are the same as the original.
 
         Args:
           model: original model

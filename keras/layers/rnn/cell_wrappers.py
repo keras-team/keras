@@ -511,7 +511,7 @@ class ResidualWrapper(_RNNCellWrapper):
         self._residual_fn = residual_fn
 
     def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
-        """Run the cell and then apply the residual_fn on its inputs to its outputs.
+        """Run the cell and apply the residual_fn.
 
         Args:
           inputs: cell inputs.

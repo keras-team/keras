@@ -310,7 +310,7 @@ class LayerAttributes(
         copy_from=[CommonEndpoints],
     )
 ):
-    """Layer checkpointable objects + functions that are saved to the SavedModel.
+    """Layer checkpointable objects + functions saved to the SavedModel.
 
     List of all attributes:
       All attributes from CommonEndpoints
@@ -335,7 +335,7 @@ class ModelAttributes(
         "ModelAttributes", copy_from=[LayerAttributes]
     )
 ):
-    """Model checkpointable objects + functions that are saved to the SavedModel.
+    """Model checkpointable objects + functions saved to the SavedModel.
 
     List of all attributes:
       All attributes from LayerAttributes (including CommonEndpoints)

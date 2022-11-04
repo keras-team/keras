@@ -18,7 +18,7 @@ tf_module {
   }
   member_method {
     name: "load_model"
-    argspec: "args=[\'filepath\', \'custom_objects\', \'compile\', \'options\'], varargs=None, keywords=None, defaults=[\'None\', \'True\', \'None\'], "
+    argspec: "args=[\'filepath\', \'custom_objects\', \'compile\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'True\'], "
   }
   member_method {
     name: "model_from_config"
@@ -34,6 +34,6 @@ tf_module {
   }
   member_method {
     name: "save_model"
-    argspec: "args=[\'model\', \'filepath\', \'overwrite\', \'include_optimizer\', \'save_format\', \'signatures\', \'options\', \'save_traces\'], varargs=None, keywords=None, defaults=[\'True\', \'True\', \'None\', \'None\', \'None\', \'True\'], "
+    argspec: "args=[\'model\', \'filepath\', \'overwrite\', \'save_format\'], varargs=None, keywords=kwargs, defaults=[\'True\', \'None\'], "
   }
 }

@@ -401,7 +401,7 @@ class MetricsContainer(Container):
         self._from_serialized = from_serialized
 
     def _check_duplicated_metrics(self, metrics, weighted_metrics):
-        """Check and raise error when user provided metrics has any duplications.
+        """Raise error when user provided metrics have any duplications.
 
         Note that metrics are stateful container, a shared metric instance
         between model.metric and model.weighted_metric will make the same

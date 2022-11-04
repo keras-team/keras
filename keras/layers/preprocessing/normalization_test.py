@@ -444,7 +444,7 @@ class NormalizationAdaptTest(
 
         # Save the model to disk.
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format=format)
+        model.save(output_path, save_format=save_format)
         loaded_model = keras.models.load_model(
             output_path, custom_objects={"Normalization": cls}
         )

@@ -36,7 +36,6 @@ PIP_EXCLUDED_FILES = frozenset(
 PIP_EXCLUDED_DIRS = frozenset(
     [
         "keras/benchmarks",
-        "keras/integration_tests",
         "keras/tests",
     ]
 )

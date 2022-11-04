@@ -24,7 +24,7 @@ from keras.utils import conv_utils
 
 
 class Pooling2D(Layer):
-    """Pooling layer for arbitrary pooling functions, for 2D inputs (e.g. images).
+    """Pooling layer for arbitrary pooling functions, for 2D data (e.g. images).
 
     This class only exists for code reuse. It will never be an exposed API.
 

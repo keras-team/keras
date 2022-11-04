@@ -814,10 +814,11 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
             existing_loss = loss_value
 
         _, runtime_value = model.predict(x_train)
-        if tf.test.is_gpu_available():
-            self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_GPU)
-        else:
-            self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_CPU)
+        if not tf.sysconfig.get_build_info()["is_rocm_build"]:
+            if tf.test.is_gpu_available():
+                self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_GPU)
+            else:
+                self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_CPU)
 
     @test_utils.run_v2_only
     def test_LSTM_runtime(self):
