@@ -94,7 +94,7 @@ class DistributedTrainingTest(tf.test.TestCase):
             ],
         )
 
-        events = []
+        events_got = []
         for event_file in glob.glob(logdir + "/train/events.out.*"):
             for event in tf.compat.v1.train.summary_iterator(event_file):
                 if not event.summary:
@@ -102,14 +102,26 @@ class DistributedTrainingTest(tf.test.TestCase):
                 for value in event.summary.value:
                     if value.tag != "batch_loss":
                         continue
-                    events += [event.step]
-        events.sort()
+                    events_got += [event.step]
 
-        if not isinstance(
+        # total steps = epochs * steps_per_epoch
+        events_expected = [5, 10, 15, 20, 25, 30, 35, 40]
+
+        if isinstance(
             strategy, tf.distribute.experimental.ParameterServerStrategy
         ):
-            # total steps = epochs * steps_per_epoch
-            self.assertEqual(events, [5, 10, 15, 20, 25, 30, 35, 40])
+            # Metrics are not logged with this strategy as they are not
+            # immediately available on batch end
+            events_expected = []
+        if (
+            strategy.cluster_resolver
+            and strategy.cluster_resolver.task_type == "worker"
+        ):
+            # Workaround for an issue with
+            # `tf.distribute.MultiWorkerMirroredStrategy`
+            events_expected = []
+
+        self.assertEqual(events_got, events_expected)
 
 
 if __name__ == "__main__":
