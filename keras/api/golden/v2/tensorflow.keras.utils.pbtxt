@@ -5,6 +5,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "FeatureSpace"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "GeneratorEnqueuer"
     mtype: "<type \'type\'>"
   }
