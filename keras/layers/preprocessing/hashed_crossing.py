@@ -30,7 +30,11 @@ INT = utils.INT
 ONE_HOT = utils.ONE_HOT
 
 
-@keras_export("keras.layers.experimental.preprocessing.HashedCrossing")
+@keras_export(
+    "keras.layers.HashedCrossing",
+    "keras.layers.experimental.preprocessing.HashedCrossing",
+    v1=[],
+)
 class HashedCrossing(base_layer.Layer):
     """A preprocessing layer which crosses features using the "hashing trick".
 
@@ -62,7 +66,7 @@ class HashedCrossing(base_layer.Layer):
 
     **Crossing two scalar features.**
 
-    >>> layer = tf.keras.layers.experimental.preprocessing.HashedCrossing(
+    >>> layer = tf.keras.layers.HashedCrossing(
     ...     num_bins=5)
     >>> feat1 = tf.constant(['A', 'B', 'A', 'B', 'A'])
     >>> feat2 = tf.constant([101, 101, 101, 102, 102])
@@ -71,7 +75,7 @@ class HashedCrossing(base_layer.Layer):
 
     **Crossing and one-hotting two scalar features.**
 
-    >>> layer = tf.keras.layers.experimental.preprocessing.HashedCrossing(
+    >>> layer = tf.keras.layers.HashedCrossing(
     ...     num_bins=5, output_mode='one_hot')
     >>> feat1 = tf.constant(['A', 'B', 'A', 'B', 'A'])
     >>> feat2 = tf.constant([101, 101, 101, 102, 102])

@@ -1,4 +1,4 @@
-path: "tensorflow.keras.layers.experimental.preprocessing.HashedCrossing"
+path: "tensorflow.keras.layers.HashedCrossing"
 tf_class {
   is_instance: "<class \'keras.layers.preprocessing.hashed_crossing.HashedCrossing\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
