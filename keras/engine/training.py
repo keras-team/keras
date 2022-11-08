@@ -1249,7 +1249,15 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model._train_counter.assign_add(1)
                 return outputs
 
-            if self.jit_compile:
+            if self.jit_compile and not isinstance(
+                model.distribute_strategy,
+                (
+                    tf.compat.v1.distribute.experimental.TPUStrategy,
+                    tf.distribute.TPUStrategy,
+                ),
+            ):
+                # TODO(b/258249546): Explicit `jit_compile=True` on TPU causes
+                # unexpected behavior, so we skip TPU training now.
                 run_step = tf.function(
                     run_step, jit_compile=True, reduce_retracing=True
                 )
