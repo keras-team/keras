@@ -89,7 +89,7 @@ class SGD(optimizer.Optimizer):
 
     Reference:
         - For `nesterov=True`, See [Sutskever et al., 2013](
-          http://jmlr.org/proceedings/papers/v28/sutskever13.pdf).
+          http://proceedings.mlr.press/v28/sutskever13.pdf).
     """
 
     def __init__(
