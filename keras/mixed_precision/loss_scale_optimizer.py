@@ -1398,6 +1398,9 @@ class LossScaleOptimizerV3(
     def ema_momentum(self, ema_momentum):
         self._optimizer.ema_momentum = ema_momentum
 
+    def finalize_variable_values(self, var_list):
+        self._optimizer.finalize_variable_values(var_list)
+
 
 class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
     """A fake optimizer used to support restoring TensorFlow 2.2 checkpoints.
