@@ -676,8 +676,9 @@ def update_confusion_matrix_variables(
     if top_k is not None:
         y_pred = _filter_top_k(y_pred, top_k)
     if class_id is not None:
-        y_true = y_true[..., class_id]
-        y_pred = y_pred[..., class_id]
+        # Preserve dimension to match with sample_weight
+        y_true = y_true[..., class_id, None]
+        y_pred = y_pred[..., class_id, None]
 
     if thresholds_distributed_evenly:
         return _update_confusion_matrix_variables_optimized(
