@@ -448,6 +448,12 @@ class Conv3DTest(test_combinations.TestCase):
             layer = keras.layers.Conv3D(**kwargs)
             layer.build((None, 5, 5, 5, 2))
 
+    def test_conv3d_zero_dim_output(self):
+        conv = keras.layers.Convolution3DTranspose(2, [3, 3, 3], padding="same")
+        x = tf.random.uniform([1, 32, 32, 0, 3], dtype=tf.float32)
+        # The layer doesn't crash with 0 dim input
+        _ = conv(x)
+
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class GroupedConvTest(test_combinations.TestCase):
