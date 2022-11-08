@@ -27,7 +27,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//keras:backend",
-        "//keras/optimizers/legacy:optimizer",
         "//keras/optimizers/optimizer_experimental:optimizer",
         "//keras/optimizers/optimizer_v2",
         "//keras/optimizers/schedules:learning_rate_schedule",
