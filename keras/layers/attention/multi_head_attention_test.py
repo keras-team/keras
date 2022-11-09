@@ -329,6 +329,23 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
         results = test_layer(query, value, key)
         self.assertAllEqual(results.shape.as_list(), query.shape.as_list())
 
+    def test_ragged_tensor_with_causal_mask_no_error(self):
+        ragged_tensor = tf.ragged.constant(
+            [
+                [[3.0, 1.0], [4.0, 1.0]],
+                [[5.0, 9.0], [2.0, 6.0], [3.0, 1.0]],
+                [[1.0, 2.0]],
+            ],
+            inner_shape=(2,),
+        )
+        test_layer = keras.layers.MultiHeadAttention(num_heads=5, key_dim=2)
+        results = test_layer(
+            ragged_tensor, ragged_tensor, ragged_tensor, use_causal_mask=True
+        )
+        self.assertAllEqual(
+            results.shape.as_list(), ragged_tensor.shape.as_list()
+        )
+
     def test_query_mask_progagation(self):
         """Test automatic propagation of the query's mask."""
         test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
