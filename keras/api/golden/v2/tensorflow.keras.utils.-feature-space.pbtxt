@@ -1,0 +1,61 @@
+path: "tensorflow.keras.utils.FeatureSpace"
+tf_class {
+  is_instance: "<class \'keras.utils.feature_space.FeatureSpace\'>"
+  is_instance: "<type \'object\'>"
+  member_method {
+    name: "__init__"
+    argspec: "args=[\'self\', \'features\', \'output_mode\', \'crosses\', \'crossing_dim\', \'hashing_dim\', \'num_discretization_bins\'], varargs=None, keywords=None, defaults=[\'concat\', \'None\', \'32\', \'32\', \'32\'], "
+  }
+  member_method {
+    name: "adapt"
+    argspec: "args=[\'self\', \'dataset\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "cross"
+    argspec: "args=[\'cls\', \'feature_names\', \'crossing_dim\', \'output_mode\'], varargs=None, keywords=None, defaults=[\'one_hot\'], "
+  }
+  member_method {
+    name: "feature"
+    argspec: "args=[\'cls\', \'dtype\', \'preprocessor\', \'output_mode\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "float"
+    argspec: "args=[\'cls\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "float_discretized"
+    argspec: "args=[\'cls\', \'num_bins\', \'bin_boundaries\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'one_hot\', \'None\'], "
+  }
+  member_method {
+    name: "float_normalized"
+    argspec: "args=[\'cls\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "float_rescaled"
+    argspec: "args=[\'cls\', \'scale\', \'offset\', \'name\'], varargs=None, keywords=None, defaults=[\'1.0\', \'0.0\', \'None\'], "
+  }
+  member_method {
+    name: "get_encoded_features"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "get_inputs"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "integer_categorical"
+    argspec: "args=[\'cls\', \'max_tokens\', \'num_oov_indices\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'1\', \'one_hot\', \'None\'], "
+  }
+  member_method {
+    name: "integer_hashed"
+    argspec: "args=[\'cls\', \'num_bins\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'one_hot\', \'None\'], "
+  }
+  member_method {
+    name: "string_categorical"
+    argspec: "args=[\'cls\', \'max_tokens\', \'num_oov_indices\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'None\', \'1\', \'one_hot\', \'None\'], "
+  }
+  member_method {
+    name: "string_hashed"
+    argspec: "args=[\'cls\', \'num_bins\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'one_hot\', \'None\'], "
+  }
+}

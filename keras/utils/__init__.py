@@ -14,10 +14,11 @@
 # ==============================================================================
 """Public Keras utilities."""
 
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+# isort: off
 
 # Serialization related
+from keras.saving.legacy.serialization import deserialize_keras_object
+from keras.saving.legacy.serialization import serialize_keras_object
 from keras.saving.object_registration import CustomObjectScope
 from keras.saving.object_registration import custom_object_scope
 from keras.saving.object_registration import get_custom_objects
@@ -26,17 +27,16 @@ from keras.saving.object_registration import register_keras_serializable
 
 # Dataset related
 from keras.utils.audio_dataset import audio_dataset_from_directory
+from keras.utils.text_dataset import text_dataset_from_directory
+from keras.utils.timeseries_dataset import timeseries_dataset_from_array
+from keras.utils.image_dataset import image_dataset_from_directory
+from keras.utils.dataset_utils import split_dataset
 
 # Sequence related
 from keras.utils.data_utils import GeneratorEnqueuer
 from keras.utils.data_utils import OrderedEnqueuer
 from keras.utils.data_utils import Sequence
 from keras.utils.data_utils import SequenceEnqueuer
-from keras.utils.data_utils import get_file
-from keras.utils.data_utils import pad_sequences
-from keras.utils.dataset_utils import split_dataset
-from keras.utils.generic_utils import Progbar
-from keras.utils.image_dataset import image_dataset_from_directory
 
 # Image related
 from keras.utils.image_utils import array_to_img
@@ -44,18 +44,24 @@ from keras.utils.image_utils import img_to_array
 from keras.utils.image_utils import load_img
 from keras.utils.image_utils import save_img
 
+# Python utils
+from keras.utils.tf_utils import set_random_seed
+from keras.utils.generic_utils import Progbar
+from keras.utils.data_utils import get_file
+
+# Preprocessing utils
+from keras.utils.feature_space import FeatureSpace
+
 # Internal
 from keras.utils.layer_utils import get_source_inputs
 
 # Deprecated
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
+from keras.utils.data_utils import pad_sequences
 
 # Evaluation related
 from keras.utils.sidecar_evaluator import SidecarEvaluator
-from keras.utils.text_dataset import text_dataset_from_directory
-from keras.utils.tf_utils import set_random_seed
-from keras.utils.timeseries_dataset import timeseries_dataset_from_array
 
 # Visualization related
 from keras.utils.vis_utils import model_to_dot
