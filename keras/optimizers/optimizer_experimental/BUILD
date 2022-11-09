@@ -39,7 +39,7 @@ distribute_py_test(
     name = "optimizer_test",
     size = "medium",
     srcs = ["optimizer_test.py"],
-    shard_count = 8,
+    shard_count = 16,
     tags = [
         "multi_gpu",
         "no_windows",
