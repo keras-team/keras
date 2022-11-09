@@ -2349,11 +2349,13 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         write_steps_per_second: whether to log the training steps per second
           into Tensorboard. This supports both epoch and batch frequency
           logging.
-        update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`,
-          writes the losses and metrics to TensorBoard after each batch. The
-          same applies for `'epoch'`. If using an integer, let's say `1000`, the
-          callback will write the metrics and losses to TensorBoard every 1000
-          batches. Note that writing too frequently to TensorBoard can slow down
+        update_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
+          writes the losses and metrics to TensorBoard after every epoch.
+          If using an integer, let's say `1000`, all metrics and losses
+          (including custom ones added by `Model.compile`) will be logged to
+          TensorBoard every 1000 batches. `'batch'` is a synonym for `1`,
+          meaning that they will be written every batch.
+          Note however that writing too frequently to TensorBoard can slow down
           your training, especially when used with `tf.distribute.Strategy` as
           it will incur additional synchronization overhead.
           Use with `ParameterServerStrategy` is not supported.
@@ -2777,9 +2779,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 step=self._train_step,
             )
 
-        # `logs` is a `tf.distribute.experimental.coordinator.RemoteValue` when
-        # using asynchronous strategies, for now we just disable `update_freq`
-        # entirely in those cases.
+        # `logs` isn't necessarily always a dict. For example, when using
+        # `tf.distribute.experimental.ParameterServerStrategy`, a
+        # `tf.distribute.experimental.coordinator.RemoteValue` will be passed.
+        # For now, we just disable `update_freq` in those cases.
         if isinstance(logs, dict):
             for name, value in logs.items():
                 tf.summary.scalar("batch_" + name, value, step=self._train_step)

@@ -117,8 +117,9 @@ class DistributedTrainingTest(tf.test.TestCase):
             strategy.cluster_resolver
             and strategy.cluster_resolver.task_type == "worker"
         ):
-            # Workaround for an issue with
-            # `tf.distribute.MultiWorkerMirroredStrategy`
+            # The below assertion is run by both chief and workers when using
+            # `tf.distribute.MultiWorkerMirroredStrategy`, but only the chief
+            # will log events.
             events_expected = []
 
         self.assertEqual(events_got, events_expected)
