@@ -23,15 +23,6 @@ import tensorflow.compat.v2 as tf
 
 # Imports needed for deserialization.
 from keras import backend
-from keras.optimizers.legacy import adadelta as adadelta_legacy
-from keras.optimizers.legacy import adagrad as adagrad_legacy
-from keras.optimizers.legacy import adam as adam_legacy
-from keras.optimizers.legacy import adamax as adamax_legacy
-from keras.optimizers.legacy import ftrl as ftrl_legacy
-from keras.optimizers.legacy import nadam as nadam_legacy
-from keras.optimizers.legacy import optimizer as optimizer_legacy
-from keras.optimizers.legacy import rmsprop as rmsprop_legacy
-from keras.optimizers.legacy import sgd as sgd_legacy
 from keras.optimizers.optimizer_experimental import (
     adadelta as adadelta_experimental,
 )
