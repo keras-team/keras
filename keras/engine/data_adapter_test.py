@@ -1482,6 +1482,14 @@ class TestDataAdapterUtils(DataAdapterTestBase):
         )
         self.assertEqual(tuple_version, list_version)
 
+    def test_unpack_pack_dict(self):
+        # A dictionary can be unambiguously represented without a tuple.
+        x = {"key": self.tensor_input}
+        packed_x = data_adapter.pack_x_y_sample_weight(x)
+        self.assertEqual(packed_x, x)
+        unpacked_x, _, _ = data_adapter.unpack_x_y_sample_weight(x)
+        self.assertEqual(unpacked_x, x)
+
 
 if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution()
