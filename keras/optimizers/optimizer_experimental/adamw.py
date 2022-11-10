@@ -71,13 +71,6 @@ class AdamW(optimizer.Optimizer):
 
     Notes:
 
-    The default value of 1e-7 for epsilon might not be a good default in
-    general. For example, when training an Inception network on ImageNet a
-    current good choice is 1.0 or 0.1. Note that since Adam uses the
-    formulation just before Section 2.1 of the Kingma and Ba paper rather than
-    the formulation in Algorithm 1, the "epsilon" referred to here is "epsilon
-    hat" in the paper.
-
     The sparse implementation of this algorithm (used when the gradient is an
     IndexedSlices object, typically because of `tf.gather` or an embedding
     lookup in the forward pass) does apply momentum to variable slices even if
