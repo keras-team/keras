@@ -457,10 +457,10 @@ def _update_confusion_matrix_variables_optimized(
             )
 
         tp_bucket_v = tf.vectorized_map(
-            gather_bucket, (true_labels, bucket_indices)
+            gather_bucket, (true_labels, bucket_indices), warn=False
         )
         fp_bucket_v = tf.vectorized_map(
-            gather_bucket, (false_labels, bucket_indices)
+            gather_bucket, (false_labels, bucket_indices), warn=False
         )
         tp = tf.transpose(tf.cumsum(tp_bucket_v, reverse=True, axis=1))
         fp = tf.transpose(tf.cumsum(fp_bucket_v, reverse=True, axis=1))

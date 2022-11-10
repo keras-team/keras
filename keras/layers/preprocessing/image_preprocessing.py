@@ -337,7 +337,7 @@ class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
     @property
     def _map_fn(self):
         if self.auto_vectorize:
-            return tf.vectorized_map
+            return lambda fn, x: tf.vectorized_map(fn, x, warn=False)
         else:
             return tf.map_fn
 
