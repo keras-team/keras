@@ -384,7 +384,7 @@ def tracing_scope():
     finally:
         # Run traces from the queue.
         while _thread_local_data.trace_queue:
-            fn, args, kwargs, training = _thread_local_data.trace_queue.pop()
+            fn, args, kwargs, training = _thread_local_data.trace_queue.pop(0)
             if training is not None:
                 with backend.deprecated_internal_learning_phase_scope(training):
                     fn.get_concrete_function(*args, **kwargs)

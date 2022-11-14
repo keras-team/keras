@@ -1257,6 +1257,33 @@ class TestSavedModelFormat(tf.test.TestCase):
         output = loaded(tf.random.uniform([1, 3]), training=True)
         self.assertAllEqual([1, 3], output.shape)
 
+    def test_random_generator_with_tracing(self):
+        # This test is to ensure we trace the training = True function first,
+        # otherwise tf.function will raise error about creating variables in the
+        # non-first call.
+        class LayerWithDropout(keras.layers.Layer):
+            def __init__(self, dropout_rate):
+                super().__init__()
+                self.dropout_rate = dropout_rate
+                self.dropout_layer = keras.layers.Dropout(self.dropout_rate)
+
+            def call(self, inputs, training=None):
+                if not training:
+                    return inputs
+                else:
+                    return self.dropout_layer(inputs, training=training)
+
+        root = keras.models.Sequential(
+            [keras.layers.Input(shape=(3,)), LayerWithDropout(0.1)]
+        )
+        saved_model_dir = self._save_model_dir()
+        root.save(saved_model_dir, save_format="tf")
+
+        loaded = keras_load.load(saved_model_dir)
+
+        output = loaded(tf.random.uniform([1, 3]), training=True)
+        self.assertAllEqual([1, 3], output.shape)
+
 
 class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
     def test_functions_have_same_trace(self):
