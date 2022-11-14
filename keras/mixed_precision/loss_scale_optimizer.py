@@ -18,9 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import optimizers
-from keras.optimizers.optimizer_experimental import (
-    optimizer as optimizer_experimental,
-)
+from keras.optimizers import optimizer
 from keras.optimizers.optimizer_v2 import optimizer_v2
 from keras.optimizers.optimizer_v2 import utils as optimizer_utils
 from keras.saving.legacy import serialization
@@ -332,7 +330,7 @@ class LossScaleOptimizerMetaclass(type):
             )
         if isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
             return LossScaleOptimizer(inner_optimizer, *args, **kwargs)
-        elif isinstance(inner_optimizer, optimizer_experimental.Optimizer):
+        elif isinstance(inner_optimizer, optimizer.Optimizer):
             return LossScaleOptimizerV3(inner_optimizer, *args, **kwargs)
 
         # Raise TypeError because inner_optimizer is not an optimizer
@@ -593,12 +591,12 @@ class LossScaleOptimizer(
         dynamic_growth_steps=None,
     ):
         if not isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
-            if isinstance(inner_optimizer, optimizer_experimental.Optimizer):
+            if isinstance(inner_optimizer, optimizer.Optimizer):
                 # Give better error message if the new experimental optimizer is
                 # passed.
                 raise TypeError(
                     "You passed an instance of the new experimental "
-                    "optimizer, `optimizer_experimental.Optimizer`, "
+                    "optimizer, `optimizer.Optimizer`, "
                     "to LossScaleOptimizer, but "
                     "only the classic optimizers subclassing from "
                     "`tf.keras.optimizers.Optimizer` can be passed. Please "
@@ -1076,7 +1074,7 @@ class LossScaleOptimizer(
 
 class LossScaleOptimizerV3(
     tf.__internal__.tracking.DelegatingTrackableMixin,
-    optimizer_experimental.Optimizer,
+    optimizer.Optimizer,
     BaseLossScaleOptimizer,
 ):
     """An optimizer that applies loss scaling to prevent numeric underflow.
@@ -1103,7 +1101,7 @@ class LossScaleOptimizerV3(
         initial_scale=None,
         dynamic_growth_steps=None,
     ):
-        if not isinstance(inner_optimizer, optimizer_experimental.Optimizer):
+        if not isinstance(inner_optimizer, optimizer.Optimizer):
             if isinstance(inner_optimizer, optimizer_v2.OptimizerV2):
                 # Give better error message if the OptimizerV2 class is passed
                 # instead of the new experimental optimizer.

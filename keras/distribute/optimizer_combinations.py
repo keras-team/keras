@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import adam as adam_experimental
+from keras.optimizers import adam as adam_experimental
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_keras_v2
 from keras.optimizers.optimizer_v2 import adagrad as adagrad_keras_v2
 from keras.optimizers.optimizer_v2 import adam as adam_keras_v2

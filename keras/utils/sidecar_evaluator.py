@@ -19,9 +19,7 @@ import tensorflow.compat.v2 as tf
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import deprecation
-from keras.optimizers.optimizer_experimental import (
-    optimizer as optimizer_experimental,
-)
+from keras.optimizers import optimizer
 from tensorflow.python.util.tf_export import keras_export
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
@@ -205,7 +203,7 @@ class SidecarEvaluator:
     def start(self):
         """Starts the evaluation loop."""
         if self.model.optimizer and isinstance(
-            self.model.optimizer, optimizer_experimental.Optimizer
+            self.model.optimizer, optimizer.Optimizer
         ):
             checkpoint = tf.train.Checkpoint(
                 model=self.model, optimizer=self.model.optimizer
@@ -241,7 +239,7 @@ class SidecarEvaluator:
                 # iterations property to be used in callbacks.
                 if self.model.optimizer and not isinstance(
                     self.model.optimizer,
-                    optimizer_experimental.Optimizer,
+                    optimizer.Optimizer,
                 ):
                     # experimental optimizer automatically restores the
                     # iteration value.
@@ -265,7 +263,7 @@ class SidecarEvaluator:
                 self._iterations.numpy() == _ITERATIONS_UNINITIALIZED
                 and not isinstance(
                     self.model.optimizer,
-                    optimizer_experimental.Optimizer,
+                    optimizer.Optimizer,
                 )
             ):
                 raise RuntimeError(

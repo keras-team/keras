@@ -37,8 +37,8 @@ from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
 from keras.mixed_precision import policy
 from keras.optimizers import optimizer_v2
-from keras.optimizers.optimizer_experimental import rmsprop
-from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import data_utils
