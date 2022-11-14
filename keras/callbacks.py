@@ -2359,6 +2359,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
           your training, especially when used with `tf.distribute.Strategy` as
           it will incur additional synchronization overhead.
           Use with `ParameterServerStrategy` is not supported.
+          Batch-level summary writing is also available via `train_step`
+          override. Please see
+          [TensorBoard Scalars tutorial](https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)  # noqa: E501
+          for more details.
         profile_batch: Profile the batch(es) to sample compute characteristics.
           profile_batch must be a non-negative integer or a tuple of integers.
           A pair of positive integers signify a range of batches to profile.
