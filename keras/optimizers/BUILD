@@ -38,11 +38,21 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":utils",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/optimizers/optimizer_v2",
         "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:engine_utils",
+    ],
+)
+
+py_library(
+    name = "utils",
+    srcs = ["utils.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
     ],
 )
 
