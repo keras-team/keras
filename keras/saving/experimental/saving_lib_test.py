@@ -26,7 +26,7 @@ from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import backend
-from keras.optimizers.optimizer_experimental import adam
+from keras.optimizers import adam
 from keras.saving import object_registration
 from keras.saving.experimental import saving_lib
 from keras.saving.legacy.saved_model import json_utils
@@ -152,7 +152,9 @@ class CompileOverridingSequential(keras.Sequential):
 @keras.utils.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, added here as a custom
-    func."""
+
+    func.
+    """
     return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
 
 

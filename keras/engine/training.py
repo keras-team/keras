@@ -34,10 +34,8 @@ from keras.engine import data_adapter
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
 from keras.mixed_precision import loss_scale_optimizer as lso
+from keras.optimizers import optimizer
 from keras.optimizers import optimizer_v1
-from keras.optimizers.optimizer_experimental import (
-    optimizer as optimizer_experimental,
-)
 from keras.saving import pickle_utils
 from keras.saving import saving_api
 from keras.saving.experimental import saving_lib
@@ -1746,10 +1744,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if self.stop_training:
                     break
 
-            if (
-                isinstance(self.optimizer, optimizer_experimental.Optimizer)
-                and epochs > 0
-            ):
+            if isinstance(self.optimizer, optimizer.Optimizer) and epochs > 0:
                 self.optimizer.finalize_variable_values(
                     self.trainable_variables
                 )

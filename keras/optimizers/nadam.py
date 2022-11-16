@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Adam optimizer implementation."""
+"""Nadam optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
@@ -25,20 +25,13 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.Adam", "keras.optimizers.experimental.Adam", v1=[]
+    "keras.optimizers.experimental.Nadam", "keras.optimizers.Nadam", v1=[]
 )
-class Adam(optimizer.Optimizer):
-    r"""Optimizer that implements the Adam algorithm.
+class Nadam(optimizer.Optimizer):
+    r"""Optimizer that implements the Nadam algorithm.
 
-    Adam optimization is a stochastic gradient descent method that is based on
-    adaptive estimation of first-order and second-order moments.
-
-    According to
-    [Kingma et al., 2014](http://arxiv.org/abs/1412.6980),
-    the method is "*computationally
-    efficient, has little memory requirement, invariant to diagonal rescaling of
-    gradients, and is well suited for problems that are large in terms of
-    data/parameters*".
+    Much like Adam is essentially RMSprop with momentum, Nadam is Adam with
+    Nesterov momentum.
 
     Args:
       learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
@@ -55,32 +48,11 @@ class Adam(optimizer.Optimizer):
         "epsilon hat" in the Kingma and Ba paper (in the formula just before
         Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults to
         1e-7.
-      amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm from
-        the paper "On the Convergence of Adam and beyond". Defaults to `False`.
       {{base_optimizer_keyword_args}}
 
     Reference:
-      - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
-      - [Reddi et al., 2018](
-          https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
+      - [Dozat, 2015](http://cs229.stanford.edu/proj2015/054_report.pdf).
 
-    Notes:
-
-    The default value of 1e-7 for epsilon might not be a good default in
-    general. For example, when training an Inception network on ImageNet a
-    current good choice is 1.0 or 0.1. Note that since Adam uses the
-    formulation just before Section 2.1 of the Kingma and Ba paper rather than
-    the formulation in Algorithm 1, the "epsilon" referred to here is "epsilon
-    hat" in the paper.
-
-    The sparse implementation of this algorithm (used when the gradient is an
-    IndexedSlices object, typically because of `tf.gather` or an embedding
-    lookup in the forward pass) does apply momentum to variable slices even if
-    they were not used in the forward pass (meaning they have a gradient equal
-    to zero). Momentum decay (beta1) is also applied to the entire momentum
-    accumulator. This means that the sparse behavior is equivalent to the dense
-    behavior (in contrast to some momentum implementations which ignore momentum
-    unless a variable slice was actually used).
     """
 
     def __init__(
@@ -89,7 +61,6 @@ class Adam(optimizer.Optimizer):
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-7,
-        amsgrad=False,
         weight_decay=None,
         clipnorm=None,
         clipvalue=None,
@@ -98,7 +69,7 @@ class Adam(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="Adam",
+        name="Nadam",
         **kwargs
     ):
         super().__init__(
@@ -117,23 +88,26 @@ class Adam(optimizer.Optimizer):
         self.beta_1 = beta_1
         self.beta_2 = beta_2
         self.epsilon = epsilon
-        self.amsgrad = amsgrad
 
     def build(self, var_list):
         """Initialize optimizer variables.
 
-        Adam optimizer has 3 types of variables: momentums, velocities and
-        velocity_hat (only set when amsgrad is applied),
+        Nadam optimizer has 2 types of variables: momentums and velocities.
 
         Args:
-          var_list: list of model variables to build Adam variables on.
+          var_list: list of model variables to build Nadam variables on.
         """
         super().build(var_list)
-        if hasattr(self, "_built") and self._built:
+        if getattr(self, "_built", False):
             return
         self._built = True
         self._momentums = []
         self._velocities = []
+        self._u_product = tf.Variable(1.0, dtype=var_list[0].dtype)
+        # Keep a counter on how many times of _u_product has been computed to
+        # avoid duplicated computations.
+        self._u_product_counter = 1
+
         for var in var_list:
             self._momentums.append(
                 self.add_variable_from_reference(
@@ -145,59 +119,70 @@ class Adam(optimizer.Optimizer):
                     model_variable=var, variable_name="v"
                 )
             )
-        if self.amsgrad:
-            self._velocity_hats = []
-            for var in var_list:
-                self._velocity_hats.append(
-                    self.add_variable_from_reference(
-                        model_variable=var, variable_name="vhat"
-                    )
-                )
 
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
-        beta_1_power = None
-        beta_2_power = None
-        lr = tf.cast(self.learning_rate, variable.dtype)
-        local_step = tf.cast(self.iterations + 1, variable.dtype)
-        beta_1_power = tf.pow(tf.cast(self.beta_1, variable.dtype), local_step)
-        beta_2_power = tf.pow(tf.cast(self.beta_2, variable.dtype), local_step)
+        var_dtype = variable.dtype
+        lr = tf.cast(self.learning_rate, var_dtype)
+        local_step = tf.cast(self.iterations + 1, var_dtype)
+        next_step = tf.cast(self.iterations + 2, var_dtype)
+        decay = tf.cast(0.96, var_dtype)
+        beta_1 = tf.cast(self.beta_1, var_dtype)
+        beta_2 = tf.cast(self.beta_2, var_dtype)
+        u_t = beta_1 * (1.0 - 0.5 * (tf.pow(decay, local_step)))
+        u_t_1 = beta_1 * (1.0 - 0.5 * (tf.pow(decay, next_step)))
+
+        def get_cached_u_product():
+            return self._u_product
+
+        def compute_new_u_product():
+            u_product_t = self._u_product * u_t
+            self._u_product.assign(u_product_t)
+            self._u_product_counter += 1
+            return u_product_t
+
+        u_product_t = tf.cond(
+            self._u_product_counter == (self.iterations + 2),
+            true_fn=get_cached_u_product,
+            false_fn=compute_new_u_product,
+        )
+        u_product_t_1 = u_product_t * u_t_1
+        beta_2_power = tf.pow(beta_2, local_step)
 
         var_key = self._var_key(variable)
         m = self._momentums[self._index_dict[var_key]]
         v = self._velocities[self._index_dict[var_key]]
 
-        alpha = lr * tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)
-
         if isinstance(gradient, tf.IndexedSlices):
             # Sparse gradients.
-            m.assign_add(-m * (1 - self.beta_1))
+            m.assign_add(-m * (1 - beta_1))
             m.scatter_add(
                 tf.IndexedSlices(
-                    gradient.values * (1 - self.beta_1), gradient.indices
+                    gradient.values * (1 - beta_1), gradient.indices
                 )
             )
-            v.assign_add(-v * (1 - self.beta_2))
+            v.assign_add(-v * (1 - beta_2))
             v.scatter_add(
                 tf.IndexedSlices(
-                    tf.square(gradient.values) * (1 - self.beta_2),
-                    gradient.indices,
+                    tf.square(gradient.values) * (1 - beta_2), gradient.indices
                 )
             )
-            if self.amsgrad:
-                v_hat = self._velocity_hats[self._index_dict[var_key]]
-                v_hat.assign(tf.maximum(v_hat, v))
-                v = v_hat
-            variable.assign_sub((m * alpha) / (tf.sqrt(v) + self.epsilon))
+            m_hat = u_t_1 * m / (1 - u_product_t_1) + (1 - u_t) * gradient / (
+                1 - u_product_t
+            )
+            v_hat = v / (1 - beta_2_power)
+
+            variable.assign_sub((m_hat * lr) / (tf.sqrt(v_hat) + self.epsilon))
         else:
             # Dense gradients.
-            m.assign_add((gradient - m) * (1 - self.beta_1))
-            v.assign_add((tf.square(gradient) - v) * (1 - self.beta_2))
-            if self.amsgrad:
-                v_hat = self._velocity_hats[self._index_dict[var_key]]
-                v_hat.assign(tf.maximum(v_hat, v))
-                v = v_hat
-            variable.assign_sub((m * alpha) / (tf.sqrt(v) + self.epsilon))
+            m.assign_add((gradient - m) * (1 - beta_1))
+            v.assign_add((tf.square(gradient) - v) * (1 - beta_2))
+            m_hat = u_t_1 * m / (1 - u_product_t_1) + (1 - u_t) * gradient / (
+                1 - u_product_t
+            )
+            v_hat = v / (1 - beta_2_power)
+
+            variable.assign_sub((m_hat * lr) / (tf.sqrt(v_hat) + self.epsilon))
 
     def get_config(self):
         config = super().get_config()
@@ -210,12 +195,11 @@ class Adam(optimizer.Optimizer):
                 "beta_1": self.beta_1,
                 "beta_2": self.beta_2,
                 "epsilon": self.epsilon,
-                "amsgrad": self.amsgrad,
             }
         )
         return config
 
 
-Adam.__doc__ = Adam.__doc__.replace(
+Nadam.__doc__ = Nadam.__doc__.replace(
     "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
 )

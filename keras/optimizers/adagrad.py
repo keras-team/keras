@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Adadelta optimizer implementation."""
+"""Adagrad optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras import initializers
+from keras.optimizers import optimizer
 from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
@@ -25,46 +26,39 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.experimental.Adadelta", "keras.optimizers.Adadelta", v1=[]
+    "keras.optimizers.experimental.Adagrad", "keras.optimizers.Adagrad", v1=[]
 )
-class Adadelta(optimizer.Optimizer):
-    r"""Optimizer that implements the Adadelta algorithm.
+class Adagrad(optimizer.Optimizer):
+    r"""Optimizer that implements the Adagrad algorithm.
 
-    Adadelta optimization is a stochastic gradient descent method that is based
-    on adaptive learning rate per dimension to address two drawbacks:
-
-    - The continual decay of learning rates throughout training.
-    - The need for a manually selected global learning rate.
-
-    Adadelta is a more robust extension of Adagrad that adapts learning rates
-    based on a moving window of gradient updates, instead of accumulating all
-    past gradients. This way, Adadelta continues learning even when many updates
-    have been done. Compared to Adagrad, in the original version of Adadelta you
-    don't have to set an initial learning rate. In this version, the initial
-    learning rate can be set, as in most other Keras optimizers.
+    Adagrad is an optimizer with parameter-specific learning rates,
+    which are adapted relative to how frequently a parameter gets
+    updated during training. The more updates a parameter receives,
+    the smaller the updates.
 
     Args:
       learning_rate: Initial value for the learning rate:
         either a floating point value,
         or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
         Defaults to 0.001.
-        Note that `Adadelta` tends to benefit from higher initial learning rate
+        Note that `Adagrad` tends to benefit from higher initial learning rate
         values compared to other optimizers.
         To match the exact form in the original paper, use 1.0.
-      rho: A `Tensor` or a floating point value. The decay rate. Defaults to
-        0.95.
+      initial_accumulator_value: Floating point value.
+        Starting value for the accumulators (per-parameter momentum values).
+        Must be non-negative.
       epsilon: Small floating point value used to maintain numerical stability.
-        Defaults to 1e-7.
       {{base_optimizer_keyword_args}}
 
     Reference:
-      - [Zeiler, 2012](http://arxiv.org/abs/1212.5701)
+      - [Duchi et al., 2011](
+        http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf).
     """
 
     def __init__(
         self,
         learning_rate=0.001,
-        rho=0.95,
+        initial_accumulator_value=0.1,
         epsilon=1e-7,
         weight_decay=None,
         clipnorm=None,
@@ -74,7 +68,7 @@ class Adadelta(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="Adadelta",
+        name="Adagrad",
         **kwargs
     ):
         super().__init__(
@@ -90,7 +84,7 @@ class Adadelta(optimizer.Optimizer):
             **kwargs
         )
         self._learning_rate = self._build_learning_rate(learning_rate)
-        self.rho = rho
+        self.initial_accumulator_value = initial_accumulator_value
         self.epsilon = epsilon
 
     def build(self, var_list):
@@ -98,14 +92,15 @@ class Adadelta(optimizer.Optimizer):
         if hasattr(self, "_built") and self._built:
             return
         self._built = True
-        self._accumulated_grads = []
-        self._accumulated_delta_vars = []
+        self._accumulators = []
+        initializer = initializers.Constant(self.initial_accumulator_value)
         for var in var_list:
-            self._accumulated_grads.append(
-                self.add_variable_from_reference(var, "accumulated_grad")
-            )
-            self._accumulated_delta_vars.append(
-                self.add_variable_from_reference(var, "accumulated_delta_var")
+            self._accumulators.append(
+                self.add_variable_from_reference(
+                    var,
+                    "accumulator",
+                    initial_value=initializer(shape=var.shape, dtype=var.dtype),
+                )
             )
 
     def update_step(self, grad, variable):
@@ -113,41 +108,24 @@ class Adadelta(optimizer.Optimizer):
         lr = tf.cast(self.learning_rate, variable.dtype)
 
         var_key = self._var_key(variable)
-        rho = self.rho
-        accumulated_grad = self._accumulated_grads[self._index_dict[var_key]]
-        accumulated_delta_var = self._accumulated_delta_vars[
-            self._index_dict[var_key]
-        ]
-
-        def rms(x):
-            return tf.sqrt(x + self.epsilon)
+        accumulator = self._accumulators[self._index_dict[var_key]]
 
         if isinstance(grad, tf.IndexedSlices):
             # Sparse gradients.
-            accumulated_grad.assign_add((rho - 1) * accumulated_grad)
-            accumulated_grad.scatter_add(
+            accumulator.scatter_add(
+                tf.IndexedSlices(grad.values * grad.values, grad.indices)
+            )
+            sparse_accumulator = tf.gather(accumulator, indices=grad.indices)
+            sparse_denominator = tf.sqrt(sparse_accumulator + self.epsilon)
+            variable.scatter_add(
                 tf.IndexedSlices(
-                    (1 - rho) * tf.square(grad.values), grad.indices
+                    -lr * grad.values / sparse_denominator, grad.indices
                 )
-            )
-            delta_var = (
-                -rms(accumulated_delta_var) * grad / rms(accumulated_grad)
-            )
-            accumulated_delta_var.assign(
-                rho * accumulated_delta_var + (1 - rho) * delta_var * delta_var
             )
         else:
             # Dense gradients.
-            accumulated_grad.assign(
-                rho * accumulated_grad + (1 - rho) * grad * grad
-            )
-            delta_var = (
-                -rms(accumulated_delta_var) * grad / rms(accumulated_grad)
-            )
-            accumulated_delta_var.assign(
-                rho * accumulated_delta_var + (1 - rho) * delta_var * delta_var
-            )
-        variable.assign_add(lr * delta_var)
+            accumulator.assign_add(grad * grad)
+            variable.assign_sub(lr * grad / tf.sqrt(accumulator + self.epsilon))
 
     def get_config(self):
         config = super().get_config()
@@ -157,13 +135,13 @@ class Adadelta(optimizer.Optimizer):
                 "learning_rate": self._serialize_hyperparameter(
                     self._learning_rate
                 ),
-                "rho": self.rho,
+                "initial_accumulator_value": self.initial_accumulator_value,
                 "epsilon": self.epsilon,
             }
         )
         return config
 
 
-Adadelta.__doc__ = Adadelta.__doc__.replace(
+Adagrad.__doc__ = Adagrad.__doc__.replace(
     "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
 )

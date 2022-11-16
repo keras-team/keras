@@ -22,10 +22,8 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.optimizers import optimizer as optimizer_base
 from keras.optimizers import optimizer_v1
-from keras.optimizers.optimizer_experimental import (
-    optimizer as optimizer_experimental,
-)
 from keras.saving.legacy import model_config as model_config_lib
 from keras.saving.legacy import saving_utils
 from keras.saving.legacy.saved_model import json_utils
@@ -223,9 +221,7 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
             # Set optimizer weights.
             if "optimizer_weights" in f:
                 try:
-                    if isinstance(
-                        model.optimizer, optimizer_experimental.Optimizer
-                    ):
+                    if isinstance(model.optimizer, optimizer_base.Optimizer):
                         model.optimizer.build(model.trainable_variables)
                     else:
                         model.optimizer._create_all_weights(
@@ -668,7 +664,7 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
         hdf5_group: HDF5 group.
         optimizer: optimizer instance.
     """
-    if isinstance(optimizer, optimizer_experimental.Optimizer):
+    if isinstance(optimizer, optimizer_base.Optimizer):
         symbolic_weights = optimizer.variables()
     else:
         symbolic_weights = getattr(optimizer, "weights")

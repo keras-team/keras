@@ -10,16 +10,16 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.optimizers.optimizer_experimental import adadelta as adadelta_new
-from keras.optimizers.optimizer_experimental import adafactor as adafactor_new
-from keras.optimizers.optimizer_experimental import adagrad as adagrad_new
-from keras.optimizers.optimizer_experimental import adam as adam_new
-from keras.optimizers.optimizer_experimental import adamax as adamax_new
-from keras.optimizers.optimizer_experimental import adamw as adamw_new
-from keras.optimizers.optimizer_experimental import ftrl as ftrl_new
-from keras.optimizers.optimizer_experimental import nadam as nadam_new
-from keras.optimizers.optimizer_experimental import rmsprop as rmsprop_new
-from keras.optimizers.optimizer_experimental import sgd as sgd_new
+from keras.optimizers import adadelta as adadelta_new
+from keras.optimizers import adafactor as adafactor_new
+from keras.optimizers import adagrad as adagrad_new
+from keras.optimizers import adam as adam_new
+from keras.optimizers import adamax as adamax_new
+from keras.optimizers import adamw as adamw_new
+from keras.optimizers import ftrl as ftrl_new
+from keras.optimizers import nadam as nadam_new
+from keras.optimizers import rmsprop as rmsprop_new
+from keras.optimizers import sgd as sgd_new
 from keras.optimizers.optimizer_v2 import adadelta as adadelta_old
 from keras.optimizers.optimizer_v2 import adagrad as adagrad_old
 from keras.optimizers.optimizer_v2 import adam as adam_old
@@ -27,6 +27,7 @@ from keras.optimizers.optimizer_v2 import ftrl as ftrl_old
 from keras.optimizers.optimizer_v2 import gradient_descent as sgd_old
 from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_old
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -531,6 +532,76 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             optimizer_1.apply_gradients(zip([grads], [x1]))
             optimizer_2.apply_gradients(zip([sparse_grads], [x2]))
             self.assertAllClose(x1, x2)
+
+    @test_utils.run_v2_only
+    def test_convert_to_legacy_optimizer(self):
+        if not tf.executing_eagerly():
+            # The conversion could only happen in eager mode.
+            return
+        optimizer_list = [
+            "adadelta",
+            "adagrad",
+            "adam",
+            "adamax",
+            "nadam",
+            "rmsprop",
+            "sgd",
+            "ftrl",
+        ]
+        # Test conversion does not throw errors.
+        for name in optimizer_list:
+            experimental_optimizer = keras.optimizers.get(
+                name, use_legacy_optimizer=False
+            )
+            reference_legacy_optimizer = keras.optimizers.get(
+                name, use_legacy_optimizer=True
+            )
+            converted_legacy_optimizer = (
+                keras.optimizers.convert_to_legacy_optimizer(
+                    experimental_optimizer
+                )
+            )
+            self.assertEqual(
+                type(reference_legacy_optimizer),
+                type(converted_legacy_optimizer),
+            )
+            self.assertDictEqual(
+                reference_legacy_optimizer.get_config(),
+                converted_legacy_optimizer.get_config(),
+            )
+
+        lr_schedule = learning_rate_schedule.ExponentialDecay(
+            initial_learning_rate=1e-2, decay_steps=10000, decay_rate=0.9
+        )
+        optimizer = adam_new.Adam(learning_rate=lr_schedule)
+        legacy_optimizer = keras.optimizers.convert_to_legacy_optimizer(
+            optimizer
+        )
+        self.assertDictEqual(
+            optimizer.get_config()["learning_rate"],
+            legacy_optimizer.get_config()["learning_rate"],
+        )
+
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        lr_schedule = CustomLRSchedule(0.001)
+        optimizer = adam_new.Adam(learning_rate=lr_schedule)
+        legacy_optimizer = keras.optimizers.convert_to_legacy_optimizer(
+            optimizer
+        )
+        self.assertDictEqual(
+            optimizer.get_config()["learning_rate"],
+            legacy_optimizer.get_config()["learning_rate"],
+        )
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):

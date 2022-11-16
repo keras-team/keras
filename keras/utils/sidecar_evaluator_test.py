@@ -24,7 +24,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.optimizers.optimizer_experimental import sgd
+from keras.optimizers import sgd
 from keras.testing_infra import test_utils
 from keras.utils import sidecar_evaluator as sidecar_evaluator_lib
 

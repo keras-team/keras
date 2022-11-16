@@ -14,16 +14,17 @@
 # ==============================================================================
 """DTensor specific Keras optimizers."""
 
+
 import tensorflow.compat.v2 as tf
 
 from keras.dtensor import dtensor_api as dtensor
-from keras.optimizers.optimizer_experimental import adadelta
-from keras.optimizers.optimizer_experimental import adagrad
-from keras.optimizers.optimizer_experimental import adam
-from keras.optimizers.optimizer_experimental import adamw
-from keras.optimizers.optimizer_experimental import optimizer as optimizer_lib
-from keras.optimizers.optimizer_experimental import rmsprop
-from keras.optimizers.optimizer_experimental import sgd
+from keras.optimizers import adadelta
+from keras.optimizers import adagrad
+from keras.optimizers import adam
+from keras.optimizers import adamw
+from keras.optimizers import optimizer as optimizer_lib
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd
 from keras.optimizers.schedules import learning_rate_schedule
 
 # isort: off
@@ -36,7 +37,6 @@ class Optimizer(optimizer_lib._BaseOptimizer):
 
     The major changes for this class is that all the variable init logic will be
     mesh/layout aware.
-
     """
 
     # Note that we didn't subclass optimizer_lib.Optimizer since it contains the
@@ -49,8 +49,8 @@ class Optimizer(optimizer_lib._BaseOptimizer):
         Args:
           name: String. The name of the optimizer, which will appear in all the
             state variables created by this optimizer.
-          mesh: dtensor.Mesh. The optional Mesh which will be used to create
-            the states. Note that usually the state variable will use the layout
+          mesh: dtensor.Mesh. The optional Mesh which will be used to create the
+            states. Note that usually the state variable will use the layout
             from the corresponding model variables. This mesh only used for
             global variables like globle steps, learning rate, etc.
         """

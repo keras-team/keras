@@ -129,7 +129,7 @@ py_library(
     deps = [
         ":dtensor",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_experimental:optimizer",
+        "//keras/optimizers",
         "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )

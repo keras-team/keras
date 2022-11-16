@@ -1,4 +1,4 @@
-# Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2021 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""AdamW optimizer implementation."""
-
+"""Adam optimizer implementation."""
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
@@ -25,19 +24,18 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @register_keras_serializable()
-@keras_export("keras.optimizers.experimental.AdamW", v1=[])
-class AdamW(optimizer.Optimizer):
-    r"""Optimizer that implements the AdamW algorithm.
+@keras_export(
+    "keras.optimizers.Adam", "keras.optimizers.experimental.Adam", v1=[]
+)
+class Adam(optimizer.Optimizer):
+    r"""Optimizer that implements the Adam algorithm.
 
-    AdamW optimization is a stochastic gradient descent method that is based on
-    adaptive estimation of first-order and second-order moments with an added
-    method to decay weights per the techniques discussed in the paper,
-    'Decoupled Weight Decay Regularization' by
-    [Loshchilov, Hutter et al., 2019](https://arxiv.org/abs/1711.05101).
+    Adam optimization is a stochastic gradient descent method that is based on
+    adaptive estimation of first-order and second-order moments.
 
     According to
     [Kingma et al., 2014](http://arxiv.org/abs/1412.6980),
-    the underying Adam method is "*computationally
+    the method is "*computationally
     efficient, has little memory requirement, invariant to diagonal rescaling of
     gradients, and is well suited for problems that are large in terms of
     data/parameters*".
@@ -47,8 +45,6 @@ class AdamW(optimizer.Optimizer):
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
         learning rate. Defaults to 0.001.
-      weight_decay: A `tf.Tensor`, floating point value. The weight decay.
-        Defaults to 0.004.
       beta_1: A float value or a constant float tensor, or a callable
         that takes no arguments and returns the actual value to use. The
         exponential decay rate for the 1st moment estimates. Defaults to 0.9.
@@ -64,12 +60,18 @@ class AdamW(optimizer.Optimizer):
       {{base_optimizer_keyword_args}}
 
     Reference:
-      - [Loshchilov et al., 2019](https://arxiv.org/abs/1711.05101)
-      - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980) for `adam`
+      - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
       - [Reddi et al., 2018](
           https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
 
     Notes:
+
+    The default value of 1e-7 for epsilon might not be a good default in
+    general. For example, when training an Inception network on ImageNet a
+    current good choice is 1.0 or 0.1. Note that since Adam uses the
+    formulation just before Section 2.1 of the Kingma and Ba paper rather than
+    the formulation in Algorithm 1, the "epsilon" referred to here is "epsilon
+    hat" in the paper.
 
     The sparse implementation of this algorithm (used when the gradient is an
     IndexedSlices object, typically because of `tf.gather` or an embedding
@@ -84,11 +86,11 @@ class AdamW(optimizer.Optimizer):
     def __init__(
         self,
         learning_rate=0.001,
-        weight_decay=0.004,
         beta_1=0.9,
         beta_2=0.999,
         epsilon=1e-7,
         amsgrad=False,
+        weight_decay=None,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -96,11 +98,12 @@ class AdamW(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         jit_compile=True,
-        name="AdamW",
+        name="Adam",
         **kwargs
     ):
         super().__init__(
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -111,26 +114,19 @@ class AdamW(optimizer.Optimizer):
             **kwargs
         )
         self._learning_rate = self._build_learning_rate(learning_rate)
-        self.weight_decay = weight_decay
         self.beta_1 = beta_1
         self.beta_2 = beta_2
         self.epsilon = epsilon
         self.amsgrad = amsgrad
 
-        if self.weight_decay is None:
-            raise ValueError(
-                "Missing value of `weight_decay` which is required and"
-                " must be a float value."
-            )
-
     def build(self, var_list):
         """Initialize optimizer variables.
 
-        AdamW optimizer has 3 types of variables: momentums, velocities and
+        Adam optimizer has 3 types of variables: momentums, velocities and
         velocity_hat (only set when amsgrad is applied),
 
         Args:
-          var_list: list of model variables to build AdamW variables on.
+          var_list: list of model variables to build Adam variables on.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
@@ -211,7 +207,6 @@ class AdamW(optimizer.Optimizer):
                 "learning_rate": self._serialize_hyperparameter(
                     self._learning_rate
                 ),
-                "weight_decay": self.weight_decay,
                 "beta_1": self.beta_1,
                 "beta_2": self.beta_2,
                 "epsilon": self.epsilon,
@@ -221,6 +216,6 @@ class AdamW(optimizer.Optimizer):
         return config
 
 
-AdamW.__doc__ = AdamW.__doc__.replace(
+Adam.__doc__ = Adam.__doc__.replace(
     "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
 )

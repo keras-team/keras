@@ -30,7 +30,7 @@ import tensorflow.compat.v2 as tf
 import keras
 from keras import losses
 from keras.engine import base_layer
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.saving.experimental.serialization_lib import deserialize_keras_object
 from keras.saving.experimental.serialization_lib import serialize_keras_object
 from keras.utils import generic_utils
