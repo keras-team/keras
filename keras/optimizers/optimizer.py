@@ -22,7 +22,7 @@ from absl import logging
 
 from keras import backend
 from keras import initializers
-from keras.optimizers.optimizer_v2 import utils as optimizer_utils
+from keras.optimizers import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import tf_utils
 
