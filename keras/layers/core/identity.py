@@ -1,4 +1,4 @@
-# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2022 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,21 +22,14 @@ from tensorflow.python.util.tf_export import keras_export
 
 @keras_export("keras.layers.Identity")
 class Identity(Layer):
-    """
-    Identity layer.
+    """Identity layer.
 
-    A layer which returns inputs irrespective or their shape or datatypes.
-    The call function is argument-insensitive.
+    This layer should be used as a placeholder when no operation is to be
+    performed. The layer is argument insensitive, and returns only the
+    first positional argument as the output.
 
     Args:
         None
     """
-
-    def __init__(*args, **kwargs):
-        super().__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.built = True
-
     def call(self, inputs, *args, **kwargs):
         return inputs
