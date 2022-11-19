@@ -27,6 +27,7 @@ from keras import metrics
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
+# TODO: Systematically add tests for sample_weight argument for required metrics
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class KerasAccuracyTest(tf.test.TestCase):
