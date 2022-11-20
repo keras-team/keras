@@ -73,13 +73,15 @@ class LearningRateSchedule:
     @abc.abstractmethod
     def __call__(self, step):
         raise NotImplementedError(
-            "Learning rate schedule must override __call__"
+            f"Learning rate schedule '{self.__class__.__name__}' "
+            "must override `__call__(self, step)`."
         )
 
     @abc.abstractmethod
     def get_config(self):
         raise NotImplementedError(
-            "Learning rate schedule must override get_config"
+            f"Learning rate schedule '{self.__class__.__name__}' "
+            "must override `get_config()` in order to be serializable."
         )
 
     @classmethod

@@ -54,10 +54,7 @@ def get_input_preprocessor():
 
 
 def encode_numerical_feature(feature, name, dataset):
-    normalizer = keras.layers.Normalization()
-    feature_ds = dataset.map(lambda x: x[name])
-    feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
-    normalizer.adapt(feature_ds)
+    normalizer = keras.layers.Normalization(mean=[1.0], variance=[2.0])
     encoded_feature = normalizer(feature)
     return encoded_feature
 
@@ -100,4 +97,4 @@ def get_model(
 
 
 def get_custom_objects():
-    return None
+    return {}

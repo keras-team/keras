@@ -342,6 +342,18 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
             )
 
 
+def _walk_trackable(trackable):
+    for child_attr in dir(trackable):
+        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
+            continue
+        try:
+            child_obj = getattr(trackable, child_attr)
+        except Exception:
+            # Avoid raising the exception when visiting the attributes.
+            continue
+        yield child_attr, child_obj
+
+
 def _save_state(
     trackable, weights_store, assets_store, inner_path, visited_trackables
 ):
@@ -358,14 +370,7 @@ def _save_state(
     visited_trackables.add(id(trackable))
 
     # Recursively save state of children trackables (layers, optimizers, etc.)
-    for child_attr in dir(trackable):
-        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
-            continue
-        try:
-            child_obj = getattr(trackable, child_attr)
-        except Exception:
-            # Avoid raising the exception when visiting the attributes.
-            continue
+    for child_attr, child_obj in _walk_trackable(trackable):
         if _is_keras_trackable(child_obj):
             _save_state(
                 child_obj,
@@ -398,14 +403,7 @@ def _load_state(
     visited_trackables.add(id(trackable))
 
     # Recursively load states for Keras trackables such as layers/optimizers.
-    for child_attr in dir(trackable):
-        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
-            continue
-        try:
-            child_obj = getattr(trackable, child_attr)
-        except Exception:
-            # Avoid raising exceptions when visiting attributes.
-            continue
+    for child_attr, child_obj in _walk_trackable(trackable):
         if _is_keras_trackable(child_obj):
             _load_state(
                 child_obj,

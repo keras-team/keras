@@ -77,4 +77,4 @@ def get_model(
 
 
 def get_custom_objects():
-    return None
+    return {}

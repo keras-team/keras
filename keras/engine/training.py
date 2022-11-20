@@ -837,8 +837,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """
         metrics = []
         if self._is_compiled:
-            # TODO(omalleyt): Track `LossesContainer` and `MetricsContainer`
-            # objects so that attr names are not load-bearing.
             if self.compiled_loss is not None:
                 metrics += self.compiled_loss.metrics
             if self.compiled_metrics is not None:
@@ -3074,7 +3072,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "You can override this default behavior by defining a "
                         "`from_config(cls, config)` class method to specify "
                         "how to create an "
-                        f"instance of {cls.__name__} from the config.\n\n"
+                        f"instance of {cls.__name__} from its config.\n\n"
                         f"Received config={config}\n\n"
                         f"Error encountered during deserialization: {e}"
                     )
@@ -3382,6 +3380,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             return
         config = saving_lib.deserialize_keras_object(config)
         self.compile(**config)
+        if hasattr(self, "optimizer") and self.built:
+            # Create optimizer variables.
+            self.optimizer.build(self.trainable_variables)
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -3495,9 +3496,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Also make sure to exclude Model class itself which has build()
             # defined.
             raise ValueError(
-                f"Weights for model {self.name} have not yet been "
+                f"Weights for model '{self.name}' have not yet been "
                 "created. "
-                "Weights are created when the Model is first called on "
+                "Weights are created when the model is first called on "
                 "inputs or `build()` is called with an `input_shape`."
             )
 

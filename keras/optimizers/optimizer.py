@@ -219,7 +219,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 "update different parts of the model separately. Please call "
                 "`optimizer.build(variables)` with the full list of trainable "
                 "variables before the training loop or use legacy optimizer "
-                "`tf.keras.optimizers.legacy.{self.__class__.__name__}."
+                f"`tf.keras.optimizers.legacy.{self.__class__.__name__}."
             )
         self.update_step(gradient, variable)
 
@@ -807,6 +807,19 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
     def _load_own_variables(self, store):
         """Set the state of this optimizer object."""
+        if len(store.keys()) != len(self.variables):
+            msg = (
+                f"Skipping variable loading for optimizer '{self.name}', "
+                f"because it has {len(self.variables)} variables whereas "
+                f"the saved optimizer has {len(store.keys())} variables. "
+            )
+            if len(self.variables) == 0:
+                msg += (
+                    "This is likely because the optimizer has not been "
+                    "called/built yet."
+                )
+            logging.warning(msg)
+            return
         for i, variable in enumerate(self.variables):
             variable.assign(store[str(i)])
 

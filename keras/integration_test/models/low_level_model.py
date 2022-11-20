@@ -29,8 +29,8 @@ def get_input_preprocessor():
 
 
 class Linear(keras.layers.Layer):
-    def __init__(self, units=32):
-        super().__init__()
+    def __init__(self, units=32, name=None):
+        super().__init__(name=name)
         self.units = units
 
     def build(self, input_shape):
@@ -38,9 +38,13 @@ class Linear(keras.layers.Layer):
             shape=(input_shape[-1], self.units),
             initializer="random_normal",
             trainable=True,
+            name="w",
         )
         self.b = self.add_weight(
-            shape=(self.units,), initializer="random_normal", trainable=True
+            shape=(self.units,),
+            initializer="random_normal",
+            trainable=True,
+            name="b",
         )
 
     def call(self, inputs):
@@ -66,7 +70,7 @@ class BinaryTruePositives(tf.keras.metrics.Metric):
     def result(self):
         return self.true_positives
 
-    def reset_states(self):
+    def reset_state(self):
         self.true_positives.assign(0)
 
 
@@ -76,19 +80,13 @@ class CustomModel(keras.Model):
         self.loss_tracker = keras.metrics.Mean(name="loss")
         self.btp_metric = BinaryTruePositives(name="mae")
 
-        self.linear_1 = Linear(32)
-        self.linear_2 = Linear(NUM_CLASSES)
+        self.linear_1 = Linear(32, name="linear_1")
+        self.linear_2 = Linear(NUM_CLASSES, name="linear_2")
 
     def call(self, inputs, training=False):
         x = self.linear_1(inputs)
         x = self.linear_2(x)
         return x
-
-    def compile(self, optimizer, loss, jit_compile=False):
-        self.optimizer = optimizer
-        self.loss = loss
-        self.jit_compile = jit_compile
-        self._is_compiled = True
 
     def train_step(self, data):
         x, y = data
@@ -129,6 +127,11 @@ class CustomLRSchedule(keras.optimizers.schedules.LearningRateSchedule):
     def __call__(self, step):
         return self.initial_learning_rate / tf.cast(step + 1, "float32")
 
+    def get_config(self):
+        return {
+            "initial_learning_rate": self.initial_learning_rate,
+        }
+
 
 def custom_loss(y_true, y_pred):
     return keras.losses.mse(y_true, y_pred)
@@ -138,6 +141,8 @@ def get_model(
     build=False, compile=False, jit_compile=False, include_preprocessing=True
 ):
     model = CustomModel()
+    if build:
+        model(tf.zeros((1, INPUT_DIM)))
     if compile:
         model.compile(
             optimizer=keras.optimizers.Adam(CustomLRSchedule(0.1)),
