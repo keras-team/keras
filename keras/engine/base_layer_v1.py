@@ -739,7 +739,7 @@ class Layer(base_layer.Layer):
             inputs = tf.nest.map_structure(_convert_non_tensor, inputs)
             input_list = tf.nest.flatten(inputs)
 
-        # Handle `mask` propagation from the previous layer to the current layer. Masks
+        # Handle `mask` propagation from previous layer to current layer. Masks
         # can be propagated explicitly via the `mask` argument, or implicitly
         # via setting the `_keras_mask` attribute on the inputs to a Layer.
         # Masks passed explicitly take priority.
