@@ -181,6 +181,39 @@ need to follow the output of the command to resolve them manually.
 If you do not want to auto format the code but only show the lint errors, you
 can run `sh shell/lint.sh` **at the root directory of the repo**.
 
+### Docstrings
+
+We do not have an automated way to check docstring style, so if you write
+or edit any docstrings, please make sure to check them manually.
+Keras docstrings follow the conventions below:
+
+A **class docstring** may contain the following items:
+
+* One-line description of the class.
+* Paragraph(s) of more detailed information.
+* Optional `Examples` section.
+* `Args` section for arguments in `__init__()`.
+* If it's a layer:
+    * `Call arguments` section for arguments in `Layer.call()`.
+    * `Returns` section for the return values of `Layer.call()`.
+    * Optional `Raises` section for possible errors.
+
+You can check out `MultiHeadAttention` as an example
+[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/layers/attention/multi_head_attention.py#L130).
+
+A **function docstring** may contain the following items:
+
+* One-line description of the function.
+* Paragraph(s) of more detailed information.
+* Optional `Examples` section.
+* `Args` section for the function arguments.
+* `Returns` section for the return values.
+* Optional `Raises` section for possible errors.
+
+You can check out `text_dataset_from_directory` as an example
+[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/utils/text_dataset.py#L26).
+
+
 ## Run tests
 
 We use [Bazel](https://bazel.build/) to build and run the tests.
