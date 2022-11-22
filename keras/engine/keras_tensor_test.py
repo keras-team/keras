@@ -185,6 +185,20 @@ class KerasTensorTest(test_combinations.TestCase):
             self.assertEqual(kt.type_spec.shape.as_list(), expected_shape)
         self.assertTrue(kt.type_spec.is_compatible_with(spec))
 
+    @parameterized.parameters(
+        [
+            (layers.Input(shape=[3, 4], batch_size=7), tf.reshape),
+            (layers.Input(shape=[3, 4], ragged=True, batch_size=7), tf.reshape),
+            (
+                layers.Input(shape=[3, 4], sparse=True, batch_size=7),
+                tf.sparse.reshape,
+            ),
+        ]
+    )
+    def test_reshape(self, inp, reshape_op):
+        out = reshape_op(inp, shape=[7, 4, 3])
+        self.assertEqual(out.type_spec.shape.as_list(), [7, 4, 3])
+
     def test_set_shape_error(self):
         spec = CustomTypeSpec([3, None], tf.int32)
         kt = keras_tensor.KerasTensor(spec)
