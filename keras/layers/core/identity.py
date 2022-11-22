@@ -31,5 +31,6 @@ class Identity(Layer):
     Args:
         None
     """
+
     def call(self, inputs, *args, **kwargs):
         return inputs
