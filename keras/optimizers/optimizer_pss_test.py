@@ -4,15 +4,15 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.optimizers.optimizer_experimental import adadelta
-from keras.optimizers.optimizer_experimental import adagrad
-from keras.optimizers.optimizer_experimental import adam
-from keras.optimizers.optimizer_experimental import adamax
-from keras.optimizers.optimizer_experimental import adamw
-from keras.optimizers.optimizer_experimental import ftrl
-from keras.optimizers.optimizer_experimental import nadam
-from keras.optimizers.optimizer_experimental import rmsprop
-from keras.optimizers.optimizer_experimental import sgd
+from keras.optimizers import adadelta
+from keras.optimizers import adagrad
+from keras.optimizers import adam
+from keras.optimizers import adamax
+from keras.optimizers import adamw
+from keras.optimizers import ftrl
+from keras.optimizers import nadam
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd
 from keras.utils import dataset_creator
 from keras.utils import losses_utils
 

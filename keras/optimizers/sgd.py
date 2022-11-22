@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
@@ -89,7 +89,7 @@ class SGD(optimizer.Optimizer):
 
     Reference:
         - For `nesterov=True`, See [Sutskever et al., 2013](
-          http://jmlr.org/proceedings/papers/v28/sutskever13.pdf).
+          http://proceedings.mlr.press/v28/sutskever13.pdf).
     """
 
     def __init__(

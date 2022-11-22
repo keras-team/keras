@@ -549,24 +549,16 @@ class MultiHeadAttention(Layer):
         training=None,
         use_causal_mask=False,
     ):
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            key=key,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
-        )
-
         if not self._built_from_signature:
             self._build_from_signature(query=query, value=value, key=key)
         if key is None:
             key = value
 
+        # Convert RaggedTensor to Tensor.
         query_is_ragged = isinstance(query, tf.RaggedTensor)
         if query_is_ragged:
             query_lengths = query.nested_row_lengths()
             query = query.to_tensor()
-
         key_is_ragged = isinstance(key, tf.RaggedTensor)
         value_is_ragged = isinstance(value, tf.RaggedTensor)
         if key_is_ragged and value_is_ragged:
@@ -580,6 +572,14 @@ class MultiHeadAttention(Layer):
             key = key.to_tensor(shape=tf.shape(value))
         elif value_is_ragged:
             value = value.to_tensor(shape=tf.shape(key))
+
+        attention_mask = self._compute_attention_mask(
+            query,
+            value,
+            key=key,
+            attention_mask=attention_mask,
+            use_causal_mask=use_causal_mask,
+        )
 
         #   N = `num_attention_heads`
         #   H = `size_per_head`

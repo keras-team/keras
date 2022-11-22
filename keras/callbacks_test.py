@@ -3038,6 +3038,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         self.assertEqual(
             summary_file.scalars,
             {
+                _ObservedSummary(logdir=self.train_dir, tag="batch_loss"),
                 _ObservedSummary(logdir=self.train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=self.validation_dir, tag="epoch_loss"),
                 _ObservedSummary(
@@ -3100,6 +3101,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         self.assertEqual(
             summary_file.scalars,
             {
+                _ObservedSummary(logdir=self.train_dir, tag="batch_loss"),
                 _ObservedSummary(logdir=self.train_dir, tag="epoch_loss"),
                 _ObservedSummary(
                     logdir=self.train_dir, tag="epoch_learning_rate"
@@ -3285,6 +3287,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
         self.assertEqual(
             summary_file.scalars,
             {
+                _ObservedSummary(logdir=self.train_dir, tag="batch_loss"),
                 _ObservedSummary(logdir=self.train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=self.validation_dir, tag="epoch_loss"),
                 _ObservedSummary(

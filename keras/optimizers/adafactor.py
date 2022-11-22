@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.saving.object_registration import register_keras_serializable
 

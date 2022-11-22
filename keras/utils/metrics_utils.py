@@ -457,10 +457,10 @@ def _update_confusion_matrix_variables_optimized(
             )
 
         tp_bucket_v = tf.vectorized_map(
-            gather_bucket, (true_labels, bucket_indices)
+            gather_bucket, (true_labels, bucket_indices), warn=False
         )
         fp_bucket_v = tf.vectorized_map(
-            gather_bucket, (false_labels, bucket_indices)
+            gather_bucket, (false_labels, bucket_indices), warn=False
         )
         tp = tf.transpose(tf.cumsum(tp_bucket_v, reverse=True, axis=1))
         fp = tf.transpose(tf.cumsum(fp_bucket_v, reverse=True, axis=1))
@@ -676,8 +676,9 @@ def update_confusion_matrix_variables(
     if top_k is not None:
         y_pred = _filter_top_k(y_pred, top_k)
     if class_id is not None:
-        y_true = y_true[..., class_id]
-        y_pred = y_pred[..., class_id]
+        # Preserve dimension to match with sample_weight
+        y_true = y_true[..., class_id, None]
+        y_pred = y_pred[..., class_id, None]
 
     if thresholds_distributed_evenly:
         return _update_confusion_matrix_variables_optimized(

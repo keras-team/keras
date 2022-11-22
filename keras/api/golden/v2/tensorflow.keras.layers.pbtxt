@@ -261,6 +261,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "HashedCrossing"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Hashing"
     mtype: "<type \'type\'>"
   }

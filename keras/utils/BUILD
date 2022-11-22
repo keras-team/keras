@@ -18,6 +18,7 @@ py_library(
     deps = [
         ":audio_dataset",
         ":data_utils",
+        ":feature_space",
         ":generic_utils",
         ":image_dataset",
         ":image_utils",
@@ -304,6 +305,17 @@ py_library(
     deps = [
         "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "feature_space",
+    srcs = ["feature_space.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/layers",
     ],
 )
 
@@ -614,6 +626,20 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":audio_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "feature_space_test",
+    size = "medium",
+    srcs = ["feature_space_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":feature_space",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",

@@ -483,7 +483,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 return
             if isinstance(
                 loaded_model.optimizer,
-                keras.optimizers.optimizer_experimental.Optimizer,
+                keras.optimizers.optimizer.Optimizer,
             ):
                 loaded_model.optimizer.build(loaded_model.trainable_variables)
                 self.assertAllClose(

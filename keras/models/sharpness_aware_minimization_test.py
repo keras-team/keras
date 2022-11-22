@@ -7,7 +7,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.models import sharpness_aware_minimization
-from keras.optimizers.optimizer_experimental import adam
+from keras.optimizers import adam
 from keras.testing_infra import test_utils
 
 ds_combinations = tf.__internal__.distribute.combinations

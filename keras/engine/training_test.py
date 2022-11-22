@@ -37,8 +37,8 @@ from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
 from keras.mixed_precision import policy
 from keras.optimizers import optimizer_v2
-from keras.optimizers.optimizer_experimental import rmsprop
-from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import data_utils
@@ -2293,9 +2293,13 @@ class TrainingTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
-    def test_ema_overwrite(self):
+    @parameterized.named_parameters(
+        ("mixed_float16", "mixed_float16"), ("float32", "float32")
+    )
+    def test_ema_overwrite(self, test_policy):
         if not tf.__internal__.tf2.enabled():
             self.skipTest("EMA optimizer is only available in TF2.")
+        policy.set_global_policy(test_policy)
         model = sequential.Sequential()
         model.add(input_layer.Input(shape=(4,)))
         model.add(layers_module.Dense(1, activation="relu"))
@@ -2309,6 +2313,7 @@ class TrainingTest(test_combinations.TestCase):
         history = model.fit(dataset, epochs=2, steps_per_epoch=10)
         self.assertLen(history.history["loss"], 2)
         self.assertAllClose(initial_value, model.trainable_variables[0])
+        policy.set_global_policy("float32")
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_get_verbosity(self):

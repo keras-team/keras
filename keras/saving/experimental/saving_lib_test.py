@@ -16,6 +16,7 @@
 import os
 import sys
 import zipfile
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -25,7 +26,7 @@ from tensorflow.python.platform import tf_logging as logging
 
 import keras
 from keras import backend
-from keras.optimizers.optimizer_experimental import adam
+from keras.optimizers import adam
 from keras.saving import object_registration
 from keras.saving.experimental import saving_lib
 from keras.saving.legacy.saved_model import json_utils
@@ -151,7 +152,9 @@ class CompileOverridingSequential(keras.Sequential):
 @keras.utils.register_keras_serializable(package="my_custom_package")
 def my_mean_squared_error(y_true, y_pred):
     """Identical to built-in `mean_squared_error`, added here as a custom
-    func."""
+
+    func.
+    """
     return backend.mean(tf.math.squared_difference(y_pred, y_true), axis=-1)
 
 
@@ -517,7 +520,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         )
 
     def test_metadata(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "my_model.keras")
+        )
         model = CompileOverridingModel()
         model._save_experimental(temp_filepath)
         with zipfile.ZipFile(temp_filepath, "r") as z:
@@ -527,8 +532,24 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertIn("keras_version", metadata)
         self.assertIn("date_saved", metadata)
 
+    def test_gfile_copy_local_called(self):
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "my_model.keras")
+        )
+        model = CompileOverridingModel()
+        with mock.patch("re.match", autospec=True) as mock_re_match, mock.patch(
+            "tensorflow.compat.v2.io.gfile.copy", autospec=True
+        ) as mock_copy:
+            # Mock Remote Path check to true to test gfile copy logic
+            mock_re_match.return_value = True
+            model._save_experimental(temp_filepath)
+            mock_re_match.assert_called_once()
+            mock_copy.assert_called_once()
+            self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
+            self.assertIn(str(temp_filepath), mock_copy.call_args.args)
+
     def test_load_model_api_endpoint(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)
@@ -537,7 +558,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_save_load_weights_only(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        temp_filepath = Path(
+            os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+        )
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)
@@ -552,7 +575,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
 
     def test_load_weights_only_with_keras_file(self):
         # Test loading weights from whole saved model
-        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
         model = self._get_functional_model()
         ref_input = np.random.random((10, 32))
         ref_output = model.predict(ref_input)

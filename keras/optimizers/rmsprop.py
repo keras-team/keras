@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_experimental import optimizer
+from keras.optimizers import optimizer
 from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
@@ -70,7 +70,6 @@ class RMSprop(optimizer.Optimizer):
     Reference:
       - [Hinton, 2012](
         http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
-
     """
 
     def __init__(

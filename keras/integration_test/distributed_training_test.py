@@ -17,6 +17,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import glob
+import os
+
 import tensorflow.compat.v2 as tf
 
 ds_combinations = tf.__internal__.distribute.combinations
@@ -73,11 +76,53 @@ class DistributedTrainingTest(tf.test.TestCase):
         with strategy.scope():
             model = tf.keras.Sequential([tf.keras.layers.Dense(10)])
             optimizer = tf.keras.optimizers.SGD()
-            model.compile(optimizer, loss="mse", steps_per_execution=10)
+            model.compile(optimizer, loss="mse", steps_per_execution=5)
 
         x = tf.keras.utils.experimental.DatasetCreator(dataset_fn)
 
-        model.fit(x, epochs=2, steps_per_epoch=10)
+        logdir = os.path.join(self.get_temp_dir(), "logdir")
+        model.fit(
+            x,
+            epochs=2,
+            steps_per_epoch=20,
+            callbacks=[
+                tf.keras.callbacks.TensorBoard(
+                    logdir,
+                    update_freq=5,
+                    write_steps_per_second=True,
+                )
+            ],
+        )
+
+        events_got = []
+        for event_file in glob.glob(logdir + "/train/events.out.*"):
+            for event in tf.compat.v1.train.summary_iterator(event_file):
+                if not event.summary:
+                    continue
+                for value in event.summary.value:
+                    if value.tag != "batch_loss":
+                        continue
+                    events_got += [event.step]
+
+        # total steps = epochs * steps_per_epoch
+        events_expected = [5, 10, 15, 20, 25, 30, 35, 40]
+
+        if isinstance(
+            strategy, tf.distribute.experimental.ParameterServerStrategy
+        ):
+            # Metrics are not logged with this strategy as they are not
+            # immediately available on batch end
+            events_expected = []
+        if (
+            strategy.cluster_resolver
+            and strategy.cluster_resolver.task_type == "worker"
+        ):
+            # The below assertion is run by both chief and workers when using
+            # `tf.distribute.MultiWorkerMirroredStrategy`, but only the chief
+            # will log events.
+            events_expected = []
+
+        self.assertEqual(events_got, events_expected)
 
 
 if __name__ == "__main__":

@@ -4,12 +4,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
-    default_visibility = [
-        "//keras:friends",
-        "//third_party/py/language/common/layers:__subpackages__",
-        "//third_party/py/tensorflow_probability:__subpackages__",
-        "//third_party/tensorflow_text:__subpackages__",
-    ],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 

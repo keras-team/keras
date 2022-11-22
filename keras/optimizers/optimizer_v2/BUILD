@@ -26,7 +26,6 @@ py_library(
         "nadam.py",
         "optimizer_v2.py",
         "rmsprop.py",
-        "utils.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -35,6 +34,7 @@ py_library(
         "//keras:backend_config",
         "//keras/engine:base_layer_utils",
         "//keras/initializers",
+        "//keras/optimizers:utils",
         "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:layer_utils",
         "//keras/utils:tf_utils",

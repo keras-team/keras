@@ -20,6 +20,7 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import metrics_utils
 
 
@@ -454,6 +455,93 @@ class MatchesMethodsTest(tf.test.TestCase, parameterized.TestCase):
             matches_method(y_true, y_pred, 0.5),
             [[1.0, 1.0], [1.0, 1.0], [0.0, 0.0], [1.0, 1.0]],
         )
+
+
+@test_utils.run_v2_only
+class UpdateConfusionMatrixVarTest(tf.test.TestCase, parameterized.TestCase):
+    def setUp(self):
+        self.tp = metrics_utils.ConfusionMatrix.TRUE_POSITIVES
+        self.tn = metrics_utils.ConfusionMatrix.TRUE_NEGATIVES
+        self.fp = metrics_utils.ConfusionMatrix.FALSE_POSITIVES
+        self.fn = metrics_utils.ConfusionMatrix.FALSE_NEGATIVES
+        self.variables_to_update = {
+            self.tp: tf.Variable([0], dtype=tf.float32),
+            self.tn: tf.Variable([0], dtype=tf.float32),
+            self.fp: tf.Variable([0], dtype=tf.float32),
+            self.fn: tf.Variable([0], dtype=tf.float32),
+        }
+
+    def test_without_sample_weight(self):
+        y_true = tf.constant([[1, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant([[0.8, 0.7, 0.1], [0.1, 0.6, 0.4]])
+        thresholds = [0.5]
+
+        metrics_utils.update_confusion_matrix_variables(
+            variables_to_update=self.variables_to_update,
+            y_true=y_true,
+            y_pred=y_pred,
+            thresholds=thresholds,
+        )
+        self.assertEqual(self.variables_to_update[self.tp].numpy()[0], 2)
+        self.assertEqual(self.variables_to_update[self.tn].numpy()[0], 2)
+        self.assertEqual(self.variables_to_update[self.fp].numpy()[0], 1)
+        self.assertEqual(self.variables_to_update[self.fn].numpy()[0], 1)
+
+    def test_with_sample_weight(self):
+        y_true = tf.constant([[1, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant([[0.8, 0.7, 0.1], [0.1, 0.6, 0.4]])
+        thresholds = [0.5]
+        sample_weight = [2, 1]
+
+        metrics_utils.update_confusion_matrix_variables(
+            variables_to_update=self.variables_to_update,
+            y_true=y_true,
+            y_pred=y_pred,
+            thresholds=thresholds,
+            sample_weight=sample_weight,
+        )
+        self.assertEqual(self.variables_to_update[self.tp].numpy()[0], 4)
+        self.assertEqual(self.variables_to_update[self.tn].numpy()[0], 3)
+        self.assertEqual(self.variables_to_update[self.fp].numpy()[0], 1)
+        self.assertEqual(self.variables_to_update[self.fn].numpy()[0], 1)
+
+    def test_with_class_id(self):
+        y_true = tf.constant([[1, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant([[0.8, 0.7, 0.1], [0.1, 0.6, 0.4]])
+        thresholds = [0.5]
+        class_id = 2
+
+        metrics_utils.update_confusion_matrix_variables(
+            variables_to_update=self.variables_to_update,
+            y_true=y_true,
+            y_pred=y_pred,
+            thresholds=thresholds,
+            class_id=class_id,
+        )
+        self.assertEqual(self.variables_to_update[self.tp].numpy()[0], 0)
+        self.assertEqual(self.variables_to_update[self.tn].numpy()[0], 1)
+        self.assertEqual(self.variables_to_update[self.fp].numpy()[0], 0)
+        self.assertEqual(self.variables_to_update[self.fn].numpy()[0], 1)
+
+    def test_with_sample_weight_and_classid(self):
+        y_true = tf.constant([[1, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant([[0.8, 0.7, 0.1], [0.1, 0.6, 0.4]])
+        thresholds = [0.5]
+        sample_weight = [2, 1]
+        class_id = 2
+
+        metrics_utils.update_confusion_matrix_variables(
+            variables_to_update=self.variables_to_update,
+            y_true=y_true,
+            y_pred=y_pred,
+            thresholds=thresholds,
+            sample_weight=sample_weight,
+            class_id=class_id,
+        )
+        self.assertEqual(self.variables_to_update[self.tp].numpy()[0], 0)
+        self.assertEqual(self.variables_to_update[self.tn].numpy()[0], 2)
+        self.assertEqual(self.variables_to_update[self.fp].numpy()[0], 0)
+        self.assertEqual(self.variables_to_update[self.fn].numpy()[0], 1)
 
 
 if __name__ == "__main__":
