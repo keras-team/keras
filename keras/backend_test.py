@@ -1957,11 +1957,11 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         self.assertArrayNear(result, [0.105, 0.116, 0.062], 1e-3)
 
         # With axis set
-        o = backend.categorical_crossentropy(t, p, axis=0)
+        o = backend.categorical_crossentropy(t, p, axis=-1)
         f = backend.function([t, p], o)
 
         result = f([t_val, p_val])
-        self.assertArrayNear(result, [0.105, 0.065, 0.111], 1e-3)
+        self.assertArrayNear(result, [0.105, 0.116, 0.062], 1e-3)
 
         # from logits
         p_val = tf.convert_to_tensor(
@@ -1971,14 +1971,14 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         f = backend.function([t, p], o)
 
         result = f([t_val, p_val])
-        self.assertArrayNear(result, [0.002, 0, 0.17], 1e-3)
+        self.assertArrayNear(result, [0.002, 0.001, 0.17], 1e-3)
 
         # from logits and axis set
-        o = backend.categorical_crossentropy(t, p, from_logits=True, axis=0)
+        o = backend.categorical_crossentropy(t, p, from_logits=True, axis=-1)
         f = backend.function([t, p], o)
 
         result = f([t_val, p_val])
-        self.assertArrayNear(result, [0.002, 0.003, 0.036], 1e-3)
+        self.assertArrayNear(result, [0.002, 0.001, 0.17], 1e-3)
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
