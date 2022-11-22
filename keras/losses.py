@@ -148,8 +148,21 @@ class Loss:
                 call_fn = tf.__internal__.autograph.tf_convert(
                     self.call, tf.__internal__.autograph.control_status_ctx()
                 )
+
             losses = call_fn(y_true, y_pred)
-            mask = losses_utils.get_mask(losses)
+
+            in_mask = losses_utils.get_mask(y_pred)
+            out_mask = losses_utils.get_mask(losses)
+
+            if in_mask is not None and out_mask is not None:
+                mask = in_mask & out_mask
+            elif in_mask is not None:
+                mask = in_mask
+            elif out_mask is not None:
+                mask = out_mask
+            else:
+                mask = None
+
             reduction = self._get_reduction()
             sample_weight = losses_utils.apply_valid_mask(
                 losses, sample_weight, mask, reduction
