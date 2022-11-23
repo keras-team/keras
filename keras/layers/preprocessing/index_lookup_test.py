@@ -1919,12 +1919,10 @@ class IndexLookupVocabularyTest(
         layer.set_vocabulary(vocab_data)
         # Calling the layer should lock the vocabulary size.
         _ = layer([["earth"]])
-        layer.set_vocabulary(vocab_data[:2])
         with self.assertRaisesRegex(
             RuntimeError, "vocabulary size cannot be changed"
         ):
-            # Calling the layer again should cause an error.
-            _ = layer([["earth"]])
+            layer.set_vocabulary(vocab_data[:2])
 
     def test_vocab_with_idf_weights_non_tfidf_output_fails(self):
         vocab_data = ["earth", "wind", "and", "fire"]
