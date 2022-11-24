@@ -33,9 +33,11 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
+from keras.saving.experimental import saving_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import network_serialization
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -761,10 +763,42 @@ class Functional(training_lib.Model):
 
         return tensor
 
+    @generic_utils.default
     def get_config(self):
-        # Continue adding configs into what the super class has added.
-        config = super().get_config()
-        return copy.deepcopy(get_network_config(self, config=config))
+        if saved_model_utils.in_tf_saved_model_scope():
+            # SavedModel special case: need to preserve legacy (potentially
+            # incorrect) behavior.
+            config = super().get_config()
+            return copy.deepcopy(get_network_config(self, config=config))
+
+        # Prepare base arguments
+        config = {
+            "name": self.name,
+            "trainable": self.trainable,
+        }
+        # Check whether the class has a constructor compatible with a Functional
+        # model or if it has a custom constructor.
+        if has_functional_like_constructor(self.__class__):
+            # Only return a Functional config if the constructor is the same
+            # as that of a Functional model. This excludes subclassed Functional
+            # models with a custom __init__.
+            config = copy.deepcopy(get_network_config(self, config=config))
+        else:
+            # Try to autogenerate config
+            xtra_args = set(config.keys())
+            if getattr(self, "_auto_get_config", False):
+                config.update(self._auto_config.config)
+            # Remove args non explicitly supported
+            argspec = tf_inspect.getfullargspec(self.__init__)
+            if argspec.varkw != "kwargs":
+                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
+                    config.pop(key, None)
+
+        # Add compile config
+        if saving_lib.saving_v3_enabled():
+            if self._is_compiled and hasattr(self, "_compile_config"):
+                config["compile_config"] = self._compile_config.serialize()
+        return config
 
     def get_weight_paths(self):
         result = {}
@@ -1647,3 +1681,13 @@ class ModuleWrapper(base_layer.Layer):
         if "mask" in kwargs and not self._expects_mask_arg:
             kwargs.pop("mask")
         return getattr(self._module, self._method_name)(*args, **kwargs)
+
+
+def has_functional_like_constructor(cls):
+    init_args = tf_inspect.getfullargspec(cls.__init__).args[1:]
+    functional_init_args = tf_inspect.getfullargspec(Functional.__init__).args[
+        1:
+    ]
+    if init_args == functional_init_args:
+        return True
+    return False

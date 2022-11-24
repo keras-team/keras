@@ -1035,7 +1035,9 @@ class TrainingTest(test_combinations.TestCase):
 
         model = MyModel(10, extra=1)
         config = model.get_config()
-        self.assertLen(config, 2)
+        # config = {'name': 'my_model', 'trainable': True, 'dtype': 'float32',
+        # 'extra': 1, 'units': 10}
+        self.assertLen(config, 5)
         self.assertEqual(config["units"], 10)
         self.assertEqual(config["extra"], 1)
         model = model.from_config(config)

@@ -812,7 +812,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_get_config", False):
+            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
+            # Remove args non explicitly supported
+            argspec = tf_inspect.getfullargspec(self.__init__)
+            if argspec.varkw != "kwargs":
+                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
+                    config.pop(key, None)
             return config
         else:
             raise NotImplementedError(
@@ -857,7 +863,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
             A layer instance.
         """
-        return cls(**config)
+        try:
+            return cls(**config)
+        except Exception as e:
+            raise TypeError(
+                f"Error when deserializing class '{cls.__name__}' using "
+                f"config={config}.\n\nException encountered: {e}"
+            )
 
     def compute_output_shape(self, input_shape):
         """Computes the output shape of the layer.
