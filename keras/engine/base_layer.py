@@ -2273,6 +2273,25 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         )
         return self.add_weight(*args, **kwargs)
 
+    def get_build_config(self):
+        if self._build_input_shape is not None:
+
+            def convert_tensorshapes(x):
+                if isinstance(x, tf.TensorShape):
+                    return tuple(x.as_list())
+                return x
+
+            return {
+                "input_shape": tf.nest.map_structure(
+                    convert_tensorshapes, self._build_input_shape
+                )
+            }
+
+    def build_from_config(self, config):
+        input_shape = config["input_shape"]
+        if input_shape is not None:
+            self.build(input_shape)
+
     ############################################################################
     # Methods & attributes below are all private and only used by the framework.
     ############################################################################
@@ -3324,7 +3343,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 output.append(w)
                 # Track the Variable's identity to avoid __eq__ issues.
                 seen_ids.add(id(w))
-
         return output
 
     # SavedModel properties. Please see keras/saving/saved_model for details.

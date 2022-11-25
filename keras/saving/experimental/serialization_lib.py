@@ -166,6 +166,10 @@ def serialize_keras_object(obj):
         "config": _get_class_or_fn_config(obj),
         "registered_name": registered_name,
     }
+    if hasattr(obj, "get_build_config"):
+        config["build_config"] = obj.get_build_config()
+    if hasattr(obj, "get_compile_config"):
+        config["compile_config"] = obj.get_compile_config()
     record_object_after_serialization(obj, config)
     return config
 
@@ -368,10 +372,19 @@ def deserialize_keras_object(config, custom_objects=None):
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
     with object_registration.custom_object_scope(custom_objects):
-        obj = cls.from_config(inner_config)
+        instance = cls.from_config(inner_config)
+        build_config = config.get("build_config", None)
+        if build_config:
+            instance.build_from_config(build_config)
+        compile_config = config.get("compile_config", None)
+        if compile_config:
+            instance.compile_from_config(compile_config)
+
     if "shared_object_id" in config:
-        record_object_after_deserialization(obj, config["shared_object_id"])
-    return obj
+        record_object_after_deserialization(
+            instance, config["shared_object_id"]
+        )
+    return instance
 
 
 def _retrieve_class_or_fn(

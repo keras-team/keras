@@ -356,18 +356,18 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
         self.assertEqual(
-            config_dict["config"]["compile_config"]["optimizer"]["config"][
+            config_dict["compile_config"]["optimizer"]["config"][
                 "is_legacy_optimizer"
             ],
             False,
         )
         self.assertEqual(
-            config_dict["config"]["compile_config"]["optimizer"]["class_name"],
+            config_dict["compile_config"]["optimizer"]["class_name"],
             "Adam",
         )
-        self.assertLen(config_dict["config"]["compile_config"]["loss"], 4)
+        self.assertLen(config_dict["compile_config"]["loss"], 4)
         self.assertEqual(
-            config_dict["config"]["compile_config"]["loss"][0],
+            config_dict["compile_config"]["loss"][0],
             "mse",
         )
 

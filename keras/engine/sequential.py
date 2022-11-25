@@ -25,7 +25,6 @@ from keras.engine import functional
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_utils
-from keras.saving.experimental import saving_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -471,7 +470,6 @@ class Sequential(functional.Functional):
             layer_configs = config["layers"]
         else:
             name = None
-            build_input_shape = None
             layer_configs = config
         model = cls(name=name)
         for layer_config in layer_configs:
@@ -479,13 +477,6 @@ class Sequential(functional.Functional):
                 layer_config, custom_objects=custom_objects
             )
             model.add(layer)
-
-        if saving_lib.saving_v3_enabled():
-            compile_config = config.get("compile_config", None)
-            if compile_config is not None:
-                model._compile_from_config(
-                    compile_config, base_class=Sequential
-                )
 
         if (
             not model.inputs
