@@ -53,7 +53,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):
     ```python
     price = tf.feature_column.numeric_column('price')
     keywords_embedded = tf.feature_column.embedding_column(
-        tf.feature_column.categorical_column_with_hash_bucket("keywords", 10K),
+        tf.feature_column.categorical_column_with_hash_bucket("keywords", 10000),
         dimension=16)
     columns = [price, keywords_embedded, ...]
     partitioner = tf.compat.v1.fixed_size_partitioner(num_shards=4)
