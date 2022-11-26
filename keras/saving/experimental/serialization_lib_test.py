@@ -180,7 +180,7 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
-    def test_shared_object(self):
+    def shared_inner_layer(self):
         input_1 = keras.Input((2,))
         input_2 = keras.Input((2,))
         shared_layer = keras.layers.Dense(1)
@@ -194,6 +194,56 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
 
         self.assertIs(model.layers[2], model.layers[3].layer)
         self.assertIs(new_model.layers[2], new_model.layers[3].layer)
+
+    def test_shared_object(self):
+        class MyLayer(keras.layers.Layer):
+            def __init__(self, activation, **kwargs):
+                super().__init__(**kwargs)
+                if isinstance(activation, dict):
+                    self.activation = (
+                        serialization_lib.deserialize_keras_object(activation)
+                    )
+                else:
+                    self.activation = activation
+
+            def call(self, x):
+                return self.activation(x)
+
+            def get_config(self):
+                config = super().get_config()
+                config["activation"] = self.activation
+                return config
+
+        class SharedActivation:
+            def __call__(self, x):
+                return x**2
+
+            def get_config(self):
+                return {}
+
+            @classmethod
+            def from_config(cls, config):
+                return cls()
+
+        shared_act = SharedActivation()
+        layer_1 = MyLayer(activation=shared_act)
+        layer_2 = MyLayer(activation=shared_act)
+        layers = [layer_1, layer_2]
+
+        with serialization_lib.ObjectSharingScope():
+            serialized, new_layers, reserialized = self.roundtrip(
+                layers,
+                custom_objects={
+                    "MyLayer": MyLayer,
+                    "SharedActivation": SharedActivation,
+                },
+            )
+        self.assertIn("shared_object_id", serialized[0]["config"]["activation"])
+        obj_id = serialized[0]["config"]["activation"]
+        self.assertIn("shared_object_id", serialized[1]["config"]["activation"])
+        self.assertEqual(obj_id, serialized[1]["config"]["activation"])
+        self.assertIs(layers[0].activation, layers[1].activation)
+        self.assertIs(new_layers[0].activation, new_layers[1].activation)
 
 
 @test_utils.run_v2_only

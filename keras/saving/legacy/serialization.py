@@ -353,8 +353,8 @@ def serialize_keras_object(instance):
     if hasattr(instance, "__name__"):
         return object_registration.get_registered_name(instance)
     raise ValueError(
-        f"Cannot serialize {instance} since it doesn't implement "
-        "`get_config()`, and also doesn\t have `__name__`"
+        f"Cannot serialize {instance} because it doesn't implement "
+        "`get_config()`."
     )
 
 
