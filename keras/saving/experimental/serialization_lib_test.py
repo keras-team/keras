@@ -132,7 +132,7 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         # Test inside layer
         dense = keras.layers.Dense(1, activation=custom_fn)
         dense.build((None, 2))
-        serialized, new_dense, reserialized = self.roundtrip(
+        _, new_dense, _ = self.roundtrip(
             dense, custom_objects={"custom_fn": custom_fn}
         )
         x = tf.random.normal((2, 2))
@@ -146,7 +146,7 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         layer = CustomLayer(factor=2)
         x = tf.random.normal((2, 2))
         y1 = layer(x)
-        serialized, new_layer, reserialized = self.roundtrip(
+        _, new_layer, _ = self.roundtrip(
             layer, custom_objects={"CustomLayer": CustomLayer}
         )
         y2 = new_layer(x)
@@ -155,7 +155,7 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         layer = NestedCustomLayer(factor=2)
         x = tf.random.normal((2, 2))
         y1 = layer(x)
-        serialized, new_layer, reserialized = self.roundtrip(
+        _, new_layer, _ = self.roundtrip(
             layer,
             custom_objects={
                 "NestedCustomLayer": NestedCustomLayer,
@@ -165,6 +165,19 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         _ = new_layer(x)
         new_layer.set_weights(layer.get_weights())
         y2 = new_layer(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+
+    def test_lambda_fn(self):
+        obj = {"activation": lambda x: x**2}
+        _, new_obj, _ = self.roundtrip(obj)
+        self.assertEqual(obj["activation"](3), new_obj["activation"](3))
+
+    def test_lambda_layer(self):
+        lmbda = keras.layers.Lambda(lambda x: x**2)
+        _, new_lmbda, _ = self.roundtrip(lmbda)
+        x = tf.random.normal((2, 2))
+        y1 = lmbda(x)
+        y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
     def test_shared_object(self):

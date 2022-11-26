@@ -21,6 +21,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.saving import object_registration
+from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.util import tf_export
@@ -83,6 +84,13 @@ def serialize_keras_object(obj):
             return obj.item()
     if isinstance(obj, tf.DType):
         return obj.name
+    if isinstance(obj, types.FunctionType) and obj.__name__ == "<lambda>":
+        return {
+            "class_name": "__lambda__",
+            "config": {
+                "value": generic_utils.func_dump(obj),
+            },
+        }
 
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
@@ -122,13 +130,6 @@ def _get_class_or_fn_config(obj):
     """Return the object's config depending on its type."""
     # Functions / lambdas:
     if isinstance(obj, types.FunctionType):
-        if getattr(obj, "__name__") == "<lambda>":
-            raise TypeError(
-                "`lambda` objects cannot be serialized. "
-                "Make sure there are no `lambda` objects being "
-                "returned by a `get_config()` method. "
-                f"Received the following: {obj}"
-            )
         return obj.__name__
     # All classes:
     if hasattr(obj, "get_config"):
@@ -278,6 +279,8 @@ def deserialize_keras_object(config, custom_objects=None):
         return np.array(inner_config["value"], dtype=inner_config["dtype"])
     if config["class_name"] == "__bytes__":
         return inner_config["value"].encode("utf-8")
+    if config["class_name"] == "__lambda__":
+        return generic_utils.func_load(inner_config["value"])
     # TODO(fchollet): support for TypeSpec, CompositeTensor, tf.Dtype
     # TODO(fchollet): consider special-casing tuples (which are currently
     # deserialized as lists).
