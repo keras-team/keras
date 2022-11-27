@@ -31,6 +31,7 @@ import keras
 from keras import losses
 from keras.engine import base_layer
 from keras.optimizers import optimizer
+from keras.saving.experimental.serialization_lib import ObjectSharingScope
 from keras.saving.experimental.serialization_lib import deserialize_keras_object
 from keras.saving.experimental.serialization_lib import serialize_keras_object
 from keras.utils import generic_utils
@@ -141,7 +142,8 @@ def save_model(model, filepath, weights_format="h5"):
     saving_v3_enabled_value = getattr(_SAVING_V3_ENABLED, "value", False)
     _SAVING_V3_ENABLED.value = True
 
-    serialized_model_dict = serialize_keras_object(model)
+    with ObjectSharingScope():
+        serialized_model_dict = serialize_keras_object(model)
     config_json = json.dumps(serialized_model_dict)
     metadata_json = json.dumps(
         {
@@ -230,7 +232,8 @@ def load_model(filepath, custom_objects=None, compile=True):
                 # Disable compilation
                 config_dict["config"]["compile_config"] = None
             # Construct the model from the configuration file in the archive.
-            model = deserialize_keras_object(config_dict, custom_objects)
+            with ObjectSharingScope():
+                model = deserialize_keras_object(config_dict, custom_objects)
 
             all_filenames = zf.namelist()
             if _VARS_FNAME + ".h5" in all_filenames:

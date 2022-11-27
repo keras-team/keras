@@ -15,6 +15,7 @@
 """Object config serialization and deserialization logic."""
 
 import importlib
+import threading
 import types
 
 import numpy as np
@@ -27,6 +28,47 @@ from keras.utils import generic_utils
 from tensorflow.python.util import tf_export
 
 PLAIN_TYPES = (str, int, float, bool)
+SHARED_OBJECTS = threading.local()
+
+
+class ObjectSharingScope:
+    """Scope to enable detection and reuse of previously seen objects."""
+
+    def __enter__(self):
+        SHARED_OBJECTS.enabled = True
+        SHARED_OBJECTS.id_to_obj_map = {}
+        SHARED_OBJECTS.id_to_config_map = {}
+
+    def __exit__(self, *args, **kwargs):
+        SHARED_OBJECTS.enabled = False
+        SHARED_OBJECTS.id_to_obj_map = {}
+        SHARED_OBJECTS.id_to_config_map = {}
+
+
+def get_shared_object(obj_id):
+    """Retrieve an object previously seen during deserialization."""
+    if getattr(SHARED_OBJECTS, "enabled", False):
+        return SHARED_OBJECTS.id_to_obj_map.get(obj_id, None)
+
+
+def record_object_after_serialization(obj, config):
+    """Call after serializing an object, to keep track of its config."""
+    if not getattr(SHARED_OBJECTS, "enabled", False):
+        return  # Not in a sharing scope
+    obj_id = int(id(obj))
+    if obj_id not in SHARED_OBJECTS.id_to_config_map:
+        SHARED_OBJECTS.id_to_config_map[obj_id] = config
+    else:
+        config["shared_object_id"] = obj_id
+        prev_config = SHARED_OBJECTS.id_to_config_map[obj_id]
+        prev_config["shared_object_id"] = obj_id
+
+
+def record_object_after_deserialization(obj, obj_id):
+    """Call after deserializing an object, to keep track of it in the future."""
+    if not getattr(SHARED_OBJECTS, "enabled", False):
+        return  # Not in a sharing scope
+    SHARED_OBJECTS.id_to_obj_map[obj_id] = obj
 
 
 def serialize_keras_object(obj):
@@ -118,12 +160,14 @@ def serialize_keras_object(obj):
         module = ".".join(parts[:-1])
         class_name = parts[-1]
         registered_name = None
-    return {
+    config = {
         "module": module,
         "class_name": class_name,
         "config": _get_class_or_fn_config(obj),
         "registered_name": registered_name,
     }
+    record_object_after_serialization(obj, config)
+    return config
 
 
 def _get_class_or_fn_config(obj):
@@ -300,7 +344,13 @@ def deserialize_keras_object(config, custom_objects=None):
             custom_objects=custom_objects,
         )
 
-    # All classes:
+    # Below, handling of all classes.
+    # First, is it a shared object?
+    if "shared_object_id" in config:
+        obj = get_shared_object(config["shared_object_id"])
+        if obj is not None:
+            return obj
+
     cls = _retrieve_class_or_fn(
         class_name,
         registered_name,
@@ -318,7 +368,10 @@ def deserialize_keras_object(config, custom_objects=None):
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
     with object_registration.custom_object_scope(custom_objects):
-        return cls.from_config(inner_config)
+        obj = cls.from_config(inner_config)
+    if "shared_object_id" in config:
+        record_object_after_deserialization(obj, config["shared_object_id"])
+    return obj
 
 
 def _retrieve_class_or_fn(
