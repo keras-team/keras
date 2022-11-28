@@ -3020,18 +3020,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 config.pop(key, None)
         else:
             config = {}
-        if saving_lib.saving_v3_enabled():
-            if self._is_compiled and hasattr(self, "_compile_config"):
-                config["compile_config"] = self._compile_config.serialize()
-            if self.built:
-                config["build_input_shape"] = self._build_input_shape
         return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        compile_config = config.pop("compile_config", None)
-        build_input_shape = config.pop("build_input_shape", None)
-
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
         # class of `Functional` but only inherits from the `Model` class, we
@@ -3074,13 +3066,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         f"instance of {cls.__name__} from the config. \n\n"
                         f"Error encountered during deserialization:\n{e}"
                     )
-
-            if saving_lib.saving_v3_enabled():
-                if build_input_shape:
-                    model.build(build_input_shape)
-                if compile_config is not None:
-                    model._compile_from_config(compile_config, base_class=Model)
-
             return model
 
     def to_json(self, **kwargs):
@@ -3365,6 +3350,26 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 object_path = ".".join([t.name for t in trackable_references])
                 result[object_path] = descendant
         return result
+
+    def get_compile_config(self):
+        if self._is_compiled and hasattr(self, "_compile_config"):
+            return self._compile_config.serialize()
+
+    def compile_from_config(self, config):
+        has_overridden_compile = self.__class__.compile != Model.compile
+        if has_overridden_compile:
+            logging.warning(
+                "`compile()` was not called as part of model loading "
+                "because the model's `compile()` method is custom. "
+                "All subclassed Models that have `compile()` "
+                "overridden should also override "
+                "`get_compile_config()` and `compile_from_config(config)`. "
+                "Alternatively, you can "
+                "call `compile()` manually after loading."
+            )
+            return
+        config = saving_lib.deserialize_keras_object(config)
+        self.compile(**config)
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -3692,27 +3697,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"Received: validation_freq={validation_freq} of the "
                 f"type {type(validation_freq)}."
             )
-
-    def _compile_from_config(self, compile_config, base_class):
-        has_overridden_compile = self.__class__.compile != base_class.compile
-        has_overridden_from_config = (
-            self.__class__.from_config.__func__.__qualname__
-            != base_class.from_config.__func__.__qualname__
-        )
-
-        if not has_overridden_compile:
-            compile_config = saving_lib.deserialize_keras_object(compile_config)
-            self.compile(**compile_config)
-        else:
-            if not has_overridden_from_config:
-                logging.warning(
-                    "`compile()` was not called as part of model loading "
-                    "because the model's `compile()` method is custom. "
-                    "All subclassed Models that have `compile()` "
-                    "overridden should also override `from_config()` in "
-                    "order to call `compile()`. Alternatively, you can "
-                    "call `compile()` manually after loading."
-                )
 
     ######################################################################
     # Functions below exist only as v1 / v2 compatibility shims.

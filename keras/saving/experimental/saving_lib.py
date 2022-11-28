@@ -230,7 +230,7 @@ def load_model(filepath, custom_objects=None, compile=True):
             config_dict = json.loads(config_json)
             if not compile:
                 # Disable compilation
-                config_dict["config"]["compile_config"] = None
+                config_dict["compile_config"] = None
             # Construct the model from the configuration file in the archive.
             with ObjectSharingScope():
                 model = deserialize_keras_object(config_dict, custom_objects)
