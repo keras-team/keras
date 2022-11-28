@@ -26,6 +26,7 @@ from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.util import tf_export
+from tensorflow.python.util.tf_export import keras_export
 
 PLAIN_TYPES = (str, int, float, bool)
 SHARED_OBJECTS = threading.local()
@@ -71,6 +72,7 @@ def record_object_after_deserialization(obj, obj_id):
     SHARED_OBJECTS.id_to_obj_map[obj_id] = obj
 
 
+@keras_export("keras.utils.serialize_keras_object")
 def serialize_keras_object(obj):
     """Retrieve the config dict by serializing the Keras object.
 
@@ -200,6 +202,7 @@ def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
 
 
+@keras_export("keras.utils.deserialize_keras_object")
 def deserialize_keras_object(config, custom_objects=None):
     """Retrieve the object by deserializing the config dict.
 
