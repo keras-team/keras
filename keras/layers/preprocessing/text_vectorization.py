@@ -378,8 +378,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "has_input_vocabulary", (vocabulary is not None)
         )
 
-        # Drop deprecated config options.
-        kwargs.pop("vocabulary_size", None)
+        vocabulary_size = kwargs.pop("vocabulary_size", None)
 
         super().__init__(**kwargs)
         base_preprocessing_layer.keras_kpl_gauge.get_cell(
@@ -396,6 +395,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             sparse=sparse,
             has_input_vocabulary=self._has_input_vocabulary,
             encoding=encoding,
+            vocabulary_size=vocabulary_size,
         )
 
     def compute_output_shape(self, input_shape):
@@ -501,8 +501,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         return self._lookup_layer.vocabulary_size()
 
     def get_config(self):
-        vocab = self._lookup_layer.input_vocabulary
-        idf_weights = self._lookup_layer.input_idf_weights
         config = {
             "max_tokens": self._lookup_layer.max_tokens,
             "standardize": self._standardize,
@@ -513,9 +511,14 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
             "sparse": self._lookup_layer.sparse,
             "ragged": self._ragged,
-            "vocabulary": utils.listify_tensors(vocab),
-            "idf_weights": utils.listify_tensors(idf_weights),
+            "vocabulary": utils.listify_tensors(
+                self._lookup_layer.input_vocabulary
+            ),
+            "idf_weights": utils.listify_tensors(
+                self._lookup_layer.input_idf_weights
+            ),
             "encoding": self._encoding,
+            "vocabulary_size": self.vocabulary_size(),
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -651,3 +654,15 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     @property
     def _trackable_saved_model_saver(self):
         return layer_serialization.VocabularySavedModelSaver(self)
+
+    def _save_own_variables(self, store):
+        self._lookup_layer._save_own_variables(store)
+
+    def _load_own_variables(self, store):
+        self._lookup_layer._load_own_variables(store)
+
+    def _save_assets(self, dir_path):
+        self._lookup_layer._save_assets(dir_path)
+
+    def _load_assets(self, dir_path):
+        self._lookup_layer._load_assets(dir_path)

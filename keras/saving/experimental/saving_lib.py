@@ -46,7 +46,7 @@ except ImportError:
 
 _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
-_VARS_FNAME = "variables.weights"  # Will become e.g. "variables.weights.h5"
+_VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
 
 # A temporary flag to enable the new idempotent saving framework.
@@ -84,6 +84,7 @@ ATTR_SKIPLIST = frozenset(
         "_unconditional_checkpoint_dependencies",
         "_unconditional_dependency_names",
         "_updates",
+        "_layer_call_argspecs",
         "inbound_nodes",
         "submodules",
         "weights",
@@ -207,6 +208,7 @@ def save_model(model, filepath, weights_format="h5"):
 
 def load_model(filepath, custom_objects=None, compile=True):
     """Load a zip archive representing a Keras model."""
+
     filepath = str(filepath)
     if not filepath.endswith(".keras"):
         raise ValueError(
@@ -249,7 +251,7 @@ def load_model(filepath, custom_objects=None, compile=True):
                     f"Expected a {_VARS_FNAME}.h5 or {_VARS_FNAME}.npz file."
                 )
 
-            if _ASSETS_DIRNAME in all_filenames:
+            if len(all_filenames) > 3:
                 asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
             else:
                 asset_store = None
@@ -485,27 +487,32 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = _get_temp_dir()
             if self.mode == "r":
-                self.archive.extract(root_path, path=self.tmp_dir)
-            self.working_dir = self.tmp_dir
+                self.archive.extractall(path=self.tmp_dir)
+            self.working_dir = tf.io.gfile.join(self.tmp_dir, self.root_path)
+            if self.mode == "w":
+                tf.io.gfile.makedirs(self.working_dir)
         else:
             if mode == "r":
                 self.working_dir = root_path
             else:
                 self.tmp_dir = _get_temp_dir()
-                self.working_dir = self.tmp_dir
+                self.working_dir = tf.io.gfile.join(
+                    self.tmp_dir, self.root_path
+                )
+                tf.io.gfile.makedirs(self.working_dir)
 
     def make(self, path):
         if not path:
-            return self.tmp_dir
-        path = tf.io.gfile.join(self.tmp_dir, path)
+            return self.working_dir
+        path = tf.io.gfile.join(self.working_dir, path)
         if not tf.io.gfile.exists(path):
             tf.io.gfile.makedirs(path)
         return path
 
     def get(self, path):
         if not path:
-            return self.tmp_dir
-        path = tf.io.gfile.join(self.tmp_dir, path)
+            return self.working_dir
+        path = tf.io.gfile.join(self.working_dir, path)
         if tf.io.gfile.exists(path):
             return path
         return None
@@ -513,7 +520,7 @@ class DiskIOStore:
     def close(self):
         if self.mode == "w" and self.archive:
             _write_to_zip_recursively(
-                self.archive, self.tmp_dir, self.root_path
+                self.archive, self.working_dir, self.root_path
             )
         if self.tmp_dir and tf.io.gfile.exists(self.tmp_dir):
             tf.io.gfile.rmtree(self.tmp_dir)

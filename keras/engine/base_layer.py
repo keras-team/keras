@@ -3452,13 +3452,14 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     def _load_own_variables(self, store):
         """Experimental method for loading the state of this layer object."""
+        self._update_trackables()
         all_vars = self._trainable_weights + self._non_trainable_weights
         if len(store.keys()) != len(all_vars):
             raise ValueError(
                 f"Layer '{self.name}' expected {len(all_vars)} variables, "
                 "but received "
                 f"{len(store.keys())} variables during loading. "
-                f"Names of variables received: {list(store.keys())}"
+                f"Expected: {[v.name for v in all_vars]}"
             )
         for i, v in enumerate(all_vars):
             # TODO(rchao): check shapes and raise errors.
