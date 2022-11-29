@@ -128,6 +128,8 @@ def serialize_keras_object(obj):
             return obj.item()
     if isinstance(obj, tf.DType):
         return obj.name
+    if isinstance(obj, tf.compat.v1.Dimension):
+        return obj.value
     if isinstance(obj, types.FunctionType) and obj.__name__ == "<lambda>":
         return {
             "class_name": "__lambda__",
@@ -332,7 +334,7 @@ def deserialize_keras_object(config, custom_objects=None):
         return inner_config["value"].encode("utf-8")
     if config["class_name"] == "__lambda__":
         return generic_utils.func_load(inner_config["value"])
-    # TODO(fchollet): support for TypeSpec, CompositeTensor, tf.Dtype
+    # TODO(fchollet): support for TypeSpec, CompositeTensor/RaggedTensor
     # TODO(fchollet): consider special-casing tuples (which are currently
     # deserialized as lists).
 
