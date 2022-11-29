@@ -27,7 +27,7 @@ import types as python_types
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras.saving import serialization_lib
+from keras.saving.experimental import serialization_lib
 from keras.utils import io_utils
 from keras.utils import tf_inspect
 
