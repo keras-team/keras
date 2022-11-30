@@ -41,7 +41,7 @@ from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers import optimizer_v1
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.saving import object_registration
 from keras.saving.legacy import save
 from keras.testing_infra import test_combinations

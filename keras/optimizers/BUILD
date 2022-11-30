@@ -41,7 +41,7 @@ py_library(
         ":utils",
         "//:expect_tensorflow_installed",
         "//keras:backend",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:engine_utils",
     ],

@@ -22,9 +22,7 @@ from keras.mixed_precision import (
     loss_scale_optimizer as loss_scale_optimizer_v2,
 )
 from keras.mixed_precision import policy
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 

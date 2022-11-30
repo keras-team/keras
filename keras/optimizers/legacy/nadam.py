@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend_config
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.optimizers.schedules import learning_rate_schedule
 
 # isort: off

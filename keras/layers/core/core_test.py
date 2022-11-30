@@ -331,7 +331,7 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         model = test_utils.get_model_from_layers([layer], input_shape=(10,))
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -437,7 +437,7 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         model = test_utils.get_model_from_layers([layer], input_shape=(10,))
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )

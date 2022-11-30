@@ -15,7 +15,7 @@ package(
 )
 
 py_library(
-    name = "optimizer_v2",
+    name = "optimizers",
     srcs = [
         "adadelta.py",
         "adagrad.py",
@@ -47,7 +47,7 @@ cuda_py_test(
     srcs = ["adagrad_test.py"],
     shard_count = 4,
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -63,7 +63,7 @@ cuda_py_test(
         "no_windows",  # TODO(b/171384138)
     ],
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -77,7 +77,7 @@ cuda_py_test(
     # TODO(b/168527439): invalid resource variable reference on GPU for TFRT.
     tags = ["no_rocm"],
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -90,7 +90,7 @@ cuda_py_test(
     shard_count = 4,
     # TODO(b/168527439): invalid resource variable reference on GPU for TFRT.
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -102,7 +102,7 @@ cuda_py_test(
     srcs = ["ftrl_test.py"],
     shard_count = 4,
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -113,7 +113,7 @@ cuda_py_test(
     srcs = ["gradient_descent_test.py"],
     shard_count = 4,
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -125,7 +125,7 @@ cuda_py_test(
     srcs = ["nadam_test.py"],
     shard_count = 4,
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -139,7 +139,7 @@ cuda_py_test(
         "no_windows",
     ],
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -154,7 +154,7 @@ cuda_py_test(
     shard_count = 2,
     # TODO(b/168527439): invalid resource variable reference on GPU for TFRT.
     deps = [
-        ":optimizer_v2",
+        ":optimizers",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",

@@ -20,12 +20,12 @@ from keras.optimizers import ftrl as ftrl_new
 from keras.optimizers import nadam as nadam_new
 from keras.optimizers import rmsprop as rmsprop_new
 from keras.optimizers import sgd as sgd_new
-from keras.optimizers.optimizer_v2 import adadelta as adadelta_old
-from keras.optimizers.optimizer_v2 import adagrad as adagrad_old
-from keras.optimizers.optimizer_v2 import adam as adam_old
-from keras.optimizers.optimizer_v2 import ftrl as ftrl_old
-from keras.optimizers.optimizer_v2 import gradient_descent as sgd_old
-from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_old
+from keras.optimizers.legacy import adadelta as adadelta_old
+from keras.optimizers.legacy import adagrad as adagrad_old
+from keras.optimizers.legacy import adam as adam_old
+from keras.optimizers.legacy import ftrl as ftrl_old
+from keras.optimizers.legacy import gradient_descent as sgd_old
+from keras.optimizers.legacy import rmsprop as rmsprop_old
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils

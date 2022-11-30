@@ -24,7 +24,7 @@ from absl.testing import parameterized
 import keras
 from keras import layers
 from keras import losses
-from keras.optimizers import optimizer_v2
+from keras.optimizers import legacy as optimizer_legacy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils
@@ -134,7 +134,7 @@ class LossesSerialization(test_combinations.TestCase):
         ):
             model = _get_multi_io_model()
             model.compile(
-                optimizer_v2.gradient_descent.SGD(0.1),
+                optimizer_legacy.gradient_descent.SGD(0.1),
                 loss=value,
                 run_eagerly=test_utils.should_run_eagerly(),
             )
@@ -171,7 +171,7 @@ class LossesSerialization(test_combinations.TestCase):
     def test_serializing_model_with_loss_with_custom_objects(self, value):
         model = _get_multi_io_model()
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.1),
+            optimizer_legacy.gradient_descent.SGD(0.1),
             loss=value,
             run_eagerly=test_utils.should_run_eagerly(),
         )

@@ -68,7 +68,7 @@ class VectorClassificationIntegrationTest(test_combinations.TestCase):
         )
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -113,7 +113,7 @@ class VectorClassificationIntegrationTest(test_combinations.TestCase):
         model = keras.models.Model(x, y)
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -158,7 +158,7 @@ class SequentialIntegrationTest(KerasIntegrationTest):
         )
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -177,7 +177,7 @@ class SequentialIntegrationTest(KerasIntegrationTest):
 
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -220,7 +220,7 @@ class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
         )
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -268,7 +268,7 @@ class TimeseriesClassificationIntegrationTest(test_combinations.TestCase):
             )
             model.compile(
                 loss="categorical_crossentropy",
-                optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+                optimizer=keras.optimizers.legacy.adam.Adam(0.005),
                 metrics=["acc"],
                 run_eagerly=test_utils.should_run_eagerly(),
             )
@@ -314,7 +314,7 @@ class ImageClassificationIntegrationTest(test_combinations.TestCase):
         )
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["acc"],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -368,7 +368,7 @@ class ActivationV2IntegrationTest(test_combinations.TestCase):
 
         model.compile(
             loss="categorical_crossentropy",
-            optimizer=keras.optimizers.optimizer_v2.adam.Adam(0.005),
+            optimizer=keras.optimizers.legacy.adam.Adam(0.005),
             metrics=["accuracy"],
             run_eagerly=test_utils.should_run_eagerly(),
         )

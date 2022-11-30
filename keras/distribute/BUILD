@@ -63,7 +63,7 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/optimizers",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -143,7 +143,7 @@ distribute_py_test(
     ],
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -244,7 +244,7 @@ distribute_py_test(
         ":strategy_combinations",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -641,7 +641,7 @@ cuda_py_test(
         "//keras:callbacks",
         "//keras:engine",
         "//keras/optimizers",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:kpl_test_utils",
     ],
 )
@@ -671,7 +671,7 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -877,7 +877,7 @@ py_library(
         "//keras/engine",
         "//keras/layers/core",
         "//keras/layers/preprocessing:string_lookup",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:dataset_creator",
     ],
 )

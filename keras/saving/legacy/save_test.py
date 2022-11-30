@@ -533,9 +533,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             )
             model.compile(
                 loss=keras.losses.MSE,
-                optimizer=keras.optimizers.optimizer_v2.rmsprop.RMSprop(
-                    lr=0.0001
-                ),
+                optimizer=keras.optimizers.legacy.rmsprop.RMSprop(lr=0.0001),
                 metrics=[
                     keras.metrics.categorical_accuracy,
                     keras.metrics.CategoricalCrossentropy(
@@ -1012,7 +1010,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             model = _make_model()
             model.compile(
                 loss=keras.losses.SparseCategoricalCrossentropy(),
-                optimizer=optimizers.gradient_descent_v2.SGD(),
+                optimizer=optimizers.gradient_descent_legacy.SGD(),
                 metrics=[keras.metrics.SparseCategoricalCrossentropy()],
             )
             x = np.random.normal(size=(32, 4))
@@ -1052,9 +1050,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             )
             # Set the model's optimizer but don't compile. This can happen if
             # the model is trained with a custom training loop.
-            model.optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop(
-                lr=0.0001
-            )
+            model.optimizer = keras.optimizers.legacy.rmsprop.RMSprop(lr=0.0001)
             if not tf.executing_eagerly():
                 session.run([v.initializer for v in model.variables])
             model.save(saved_model_dir, save_format=save_format)
@@ -1063,7 +1059,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 loaded = keras.models.load_model(saved_model_dir)
                 self.assertIsInstance(
                     loaded.optimizer,
-                    keras.optimizers.optimizer_v2.optimizer_v2.OptimizerV2,
+                    keras.optimizers.legacy.optimizer_v2.OptimizerV2,
                 )
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
