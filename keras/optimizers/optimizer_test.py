@@ -221,7 +221,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer = adam_new.Adam()
         grads = tf.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
         optimizer.apply_gradients(zip([grads], [x]))
-        optimizer_variables = optimizer.variables()
+        optimizer_variables = optimizer.variables
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertLen(optimizer_variables, 3)
         self.assertCountEqual(
@@ -240,10 +240,10 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         optimizer_1.apply_gradients(zip([grads], [x]))
         optimizer_2 = adam_new.Adam()
         with self.assertRaisesRegex(ValueError, "You are calling*"):
-            optimizer_2.set_weights(optimizer_1.variables())
+            optimizer_2.set_weights(optimizer_1.variables)
         optimizer_2.build([x])
-        optimizer_2.set_weights(optimizer_1.variables())
-        self.assertAllClose(optimizer_1.variables(), optimizer_2.variables())
+        optimizer_2.set_weights(optimizer_1.variables)
+        self.assertAllClose(optimizer_1.variables, optimizer_2.variables)
 
     def testSetLearningRate(self):
         optimizer = adam_new.Adam(learning_rate=1.0)
@@ -501,7 +501,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(type(optimizer), type(loaded_optimizer))
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
-        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
+        self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
 
         # Save in Keras SavedModel format.
         model.fit(x, y)
@@ -514,7 +514,7 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
         loaded_optimizer.build(loaded_model.trainable_variables)
-        self.assertAllClose(optimizer.variables(), loaded_optimizer.variables())
+        self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
 
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSparseGradientsWorkAsExpected(self, optimizer_fn):

@@ -770,9 +770,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
         return cls(**config)
 
+    @property
     def variables(self):
         """Returns variables of this optimizer."""
-        return self._variables
+        return CallableList(self._variables)
 
     def set_weights(self, weights):
         """Set the weights of the optimizer.
@@ -801,12 +802,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
     def _save_own_variables(self, store):
         """Get the state of this optimizer object."""
-        for i, variable in enumerate(self.variables()):
+        for i, variable in enumerate(self.variables):
             store[str(i)] = variable.numpy()
 
     def _load_own_variables(self, store):
         """Set the state of this optimizer object."""
-        for i, variable in enumerate(self.variables()):
+        for i, variable in enumerate(self.variables):
             variable.assign(store[str(i)])
 
 
@@ -1246,6 +1247,13 @@ class RestoredOptimizer(Optimizer):
             "supported. Please file a feature request if this limitation "
             "bothers you."
         )
+
+
+class CallableList(list):
+    """Temporary shim to support both `opt.variables()` and `opt.variables`."""
+
+    def __call__(self):
+        return self
 
 
 # Register the optimizer for loading from saved_model purpose.

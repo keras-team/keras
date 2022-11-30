@@ -458,7 +458,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         # The optimizer variables are supposed to be the same (between original
         # and loaded models).
         for original_weights, loaded_weights in zip(
-            model.optimizer.variables(), loaded_model.optimizer.variables()
+            model.optimizer.variables, loaded_model.optimizer.variables
         ):
             np.testing.assert_allclose(original_weights, loaded_weights)
 

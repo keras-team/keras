@@ -665,7 +665,7 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
         optimizer: optimizer instance.
     """
     if isinstance(optimizer, optimizer_base.Optimizer):
-        symbolic_weights = optimizer.variables()
+        symbolic_weights = optimizer.variables
     else:
         symbolic_weights = getattr(optimizer, "weights")
     if symbolic_weights:

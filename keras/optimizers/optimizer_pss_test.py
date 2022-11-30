@@ -86,7 +86,7 @@ class OptimizerPssTest(tf.test.TestCase, parameterized.TestCase):
         return dataset_fn
 
     def _verify_accumulators_updated(self, optimizer):
-        variables = optimizer.variables()
+        variables = optimizer.variables
         for var in variables:
             if "iteration" not in var.name and "learning_rate" not in var.name:
                 # Find a variable not iteration or learning_rate, and verify its

@@ -487,8 +487,8 @@ class TestWholeModelSaving(test_combinations.TestCase):
             ):
                 loaded_model.optimizer.build(loaded_model.trainable_variables)
                 self.assertAllClose(
-                    model.optimizer.variables(),
-                    loaded_model.optimizer.variables(),
+                    model.optimizer.variables,
+                    loaded_model.optimizer.variables,
                 )
             else:
                 self.assertAllClose(
