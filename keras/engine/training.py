@@ -71,9 +71,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     """`Model` groups layers into an object with training and inference features.
 
     Args:
-        inputs: The input(s) of the model: a `keras.Input` object or list of
-            `keras.Input` objects.
-        outputs: The output(s) of the model. See Functional API example below.
+        inputs: The input(s) of the model: a `keras.Input` object or a
+            combination of `keras.Input` objects in a dict, list or tuple.
+        outputs: The output(s) of the model: a tensor that originated from
+            `keras.Input` objects or a combination of such tensors in a dict,
+            list or tuple. See Functional API example below.
         name: String, the name of the model.
 
     There are two ways to instantiate a `Model`:
