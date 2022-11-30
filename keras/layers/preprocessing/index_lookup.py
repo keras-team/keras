@@ -429,7 +429,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             "vocabulary_dtype": self.vocabulary_dtype,
             "idf_weights": utils.listify_tensors(self.input_idf_weights),
             "vocabulary": utils.listify_tensors(self.input_vocabulary),
-            "vocabulary_size": self.vocabulary_size(),
+            "vocabulary_size": self._frozen_vocab_size,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
