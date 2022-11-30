@@ -29,7 +29,8 @@ class Identity(Layer):
     first positional argument as the output.
 
     Args:
-        None
+        name: Optional name for the layer instance.
     """
-    def call(self, inputs, *args, **kwargs):
+
+    def call(self, inputs):
         return inputs
