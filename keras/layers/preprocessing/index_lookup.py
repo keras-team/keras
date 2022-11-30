@@ -668,6 +668,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             # compute a new vocabulary.
             if self.output_mode == TF_IDF:
                 self.idf_weights_const = self.idf_weights.value()
+            self._record_vocabulary_size()
             return
 
         # Remove special tokens from our counts.
