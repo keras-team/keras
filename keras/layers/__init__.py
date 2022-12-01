@@ -63,6 +63,7 @@ from keras.layers.core.activation import Activation
 from keras.layers.core.dense import Dense
 from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.embedding import Embedding
+from keras.layers.core.identity import Identity
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
 from keras.layers.core.tf_op_layer import ClassMethod
