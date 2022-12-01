@@ -397,7 +397,7 @@ class TestModelRevive(ReviveTestBase):
     def test_functional_subclass_wrong_config(self):
         model = FunctionalSubclassModelWrongConfig(32)
         model.save(self.path, save_format="tf")
-        with self.assertRaisesRegex(TypeError, "Unable to revive model"):
+        with self.assertRaisesRegex(TypeError, "required positional arguments"):
             keras_load.load(self.path, compile=False)
 
     def test_load_compiled_metrics(self):
@@ -434,18 +434,6 @@ class TestModelRevive(ReviveTestBase):
             model._get_save_spec(dynamic_batch=False),
             revived._get_save_spec(dynamic_batch=False),
         )
-
-    def test_load_model_with_name_conflict_raises_error(self):
-        class LinearModel(SubclassedModelWithConfig):
-            pass
-
-        model = LinearModel(2, 3)
-        model(np.random.random((5, 10)).astype(np.float32))
-        model.save(self.path, save_format="tf")
-        with self.assertRaisesRegex(
-            RuntimeError, "Unable to restore object of class 'LinearModel'"
-        ):
-            keras_load.load(self.path, compile=True)
 
     def test_load_model_with_name_conflict_registered_works(self):
         model = WideDeepModel(2, 3)

@@ -3003,7 +3003,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # otherwise default to empty dict
         if generic_utils.is_default(self.get_config):
             try:
-                config = super().get_config()
+                config = base_layer.Layer.get_config(self)
             except NotImplementedError:
                 config = {}
                 logging.warning(
@@ -3012,12 +3012,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     "subclassed Model for proper saving and loading. "
                     "Defaulting to empty config."
                 )
-            # `super.get_config` adds additional keys, keep them if they
-            # are explicitly specified in `__init__`
-            init_args = tf_inspect.getfullargspec(self.__init__).args[1:]
-            xtra_args = set(["name", "trainable", "dtype", "batch_input_shape"])
-            for key in xtra_args - xtra_args.intersection(init_args):
-                config.pop(key, None)
         else:
             config = {}
         return config
@@ -3031,13 +3025,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         from keras.engine import functional
 
         with serialization.SharedObjectLoadingScope():
-            functional_model_keys = [
+            functional_config_keys = [
                 "name",
                 "layers",
                 "input_layers",
                 "output_layers",
             ]
-            if all(key in config for key in functional_model_keys):
+            is_functional_config = all(
+                key in config for key in functional_config_keys
+            )
+            argspec = tf_inspect.getfullargspec(cls.__init__)
+            functional_init_args = tf_inspect.getfullargspec(
+                functional.Functional.__init__
+            ).args[1:]
+            revivable_as_functional = (
+                cls in {functional.Functional, Model}
+                or argspec.args[1:] == functional_init_args
+                or (argspec.varargs == "args" and argspec.varkw == "kwargs")
+            )
+            if is_functional_config and revivable_as_functional:
+                # Revive Functional model
+                # (but not Functional subclasses with a custom __init__)
                 inputs, outputs, layers = functional.reconstruct_from_config(
                     config, custom_objects
                 )
@@ -3047,7 +3055,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 functional.connect_ancillary_layers(model, layers)
 
             else:
-                # The config does not contain all the information necessary to
+                # Either the model has a custom __init__, or the config
+                # does not contain all the information necessary to
                 # revive a Functional model. This happens when the user creates
                 # subclassed models where `get_config()` is returning
                 # insufficient information to be considered a Functional model.
@@ -3058,13 +3067,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 except TypeError as e:
                     raise TypeError(
                         "Unable to revive model from config. When overriding "
-                        "the `get_config()`, make sure that the returned "
-                        "config contains all items used as arguments in the "
-                        f"constructor to {cls}, which is the default behavior. "
+                        "the `get_config()` method, make sure that the "
+                        "returned config contains all items used as arguments "
+                        f"in the  constructor to {cls}, "
+                        "which is the default behavior. "
                         "You can override this default behavior by defining a "
-                        "`from_config` method to specify how to create an "
-                        f"instance of {cls.__name__} from the config. \n\n"
-                        f"Error encountered during deserialization:\n{e}"
+                        "`from_config(cls, config)` class method to specify "
+                        "how to create an "
+                        f"instance of {cls.__name__} from the config.\n\n"
+                        f"Received config={config}\n\n"
+                        f"Error encountered during deserialization: {e}"
                     )
             return model
 

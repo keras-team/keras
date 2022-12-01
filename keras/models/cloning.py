@@ -159,6 +159,9 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
         ValueError: in case of invalid `model` argument value or `layer_fn`
         argument value.
     """
+    if layer_fn is None:
+        layer_fn = _clone_layer
+
     if not isinstance(model, Model):
         raise ValueError(
             "Expected `model` argument "
@@ -218,11 +221,22 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
         model_configs, created_layers=created_layers
     )
     metrics_names = model.metrics_names
-    model = Model(input_tensors, output_tensors, name=model.name)
+    if functional.has_functional_like_constructor(model.__class__):
+        new_model = model.__class__(
+            input_tensors, output_tensors, name=model.name
+        )
+    else:
+        # This may be incorrect: the new model will end up having a different
+        # class than the original. However various existing models rely
+        # on this behavior, so we keep it.
+        new_model = Model(input_tensors, output_tensors, name=model.name)
+
     # Layers not directly tied to outputs of the Model, such as loss layers
     # created in `add_loss` and `add_metric`.
     ancillary_layers = [
-        layer for layer in created_layers.values() if layer not in model.layers
+        layer
+        for layer in created_layers.values()
+        if layer not in new_model.layers
     ]
     # TODO(b/162887610): This may need to adjust the inbound node index if the
     # created layers had already been used to define other models.
@@ -236,9 +250,9 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
             ]
         )
         _insert_ancillary_layers(
-            model, ancillary_layers, metrics_names, new_nodes
+            new_model, ancillary_layers, metrics_names, new_nodes
         )
-    return model
+    return new_model
 
 
 def _clone_layers_and_model_config(model, input_layers, layer_fn):
@@ -334,6 +348,9 @@ def _clone_sequential_model(model, input_tensors=None, layer_fn=_clone_layer):
         ValueError: in case of invalid `model` argument value or `layer_fn`
         argument value.
     """
+    if layer_fn is None:
+        layer_fn = _clone_layer
+
     if not isinstance(model, Sequential):
         raise ValueError(
             "Expected `model` argument "
@@ -495,17 +512,36 @@ def clone_model(model, input_tensors=None, clone_function=None):
     ```
     """
     with serialization.DisableSharedObjectScope():
-        if clone_function is None:
-            clone_function = _clone_layer
-
         if isinstance(model, Sequential):
             return _clone_sequential_model(
                 model, input_tensors=input_tensors, layer_fn=clone_function
             )
-        else:
-            return _clone_functional_model(
-                model, input_tensors=input_tensors, layer_fn=clone_function
+        if isinstance(model, functional.Functional):
+            # If the get_config() method is the same as a regular Functional
+            # model, we're safe to use _clone_functional_model (which relies
+            # on a Functional constructor). In the case where the get_config
+            # is custom, this may not necessarily work, but if clone_function
+            # or input_tensors are passed, we attempt it anyway
+            # in order to preserve backwards compatibility.
+            if generic_utils.is_default(model.get_config) or (
+                clone_function or input_tensors
+            ):
+                return _clone_functional_model(
+                    model, input_tensors=input_tensors, layer_fn=clone_function
+                )
+
+        # Case of a custom model class
+        if clone_function or input_tensors:
+            raise ValueError(
+                "Arguments clone_function and input_tensors "
+                "are only supported for Sequential models "
+                "or Functional models. Received model of "
+                f"type '{model.__class__.__name__}', with "
+                f"clone_function={clone_function} and "
+                f"input_tensors={input_tensors}"
             )
+        # Note that a custom object scope may be required in this case.
+        return model.__class__.from_config(model.get_config())
 
 
 # "Clone" a subclassed model by resetting all of the attributes.

@@ -1171,16 +1171,6 @@ class TestSavedModelFormat(tf.test.TestCase):
         self.assertAllEqual([[1.0]], self.evaluate(loaded.layer(inp)))
         self.assertIsInstance(loaded.layer, CustomLayer)
 
-        # If the symbol is no longer available, loading should raise an error.
-        del CustomLayer
-        with object_registration.custom_object_scope({"Model": Model}):
-            with self.assertRaisesRegex(
-                NameError,
-                "free variable 'CustomLayer' referenced "
-                "before assignment in enclosing scope",
-            ):
-                loaded = keras_load.load(saved_model_dir)
-
     def test_save_without_tracing(self):
         class DoNotTrace(keras.layers.Layer):
             def __init__(self):
