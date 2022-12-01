@@ -1132,18 +1132,18 @@ def revive_custom_object(identifier, metadata):
     }
     parent_classes = revived_classes.get(identifier, None)
 
+    class_name = tf.compat.as_str(metadata["class_name"])
     if parent_classes is not None:
         parent_classes = revived_classes[identifier]
-        revived_cls = type(
-            tf.compat.as_str(metadata["class_name"]), parent_classes, {}
-        )
+        revived_cls = type(class_name, parent_classes, {})
         return revived_cls._init_from_metadata(metadata)
     else:
         raise ValueError(
-            f"Unable to restore custom object of type {identifier}. "
-            "Please make sure that any custom layers are included in the "
-            "`custom_objects` arg when calling `load_model()` and make sure "
-            "that all layers implement `get_config` and `from_config`."
+            f'Unable to restore custom object of class "{class_name}" '
+            f"(type {identifier}). Please make sure that this class is "
+            "included in the `custom_objects` arg when calling `load_model()`. "
+            "Also, check that the class implements `get_config` and "
+            f"`from_config`.\n\nComplete metadata: {metadata}"
         )
 
 
