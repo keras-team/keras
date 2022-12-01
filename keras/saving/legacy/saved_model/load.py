@@ -25,7 +25,7 @@ from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration

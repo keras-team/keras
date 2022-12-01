@@ -20,7 +20,7 @@ from keras import backend
 from keras import optimizers
 from keras.optimizers import optimizer
 from keras.optimizers import utils as optimizer_utils
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.saving.legacy import serialization
 
 # isort: off

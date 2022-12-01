@@ -20,7 +20,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
-from keras.optimizers.optimizer_v2 import adagrad
+from keras.optimizers.legacy import adagrad
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 

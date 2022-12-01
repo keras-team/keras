@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import layers
 from keras import metrics
-from keras.optimizers import optimizer_v2
+from keras.optimizers import legacy as optimizer_legacy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -53,7 +53,7 @@ def get_multi_io_temporal_model():
 def get_compiled_multi_io_model_temporal(sample_weight_mode):
     model = get_multi_io_temporal_model()
     model.compile(
-        optimizer=optimizer_v2.gradient_descent.SGD(0.1),
+        optimizer=optimizer_legacy.gradient_descent.SGD(0.1),
         loss="mae",
         metrics=[metrics.MeanAbsoluteError(name="mae")],
         weighted_metrics=[metrics.MeanAbsoluteError(name="mae_2")],

@@ -21,7 +21,7 @@ from keras.distribute import multi_worker_testing_utils
 from keras.engine import data_adapter
 from keras.engine import sequential
 from keras.layers import core as core_layers
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import dataset_creator

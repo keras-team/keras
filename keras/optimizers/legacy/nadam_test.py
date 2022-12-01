@@ -17,7 +17,7 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_v2 import nadam
+from keras.optimizers.legacy import nadam
 
 
 def get_beta_accumulators(opt, dtype):

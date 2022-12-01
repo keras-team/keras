@@ -20,8 +20,8 @@ from absl.testing import parameterized
 
 from keras.engine import sequential
 from keras.layers import core
-from keras.optimizers.optimizer_v2 import adagrad
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import adagrad
+from keras.optimizers.legacy import gradient_descent
 from keras.premade_models import linear
 from keras.premade_models import wide_deep
 from keras.utils import dataset_creator
