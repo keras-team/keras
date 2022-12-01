@@ -127,7 +127,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
 
         grads = tf.ones_like(variable_init_value)
         optimizer.apply_gradients(zip([grads], [model_variable]))
-        optimizer_variables = optimizer.variables()
+        optimizer_variables = optimizer.variables
 
         self.assertEqual(self.evaluate(optimizer.iterations), 1)
 

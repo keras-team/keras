@@ -3027,7 +3027,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
                     keras.layers.Dense(1),
                 ]
             )
-            model.compile(optimizer="adam", loss="mse")
+            model.compile(optimizer=keras.optimizers.Adam(), loss="mse")
             model.build([None, 1])  # create weights.
             return model
 
@@ -3041,11 +3041,12 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             model.load_weights(temp_dir)
             if isinstance(model.optimizer, optimizer_base.Optimizer):
                 model.optimizer.build(model.trainable_variables)
-            self.assertNotEmpty(model.optimizer.variables())
+                variables = model.optimizer.variables
+            else:
+                variables = model.optimizer.variables()
+            self.assertNotEmpty(variables)
             self.assertTrue(
-                distributed_training_utils.is_distributed_variable(
-                    model.optimizer.variables()[0]
-                )
+                distributed_training_utils.is_distributed_variable(variables[0])
             )
 
         with distribution.scope():
@@ -3053,8 +3054,9 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         # create/restore slot variables outside of scope is fine.
         model.load_weights(temp_dir)
         if isinstance(model.optimizer, optimizer_base.Optimizer):
-            # Experimental optimizer has to restore variables in scope.
+            # V3 optimizer has to restore variables in scope.
             return
+        # From this point on, the optimizer must be a V2 optimizer.
         self.assertNotEmpty(model.optimizer.variables())
         self.assertTrue(
             distributed_training_utils.is_distributed_variable(

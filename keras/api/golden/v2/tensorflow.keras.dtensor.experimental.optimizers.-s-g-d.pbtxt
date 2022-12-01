@@ -20,6 +20,10 @@ tf_class {
     name: "lr"
     mtype: "<type \'property\'>"
   }
+  member {
+    name: "variables"
+    mtype: "<type \'property\'>"
+  }
   member_method {
     name: "__init__"
     argspec: "args=[\'self\', \'learning_rate\', \'momentum\', \'nesterov\', \'amsgrad\', \'gradients_clip_option\', \'ema_option\', \'jit_compile\', \'name\', \'mesh\'], varargs=None, keywords=None, defaults=[\'0.01\', \'0.0\', \'False\', \'False\', \'None\', \'None\', \'False\', \'SGD\', \'None\'], "
@@ -75,9 +79,5 @@ tf_class {
   member_method {
     name: "update_step"
     argspec: "args=[\'self\', \'gradient\', \'variable\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "variables"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
 }
