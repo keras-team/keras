@@ -167,9 +167,13 @@ def serialize_keras_object(obj):
         "registered_name": registered_name,
     }
     if hasattr(obj, "get_build_config"):
-        config["build_config"] = obj.get_build_config()
+        build_config = obj.get_build_config()
+        if build_config is not None:
+            config["build_config"] = serialize_dict(build_config)
     if hasattr(obj, "get_compile_config"):
-        config["compile_config"] = obj.get_compile_config()
+        compile_config = obj.get_compile_config()
+        if compile_config is not None:
+            config["compile_config"] = serialize_dict(compile_config)
     record_object_after_serialization(obj, config)
     return config
 

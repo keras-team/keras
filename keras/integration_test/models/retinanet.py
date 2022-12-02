@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from keras.integration_test.models.input_spec import InputSpec
+from keras.saving import serialization_lib
 
 NUM_CLASSES = 10
 IMG_SIZE = (224, 224)
@@ -121,6 +122,22 @@ class RetinaNet(keras.Model):
         box_outputs = tf.concat(box_outputs, axis=1)
         return tf.concat([box_outputs, cls_outputs], axis=-1)
 
+    def get_config(self):
+        return {
+            "num_classes": self.num_classes,
+            "backbone": self.fpn.backbone,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        backbone = serialization_lib.deserialize_keras_object(
+            config.pop("backbone")
+        )
+        num_classes = config["num_classes"]
+        retinanet = cls(num_classes=num_classes, backbone=backbone)
+        retinanet(tf.zeros((1, 32, 32, 3)))  # Build model
+        return retinanet
+
 
 class RetinaNetBoxLoss(keras.losses.Loss):
     def __init__(self, delta):
@@ -137,6 +154,9 @@ class RetinaNetBoxLoss(keras.losses.Loss):
             absolute_difference - 0.5,
         )
         return tf.reduce_sum(loss, axis=-1)
+
+    def get_config(self):
+        return {"delta": self._delta}
 
 
 class RetinaNetClassificationLoss(keras.losses.Loss):
@@ -157,6 +177,9 @@ class RetinaNetClassificationLoss(keras.losses.Loss):
         loss = alpha * tf.pow(1.0 - pt, self._gamma) * cross_entropy
         return tf.reduce_sum(loss, axis=-1)
 
+    def get_config(self):
+        return {"alpha": self._alpha, "gamma": self._gamma}
+
 
 class RetinaNetLoss(keras.losses.Loss):
     def __init__(self, num_classes=80, alpha=0.25, gamma=2.0, delta=1.0):
@@ -164,6 +187,9 @@ class RetinaNetLoss(keras.losses.Loss):
         self._clf_loss = RetinaNetClassificationLoss(alpha, gamma)
         self._box_loss = RetinaNetBoxLoss(delta)
         self._num_classes = num_classes
+        self._alpha = alpha
+        self._gamma = gamma
+        self._delta = delta
 
     def call(self, y_true, y_pred):
         y_pred = tf.cast(y_pred, dtype=tf.float32)
@@ -192,6 +218,14 @@ class RetinaNetLoss(keras.losses.Loss):
         )
         loss = clf_loss + box_loss
         return loss
+
+    def get_config(self):
+        return {
+            "num_classes": self._num_classes,
+            "alpha": self._alpha,
+            "gamma": self._gamma,
+            "delta": self._delta,
+        }
 
 
 def get_model(

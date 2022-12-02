@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from keras.integration_test.models.input_spec import InputSpec
+from keras.saving import serialization_lib
 
 IMG_SIZE = (28, 28)
 LATENT_DIM = 64
@@ -69,6 +70,24 @@ class VAE(keras.Model):
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
             "kl_loss": self.kl_loss_tracker.result(),
         }
+
+    def get_config(self):
+        base_config = super().get_config()
+        return {
+            "encoder": self.encoder,
+            "decoder": self.decoder,
+            **base_config,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        encoder = serialization_lib.deserialize_keras_object(
+            config.pop("encoder")
+        )
+        decoder = serialization_lib.deserialize_keras_object(
+            config.pop("decoder")
+        )
+        return cls(encoder, decoder, **config)
 
 
 def get_data_spec(batch_size):

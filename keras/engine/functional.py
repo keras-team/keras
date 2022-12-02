@@ -33,7 +33,6 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
-from keras.saving.experimental import saving_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import network_serialization
@@ -793,11 +792,6 @@ class Functional(training_lib.Model):
             if argspec.varkw != "kwargs":
                 for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
                     config.pop(key, None)
-
-        # Add compile config
-        if saving_lib.saving_v3_enabled():
-            if self._is_compiled and hasattr(self, "_compile_config"):
-                config["compile_config"] = self._compile_config.serialize()
         return config
 
     def get_weight_paths(self):

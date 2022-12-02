@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 from keras.integration_test.models.input_spec import InputSpec
+from keras.saving import serialization_lib
 
 IMG_SIZE = (64, 64)
 LATENT_DIM = 128
@@ -74,6 +75,48 @@ class GAN(keras.Model):
             "d_loss": self.d_loss_metric.result(),
             "g_loss": self.g_loss_metric.result(),
         }
+
+    def get_config(self):
+        return {
+            "discriminator": self.discriminator,
+            "generator": self.generator,
+            "latent_dim": self.latent_dim,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        discriminator = serialization_lib.deserialize_keras_object(
+            config["discriminator"]
+        )
+        generator = serialization_lib.deserialize_keras_object(
+            config["generator"]
+        )
+        latent_dim = config["latent_dim"]
+        return cls(discriminator, generator, latent_dim)
+
+    def get_compile_config(self):
+        return {
+            "loss_fn": self.loss_fn,
+            "d_optimizer": self.d_optimizer,
+            "g_optimizer": self.g_optimizer,
+            "jit_compile": self.jit_compile,
+        }
+
+    def compile_from_config(self, config):
+        loss_fn = serialization_lib.deserialize_keras_object(config["loss_fn"])
+        d_optimizer = serialization_lib.deserialize_keras_object(
+            config["d_optimizer"]
+        )
+        g_optimizer = serialization_lib.deserialize_keras_object(
+            config["g_optimizer"]
+        )
+        jit_compile = config["jit_compile"]
+        self.compile(
+            loss_fn=loss_fn,
+            d_optimizer=d_optimizer,
+            g_optimizer=g_optimizer,
+            jit_compile=jit_compile,
+        )
 
 
 def get_model(

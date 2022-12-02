@@ -26,6 +26,8 @@ def get_model(
             keras.layers.Dense(1),
         ]
     )
+    if build:
+        model.build((None, TIMESTEPS, 1))
     if compile:
         model.compile(
             optimizer=keras.optimizers.Adam(),
@@ -36,4 +38,4 @@ def get_model(
 
 
 def get_custom_objects():
-    return None
+    return {}
