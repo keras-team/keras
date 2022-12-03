@@ -764,17 +764,17 @@ class Functional(training_lib.Model):
 
     @generic_utils.default
     def get_config(self):
-        if saved_model_utils.in_tf_saved_model_scope():
-            # SavedModel special case: need to preserve legacy (potentially
-            # incorrect) behavior.
-            config = super().get_config()
-            return copy.deepcopy(get_network_config(self, config=config))
-
         # Prepare base arguments
         config = {
             "name": self.name,
             "trainable": self.trainable,
         }
+
+        if saved_model_utils.in_tf_saved_model_scope():
+            # SavedModel special case: need to preserve legacy (potentially
+            # incorrect) behavior.
+            return copy.deepcopy(get_network_config(self, config=config))
+
         # Check whether the class has a constructor compatible with a Functional
         # model or if it has a custom constructor.
         if has_functional_like_constructor(self.__class__):
