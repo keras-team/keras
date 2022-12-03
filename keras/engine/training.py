@@ -2898,56 +2898,55 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @traceback_utils.filter_traceback
     def load_weights(
-        self, filepath, by_name=False, skip_mismatch=False, options=None
+        self, filepath, skip_mismatch=False, by_name=False, options=None
     ):
-        """Loads all layer weights, either from a SavedModel or H5 weights file.
+        """Loads all layer weights from a saved files.
 
-        If `by_name` is False weights are loaded based on the network's
+        The saved file could be a SavedModel file, a `.keras` file (v3 saving
+        format), or a file created via `model.save_weights()`.
+
+        By default, weights are loaded based on the network's
         topology. This means the architecture should be the same as when the
-        weights were saved.  Note that layers that don't have weights are not
+        weights were saved. Note that layers that don't have weights are not
         taken into account in the topological ordering, so adding or removing
         layers is fine as long as they don't have weights.
 
-        If `by_name` is True, weights are loaded into layers only if they share
+        **Partial weight loading**
+
+        If you have modified your model, for instance by adding a new layer
+        (with weights) or by changing the shape of the weights of a layer,
+        you can choose to ignore errors and continue loading
+        by setting `skip_mismatch=True`. In this case any layer with
+        mismatching weights will be skipped. A warning will be displayed
+        for each skipped layer.
+
+        **Weight loading by name**
+
+        If your weights are saved as a `.h5` file created
+        via `model.save_weights()`, you can use the argument `by_name=True`.
+
+        In this case, weights are loaded into layers only if they share
         the same name. This is useful for fine-tuning or transfer-learning
         models where some of the layers have changed.
 
-        Only topological loading (`by_name=False`) is supported when loading
-        weights from the TensorFlow format. Note that topological loading
-        differs slightly between TensorFlow and HDF5 formats for user-defined
-        classes inheriting from `tf.keras.Model`: HDF5 loads based on a
-        flattened list of weights, while the TensorFlow format loads based on
-        the object-local names of attributes to which layers are assigned in the
-        `Model`'s constructor.
+        Note that only topological loading (`by_name=False`) is supported when
+        loading weights from the `.keras` v3 format or from the TensorFlow
+        SavedModel format.
 
         Args:
             filepath: String, path to the weights file to load. For weight files
                 in TensorFlow format, this is the file prefix (the same as was
-                passed to `save_weights`). This can also be a path to a
-                SavedModel saved from `model.save`.
-            by_name: Boolean, whether to load weights by name or by topological
-                order. Only topological loading is supported for weight files in
-                TensorFlow format.
+                passed to `save_weights()`). This can also be a path to a
+                SavedModel or a `.keras` file (v3 saving format) saved
+                via `model.save()`.
             skip_mismatch: Boolean, whether to skip loading of layers where
                 there is a mismatch in the number of weights, or a mismatch in
-                the shape of the weight (only valid when `by_name=True`).
+                the shape of the weights.
+            by_name: Boolean, whether to load weights by name or by topological
+                order. Only topological loading is supported for weight files in
+                the `.keras` v3 format or in the TensorFlow SavedModel format.
             options: Optional `tf.train.CheckpointOptions` object that specifies
-                options for loading weights.
-
-        Returns:
-            When loading a weight file in TensorFlow format, returns the same
-            status object as `tf.train.Checkpoint.restore`. When graph building,
-            restore ops are run automatically as soon as the network is built
-            (on first call for user-defined classes inheriting from `Model`,
-            immediately if it is already built).
-
-            When loading weights in HDF5 format, returns `None`.
-
-        Raises:
-            ImportError: If `h5py` is not available and the weight file is in
-              HDF5 format.
-            ValueError: If `skip_mismatch` is set to `True` when `by_name` is
-              `False`.
+                options for loading weights (only valid for a SavedModel file).
         """
         return saving_api.load_weights(
             self,

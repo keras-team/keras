@@ -219,7 +219,9 @@ class Model(training_lib.Model):
                     "Load weights is not yet supported with TPUStrategy "
                     "with steps_per_run greater than 1."
                 )
-        return super().load_weights(filepath, by_name, skip_mismatch)
+        return super().load_weights(
+            filepath, by_name=by_name, skip_mismatch=skip_mismatch
+        )
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def compile(
