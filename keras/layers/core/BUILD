@@ -30,7 +30,6 @@ py_library(
         ":dense",
         ":einsum_dense",
         ":embedding",
-        ":identity",
         ":lambda",
         ":masking",
         ":tf_op_layer",
@@ -126,16 +125,6 @@ py_library(
         "//keras/engine:base_layer",
         "//keras/initializers",
         "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "identity",
-    srcs = ["identity.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras/engine:base_layer",
     ],
 )
 

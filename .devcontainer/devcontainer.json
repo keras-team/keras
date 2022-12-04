@@ -1,6 +1,6 @@
 {
     "dockerFile": "Dockerfile",
-    "postCreateCommand": "pip install -r requirements.txt && pip uninstall keras-nightly -y",
+    "postCreateCommand": "sh /setup.sh",
     "extensions": ["ms-python.python"],
     "settings": {
         "files.watcherExclude": {
@@ -8,8 +8,6 @@
         },
         "search.exclude": {
             "**/bazel-*/**": true
-        },
-        "terminal.integrated.defaultProfile.linux": "bash"
-    },
-    "remoteUser": "keras-vscode"
+        }
+    }
 }

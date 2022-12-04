@@ -1,5 +1,6 @@
 {
   "python.linting.flake8Enabled": true,
+  "python.linting.pylintEnabled": false,
   "python.linting.enabled": true,
   "editor.rulers": [
       80
