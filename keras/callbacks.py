@@ -2079,7 +2079,7 @@ class EarlyStopping(Callback):
                 self.wait = 0
 
         # Only check after the first epoch.
-        if self.wait >= self.patience and epoch > 0:
+        if self.wait > self.patience and epoch > 0:
             self.stopped_epoch = epoch
             self.model.stop_training = True
             if self.restore_best_weights and self.best_weights is not None:
