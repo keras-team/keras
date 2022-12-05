@@ -477,10 +477,10 @@ class Sequence:
             return math.ceil(len(self.x) / self.batch_size)
 
         def __getitem__(self, idx):
-            batch_x = self.x[idx * self.batch_size:(idx + 1) *
-            self.batch_size]
-            batch_y = self.y[idx * self.batch_size:(idx + 1) *
-            self.batch_size]
+            low = idx * self.batch_size
+            high = (idx + 1) * self.batch_size
+            batch_x = self.x[low:high]
+            batch_y = self.y[low:high]
 
             return np.array([
                 resize(imread(file_name), (200, 200))
