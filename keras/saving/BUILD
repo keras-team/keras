@@ -46,6 +46,34 @@ py_library(
 )
 
 py_library(
+    name = "saving_lib",
+    srcs = [
+        "saving_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":serialization_lib",
+        "//:expect_tensorflow_installed",
+        "//keras/utils:generic_utils",
+        "//keras/utils:io_utils",
+    ],
+)
+
+tf_py_test(
+    name = "saving_lib_test",
+    size = "medium",
+    srcs = ["saving_lib_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+        "//keras/utils:generic_utils",
+    ],
+)
+
+py_library(
     name = "object_registration",
     srcs = [
         "object_registration.py",
