@@ -447,15 +447,14 @@ class Sequence:
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
-    If you want to modify your dataset between epochs you may implement
-    `on_epoch_end`.
-    The method `__getitem__` should return a complete batch.
+    If you want to modify your dataset between epochs, you may implement
+    `on_epoch_end`. The method `__getitem__` should return a complete batch.
 
     Notes:
 
-    `Sequence` are a safer way to do multiprocessing. This structure guarantees
-    that the network will only train once
-     on each sample per epoch which is not the case with generators.
+    `Sequence` is a safer way to do multiprocessing. This structure guarantees
+    that the network will only train once on each sample per epoch, which is not
+    the case with generators.
 
     Examples:
 
