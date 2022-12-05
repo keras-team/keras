@@ -15,7 +15,6 @@
 """Legacy serialization logic for Keras models."""
 
 import threading
-import warnings
 import weakref
 
 import tensorflow.compat.v2 as tf
@@ -278,10 +277,6 @@ def skip_failed_serialization():
         _SKIP_FAILED_SERIALIZATION = prev
 
 
-class CustomMaskWarning(Warning):
-    pass
-
-
 @keras_export("keras.utils.serialize_keras_object")
 def serialize_keras_object(instance):
     """Serialize a Keras object into a JSON-compatible representation.
@@ -302,21 +297,6 @@ def serialize_keras_object(instance):
     _, instance = tf.__internal__.decorator.unwrap(instance)
     if instance is None:
         return None
-
-    # For v1 layers, checking supports_masking is not enough. We have to also
-    # check whether compute_mask has been overridden.
-    supports_masking = getattr(instance, "supports_masking", False) or (
-        hasattr(instance, "compute_mask")
-        and not is_default(instance.compute_mask)
-    )
-    if supports_masking and is_default(instance.get_config):
-        warnings.warn(
-            "Custom mask layers require a config and must override "
-            "get_config. When loading, the custom mask layer must be "
-            "passed to the custom_objects argument.",
-            category=CustomMaskWarning,
-            stacklevel=2,
-        )
 
     if hasattr(instance, "get_config"):
         name = object_registration.get_registered_name(instance.__class__)
