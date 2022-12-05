@@ -615,6 +615,66 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         with self.assertRaises(EOFError):
             model.save_weights(temp_filepath, overwrite=False)
 
+    def test_partial_load(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        original_model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Dense(4),
+                keras.layers.Dense(5),
+            ]
+        )
+        original_model.save(temp_filepath, save_format="keras_v3")
+
+        # Test with a model that has a differently shaped layer
+        new_model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Dense(4),
+                keras.layers.Dense(6),
+            ]
+        )
+        new_layer_kernel_value = new_model.layers[1].kernel.numpy()
+        with self.assertRaisesRegex(ValueError, "Shape mismatch"):
+            # Doesn't work by default
+            new_model.load_weights(temp_filepath)
+        # Now it works
+        new_model.load_weights(temp_filepath, skip_mismatch=True)
+        self.assertAllClose(
+            original_model.layers[0].get_weights(),
+            new_model.layers[0].get_weights(),
+        )
+        self.assertAllClose(
+            new_model.layers[1].kernel.numpy(), new_layer_kernel_value
+        )
+
+        # Test with a model that has a new layer
+        new_model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Dense(4),
+                keras.layers.Dense(5),
+                keras.layers.Dense(5),
+            ]
+        )
+        new_layer_kernel_value = new_model.layers[2].kernel.numpy()
+        with self.assertRaisesRegex(ValueError, "received 0 variables"):
+            # Doesn't work by default
+            new_model.load_weights(temp_filepath)
+        # Now it works
+        new_model.load_weights(temp_filepath, skip_mismatch=True)
+        self.assertAllClose(
+            original_model.layers[0].get_weights(),
+            new_model.layers[0].get_weights(),
+        )
+        self.assertAllClose(
+            original_model.layers[1].get_weights(),
+            new_model.layers[1].get_weights(),
+        )
+        self.assertAllClose(
+            new_model.layers[2].kernel.numpy(), new_layer_kernel_value
+        )
+
     def test_api_errors(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.notkeras")
         model = self._get_functional_model()

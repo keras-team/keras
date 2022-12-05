@@ -299,7 +299,7 @@ def save_weights_only(model, filepath):
     weights_store.close()
 
 
-def load_weights_only(model, filepath):
+def load_weights_only(model, filepath, skip_mismatch=False):
     """Load the weights of a model from a filepath (.keras or .weights.h5).
 
     Note: only supports h5 for now.
@@ -321,6 +321,7 @@ def load_weights_only(model, filepath):
         weights_store=weights_store,
         assets_store=None,
         inner_path="",
+        skip_mismatch=skip_mismatch,
         visited_trackables=set(),
     )
     weights_store.close()
@@ -390,17 +391,46 @@ def _save_state(
 
 
 def _load_state(
-    trackable, weights_store, assets_store, inner_path, visited_trackables
+    trackable,
+    weights_store,
+    assets_store,
+    inner_path,
+    skip_mismatch=False,
+    visited_trackables=None,
 ):
-    if id(trackable) in visited_trackables:
+    if visited_trackables and id(trackable) in visited_trackables:
         return
 
     if hasattr(trackable, "_load_own_variables") and weights_store:
-        trackable._load_own_variables(weights_store.get(inner_path))
-    if hasattr(trackable, "_load_assets") and assets_store:
-        trackable._load_assets(assets_store.get(inner_path))
+        if skip_mismatch:
+            try:
+                trackable._load_own_variables(weights_store.get(inner_path))
+            except Exception as e:
+                warnings.warn(
+                    f"Could not load weights in object {trackable}. "
+                    "Skipping object. "
+                    f"Exception encountered: {e}",
+                    stacklevel=2,
+                )
+        else:
+            trackable._load_own_variables(weights_store.get(inner_path))
 
-    visited_trackables.add(id(trackable))
+    if hasattr(trackable, "_load_assets") and assets_store:
+        if skip_mismatch:
+            try:
+                trackable._load_assets(assets_store.get(inner_path))
+            except Exception as e:
+                warnings.warn(
+                    f"Could not load assets in object {trackable}. "
+                    "Skipping object. "
+                    f"Exception encountered: {e}",
+                    stacklevel=2,
+                )
+        else:
+            trackable._load_assets(assets_store.get(inner_path))
+
+    if visited_trackables is not None:
+        visited_trackables.add(id(trackable))
 
     # Recursively load states for Keras trackables such as layers/optimizers.
     for child_attr, child_obj in _walk_trackable(trackable):
@@ -410,6 +440,7 @@ def _load_state(
                 weights_store,
                 assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
+                skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
@@ -418,6 +449,7 @@ def _load_state(
                 weights_store,
                 assets_store,
                 inner_path=tf.io.gfile.join(inner_path, child_attr),
+                skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
 
@@ -447,7 +479,12 @@ def _save_container_state(
 
 
 def _load_container_state(
-    container, weights_store, assets_store, inner_path, visited_trackables
+    container,
+    weights_store,
+    assets_store,
+    inner_path,
+    skip_mismatch,
+    visited_trackables,
 ):
     used_names = {}
     for trackable in container:
@@ -463,6 +500,7 @@ def _load_container_state(
                 weights_store,
                 assets_store,
                 inner_path=tf.io.gfile.join(inner_path, name),
+                skip_mismatch=skip_mismatch,
                 visited_trackables=visited_trackables,
             )
 

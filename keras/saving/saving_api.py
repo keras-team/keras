@@ -223,13 +223,19 @@ def save_weights(model, filepath, overwrite=True, **kwargs):
         )
 
 
-def load_weights(model, filepath, **kwargs):
+def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
-        saving_lib.load_weights_only(model, filepath)
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
     elif str(filepath).endswith(".weights.h5"):
-        saving_lib.load_weights_only(model, filepath)
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
     else:
-        return legacy_sm_saving_lib.load_weights(model, filepath, **kwargs)
+        return legacy_sm_saving_lib.load_weights(
+            model, filepath, skip_mismatch=skip_mismatch, **kwargs
+        )
 
 
 def get_save_format(filepath, save_format):
