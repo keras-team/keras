@@ -132,6 +132,7 @@ def image_dataset_from_directory(
 
     Returns:
       A `tf.data.Dataset` object.
+
         - If `label_mode` is None, it yields `float32` tensors of shape
           `(batch_size, image_size[0], image_size[1], num_channels)`,
           encoding images (see below for rules regarding `num_channels`).
@@ -140,6 +141,7 @@ def image_dataset_from_directory(
           and `labels` follows the format described below.
 
     Rules regarding labels format:
+
       - if `label_mode` is `int`, the labels are an `int32` tensor of shape
         `(batch_size,)`.
       - if `label_mode` is `binary`, the labels are a `float32` tensor of
@@ -149,6 +151,7 @@ def image_dataset_from_directory(
         encoding of the class index.
 
     Rules regarding number of channels in the yielded images:
+
       - if `color_mode` is `grayscale`,
         there's 1 channel in the image tensors.
       - if `color_mode` is `rgb`,
