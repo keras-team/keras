@@ -180,6 +180,17 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
+    def test_tensorspec(self):
+        inputs = keras.Input(type_spec=tf.TensorSpec((2, 2), tf.float32))
+        outputs = keras.layers.Dense(1)(inputs)
+        model = keras.Model(inputs, outputs)
+        _, new_model, _ = self.roundtrip(model)
+        x = tf.random.normal((2, 2))
+        y1 = model(x)
+        new_model.set_weights(model.get_weights())
+        y2 = new_model(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+
     def shared_inner_layer(self):
         input_1 = keras.Input((2,))
         input_2 = keras.Input((2,))

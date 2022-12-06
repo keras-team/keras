@@ -133,6 +133,24 @@ def serialize_keras_object(obj):
                 "value": generic_utils.func_dump(obj),
             },
         }
+    if isinstance(obj, tf.TypeSpec):
+        ts_config = obj._serialize()
+        # TensorShape and tf.DType conversion
+        ts_config = list(
+            map(
+                lambda x: x.as_list()
+                if isinstance(x, tf.TensorShape)
+                else (x.name if isinstance(x, tf.DType) else x),
+                ts_config,
+            )
+        )
+        return {
+            "class_name": "__typespec__",
+            "spec_name": obj.__class__.__name__,
+            "module": obj.__class__.__module__,
+            "config": ts_config,
+            "registered_name": None,
+        }
 
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
@@ -333,6 +351,23 @@ def deserialize_keras_object(config, custom_objects=None):
         return inner_config["value"].encode("utf-8")
     if config["class_name"] == "__lambda__":
         return generic_utils.func_load(inner_config["value"])
+    if config["class_name"] == "__typespec__":
+        obj = _retrieve_class_or_fn(
+            config["spec_name"],
+            config["registered_name"],
+            config["module"],
+            obj_type="class",
+            full_config=config,
+            custom_objects=custom_objects,
+        )
+        # Conversion to TensorShape and tf.DType
+        inner_config = map(
+            lambda x: tf.TensorShape(x)
+            if isinstance(x, list)
+            else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x),
+            inner_config,
+        )
+        return obj._deserialize(tuple(inner_config))
     # TODO(fchollet): support for TypeSpec, CompositeTensor, tf.Dtype
     # TODO(fchollet): consider special-casing tuples (which are currently
     # deserialized as lists).
