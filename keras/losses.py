@@ -22,7 +22,7 @@ import functools
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 from keras.utils import losses_utils

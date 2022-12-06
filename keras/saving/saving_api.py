@@ -20,7 +20,7 @@ import zipfile
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 from keras.saving.legacy import save as legacy_sm_saving_lib
 from keras.utils import io_utils
 

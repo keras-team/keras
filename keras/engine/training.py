@@ -38,7 +38,7 @@ from keras.optimizers import optimizer
 from keras.optimizers import optimizer_v1
 from keras.saving import pickle_utils
 from keras.saving import saving_api
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization

@@ -28,7 +28,7 @@ import keras
 from keras import backend
 from keras.optimizers import adam
 from keras.saving import object_registration
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 from keras.saving.legacy.saved_model import json_utils
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
