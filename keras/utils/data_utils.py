@@ -478,7 +478,9 @@ class Sequence:
 
         def __getitem__(self, idx):
             low = idx * self.batch_size
-            high = (idx + 1) * self.batch_size
+            # Cap upper bound at array length; the last batch may be smaller
+            # if the total number of items is not a multiple of batch size.
+            high = min(low + self.batch_size, len(self.x))
             batch_x = self.x[low:high]
             batch_y = self.y[low:high]
 
