@@ -38,6 +38,7 @@ from keras.saving import object_registration
 from keras.saving.legacy import model_config
 from keras.saving.legacy import save
 from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -1509,4 +1510,7 @@ class TestWholeModelSavingWithNesting(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with saved_model_utils.keras_option_scope(
+        save_traces=False, in_tf_saved_model_scope=True
+    ):
+        tf.test.main()

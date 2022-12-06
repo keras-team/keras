@@ -40,6 +40,14 @@ py_library(
 )
 
 py_library(
+    name = "utils",
+    srcs = ["utils.py"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
     name = "saved_model",
     srcs = [
         "base_serialization.py",
@@ -54,11 +62,11 @@ py_library(
         "save.py",
         "save_impl.py",
         "serialized_attributes.py",
-        "utils.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":order_preserving_set",
+        ":utils",
         "//:expect_tensorflow_installed",
         "//keras/utils:generic_utils",
     ],

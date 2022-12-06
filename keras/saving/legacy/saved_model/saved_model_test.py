@@ -40,6 +40,7 @@ from keras.saving import object_registration
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import load as keras_load
 from keras.saving.legacy.saved_model import save_impl as keras_save
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
@@ -1614,4 +1615,7 @@ class TestUpdateMetadata(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with saved_model_utils.keras_option_scope(
+        save_traces=False, in_tf_saved_model_scope=True
+    ):
+        tf.test.main()

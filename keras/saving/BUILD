@@ -91,6 +91,7 @@ py_library(
         ":object_registration",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/saving/legacy/saved_model:utils",
     ],
 )
 

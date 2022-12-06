@@ -25,9 +25,9 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.utils import control_flow_util
-from keras.utils import layer_utils
 from keras.utils import tf_contextlib
 from keras.utils.generic_utils import LazyLoader
+from keras.utils.layer_utils import CallFunctionSpec
 
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
 
@@ -160,7 +160,7 @@ def maybe_add_training_arg(
     arg_spec = set_training_arg_spec(
         call_spec.full_argspec, default_training_value
     )
-    call_spec = layer_utils.CallFunctionSpec(arg_spec)
+    call_spec = CallFunctionSpec(arg_spec)
 
     def wrap_with_training_arg(*args, **kwargs):
         """Wrap the `wrapped_call` function, and set training argument."""

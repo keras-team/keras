@@ -121,7 +121,6 @@ py_library(
         ":tf_inspect",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras/saving:serialization_lib",
     ],
 )
 

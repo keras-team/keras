@@ -22,6 +22,8 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.saving import object_registration
+from keras.saving.legacy import serialization as legacy_serialization
+from keras.saving.legacy.saved_model.utils import in_tf_saved_model_scope
 from keras.utils import generic_utils
 
 # isort: off
@@ -29,6 +31,14 @@ from tensorflow.python.util import tf_export
 
 PLAIN_TYPES = (str, int, float, bool)
 SHARED_OBJECTS = threading.local()
+
+
+class Config:
+    def __init__(self, **config):
+        self.config = config
+
+    def serialize(self):
+        return serialize_keras_object(self.config)
 
 
 class ObjectSharingScope:
@@ -86,6 +96,12 @@ def serialize_keras_object(obj):
       A python dict that represents the object. The python dict can be
       deserialized via `deserialize_keras_object()`.
     """
+    # Fall back to legacy serialization for all TF1 users or if
+    # wrapped by in_tf_saved_model_scope() to explicitly use legacy
+    # saved_model logic.
+    if not tf.__internal__.tf2.enabled() or in_tf_saved_model_scope():
+        return legacy_serialization.serialize_keras_object(obj)
+
     if obj is None:
         return obj
     if isinstance(obj, PLAIN_TYPES):
@@ -222,7 +238,7 @@ def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
 
 
-def deserialize_keras_object(config, custom_objects=None):
+def deserialize_keras_object(config, custom_objects=None, **kwargs):
     """Retrieve the object by deserializing the config dict.
 
     The config dict is a Python dictionary that consists of a set of key-value
@@ -316,7 +332,17 @@ def deserialize_keras_object(config, custom_objects=None):
       The object described by the `config` dictionary.
 
     """
+    module_objects = kwargs.pop("module_objects", None)
     custom_objects = custom_objects or {}
+
+    # Fall back to legacy deserialization for all TF1 users or if
+    # wrapped by in_tf_saved_model_scope() to explicitly use legacy
+    # saved_model logic.
+    if not tf.__internal__.tf2.enabled() or in_tf_saved_model_scope():
+        return legacy_serialization.deserialize_keras_object(
+            config, module_objects, custom_objects
+        )
+
     if config is None:
         return None
     if isinstance(config, PLAIN_TYPES):
