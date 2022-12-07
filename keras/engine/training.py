@@ -39,6 +39,7 @@ from keras.optimizers import optimizer_v1
 from keras.saving import pickle_utils
 from keras.saving import saving_api
 from keras.saving import saving_lib
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization
@@ -697,7 +698,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
         base_layer.keras_api_gauge.get_cell("compile").set(True)
-        self._compile_config = generic_utils.Config(
+        self._compile_config = serialization_lib.Config(
             optimizer=optimizer,
             loss=loss,
             metrics=metrics,

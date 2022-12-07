@@ -40,6 +40,7 @@ from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -769,7 +770,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         try:
             instance._auto_get_config = auto_get_config
             if auto_get_config:
-                instance._auto_config = generic_utils.Config(**kwargs)
+                instance._auto_config = serialization_lib.Config(**kwargs)
         except RecursionError:
             # Setting an instance attribute in __new__ has the potential
             # to trigger an infinite recursion if a subclass overrides
