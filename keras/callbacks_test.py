@@ -38,8 +38,8 @@ from keras.callbacks import Callback
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
-from keras.optimizers import sgd_experimental
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers import sgd
+from keras.optimizers.legacy import gradient_descent
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -429,7 +429,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     raise RuntimeError("Interruption")
 
         model = keras.Sequential([keras.layers.Dense(10)])
-        optimizer = sgd_experimental.SGD()
+        optimizer = sgd.SGD()
         model.compile(optimizer, loss="mse")
 
         x = tf.random.uniform((24, 10))
@@ -506,7 +506,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     )
 
         model = keras.Sequential([keras.layers.Dense(10)])
-        optimizer = sgd_experimental.SGD()
+        optimizer = sgd.SGD()
         model.compile(optimizer, loss="mse")
 
         x = tf.random.uniform((24, 10))

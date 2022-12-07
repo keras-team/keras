@@ -22,41 +22,39 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.optimizers import adadelta as adadelta_experimental
+from keras.optimizers import adadelta
 from keras.optimizers import adafactor
-from keras.optimizers import adagrad as adagrad_experimental
-from keras.optimizers import adam as adam_experimental
-from keras.optimizers import adamax as adamax_experimental
-from keras.optimizers import adamw as adamw_experimental
-from keras.optimizers import ftrl as ftrl_experimental
-from keras.optimizers import nadam as nadam_experimental
+from keras.optimizers import adagrad
+from keras.optimizers import adam
+from keras.optimizers import adamax
+from keras.optimizers import adamw
+from keras.optimizers import ftrl
+from keras.optimizers import nadam
 from keras.optimizers import optimizer as base_optimizer
-from keras.optimizers import rmsprop as rmsprop_experimental
-from keras.optimizers import sgd as sgd_experimental
-from keras.optimizers.optimizer_v1 import Optimizer
-from keras.optimizers.optimizer_v1 import TFOptimizer
-from keras.optimizers.optimizer_v2 import adadelta as adadelta_v2
-from keras.optimizers.optimizer_v2 import adagrad as adagrad_v2
-from keras.optimizers.optimizer_v2 import adam as adam_v2
-from keras.optimizers.optimizer_v2 import adamax as adamax_v2
-from keras.optimizers.optimizer_v2 import ftrl as ftrl_v2
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
-from keras.optimizers.optimizer_v2 import nadam as nadam_v2
-from keras.optimizers.optimizer_v2 import optimizer_v2 as base_optimizer_v2
-from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_v2
-from keras.optimizers.optimizer_v2.adadelta import Adadelta
-from keras.optimizers.optimizer_v2.adagrad import Adagrad
-from keras.optimizers.optimizer_v2.adam import Adam
-from keras.optimizers.optimizer_v2.adamax import Adamax
-from keras.optimizers.optimizer_v2.ftrl import Ftrl
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd
+from keras.optimizers.legacy import adadelta as adadelta_legacy
+from keras.optimizers.legacy import adagrad as adagrad_legacy
+from keras.optimizers.legacy import adam as adam_legacy
+from keras.optimizers.legacy import adamax as adamax_legacy
+from keras.optimizers.legacy import ftrl as ftrl_legacy
+from keras.optimizers.legacy import gradient_descent as gradient_descent_legacy
+from keras.optimizers.legacy import nadam as nadam_legacy
+from keras.optimizers.legacy import optimizer_v2 as base_optimizer_legacy
+from keras.optimizers.legacy import rmsprop as rmsprop_legacy
+from keras.optimizers.legacy.adadelta import Adadelta
+from keras.optimizers.legacy.adagrad import Adagrad
+from keras.optimizers.legacy.adam import Adam
+from keras.optimizers.legacy.adamax import Adamax
+from keras.optimizers.legacy.ftrl import Ftrl
 
 # Symbols to be accessed under keras.optimizers. To be replaced with
 # optimizers v2022 when they graduate out of experimental.
-from keras.optimizers.optimizer_v2.gradient_descent import SGD
-from keras.optimizers.optimizer_v2.nadam import Nadam
-from keras.optimizers.optimizer_v2.rmsprop import RMSprop
+from keras.optimizers.legacy.gradient_descent import SGD
+from keras.optimizers.legacy.nadam import Nadam
+from keras.optimizers.legacy.rmsprop import RMSprop
+from keras.optimizers.optimizer_v1 import Optimizer
+from keras.optimizers.optimizer_v1 import TFOptimizer
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
@@ -118,18 +116,18 @@ def deserialize(config, custom_objects=None, **kwargs):
         and not use_legacy_optimizer
     ):
         all_classes = {
-            "adadelta": adadelta_experimental.Adadelta,
-            "adagrad": adagrad_experimental.Adagrad,
-            "adam": adam_experimental.Adam,
-            "adamax": adamax_experimental.Adamax,
-            "experimentaladadelta": adadelta_experimental.Adadelta,
-            "experimentaladagrad": adagrad_experimental.Adagrad,
-            "experimentaladam": adam_experimental.Adam,
-            "experimentalsgd": sgd_experimental.SGD,
-            "nadam": nadam_experimental.Nadam,
-            "rmsprop": rmsprop_experimental.RMSprop,
-            "sgd": sgd_experimental.SGD,
-            "ftrl": ftrl_experimental.Ftrl,
+            "adadelta": adadelta.Adadelta,
+            "adagrad": adagrad.Adagrad,
+            "adam": adam.Adam,
+            "adamax": adamax.Adamax,
+            "experimentaladadelta": adadelta.Adadelta,
+            "experimentaladagrad": adagrad.Adagrad,
+            "experimentaladam": adam.Adam,
+            "experimentalsgd": sgd.SGD,
+            "nadam": nadam.Nadam,
+            "rmsprop": rmsprop.RMSprop,
+            "sgd": sgd.SGD,
+            "ftrl": ftrl.Ftrl,
             "lossscaleoptimizer": loss_scale_optimizer.LossScaleOptimizerV3,
             "lossscaleoptimizerv3": loss_scale_optimizer.LossScaleOptimizerV3,
             # LossScaleOptimizerV1 was an old version of LSO that was removed.
@@ -138,18 +136,18 @@ def deserialize(config, custom_objects=None, **kwargs):
         }
     else:
         all_classes = {
-            "adadelta": adadelta_v2.Adadelta,
-            "adagrad": adagrad_v2.Adagrad,
-            "adam": adam_v2.Adam,
-            "adamax": adamax_v2.Adamax,
-            "experimentaladadelta": adadelta_experimental.Adadelta,
-            "experimentaladagrad": adagrad_experimental.Adagrad,
-            "experimentaladam": adam_experimental.Adam,
-            "experimentalsgd": sgd_experimental.SGD,
-            "nadam": nadam_v2.Nadam,
-            "rmsprop": rmsprop_v2.RMSprop,
-            "sgd": gradient_descent_v2.SGD,
-            "ftrl": ftrl_v2.Ftrl,
+            "adadelta": adadelta_legacy.Adadelta,
+            "adagrad": adagrad_legacy.Adagrad,
+            "adam": adam_legacy.Adam,
+            "adamax": adamax_legacy.Adamax,
+            "experimentaladadelta": adadelta.Adadelta,
+            "experimentaladagrad": adagrad.Adagrad,
+            "experimentaladam": adam.Adam,
+            "experimentalsgd": sgd.SGD,
+            "nadam": nadam_legacy.Nadam,
+            "rmsprop": rmsprop_legacy.RMSprop,
+            "sgd": gradient_descent_legacy.SGD,
+            "ftrl": ftrl_legacy.Ftrl,
             "lossscaleoptimizer": loss_scale_optimizer.LossScaleOptimizer,
             "lossscaleoptimizerv3": loss_scale_optimizer.LossScaleOptimizerV3,
             # LossScaleOptimizerV1 was an old version of LSO that was removed.
@@ -236,7 +234,7 @@ def get(identifier, **kwargs):
         identifier,
         (
             Optimizer,
-            base_optimizer_v2.OptimizerV2,
+            base_optimizer_legacy.OptimizerV2,
         ),
     ):
         return identifier

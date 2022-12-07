@@ -23,7 +23,7 @@ from keras.distribute import optimizer_combinations
 from keras.distribute.test_example import batchnorm_example
 from keras.distribute.test_example import minimize_loss_example
 from keras.layers import core
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 
 VAR_MAP_V1 = {
     "GradientDescent": ("dense/kernel", "dense/bias"),

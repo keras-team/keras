@@ -38,9 +38,7 @@ from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.optimizers import optimizer as optimizer_base
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_keras,
-)
+from keras.optimizers.legacy import gradient_descent as gradient_descent_keras
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 from keras.utils import np_utils
@@ -2879,7 +2877,7 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
         with distribution.scope():
             model = model_fn(input_shape, 10, l1, l2)
             model.compile(
-                optimizer=keras.optimizers.adam_v2.Adam(1e-4),
+                optimizer=keras.optimizers.adam_legacy.Adam(1e-4),
                 loss=keras.losses.SparseCategoricalCrossentropy(
                     from_logits=True,
                     reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
@@ -2947,7 +2945,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         # Make model with distribution strategy
         with distribution.scope():
             model = DeterministicModel(distribution)
-            optimizer = keras.optimizers.adam_v2.Adam(1e-4)
+            optimizer = keras.optimizers.adam_legacy.Adam(1e-4)
 
         # Compile & evaluate the model outside of the distribution strategy
         # scope

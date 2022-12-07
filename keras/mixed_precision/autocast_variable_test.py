@@ -22,16 +22,14 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.mixed_precision import autocast_variable
-from keras.optimizers.optimizer_v2 import adadelta
-from keras.optimizers.optimizer_v2 import adagrad
-from keras.optimizers.optimizer_v2 import adam
-from keras.optimizers.optimizer_v2 import adamax
-from keras.optimizers.optimizer_v2 import ftrl
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
-from keras.optimizers.optimizer_v2 import nadam
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import adadelta
+from keras.optimizers.legacy import adagrad
+from keras.optimizers.legacy import adam
+from keras.optimizers.legacy import adamax
+from keras.optimizers.legacy import ftrl
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
+from keras.optimizers.legacy import nadam
+from keras.optimizers.legacy import rmsprop
 
 maybe_distribute = tf.__internal__.test.combinations.combine(
     distribution=[

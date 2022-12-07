@@ -22,7 +22,7 @@ from keras import Model
 from keras import Sequential
 from keras import layers
 from keras import losses
-from keras.optimizers import optimizer_v2
+from keras.optimizers import legacy as optimizer_legacy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -37,7 +37,7 @@ mae = losses.mean_absolute_error
 
 
 def get_ctl_train_step(model):
-    optimizer = optimizer_v2.gradient_descent.SGD(0.05)
+    optimizer = optimizer_legacy.gradient_descent.SGD(0.05)
 
     def train_step(x, y, w=None):
         with tf.GradientTape() as tape:
@@ -73,7 +73,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         model.add_loss(MAE()(targets, outputs))
         model.add_loss(tf.reduce_mean(mae(targets, outputs)))
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.05),
+            optimizer_legacy.gradient_descent.SGD(0.05),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 
@@ -94,7 +94,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
 
         model.add_loss(callable_loss)
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.1),
+            optimizer_legacy.gradient_descent.SGD(0.1),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 
@@ -154,7 +154,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         model.add_loss(MAE()(targets, outputs, sw))
         model.add_loss(3 * tf.reduce_mean(sw * mae(targets, outputs)))
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.025),
+            optimizer_legacy.gradient_descent.SGD(0.025),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 
@@ -201,7 +201,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         model = MyModel()
         model.predict([self.x, self.y, self.w])
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.05),
+            optimizer_legacy.gradient_descent.SGD(0.05),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 
@@ -235,7 +235,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         model = Model([inputs, targets, sw], outputs)
         model.predict([self.x, self.y, self.w])
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.05),
+            optimizer_legacy.gradient_descent.SGD(0.05),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 

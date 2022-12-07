@@ -17,7 +17,7 @@
 import numpy as np
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_v2 import ftrl
+from keras.optimizers.legacy import ftrl
 
 
 class FtrlOptimizerTest(tf.test.TestCase):

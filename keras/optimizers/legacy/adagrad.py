@@ -12,50 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Adadelta optimizer implementation."""
+"""Adagrad optimizer implementation."""
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend_config
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export(
-    "keras.optimizers.legacy.Adadelta",
-    v1=["keras.optimizers.Adadelta", "keras.optimizers.legacy.Adadelta"],
+    "keras.optimizers.legacy.Adagrad",
+    v1=["keras.optimizers.Adagrad", "keras.optimizers.legacy.Adagrad"],
 )
-class Adadelta(optimizer_v2.OptimizerV2):
-    r"""Optimizer that implements the Adadelta algorithm.
+class Adagrad(optimizer_v2.OptimizerV2):
+    r"""Optimizer that implements the Adagrad algorithm.
 
-    Adadelta optimization is a stochastic gradient descent method that is based
-    on adaptive learning rate per dimension to address two drawbacks:
-
-    - The continual decay of learning rates throughout training.
-    - The need for a manually selected global learning rate.
-
-    Adadelta is a more robust extension of Adagrad that adapts learning rates
-    based on a moving window of gradient updates, instead of accumulating all
-    past gradients. This way, Adadelta continues learning even when many updates
-    have been done. Compared to Adagrad, in the original version of Adadelta you
-    don't have to set an initial learning rate. In this version, the initial
-    learning rate can be set, as in most other Keras optimizers.
+    Adagrad is an optimizer with parameter-specific learning rates,
+    which are adapted relative to how frequently a parameter gets
+    updated during training. The more updates a parameter receives,
+    the smaller the updates.
 
     Args:
       learning_rate: Initial value for the learning rate:
         either a floating point value,
         or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
         Defaults to 0.001.
-        Note that `Adadelta` tends to benefit from higher initial learning rate
+        Note that `Adagrad` tends to benefit from higher initial learning rate
         values compared to other optimizers.
         To match the exact form in the original paper, use 1.0.
-      rho: A `Tensor` or a floating point value. The decay rate.
+      initial_accumulator_value: Floating point value.
+        Starting value for the accumulators (per-parameter momentum values).
+        Must be non-negative.
       epsilon: Small floating point value used to maintain numerical stability.
       name: Optional name prefix for the operations created when applying
-        gradients.  Defaults to `"Adadelta"`.
+        gradients.  Defaults to `"Adagrad"`.
       **kwargs: keyword arguments. Allowed arguments are `clipvalue`,
         `clipnorm`, `global_clipnorm`.
         If `clipvalue` (float) is set, the gradient of each weight
@@ -63,10 +57,11 @@ class Adadelta(optimizer_v2.OptimizerV2):
         If `clipnorm` (float) is set, the gradient of each weight
         is individually clipped so that its norm is no higher than this value.
         If `global_clipnorm` (float) is set the gradient of all weights is
-        clipped so that their global norm is no higher than this value.
+        clipped so that their global norm is no higher than this value..
 
     Reference:
-      - [Zeiler, 2012](http://arxiv.org/abs/1212.5701)
+      - [Duchi et al., 2011](
+        http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf).
     """
 
     _HAS_AGGREGATE_GRAD = True
@@ -74,30 +69,39 @@ class Adadelta(optimizer_v2.OptimizerV2):
     def __init__(
         self,
         learning_rate=0.001,
-        rho=0.95,
+        initial_accumulator_value=0.1,
         epsilon=1e-7,
-        name="Adadelta",
+        name="Adagrad",
         **kwargs
     ):
+        if initial_accumulator_value < 0.0:
+            raise ValueError(
+                "initial_accumulator_value must be non-negative: %s"
+                % initial_accumulator_value
+            )
+        if epsilon is None:
+            epsilon = backend_config.epsilon()
         super().__init__(name, **kwargs)
         self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
         self._set_hyper("decay", self._initial_decay)
-        self._set_hyper("rho", rho)
+        self._initial_accumulator_value = initial_accumulator_value
         self.epsilon = epsilon or backend_config.epsilon()
 
     def _create_slots(self, var_list):
-        # Separate for-loops to respect the ordering of slot variables from v1.
-        for v in var_list:
-            self.add_slot(v, "accum_grad")
-        for v in var_list:
-            self.add_slot(v, "accum_var")
+        for var in var_list:
+            dtype = var.dtype.base_dtype
+            init = tf.compat.v1.constant_initializer(
+                self._initial_accumulator_value, dtype=dtype
+            )
+            self.add_slot(var, "accumulator", init)
 
     def _prepare_local(self, var_device, var_dtype, apply_state):
         super()._prepare_local(var_device, var_dtype, apply_state)
         apply_state[(var_device, var_dtype)].update(
             dict(
                 epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
-                rho=tf.identity(self._get_hyper("rho", var_dtype)),
+                neg_lr_t=-apply_state[(var_device, var_dtype)]["lr_t"],
+                zero=tf.zeros((), dtype=tf.int64),
             )
         )
 
@@ -110,20 +114,40 @@ class Adadelta(optimizer_v2.OptimizerV2):
             weights = [np.array(0)] + weights
         super().set_weights(weights)
 
+    @classmethod
+    def from_config(cls, config, custom_objects=None):
+        """Creates an optimizer from its config.
+
+        This method is the reverse of `get_config`,
+        capable of instantiating the same optimizer from the config
+        dictionary.
+
+        Args:
+            config: A Python dictionary, typically the output of get_config.
+            custom_objects: A Python dictionary mapping names to additional
+              Python objects used to create this optimizer, such as a function
+              used for a hyperparameter.
+
+        Returns:
+            An optimizer instance.
+        """
+        if "initial_accumulator_value" not in config:
+            config["initial_accumulator_value"] = 0.1
+        if "lr" in config:
+            config["learning_rate"] = config.pop("lr")
+        return cls(**config)
+
     def _resource_apply_dense(self, grad, var, apply_state=None):
         var_device, var_dtype = var.device, var.dtype.base_dtype
         coefficients = (apply_state or {}).get(
             (var_device, var_dtype)
         ) or self._fallback_apply_state(var_device, var_dtype)
 
-        accum_grad = self.get_slot(var, "accum_grad")
-        accum_var = self.get_slot(var, "accum_var")
-        return tf.raw_ops.ResourceApplyAdadelta(
+        acc = self.get_slot(var, "accumulator")
+        return tf.raw_ops.ResourceApplyAdagradV2(
             var=var.handle,
-            accum=accum_grad.handle,
-            accum_update=accum_var.handle,
+            accum=acc.handle,
             lr=coefficients["lr_t"],
-            rho=coefficients["rho"],
             epsilon=coefficients["epsilon"],
             grad=grad,
             use_locking=self._use_locking,
@@ -135,14 +159,11 @@ class Adadelta(optimizer_v2.OptimizerV2):
             (var_device, var_dtype)
         ) or self._fallback_apply_state(var_device, var_dtype)
 
-        accum_grad = self.get_slot(var, "accum_grad")
-        accum_var = self.get_slot(var, "accum_var")
-        return tf.raw_ops.ResourceSparseApplyAdadelta(
+        acc = self.get_slot(var, "accumulator")
+        return tf.raw_ops.ResourceSparseApplyAdagradV2(
             var=var.handle,
-            accum=accum_grad.handle,
-            accum_update=accum_var.handle,
+            accum=acc.handle,
             lr=coefficients["lr_t"],
-            rho=coefficients["rho"],
             epsilon=coefficients["epsilon"],
             grad=grad,
             indices=indices,
@@ -157,7 +178,7 @@ class Adadelta(optimizer_v2.OptimizerV2):
                     "learning_rate"
                 ),
                 "decay": self._initial_decay,
-                "rho": self._serialize_hyperparameter("rho"),
+                "initial_accumulator_value": self._initial_accumulator_value,
                 "epsilon": self.epsilon,
             }
         )

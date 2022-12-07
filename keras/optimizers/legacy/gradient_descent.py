@@ -17,7 +17,7 @@
 
 import tensorflow.compat.v2 as tf
 
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -30,7 +30,7 @@ from tensorflow.python.util.tf_export import keras_export
 class SGD(optimizer_v2.OptimizerV2):
     r"""Gradient descent (with momentum) optimizer.
 
-    Update rule for parameter `w` with gradient `g` when `momentum` is 0:
+    Update rule for parameter `w` with gradient `g` when `momentum=0`:
 
     ```python
     w = w - learning_rate * g

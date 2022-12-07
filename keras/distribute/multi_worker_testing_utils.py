@@ -20,7 +20,7 @@ import unittest
 import tensorflow.compat.v2 as tf
 
 import keras
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 
 # isort: off
 from tensorflow.python.distribute.cluster_resolver import (

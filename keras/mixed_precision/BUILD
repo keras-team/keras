@@ -64,7 +64,7 @@ tf_py_test(
         ":policy",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/testing_infra:test_combinations",
     ],
 )
@@ -111,7 +111,7 @@ tf_py_test(
         ":autocast_variable",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -122,7 +122,7 @@ py_library(
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:generic_utils",
     ],
 )
@@ -154,7 +154,7 @@ cuda_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],
