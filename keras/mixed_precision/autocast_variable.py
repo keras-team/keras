@@ -370,13 +370,6 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         # on models with normal variables, and vice versa.
         return self._variable._gather_saveables_for_checkpoint()
 
-    def _map_resources(self, save_options):
-        # By delegating this method to the wrapped variable, SavedModel with
-        # AutoCastVariables are identical to SavedModel with normal variables.
-        obj_map, resource_map = self._variable._map_resources(save_options)
-        obj_map[self] = obj_map[self._variable]
-        return obj_map, resource_map
-
     def _export_to_saved_model_graph(
         self, object_map, tensor_map, options, **kwargs
     ):
