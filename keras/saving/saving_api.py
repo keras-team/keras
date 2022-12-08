@@ -152,7 +152,9 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
 
 
 @keras_export("keras.models.load_model")
-def load_model(filepath, custom_objects=None, compile=True, **kwargs):
+def load_model(
+    filepath, custom_objects=None, compile=True, safe_mode=True, **kwargs
+):
     """Loads a model saved via `model.save()`.
 
     Args:
@@ -161,6 +163,10 @@ def load_model(filepath, custom_objects=None, compile=True, **kwargs):
             (strings) to custom classes or functions to be
             considered during deserialization.
         compile: Boolean, whether to compile the model after loading.
+        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
+            When `safe_mode=False`, loading an object has the potential to
+            trigger arbitrary code execution. This argument is only
+            applicable to the Keras v3 model format. Defaults to True.
 
     SavedModel format arguments:
         options: Only applies to SavedModel format.
@@ -196,7 +202,10 @@ def load_model(filepath, custom_objects=None, compile=True, **kwargs):
                 f"with the native Keras format: {list(kwargs.keys())}"
             )
         return saving_lib.load_model(
-            filepath, custom_objects=custom_objects, compile=compile
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
         )
 
     # Legacy case.

@@ -206,7 +206,7 @@ def save_model(model, filepath, weights_format="h5"):
         _SAVING_V3_ENABLED.value = saving_v3_enabled_value
 
 
-def load_model(filepath, custom_objects=None, compile=True):
+def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Load a zip archive representing a Keras model."""
 
     filepath = str(filepath)
@@ -235,7 +235,9 @@ def load_model(filepath, custom_objects=None, compile=True):
                 config_dict["compile_config"] = None
             # Construct the model from the configuration file in the archive.
             with ObjectSharingScope():
-                model = deserialize_keras_object(config_dict, custom_objects)
+                model = deserialize_keras_object(
+                    config_dict, custom_objects, safe_mode=safe_mode
+                )
 
             all_filenames = zf.namelist()
             if _VARS_FNAME + ".h5" in all_filenames:

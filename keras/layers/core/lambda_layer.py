@@ -23,7 +23,8 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -381,13 +382,23 @@ class Lambda(Layer):
         function_type = config.pop(func_type_attr_name)
         if function_type == "function":
             # Simple lookup in custom objects
-            function = serialization.deserialize_keras_object(
+            function = legacy_serialization.deserialize_keras_object(
                 config[func_attr_name],
                 custom_objects=custom_objects,
                 printable_module_name="function in Lambda layer",
             )
         elif function_type == "lambda":
-            # Unsafe deserialization from bytecode
+            if serialization_lib.in_safe_mode():
+                raise ValueError(
+                    "Requested the deserialization of a Lambda layer with a "
+                    "Python `lambda` inside it. "
+                    "This carries a potential risk of arbitrary code execution "
+                    "and thus it is disallowed by default. If you trust the "
+                    "source of the saved model, you can pass `safe_mode=False` "
+                    "to the loading function in order to allow "
+                    "Lambda layer loading."
+                )
+            # /!\ Unsafe deserialization from bytecode! Danger! /!\
             function = generic_utils.func_load(
                 config[func_attr_name], globs=globs
             )

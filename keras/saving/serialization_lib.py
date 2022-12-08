@@ -15,8 +15,10 @@
 """Object config serialization and deserialization logic."""
 
 import importlib
+import inspect
 import threading
 import types
+import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -31,6 +33,7 @@ from tensorflow.python.util import tf_export
 
 PLAIN_TYPES = (str, int, float, bool)
 SHARED_OBJECTS = threading.local()
+SAFE_MODE = threading.local()
 
 
 class Config:
@@ -39,6 +42,24 @@ class Config:
 
     def serialize(self):
         return serialize_keras_object(self.config)
+
+
+class SafeModeScope:
+    """Scope to propagate safe mode flag to nested deserialization calls."""
+
+    def __init__(self, safe_mode=True):
+        self.safe_mode = safe_mode
+
+    def __enter__(self):
+        self.original_value = in_safe_mode()
+        SAFE_MODE.safe_mode = self.safe_mode
+
+    def __exit__(self, *args, **kwargs):
+        SAFE_MODE.safe_mode = self.original_value
+
+
+def in_safe_mode():
+    return getattr(SAFE_MODE, "safe_mode", None)
 
 
 class ObjectSharingScope:
@@ -143,6 +164,15 @@ def serialize_keras_object(obj):
     if isinstance(obj, tf.DType):
         return obj.name
     if isinstance(obj, types.FunctionType) and obj.__name__ == "<lambda>":
+        warnings.warn(
+            "The object being serialized includes a `lambda`. This is unsafe. "
+            "In order to reload the object, you will have to pass "
+            "`safe_mode=False` to the loading function. "
+            "Please avoid using `lambda` in the "
+            "future, and use named Python functions instead. "
+            f"This is the `lambda` being serialized: {inspect.getsource(obj)}",
+            stacklevel=2,
+        )
         return {
             "class_name": "__lambda__",
             "config": {
@@ -238,7 +268,9 @@ def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
 
 
-def deserialize_keras_object(config, custom_objects=None, **kwargs):
+def deserialize_keras_object(
+    config, custom_objects=None, safe_mode=True, **kwargs
+):
     """Retrieve the object by deserializing the config dict.
 
     The config dict is a Python dictionary that consists of a set of key-value
@@ -325,13 +357,20 @@ def deserialize_keras_object(config, custom_objects=None, **kwargs):
     ```
 
     Args:
-      config_dict: the python dict structure to deserialize the Keras object
-        from.
+        config: Python dict describing the object.
+        custom_objects: Python dict containing a mapping between custom
+            object names the corresponding classes or functions.
+        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
+            When `safe_mode=False`, loading an object has the potential to
+            trigger arbitrary code execution. This argument is only
+            applicable to the Keras v3 model format. Defaults to True.
 
     Returns:
       The object described by the `config` dictionary.
 
     """
+    safe_mode = in_safe_mode() or safe_mode
+
     module_objects = kwargs.pop("module_objects", None)
     custom_objects = custom_objects or {}
 
@@ -353,7 +392,9 @@ def deserialize_keras_object(config, custom_objects=None, **kwargs):
         return config
     if isinstance(config, (list, tuple)):
         return [
-            deserialize_keras_object(x, custom_objects=custom_objects)
+            deserialize_keras_object(
+                x, custom_objects=custom_objects, safe_mode=safe_mode
+            )
             for x in config
         ]
     if not isinstance(config, dict):
@@ -361,7 +402,9 @@ def deserialize_keras_object(config, custom_objects=None, **kwargs):
 
     if "class_name" not in config or "config" not in config:
         return {
-            key: deserialize_keras_object(value, custom_objects=custom_objects)
+            key: deserialize_keras_object(
+                value, custom_objects=custom_objects, safe_mode=safe_mode
+            )
             for key, value in config.items()
         }
 
@@ -376,6 +419,14 @@ def deserialize_keras_object(config, custom_objects=None, **kwargs):
     if config["class_name"] == "__bytes__":
         return inner_config["value"].encode("utf-8")
     if config["class_name"] == "__lambda__":
+        if safe_mode:
+            raise ValueError(
+                "Requested the deserialization of a `lambda` object. "
+                "This carries a potential risk of arbitrary code execution "
+                "and thus it is disallowed by default. If you trust the "
+                "source of the saved model, you can pass `safe_mode=False` to "
+                "the loading function in order to allow `lambda` loading."
+            )
         return generic_utils.func_load(inner_config["value"])
     if config["class_name"] == "__typespec__":
         obj = _retrieve_class_or_fn(
@@ -434,9 +485,13 @@ def deserialize_keras_object(config, custom_objects=None, **kwargs):
             f"the class is missing a `from_config()` method. "
             f"Full object config: {config}"
         )
+
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
-    with object_registration.custom_object_scope(custom_objects):
+    with (
+        object_registration.custom_object_scope(custom_objects),
+        SafeModeScope(safe_mode),
+    ):
         instance = cls.from_config(inner_config)
         build_config = config.get("build_config", None)
         if build_config:
