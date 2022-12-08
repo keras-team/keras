@@ -3198,7 +3198,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             positions: Relative or absolute positions of log elements
                 in each line. If not provided,
                 defaults to `[.33, .55, .67, 1.]`.
-            print_fn: Print function to use. Defaults to `print`.
+            print_fn: Print function to use. By default, prints to `stdout`.
+                If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
                 You can set it to a custom function
                 in order to capture the string summary.
