@@ -909,11 +909,14 @@ class LossScaleOptimizer(
                     "longer be deserialized"
                 )
             config["inner_optimizer"] = config.pop("optimizer")
-        inner_optimizer = optimizers.deserialize(
-            config["inner_optimizer"],
-            custom_objects=custom_objects,
-            use_legacy_optimizer=True,
-        )
+        if isinstance(config["inner_optimizer"], optimizer_v2.OptimizerV2):
+            inner_optimizer = config["inner_optimizer"]
+        else:
+            inner_optimizer = optimizers.deserialize(
+                config["inner_optimizer"],
+                custom_objects=custom_objects,
+                use_legacy_optimizer=True,
+            )
         del config["inner_optimizer"]
         return cls(inner_optimizer, **config)
 
@@ -1356,11 +1359,14 @@ class LossScaleOptimizerV3(
     @classmethod
     def from_config(cls, config, custom_objects=None):
         config = config.copy()  # Make a copy, since we mutate config
-        inner_optimizer = optimizers.deserialize(
-            config["inner_optimizer"],
-            custom_objects=custom_objects,
-            use_legacy_optimizer=False,
-        )
+        if isinstance(config["inner_optimizer"], optimizer.Optimizer):
+            inner_optimizer = config["inner_optimizer"]
+        else:
+            inner_optimizer = optimizers.deserialize(
+                config["inner_optimizer"],
+                custom_objects=custom_objects,
+                use_legacy_optimizer=False,
+            )
         del config["inner_optimizer"]
         return cls(inner_optimizer, **config)
 
@@ -1371,6 +1377,13 @@ class LossScaleOptimizerV3(
     @iterations.setter
     def iterations(self, variable):
         self._optimizer.iterations = variable
+
+    @property
+    def variables(self):
+        return self._optimizer.variables
+
+    def build(self, var_list):
+        return self._optimizer.build(var_list)
 
     @property
     def learning_rate(self):

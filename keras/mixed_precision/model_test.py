@@ -41,6 +41,7 @@ from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.mixed_precision import test_util as mp_test_util
 from keras.optimizers import optimizer_v1
+from keras.optimizers import sgd
 from keras.optimizers.legacy import gradient_descent
 from keras.saving import object_registration
 from keras.saving.legacy import save
@@ -143,6 +144,13 @@ class KerasModelTest(test_combinations.TestCase):
             "use_regularizer": True,
         },
         {
+            "testcase_name": "saved_model_legacy_distribute",
+            "strategy_fn": create_mirrored_strategy,
+            "save_format": "tf",
+            "use_regularizer": True,
+            "use_legacy_optimizer": True,
+        },
+        {
             "testcase_name": "saved_model_input_spec_distribute",
             "strategy_fn": create_mirrored_strategy,
             "save_format": "tf",
@@ -155,6 +163,13 @@ class KerasModelTest(test_combinations.TestCase):
             "save_format": "h5",
             "use_regularizer": True,
         },
+        {
+            "testcase_name": "h5_legacy_distribute",
+            "strategy_fn": create_mirrored_strategy,
+            "save_format": "h5",
+            "use_regularizer": True,
+            "use_legacy_optimizer": True,
+        },
     )
     def test_model(
         self,
@@ -165,9 +180,13 @@ class KerasModelTest(test_combinations.TestCase):
         get_config=False,
         save_format=None,
         use_input_spec=False,
+        use_legacy_optimizer=False,
     ):
         self._skip_if_strategy_unsupported(strategy_fn)
         self._skip_if_save_format_unsupported(save_format)
+        if not tf.__internal__.tf2.enabled():
+            # The non-legacy optimizer is only supported in TF2
+            use_legacy_optimizer = True
         if use_regularizer:
             weight_regularizer = mp_test_util.IdentityRegularizer()
             activity_regularizer = mp_test_util.ReduceSumRegularizer()
@@ -209,10 +228,14 @@ class KerasModelTest(test_combinations.TestCase):
                 # variable, the variable will not change. So this tests the
                 # learning rate not applied to a float16 value, but instead the
                 # float32 variable.
-                opt = gradient_descent.SGD(2**-14)
+                learning_rate = 2**-14
+                if use_legacy_optimizer:
+                    opt = gradient_descent.SGD(learning_rate)
+                else:
+                    opt = sgd.SGD(learning_rate)
                 # Use a fixed loss scale, as this test will fail if gradients
                 # are skipped for a step due to dynamic loss scaling.
-                opt = loss_scale_optimizer.LossScaleOptimizer(
+                opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                     opt, dynamic=False, initial_scale=8
                 )
                 model.compile(
@@ -295,6 +318,8 @@ class KerasModelTest(test_combinations.TestCase):
         },
     )
     def test_fixed_loss_scaling(self, strategy_fn):
+        # The non-legacy optimizer is only supported in TF2
+        use_legacy_optimizer = not tf.__internal__.tf2.enabled()
         # Note: We do not test mixed precision in this method, only loss
         # scaling.
         loss_scale = 8.0
@@ -320,8 +345,11 @@ class KerasModelTest(test_combinations.TestCase):
                 del y_true
                 return tf.reduce_mean(y_pred)
 
-            opt = gradient_descent.SGD(1.0)
-            opt = loss_scale_optimizer.LossScaleOptimizer(
+            if use_legacy_optimizer:
+                opt = gradient_descent.SGD(1.0)
+            else:
+                opt = sgd.SGD(1.0)
+            opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                 opt, dynamic=False, initial_scale=loss_scale
             )
             model.compile(
@@ -363,6 +391,8 @@ class KerasModelTest(test_combinations.TestCase):
         if use_loss_scaling:
             loss_scale = 8.0
         learning_rate = 2**-14
+        # The non-legacy optimizer is only supported in TF2
+        use_legacy_optimizer = not tf.__internal__.tf2.enabled()
 
         with strategy.scope():
             with policy.policy_scope(policy.Policy("mixed_float16")):
@@ -405,9 +435,12 @@ class KerasModelTest(test_combinations.TestCase):
                     del y_true
                     return tf.reduce_mean(y_pred)
 
-                opt = gradient_descent.SGD(learning_rate)
+                if use_legacy_optimizer:
+                    opt = gradient_descent.SGD(learning_rate)
+                else:
+                    opt = sgd.SGD(learning_rate)
                 if use_loss_scaling:
-                    opt = loss_scale_optimizer.LossScaleOptimizer(
+                    opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                         opt, dynamic=False, initial_scale=loss_scale
                     )
                 model.compile(
@@ -452,8 +485,8 @@ class KerasModelTest(test_combinations.TestCase):
         # gradients
         have_nan_gradients = backend.variable(False, dtype=tf.bool)
         with strategy.scope():
-            opt = gradient_descent.SGD(1.0)
-            opt = loss_scale_optimizer.LossScaleOptimizer(
+            opt = sgd.SGD(1.0)
+            opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                 opt, initial_scale=initial_loss_scale, dynamic_growth_steps=2
             )
             with policy.policy_scope("mixed_float16"):
@@ -542,12 +575,21 @@ class KerasModelTest(test_combinations.TestCase):
         x = layers.Input(shape=(1,))
         y = mp_test_util.MultiplyLayer()(x)
 
+        # The non-legacy optimizer is only supported in TF2
+        use_legacy_optimizer = (
+            not tf.__internal__.tf2.enabled() or not tf.executing_eagerly()
+        )
+
         with policy.policy_scope("mixed_float16"):
             # Test optimizer is automatically wrapped with LSO
             model = models.Model(x, y)
-            model.compile(gradient_descent.SGD(1.0), "mse")
+            if use_legacy_optimizer:
+                optimizer = gradient_descent.SGD(1.0)
+            else:
+                optimizer = sgd.SGD(1.0)
+            model.compile(optimizer, "mse")
             self.assertIsInstance(
-                model.optimizer, loss_scale_optimizer.LossScaleOptimizer
+                model.optimizer, loss_scale_optimizer.BaseLossScaleOptimizer
             )
             self.assertEqual(
                 backend.get_value(model.optimizer.learning_rate), 1.0
@@ -557,33 +599,40 @@ class KerasModelTest(test_combinations.TestCase):
             model = models.Model(x, y)
             model.compile("sgd", "mse")
             self.assertIsInstance(
-                model.optimizer,
-                (
-                    loss_scale_optimizer.LossScaleOptimizer,
-                    loss_scale_optimizer.LossScaleOptimizerV3,
-                ),
+                model.optimizer, loss_scale_optimizer.BaseLossScaleOptimizer
             )
 
             # Test if an LSO is passed, optimizer is not automatically wrapped
             # with another LSO
             model = models.Model(x, y)
-            optimizer = loss_scale_optimizer.LossScaleOptimizer(
-                gradient_descent.SGD(1.0), dynamic_growth_steps=2
+            if use_legacy_optimizer:
+                optimizer = gradient_descent.SGD(1.0)
+            else:
+                optimizer = sgd.SGD(1.0)
+            optimizer = loss_scale_optimizer.BaseLossScaleOptimizer(
+                optimizer, dynamic_growth_steps=2
             )
             model.compile(optimizer, "mse")
             self.assertIsInstance(
-                model.optimizer, loss_scale_optimizer.LossScaleOptimizer
+                model.optimizer, loss_scale_optimizer.BaseLossScaleOptimizer
             )
             self.assertEqual(model.optimizer.dynamic_growth_steps, 2)
 
         with policy.policy_scope("mixed_bfloat16"):
             # Test mixed_bfloat16 models are not automatically wrapped with LSO
             model = models.Model(x, y)
-            model.compile(gradient_descent.SGD(1.0), "mse")
+            if use_legacy_optimizer:
+                optimizer = gradient_descent.SGD(1.0)
+            else:
+                optimizer = sgd.SGD(1.0)
+            model.compile(optimizer, "mse")
             self.assertNotIsInstance(
-                model.optimizer, loss_scale_optimizer.LossScaleOptimizer
+                model.optimizer, loss_scale_optimizer.BaseLossScaleOptimizer
             )
-            self.assertIsInstance(model.optimizer, gradient_descent.SGD)
+            self.assertIsInstance(
+                model.optimizer,
+                gradient_descent.SGD if use_legacy_optimizer else sgd.SGD,
+            )
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -665,6 +714,11 @@ class KerasModelTest(test_combinations.TestCase):
             "strategy_fn": create_mirrored_strategy,
         },
         {
+            "testcase_name": "distribute_legacy",
+            "strategy_fn": create_mirrored_strategy,
+            "use_legacy_optimizer": True,
+        },
+        {
             "testcase_name": "different_var_name",
             "strategy_fn": default_strategy_fn,
             "var_name": "w",
@@ -676,8 +730,11 @@ class KerasModelTest(test_combinations.TestCase):
         },
     )
     def test_save_slot_variables_with_autocast_vars(
-        self, strategy_fn, var_name="v"
+        self, strategy_fn, var_name="v", use_legacy_optimizer=False
     ):
+        if not tf.__internal__.tf2.enabled():
+            # The non-legacy optimizer is only supported in TF2
+            use_legacy_optimizer = True
         p = policy.Policy("mixed_float16")
         with strategy_fn().scope(), policy.policy_scope(p):
             x = layers.Input(shape=(2,), batch_size=2)
@@ -691,8 +748,11 @@ class KerasModelTest(test_combinations.TestCase):
             )
             y = layer(x)
             model = models.Model(inputs=x, outputs=y)
-            opt = gradient_descent.SGD(1.0, 1.0)
-            opt = loss_scale_optimizer.LossScaleOptimizer(
+            if use_legacy_optimizer:
+                opt = gradient_descent.SGD(1.0, 1.0)
+            else:
+                opt = sgd.SGD(1.0, 1.0)
+            opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                 opt, dynamic=False, initial_scale=1
             )
             model.compile(
@@ -701,17 +761,23 @@ class KerasModelTest(test_combinations.TestCase):
                 run_eagerly=test_utils.should_run_eagerly(),
             )
 
+        def get_momentum_slot():
+            if use_legacy_optimizer:
+                return opt.get_slot(layer.v, "momentum")
+            else:
+                return opt.inner_optimizer.momentums[0]
+
         model.fit(np.ones((2, 2)), np.zeros((2, 2)), batch_size=2)
         weights_file = os.path.join(self.get_temp_dir(), "weights")
         model.save_weights(weights_file)
-        saved_slot = backend.get_value(opt.get_slot(layer.v, "momentum"))
+        saved_slot = backend.get_value(get_momentum_slot())
 
         model.fit(np.ones((2, 2)), np.zeros((2, 2)), batch_size=2)
-        new_slot = backend.get_value(opt.get_slot(layer.v, "momentum"))
+        new_slot = backend.get_value(get_momentum_slot())
         self.assertNotEqual(new_slot, saved_slot)
 
         model.load_weights(weights_file)
-        restored_slot = backend.get_value(opt.get_slot(layer.v, "momentum"))
+        restored_slot = backend.get_value(get_momentum_slot())
         self.assertEqual(restored_slot, saved_slot)
 
     @test_combinations.run_all_keras_modes
@@ -725,14 +791,20 @@ class KerasModelTest(test_combinations.TestCase):
             # TODO(b/121381184): Enable running the test in this case.
             return
 
+        # The non-legacy optimizer is only supported in TF2
+        use_legacy_optimizer = not tf.__internal__.tf2.enabled()
+
         # Create and run model.
         with strategy.scope():
             x = layers.Input(shape=(2,), batch_size=2, dtype=tf.float32)
             y = mp_test_util.MultiplyLayer(assert_type=tf.float32)(x)
             model = models.Model(inputs=x, outputs=y)
 
-            opt = gradient_descent.SGD(1.0)
-            opt = loss_scale_optimizer.LossScaleOptimizer(
+            if use_legacy_optimizer:
+                opt = gradient_descent.SGD(1.0)
+            else:
+                opt = sgd.SGD(1.0)
+            opt = loss_scale_optimizer.BaseLossScaleOptimizer(
                 opt, initial_scale=1.0, dynamic_growth_steps=2.0
             )
             model.compile(
@@ -763,6 +835,7 @@ class KerasModelTest(test_combinations.TestCase):
     def test_restore_old_loss_scale_checkpoint(self):
         # Ensure a checkpoint from TF 2.2 can be loaded. The checkpoint format
         # of LossScaleOptimizer changed, but old checkpoints can still be loaded
+        # into the legacy optimizers.
         opt = gradient_descent.SGD(0.1, momentum=0.1)
         opt = loss_scale_optimizer.LossScaleOptimizer(opt)
         model = sequential.Sequential(
@@ -871,6 +944,8 @@ class KerasModelTest(test_combinations.TestCase):
             y = mp_test_util.MultiplyLayer()(x)
             model = models.Model(inputs=x, outputs=y)
 
+            # Only test the legacy optimizer. The new optimizer does not
+            # support saving optimizer weights.
             opt = gradient_descent.SGD(1.0)
             opt = loss_scale_optimizer.LossScaleOptimizer(
                 opt, initial_scale=1.0, dynamic_growth_steps=2.0

@@ -1485,8 +1485,8 @@ class Model(training_lib.Model):
             if not isinstance(self.optimizer, optimizer_v2.OptimizerV2):
                 raise ValueError(
                     '"optimizer" must be an instance of '
-                    "tf.keras.optimizers.Optimizer when a dype policy "
-                    "with a loss scale  used, but got: %s. Using policy: "
+                    "tf.keras.optimizers.legacy.Optimizer when a dype policy "
+                    "with a loss scale is used, but got: %s. Using policy: "
                     "%s" % (self.optimizer, self._dtype_policy)
                 )
             self.optimizer = loss_scale_optimizer.LossScaleOptimizer(
