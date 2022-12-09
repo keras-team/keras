@@ -30,7 +30,9 @@ from keras.optimizers import sgd as sgd_experimental
 from keras.optimizers.legacy import adam
 from keras.optimizers.legacy import gradient_descent
 from keras.optimizers.legacy import optimizer_v2
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 # isort: off
 from tensorflow.python.framework import (
@@ -1201,6 +1203,46 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(self.evaluate(opt.loss_scale), 2.0)
         self.assertEqual(opt.dynamic_growth_steps, 3.0)
         self.assertEqual(opt.inner_optimizer.my_attribute, 123)
+
+    @test_utils.run_v2_only
+    def testConvertToLegacyOptimizer(self):
+        opt = sgd_experimental.SGD(1.0)
+        opt = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        converted_opt = optimizers.convert_to_legacy_optimizer(opt)
+        self.assertEqual(
+            type(converted_opt), loss_scale_optimizer.LossScaleOptimizer
+        )
+
+        reference_opt = gradient_descent.SGD(1.0)
+        reference_opt = loss_scale_optimizer.BaseLossScaleOptimizer(
+            reference_opt
+        )
+        self.assertEqual(converted_opt.get_config(), reference_opt.get_config())
+
+        # Test with a custom learning rate schedule
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        opt = sgd_experimental.SGD(CustomLRSchedule(1.0))
+        opt = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        converted_opt = optimizers.convert_to_legacy_optimizer(opt)
+        self.assertEqual(
+            type(converted_opt), loss_scale_optimizer.LossScaleOptimizer
+        )
+
+        reference_opt = gradient_descent.SGD(CustomLRSchedule(1.0))
+        reference_opt = loss_scale_optimizer.BaseLossScaleOptimizer(
+            reference_opt
+        )
+        self.assertEqual(converted_opt.get_config(), reference_opt.get_config())
 
     @test_combinations.generate(opt_combinations_only())
     def testUnsupportedStrategy(self, opt_cls):

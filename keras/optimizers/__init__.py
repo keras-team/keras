@@ -181,6 +181,12 @@ def convert_to_legacy_optimizer(optimizer):
     Args:
         optimizer: An instance of `tf.keras.optimizers.experimental.Optimizer`.
     """
+    # loss_scale_optimizer has a direct dependency of optimizer, import here
+    # rather than top to avoid the cyclic dependency.
+    from keras.mixed_precision import (
+        loss_scale_optimizer,
+    )
+
     if not isinstance(optimizer, base_optimizer.Optimizer):
         raise ValueError(
             "`convert_to_legacy_optimizer` should only be called "
@@ -200,9 +206,18 @@ def convert_to_legacy_optimizer(optimizer):
     ]
     for key in keys_to_remove:
         config.pop(key, None)
+
+    if isinstance(optimizer, loss_scale_optimizer.LossScaleOptimizerV3):
+        # For LossScaleOptimizers, recursively convert the inner optimizer
+        config["inner_optimizer"] = convert_to_legacy_optimizer(
+            optimizer.inner_optimizer
+        )
+        if optimizer_name == "lossscaleoptimizerv3":
+            optimizer_name = "lossscaleoptimizer"
+
     # Learning rate can be a custom LearningRateSchedule, which is stored as
     # a dict in config, and cannot be deserialized.
-    if isinstance(
+    if hasattr(optimizer, "_learning_rate") and isinstance(
         optimizer._learning_rate, learning_rate_schedule.LearningRateSchedule
     ):
         config["learning_rate"] = optimizer._learning_rate
