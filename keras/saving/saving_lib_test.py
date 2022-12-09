@@ -406,7 +406,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         y = np.random.random((1000, 1))
         functional_model.fit(x, y, epochs=3)
         functional_model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
+        loaded_model = saving_lib.load_model(temp_filepath, safe_mode=False)
         self.assertEqual(
             functional_model._is_compiled, loaded_model._is_compiled
         )
@@ -688,6 +688,19 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             model.save(
                 temp_filepath, include_optimizer=False, save_format="keras_v3"
             )
+
+    def test_safe_mode(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "unsafe_model.keras")
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Lambda(lambda x: x * 2),
+            ]
+        )
+        model.save(temp_filepath, save_format="keras_v3")
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            model = saving_lib.load_model(temp_filepath)
+        model = saving_lib.load_model(temp_filepath, safe_mode=False)
 
 
 if __name__ == "__main__":

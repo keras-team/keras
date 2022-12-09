@@ -84,12 +84,12 @@ class WrapperLayer(keras.layers.Layer):
 
 @test_utils.run_v2_only
 class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
-    def roundtrip(self, obj, custom_objects=None):
+    def roundtrip(self, obj, custom_objects=None, safe_mode=True):
         serialized = serialization_lib.serialize_keras_object(obj)
         json_data = json.dumps(serialized)
         json_data = json.loads(json_data)
         deserialized = serialization_lib.deserialize_keras_object(
-            json_data, custom_objects=custom_objects
+            json_data, custom_objects=custom_objects, safe_mode=safe_mode
         )
         reserialized = serialization_lib.serialize_keras_object(deserialized)
         return serialized, deserialized, reserialized
@@ -169,12 +169,18 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_lambda_fn(self):
         obj = {"activation": lambda x: x**2}
-        _, new_obj, _ = self.roundtrip(obj)
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            self.roundtrip(obj, safe_mode=True)
+
+        _, new_obj, _ = self.roundtrip(obj, safe_mode=False)
         self.assertEqual(obj["activation"](3), new_obj["activation"](3))
 
     def test_lambda_layer(self):
         lmbda = keras.layers.Lambda(lambda x: x**2)
-        _, new_lmbda, _ = self.roundtrip(lmbda)
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            self.roundtrip(lmbda, safe_mode=True)
+
+        _, new_lmbda, _ = self.roundtrip(lmbda, safe_mode=False)
         x = tf.random.normal((2, 2))
         y1 = lmbda(x)
         y2 = new_lmbda(x)
