@@ -20,6 +20,7 @@ from keras import backend
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.layers import core
+from keras.saving import serialization_lib
 from keras.saving.legacy import model_config
 from keras.testing_infra import test_combinations
 
@@ -419,4 +420,5 @@ class InputLayerTest(test_combinations.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with serialization_lib.SafeModeScope(safe_mode=False):
+        tf.test.main()

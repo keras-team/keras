@@ -44,6 +44,7 @@ from keras.optimizers import optimizer_v1
 from keras.optimizers import sgd
 from keras.optimizers.legacy import gradient_descent
 from keras.saving import object_registration
+from keras.saving import serialization_lib
 from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -1024,4 +1025,5 @@ class ApplicationModelTest(test_combinations.TestCase):
 
 if __name__ == "__main__":
     base_layer_utils.enable_v2_dtype_behavior()
-    tf.test.main()
+    with serialization_lib.SafeModeScope(safe_mode=False):
+        tf.test.main()

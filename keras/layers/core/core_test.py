@@ -24,6 +24,7 @@ import keras
 from keras import initializers
 from keras.layers import core
 from keras.mixed_precision import policy
+from keras.saving import serialization_lib
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -686,4 +687,5 @@ class TFOpLambdaTest(test_combinations.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with serialization_lib.SafeModeScope(safe_mode=False):
+        tf.test.main()

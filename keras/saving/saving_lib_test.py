@@ -29,6 +29,7 @@ from keras import backend
 from keras.optimizers import adam
 from keras.saving import object_registration
 from keras.saving import saving_lib
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import json_utils
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
@@ -196,7 +197,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
     def test_saving_after_compile_but_before_fit(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = self._get_subclassed_model()
-        subclassed_model._save_experimental(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            subclassed_model._save_experimental(temp_filepath)
 
         # This is so that we can register another function with the same custom
         # object key, and make sure the newly registered function is used while
@@ -212,7 +214,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
                 tf.math.squared_difference(y_pred, y_true), axis=-1
             )
 
-        loaded_model = saving_lib.load_model(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -259,8 +262,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
-        subclassed_model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            subclassed_model._save_experimental(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -314,8 +318,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
     def test_saving_preserve_unbuilt_state(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
         subclassed_model = CustomModelX()
-        subclassed_model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            subclassed_model._save_experimental(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(
             subclassed_model._is_compiled, loaded_model._is_compiled
         )
@@ -328,8 +333,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         model.fit(x, y, epochs=1)
-        model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            model._save_experimental(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(model._is_compiled, loaded_model._is_compiled)
         self.assertTrue(model.built)
         self.assertTrue(loaded_model.built)
@@ -405,8 +411,9 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         x = np.random.random((1000, 32))
         y = np.random.random((1000, 1))
         functional_model.fit(x, y, epochs=3)
-        functional_model._save_experimental(temp_filepath)
-        loaded_model = saving_lib.load_model(temp_filepath, safe_mode=False)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            functional_model._save_experimental(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath, safe_mode=False)
         self.assertEqual(
             functional_model._is_compiled, loaded_model._is_compiled
         )
@@ -441,12 +448,13 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model.layers[1].weights_in_dict["my_weight"].assign(2)
         model.layers[1].nested_layer.kernel.assign([[1]])
 
-        model._save_experimental(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            model._save_experimental(temp_filepath)
 
-        # Assert that the archive has been saved.
-        self.assertTrue(os.path.exists(temp_filepath))
-        loaded_model = saving_lib.load_model(temp_filepath)
-        self.assertEqual(model._is_compiled, loaded_model._is_compiled)
+            # Assert that the archive has been saved.
+            self.assertTrue(os.path.exists(temp_filepath))
+            loaded_model = saving_lib.load_model(temp_filepath)
+            self.assertEqual(model._is_compiled, loaded_model._is_compiled)
 
         # The weights are supposed to be the same (between original and loaded
         # models).
@@ -481,9 +489,10 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         # Assert that the archive has not been saved.
         self.assertFalse(os.path.exists(temp_filepath))
 
-        model._save_experimental(temp_filepath)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            model._save_experimental(temp_filepath)
 
-        loaded_model = saving_lib.load_model(temp_filepath)
+            loaded_model = saving_lib.load_model(temp_filepath)
         self.assertEqual(loaded_model.custom_dense.assets, assets_data)
         self.assertEqual(
             loaded_model.custom_dense.stored_variables.tolist(),

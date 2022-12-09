@@ -36,6 +36,7 @@ from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
+from keras.saving import serialization_lib
 
 MODEL_LIST_NO_NASNET = [
     (resnet.ResNet50, 2048),
@@ -236,4 +237,5 @@ def _get_output_shape(model_fn):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with serialization_lib.SafeModeScope(safe_mode=False):
+        tf.test.main()
