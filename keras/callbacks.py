@@ -1511,6 +1511,11 @@ class ModelCheckpoint(Callback):
             self.epochs_since_last_save = 0
             filepath = self._get_file_path(epoch, batch, logs)
 
+            # Create host directory if it doesn't exist.
+            dirname = os.path.dirname(filepath)
+            if dirname and not tf.io.gfile.exists(dirname):
+                tf.io.gfile.makedirs(dirname)
+
             try:
                 if self.save_best_only:
                     current = logs.get(self.monitor)
@@ -1791,12 +1796,13 @@ class BackupAndRestore(Callback):
 
     Args:
         backup_dir: String, path to store the checkpoint.
-          e.g. backup_dir = os.path.join(working_dir, 'backup')
+          e.g. `backup_dir = os.path.join(working_dir, 'backup')`.
           This is the directory in which the system stores temporary files to
           recover the model from jobs terminated unexpectedly. The directory
-          cannot be reused elsewhere to store other files, e.g. by
-          BackupAndRestore callback of another training, or by another callback
-          (ModelCheckpoint) of the same training.
+          cannot be reused elsewhere to store other files, e.g. by the
+          `BackupAndRestore` callback of another training run,
+          or by another callback
+          (e.g. `ModelCheckpoint`) of the same training.
         save_freq: `'epoch'`, integer, or `False`. When set to `'epoch'`
           the callback saves the checkpoint at the end of each epoch.
           When set to an integer, the callback saves the checkpoint every

@@ -913,7 +913,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         temp_dir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
-        filepath = os.path.join(temp_dir, "checkpoint.h5")
+        # Save model to a subdir inside the temp_dir so we can test
+        # automatic directory creation.
+        filepath = os.path.join(temp_dir, "subdir", "checkpoint.h5")
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
