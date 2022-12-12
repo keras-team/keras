@@ -18,6 +18,7 @@
 
 import abc
 import functools
+import warnings
 
 import tensorflow.compat.v2 as tf
 
@@ -1958,6 +1959,14 @@ def categorical_crossentropy(
     y_pred = tf.convert_to_tensor(y_pred)
     y_true = tf.cast(y_true, y_pred.dtype)
     label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
+
+    if y_pred.shape[-1] == 1:
+        warnings.warn(
+            "Recieved an one-dimensional output. "
+            "Consider using binary crossentropy "
+            "instead of categorical crossentropy "
+            "if you have only 2 labels"
+        )
 
     def _smooth_labels():
         num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
