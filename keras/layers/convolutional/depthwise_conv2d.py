@@ -54,7 +54,7 @@ class DepthwiseConv2D(DepthwiseConv):
       strides: An integer or tuple/list of 2 integers, specifying the strides of
         the convolution along the height and width. Can be a single integer to
         specify the same value for all spatial dimensions. Current
-        implementation only supports equal length strides in row and 
+        implementation only supports equal length strides in row and
         column dimensions. Specifying any stride value != 1 is incompatible
         with specifying any `dilation_rate` value !=1.
       padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means
