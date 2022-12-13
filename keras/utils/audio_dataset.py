@@ -46,6 +46,7 @@ def audio_dataset_from_directory(
     validation_split=None,
     subset=None,
     follow_links=False,
+    verbose=1,
 ):
     """Generates a `tf.data.Dataset` from audio files in a directory.
 
@@ -107,6 +108,8 @@ def audio_dataset_from_directory(
         "both". Only used if `validation_split` is set.
       follow_links: Whether to visits subdirectories pointed to by symlinks.
         Defaults to False.
+      verbose: 0 or 1. Verbosity mode.
+          0 = silent, 1 = print how many files and classes were found.
 
     Returns:
       A `tf.data.Dataset` object.
@@ -194,6 +197,7 @@ def audio_dataset_from_directory(
         shuffle=shuffle,
         seed=seed,
         follow_links=follow_links,
+        verbose=verbose,
     )
 
     if label_mode == "binary" and len(class_names) != 2:
