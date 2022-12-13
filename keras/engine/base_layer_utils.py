@@ -929,8 +929,10 @@ def no_ragged_support(inputs, layer_name):
 
 
 def is_split_variable(v):
-    """Returns True if `v` is a PartionedVariable or a ShardedVariable."""
-    return hasattr(v, "_variable_list") or hasattr(v, "_variables")
+    """Returns True if `v` is a PartitionedVariable or a ShardedVariable."""
+    return not {clz.__name__ for clz in v.__class__.__mro__}.isdisjoint(
+        {"PartitionedVariable", "ShardedVariable"}
+    )
 
 
 def has_weights(obj):
