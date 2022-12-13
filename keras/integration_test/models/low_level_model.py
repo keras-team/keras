@@ -158,4 +158,5 @@ def get_custom_objects():
         "CustomLRSchedule": CustomLRSchedule,
         "CustomModel": CustomModel,
         "BinaryTruePositives": BinaryTruePositives,
+        "custom_loss": custom_loss,
     }
