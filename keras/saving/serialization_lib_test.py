@@ -186,6 +186,18 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
+    def test_safe_mode_scope(self):
+        lmbda = keras.layers.Lambda(lambda x: x**2)
+        with serialization_lib.SafeModeScope(safe_mode=True):
+            with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+                self.roundtrip(lmbda)
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            _, new_lmbda, _ = self.roundtrip(lmbda)
+        x = tf.random.normal((2, 2))
+        y1 = lmbda(x)
+        y2 = new_lmbda(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+
     def test_tensorspec(self):
         inputs = keras.Input(type_spec=tf.TensorSpec((2, 2), tf.float32))
         outputs = keras.layers.Dense(1)(inputs)
