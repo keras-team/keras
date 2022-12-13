@@ -23,7 +23,9 @@ Reference:
 
 import tensorflow.compat.v2 as tf
 
+import keras
 from keras import backend
+from keras import layers as keras_layers
 from keras.applications import imagenet_utils
 from keras.engine import training
 from keras.layers import VersionAwareLayers
@@ -319,6 +321,12 @@ def conv2d_bn(
     return x
 
 
+@keras.utils.register_keras_serializable()
+class CustomScaleLayer(keras_layers.Layer):
+    def call(self, x, up, scale):
+        return x + up * scale
+
+
 def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
     """Adds an Inception-ResNet block.
 
@@ -395,12 +403,7 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
         name=block_name + "_conv",
     )
 
-    x = layers.Lambda(
-        lambda inputs, scale: inputs[0] + inputs[1] * scale,
-        output_shape=backend.int_shape(x)[1:],
-        arguments={"scale": scale},
-        name=block_name,
-    )([x, up])
+    x = CustomScaleLayer()(x, up, scale)
     if activation is not None:
         x = layers.Activation(activation, name=block_name + "_ac")(x)
     return x
