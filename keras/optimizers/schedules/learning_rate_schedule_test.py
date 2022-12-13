@@ -388,6 +388,91 @@ class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 @test_combinations.generate(
     test_combinations.combine(serialize=[False, True], mode=["graph", "eager"])
 )
+class CosineDecayWithWarmupTestV2(tf.test.TestCase, parameterized.TestCase):
+    def np_cosine_decay(self, step, decay_steps, alpha=0.0):
+        step = min(step, decay_steps)
+        completed_fraction = step / decay_steps
+        decay = 0.5 * (1.0 + math.cos(math.pi * completed_fraction))
+        return (1.0 - alpha) * decay + alpha
+
+    def linear_warmup(self, step, warmup_steps, initial_lr, target_lr):
+        completed_fraction = step / warmup_steps
+        total_delta = target_lr - initial_lr
+        return completed_fraction * total_delta
+
+    def testWarmup(self, serialize):
+        warmup_steps = 1500
+        initial_lr = 0.0
+        target_lr = 10.0
+        for step in range(0, 1500, 250):
+            lr = learning_rate_schedule.CosineDecayWithWarmup(
+                initial_lr, target_lr, warmup_steps, 0
+            )
+            lr = _maybe_serialized(lr, serialize)
+            expected = self.linear_warmup(
+                step, warmup_steps, initial_lr, target_lr
+            )
+            self.assertAllClose(self.evaluate(lr(step)), expected)
+
+    def testDecay(self, serialize):
+        decay_steps = 1500
+        target_lr = 1.0
+        for step in range(0, 1500, 250):
+            decayed_lr = learning_rate_schedule.CosineDecayWithWarmup(
+                0, target_lr, 0, decay_steps
+            )
+            decayed_lr = _maybe_serialized(decayed_lr, serialize)
+            expected = self.np_cosine_decay(step, decay_steps)
+            self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
+    def testAlpha(self, serialize):
+        decay_steps = 1500
+        target_lr = 1.0
+        alpha = 0.1
+        for step in range(0, 1500, 250):
+            decayed_lr = learning_rate_schedule.CosineDecayWithWarmup(
+                0, target_lr, 0, decay_steps, alpha
+            )
+            decayed_lr = _maybe_serialized(decayed_lr, serialize)
+            expected = self.np_cosine_decay(step, decay_steps, alpha)
+            self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
+    def testFloat64InitLearningRate(self, serialize):
+        decay_steps = 1500
+        target_lr = np.float64(1.0)
+        for step in range(0, 1500, 250):
+            decayed_lr = learning_rate_schedule.CosineDecayWithWarmup(
+                0, target_lr, 0, decay_steps
+            )
+            decayed_lr = _maybe_serialized(decayed_lr, serialize)
+            expected = self.np_cosine_decay(step, decay_steps)
+            self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
+    def testWarmupDecay(self, serialize):
+        warmup_steps = 1000
+        decay_steps = 1000
+        initial_lr = 0.0
+        target_lr = 10.0
+        for step in range(0, 3000, 250):
+            lr = learning_rate_schedule.CosineDecayWithWarmup(
+                initial_lr, target_lr, warmup_steps, decay_steps
+            )
+            lr = _maybe_serialized(lr, serialize)
+            if step < 1001:
+                expected = self.linear_warmup(
+                    step, warmup_steps, initial_lr, target_lr
+                )
+            else:
+                expected = target_lr * self.np_cosine_decay(
+                    step - warmup_steps, decay_steps
+                )
+            print(step, expected, lr(step))
+            self.assertAllClose(self.evaluate(lr(step)), expected)
+
+
+@test_combinations.generate(
+    test_combinations.combine(serialize=[False, True], mode=["graph", "eager"])
+)
 class CosineDecayRestartsTestV2(tf.test.TestCase, parameterized.TestCase):
     def np_cosine_decay_restarts(
         self, step, decay_steps, t_mul=2.0, m_mul=1.0, alpha=0.0

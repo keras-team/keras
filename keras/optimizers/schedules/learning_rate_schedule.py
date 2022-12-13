@@ -671,6 +671,145 @@ class CosineDecay(LearningRateSchedule):
 
 
 @keras_export(
+    "keras.optimizers.schedules.CosineDecayWithWarmup",
+    "keras.experimental.CosineDecayWithWarmup",
+)
+class CosineDecayWithWarmup(LearningRateSchedule):
+    """A LearningRateSchedule that uses a cosine decay schedule with warmup.
+
+    See [Loshchilov & Hutter, ICLR2016](https://arxiv.org/abs/1608.03983),
+    SGDR: Stochastic Gradient Descent with Warm Restarts.
+
+    For the idea of a linear warmup of our learning rate,
+    see [Goyal et al.](https://arxiv.org/pdf/1706.02677.pdf)
+
+    When we begin training a model, we often want an initial increase in our
+    learning rate followed by a decay. This schedule applies a linear increase
+    per optimizer step to our learning rate from `initial_learning_rate` to
+    `target_learning_rate` for a duration of `warmup_steps`. After, it applies a
+    cosine decay function from our `target_learning_rate`. It requires a `step`
+    value to compute the decayed learning rate. You can just pass a TensorFlow
+    variable that you increment at each training step.
+
+    The schedule is a 1-arg callable that produces a warmup followed by a
+    decayed learning rate when passed the current optimizer step. This can be
+    useful for changing the learning rate value across different invocations of
+    optimizer functions.
+
+    Our warmup is computed as:
+    ```python
+    def warmup_learning_rate(step):
+        completed_fraction = step / warmup_steps
+        total_delta = target_learning_rate - initial_learning_rate
+        return completed_fraction * total_delta
+    ```
+
+    And our decay is computed as:
+
+    ```python
+    def decayed_learning_rate(step):
+      step = min(step, decay_steps)
+      cosine_decay = 0.5 * (1 + cos(pi * step / decay_steps))
+      decayed = (1 - alpha) * cosine_decay + alpha
+      return target_learning_rate * decayed
+    ```
+
+    Example usage:
+    ```python
+    decay_steps = 1000
+    lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+        initial_learning_rate, decay_steps)
+    ```
+
+    You can pass this schedule directly into a `tf.keras.optimizers.Optimizer`
+    as the learning rate. The learning rate schedule is also serializable and
+    deserializable using `tf.keras.optimizers.schedules.serialize` and
+    `tf.keras.optimizers.schedules.deserialize`.
+
+    Returns:
+      A 1-arg callable learning rate schedule that takes the current optimizer
+      step and outputs the warmed up and decayed learning rate, a scalar
+      `Tensor` of the same type as `target_learning_rate`.
+    """
+
+    def __init__(
+        self,
+        initial_learning_rate,
+        target_learning_rate,
+        warmup_steps,
+        decay_steps,
+        alpha=0.0,
+        name=None,
+    ):
+        """Applies cosine decay to the learning rate.
+
+        Args:
+          initial_learning_rate: A scalar `float32` or `float64` Tensor or a
+            Python number. The initial learning rate.
+          target_learning_rate: A scalar `float32` or `float64` Tensor or a
+            Python number. The learning rate target for our warmup.
+          warmup_steps: A scalar `int32` or `int64` `Tensor` or a Python number.
+            Number of steps to warmup over.
+          decay_steps: A scalar `int32` or `int64` `Tensor` or a Python number.
+            Number of steps to decay over.
+          alpha: A scalar `float32` or `float64` Tensor or a Python number.
+            Minimum learning rate value as a fraction of initial_learning_rate.
+          name: String. Optional name of the operation.  Defaults to
+            'CosineDecay'.
+        """
+        super().__init__()
+
+        self.initial_learning_rate = initial_learning_rate
+        self.target_learning_rate = target_learning_rate
+        self.warmup_steps = warmup_steps
+        self.decay_steps = decay_steps
+        self.alpha = alpha
+        self.name = name
+        target_learning_rate = tf.convert_to_tensor(
+            self.target_learning_rate, name="target_learning_rate"
+        )
+        self.cosine_decay_schedule = CosineDecay(
+            target_learning_rate, decay_steps, alpha
+        )
+
+    def __call__(self, step):
+        with tf.name_scope(self.name or "CosineDecayWithWarmup"):
+            target_learning_rate = tf.convert_to_tensor(
+                self.target_learning_rate, name="target_learning_rate"
+            )
+            dtype = target_learning_rate.dtype
+            initial_learning_rate = tf.cast(self.initial_learning_rate, dtype)
+            warmup_steps = tf.cast(self.warmup_steps, dtype)
+            decay_steps = tf.cast(self.decay_steps, dtype)
+            step = tf.cast(step, dtype)
+
+            def warmup_function(step):
+                # Helper function for tf.cond
+                total_step_delta = target_learning_rate - initial_learning_rate
+                completed_fraction = step / warmup_steps
+                return (
+                    total_step_delta * completed_fraction
+                    + initial_learning_rate
+                )
+
+            return tf.cond(
+                step < warmup_steps,
+                lambda: warmup_function(step),
+                lambda: self.cosine_decay_schedule(step - decay_steps),
+            )
+
+    def get_config(self):
+        return {
+            "initial_learning_rate": self.initial_learning_rate,
+            "target_learning_rate": self.target_learning_rate,
+            "warmup_steps": self.warmup_steps,
+            "decay_steps": self.decay_steps,
+            "alpha": self.alpha,
+            "name": self.name,
+        }
+
+
+@keras_export(
     "keras.optimizers.schedules.CosineDecayRestarts",
     "keras.experimental.CosineDecayRestarts",
 )

@@ -9,6 +9,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "CosineDecayWithWarmup"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "ExponentialDecay"
     mtype: "<type \'type\'>"
   }
