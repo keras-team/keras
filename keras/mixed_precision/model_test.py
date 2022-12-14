@@ -45,6 +45,7 @@ from keras.optimizers import sgd
 from keras.optimizers.legacy import gradient_descent
 from keras.saving import object_registration
 from keras.saving.legacy import save
+from keras.saving.serialization_lib import SafeModeScope
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -511,12 +512,13 @@ class KerasModelTest(test_combinations.TestCase):
                 model = models.Model(inputs=x, outputs=y)
                 if get_config:
                     config = model.get_config()
-                    model = model.__class__.from_config(
-                        config,
-                        custom_objects={
-                            "MultiplyLayer": mp_test_util.MultiplyLayer
-                        },
-                    )
+                    with SafeModeScope(safe_mode=False):
+                        model = model.__class__.from_config(
+                            config,
+                            custom_objects={
+                                "MultiplyLayer": mp_test_util.MultiplyLayer
+                            },
+                        )
                     (layer,) = (
                         layer
                         for layer in model.layers
