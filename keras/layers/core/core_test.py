@@ -24,7 +24,6 @@ import keras
 from keras import initializers
 from keras.layers import core
 from keras.mixed_precision import policy
-from keras.saving.serialization_lib import SafeModeScope
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -157,10 +156,9 @@ class LambdaLayerTest(test_combinations.TestCase):
 
         ld = keras.layers.Lambda(f)
         config = ld.get_config()
-        with SafeModeScope(safe_mode=False):
-            ld = keras.layers.deserialize(
-                {"class_name": "Lambda", "config": config}
-            )
+        ld = keras.layers.deserialize(
+            {"class_name": "Lambda", "config": config}
+        )
         self.assertEqual(ld.function(3), 4)
 
         # test with lambda
@@ -250,10 +248,9 @@ class LambdaLayerTest(test_combinations.TestCase):
         layer(keras.backend.variable(np.ones((1, 1))))
         config = layer.get_config()
 
-        with SafeModeScope(safe_mode=False):
-            layer = keras.layers.deserialize(
-                {"class_name": "Lambda", "config": config}
-            )
+        layer = keras.layers.deserialize(
+            {"class_name": "Lambda", "config": config}
+        )
         self.assertAllEqual(layer.function(1), 2)
         self.assertAllEqual(layer._output_shape, (1, 1))
         self.assertAllEqual(layer.mask(1, True), True)

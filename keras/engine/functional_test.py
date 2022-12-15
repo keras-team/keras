@@ -897,10 +897,13 @@ class NetworkConstructionTest(test_combinations.TestCase):
         # See https://github.com/keras-team/keras/issues/14838.
         inp = input_layer_lib.Input(shape=[5], name="main_input")
 
+        zeros = layers.Lambda(tf.zeros_like, name="generate_zeros")(inp)
+        ones = layers.Lambda(tf.ones_like, name="generate_ones")(inp)
+
         shared_layer = layers.Layer(name="shared")
 
-        ones_result = shared_layer(tf.ones_like(inp))
-        zeros_result = shared_layer(tf.zeros_like(inp))
+        ones_result = shared_layer(ones)
+        zeros_result = shared_layer(zeros)
         zeros_result = layers.Layer(name="blank")(zeros_result)
 
         m = training_lib.Model(
