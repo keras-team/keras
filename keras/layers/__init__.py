@@ -158,9 +158,6 @@ from keras.layers.reshaping.zero_padding1d import ZeroPadding1D
 from keras.layers.reshaping.zero_padding2d import ZeroPadding2D
 from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
 
-# isort: off
-from tensorflow.python import tf2
-
 if tf.__internal__.tf2.enabled():
     from keras.layers.normalization.batch_normalization import (
         BatchNormalization,
