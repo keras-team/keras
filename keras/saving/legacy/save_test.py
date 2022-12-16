@@ -384,7 +384,7 @@ class TestJson(test_combinations.TestCase):
             indices_a, values_a, (batch_size, timesteps, 1)
         )
 
-        values_b = np.zeros(10, dtype=np.str)
+        values_b = np.zeros(10, dtype=str)
         indices_b = np.zeros((10, 3), dtype=np.int64)
         indices_b[:, 0] = np.arange(10)
         inputs_b = tf.SparseTensor(
