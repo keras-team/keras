@@ -934,8 +934,9 @@ class LossScaleOptimizer(
     def get_slot_names(self):
         return self._optimizer.get_slot_names()
 
+    @property
     def variables(self):
-        return self._optimizer.variables()
+        return optimizer_v2.CallableList(self._optimizer.variables())
 
     @property
     def weights(self):

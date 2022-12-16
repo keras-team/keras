@@ -1238,9 +1238,10 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             return backend.get_value(value)
         return value
 
+    @property
     def variables(self):
         """Returns variables of this Optimizer based on the order created."""
-        return self._weights
+        return CallableList(self._weights)
 
     @property
     def weights(self):
@@ -1672,6 +1673,13 @@ def _get_slot_key_from_var(var, slot_name):
 
     name = _var_key(var)
     return name + "/" + slot_name
+
+
+class CallableList(list):
+    """Temporary shim to support both `opt.variables()` and `opt.variables`."""
+
+    def __call__(self):
+        return self
 
 
 class RestoredOptimizer(OptimizerV2):

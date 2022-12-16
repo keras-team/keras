@@ -23,6 +23,10 @@ tf_class {
     name: "weights"
     mtype: "<type \'property\'>"
   }
+  member {
+    name: "variables"
+    mtype: "<type \'property\'>"
+  }
   member_method {
     name: "__init__"
     argspec: "args=[\'self\', \'name\', \'gradient_aggregator\', \'gradient_transformers\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\'], "
