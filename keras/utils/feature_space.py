@@ -17,6 +17,9 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.engine import base_layer
+from keras.saving import saving_lib
+from keras.saving import serialization_lib
 from keras.utils.generic_utils import LazyLoader
 
 # isort: off
@@ -41,6 +44,17 @@ class Cross:
     def name(self):
         return "_X_".join(self.feature_names)
 
+    def get_config(self):
+        return {
+            "feature_names": self.feature_names,
+            "crossing_dim": self.crossing_dim,
+            "output_mode": self.output_mode,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
 class Feature:
     def __init__(self, dtype, preprocessor, output_mode):
@@ -51,12 +65,29 @@ class Feature:
                 f"Received: output_mode={output_mode}"
             )
         self.dtype = dtype
+        if isinstance(preprocessor, dict):
+            preprocessor = serialization_lib.deserialize_keras_object(
+                preprocessor
+            )
         self.preprocessor = preprocessor
         self.output_mode = output_mode
 
+    def get_config(self):
+        return {
+            "dtype": self.dtype,
+            "preprocessor": serialization_lib.serialize_keras_object(
+                self.preprocessor
+            ),
+            "output_mode": self.output_mode,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
 
 @keras_export("keras.utils.FeatureSpace", v1=[])
-class FeatureSpace:
+class FeatureSpace(base_layer.Layer):
     """One-stop utility for preprocessing and encoding structured data.
 
     Arguments:
@@ -245,6 +276,13 @@ class FeatureSpace:
     # It's an instance of keras.layers.HashedCrossing.
     crossing_layer = feature_space.crossers["feature1_X_feature2"]
     ```
+
+    **Saving and reloading a FeatureSpace:**
+
+    ```python
+    feature_space.save("myfeaturespace.keras")
+    reloaded_feature_space = keras.models.load_model("myfeaturespace.keras")
+    ```
     """
 
     @classmethod
@@ -257,9 +295,11 @@ class FeatureSpace:
 
     @classmethod
     def float(cls, name=None):
+        from keras.layers.core import identity
+
         name = name or backend.unique_object_name("float")
-        preprocessor = lambda x: tf.cast(
-            x, dtype="float32", name=f"{name}_preprocessor"
+        preprocessor = identity.Identity(
+            dtype="float32", name=f"{name}_preprocessor"
         )
         return Feature(
             dtype="float32", preprocessor=preprocessor, output_mode="float"
@@ -377,6 +417,8 @@ class FeatureSpace:
         if crosses:
             feature_set = set(features.keys())
             for cross in crosses:
+                if isinstance(cross, dict):
+                    cross = serialization_lib.deserialize_keras_object(cross)
                 if isinstance(cross, Cross):
                     self.crosses.append(cross)
                 else:
@@ -430,6 +472,9 @@ class FeatureSpace:
     def _standardize_feature(self, name, feature):
         if isinstance(feature, Feature):
             return feature
+
+        if isinstance(feature, dict):
+            return serialization_lib.deserialize_keras_object(feature)
 
         if feature == "float":
             return self.float(name=name)
@@ -682,3 +727,46 @@ class FeatureSpace:
                     if x.shape.rank == 2 and x.shape[0] == 1:
                         merged_data[name] = tf.squeeze(x, axis=0)
         return merged_data
+
+    def get_config(self):
+        return {
+            "features": serialization_lib.serialize_keras_object(self.features),
+            "output_mode": self.output_mode,
+            "crosses": serialization_lib.serialize_keras_object(self.crosses),
+            "crossing_dim": self.crossing_dim,
+            "hashing_dim": self.hashing_dim,
+            "num_discretization_bins": self.num_discretization_bins,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def get_build_config(self):
+        return {
+            name: feature.preprocessor.get_build_config()
+            for name, feature in self.features.items()
+        }
+
+    def build_from_config(self, config):
+        for name in config.keys():
+            self.features[name].preprocessor.build_from_config(config[name])
+        self._is_adapted = True
+
+    def save(self, filepath):
+        """Save the `FeatureSpace` instance to a `.keras` file.
+
+        You can reload it via `keras.models.load_model()`:
+
+        ```python
+        feature_space.save("myfeaturespace.keras")
+        reloaded_feature_space = keras.models.load_model("myfeaturespace.keras")
+        ```
+        """
+        saving_lib.save_model(self, filepath)
+
+    def _save_own_variables(self, store):
+        return
+
+    def _load_own_variables(self, store):
+        return
