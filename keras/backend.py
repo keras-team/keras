@@ -31,6 +31,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend_config
 from keras.distribute import distribute_coordinator_utils as dc
+from keras.dtensor import dtensor_api as dtensor
 from keras.engine import keras_tensor
 from keras.utils import control_flow_util
 from keras.utils import object_identity
@@ -4264,7 +4265,7 @@ def set_value(x, value):
     """
     value = np.asarray(value, dtype=dtype_numpy(x))
     if tf.compat.v1.executing_eagerly_outside_functions():
-        x.assign(value)
+        _assign_value_to_variable(x, value)
     else:
         with get_graph().as_default():
             tf_dtype = tf.as_dtype(x.dtype.name.split("_")[0])
@@ -4299,7 +4300,8 @@ def batch_set_value(tuples):
     """
     if tf.executing_eagerly() or tf.inside_function():
         for x, value in tuples:
-            x.assign(np.asarray(value, dtype=dtype_numpy(x)))
+            value = np.asarray(value, dtype=dtype_numpy(x))
+            _assign_value_to_variable(x, value)
     else:
         with get_graph().as_default():
             if tuples:
@@ -4331,6 +4333,23 @@ def batch_set_value(tuples):
 
 get_value.__doc__ = get_value.__doc__.format(snippet=_VALUE_SET_CODE_STRING)
 set_value.__doc__ = set_value.__doc__.format(snippet=_VALUE_SET_CODE_STRING)
+
+
+def _assign_value_to_variable(variable, value):
+    # Helper function to assign value to variable. It handles normal tf.Variable
+    # as well as DTensor variable.
+    if isinstance(variable, dtensor.DVariable):
+        mesh = variable.layout.mesh
+        replicate_layout = dtensor.Layout.replicated(
+            rank=variable.shape.rank, mesh=mesh
+        )
+        # TODO(b/262894693): Avoid the broadcast of tensor to all devices.
+        d_value = dtensor.copy_to_mesh(value, replicate_layout)
+        d_value = dtensor.relayout(d_value, variable.layout)
+        variable.assign(d_value)
+    else:
+        # For the normal tf.Variable assign
+        variable.assign(value)
 
 
 @keras_export("keras.backend.print_tensor")

@@ -213,21 +213,10 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        # TODO(b/234770465): Check the order of trainable_weights.
-        self.assertLen(d1.trainable_weights, 2)
-        self.assertIsInstance(
-            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
-        self.assertLen(d2.trainable_weights, 2)
-        self.assertIsInstance(
-            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
+        self.assertIs(d1.kernel, d1._trainable_weights[0])
+        self.assertIs(d1.bias, d1._trainable_weights[1])
+        self.assertIs(d2.kernel, d2._trainable_weights[0])
+        self.assertIs(d2.bias, d2._trainable_weights[1])
 
         result = model(inputs, training=True)
         self.assertAllClose(
@@ -268,21 +257,10 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        # TODO(b/234770465): Check the order of trainable_weights.
-        self.assertLen(d1.trainable_weights, 2)
-        self.assertIsInstance(
-            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
-        self.assertLen(d2.trainable_weights, 2)
-        self.assertIsInstance(
-            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
+        self.assertIs(d1.kernel, d1._trainable_weights[0])
+        self.assertIs(d1.bias, d1._trainable_weights[1])
+        self.assertIs(d2.kernel, d2._trainable_weights[0])
+        self.assertIs(d2.bias, d2._trainable_weights[1])
 
         inputs = tf.zeros((10, 10))
         inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)
@@ -324,21 +302,10 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
         # Also make sure we repopulate the cached attributes like
         # layer._trainable_weights
-        # TODO(b/234770465): Check the order of trainable_weights.
-        self.assertLen(d1.trainable_weights, 2)
-        self.assertIsInstance(
-            d1.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d1.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
-        self.assertLen(d2.trainable_weights, 2)
-        self.assertIsInstance(
-            d2.trainable_weights[0], tf.experimental.dtensor.DVariable
-        )
-        self.assertIsInstance(
-            d2.trainable_weights[1], tf.experimental.dtensor.DVariable
-        )
+        self.assertIs(d1.kernel, d1._trainable_weights[0])
+        self.assertIs(d1.bias, d1._trainable_weights[1])
+        self.assertIs(d2.kernel, d2._trainable_weights[0])
+        self.assertIs(d2.bias, d2._trainable_weights[1])
 
         inputs = tf.zeros((10, 10))
         inputs = dtensor.copy_to_mesh(inputs, layout=self.layout_2d)

@@ -187,3 +187,18 @@ py_library(
         "//:expect_tensorflow_installed",
     ],
 )
+
+tf_py_test(
+    name = "save_load_test",
+    srcs = ["save_load_test.py"],
+    deps = [
+        ":dtensor",
+        ":layout_map",
+        ":test_util",
+        "//keras",
+        "//keras:backend",
+        "//keras/layers",
+        "//keras/models",
+        "//keras/utils:tf_utils",
+    ],
+)

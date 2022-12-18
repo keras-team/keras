@@ -3167,6 +3167,37 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         reference_counts = self._obj_reference_counts
         reference_counts[value] = reference_counts.get(value, 0) + 1
 
+        # When replacing an existing tf.Variable with a new one, we want to
+        # check its existing position in the
+        # self._trainable/non_trainable_variable, so that we can put it back to
+        # the original position.
+        if isinstance(value, tf.Variable) and isinstance(
+            getattr(self, name, None), tf.Variable
+        ):
+            existing_variable = getattr(self, name)
+
+            def _get_variable_from_list(var_list, var):
+                # helper function to get the tf.variable from the list
+                # the default list.index() use == for comparison, which will
+                # cause issue for eager tensor.
+                for i in range(len(var_list)):
+                    if var_list[i] is var:
+                        return i
+                return None
+
+            if existing_variable.trainable:
+                self._maybe_create_attribute("_trainable_weights", [])
+                position = _get_variable_from_list(
+                    self._trainable_weights, existing_variable
+                )
+            else:
+                self._maybe_create_attribute("_non_trainable_variable", [])
+                position = _get_variable_from_list(
+                    self._non_trainable_variable, existing_variable
+                )
+        else:
+            position = None
+
         # Clean out the old attribute, which clears _layers and
         # _trainable_weights if necessary.
         try:
@@ -3200,7 +3231,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Append value to list of trainable / non-trainable weights if relevant
         # TODO(b/125122625): This won't pick up on any variables added to a
         # list/dict after creation.
-        self._track_variables(value)
+        self._track_variables(value, position=position)
 
         # TODO(b/180760306) Skip the auto trackable from tf.Module to keep
         # status quo. See the comment at __delattr__.
@@ -3216,19 +3247,19 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             ):
                 self._track_variables(trackable_obj)
 
-    def _track_variables(self, value):
+    def _track_variables(self, value, position=None):
         """Tracks `Variable`s including `Variable`s in `CompositeTensor`s."""
         for val in tf.nest.flatten(value):
             if isinstance(val, tf.Variable):
-                self._track_variable(val)
+                self._track_variable(val, position=position)
             elif tf_utils.is_extension_type(val):
                 # Manually expand extension types to track resource variables.
                 nested_vals = tf_utils.type_spec_from_value(val)._to_components(
                     val
                 )
-                self._track_variables(nested_vals)
+                self._track_variables(nested_vals, position=position)
 
-    def _track_variable(self, val):
+    def _track_variable(self, val, position=None):
         """Tracks the given `tf.Variable`."""
         # Users may add extra weights/variables simply by assigning them to
         # attributes (invalid for graph networks)
@@ -3237,11 +3268,17 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if val.trainable:
             if any(val is w for w in self._trainable_weights):
                 return
-            self._trainable_weights.append(val)
+            if position is None:
+                self._trainable_weights.append(val)
+            else:
+                self._trainable_weights.insert(position, val)
         else:
             if any(val is w for w in self._non_trainable_weights):
                 return
-            self._non_trainable_weights.append(val)
+            if position is None:
+                self._non_trainable_weights.append(val)
+            else:
+                self._non_trainable_weights.insert(position, val)
         backend.track_variable(val)
 
     def _gather_children_attribute(self, attribute):
