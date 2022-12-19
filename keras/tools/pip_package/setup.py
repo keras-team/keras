@@ -58,7 +58,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
     # Supported Python versions
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     # PyPI package information.
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -67,10 +67,10 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3 :: Only",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Mathematics",
