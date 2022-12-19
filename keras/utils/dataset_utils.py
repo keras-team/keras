@@ -23,6 +23,8 @@ import warnings
 import numpy as np
 import tensorflow.compat.v2 as tf
 
+from keras.utils import io_utils
+
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
@@ -578,9 +580,9 @@ def index_directory(
             i += len(partial_labels)
 
     if labels is None:
-        print(f"Found {len(filenames)} files.")
+        io_utils.print_msg(f"Found {len(filenames)} files.")
     else:
-        print(
+        io_utils.print_msg(
             f"Found {len(filenames)} files belonging "
             f"to {len(class_names)} classes."
         )
