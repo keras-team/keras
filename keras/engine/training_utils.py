@@ -72,6 +72,9 @@ def handle_partial_sample_weights(
       Tuple of sample weights, one sample weight for every output, and booleans
       describing the raw sample weights.
     """
+    if not isinstance(sample_weights, (list, tuple)):
+        sample_weights = (sample_weights,)
+
     any_sample_weight = sample_weights is not None and any(
         w is not None for w in sample_weights
     )
