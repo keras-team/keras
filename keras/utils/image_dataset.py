@@ -47,7 +47,6 @@ def image_dataset_from_directory(
     interpolation="bilinear",
     follow_links=False,
     crop_to_aspect_ratio=False,
-    verbose=1,
     **kwargs,
 ):
     """Generates a `tf.data.Dataset` from image files in a directory.
@@ -129,8 +128,6 @@ def image_dataset_from_directory(
         largest possible window in the image (of size `image_size`) that matches
         the target aspect ratio. By default (`crop_to_aspect_ratio=False`),
         aspect ratio may not be preserved.
-      verbose: 0 or 1. Verbosity mode.
-          0 = silent, 1 = print how many files and classes were found.
       **kwargs: Legacy keyword arguments.
 
     Returns:
@@ -218,7 +215,6 @@ def image_dataset_from_directory(
         shuffle=shuffle,
         seed=seed,
         follow_links=follow_links,
-        verbose=verbose,
     )
 
     if label_mode == "binary" and len(class_names) != 2:
