@@ -156,7 +156,7 @@ class GRUGraphRewriteTest(test_combinations.TestCase):
         units = 4
 
         inputs = np.random.randn(batch_size, timestep, units).astype(np.float32)
-        mask = np.ones((batch_size, timestep)).astype(np.bool)
+        mask = np.ones((batch_size, timestep)).astype(bool)
         mask[:, masksteps:] = 0
 
         gru_layer = gru_v1.GRU(units, return_sequences=True, go_backwards=True)

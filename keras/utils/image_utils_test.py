@@ -379,7 +379,7 @@ class TestImageLoading(test_combinations.TestCase):
         loaded_im_array = image_utils.img_to_array(loaded_im)
         self.assertEqual(loaded_im_array.shape, (25, 25, 3))
 
-        red_channel_arr = loaded_im_array[:, :, 0].astype(np.bool)
+        red_channel_arr = loaded_im_array[:, :, 0].astype(bool)
         square_width = np.sum(np.sum(red_channel_arr, axis=0))
         square_height = np.sum(np.sum(red_channel_arr, axis=1))
         aspect_ratio_result = square_width / square_height
