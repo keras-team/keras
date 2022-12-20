@@ -2153,27 +2153,19 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
 
     def dropout(self, inputs, rate, noise_shape=None):
         self._maybe_init()
-        if self._rng_type == self.RNG_STATEFUL:
-            return tf.nn.experimental.general_dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                uniform_sampler=self._generator.uniform,
-            )
-        elif self._rng_type == self.RNG_STATELESS:
+        if self._rng_type in [self.RNG_STATEFUL, self.RNG_STATELESS]:
             return tf.nn.experimental.stateless_dropout(
                 inputs,
                 rate=rate,
                 noise_shape=noise_shape,
                 seed=self.make_seed_for_stateless_op(),
             )
-        else:
-            return tf.nn.dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                seed=self.make_legacy_seed(),
-            )
+        return tf.nn.dropout(
+            inputs,
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=self.make_legacy_seed(),
+        )
 
 
 @keras_export("keras.backend.random_uniform_variable")
