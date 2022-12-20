@@ -1787,6 +1787,24 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     verbose=0,
                 )
 
+    def test_EarlyStopping_patience(self):
+        cases = [0, 1, 2, 3]
+        losses = [10.0, 9.0, 8.0, 9.0, 8.9, 8.8, 8.7, 8.6, 8.5]
+
+        for patience in cases:
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="loss", patience=patience
+            )
+            stopper.model = keras.models.Sequential()
+            stopper.on_train_begin()
+
+            for epoch, loss in enumerate(losses):
+                stopper.on_epoch_end(epoch=epoch, logs={"loss": loss})
+                if stopper.model.stop_training:
+                    break
+
+            self.assertEqual(stopper.stopped_epoch, max(patience, 1) + 2)
+
     def test_EarlyStopping_reuse(self):
         with self.cached_session():
             np.random.seed(1337)

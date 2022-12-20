@@ -2083,6 +2083,7 @@ class EarlyStopping(Callback):
                 current, self.baseline
             ):
                 self.wait = 0
+            return
 
         # Only check after the first epoch.
         if self.wait >= self.patience and epoch > 0:
