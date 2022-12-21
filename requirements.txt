@@ -3,7 +3,7 @@
 pandas
 pydot
 scipy ~= 1.7.2
-tf-nightly==2.12.0.dev20221215
+tf-nightly
 portpicker
 pyyaml
 Pillow
