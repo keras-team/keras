@@ -3,11 +3,13 @@
 pandas
 pydot
 scipy ~= 1.7.2
-tf-nightly
+tf-nightly==2.12.0.dev20221215
 portpicker
 pyyaml
 Pillow
-numpy ~= 1.23.2  # Sync with the numpy version used in TF
+# TF uses a different NumPy version for Python 3.10 and lower; b/262592253
+numpy ~= 1.21.4; python_version < '3.11'
+numpy ~= 1.23.2; python_version >= '3.11' # Sync with the numpy version used in TF
 black==22.3.0
 isort==5.10.1
 flake8==4.0.1
