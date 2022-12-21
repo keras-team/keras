@@ -53,10 +53,15 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
         self.use_ema = use_ema
-        self.jit_compile = jit_compile
-        if not tf.config.list_physical_devices("GPU"):
-            # Optimizer only benefits from XLA when training on GPU. So if no
-            # GPU is found, we turn off XLA.
+        # Optimizer only benefits from XLA when training on GPU. So if no
+        # GPU is found, we turn off XLA.
+        if (
+            jit_compile
+            and tf_utils.can_jit_compile()
+            and tf.config.list_physical_devices("GPU")
+        ):
+            self.jit_compile = True
+        else:
             self.jit_compile = False
         if use_ema:
             # Verify the arguments related to EMA.
