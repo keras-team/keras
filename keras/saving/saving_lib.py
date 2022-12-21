@@ -74,6 +74,7 @@ ATTR_SKIPLIST = frozenset(
         "_self_name_based_restores",
         "_self_saveable_object_factories",
         "_self_tracked_trackables",
+        "_saved_model_inputs_spec",
         "_self_unconditional_checkpoint_dependencies",
         "_self_unconditional_deferred_dependencies",
         "_self_unconditional_dependency_names",
@@ -86,6 +87,9 @@ ATTR_SKIPLIST = frozenset(
         "_updates",
         "_layer_call_argspecs",
         "inbound_nodes",
+        "outbound_nodes",
+        "input_shape",
+        "output_shape",
         "submodules",
         "weights",
         "non_trainable_weights",
@@ -460,6 +464,9 @@ def _save_container_state(
     container, weights_store, assets_store, inner_path, visited_trackables
 ):
     used_names = {}
+    if isinstance(container, dict):
+        container = list(container.values())
+
     for trackable in container:
         if _is_keras_trackable(trackable):
             # Do NOT address the trackable via `trackable.name`, since
@@ -489,6 +496,9 @@ def _load_container_state(
     visited_trackables,
 ):
     used_names = {}
+    if isinstance(container, dict):
+        container = list(container.values())
+
     for trackable in container:
         if _is_keras_trackable(trackable):
             name = generic_utils.to_snake_case(trackable.__class__.__name__)

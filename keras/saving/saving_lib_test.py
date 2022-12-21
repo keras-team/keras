@@ -702,6 +702,38 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             model = saving_lib.load_model(temp_filepath)
         model = saving_lib.load_model(temp_filepath, safe_mode=False)
 
+    def test_normalization_kpl(self):
+        # With adapt
+        temp_filepath = os.path.join(self.get_temp_dir(), "norm_model.keras")
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Normalization(),
+            ]
+        )
+        data = np.random.random((3, 3))
+        model.layers[0].adapt(data)
+        ref_out = model(data)
+        model.save(temp_filepath, save_format="keras_v3")
+        model = saving_lib.load_model(temp_filepath)
+        out = model(data)
+        self.assertAllClose(ref_out, out, atol=1e-6)
+
+        # Without adapt
+        model = keras.Sequential(
+            [
+                keras.Input(shape=(3,)),
+                keras.layers.Normalization(
+                    mean=np.random.random((3,)), variance=np.random.random((3,))
+                ),
+            ]
+        )
+        ref_out = model(data)
+        model.save(temp_filepath, save_format="keras_v3")
+        model = saving_lib.load_model(temp_filepath)
+        out = model(data)
+        self.assertAllClose(ref_out, out, atol=1e-6)
+
 
 if __name__ == "__main__":
     tf.test.main()
