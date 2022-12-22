@@ -697,6 +697,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               for more details.
             **kwargs: Arguments supported for backwards compatibility only.
         """
+        if jit_compile and not tf_utils.can_jit_compile(warn=True):
+            jit_compile = False
         base_layer.keras_api_gauge.get_cell("compile").set(True)
         self._compile_config = serialization_lib.Config(
             optimizer=optimizer,
@@ -957,9 +959,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if self._jit_compile == value:
             # Avoid reseting compiler cache if possible if the value is the same
             return
+        # Check if TensorFlow is compiled with XLA before setting the value
+        if value and not tf_utils.can_jit_compile(warn=True):
+            self._jit_compile = False
+            return
 
         self._jit_compile = value
-
         # Setting `jit_compile` should invalidate previously cached functions.
         self._reset_compile_cache()
 

@@ -16,10 +16,12 @@
 
 import collections
 import copy
+import platform
 import random
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.engine import keras_tensor
@@ -675,3 +677,15 @@ def _astuple(attrs):
     for field in fields:
         values.append(getattr(attrs, field.name))
     return tuple(values)
+
+
+def can_jit_compile(warn=False):
+    """Returns True if TensorFlow XLA is available for the platform."""
+    if platform.system() == "Darwin" and "arm" in platform.processor().lower():
+        if warn:
+            logging.warning(
+                "Tensorflow is not compiled with XLA on Mac M1 Arm processors, "
+                "so cannot set `jit_compile` to True."
+            )
+        return False
+    return True
