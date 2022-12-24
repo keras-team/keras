@@ -25,6 +25,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.distribute import distributed_training_utils
 from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
@@ -1338,24 +1339,27 @@ class DataHandler:
     @contextlib.contextmanager
     def catch_stop_iteration(self):
         """Catches errors when an iterator runs out of data."""
-        try:
-            yield
-            self.sync()
-        except (StopIteration, tf.errors.OutOfRangeError):
-            if self._inferred_steps is None:
-                self._inferred_steps = self._current_step
-            else:
-                self._insufficient_data = True
-                total_epochs = self._epochs - self._initial_epoch
-                logging.warning(
-                    "Your input ran out of data; interrupting training. "
-                    "Make sure that your dataset or generator can generate at "
-                    "least `steps_per_epoch * epochs` batches (in this case, "
-                    "{} batches). You may need to use the repeat() function "
-                    "when building your dataset.".format(
-                        total_epochs * self._inferred_steps
+        with distributed_training_utils.maybe_preemption_handler_scope(
+            self._model
+        ):
+            try:
+                yield
+                self.sync()
+            except (StopIteration, tf.errors.OutOfRangeError):
+                if self._inferred_steps is None:
+                    self._inferred_steps = self._current_step
+                else:
+                    self._insufficient_data = True
+                    total_epochs = self._epochs - self._initial_epoch
+                    logging.warning(
+                        "Your input ran out of data; interrupting training. "
+                        "Make sure that your dataset or generator can generate "
+                        "at least `steps_per_epoch * epochs` batches (in this "
+                        "case, {} batches). You may need to use the repeat() "
+                        "function when building your dataset.".format(
+                            total_epochs * self._inferred_steps
+                        )
                     )
-                )
 
     def steps(self):
         """Yields steps for the current epoch."""
