@@ -50,7 +50,7 @@ class TimeDistributed(Wrapper):
     TensorShape([None, 10, 126, 126, 64])
 
     Because `TimeDistributed` applies the same instance of `Conv2D` to each of
-    the timestamps, the same set of weights are used at each timestamp.
+    the timesteps, the same set of weights are used at each timestep.
 
     Args:
       layer: a `tf.keras.layers.Layer` instance.
