@@ -1965,7 +1965,8 @@ def categorical_crossentropy(
             "Recieved an one-dimensional output. "
             "Consider using binary crossentropy "
             "instead of categorical crossentropy "
-            "if you have only 2 labels"
+            "if you have only 2 labels",
+            SyntaxWarning,
         )
 
     def _smooth_labels():
