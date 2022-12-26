@@ -1803,8 +1803,10 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
             warnings.simplefilter("always")
             cce_obj = losses.CategoricalCrossentropy()
             cce_obj(tf.constant([[1.0], [0.0]]), tf.constant([[1.0], [1.0]]))
-            assert issubclass(w[-1].category, SyntaxWarning)
-            assert "Recieved an one-dimensional output..*" in str(w[-1].message)
+            self.assertIsInstance(w[-1].category, SyntaxWarning)
+            self.assertIn(
+                "Expected the tensor's shape passed..*", w[-1].message
+            )
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
