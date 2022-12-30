@@ -985,22 +985,72 @@ class BaseLogger(Callback):
 
 @keras_export("keras.callbacks.TerminateOnNaN")
 class TerminateOnNaN(Callback):
-    """Callback that terminates training when a NaN loss is encountered."""
+    """Callback that terminates training when a NaN loss is encountered.
 
-    def __init__(self):
+    Args:
+        check_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
+            checks the losses for NaN after every epoch.
+            If using an integer, let's say `1000`, losses will be checked every 1000 batches.
+            `'batch'` is a synonym for `1`, meaning that check will happen every batch.
+            Defaults to `'batch'`.
+    """
+
+    def __init__(self, check_freq="batch"):
         super().__init__()
+        self.check_freq = 1 if check_freq == "batch" else check_freq
+        if self.check_freq != "epoch" and not isinstance(self.check_freq, int):
+            raise ValueError(
+                "Unrecognized check_freq: {}".format(self.check_freq)
+            )
+        self._batches_seen_since_last_saving = 0
+        self._last_batch_seen = 0
         self._supports_tf_logs = True
 
-    def on_batch_end(self, batch, logs=None):
+    def _check_nan(self, batch=None, epoch=None, logs=None):
         logs = logs or {}
         loss = logs.get("loss")
+
         if loss is not None:
             loss = tf_utils.sync_to_numpy_or_python_type(loss)
             if np.isnan(loss) or np.isinf(loss):
-                io_utils.print_msg(
-                    f"Batch {batch}: Invalid loss, terminating training"
-                )
+                if batch is not None:
+                    io_utils.print_msg(
+                        f"Batch {batch}: Invalid loss, terminating training"
+                    )
+                else:
+                    io_utils.print_msg(
+                        f"Epoch {epoch}: Invalid loss, terminating training"
+                    )
                 self.model.stop_training = True
+
+    def _should_check_on_batch(self, batch):
+        """Handles batch-level saving logic, supports steps_per_execution."""
+        if self.check_freq == "epoch":
+            return False
+
+        if batch <= self._last_batch_seen:  # New epoch.
+            add_batches = batch + 1  # batches are zero-indexed.
+        else:
+            add_batches = batch - self._last_batch_seen
+        self._batches_seen_since_last_saving += add_batches
+        self._last_batch_seen = batch
+
+        if self._batches_seen_since_last_saving >= self.check_freq:
+            self._batches_seen_since_last_saving = 0
+            return True
+        return False
+
+    def _implements_train_batch_hooks(self):
+        # Only call batch hooks when saving on batch
+        return self.check_freq != "epoch"
+
+    def on_batch_end(self, batch, logs=None):
+        if self._should_check_on_batch:
+            self._check_nan(batch=batch, logs=logs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.check_freq == "epoch":
+            self._check_nan(epoch=epoch, logs=logs)
 
 
 @keras_export("keras.callbacks.ProgbarLogger")
