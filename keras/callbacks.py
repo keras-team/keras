@@ -989,10 +989,10 @@ class TerminateOnNaN(Callback):
 
     Args:
         check_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
-            checks the losses for NaN after every epoch.
-            If using an integer, let's say `1000`, losses will be checked every 1000 batches.
-            `'batch'` is a synonym for `1`, meaning that check will happen every batch.
-            Defaults to `'batch'`.
+            checks the losses for NaN after every epoch. If using an integer, 
+            let's say `1000`, losses will be checked every 1000 batches.
+            `'batch'` is a synonym for `1`, meaning that check will happen 
+            every batch. Defaults to `'batch'`.
     """
 
     def __init__(self, check_freq="batch"):
