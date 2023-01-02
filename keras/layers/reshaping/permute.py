@@ -17,7 +17,7 @@
 
 import copy
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
@@ -36,8 +36,8 @@ class Permute(Layer):
 
     ```python
     model = Sequential()
-    model.add(Permute((2, 1), input_shape=(10, 64)))
-    # now: model.output_shape == (None, 64, 10)
+    model.add(Permute((1, 3, 2), input_shape=(30, 6, 8)))
+    # now: model.output_shape == (None, 8, 6)
     # note: `None` is the batch dimension
     ```
 
