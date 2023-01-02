@@ -63,8 +63,10 @@ class Permute(Layer):
         if sorted(dims) != list(range(1, len(dims) + 1)):
             raise ValueError(
                 "Invalid permutation `dims` for Permute Layer: %s. "
-                "`dims` must be a permutation (reordering) of the input's axis ids, excluding the batch-dimension. "
-                f"To transpose a batch of tensors with shape `[batch, n, m]` pass `Permute([2,1])`"
+                "`dims` must be a permutation (reordering) of the input's axis ids, "
+                "excluding the batch-dimension."
+                "To transpose a batch of tensors with shape `[batch, n, m]` "
+                "pass `Permute([2,1])` "
             )
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
 
