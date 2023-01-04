@@ -52,9 +52,9 @@ and you can export your Keras models to run in the browser or on a mobile device
 ## First contact with Keras
 
 The core data structures of Keras are __layers__ and __models__.
-The simplest type of model is the [`Sequential` model](/guides/sequential_model/), a linear stack of layers.
+The simplest type of model is the [`Sequential` model](https://keras.io/guides/sequential_model/), a linear stack of layers.
 For more complex architectures, you should use the [Keras functional API](https://keras.io/guides/functional_api/),
-which allows you to build arbitrary graphs of layers or [write models entirely from scratch via subclassing](/guides/making_new_layers_and_models_via_subclassing/).
+which allows you to build arbitrary graphs of layers or [write models entirely from scratch via subclassing](https://keras.io/guides/making_new_layers_and_models_via_subclassing/).
 
 Here is the `Sequential` model:
 
