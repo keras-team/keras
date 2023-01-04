@@ -38,6 +38,34 @@ def numpy_text(tensor, is_repr=False):
     return text
 
 
+class AutoCastVariableSpec(tf.types.experimental.TraceType):
+    """TraceType for AutoCastVariableSpec for tracing with tf.function.
+
+    This class implements the Type for AutoCastVariable used in tracing.
+    """
+
+    def __init__(self, value):
+        self._value = value
+
+    def is_subtype_of(self, other) -> bool:
+        """If the other spec is the same as `self`, return True."""
+        return self == other
+
+    def most_specific_common_supertype(self, others):
+        """`self` is the common supertype if all input types match it."""
+        return self if all(self == other for other in others) else None
+
+    def placeholder_value(self, placeholder_context=None):
+        """Use the AutoCastVariable value itself as a placeholder."""
+        return self._value
+
+    def __hash__(self) -> int:
+        return hash(id(self._value))
+
+    def __eq__(self, other) -> bool:
+        return self is other
+
+
 class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     """Variable that casts itself to a different dtype in applicable contexts.
 
@@ -362,6 +390,9 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
 
     def get_shape(self):
         return self._variable.get_shape()
+
+    def __tf_tracing_type__(self, context):
+        return AutoCastVariableSpec(self)
 
     def _gather_saveables_for_checkpoint(self):
         # By delegating this method to the wrapped variable, checkpoints with

@@ -111,6 +111,7 @@ tf_py_test(
         ":autocast_variable",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//keras/layers",
         "//keras/optimizers/legacy:optimizers",
     ],
 )
