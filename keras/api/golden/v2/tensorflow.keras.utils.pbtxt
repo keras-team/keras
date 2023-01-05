@@ -40,6 +40,10 @@ tf_module {
     name: "experimental"
     mtype: "<type \'module\'>"
   }
+  member {
+    name: "legacy"
+    mtype: "<type \'module\'>"
+  }
   member_method {
     name: "array_to_img"
     argspec: "args=[\'x\', \'data_format\', \'scale\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'True\', \'None\'], "

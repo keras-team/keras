@@ -13,6 +13,7 @@ py_library(
     name = "utils",
     srcs = [
         "__init__.py",
+        "legacy/__init__.py",
     ],
     srcs_version = "PY3",
     deps = [
