@@ -1717,14 +1717,26 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             sample_weight=val_sample_weight,
                             batch_size=validation_batch_size or batch_size,
                             steps_per_epoch=validation_steps,
-                            initial_epoch=0,
-                            epochs=1,
+                            initial_epoch=initial_epoch,
+                            epochs=epochs,
                             max_queue_size=max_queue_size,
                             workers=workers,
                             use_multiprocessing=use_multiprocessing,
                             model=self,
                             steps_per_execution=self._steps_per_execution,
                         )
+                        steps_per_epoch_inferred = (
+                                validation_steps or data_handler.inferred_steps
+                        )
+                        (
+                            self._eval_data_handler._initial_epoch,
+                            self._eval_data_handler._initial_step,
+                        ) = self._maybe_load_initial_counters_from_ckpt(
+                            steps_per_epoch_inferred, initial_epoch
+                        )
+                        self._eval_data_handler_epoch_iterator = \
+                            self._eval_data_handler.enumerate_epochs()
+
                     val_logs = self.evaluate(
                         x=val_x,
                         y=val_y,
@@ -1756,6 +1768,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # If eval data_handler exists, delete it after all epochs are done.
             if getattr(self, "_eval_data_handler", None) is not None:
                 del self._eval_data_handler
+            if getattr(self, "_eval_data_handler_epoch_iterator", None) is not None:
+                del self._eval_data_handler_epoch_iterator
             callbacks.on_train_end(logs=training_logs)
             return self.history
 
@@ -2026,6 +2040,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 and getattr(self, "_eval_data_handler", None) is not None
             ):
                 data_handler = self._eval_data_handler
+                if getattr(self, "_eval_data_handler_epoch_iterator", None) is not None:
+                    epoch_iterator = self._eval_data_handler_epoch_iterator
+                else:
+                    epoch_iterator = data_handler.enumerate_epochs()
             else:
                 # Creates a `tf.data.Dataset` and handles batch and epoch
                 # iteration.
@@ -2043,6 +2061,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     model=self,
                     steps_per_execution=self._steps_per_execution,
                 )
+                epoch_iterator = data_handler.enumerate_epochs()
 
             # Container that configures and calls `tf.keras.Callback`s.
             if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -2060,21 +2079,21 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self.test_function = self.make_test_function()
             self._test_counter.assign(0)
             callbacks.on_test_begin()
-            for _, iterator in data_handler.enumerate_epochs():  # Single epoch.
-                self.reset_metrics()
-                with data_handler.catch_stop_iteration():
-                    for step in data_handler.steps():
-                        with tf.profiler.experimental.Trace(
-                            "test", step_num=step, _r=1
-                        ):
-                            callbacks.on_test_batch_begin(step)
-                            tmp_logs = self.test_function(iterator)
-                            if data_handler.should_sync:
-                                context.async_wait()
-                            # No error, now safe to assign to logs.
-                            logs = tmp_logs
-                            end_step = step + data_handler.step_increment
-                            callbacks.on_test_batch_end(end_step, logs)
+            iterator = next(epoch_iterator)  # Single epoch.
+            self.reset_metrics()
+            with data_handler.catch_stop_iteration():
+                for step in data_handler.steps():
+                    with tf.profiler.experimental.Trace(
+                        "test", step_num=step, _r=1
+                    ):
+                        callbacks.on_test_batch_begin(step)
+                        tmp_logs = self.test_function(iterator)
+                        if data_handler.should_sync:
+                            context.async_wait()
+                        # No error, now safe to assign to logs.
+                        logs = tmp_logs
+                        end_step = step + data_handler.step_increment
+                        callbacks.on_test_batch_end(end_step, logs)
 
             logs = tf_utils.sync_to_numpy_or_python_type(logs)
             # Override with model metrics instead of last step logs
