@@ -1000,9 +1000,10 @@ class TerminateOnNaN(Callback):
         self.check_freq = 1 if check_freq == "batch" else check_freq
         if self.check_freq != "epoch" and not isinstance(self.check_freq, int):
             raise ValueError(
-                "Unrecognized check_freq: {}".format(self.check_freq)
+                f"Unrecognized check_freq: {self.check_freq}"
+                "Expected 'batch', 'epoch' or integer"
             )
-        self._batches_seen_since_last_saving = 0
+        self._batches_seen_since_last_check = 0
         self._last_batch_seen = 0
         self._supports_tf_logs = True
 
@@ -1032,11 +1033,11 @@ class TerminateOnNaN(Callback):
             add_batches = batch + 1  # batches are zero-indexed.
         else:
             add_batches = batch - self._last_batch_seen
-        self._batches_seen_since_last_saving += add_batches
+        self._batches_seen_since_last_check += add_batches
         self._last_batch_seen = batch
 
-        if self._batches_seen_since_last_saving >= self.check_freq:
-            self._batches_seen_since_last_saving = 0
+        if self._batches_seen_since_last_check >= self.check_freq:
+            self._batches_seen_since_last_check = 0
             return True
         return False
 
