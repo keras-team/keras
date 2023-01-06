@@ -1000,7 +1000,7 @@ class TerminateOnNaN(Callback):
         self.check_freq = 1 if check_freq == "batch" else check_freq
         if self.check_freq != "epoch" and not isinstance(self.check_freq, int):
             raise ValueError(
-                f"Unrecognized check_freq: {self.check_freq}"
+                f"Unrecognized check_freq: {self.check_freq}. "
                 "Expected 'batch', 'epoch' or integer"
             )
         self._batches_seen_since_last_check = 0
@@ -1046,7 +1046,7 @@ class TerminateOnNaN(Callback):
         return self.check_freq != "epoch"
 
     def on_batch_end(self, batch, logs=None):
-        if self._should_check_on_batch:
+        if self._should_check_on_batch(batch):
             self._check_nan(batch=batch, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
