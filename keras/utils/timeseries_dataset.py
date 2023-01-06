@@ -84,7 +84,7 @@ def timeseries_dataset_from_array(
 
     Example 1:
 
-    Consider indices `[0, 1, ... 99]`.
+    Consider indices `[0, 1, ... 98]`.
     With `sequence_length=10,  sampling_rate=2, sequence_stride=3`,
     `shuffle=False`, the dataset will yield batches of sequences
     composed of the following indices:
@@ -97,9 +97,9 @@ def timeseries_dataset_from_array(
     Last sequence:   [78 80 82 84 86 88 90 92 94 96]
     ```
 
-    In this case the last 3 data points are discarded since no full sequence
+    In this case the last 2 data points are discarded since no full sequence
     can be generated to include them (the next sequence would have started
-    at index 81, and thus its last step would have gone over 99).
+    at index 81, and thus its last step would have gone over 98).
 
     Example 2: Temporal regression.
 
