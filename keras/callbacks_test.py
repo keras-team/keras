@@ -2346,24 +2346,28 @@ class KerasCallbacksTest(test_combinations.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-
         y_test = np_utils.to_categorical(y_test)
         y_train = np_utils.to_categorical(y_train)
-        cbks = [keras.callbacks.TerminateOnNaN()]
-        model = keras.models.Sequential()
-        initializer = keras.initializers.Constant(value=1e5)
-        for _ in range(5):
-            model.add(
-                keras.layers.Dense(
-                    2,
-                    input_dim=INPUT_DIM,
-                    activation="relu",
-                    kernel_initializer=initializer,
-                )
-            )
-        model.add(keras.layers.Dense(NUM_CLASSES))
-        model.compile(loss="mean_squared_error", optimizer="rmsprop")
 
+        def _get_model():
+            _model = keras.models.Sequential()
+            _initializer = keras.initializers.Constant(value=1e5)
+            for _ in range(5):
+                _model.add(
+                    keras.layers.Dense(
+                        2,
+                        input_dim=INPUT_DIM,
+                        activation="relu",
+                        kernel_initializer=_initializer,
+                    )
+                )
+            _model.add(keras.layers.Dense(NUM_CLASSES))
+            _model.compile(loss="mean_squared_error", optimizer="rmsprop")
+            return _model
+
+        # Case 1: `TerminateOnNaN` with `check_freq="batch"`
+        model = _get_model()
+        cbks = [keras.callbacks.TerminateOnNaN(check_freq="batch")]
         history = model.fit(
             x_train,
             y_train,
@@ -2372,9 +2376,47 @@ class KerasCallbacksTest(test_combinations.TestCase):
             callbacks=cbks,
             epochs=20,
         )
+        self.assertEqual(model.optimizer.iterations.numpy(), 1)
         loss = history.history["loss"]
-        self.assertEqual(len(loss), 1)
-        self.assertTrue(np.isnan(loss[0]) or np.isinf(loss[0]))
+        self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
+
+        # Case 2: `TerminateOnNaN` with `check_freq="epoch"`
+        model = _get_model()
+        cbks = [keras.callbacks.TerminateOnNaN(check_freq="epoch")]
+        history = model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=20,
+        )
+        self.assertEqual(model.optimizer.iterations.numpy(), 2)
+        loss = history.history["loss"]
+        self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
+
+        # Case 3: `TerminateOnNaN` with integer `check_freq`
+        model = _get_model()
+        cbks = [keras.callbacks.TerminateOnNaN(check_freq=5)]
+        history = model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=cbks,
+            epochs=20,
+        )
+        self.assertEqual(model.optimizer.iterations.numpy(), 5)
+        loss = history.history["loss"]
+        self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
+
+        # Case 4: `TerminateOnNaN` with valid and invalid check_freq argument.
+        with self.assertRaisesRegex(ValueError, "Unrecognized check_freq"):
+            keras.callbacks.TerminateOnNaN(check_freq="invalid_check_freq")
+        # The following should not raise ValueError.
+        keras.callbacks.TerminateOnNaN(check_freq="epoch")
+        keras.callbacks.TerminateOnNaN(check_freq="batch")
+        keras.callbacks.TerminateOnNaN(check_freq=5)
 
     @unittest.skipIf(
         os.name == "nt",
