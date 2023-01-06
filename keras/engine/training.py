@@ -1726,7 +1726,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             steps_per_execution=self._steps_per_execution,
                         )
                         steps_per_epoch_inferred = (
-                                validation_steps or data_handler.inferred_steps
+                            validation_steps or data_handler.inferred_steps
                         )
                         (
                             self._eval_data_handler._initial_epoch,
@@ -1734,8 +1734,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         ) = self._maybe_load_initial_counters_from_ckpt(
                             steps_per_epoch_inferred, initial_epoch
                         )
-                        self._eval_data_handler_epoch_iterator = \
+                        self._eval_data_handler_epoch_iterator = (
                             self._eval_data_handler.enumerate_epochs()
+                        )
 
                     val_logs = self.evaluate(
                         x=val_x,
@@ -1768,7 +1769,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # If eval data_handler exists, delete it after all epochs are done.
             if getattr(self, "_eval_data_handler", None) is not None:
                 del self._eval_data_handler
-            if getattr(self, "_eval_data_handler_epoch_iterator", None) is not None:
+            if (
+                getattr(self, "_eval_data_handler_epoch_iterator", None)
+                is not None
+            ):
                 del self._eval_data_handler_epoch_iterator
             callbacks.on_train_end(logs=training_logs)
             return self.history
@@ -2040,7 +2044,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 and getattr(self, "_eval_data_handler", None) is not None
             ):
                 data_handler = self._eval_data_handler
-                if getattr(self, "_eval_data_handler_epoch_iterator", None) is not None:
+                if (
+                    getattr(self, "_eval_data_handler_epoch_iterator", None)
+                    is not None
+                ):
                     epoch_iterator = self._eval_data_handler_epoch_iterator
                 else:
                     epoch_iterator = data_handler.enumerate_epochs()
@@ -2079,7 +2086,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self.test_function = self.make_test_function()
             self._test_counter.assign(0)
             callbacks.on_test_begin()
-            iterator = next(epoch_iterator)  # Single epoch.
+            _, iterator = next(epoch_iterator)  # Single epoch.
             self.reset_metrics()
             with data_handler.catch_stop_iteration():
                 for step in data_handler.steps():
