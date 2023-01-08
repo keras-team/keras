@@ -294,7 +294,7 @@ mind.
 -   You should add any new applications to the unit tests defined in
     `applications_test.py` and `applications_load_weight_test.py`.
 -   For backwards compatibility, all applications should provide a
-    `preprocess_input()` function. For new applciations, you should leave the
+    `preprocess_input()` function. For new applications, you should leave the
     function empty (pass through inputs unaltered), and write the model so it
     can handle raw inputs directly. Adding
     [preprocessing layers](https://keras.io/guides/preprocessing_layers/) to the
