@@ -32,6 +32,10 @@ tf_module {
     name: "custom_object_scope"
     mtype: "<type \'type\'>"
   }
+  member {
+    name: "legacy"
+    mtype: "<type \'module\'>"
+  }
   member_method {
     name: "array_to_img"
     argspec: "args=[\'x\', \'data_format\', \'scale\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'True\', \'None\'], "
