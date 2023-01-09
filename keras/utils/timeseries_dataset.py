@@ -209,7 +209,7 @@ def timeseries_dataset_from_array(
 
     # Determine the lowest dtype to store start positions (to lower memory
     # usage).
-    num_seqs = end_index - start_index - ((sequence_length - 1) * sampling_rate)
+    num_seqs = end_index - start_index - (sequence_length - 1) * sampling_rate
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))
     if num_seqs < 2147483647:
