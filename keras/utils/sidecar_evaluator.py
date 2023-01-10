@@ -49,7 +49,7 @@ def list_checkpoint_attributes(ckpt_dir_or_file):
 
 @keras_export("keras.utils.SidecarEvaluator", v1=[])
 class SidecarEvaluator:
-    """A class designed for a dedicated evaluator task.
+  """A class designed for a dedicated evaluator task.
 
     `SidecarEvaluator` is expected to be run in a process on a separate machine
     from the training cluster. It is meant for the purpose of a dedicated
@@ -131,7 +131,7 @@ class SidecarEvaluator:
     ```
     """
 
-    def __init__(
+  def __init__(
         self,
         model,
         data,
@@ -140,7 +140,7 @@ class SidecarEvaluator:
         max_evaluations=None,
         callbacks=None,
     ):
-        """Initializes an `SidecarEvaluator` object.
+    """Initializes an `SidecarEvaluator` object.
 
         Args:
           model: Model to use for evaluation. The model object used here should
@@ -175,20 +175,20 @@ class SidecarEvaluator:
             during evaluation. See
             [callbacks](/api_docs/python/tf/keras/callbacks).
         """
-        self.model = model
-        self.data = data
-        self.checkpoint_dir = checkpoint_dir
-        self._iterations = tf.Variable(
+    self.model = model
+    self.data = data
+    self.checkpoint_dir = checkpoint_dir
+    self._iterations = tf.Variable(
             name="iterations",
             initial_value=_ITERATIONS_UNINITIALIZED,
             dtype=tf.int64,
         )
-        self.max_evaluations = max_evaluations
-        self.steps = steps
-        self.callbacks = callbacks or []
+    self.max_evaluations = max_evaluations
+    self.steps = steps
+    self.callbacks = callbacks or []
 
-    def _timeout_fn(self):
-        logging.info(
+  def _timeout_fn(self):
+    logging.info(
             "No checkpoints appear to be found after "
             f"{_CHECKPOINT_TIMEOUT_SEC} seconds. "
             "Please check if you are properly using a "
@@ -198,98 +198,98 @@ class SidecarEvaluator:
             "`tf.keras.SidecarEvaluator` doc for recommended flows "
             "of saving checkpoints."
         )
-        return False
+    return False
 
-    def start(self):
-        """Starts the evaluation loop."""
-        if self.model.optimizer and isinstance(
+  def start(self):
+    """Starts the evaluation loop."""
+    if self.model.optimizer and isinstance(
             self.model.optimizer, optimizer.Optimizer
         ):
-            checkpoint = tf.train.Checkpoint(
+      checkpoint = tf.train.Checkpoint(
                 model=self.model, optimizer=self.model.optimizer
             )
-        else:
-            optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
-            checkpoint = tf.train.Checkpoint(
+    else:
+      optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
+      checkpoint = tf.train.Checkpoint(
                 model=self.model, optimizer=optimizer_checkpoint
             )
-        for latest_checkpoint in tf.train.checkpoints_iterator(
+    for latest_checkpoint in tf.train.checkpoints_iterator(
             self.checkpoint_dir,
             timeout=_CHECKPOINT_TIMEOUT_SEC,
             timeout_fn=self._timeout_fn,
         ):
-            try:
-                # `expect_partial` because the checkpoint can have other
-                # `Trackable`s such as `optimizer`.
-                checkpoint.restore(latest_checkpoint).expect_partial()
-                checkpoint_attributes = list_checkpoint_attributes(
+      try:
+        # `expect_partial` because the checkpoint can have other
+        # `Trackable`s such as `optimizer`.
+        checkpoint.restore(latest_checkpoint).expect_partial()
+        checkpoint_attributes = list_checkpoint_attributes(
                     latest_checkpoint
                 )
-                # The checkpoint should contain model and optimizer for
-                # SidecarEvaluator to work. But the model weights saved by
-                # ModelCheckpoint callback does not contain model as an
-                # attribute. To make SidecarEvaluator compatibly work in this
-                # case, use model.load_weights to load the model's weights,
-                # while self._iterations is still restored by checkpoint
-                # variable.
-                if "model" not in checkpoint_attributes:
-                    self.model.load_weights(latest_checkpoint)
-                # The model checkpoint might not include optimizer in cases,
-                # e.g.  using a custom training loop. Directly assign the
-                # iterations property to be used in callbacks.
-                if self.model.optimizer and not isinstance(
+        # The checkpoint should contain model and optimizer for
+        # SidecarEvaluator to work. But the model weights saved by
+        # ModelCheckpoint callback does not contain model as an
+        # attribute. To make SidecarEvaluator compatibly work in this
+        # case, use model.load_weights to load the model's weights,
+        # while self._iterations is still restored by checkpoint
+        # variable.
+        if "model" not in checkpoint_attributes:
+          self.model.load_weights(latest_checkpoint)
+        # The model checkpoint might not include optimizer in cases,
+        # e.g.  using a custom training loop. Directly assign the
+        # iterations property to be used in callbacks.
+        if self.model.optimizer and not isinstance(
                     self.model.optimizer,
                     optimizer.Optimizer,
                 ):
-                    # experimental optimizer automatically restores the
-                    # iteration value.
-                    self.model.optimizer.iterations.assign(self._iterations)
-            except (tf.errors.OpError,) as e:
-                # A couple errors can happen here with the coordinator racing to
-                # write checkpoint:
-                # 1) OpError: open failed for <file path>: No such file or
-                # directory
-                # 2) NotFoundError (subclass of OpError): Unsuccessful
-                # TensorSliceReader constructor.
-                # TODO(rchao): Remove this except block once b/150954027 is
-                # resolved.
-                logging.info(
+          # experimental optimizer automatically restores the
+          # iteration value.
+          self.model.optimizer.iterations.assign(self._iterations)
+      except (tf.errors.OpError,) as e:
+        # A couple errors can happen here with the coordinator racing to
+        # write checkpoint:
+        # 1) OpError: open failed for <file path>: No such file or
+        # directory
+        # 2) NotFoundError (subclass of OpError): Unsuccessful
+        # TensorSliceReader constructor.
+        # TODO(rchao): Remove this except block once b/150954027 is
+        # resolved.
+        logging.info(
                     "SidecarEvaluator encountered an error when loading the "
                     f"checkpoint at {latest_checkpoint}. Retrying. "
                     f"Error: {e.__class__.__name__}: {e}"
                 )
-                continue
-            if (
+        continue
+      if (
                 self._iterations.numpy() == _ITERATIONS_UNINITIALIZED
                 and not isinstance(
                     self.model.optimizer,
                     optimizer.Optimizer,
                 )
             ):
-                raise RuntimeError(
+        raise RuntimeError(
                     "Variable `iterations` cannot be loaded from the "
                     f"checkpoint file at {self.checkpoint_dir}. "
                     "Please ensure `iterations` is "
                     "included in the checkpoint saved during training."
                 )
 
-            logging.info(
+      logging.info(
                 "Evaluation starts: Model weights loaded from latest "
                 f"checkpoint file {latest_checkpoint}"
             )
-            self.model.evaluate(
+      self.model.evaluate(
                 self.data, steps=self.steps, callbacks=self.callbacks, verbose=2
             )
 
-            return_metrics = {}
-            for metric in self.model.metrics:
-                result = metric.result()
-                if isinstance(result, dict):
-                    return_metrics.update(result)
-                else:
-                    return_metrics[metric.name] = result
+      return_metrics = {}
+      for metric in self.model.metrics:
+        result = metric.result()
+        if isinstance(result, dict):
+          return_metrics.update(result)
+        else:
+          return_metrics[metric.name] = result
 
-            logging.info(
+      logging.info(
                 "End of evaluation. Metrics: %s",
                 " ".join(
                     [
@@ -299,15 +299,14 @@ class SidecarEvaluator:
                 ),
             )
 
-            if self.max_evaluations and (
-                self.max_evaluations <= int(latest_checkpoint.split("-")[-1])
-            ):
-                # Exit the loop because we have evaluated the final checkpoint
-                # file.
-                logging.info(
-                    "Last checkpoint evaluated. SidecarEvaluator stops."
-                )
-                return
+      if (
+          self.max_evaluations
+          and (self.max_evaluations <= int(latest_checkpoint.split("-")[-1]))
+      ) or self.model.stop_training:
+        # Exit the loop because we have evaluated the final checkpoint
+        # file.
+        logging.info("Last checkpoint evaluated. SidecarEvaluator stops.")
+        return
 
 
 @keras_export("keras.experimental.SidecarEvaluator", v1=[])
