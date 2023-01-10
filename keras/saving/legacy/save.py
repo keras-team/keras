@@ -26,6 +26,7 @@ from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import load as saved_model_load
 from keras.saving.legacy.saved_model import load_context
 from keras.saving.legacy.saved_model import save as saved_model_save
+from keras.saving.legacy.saved_model.utils import keras_option_scope
 from keras.utils import io_utils
 from keras.utils import traceback_utils
 
@@ -161,15 +162,18 @@ def save_model(
         )
     else:
         with serialization.SharedObjectSavingScope():
-            saved_model_save.save(
-                model,
-                filepath,
-                overwrite,
-                include_optimizer,
-                signatures,
-                options,
-                save_traces,
-            )
+            with keras_option_scope(
+                save_traces=save_traces, in_tf_saved_model_scope=True
+            ):
+                saved_model_save.save(
+                    model,
+                    filepath,
+                    overwrite,
+                    include_optimizer,
+                    signatures,
+                    options,
+                    save_traces,
+                )
 
 
 @traceback_utils.filter_traceback
@@ -216,34 +220,37 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):
     """
     with serialization.SharedObjectLoadingScope():
         with object_registration.CustomObjectScope(custom_objects or {}):
-            with load_context.load_context(options):
-                filepath_str = io_utils.path_to_string(filepath)
-                if isinstance(filepath_str, str):
-                    if not tf.io.gfile.exists(filepath_str):
-                        raise IOError(
-                            f"No file or directory found at {filepath_str}"
-                        )
-
-                    if tf.io.gfile.isdir(filepath_str):
-                        return saved_model_load.load(
-                            filepath_str, compile, options
-                        )
-                    else:
-                        if h5py is None:
-                            raise ImportError(
-                                "Filepath looks like a hdf5 file but h5py is "
-                                "not available."
-                                f" filepath={filepath_str}"
+            with keras_option_scope(
+                save_traces=False, in_tf_saved_model_scope=True
+            ):
+                with load_context.load_context(options):
+                    filepath_str = io_utils.path_to_string(filepath)
+                    if isinstance(filepath_str, str):
+                        if not tf.io.gfile.exists(filepath_str):
+                            raise IOError(
+                                f"No file or directory found at {filepath_str}"
                             )
+
+                        if tf.io.gfile.isdir(filepath_str):
+                            return saved_model_load.load(
+                                filepath_str, compile, options
+                            )
+                        else:
+                            if h5py is None:
+                                raise ImportError(
+                                    "Filepath looks like a hdf5 file but h5py"
+                                    "is not available."
+                                    f" filepath={filepath_str}"
+                                )
+                            return hdf5_format.load_model_from_hdf5(
+                                tf.io.gfile.GFile(filepath_str, mode="rb"),
+                                custom_objects,
+                                compile,
+                            )
+                    elif h5py is not None and isinstance(filepath, h5py.File):
                         return hdf5_format.load_model_from_hdf5(
-                            tf.io.gfile.GFile(filepath_str, mode="rb"),
-                            custom_objects,
-                            compile,
+                            filepath, custom_objects, compile
                         )
-                elif h5py is not None and isinstance(filepath, h5py.File):
-                    return hdf5_format.load_model_from_hdf5(
-                        filepath, custom_objects, compile
-                    )
 
     raise IOError(
         "Unable to load model. Filepath is not an hdf5 file (or h5py is not "
