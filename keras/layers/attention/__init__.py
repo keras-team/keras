@@ -18,3 +18,4 @@
 from keras.layers.attention.additive_attention import AdditiveAttention
 from keras.layers.attention.attention import Attention
 from keras.layers.attention.multi_head_attention import MultiHeadAttention
+from keras.layers.attention.multi_head_performer_attention import MultiHeadPerformerAttention

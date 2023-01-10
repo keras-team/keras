@@ -6,6 +6,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         "//keras:friends",
+        "//third_party/py/robotics_transformer:__subpackages__",
         "//third_party/py/tensorflow_gnn:__subpackages__",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
@@ -26,12 +27,31 @@ py_library(
         ":additive_attention",
         ":attention_layer",
         ":multi_head_attention",
+        ":multi_head_performer_attention",
     ],
 )
 
 py_library(
     name = "multi_head_attention",
     srcs = ["multi_head_attention.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras:constraints",
+        "//keras:regularizers",
+        "//keras/engine:base_layer",
+        "//keras/initializers",
+        "//keras/layers/activation",
+        "//keras/layers/core",
+        "//keras/layers/regularization",
+        "//keras/utils:tf_utils",
+    ],
+)
+
+py_library(
+    name = "multi_head_performer_attention",
+    srcs = ["multi_head_performer_attention.py"],
     srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
@@ -84,6 +104,20 @@ tf_py_test(
     srcs = ["multi_head_attention_test.py"],
     python_version = "PY3",
     deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "multi_head_performer_attention_test",
+    srcs = ["multi_head_performer_attention_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":multi_head_performer_attention",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
