@@ -31,15 +31,6 @@ from keras.distribute.distributed_file_utils import (
 MAX_CHECKPOINT_TO_KEEP = 1
 
 
-def _should_enable_save_before_preemption(save_before_preemption_arg, strategy):
-    # TODO(wxinyi): expand support to TPU.
-    return (
-        save_before_preemption_arg
-        and isinstance(strategy, tf.distribute.MultiWorkerMirroredStrategy)
-        and support_on_demand_checkpoint_callback()
-    )
-
-
 class WorkerTrainingState:
     """Training state management class.
 
@@ -61,12 +52,11 @@ class WorkerTrainingState:
         save_freq="epoch",
         save_before_preemption_arg=None,
     ):
-        self._enable_save_before_preemption = (
-            _should_enable_save_before_preemption(
-                save_before_preemption_arg, model.distribute_strategy
-            )
+        self._enable_save_before_preemption = save_before_preemption_arg and (
+            support_on_demand_checkpoint_callback(model.distribute_strategy)
         )
         self._model = model
+
         self._save_freq = save_freq
         # The batch and epoch at which the checkpoint is saved. Used for
         # fault-tolerance. GPU device only has int64 dtype registered
@@ -130,13 +120,14 @@ class WorkerTrainingState:
         if self._enable_save_before_preemption:
             self.preemption_handler = (
                 tf.distribute.experimental.PreemptionCheckpointHandler(
-                    self._model.distribute_strategy.extended._cluster_resolver,
+                    self._model.distribute_strategy.cluster_resolver,
                     self.write_checkpoint_manager,
                 )
             )
             self.preemption_handler._read_checkpoint_manager = (
                 self.read_checkpoint_manager
             )
+            self._model._preemption_handler = self.preemption_handler
 
     def back_up(self, epoch, batch=0):
         """Back up the current state of training into a checkpoint file.
@@ -155,7 +146,7 @@ class WorkerTrainingState:
     def backup_if_preempted(self):
         if self._enable_save_before_preemption:
             self.preemption_handler._run_counter += 1
-            self.preemption_handler._checkpoint_if_preempted()
+            self.preemption_handler._check_preemption_and_maybe_checkpoint()
 
     def restore(self):
         """Restore the training state from the backed up checkpoint file.
