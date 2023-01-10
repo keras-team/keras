@@ -5,6 +5,14 @@ tf_module {
     argspec: "args=[\'identifier\', \'module_objects\', \'custom_objects\', \'printable_module_name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'object\'], "
   }
   member_method {
+    name: "in_tf_saved_model_scope"
+    argspec: "args=[], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "keras_option_scope"
+    argspec: "args=[\'save_traces\', \'in_tf_saved_model_scope\'], varargs=None, keywords=None, defaults=[\'True\'], "
+  }
+  member_method {
     name: "serialize_keras_object"
     argspec: "args=[\'instance\'], varargs=None, keywords=None, defaults=None"
   }

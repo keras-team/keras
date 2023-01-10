@@ -29,6 +29,9 @@ from keras.utils import tf_contextlib
 from keras.utils.generic_utils import LazyLoader
 from keras.utils.layer_utils import CallFunctionSpec
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
+
 training_lib = LazyLoader("training_lib", globals(), "keras.engine.training")
 
 
@@ -234,6 +237,7 @@ class SaveOptionsContext(threading.local):
 _save_options_context = SaveOptionsContext()
 
 
+@keras_export("keras.utils.legacy.keras_option_scope")
 @tf_contextlib.contextmanager
 def keras_option_scope(save_traces, in_tf_saved_model_scope=True):
     save_traces_previous_value = _save_options_context.save_traces
@@ -253,6 +257,7 @@ def should_save_traces():
     return _save_options_context.save_traces
 
 
+@keras_export("keras.utils.legacy.in_tf_saved_model_scope")
 def in_tf_saved_model_scope():
     return _save_options_context.in_tf_saved_model_scope
 

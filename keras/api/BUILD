@@ -122,6 +122,7 @@ keras_packages = [
     "keras.saving.legacy.model_config",
     "keras.saving.legacy.save",
     "keras.saving.legacy.serialization",
+    "keras.saving.legacy.saved_model.utils",
     "keras.testing_infra.test_utils",
     "keras.utils.data_utils",
     "keras.utils.generic_utils",

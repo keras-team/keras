@@ -19,3 +19,5 @@
 # Serialization related
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.legacy.saved_model.utils import keras_option_scope
+from keras.saving.legacy.saved_model.utils import in_tf_saved_model_scope
