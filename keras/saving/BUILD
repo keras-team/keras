@@ -25,6 +25,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":export_lib",
         ":object_registration",
         ":serialization",
         ":serialization_lib",
@@ -92,6 +93,17 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/saving/legacy/saved_model:utils",
+    ],
+)
+
+py_library(
+    name = "export_lib",
+    srcs = [
+        "export_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -232,6 +244,20 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/saving:serialization",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "export_lib_test",
+    size = "medium",
+    srcs = ["export_lib_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/saving:export_lib",
         "//keras/testing_infra:test_combinations",
     ],
 )
