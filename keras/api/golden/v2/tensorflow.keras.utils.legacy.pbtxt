@@ -1,0 +1,11 @@
+path: "tensorflow.keras.utils.legacy"
+tf_module {
+  member_method {
+    name: "deserialize_keras_object"
+    argspec: "args=[\'identifier\', \'module_objects\', \'custom_objects\', \'printable_module_name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'object\'], "
+  }
+  member_method {
+    name: "serialize_keras_object"
+    argspec: "args=[\'instance\'], varargs=None, keywords=None, defaults=None"
+  }
+}

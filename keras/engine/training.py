@@ -957,7 +957,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def jit_compile(self, value):
         # Function remains cached with previous jit_compile settings
         if self._jit_compile == value:
-            # Avoid reseting compiler cache if possible if the value is the same
+            # Avoid resetting compiler cache if possible if the value is the
+            # same
             return
         # Check if TensorFlow is compiled with XLA before setting the value
         if value and not tf_utils.can_jit_compile(warn=True):
@@ -3297,7 +3298,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def get_weight_paths(self):
         """Retrieve all the variables and their paths for the model.
 
-        The variable path (string) is a stable key to indentify a `tf.Variable`
+        The variable path (string) is a stable key to identify a `tf.Variable`
         instance owned by the model. It can be used to specify variable-specific
         configurations (e.g. DTensor, quantization) from a global view.
 

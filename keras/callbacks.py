@@ -1745,7 +1745,7 @@ class BackupAndRestore(Callback):
 
     Note that the user is responsible to bring jobs back after the interruption.
     This callback is important for the backup and restore mechanism for fault
-    tolerance purpose, and the model to be restored from an previous checkpoint
+    tolerance purpose, and the model to be restored from a previous checkpoint
     is expected to be the same as the one used to back up. If user changes
     arguments passed to compile or fit, the checkpoint saved for fault tolerance
     can become invalid.
@@ -2353,7 +2353,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         write_images: whether to write model weights to visualize as image in
           TensorBoard.
         write_steps_per_second: whether to log the training steps per second
-          into Tensorboard. This supports both epoch and batch frequency
+          into TensorBoard. This supports both epoch and batch frequency
           logging.
         update_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
           writes the losses and metrics to TensorBoard after every epoch.
