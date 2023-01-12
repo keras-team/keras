@@ -96,7 +96,7 @@ class Lambda(Layer):
     ```python
       class ScaleLayer(tf.keras.layers.Layer):
         def __init__(self):
-          super(ScaleLayer, self).__init__()
+          super().__init__()
           self.scale = tf.Variable(1.)
 
         def call(self, inputs):

@@ -515,7 +515,7 @@ def cached_per_instance(f):
         # ...
         # ...
 
-        super(MyClass, self).__setattr__(key, value)
+        super().__setattr__(key, value)
 
       @property
       def thing(self):
@@ -531,7 +531,7 @@ def cached_per_instance(f):
     simple as:
     ```
       def __setattr__(self, key, value):
-        super(MyClass, self).__setattr__(key, value)
+        super().__setattr__(key, value)
     ```
 
     Slows down attribute assignment by nearly 10x.

@@ -80,7 +80,7 @@ class TestMetricsCorrectnessMultiIO(test_combinations.TestCase):
         return model
 
     def setUp(self):
-        super(TestMetricsCorrectnessMultiIO, self).setUp()
+        super().setUp()
         self.x = np.asarray([[1.0], [2.0], [3.0], [4.0], [5.0]])
         self.y1 = np.asarray([[2.0], [4.0], [6.0], [8.0], [10.0]])
         self.y2 = np.asarray([[1.0], [2.0], [3.0], [4.0], [5.0]])
@@ -445,7 +445,7 @@ class TestMetricsCorrectnessSingleIO(test_combinations.TestCase):
             ]
 
     def setUp(self):
-        super(TestMetricsCorrectnessSingleIO, self).setUp()
+        super().setUp()
         self.x = np.asarray([[1.0], [2.0], [3.0], [4.0]])
         self.y = np.asarray([[2.0], [4.0], [6.0], [8.0]])
         self.sample_weight = np.asarray([2.0, 3.0, 4.0, 5.0])
@@ -659,7 +659,7 @@ class TestOutputLossMetrics(test_combinations.TestCase):
         return model
 
     def setUp(self):
-        super(TestOutputLossMetrics, self).setUp()
+        super().setUp()
         self.x = np.asarray([[1.0], [2.0], [3.0], [4.0], [5.0]])
         self.y1 = np.asarray([[2.0], [4.0], [6.0], [8.0], [10.0]])
         self.y2 = np.asarray([[1.0], [2.0], [3.0], [4.0], [5.0]])

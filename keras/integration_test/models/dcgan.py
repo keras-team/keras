@@ -18,13 +18,13 @@ def get_input_preprocessor():
 
 class GAN(keras.Model):
     def __init__(self, discriminator, generator, latent_dim):
-        super(GAN, self).__init__()
+        super().__init__()
         self.discriminator = discriminator
         self.generator = generator
         self.latent_dim = latent_dim
 
     def compile(self, d_optimizer, g_optimizer, loss_fn, jit_compile=False):
-        super(GAN, self).compile(jit_compile=jit_compile)
+        super().compile(jit_compile=jit_compile)
         self.d_optimizer = d_optimizer
         self.g_optimizer = g_optimizer
         self.loss_fn = loss_fn

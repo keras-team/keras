@@ -28,7 +28,7 @@ class Sampling(keras.layers.Layer):
 
 class VAE(keras.Model):
     def __init__(self, encoder, decoder, **kwargs):
-        super(VAE, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.encoder = encoder
         self.decoder = decoder
         self.total_loss_tracker = keras.metrics.Mean(name="total_loss")

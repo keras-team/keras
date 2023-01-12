@@ -128,7 +128,7 @@ class TestMetricsCorrectnessMultiIOTemporal(test_combinations.TestCase):
             yield x, y, sw
 
     def setUp(self):
-        super(TestMetricsCorrectnessMultiIOTemporal, self).setUp()
+        super().setUp()
 
         self.x = np.asarray([[0.0], [1.0], [2.0]])
         self.y1 = np.asarray([[[0.5], [1.0]], [[2.0], [2.5]], [[3.5], [2.5]]])

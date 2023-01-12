@@ -155,7 +155,7 @@ def _get_multi_io_model():
 )
 class MetricsSerialization(test_combinations.TestCase):
     def setUp(self):
-        super(MetricsSerialization, self).setUp()
+        super().setUp()
         tmpdir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, tmpdir)
         self.model_filename = os.path.join(tmpdir, "tmp_model_metric.h5")

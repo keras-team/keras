@@ -2204,7 +2204,7 @@ class TextVectorizationSavingTest(
     def tearDown(self):
         keras.backend.clear_session()
         gc.collect()
-        super(TextVectorizationSavingTest, self).tearDown()
+        super().tearDown()
 
     @parameterized.parameters(
         {"init_vocab": True},

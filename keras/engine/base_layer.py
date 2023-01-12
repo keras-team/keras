@@ -231,7 +231,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     class SimpleDense(Layer):
 
       def __init__(self, units=32):
-          super(SimpleDense, self).__init__()
+          super().__init__()
           self.units = units
 
       def build(self, input_shape):  # Create the state of the layer (weights)
@@ -265,7 +265,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     class SimpleDense(Layer):
 
       def __init__(self, units=32):
-          super(SimpleDense, self).__init__()
+          super().__init__()
           self.units = units
 
       def build(self, input_shape):
@@ -289,7 +289,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     class ComputeSum(Layer):
 
       def __init__(self, input_dim):
-          super(ComputeSum, self).__init__()
+          super().__init__()
           # Create a non-trainable weight.
           self.total = tf.Variable(initial_value=tf.zeros((input_dim,)),
                                    trainable=False)
@@ -1587,7 +1587,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ```python
         class MyMetricLayer(tf.keras.layers.Layer):
           def __init__(self):
-            super(MyMetricLayer, self).__init__(name='my_metric_layer')
+            super().__init__(name='my_metric_layer')
             self.mean = tf.keras.metrics.Mean(name='metric_1')
 
           def call(self, inputs):
@@ -3558,7 +3558,7 @@ class TensorFlowOpLayer(Layer):
     ):
         # Pass autocast=False, as if inputs are cast, input types might not
         # match Operation type.
-        super(TensorFlowOpLayer, self).__init__(
+        super().__init__(
             name=_TF_OP_LAYER_NAME_PREFIX + name,
             trainable=trainable,
             dtype=dtype,
@@ -3643,7 +3643,7 @@ class TensorFlowOpLayer(Layer):
         return self._make_op(inputs)
 
     def get_config(self):
-        config = super(TensorFlowOpLayer, self).get_config()
+        config = super().get_config()
         config.update(
             {
                 # `__init__` prefixes the name. Revert to the constructor
@@ -3670,7 +3670,7 @@ class AddLoss(Layer):
         # Pass autocast=False, as there is no reason to cast loss to a different
         # dtype.
         kwargs["autocast"] = False
-        super(AddLoss, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.unconditional = unconditional
 
     def call(self, inputs):
@@ -3678,7 +3678,7 @@ class AddLoss(Layer):
         return inputs
 
     def get_config(self):
-        config = super(AddLoss, self).get_config()
+        config = super().get_config()
         config.update({"unconditional": self.unconditional})
         return config
 
@@ -3692,7 +3692,7 @@ class AddMetric(Layer):
     """
 
     def __init__(self, aggregation=None, metric_name=None, **kwargs):
-        super(AddMetric, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.aggregation = aggregation
         self.metric_name = metric_name
 
@@ -3703,7 +3703,7 @@ class AddMetric(Layer):
         return inputs
 
     def get_config(self):
-        config = super(AddMetric, self).get_config()
+        config = super().get_config()
         config.update(
             {"aggregation": self.aggregation, "metric_name": self.metric_name}
         )

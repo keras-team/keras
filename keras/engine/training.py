@@ -1065,7 +1065,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         class MyModel(tf.keras.Model):
 
           def __init__(self, *args, **kwargs):
-            super(MyModel, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
             self.loss_tracker = tf.keras.metrics.Mean(name='loss')
 
           def compute_loss(self, x, y, y_pred, sample_weight):
@@ -1124,7 +1124,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
             # This super call updates `self.compiled_metrics` and returns
             # results for all metrics listed in `self.metrics`.
-            metric_results = super(MyModel, self).compute_metrics(
+            metric_results = super().compute_metrics(
                 x, y, y_pred, sample_weight)
 
             # Note that `self.custom_metric` is not listed in `self.metrics`.
@@ -2994,7 +2994,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         returned dict if they want to modify it.
 
         Developers of subclassed `Model` are advised to override this method,
-        and continue to update the dict from `super(MyModel, self).get_config()`
+        and continue to update the dict from `super().get_config()`
         to provide the proper configuration of this `Model`. The default config
         will return config dict for init parameters if they are basic types.
         Raises `NotImplementedError` when in cases where a custom

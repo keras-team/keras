@@ -640,7 +640,7 @@ def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
       class TestModel(tf.keras.Model):
 
         def __init__(self):
-          super(TestModel, self).__init__(name='test_model')
+          super().__init__(name='test_model')
           self.dense = tf.keras.layers.Dense(2, activity_regularizer='l2')
 
         def call(self, x, training=None):
@@ -653,7 +653,7 @@ def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
       class TestModel(tf.keras.Model):
 
         def __init__(self):
-          super(TestModel, self).__init__(name='test_model')
+          super().__init__(name='test_model')
           self.dense = tf.keras.layers.Dense(2, activity_regularizer='l2')
 
         def call(self, x, training=None):

@@ -93,8 +93,8 @@ class DenseFeatures(dense_features.DenseFeatures):
         for column in self._feature_columns:
             with tf.name_scope(column.name):
                 column.create_state(self._state_manager)
-        # We would like to call Layer.build and not _DenseFeaturesHelper.build.
 
+        # We would like to call Layer.build and not _DenseFeaturesHelper.build.
         super(kfc._BaseFeaturesLayer, self).build(None)
 
 

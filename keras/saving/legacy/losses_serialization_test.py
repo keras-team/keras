@@ -116,7 +116,7 @@ def _get_multi_io_model():
 )
 class LossesSerialization(test_combinations.TestCase):
     def setUp(self):
-        super(LossesSerialization, self).setUp()
+        super().setUp()
         tmpdir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, tmpdir)
         self.model_filename = os.path.join(tmpdir, "tmp_model_loss.h5")

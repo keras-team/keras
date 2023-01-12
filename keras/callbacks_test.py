@@ -482,7 +482,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             """Verify if the training restored to the correct epoch and step."""
 
             def __init__(self, initial_epoch, initial_step):
-                super(VerifyRestore, self).__init__()
+                super().__init__()
                 self.initial_epoch = initial_epoch
                 self.initial_step = initial_step
                 self._current_epoch = 0
@@ -2916,7 +2916,7 @@ def list_summaries(logdir):
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TestTensorBoardV2(test_combinations.TestCase):
     def setUp(self):
-        super(TestTensorBoardV2, self).setUp()
+        super().setUp()
         self.logdir = os.path.join(self.get_temp_dir(), "tb")
         self.train_dir = os.path.join(self.logdir, "train")
         self.validation_dir = os.path.join(self.logdir, "validation")
@@ -3393,7 +3393,7 @@ class TestTensorBoardV2(test_combinations.TestCase):
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class TestTensorBoardV2NonParameterizedTest(test_combinations.TestCase):
     def setUp(self):
-        super(TestTensorBoardV2NonParameterizedTest, self).setUp()
+        super().setUp()
         self.logdir = os.path.join(self.get_temp_dir(), "tb")
         self.train_dir = os.path.join(self.logdir, "train")
         self.validation_dir = os.path.join(self.logdir, "validation")
@@ -3859,7 +3859,7 @@ class MostRecentlyModifiedFileMatchingPatternTest(tf.test.TestCase):
 
 class SummaryOpsTest(tf.test.TestCase):
     def tearDown(self):
-        super(SummaryOpsTest, self).tearDown()
+        super().tearDown()
         tf.summary.trace_off()
 
     def keras_model(self, *args, **kwargs):

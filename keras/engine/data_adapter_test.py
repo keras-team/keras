@@ -527,7 +527,7 @@ class TensorLikeDataAdapterTest(DataAdapterTestBase):
 
 class IncreasingBatchSizeAdapterTest(test_combinations.TestCase):
     def setUp(self):
-        super(IncreasingBatchSizeAdapterTest, self).setUp()
+        super().setUp()
         self.adapter_cls = data_adapter.KerasSequenceAdapter
 
         self.epochs = 2

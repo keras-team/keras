@@ -614,7 +614,7 @@ class IntegerLookupSavingTest(
     def tearDown(self):
         keras.backend.clear_session()
         gc.collect()
-        super(IntegerLookupSavingTest, self).tearDown()
+        super().tearDown()
 
     def test_vocabulary_persistence_across_saving(self):
         vocab_data = [42, 1138, 725, 1729]

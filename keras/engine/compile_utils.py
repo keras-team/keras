@@ -117,7 +117,7 @@ class LossesContainer(Container):
     def __init__(
         self, losses, loss_weights=None, output_names=None, total_loss_mean=None
     ):
-        super(LossesContainer, self).__init__(output_names=output_names)
+        super().__init__(output_names=output_names)
 
         # Keep user-supplied values untouched for recompiling and serialization.
         self._user_losses = losses
@@ -175,7 +175,7 @@ class LossesContainer(Container):
 
     def build(self, y_pred):
         """One-time setup of loss objects."""
-        super(LossesContainer, self).build(y_pred)
+        super().build(y_pred)
 
         self._losses = self._maybe_broadcast_to_outputs(y_pred, self._losses)
         self._losses = self._conform_to_outputs(y_pred, self._losses)
@@ -387,7 +387,7 @@ class MetricsContainer(Container):
             model.  Used to avoid redundantly applying pre-processing renaming
             steps.
         """
-        super(MetricsContainer, self).__init__(output_names=output_names)
+        super().__init__(output_names=output_names)
 
         self._check_duplicated_metrics(metrics, weighted_metrics)
         # Keep user-supplied values untouched for recompiling and serialization.
@@ -458,7 +458,7 @@ class MetricsContainer(Container):
 
     def build(self, y_pred, y_true):
         """One-time setup of metric objects."""
-        super(MetricsContainer, self).build(y_pred)
+        super().build(y_pred)
 
         self._metrics = self._maybe_broadcast_to_outputs(y_pred, self._metrics)
         self._metrics = self._conform_to_outputs(y_pred, self._metrics)

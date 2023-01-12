@@ -37,7 +37,7 @@ class MiniModel(tf.keras.Model):
 class DefunnedMiniModel(MiniModel):
     @tf.function
     def call(self, inputs, training=True):
-        return super(DefunnedMiniModel, self).call(inputs, training=training)
+        return super().call(inputs, training=training)
 
 
 class ModelWithOptimizer(tf.keras.Model):

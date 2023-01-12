@@ -62,7 +62,7 @@ class InputSpec:
     ```python
     class MyLayer(Layer):
         def __init__(self):
-            super(MyLayer, self).__init__()
+            super().__init__()
             # The layer will accept inputs with
             # shape (?, 28, 28) & (?, 28, 28, 1)
             # and raise an appropriate error message otherwise.

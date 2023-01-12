@@ -196,7 +196,7 @@ class RNN(base_layer.Layer):
         def __init__(self, units, **kwargs):
             self.units = units
             self.state_size = units
-            super(MinimalRNNCell, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
         def build(self, input_shape):
             self.kernel = self.add_weight(shape=(input_shape[-1], self.units),

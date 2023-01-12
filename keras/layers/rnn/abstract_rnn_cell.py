@@ -41,7 +41,7 @@ class AbstractRNNCell(base_layer.Layer):
 
         def __init__(self, units, **kwargs):
           self.units = units
-          super(MinimalRNNCell, self).__init__(**kwargs)
+          super().__init__(**kwargs)
 
         @property
         def state_size(self):
