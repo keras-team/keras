@@ -108,7 +108,7 @@ def timeseries_dataset_from_array(
     timesteps to predict the next timestep, you would use:
 
     ```python
-    input_data = data[:-10]
+    input_data = data[:-1]
     targets = data[10:]
     dataset = tf.keras.utils.timeseries_dataset_from_array(
         input_data, targets, sequence_length=10)
