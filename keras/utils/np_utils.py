@@ -91,3 +91,47 @@ def normalize(x, axis=-1, order=2):
     l2 = np.atleast_1d(np.linalg.norm(x, order, axis))
     l2[l2 == 0] = 1
     return x / np.expand_dims(l2, axis)
+
+
+@keras_export("keras.utils.to_ordinal")
+def to_ordinal(y, num_classes=None, dtype="float32"):
+    """Converts a class vector (integers) to an ordinal class matrix for ordinal
+        regression/classification
+
+    Args:
+        y: Array-like with class values to be converted into a matrix
+            (integers from 0 to `num_classes - 1`).
+        num_classes: Total number of classes. If `None`, this would be inferred
+          as `max(y) + 1`.
+        dtype: The data type expected by the input. Default: `'float32'`.
+
+    Returns:
+        A ordinal regression matrix representation of the input. The class axis
+        is placed last.
+
+    Example:
+
+    >>> a = tf.keras.utils.to_ordinal([0, 1, 2, 3], num_classes=4)
+    >>> a = tf.constant(a, shape=[4, 3])
+    >>> print(a)
+    tf.Tensor(
+      [[0. 0. 0.]
+       [1. 0. 0.]
+       [1. 1. 0.]
+       [1. 1. 1.]], shape=(4, 3), dtype=float32)
+    """
+    y = np.array(y, dtype="int")
+    input_shape = y.shape
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
+    y = y.ravel()
+    if not num_classes:
+        num_classes = np.max(y) + 1
+    n = y.shape[0]
+    range_values = np.arange(num_classes - 1)
+    range_values = np.tile(np.expand_dims(range_values, 0), [n, 1])
+    ordinal = np.zeros((n, num_classes - 1), dtype=dtype)
+    ordinal[range_values < np.expand_dims(y, -1)] = 1
+    output_shape = input_shape + (num_classes - 1,)
+    ordinal = np.reshape(ordinal, output_shape)
+    return ordinal

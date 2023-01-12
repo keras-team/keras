@@ -48,6 +48,29 @@ class TestNPUtils(tf.test.TestCase):
                 np.all(np.argmax(one_hot, -1).reshape(label.shape) == label)
             )
 
+    def test_to_ordinal(self):
+        num_classes = 5
+        shapes = [(1,), (3,), (4, 3), (5, 4, 3), (3, 1), (3, 2, 1)]
+        expected_shapes = [
+            (1, num_classes - 1),
+            (3, num_classes - 1),
+            (4, 3, num_classes - 1),
+            (5, 4, 3, num_classes - 1),
+            (3, num_classes - 1),
+            (3, 2, num_classes - 1),
+        ]
+        labels = [np.random.randint(0, num_classes, shape) for shape in shapes]
+        ordinal_matrix = [np_utils.to_ordinal(label, num_classes) for label in labels]
+        for label, ordinal, expected_shape in zip(
+            labels, ordinal_matrix, expected_shapes
+        ):
+            # Check shape
+            self.assertEqual(ordinal.shape, expected_shape)
+            # Make sure all the values are either 0 or 1
+            self.assertTrue(np.all(np.logical_or(ordinal == 0, ordinal == 1)))
+            # Get original labels back from ordinal matrix
+            self.assertTrue(np.all(np.sum(np.cumprod(ordinal, -1), -1) == label))
+
 
 if __name__ == "__main__":
     tf.test.main()
