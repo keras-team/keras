@@ -299,8 +299,13 @@ class SidecarEvaluator:
                 ),
             )
 
-            if self.max_evaluations and (
-                self.max_evaluations <= int(latest_checkpoint.split("-")[-1])
+            if (
+                self.max_evaluations
+                and (
+                    self.max_evaluations
+                    <= int(latest_checkpoint.split("-")[-1])
+                )
+                or self.model.stop_training
             ):
                 # Exit the loop because we have evaluated the final checkpoint
                 # file.
