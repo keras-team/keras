@@ -1897,9 +1897,7 @@ class BackupAndRestore(Callback):
             self._batches_count += 1
             if self._batches_count >= self.save_freq:
                 self._batches_count = 0
-                self._training_state.back_up(
-                    epoch=self._current_epoch, batch=batch
-                )
+                self._back_up(epoch=self._current_epoch, batch=batch)
 
     def _implements_train_batch_hooks(self):
         return self.save_freq != "epoch"
@@ -1920,7 +1918,10 @@ class BackupAndRestore(Callback):
     def on_epoch_end(self, epoch, logs=None):
         # Back up the model and current epoch for possible future recovery.
         if self.save_freq == "epoch":
-            self._training_state.back_up(epoch=epoch)
+            self._back_up(epoch=epoch)
+
+    def _back_up(self, epoch, batch=0):
+        self._training_state.back_up(epoch=epoch, batch=batch)
 
 
 @keras_export("keras.callbacks.experimental.BackupAndRestore", v1=[])
