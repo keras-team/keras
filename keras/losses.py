@@ -1962,11 +1962,12 @@ def categorical_crossentropy(
 
     if y_pred.shape[-1] == 1:
         warnings.warn(
-            "Expected the tensor's shape passed to 'categorical_crossentropy' "
-            "to be (batch_size, n_classes), "
-            f"where n_classes > 1. Received: y_pred.shape={y_pred.shape}. "
+            "In loss categorical_crossentropy, expected "
+            "y_pred.shape to be (batch_size, num_classes) "
+            f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
             "Consider using 'binary_crossentropy' if you only have 2 classes.",
             SyntaxWarning,
+            stacklevel=2,
         )
 
     def _smooth_labels():
