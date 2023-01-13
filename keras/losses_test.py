@@ -1803,9 +1803,9 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
             warnings.simplefilter("always")
             cce_obj = losses.CategoricalCrossentropy()
             cce_obj(tf.constant([[1.0], [0.0]]), tf.constant([[1.0], [1.0]]))
-            self.assertIsInstance(w[-1].category, SyntaxWarning)
+            self.assertIs(w[-1].category, SyntaxWarning)
             self.assertIn(
-                "Expected the tensor's shape passed..*", w[-1].message
+                "Expected the tensor's shape passed", str(w[-1].message)
             )
 
 
