@@ -60,7 +60,9 @@ class TestNPUtils(tf.test.TestCase):
             (3, 2, num_classes - 1),
         ]
         labels = [np.random.randint(0, num_classes, shape) for shape in shapes]
-        ordinal_matrix = [np_utils.to_ordinal(label, num_classes) for label in labels]
+        ordinal_matrix = [
+            np_utils.to_ordinal(label, num_classes) for label in labels
+        ]
         for label, ordinal, expected_shape in zip(
             labels, ordinal_matrix, expected_shapes
         ):
@@ -69,7 +71,9 @@ class TestNPUtils(tf.test.TestCase):
             # Make sure all the values are either 0 or 1
             self.assertTrue(np.all(np.logical_or(ordinal == 0, ordinal == 1)))
             # Get original labels back from ordinal matrix
-            self.assertTrue(np.all(np.sum(np.cumprod(ordinal, -1), -1) == label))
+            self.assertTrue(
+                np.all(np.sum(np.cumprod(ordinal, -1), -1) == label)
+            )
 
 
 if __name__ == "__main__":
