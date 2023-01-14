@@ -72,7 +72,7 @@ class TestNPUtils(tf.test.TestCase):
             self.assertTrue(np.all(np.logical_or(ordinal == 0, ordinal == 1)))
             # Get original labels back from ordinal matrix
             self.assertTrue(
-                np.all(np.sum(np.cumprod(ordinal, -1), -1) == label)
+                ordinal.cumprod(-1).sum(-1).reshape(label.shape) == label
             )
 
 
