@@ -76,23 +76,6 @@ def to_categorical(y, num_classes=None, dtype="float32"):
     return categorical
 
 
-@keras_export("keras.utils.normalize")
-def normalize(x, axis=-1, order=2):
-    """Normalizes a Numpy array.
-
-    Args:
-        x: Numpy array to normalize.
-        axis: axis along which to normalize.
-        order: Normalization order (e.g. `order=2` for L2 norm).
-
-    Returns:
-        A normalized copy of the array.
-    """
-    l2 = np.atleast_1d(np.linalg.norm(x, order, axis))
-    l2[l2 == 0] = 1
-    return x / np.expand_dims(l2, axis)
-
-
 @keras_export("keras.utils.to_ordinal")
 def to_ordinal(y, num_classes=None, dtype="float32"):
     """Converts a class vector (integers) to an ordinal class matrix for ordinal
@@ -135,3 +118,20 @@ def to_ordinal(y, num_classes=None, dtype="float32"):
     output_shape = input_shape + (num_classes - 1,)
     ordinal = np.reshape(ordinal, output_shape)
     return ordinal
+
+
+@keras_export("keras.utils.normalize")
+def normalize(x, axis=-1, order=2):
+    """Normalizes a Numpy array.
+
+    Args:
+        x: Numpy array to normalize.
+        axis: axis along which to normalize.
+        order: Normalization order (e.g. `order=2` for L2 norm).
+
+    Returns:
+        A normalized copy of the array.
+    """
+    l2 = np.atleast_1d(np.linalg.norm(x, order, axis))
+    l2[l2 == 0] = 1
+    return x / np.expand_dims(l2, axis)
