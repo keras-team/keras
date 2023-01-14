@@ -102,7 +102,7 @@ def to_ordinal(y, num_classes=None, dtype="float32"):
         y: Array-like with class values to be converted into a matrix
             (integers from 0 to `num_classes - 1`).
         num_classes: Total number of classes. If `None`, this would be inferred
-          as `max(y) + 1`.
+            as `max(y) + 1`.
         dtype: The data type expected by the input. Default: `'float32'`.
 
     Returns:
