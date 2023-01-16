@@ -187,8 +187,8 @@ class MultiHeadAttention(Layer):
       dropout: Dropout probability.
       use_bias: Boolean, whether the dense layers use bias vectors/matrices.
       output_shape: The expected shape of an output tensor, besides the batch
-        and sequence dims. If not specified, projects back to the key feature
-        dim.
+        and sequence dims. If not specified, projects back to the query feature
+        dim(the query input last dimension).
       attention_axes: axes over which the attention is applied. `None` means
         attention over all axes, but batch, heads, and features.
       kernel_initializer: Initializer for dense layer kernels.
