@@ -226,6 +226,33 @@ class EmbeddingTest(test_combinations.TestCase):
         self.assertAllClose(output.values, expected_output.values)
         self.assertAllClose(output.dense_shape, expected_output.dense_shape)
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_use_one_hot(self):
+        batch = 8
+        input_length = 10
+        layer = keras.layers.Embedding(input_dim=100, output_dim=16)
+        self.assertFalse(layer._use_one_hot_matmul)
+
+        inputs = tf.random.uniform(
+            shape=[batch, input_length], minval=0, maxval=9, dtype=tf.int64
+        )
+        output_1 = layer(inputs)
+
+        layer._use_one_hot_matmul = True
+        output_2 = layer(inputs)
+
+        self.assertAllClose(output_1, output_2)
+        self.assertEqual(output_1.dtype, output_2.dtype)
+
+        # Make sure the layer can be created with hidden kwargs, and not
+        # serialize it into config (for now).
+        layer = keras.layers.Embedding(
+            input_dim=100, output_dim=16, use_one_hot_matmul=True
+        )
+        self.assertTrue(layer._use_one_hot_matmul)
+
+        self.assertNotIn("use_one_hot_matmul", layer.get_config())
+
 
 if __name__ == "__main__":
     tf.test.main()
