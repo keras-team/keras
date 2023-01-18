@@ -576,11 +576,11 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
                         "classes. {} class/es were given.".format(len(classes))
                     )
             elif self.num_classes != 2:
-                 raise ValueError(
-                     'If class_model="binary" there must be 2 '
-                     "Found {} classes.".format(self.num_classes)
+                raise ValueError(
+                    'If class_model="binary" there must be 2 classes. '
+                    "Found {} class/es.".format(self.num_classes)
                 )
-        
+                
         pool = multiprocessing.pool.ThreadPool()
 
         # Second, build an index of the images
