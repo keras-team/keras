@@ -565,7 +565,7 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
                     classes.append(subdir)
         self.num_classes = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
-        
+
         # check that if binary there are only 2 different classes
         if self.class_mode == "binary":
             if classes:
@@ -580,7 +580,7 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
                     'If class_model="binary" there must be 2 classes. '
                     "Found {} class/es.".format(self.num_classes)
                 )
-                
+
         pool = multiprocessing.pool.ThreadPool()
 
         # Second, build an index of the images
