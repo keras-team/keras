@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import keras.layers.activation as activation_layers
 from keras import backend
-from keras.saving.legacy import serialization
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.utils import generic_utils
 
 # isort: off
@@ -487,7 +487,7 @@ def linear(x):
 
 @keras_export("keras.activations.serialize")
 @tf.__internal__.dispatch.add_dispatch_support
-def serialize(activation):
+def serialize(activation, use_legacy_format=False):
     """Returns the string identifier of an activation function.
 
     Args:
@@ -515,7 +515,12 @@ def serialize(activation):
         and activation.__name__ in _TF_ACTIVATIONS_V2
     ):
         return _TF_ACTIVATIONS_V2[activation.__name__]
-    return serialization.serialize_keras_object(activation)
+
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(activation)
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.serialize_keras_object(activation)
 
 
 # Add additional globals so that deserialize can find these common activation
@@ -528,7 +533,7 @@ silu = tf.nn.silu
 
 @keras_export("keras.activations.deserialize")
 @tf.__internal__.dispatch.add_dispatch_support
-def deserialize(name, custom_objects=None):
+def deserialize(name, custom_objects=None, use_legacy_format=False):
     """Returns activation function given a string identifier.
 
     Args:
@@ -565,7 +570,16 @@ def deserialize(name, custom_objects=None):
         obj_filter=callable,
     )
 
-    return serialization.deserialize_keras_object(
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            name,
+            module_objects=activation_functions,
+            custom_objects=custom_objects,
+            printable_module_name="activation function",
+        )
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.deserialize_keras_object(
         name,
         module_objects=activation_functions,
         custom_objects=custom_objects,
@@ -606,7 +620,12 @@ def get(identifier):
     if identifier is None:
         return linear
     if isinstance(identifier, (str, dict)):
-        return deserialize(identifier)
+        use_legacy_format = (
+            "module" not in identifier
+            if isinstance(identifier, dict)
+            else False
+        )
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif callable(identifier):
         return identifier
     else:
