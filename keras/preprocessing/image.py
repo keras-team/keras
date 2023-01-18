@@ -565,6 +565,22 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
                     classes.append(subdir)
         self.num_classes = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
+        
+        # check that if binary there are only 2 different classes
+        if self.class_mode == "binary":
+            if classes:
+                classes = set(classes)
+                if len(classes) !=2:
+                    raise ValueError(
+                        'If class_model="binary" there must be 2 '
+                        "classes. {} class/es were given.".format(len(classes))
+                    )
+            elif self.num_classes != 2:
+                 raise ValueError(
+                     'If class_model="binary" there must be 2 '
+                     "classes. {} class/es were given.".format(self.num_classes)
+                )
+                    
 
         pool = multiprocessing.pool.ThreadPool()
 
