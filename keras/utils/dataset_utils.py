@@ -151,7 +151,13 @@ def _convert_dataset_to_list(
         start_time,
     ):
         if dataset_type_spec in [tuple, list]:
-            dataset_as_list.append(np.array(sample))
+            # The try-except here is for NumPy 1.24 compatibility, see:
+            # https://numpy.org/neps/nep-0034-infer-dtype-is-object.html
+            try:
+                arr = np.array(sample)
+            except ValueError:
+                arr = np.array(sample, dtype=object)
+            dataset_as_list.append(arr)
         else:
             dataset_as_list.append(sample)
 
