@@ -1115,16 +1115,25 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
             def __init__(self):
                 super().__init__(autocast=autocast)
 
-        x = tf.constant(3, dtype=tf.float64)
+        class CustomModel(keras.Model):
+            def __init__(self):
+                super().__init__(autocast=autocast)
 
-        x_in = keras.Input(tensor=x)
+            def call(self, inputs):
+                return inputs
+
+        x = tf.constant([3], dtype=tf.float64)
+
+        x_in = keras.Input((1,))
         output = CustomLayer()(x_in)
+        output = CustomModel()(output)
         model = keras.Model(inputs=x_in, outputs=output)
 
         saved_model_dir = self._save_model_dir()
         model.save(saved_model_dir, save_format="tf")
         loaded = keras_load.load(saved_model_dir)
         self.assertEqual(autocast, loaded.layers[-1]._autocast)
+        self.assertEqual(autocast, loaded.layers[-2]._autocast)
         self.assertEqual(self.evaluate(model(x)), self.evaluate(loaded(x)))
 
 
