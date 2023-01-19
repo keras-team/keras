@@ -2366,7 +2366,6 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
           Note however that writing too frequently to TensorBoard can slow down
           your training, especially when used with `tf.distribute.Strategy` as
           it will incur additional synchronization overhead.
-          Use with `ParameterServerStrategy` is not supported.
           Batch-level summary writing is also available via `train_step`
           override. Please see
           [TensorBoard Scalars tutorial](https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)  # noqa: E501
@@ -2791,10 +2790,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 step=self._train_step,
             )
 
-        # `logs` isn't necessarily always a dict. For example, when using
-        # `tf.distribute.experimental.ParameterServerStrategy`, a
-        # `tf.distribute.experimental.coordinator.RemoteValue` will be passed.
-        # For now, we just disable `update_freq` in those cases.
+        if isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue):
+            logs = logs.get()
+
         if isinstance(logs, dict):
             for name, value in logs.items():
                 tf.summary.scalar("batch_" + name, value, step=self._train_step)
