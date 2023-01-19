@@ -34,6 +34,7 @@ from absl.testing import parameterized
 import keras
 from keras.callbacks import BackupAndRestore
 from keras.callbacks import BackupAndRestoreExperimental
+from keras.callbacks import BestModelExporter
 from keras.callbacks import Callback
 from keras.engine import sequential
 from keras.layers import Activation
@@ -1360,6 +1361,107 @@ class KerasCallbacksTest(test_combinations.TestCase):
             verbose=0,
         )
         assert not os.path.exists(filepath)
+
+    @test_combinations.run_with_all_model_types
+    @test_utils.run_v2_only
+    def test_best_model_exporter_with_sidecarevaluator(self):
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+
+        # Create a model with synthetic data, and fit for 20 epochs.
+        layers = [
+            keras.layers.Dense(
+                NUM_HIDDEN, input_dim=INPUT_DIM, activation="relu"
+            ),
+            keras.layers.Dense(NUM_CLASSES, activation="softmax"),
+        ]
+        model = test_utils.get_model_from_layers(layers, input_shape=(3,))
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="rmsprop",
+            metrics=["acc"],
+        )
+
+        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+            train_samples=TRAIN_SAMPLES,
+            test_samples=TEST_SAMPLES,
+            input_shape=(INPUT_DIM,),
+            num_classes=NUM_CLASSES,
+        )
+        y_test = np_utils.to_categorical(y_test)
+        y_train = np_utils.to_categorical(y_train)
+
+        callbacks = [
+            keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(
+                    os.path.join(temp_dir, "ckpt"), "ckpt-{epoch:04d}"
+                ),
+                monitor="loss",
+                save_best_only=True,
+                save_weights_only=True,
+                save_freq="epoch",
+                mode="min",
+            )
+        ]
+
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=callbacks,
+            epochs=20,
+            verbose=0,
+        )
+        self.assertNotEmpty(
+            tf.io.gfile.listdir(os.path.join(temp_dir, "ckpt")),
+            "Checkpoints should have been written and "
+            "checkpoint_dir should not be empty.",
+        )
+
+        # Have a sidecar_evaluator evaluate once.
+        dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+        dataset = dataset.batch(BATCH_SIZE)
+        sidecar_evaluator = keras.utils.SidecarEvaluator(
+            model=model,
+            data=dataset,
+            checkpoint_dir=os.path.join(temp_dir, "ckpt"),
+            max_evaluations=1,
+            callbacks=[
+                BestModelExporter(
+                    filepath=os.path.join(
+                        os.path.join(temp_dir, "ckpt"),
+                        "best_model_eval",
+                        "best-model-{epoch:04d}",
+                    ),
+                    ckpt_filepath=os.path.join(
+                        os.path.join(temp_dir, "ckpt"), "ckpt-{epoch:04d}"
+                    ),
+                    save_weights_only=False,
+                    monitor="loss",
+                    mode="min",
+                    verbose=1,
+                ),
+            ],
+        )
+        sidecar_evaluator.start()
+
+        # Asserts output directory exists.
+        assert os.path.exists(
+            os.path.join(os.path.join(temp_dir, "ckpt"), "best_model_eval")
+        )
+
+        # Asserts best model files do get written.
+        self.assertRegex(
+            str(
+                tf.io.gfile.listdir(
+                    os.path.join(
+                        os.path.join(temp_dir, "ckpt"), "best_model_eval"
+                    )
+                )
+            ),
+            r"(.*best-model.*)+",
+        )
 
     @test_utils.run_v2_only
     def test_ModelCheckpoint_subclass_save_weights_false(self):
