@@ -2790,11 +2790,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 step=self._train_step,
             )
 
-        should_record = tf.equal(self._train_step % self.update_freq, 0)
-        if (
-            isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue)
-            and should_record
-        ):
+        if isinstance(
+            logs, tf.distribute.experimental.coordinator.RemoteValue
+        ) and tf.equal(self._train_step % self.update_freq, 0):
             logs = logs.get()
 
         if isinstance(logs, dict):
