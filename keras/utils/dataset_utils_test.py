@@ -47,14 +47,20 @@ class SplitDatasetTest(tf.test.TestCase):
             dataset, left_size=0.3
         )
 
-        self.assertEqual(np.array(list(left_split)).shape, (2, 2))
-        self.assertEqual(np.array(list(right_split)).shape, (3, 2))
+        self.assertEqual(np.array(list(left_split), dtype=object).shape, (2, 2))
+        self.assertEqual(
+            np.array(list(right_split), dtype=object).shape, (3, 2)
+        )
 
-        self.assertEqual(np.array(list(left_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(left_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(left_split)[0][0]).shape, (3,))
         self.assertEqual(np.array(list(left_split)[0][1]).shape, ())
 
-        self.assertEqual(np.array(list(right_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(right_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(right_split)[0][0]).shape, (3,))
         self.assertEqual(np.array(list(right_split)[0][1]).shape, ())
 
@@ -118,14 +124,20 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertIsInstance(left_split, tf.data.Dataset)
         self.assertIsInstance(right_split, tf.data.Dataset)
 
-        self.assertEqual(np.array(list(left_split)).shape, (2, 2))
-        self.assertEqual(np.array(list(right_split)).shape, (3, 2))
+        self.assertEqual(np.array(list(left_split), dtype=object).shape, (2, 2))
+        self.assertEqual(
+            np.array(list(right_split), dtype=object).shape, (3, 2)
+        )
 
-        self.assertEqual(np.array(list(left_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(left_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(left_split)[0][0]).shape, (32, 32))
         self.assertEqual(np.array(list(left_split)[0][1]).shape, ())
 
-        self.assertEqual(np.array(list(right_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(right_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(right_split)[0][0]).shape, (32, 32))
         self.assertEqual(np.array(list(right_split)[0][1]).shape, ())
 
