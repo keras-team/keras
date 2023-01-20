@@ -1009,6 +1009,8 @@ class TerminateOnNaN(Callback):
 
     def _check_nan(self, batch=None, epoch=None, logs=None):
         logs = logs or {}
+        if isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue):
+            logs = logs.get()
         loss = logs.get("loss")
 
         if loss is not None:
