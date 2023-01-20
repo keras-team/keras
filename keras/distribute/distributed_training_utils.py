@@ -14,6 +14,8 @@
 # ==============================================================================
 """Utilities related to distributed training."""
 
+import contextlib
+
 import tensorflow.compat.v2 as tf
 from absl import flags
 
@@ -126,3 +128,15 @@ def get_strategy():
             f"It should be one of {accepted_strats}"
         )
     return strategy
+
+
+def maybe_preemption_handler_scope(model):
+
+    if getattr(model, "_preemption_handler", None):
+        preemption_checkpoint_scope = (
+            model._preemption_handler._watch_error_scope()
+        )
+    else:
+        preemption_checkpoint_scope = contextlib.nullcontext()
+
+    return preemption_checkpoint_scope

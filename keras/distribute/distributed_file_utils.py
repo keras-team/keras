@@ -171,8 +171,10 @@ def _on_gcp():
         return False
 
 
-def support_on_demand_checkpoint_callback():
-    if _on_gcp() and not tf.config.list_physical_devices("TPU"):
+def support_on_demand_checkpoint_callback(strategy):
+    if _on_gcp() and isinstance(
+        strategy, tf.distribute.MultiWorkerMirroredStrategy
+    ):
         return True
 
     return False

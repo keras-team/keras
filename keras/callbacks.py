@@ -1745,7 +1745,7 @@ class BackupAndRestore(Callback):
 
     Note that the user is responsible to bring jobs back after the interruption.
     This callback is important for the backup and restore mechanism for fault
-    tolerance purpose, and the model to be restored from an previous checkpoint
+    tolerance purpose, and the model to be restored from a previous checkpoint
     is expected to be the same as the one used to back up. If user changes
     arguments passed to compile or fit, the checkpoint saved for fault tolerance
     can become invalid.
@@ -1897,9 +1897,7 @@ class BackupAndRestore(Callback):
             self._batches_count += 1
             if self._batches_count >= self.save_freq:
                 self._batches_count = 0
-                self._training_state.back_up(
-                    epoch=self._current_epoch, batch=batch
-                )
+                self._back_up(epoch=self._current_epoch, batch=batch)
 
     def _implements_train_batch_hooks(self):
         return self.save_freq != "epoch"
@@ -1920,7 +1918,10 @@ class BackupAndRestore(Callback):
     def on_epoch_end(self, epoch, logs=None):
         # Back up the model and current epoch for possible future recovery.
         if self.save_freq == "epoch":
-            self._training_state.back_up(epoch=epoch)
+            self._back_up(epoch=epoch)
+
+    def _back_up(self, epoch, batch=0):
+        self._training_state.back_up(epoch=epoch, batch=batch)
 
 
 @keras_export("keras.callbacks.experimental.BackupAndRestore", v1=[])
@@ -2083,6 +2084,7 @@ class EarlyStopping(Callback):
                 current, self.baseline
             ):
                 self.wait = 0
+            return
 
         # Only check after the first epoch.
         if self.wait >= self.patience and epoch > 0:
@@ -2353,7 +2355,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         write_images: whether to write model weights to visualize as image in
           TensorBoard.
         write_steps_per_second: whether to log the training steps per second
-          into Tensorboard. This supports both epoch and batch frequency
+          into TensorBoard. This supports both epoch and batch frequency
           logging.
         update_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
           writes the losses and metrics to TensorBoard after every epoch.

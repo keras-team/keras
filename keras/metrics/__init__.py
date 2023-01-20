@@ -91,6 +91,7 @@ from keras.metrics.metrics import sparse_categorical_crossentropy
 from keras.metrics.metrics import sparse_top_k_categorical_accuracy
 from keras.metrics.metrics import squared_hinge
 from keras.metrics.metrics import top_k_categorical_accuracy
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
@@ -109,7 +110,7 @@ cosine_proximity = cosine_similarity
 
 
 @keras_export("keras.metrics.serialize")
-def serialize(metric):
+def serialize(metric, use_legacy_format=False):
     """Serializes metric function or `Metric` instance.
 
     Args:
@@ -118,11 +119,13 @@ def serialize(metric):
     Returns:
       Metric configuration dictionary.
     """
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(metric)
     return serialize_keras_object(metric)
 
 
 @keras_export("keras.metrics.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
     """Deserializes a serialized metric class/function instance.
 
     Args:
@@ -133,6 +136,13 @@ def deserialize(config, custom_objects=None):
     Returns:
         A Keras `Metric` instance or a metric function.
     """
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=globals(),
+            custom_objects=custom_objects,
+            printable_module_name="metric function",
+        )
     return deserialize_keras_object(
         config,
         module_objects=globals(),
@@ -176,7 +186,8 @@ def get(identifier):
       ValueError: If `identifier` cannot be interpreted.
     """
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
         return deserialize(str(identifier))
     elif callable(identifier):
