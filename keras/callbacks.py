@@ -1880,7 +1880,6 @@ class BackupAndRestore(Callback):
         self.save_freq = save_freq
         self.delete_checkpoint = delete_checkpoint
         self.save_before_preemption = save_before_preemption
-        self._batches_count = 0
         self._current_epoch = 0
 
         if not tf.executing_eagerly():
@@ -1933,11 +1932,10 @@ class BackupAndRestore(Callback):
 
     def on_train_batch_end(self, batch, logs=None):
         self._training_state.backup_if_preempted()
-        if self.save_freq and self.save_freq != "epoch":
-            self._batches_count += 1
-            if self._batches_count >= self.save_freq:
-                self._batches_count = 0
-                self._back_up(epoch=self._current_epoch, batch=batch)
+        if self.save_freq and self._should_trigger_on_batch(
+            self.save_freq, batch
+        ):
+            self._back_up(epoch=self._current_epoch, batch=batch)
 
     def _implements_train_batch_hooks(self):
         return self.save_freq != "epoch"
