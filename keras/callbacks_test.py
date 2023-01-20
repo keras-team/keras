@@ -2394,7 +2394,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             callbacks=cbks,
             epochs=20,
         )
-        self.assertEqual(model.optimizer.iterations.numpy(), 1)
+        self.assertEqual(model._train_counter.numpy(), 1)
         loss = history.history["loss"]
         self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
 
@@ -2409,7 +2409,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             callbacks=cbks,
             epochs=20,
         )
-        self.assertEqual(model.optimizer.iterations.numpy(), 2)
+        self.assertEqual(model._train_counter.numpy(), 2)
         loss = history.history["loss"]
         self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
 
@@ -2424,7 +2424,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
             callbacks=cbks,
             epochs=20,
         )
-        self.assertEqual(model.optimizer.iterations.numpy(), 5)
+        self.assertEqual(model._train_counter.numpy(), 5)
         loss = history.history["loss"]
         self.assertTrue(np.isnan(loss[-1]) or np.isinf(loss[-1]))
 
