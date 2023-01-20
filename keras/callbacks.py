@@ -1006,8 +1006,9 @@ class TerminateOnNaN(Callback):
         self._batches_seen_since_last_check = 0
         self._last_batch_seen = 0
         self._supports_tf_logs = True
+        self._current_epoch = 0
 
-    def _check_nan(self, batch=None, epoch=None, logs=None):
+    def _check_nan(self, epoch, batch=None, logs=None):
         logs = logs or {}
         if isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue):
             logs = logs.get()
@@ -1018,7 +1019,7 @@ class TerminateOnNaN(Callback):
             if np.isnan(loss) or np.isinf(loss):
                 if batch is not None:
                     io_utils.print_msg(
-                        f"Batch {batch}: Invalid loss, terminating training"
+                        f"Epoch {epoch}, Batch {batch}: Invalid loss, terminating training"
                     )
                 else:
                     io_utils.print_msg(
@@ -1049,7 +1050,10 @@ class TerminateOnNaN(Callback):
 
     def on_batch_end(self, batch, logs=None):
         if self._should_check_on_batch(batch):
-            self._check_nan(batch=batch, logs=logs)
+            self._check_nan(epoch=self._current_epoch, batch=batch, logs=logs)
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self._current_epoch = epoch
 
     def on_epoch_end(self, epoch, logs=None):
         if self.check_freq == "epoch":
