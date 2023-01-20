@@ -687,6 +687,8 @@ class Callback:
         # TODO(omalleyt): Make this attr public once solution is stable.
         self._chief_worker_only = None
         self._supports_tf_logs = False
+        self._batches_seen_since_last_trigger = 0
+        self._last_batch_seen = 0
 
     def set_params(self, params):
         self.params = params
@@ -932,6 +934,24 @@ class Callback:
             self.on_predict_batch_begin
         ) or not generic_utils.is_default(self.on_predict_batch_end)
 
+    def _should_trigger_on_batch(self, trigger_freq, batch):
+        """Determines if the callback should be called for a given batch,
+        supports steps_per_execution."""
+        if trigger_freq == "epoch":
+            return False
+
+        if batch <= self._last_batch_seen:  # New epoch.
+            add_batches = batch + 1  # batches are zero-indexed.
+        else:
+            add_batches = batch - self._last_batch_seen
+        self._batches_seen_since_last_trigger += add_batches
+        self._last_batch_seen = batch
+
+        if self._batches_seen_since_last_trigger >= trigger_freq:
+            self._batches_seen_since_last_trigger = 0
+            return True
+        return False
+
 
 @keras_export("keras.callbacks.BaseLogger")
 class BaseLogger(Callback):
@@ -1003,8 +1023,6 @@ class TerminateOnNaN(Callback):
                 f"Unrecognized check_freq: {self.check_freq}. "
                 "Expected 'batch', 'epoch' or integer"
             )
-        self._batches_seen_since_last_check = 0
-        self._last_batch_seen = 0
         self._supports_tf_logs = True
         self._current_epoch = 0
 
@@ -1028,29 +1046,12 @@ class TerminateOnNaN(Callback):
                     )
                 self.model.stop_training = True
 
-    def _should_check_on_batch(self, batch):
-        """Handles batch-level saving logic, supports steps_per_execution."""
-        if self.check_freq == "epoch":
-            return False
-
-        if batch <= self._last_batch_seen:  # New epoch.
-            add_batches = batch + 1  # batches are zero-indexed.
-        else:
-            add_batches = batch - self._last_batch_seen
-        self._batches_seen_since_last_check += add_batches
-        self._last_batch_seen = batch
-
-        if self._batches_seen_since_last_check >= self.check_freq:
-            self._batches_seen_since_last_check = 0
-            return True
-        return False
-
     def _implements_train_batch_hooks(self):
         # Only call batch hooks when saving on batch
         return self.check_freq != "epoch"
 
     def on_batch_end(self, batch, logs=None):
-        if self._should_check_on_batch(batch):
+        if self._should_trigger_on_batch(self.check_freq, batch):
             self._check_nan(epoch=self._current_epoch, batch=batch, logs=logs)
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -1408,8 +1409,6 @@ class ModelCheckpoint(Callback):
         self.save_weights_only = save_weights_only
         self.save_freq = save_freq
         self.epochs_since_last_save = 0
-        self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
         self.best = initial_value_threshold
 
         if save_weights_only:
@@ -1520,7 +1519,7 @@ class ModelCheckpoint(Callback):
         return self.save_freq != "epoch"
 
     def on_train_batch_end(self, batch, logs=None):
-        if self._should_save_on_batch(batch):
+        if self._should_trigger_on_batch(self.save_freq, batch):
             self._save_model(epoch=self._current_epoch, batch=batch, logs=logs)
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -1531,23 +1530,6 @@ class ModelCheckpoint(Callback):
 
         if self.save_freq == "epoch":
             self._save_model(epoch=epoch, batch=None, logs=logs)
-
-    def _should_save_on_batch(self, batch):
-        """Handles batch-level saving logic, supports steps_per_execution."""
-        if self.save_freq == "epoch":
-            return False
-
-        if batch <= self._last_batch_seen:  # New epoch.
-            add_batches = batch + 1  # batches are zero-indexed.
-        else:
-            add_batches = batch - self._last_batch_seen
-        self._batches_seen_since_last_saving += add_batches
-        self._last_batch_seen = batch
-
-        if self._batches_seen_since_last_saving >= self.save_freq:
-            self._batches_seen_since_last_saving = 0
-            return True
-        return False
 
     def _save_model(self, epoch, batch, logs):
         """Saves the model.
