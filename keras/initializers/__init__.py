@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 
 from keras.initializers import initializers_v1
 from keras.initializers import initializers_v2
-from keras.saving.legacy import serialization
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
 
@@ -134,15 +134,28 @@ globals().update(LOCAL.ALL_OBJECTS)
 
 
 @keras_export("keras.initializers.serialize")
-def serialize(initializer):
-    return serialization.serialize_keras_object(initializer)
+def serialize(initializer, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(initializer)
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.serialize_keras_object(initializer)
 
 
 @keras_export("keras.initializers.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
     """Return an `Initializer` object from its config."""
     populate_deserializable_objects()
-    return serialization.deserialize_keras_object(
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=LOCAL.ALL_OBJECTS,
+            custom_objects=custom_objects,
+            printable_module_name="initializer",
+        )
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.deserialize_keras_object(
         config,
         module_objects=LOCAL.ALL_OBJECTS,
         custom_objects=custom_objects,
@@ -187,7 +200,8 @@ def get(identifier):
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
         identifier = str(identifier)
         return deserialize(identifier)

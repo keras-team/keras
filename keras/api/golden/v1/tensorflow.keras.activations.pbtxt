@@ -2,7 +2,7 @@ path: "tensorflow.keras.activations"
 tf_module {
   member_method {
     name: "deserialize"
-    argspec: "args=[\'name\', \'custom_objects\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'name\', \'custom_objects\', \'use_legacy_format\'], varargs=None, keywords=None, defaults=[\'None\', \'False\'], "
   }
   member_method {
     name: "elu"
@@ -34,7 +34,7 @@ tf_module {
   }
   member_method {
     name: "serialize"
-    argspec: "args=[\'activation\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'activation\', \'use_legacy_format\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "sigmoid"

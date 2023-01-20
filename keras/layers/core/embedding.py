@@ -151,6 +151,7 @@ class Embedding(Layer):
         # self.dtype before casting to int32 might cause the int32 values to be
         # different due to a loss of precision.
         kwargs["autocast"] = False
+        use_one_hot_matmul = kwargs.pop("use_one_hot_matmul", False)
         super().__init__(**kwargs)
 
         self.input_dim = input_dim
@@ -169,6 +170,9 @@ class Embedding(Layer):
                 "`tf.keras.layers.Embedding` is used with `tf.SparseTensor` "
                 "input."
             )
+        # Make this flag private and do not serialize it for now.
+        # It will be part of the public API after further testing.
+        self._use_one_hot_matmul = use_one_hot_matmul
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape=None):
@@ -255,6 +259,15 @@ class Embedding(Layer):
                     sparse_ids=sparse_inputs_expanded,
                     default_id=0,
                 )
+        elif self._use_one_hot_matmul:
+            # Note that we change the dtype of the one_hot to be same as the
+            # weight tensor, since the input data are usually ints, and weights
+            # are floats. The nn.embedding_lookup support ids as ints, but
+            # the one_hot matmul need both inputs and weights to be same dtype.
+            one_hot_data = tf.one_hot(
+                inputs, depth=self.input_dim, dtype=self.dtype
+            )
+            out = tf.matmul(one_hot_data, self.embeddings)
         else:
             out = tf.nn.embedding_lookup(self.embeddings, inputs)
 
