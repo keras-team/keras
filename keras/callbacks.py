@@ -1019,7 +1019,8 @@ class TerminateOnNaN(Callback):
             if np.isnan(loss) or np.isinf(loss):
                 if batch is not None:
                     io_utils.print_msg(
-                        f"Epoch {epoch}, Batch {batch}: Invalid loss, terminating training"
+                        f"Epoch {epoch}, Batch {batch}: "
+                        "Invalid loss, terminating training"
                     )
                 else:
                     io_utils.print_msg(
