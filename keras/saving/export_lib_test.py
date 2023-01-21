@@ -368,6 +368,19 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
                 my_endpoint,
             )
 
+    @test_combinations.run_with_all_model_types
+    def test_model_export_method(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = self._get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input).numpy()
+
+        model.export(temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input).numpy(), atol=1e-6
+        )
+
 
 if __name__ == "__main__":
     tf.test.main()
