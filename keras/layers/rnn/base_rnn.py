@@ -977,3 +977,42 @@ class RNN(base_layer.Layer):
     @property
     def _trackable_saved_model_saver(self):
         return layer_serialization.RNNSavedModelSaver(self)
+
+    def get_states(self):
+        """Retrieves the RNN states of the model.
+
+        Returns:
+            A flat list of Numpy arrays.
+        """
+        return self._dedup_weights(self.states) if self.stateful else []
+
+    def set_states(self, states):
+        """Sets the RNN states of the layer, from NumPy arrays.
+
+        The states of a layer represent the hidden state of the RNN layer. This
+        function sets the state values from numpy arrays. The state values
+        should be passed in the order they are created by the layer. Note that
+        the layer's states must be instantiated before calling this function, by
+        calling the layer.
+
+        Args:
+          states: a list of NumPy arrays. The number
+            of arrays and their shape must match number of the dimensions of the
+            states of the layer (i.e. it should match the output of
+            `get_states`).
+
+        Raises:
+          ValueError: If the provided states list does not match the
+            layer's specifications.
+        """
+        if not isinstance(states, (list, tuple)):
+            raise ValueError(f'Expected states to be list or tuple, but is {type(states)}')
+
+        self_states = self.states if self.stateful else []
+        if len(states) != len(self_states):
+            raise ValueError(f'Expected {len(self_states)} states but found {len(states)}')
+
+        for state, value in zip(self_states, states):
+            if not isinstance(value, np.ndarray):
+                raise ValueError(f'Exepected state to be numpy.ndarray, but is {type(value)}')
+            state.assign(value)
