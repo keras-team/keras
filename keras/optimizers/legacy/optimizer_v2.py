@@ -19,6 +19,7 @@ import abc
 import contextlib
 import functools
 import warnings
+from copy import deepcopy
 
 import tensorflow.compat.v2 as tf
 
@@ -440,6 +441,18 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                 )
             )
         self.clipvalue = kwargs.pop("clipvalue", None)
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            # DistributionStrategy singleton cannot be serialized
+            if k == "_distribution_strategy":
+                continue
+            setattr(result, k, deepcopy(v, memo))
+        result._distribution_strategy = self._distribution_strategy
+        return result
 
     @property
     def clipnorm(self):
