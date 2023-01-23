@@ -9,6 +9,14 @@ tf_class {
     argspec: "args=[\'self\', \'export_filepath\', \'checkpoint_filepath\'], varargs=None, keywords=kwargs, defaults=None"
   }
   member_method {
+    name: "get_state"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "load_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "on_batch_begin"
     argspec: "args=[\'self\', \'batch\', \'logs\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
@@ -73,11 +81,19 @@ tf_class {
     argspec: "args=[\'self\', \'logs\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
+    name: "save_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "set_model"
     argspec: "args=[\'self\', \'model\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_params"
     argspec: "args=[\'self\', \'params\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "set_state"
+    argspec: "args=[\'self\', \'state\'], varargs=None, keywords=None, defaults=None"
   }
 }

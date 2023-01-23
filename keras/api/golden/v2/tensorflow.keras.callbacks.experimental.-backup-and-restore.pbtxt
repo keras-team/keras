@@ -4,9 +4,21 @@ tf_class {
   is_instance: "<class \'keras.callbacks.BackupAndRestore\'>"
   is_instance: "<class \'keras.callbacks.Callback\'>"
   is_instance: "<type \'object\'>"
+  member {
+    name: "backup_callbacks"
+    mtype: "<type \'property\'>"
+  }
   member_method {
     name: "__init__"
     argspec: "args=[\'self\'], varargs=args, keywords=kwargs, defaults=None"
+  }
+  member_method {
+    name: "get_state"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "load_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "on_batch_begin"
@@ -73,11 +85,19 @@ tf_class {
     argspec: "args=[\'self\', \'logs\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
+    name: "save_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "set_model"
     argspec: "args=[\'self\', \'model\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_params"
     argspec: "args=[\'self\', \'params\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "set_state"
+    argspec: "args=[\'self\', \'state\'], varargs=None, keywords=None, defaults=None"
   }
 }

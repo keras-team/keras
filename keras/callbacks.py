@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import time
+import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -33,6 +34,7 @@ from keras.distribute import distributed_file_utils
 from keras.distribute import worker_training_state
 from keras.optimizers import optimizer
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.saving.legacy.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import io_utils
 from keras.utils import tf_utils
@@ -693,6 +695,60 @@ class Callback:
 
     def set_model(self, model):
         self.model = model
+
+    def get_state(self):
+        """Returns a dict of callback states.
+
+        Example: `{'best': 0.2, 'accuracy': 0.7}`.
+
+        Typically used when we want to backup the callback state after
+        preemption with `BackupAndRestore` callback.
+        """
+        raise NotImplementedError
+
+    def set_state(self, state):
+        """Sets the state of the callback from a dict of values.
+
+        Typically used when we want to restore the callback state after
+        preemption with `BackupAndRestore` callback.
+        """
+        raise NotImplementedError
+
+    def load_state(self, backup_fname):
+        """Loads the state of the callback from `backup_fname`.
+
+        Override the method if the callback has special handling on how state
+        is stored.
+        """
+        if not tf.io.gfile.exists(backup_fname):
+            return
+        try:
+            with tf.io.gfile.GFile(backup_fname, "r") as fin:
+                cb_bytes = fin.read()
+            if cb_bytes:
+                cb_state = json_utils.decode(cb_bytes)
+                self.set_state(cb_state)
+        except (IOError, json.decoder.JSONDecodeError) as e:
+            warnings.warn(
+                f"Could not load state from {backup_fname}.\n" + str(e)
+            )
+
+    def save_state(self, backup_fname):
+        """Saves the state of the callback into `backup_fname`.
+
+        Override the method if the callback has special handling on how state
+        is stored.
+        """
+        cb_state = self.get_state()
+        if not cb_state:
+            return  # No state defined to save.
+        try:
+            with tf.io.gfile.GFile(self._write_states_fname, "w") as fout:
+                json.dump(cb_state, fout, cls=json_utils.Encoder)
+        except IOError as e:
+            warnings.warn(
+                f"Could not save state from {backup_fname}.\n" + str(e)
+            )
 
     @doc_controls.for_subclass_implementers
     @generic_utils.default
@@ -1436,6 +1492,14 @@ class ModelCheckpoint(Callback):
         # restore checkpoint at on_train_begin().
         self._chief_worker_only = False
 
+    def get_state(self):
+        """Returns state dictionary."""
+        return {"best": self.best}
+
+    def set_state(self, state):
+        """Updates callback state."""
+        self.best = state.get("best")
+
     def on_train_begin(self, logs=None):
         if self.load_weights_on_restart:
             filepath_to_load = (
@@ -1818,6 +1882,12 @@ class BackupAndRestore(Callback):
           This only supports
           `tf.distribute.MultiWorkerMirroredStrategy` on Google Cloud Platform
           or Google Borg for now.
+        save_callbacks: Boolean or a list of callbacks, default to False.
+          When set to `True`, the state of `model.fit` callbacks that implement
+          `get_state` and `set_state` are backed up and restored. User can also
+          provide a list of callback instances that needs to be backedup during
+          preemption. When used with a custom training loop, user will need to
+          provide the list of callback instances and not a boolean flag.
     """
 
     def __init__(
@@ -1826,6 +1896,7 @@ class BackupAndRestore(Callback):
         save_freq="epoch",
         delete_checkpoint=True,
         save_before_preemption=False,
+        save_callbacks=False,
     ):
         super().__init__()
         self.backup_dir = backup_dir
@@ -1840,6 +1911,12 @@ class BackupAndRestore(Callback):
         self.save_freq = save_freq
         self.delete_checkpoint = delete_checkpoint
         self.save_before_preemption = save_before_preemption
+        self.save_callbacks = save_callbacks
+        self._backup_callbacks = []
+        if save_callbacks and isinstance(
+            save_callbacks, collections.abc.Iterable
+        ):
+            self.backup_callbacks = list(save_callbacks)
         self._batches_count = 0
         self._current_epoch = 0
 
@@ -1866,6 +1943,51 @@ class BackupAndRestore(Callback):
         # restore checkpoint at on_train_begin().
         self._chief_worker_only = False
 
+    @property
+    def backup_callbacks(self):
+        """Return list of callbacks whose states are preseved in preemption."""
+        return self._backup_callbacks
+
+    @backup_callbacks.setter
+    def backup_callbacks(self, callbacks):
+        """If `save_callbacks` parameter is `True`, assigns list of callbacks
+        that needs to be have their states backedup and restored along with
+        model weights during preemption."""
+        if self.save_callbacks is False:
+            return  # Can't update if save_callbacks is False
+        self._backup_callbacks = []
+        for callback in callbacks:
+            try:
+                state = callback.get_state()
+                callback.set_state(state)
+                self._backup_callbacks.append(callback)
+            except NotImplementedError:
+                logging.warn(
+                    "Skipping Backup for Callback: %s. To backup, a callback "
+                    "should define get_state and set_state methods.",
+                    callback.__class__.__name__,
+                )
+
+    def _set_read_write_states_fnames(self):
+        # Restore additional callback states
+        read_dir = tf.io.gfile.join(self.backup_dir, "chief")
+        # If single worker, read and write directory are same
+        # In multi-worker strategy, chief is responsible for keeping backup
+        if self.model.distribute_strategy.extended.should_checkpoint:
+            write_dir = read_dir
+        else:
+            write_dir = distributed_file_utils.write_dirpath(
+                self.backup_dir, self.model.distribute_strategy
+            )
+        self._read_states_fname = tf.io.gfile.join(
+            read_dir, "callback_states.json"
+        )
+        self._write_states_fname = tf.io.gfile.join(
+            write_dir, "callback_states.json"
+        )
+        print(f"Read States Filename: {self._read_states_fname}")
+        print(f"Write States Filename: {self._write_states_fname}")
+
     def on_train_begin(self, logs=None):
         # TrainingState is used to manage the training state needed for
         # failure-recovery of a worker in training.
@@ -1887,6 +2009,9 @@ class BackupAndRestore(Callback):
         )
         self._training_state = self.model._training_state
         self._training_state.restore()
+        self._set_read_write_states_fnames()
+        # Restore callback states
+        self._restore_callbacks()
 
     def on_train_batch_begin(self, batch, logs=None):
         self._training_state._ckpt_saved_batch.assign(batch)
@@ -1920,8 +2045,57 @@ class BackupAndRestore(Callback):
         if self.save_freq == "epoch":
             self._backup(epoch=epoch)
 
+    def _get_callback_states(self):
+        """Returns a list of states to be backed up. Returns None otherwise."""
+        if not self.backup_callbacks:
+            return None
+        callback_states = []
+        for callback in self.backup_callbacks:
+            callback_states.append(callback.get_state())
+        return callback_states
+
+    def _load_callback_states(self):
+        """Returns callback states to be restored. Returns None otherwise."""
+        backup_fname = self._read_states_fname
+        if not tf.io.gfile.exists(backup_fname):
+            return None
+        with tf.io.gfile.GFile(backup_fname, "r") as fin:
+            cb_bytes = fin.read()
+            if cb_bytes:
+                try:
+                    callback_states = json_utils.decode(cb_bytes)
+                except json.decoder.JSONDecodeError as e:
+                    warnings.warn(
+                        "BackupAndRestore of Callbacks failed with error "
+                        + str(e)
+                    )
+                    return None
+        return callback_states
+
+    def _restore_callbacks(self):
+        """Restores callbacks using state stored in backup file."""
+        callback_states = None
+        if self.backup_callbacks:
+            callback_states = self._load_callback_states()
+        if callback_states is None:
+            # Nothing to restore for callbacks.
+            return
+        # Validate that length of backup_callbacks and callback_states match
+        if len(callback_states) != len(self.backup_callbacks):
+            raise ValueError("Callbacks list does not match with saved states.")
+        # Restore backup callback states
+        for callback, callback_state in zip(
+            self.backup_callbacks, callback_states
+        ):
+            callback.set_state(callback_state)
+
     def _backup(self, epoch, batch=0):
         self._training_state.back_up(epoch=epoch, batch=batch)
+        # Backup callback states
+        callback_states = self._get_callback_states()
+        if callback_states:
+            with tf.io.gfile.GFile(self._write_states_fname, "w") as fout:
+                json.dump(callback_states, fout, cls=json_utils.Encoder)
 
 
 @keras_export("keras.callbacks.experimental.BackupAndRestore", v1=[])

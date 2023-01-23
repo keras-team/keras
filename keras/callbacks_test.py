@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 import unittest
+import warnings
 from unittest import mock
 
 import numpy as np
@@ -35,6 +36,7 @@ import keras
 from keras.callbacks import BackupAndRestore
 from keras.callbacks import BackupAndRestoreExperimental
 from keras.callbacks import Callback
+from keras.callbacks import ModelCheckpoint
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
@@ -365,7 +367,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         if test_utils.should_run_eagerly():
             model = keras.Sequential([keras.layers.Dense(1)])
             model.compile("sgd", "mse")
-            cbk = BackupAndRestore(self.get_temp_dir())
+            temp_dir = self.get_temp_dir()
+            self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+            cbk = BackupAndRestore(temp_dir)
             model.fit(
                 np.ones((10, 1)), np.ones((10, 1)), epochs=1, callbacks=[cbk]
             )
@@ -378,18 +382,21 @@ class KerasCallbacksTest(test_combinations.TestCase):
             )
         model = keras.Sequential([keras.layers.Dense(1)])
         model.compile("sgd", "mse")
-        cbk = BackupAndRestore(self.get_temp_dir())
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        cbk = BackupAndRestore(temp_dir)
 
         class InterruptingCallback(keras.callbacks.Callback):
             """A callback to intentionally introduce interruption to
             training."""
 
+            def __init__(self, interrupt_epoch):
+                self.interrupt_epoch = interrupt_epoch
+
             def on_epoch_end(self, epoch, log=None):
                 logging.info(f"counter: {model._train_counter}")
-                if epoch == 5 or epoch == 12:
+                if epoch == self.interrupt_epoch:
                     raise RuntimeError("Interruption")
-
-        self.get_temp_dir()
 
         # The following asserts that the train counter is fault tolerant.
         self.assertEqual(model._train_counter.numpy(), 0)
@@ -398,7 +405,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 np.ones((10, 1)),
                 np.ones((10, 1)),
                 epochs=20,
-                callbacks=[cbk, InterruptingCallback()],
+                callbacks=[cbk, InterruptingCallback(interrupt_epoch=5)],
             )
         except RuntimeError:
             pass
@@ -408,7 +415,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 np.ones((10, 1)),
                 np.ones((10, 1)),
                 epochs=20,
-                callbacks=[cbk, InterruptingCallback()],
+                callbacks=[cbk, InterruptingCallback(interrupt_epoch=12)],
             )
         except RuntimeError:
             pass
@@ -436,7 +443,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         y = tf.random.uniform((24,))
         dataset = tf.data.Dataset.from_tensor_slices((x, y)).repeat().batch(2)
 
-        backup_callback = cls(backup_dir=self.get_temp_dir())
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        backup_callback = cls(backup_dir=temp_dir)
         try:
             model.fit(
                 dataset,
@@ -467,7 +476,10 @@ class KerasCallbacksTest(test_combinations.TestCase):
             """A callback to intentionally introduce interruption to
             training."""
 
-            batch_count = 0
+            def __init__(self, steps_int):
+                self.batch_count = 0
+                self.steps_int = steps_int
+                super().__init__()
 
             def on_epoch_end(self, epoch, log=None):
                 if epoch == epoch_int:
@@ -475,7 +487,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
             def on_batch_end(self, batch, logs=None):
                 self.batch_count += 1
-                if self.batch_count == steps_int:
+                if self.batch_count == self.steps_int:
                     raise RuntimeError("StepsInterruption")
 
         class VerifyRestore(Callback):
@@ -511,11 +523,16 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         x = tf.random.uniform((24, 10))
         y = tf.random.uniform((24,))
-        dataset = tf.data.Dataset.from_tensor_slices((x, y)).repeat().batch(2)
-        save_freq_arg = "epoch" if mode == "epoch" else 7
-        backup_callback = cls(
-            backup_dir=self.get_temp_dir(), save_freq=save_freq_arg
+        batch_size = 2
+        dataset = (
+            tf.data.Dataset.from_tensor_slices((x, y))
+            .repeat()
+            .batch(batch_size)
         )
+        save_freq_arg = "epoch" if mode == "epoch" else 7
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        backup_callback = cls(backup_dir=temp_dir, save_freq=save_freq_arg)
         # epoch where the restore should resume from
         if save_freq_arg == "epoch":
             init_epoch = epoch_int
@@ -532,11 +549,16 @@ class KerasCallbacksTest(test_combinations.TestCase):
             initial_epoch=init_epoch, initial_step=init_step
         )
         try:
+            # Backup callback is moved to end of callback list, so offset
+            # interrupt callback so it interrupts after the step is backed up.
             model.fit(
                 dataset,
                 epochs=20,
                 steps_per_epoch=5,
-                callbacks=[backup_callback, InterruptingCallback()],
+                callbacks=[
+                    backup_callback,
+                    InterruptingCallback(steps_int + batch_size),
+                ],
             )
         except RuntimeError as e:
             if str(e) == "EpochInterruption":
@@ -696,6 +718,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 "enabled."
             )
         path = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, path, ignore_errors=True)
         callback = BackupAndRestore(path, delete_checkpoint=True)
         model = keras.Sequential([keras.layers.Dense(10)])
         optimizer = gradient_descent.SGD()
@@ -710,6 +733,128 @@ class KerasCallbacksTest(test_combinations.TestCase):
         callback = BackupAndRestore(path, delete_checkpoint=False)
         model.fit(dataset, epochs=1, callbacks=[callback])
         self.assertNotEmpty(os.listdir(path))
+
+    def _test_backup_callbacks(self, save_callbacks_mode):
+        if not tf.compat.v1.executing_eagerly():
+            self.skipTest(
+                "BackupAndRestore only available when eager execution is "
+                "enabled"
+            )
+
+        class InterruptingCallback(keras.callbacks.Callback):
+            """A callback to intentionally interrupt training."""
+
+            def on_epoch_end(self, epoch, log=None):
+                logging.info(f"counter: {self.model._train_counter}")
+                if epoch == 3:
+                    raise RuntimeError("Interruption")
+
+        class DummyCallbackWithState(keras.callbacks.Callback):
+            def __init__(self):
+                self.value = 0
+
+            def get_state(self):
+                return {"value": 5}
+
+            def set_state(self, state):
+                self.value = state["value"]
+
+        class DummyCallbackWithoutState(keras.callbacks.Callback):
+            def __init__(self):
+                self.value = 0
+
+        ckpt_dir = self.get_temp_dir()
+        model_ckpt_cb = ModelCheckpoint(
+            filepath=ckpt_dir, monitor="val_loss", save_best_only=True
+        )
+        dummy_cb_state = DummyCallbackWithState()
+        dummy_cb_wo_state = DummyCallbackWithoutState()
+        model_callbacks = [model_ckpt_cb, dummy_cb_state, dummy_cb_wo_state]
+        if save_callbacks_mode and save_callbacks_mode == "list":
+            save_callbacks = model_callbacks
+        elif save_callbacks_mode is True:
+            save_callbacks = True
+        else:
+            save_callbacks = False
+        backup_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, backup_dir, ignore_errors=True)
+        backup_cb = BackupAndRestore(
+            backup_dir=backup_dir, save_callbacks=save_callbacks
+        )
+        model = keras.models.Sequential([keras.layers.Dense(10)])
+        model.compile(keras.optimizers.SGD(), loss="mse")
+        x = np.random.random((100, 10))
+        y = np.random.choice([0, 1], size=100)
+        try:
+            model.fit(
+                x,
+                y,
+                validation_data=(x, y),
+                epochs=5,
+                batch_size=8,
+                callbacks=[backup_cb, InterruptingCallback()] + model_callbacks,
+            )
+        except RuntimeError:
+            warnings.warn("Training Interruption!")
+        # Get the last best value from Checkpoint callback
+        best_value = model_ckpt_cb.best
+        cb_states = backup_cb._load_callback_states()
+        if save_callbacks_mode:
+            self.assertIsNotNone(cb_states)
+            self.assertEqual(cb_states[0]["best"], best_value)
+        else:
+            self.assertIsNone(cb_states)
+
+        model_ckpt_cb = ModelCheckpoint(
+            filepath=ckpt_dir, monitor="val_loss", save_best_only=True
+        )
+        self.assertTrue(np.isinf(model_ckpt_cb.best))
+        dummy_cb_state = DummyCallbackWithState()
+        dummy_cb_wo_state = DummyCallbackWithoutState()
+        model_callbacks = [model_ckpt_cb, dummy_cb_state, dummy_cb_wo_state]
+        if save_callbacks_mode and save_callbacks_mode == "list":
+            save_callbacks = model_callbacks
+        elif save_callbacks_mode is True:
+            save_callbacks = True
+        else:
+            save_callbacks = False
+        backup_cb = BackupAndRestore(
+            backup_dir=backup_dir, save_callbacks=save_callbacks
+        )
+        # Set Model to non-trainable and verify that Best Checkpoint value
+        # matches the value from last training run
+        model.trainable = False
+        model.compile(keras.optimizers.SGD(), loss="mse")
+        model.fit(
+            x,
+            y,
+            epochs=5,
+            batch_size=8,
+            callbacks=[backup_cb] + model_callbacks,
+        )
+        if save_callbacks_mode:
+            self.assertIn(model_ckpt_cb, backup_cb.backup_callbacks)
+            self.assertIn(dummy_cb_state, backup_cb.backup_callbacks)
+            self.assertNotIn(dummy_cb_wo_state, backup_cb.backup_callbacks)
+            self.assertEqual(model_ckpt_cb.best, best_value)
+            self.assertEqual(dummy_cb_state.value, 5)
+            self.assertEqual(dummy_cb_wo_state.value, 0)
+        else:
+            self.assertNotEqual(model_ckpt_cb.best, best_value)
+            self.assertEqual(dummy_cb_state.value, 0)
+            self.assertEqual(dummy_cb_wo_state.value, 0)
+
+    def test_backup_callback_with_save_callbacks_mode_true(self):
+        self._test_backup_callbacks(save_callbacks_mode=True)
+
+    def test_backup_callback_with_save_callbacks_mode_false(self):
+        self._test_backup_callbacks(save_callbacks_mode=False)
+
+    def test_backup_callback_with_save_callbacks_mode_None(self):
+        self._test_backup_callbacks(save_callbacks_mode=None)
+
+    def test_backup_callback_with_save_callbacks_mode_list(self):
+        self._test_backup_callbacks(save_callbacks_mode="list")
 
     @test_combinations.run_all_keras_modes
     def test_callback_warning(self):

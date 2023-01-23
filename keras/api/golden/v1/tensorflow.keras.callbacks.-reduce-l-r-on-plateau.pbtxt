@@ -8,8 +8,16 @@ tf_class {
     argspec: "args=[\'self\', \'monitor\', \'factor\', \'patience\', \'verbose\', \'mode\', \'min_delta\', \'cooldown\', \'min_lr\'], varargs=None, keywords=kwargs, defaults=[\'val_loss\', \'0.1\', \'10\', \'0\', \'auto\', \'0.0001\', \'0\', \'0\'], "
   }
   member_method {
+    name: "get_state"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "in_cooldown"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "load_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "on_batch_begin"
@@ -76,11 +84,19 @@ tf_class {
     argspec: "args=[\'self\', \'logs\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
+    name: "save_state"
+    argspec: "args=[\'self\', \'backup_fname\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "set_model"
     argspec: "args=[\'self\', \'model\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_params"
     argspec: "args=[\'self\', \'params\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "set_state"
+    argspec: "args=[\'self\', \'state\'], varargs=None, keywords=None, defaults=None"
   }
 }

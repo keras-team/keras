@@ -1690,6 +1690,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 steps_per_execution=self._steps_per_execution,
             )
 
+            # Set callbacks in BackupAndRestore and move it to end of callbacks
+            callbacks = self._maybe_update_backup_and_reorder(callbacks)
             # Container that configures and calls `tf.keras.Callback`s.
             if not isinstance(callbacks, callbacks_module.CallbackList):
                 callbacks = callbacks_module.CallbackList(
@@ -3831,6 +3833,36 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         "will automatically be created in the correct "
                         "distribution strategy scope."
                     )
+
+    def _maybe_update_backup_and_reorder(self, callbacks):
+        """Maybe update `BackupAndRestore` callback to save callabcks and
+        move it to end of callbacks. Returns updated callbacks.
+
+        Args:
+          callbacks: List of callbacks passed to `model.fit()`.
+
+        Returns:
+          callbacks list. When `BackupAndRestore` callback is in callbacks, and
+          required to save callback states, `BackupAndRestore` callback is moved
+          to end of callback list so it saves the state after all the callbacks
+          are updated.
+        """
+        if callbacks is None:
+            return
+        backup_restore_callback = None
+        updated_callbacks = []
+        for callback in callbacks:
+            if isinstance(callback, callbacks_module.BackupAndRestore):
+                backup_restore_callback = callback
+            else:
+                updated_callbacks.append(callback)
+        if backup_restore_callback:
+            if backup_restore_callback.save_callbacks is True:
+                backup_restore_callback.backup_callbacks = updated_callbacks
+            updated_callbacks.append(backup_restore_callback)
+            return updated_callbacks
+        else:
+            return callbacks  # Return with no change
 
     def _maybe_load_initial_counters_from_ckpt(
         self, steps_per_epoch, initial_epoch
