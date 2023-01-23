@@ -175,7 +175,7 @@ class Bidirectional(Wrapper):
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
         self.supports_masking = True
-        self._trainable = True
+        self._trainable = kwargs.get('trainable', True)
         self._num_constants = 0
         self.input_spec = layer.input_spec
 
