@@ -392,6 +392,7 @@ class SimpleRNN(RNN):
             recurrent_dropout=recurrent_dropout,
             dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
+            name='cell',
             **cell_kwargs,
         )
         super().__init__(

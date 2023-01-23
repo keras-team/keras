@@ -583,6 +583,7 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             reset_after=reset_after,
             dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
+            name='cell',
             **cell_kwargs,
         )
         super().__init__(
