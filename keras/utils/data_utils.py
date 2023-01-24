@@ -212,6 +212,21 @@ def get_file(
 
     Returns:
         Path to the downloaded file
+
+    **/!\ Warning on malicious downloads /!\ **
+    Downloading something from the Internet carries a risk.
+    NEVER download a file/archive if you do not trust the source.
+    We recommend that you specify the `file_hash` argument
+    (if the hash of the source file is known) to make sure that the file you
+    are getting is the one you expect.
+
+    **/!\ Warning on file extraction /!\**
+    Extracting a compressed archive carries a risk.
+    NEVER extract archives from untrusted sources without prior inspection.
+    If you set `extract=True`, and the archive is in `tar` format,
+    it is possible that files will be created outside of the target `cache_dir`,
+    e.g. archive members may have absolute filenames
+    starting with `"/"` or filenames with two dots, `".."`.
     """
     if origin is None:
         raise ValueError(
