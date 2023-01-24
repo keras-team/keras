@@ -2399,19 +2399,6 @@ class TrainingTest(test_combinations.TestCase):
         model = keras.Model(inp, [stateless(inp), stateful(inp)])
 
         states = model.states
-        assert len(states) == len(stateful.states)
-        for a, b in zip(states, stateful.states):
-            assert a is b
-
-    def test_states(self):
-        inp = keras.Input(batch_shape=[1, 2, 3])
-        
-        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
-        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
-
-        model = keras.Model(inp, [stateless(inp), stateful(inp)])
-
-        states = model.states
         states_ = stateful.states
         assert len(states) == len(states_)
         for a, b in zip(states, states_):
