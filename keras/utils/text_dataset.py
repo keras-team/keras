@@ -63,51 +63,51 @@ def text_dataset_from_directory(
     Only `.txt` files are supported at this time.
 
     Args:
-      directory: Directory where the data is located.
-          If `labels` is "inferred", it should contain
-          subdirectories, each containing text files for a class.
-          Otherwise, the directory structure is ignored.
-      labels: Either "inferred"
-          (labels are generated from the directory structure),
-          None (no labels),
-          or a list/tuple of integer labels of the same size as the number of
-          text files found in the directory. Labels should be sorted according
-          to the alphanumeric order of the text file paths
-          (obtained via `os.walk(directory)` in Python).
-      label_mode: String describing the encoding of `labels`. Options are:
-          - 'int': means that the labels are encoded as integers
-              (e.g. for `sparse_categorical_crossentropy` loss).
-          - 'categorical' means that the labels are
-              encoded as a categorical vector
-              (e.g. for `categorical_crossentropy` loss).
-          - 'binary' means that the labels (there can be only 2)
-              are encoded as `float32` scalars with values 0 or 1
-              (e.g. for `binary_crossentropy`).
-          - None (no labels).
-      class_names: Only valid if "labels" is "inferred". This is the explicit
-          list of class names (must match names of subdirectories). Used
-          to control the order of the classes
-          (otherwise alphanumerical order is used).
-      batch_size: Size of the batches of data. Default: 32.
-        If `None`, the data will not be batched
-        (the dataset will yield individual samples).
-      max_length: Maximum size of a text string. Texts longer than this will
-        be truncated to `max_length`.
-      shuffle: Whether to shuffle the data. Default: True.
-          If set to False, sorts the data in alphanumeric order.
-      seed: Optional random seed for shuffling and transformations.
-      validation_split: Optional float between 0 and 1,
-          fraction of data to reserve for validation.
-      subset: Subset of the data to return.
-          One of "training", "validation" or "both".
-          Only used if `validation_split` is set.
-          When `subset="both"`, the utility returns a tuple of two datasets
-          (the training and validation datasets respectively).
-      follow_links: Whether to visits subdirectories pointed to by symlinks.
-          Defaults to False.
+        directory: Directory where the data is located.
+            If `labels` is "inferred", it should contain
+            subdirectories, each containing text files for a class.
+            Otherwise, the directory structure is ignored.
+        labels: Either "inferred"
+            (labels are generated from the directory structure),
+            None (no labels),
+            or a list/tuple of integer labels of the same size as the number of
+            text files found in the directory. Labels should be sorted according
+            to the alphanumeric order of the text file paths
+            (obtained via `os.walk(directory)` in Python).
+        label_mode: String describing the encoding of `labels`. Options are:
+            - 'int': means that the labels are encoded as integers
+                (e.g. for `sparse_categorical_crossentropy` loss).
+            - 'categorical' means that the labels are
+                encoded as a categorical vector
+                (e.g. for `categorical_crossentropy` loss).
+            - 'binary' means that the labels (there can be only 2)
+                are encoded as `float32` scalars with values 0 or 1
+                (e.g. for `binary_crossentropy`).
+            - None (no labels).
+        class_names: Only valid if "labels" is "inferred". This is the explicit
+            list of class names (must match names of subdirectories). Used
+            to control the order of the classes
+            (otherwise alphanumerical order is used).
+        batch_size: Size of the batches of data. Default: 32.
+            If `None`, the data will not be batched
+            (the dataset will yield individual samples).
+        max_length: Maximum size of a text string. Texts longer than this will
+            be truncated to `max_length`.
+        shuffle: Whether to shuffle the data. Default: True.
+            If set to False, sorts the data in alphanumeric order.
+        seed: Optional random seed for shuffling and transformations.
+        validation_split: Optional float between 0 and 1,
+            fraction of data to reserve for validation.
+        subset: Subset of the data to return.
+            One of "training", "validation" or "both".
+            Only used if `validation_split` is set.
+            When `subset="both"`, the utility returns a tuple of two datasets
+            (the training and validation datasets respectively).
+        follow_links: Whether to visits subdirectories pointed to by symlinks.
+            Defaults to False.
 
     Returns:
-      A `tf.data.Dataset` object.
+        A `tf.data.Dataset` object.
         - If `label_mode` is None, it yields `string` tensors of shape
           `(batch_size,)`, containing the contents of a batch of text files.
         - Otherwise, it yields a tuple `(texts, labels)`, where `texts`
@@ -115,13 +115,13 @@ def text_dataset_from_directory(
           below.
 
     Rules regarding labels format:
-      - if `label_mode` is `int`, the labels are an `int32` tensor of shape
-        `(batch_size,)`.
-      - if `label_mode` is `binary`, the labels are a `float32` tensor of
-        1s and 0s of shape `(batch_size, 1)`.
-      - if `label_mode` is `categorical`, the labels are a `float32` tensor
-        of shape `(batch_size, num_classes)`, representing a one-hot
-        encoding of the class index.
+        - if `label_mode` is `int`, the labels are an `int32` tensor of shape
+          `(batch_size,)`.
+        - if `label_mode` is `binary`, the labels are a `float32` tensor of
+          1s and 0s of shape `(batch_size, 1)`.
+        - if `label_mode` is `categorical`, the labels are a `float32` tensor
+          of shape `(batch_size, num_classes)`, representing a one-hot
+          encoding of the class index.
     """
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
