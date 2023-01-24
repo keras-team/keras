@@ -481,7 +481,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/testing_infra:test_combinations",
     ],
 )
 

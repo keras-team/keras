@@ -58,7 +58,6 @@ from keras.utils.layer_utils import get_source_inputs
 # Deprecated
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
-from keras.utils.np_utils import to_ordinal
 from keras.utils.data_utils import pad_sequences
 
 # Evaluation related

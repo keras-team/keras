@@ -153,10 +153,6 @@ tf_module {
     argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
   }
   member_method {
-    name: "to_ordinal"
-    argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
-  }
-  member_method {
     name: "unpack_x_y_sample_weight"
     argspec: "args=[\'data\'], varargs=None, keywords=None, defaults=None"
   }
