@@ -1020,6 +1020,20 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(output1, output3)
         self.assertNotAllClose(output1, output2)
 
+    def test_trainable_parameter_argument(self):
+        inp = keras.layers.Input([None, 3])
+        rnn = keras.layers.SimpleRNN(units=3)
+        bid = keras.layers.Bidirectional(rnn)
+        model = keras.Model(inp, bid(inp))
+
+        clone_trainable = keras.models.clone_model(model)
+        assert clone_trainable.get_config() == model.get_config()
+
+        bid.trainable = False
+
+        clone_untrainable = keras.models.clone_model(model)
+        assert clone_untrainable.get_config() == model.get_config()
+
 
 def _to_list(ls):
     if isinstance(ls, list):
