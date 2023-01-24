@@ -445,9 +445,23 @@ class Bidirectional(Wrapper):
             return [output] + states
         return output
 
-    def reset_states(self):
-        self.forward_layer.reset_states()
-        self.backward_layer.reset_states()
+    def reset_states(self, states=None):
+        if not self.stateful:
+            raise AttributeError("Layer must be stateful.")
+
+        if states is None:
+            self.forward_layer.reset_states()
+            self.backward_layer.reset_states()
+        else:
+            if not isinstance(states, (list, tuple)):
+                raise ValueError("Unrecognized value for `states`. "
+                f"Received: {states}"
+                "Expected `states` to be list or tuple"
+            )
+
+            half = len(states) // 2
+            self.forward_layer.reset_states(states[:half])
+            self.backward_layer.reset_states(states[half:])
 
     def build(self, input_shape):
         with backend.name_scope(self.forward_layer.name):

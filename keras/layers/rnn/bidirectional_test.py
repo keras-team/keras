@@ -1020,6 +1020,37 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(output1, output3)
         self.assertNotAllClose(output1, output2)
 
+    def test_reset_states(self):
+        ref_state = np.random.rand(1, 3).astype(np.float32)
+
+        # build model
+        inp = keras.Input(batch_shape=[1, 2, 3])
+
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+
+        bid_stateless = keras.layers.Bidirectional(stateless)
+        bid_stateful = keras.layers.Bidirectional(stateful)
+
+        model = keras.Model(inp, [
+            bid_stateless(inp),
+            bid_stateful(inp),
+        ])
+
+        try:
+            bid_stateless.reset_states()
+            assert False, "Expected AttributeError"
+        except AttributeError:
+            pass
+
+        try:
+            bid_stateless.reset_states([])
+            assert False, "Expected AttributeError"
+        except AttributeError:
+            pass
+        
+        bid_stateful.reset_states()
+        bid_stateful.reset_states([ref_state, ref_state])
 
 def _to_list(ls):
     if isinstance(ls, list):
