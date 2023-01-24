@@ -1413,6 +1413,15 @@ class LSTMLayerTest(test_combinations.TestCase):
 
         self.assertAllClose(out7, out6, atol=1e-5)
 
+    def test_cloned_weight_names(self):
+        inp = keras.Input([None, 3])
+        rnn = keras.layers.LSTM(units=3)
+        model = keras.Model(inp, rnn(inp))
+        clone = keras.models.clone_model(model)
+        assert len(model.weights) == len(clone.weights)
+        for a, b in zip(model.weights, clone.weights):
+            assert a.name == b.name
+
 
 if __name__ == "__main__":
     tf.test.main()
