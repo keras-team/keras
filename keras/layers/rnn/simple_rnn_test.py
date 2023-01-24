@@ -245,7 +245,6 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
         clone = keras.models.clone_model(model)
         assert len(model.weights) == len(clone.weights)
         for a, b in zip(model.weights, clone.weights):
-            print(a.name, b.name)
             assert a.name == b.name
 
 if __name__ == "__main__":
