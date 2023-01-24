@@ -2390,6 +2390,75 @@ class TrainingTest(test_combinations.TestCase):
         self.assertEqual(input_specs[1].shape.as_list(), [2, 2])
         self.assertEqual(input_specs[2].shape.as_list(), [3, 3])
 
+    def test_states(self):
+        inp = keras.Input(batch_shape=[1, 2, 3])
+        
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+
+        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
+        states = model.states
+        assert len(states) == len(stateful.states)
+        for a, b in zip(states, stateful.states):
+            assert a is b
+
+    def test_states(self):
+        inp = keras.Input(batch_shape=[1, 2, 3])
+        
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+
+        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
+        states = model.states
+        states_ = stateful.states
+        assert len(states) == len(states_)
+        for a, b in zip(states, states_):
+            assert a is b
+
+    def test_get_states(self):
+        inp = keras.Input(batch_shape=[1, 2, 3])
+        
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+
+        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
+        states = model.get_states()
+        states_ = stateful.get_states()
+        assert len(states) == len(states_)
+        for a, b in zip(states, states_):
+            assert isinstance(a, np.ndarray)
+            assert isinstance(b, np.ndarray)
+            assert (a == b).all()
+
+    def test_reset_states(self):
+        ref_states = [np.random.rand(1, 3).astype(np.float32)]
+
+        inp = keras.Input(batch_shape=[1, 2, 3])
+        
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+
+        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
+        # test zero init
+        model.reset_states()
+        states = model.get_states()
+        assert len(states) == len(ref_states)       
+        for a in states:
+            assert isinstance(a, np.ndarray)
+            assert (a == 0).all() # init as 0
+
+        # test random init
+        model.reset_states(ref_states)
+        states = model.get_states()
+        assert len(states) == len(ref_states) 
+        for a, b in zip(model.get_states(), ref_states):
+            assert isinstance(a, np.ndarray)
+            assert isinstance(b, np.ndarray)
+            assert (a == b).all()
 
 class TestExceptionsAndWarnings(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)

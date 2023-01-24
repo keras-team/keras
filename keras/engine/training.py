@@ -3130,12 +3130,34 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "arbitrary code execution. Please use `model.to_json()` instead."
         )
 
-    def reset_states(self):
+    def reset_states(self, states=None):
+        """Reset the recorded states for the stateful RNN layers.
+
+        Can only be used when RNN layers are constructed with `stateful` =
+        `True`.
+        Args:
+          states: Numpy arrays that contains the value for the initial state,
+            which will be feed to cell at the first time step. When the value is
+            None, zero filled numpy array will be created based on the cell
+            state size.
+
+        Raises:
+          AttributeError: When the RNN layer is not stateful. ValueError: When
+          the batch size of the RNN layer is unknown. ValueError: When the input
+          numpy array is not compatible with the RNN
+            layer state, either size wise or dtype wise.
+        """
+        if states is not None and not isinstance(states, (list, tuple)):
+            raise ValueError(f'Expected states to be None, list or tuple but is {type(states)}')
+        
+        start = 0
         for layer in self.layers:
             if hasattr(layer, "reset_states") and getattr(
                 layer, "stateful", False
             ):
-                layer.reset_states()
+                end = start + len(layer.states)
+                layer.reset_states(None if states is None else states[start:end])
+                start = end
 
     @property
     @doc_controls.do_not_generate_docs
@@ -3731,40 +3753,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             if getattr(l, 'stateful', False):
                 states += l.states
         return self._dedup_weights(states)
-
-    def reset_state(self, states=None):
-        """Reset the recorded states for the stateful RNN layers.
-
-        Can only be used when RNN layers are constructed with `stateful` =
-        `True`.
-        Args:
-          states: Numpy arrays that contains the value for the initial state,
-            which will be feed to cell at the first time step. When the value is
-            None, zero filled numpy array will be created based on the cell
-            state size.
-
-        Raises:
-          AttributeError: When the RNN layer is not stateful. ValueError: When
-          the batch size of the RNN layer is unknown. ValueError: When the input
-          numpy array is not compatible with the RNN
-            layer state, either size wise or dtype wise.
-        """
-        if states is not None and not isinstance(states, (list, tuple)):
-            raise ValueError(f'Expected states to be None, list or tuple but is {type(states)}')
-
-        # needs to be recursive, as Bidirectional don't have stateful argument
-        layers = self._flatten_layers(include_self=False, recursive=True)
-        if states is None:
-            for l in layers:
-                if getattr(l, 'stateful', False):
-                    l.reset_state()
-        else:
-            start = 0
-            for l in layers:
-                if getattr(l, 'stateful', False):
-                    end = start + len(l.states)
-                    l.reset_state(states[start:end])
-                    start = end
 
     def get_states(self):
         """Retrieves the RNN states of the model.

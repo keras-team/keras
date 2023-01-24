@@ -1995,13 +1995,14 @@ class RNNTest(test_combinations.TestCase):
         inp = keras.Input(batch_shape=[1, 2, 3])
         
         stateless = keras.layers.SimpleRNN(units=3, stateful=False)
-        stateless_model = keras.Model(inp, stateless(inp))
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+		
+        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
         states = stateless.get_states()
         assert isinstance(states, list)
         assert len(states) == 0
 
-        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
-        stateful_model = keras.Model(inp, stateful(inp))
         states = stateful.get_states()
         assert isinstance(states, list)
         assert len(states)
