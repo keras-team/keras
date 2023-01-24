@@ -16,38 +16,68 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
+from keras.testing_infra import test_combinations
 from keras.utils import np_utils
 
+NUM_CLASSES = 5
 
-class TestNPUtils(tf.test.TestCase):
-    def test_to_categorical(self):
-        num_classes = 5
-        shapes = [(1,), (3,), (4, 3), (5, 4, 3), (3, 1), (3, 2, 1)]
-        expected_shapes = [
-            (1, num_classes),
-            (3, num_classes),
-            (4, 3, num_classes),
-            (5, 4, 3, num_classes),
-            (3, num_classes),
-            (3, 2, num_classes),
-        ]
-        labels = [np.random.randint(0, num_classes, shape) for shape in shapes]
-        one_hots = [
-            np_utils.to_categorical(label, num_classes) for label in labels
-        ]
-        for label, one_hot, expected_shape in zip(
-            labels, one_hots, expected_shapes
-        ):
-            # Check shape
-            self.assertEqual(one_hot.shape, expected_shape)
-            # Make sure there is only one 1 in a row
-            self.assertTrue(np.all(one_hot.sum(axis=-1) == 1))
-            # Get original labels back from one hots
-            self.assertTrue(
-                np.all(np.argmax(one_hot, -1).reshape(label.shape) == label)
-            )
 
+class TestNPUtils(test_combinations.TestCase):
+    @parameterized.parameters(
+        [
+            ((1,), (1, NUM_CLASSES)),
+            ((3,), (3, NUM_CLASSES)),
+            ((4, 3), (4, 3, NUM_CLASSES)),
+            ((5, 4, 3), (5, 4, 3, NUM_CLASSES)),
+            ((3, 1), (3, NUM_CLASSES)),
+            ((3, 2, 1), (3, 2, NUM_CLASSES)),
+        ]
+    )
+    def test_to_categorical(self, shape, expected_shape):
+        label = np.random.randint(0, NUM_CLASSES, shape)
+        one_hot = np_utils.to_categorical(label, NUM_CLASSES)
+        # Check shape
+        self.assertEqual(one_hot.shape, expected_shape)
+        # Make sure there is only one 1 in a row
+        self.assertTrue(np.all(one_hot.sum(axis=-1) == 1))
+        # Get original labels back from one hots
+        self.assertTrue(
+            np.all(np.argmax(one_hot, -1).reshape(label.shape) == label)
+        )
+
+    def test_to_categorial_without_num_classes(self):
+        label = [0, 2, 5]
+        one_hot = np_utils.to_categorical(label)
+        self.assertEqual(one_hot.shape, (3, 5 + 1))
+
+    @parameterized.parameters(
+        [
+            ((1,), (1, NUM_CLASSES - 1)),
+            ((3,), (3, NUM_CLASSES - 1)),
+            ((4, 3), (4, 3, NUM_CLASSES - 1)),
+            ((5, 4, 3), (5, 4, 3, NUM_CLASSES - 1)),
+            ((3, 1), (3, NUM_CLASSES - 1)),
+            ((3, 2, 1), (3, 2, NUM_CLASSES - 1)),
+        ]
+    )
+    def test_to_ordinal(self, shape, expected_shape):
+        label = np.random.randint(0, NUM_CLASSES, shape)
+        ordinal = np_utils.to_ordinal(label, NUM_CLASSES)
+        # Check shape
+        self.assertEqual(ordinal.shape, expected_shape)
+        # Make sure all the values are either 0 or 1
+        self.assertTrue(np.all(np.logical_or(ordinal == 0, ordinal == 1)))
+        # Get original labels back from ordinal matrix
+        self.assertTrue(
+            np.all(ordinal.cumprod(-1).sum(-1).reshape(label.shape) == label)
+        )
+
+    def test_to_ordinal_without_num_classes(self):
+        label = [0, 2, 5]
+        one_hot = np_utils.to_ordinal(label)
+        self.assertEqual(one_hot.shape, (3, 5))
 
 if __name__ == "__main__":
     tf.test.main()
