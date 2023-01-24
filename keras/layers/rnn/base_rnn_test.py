@@ -1991,6 +1991,22 @@ class RNNTest(test_combinations.TestCase):
         config = cell.get_config()
         self.assertEqual(config["enable_caching_device"], non_default_value)
 
+    def test_get_states(self):
+        inp = keras.Input(batch_shape=[1, 2, 3])
+        
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+        stateless_model = keras.Model(inp, stateless(inp))
+        states = stateless.get_states()
+        assert isinstance(states, list)
+        assert len(states) == 0
+
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+        stateful_model = keras.Model(inp, stateful(inp))
+        states = stateful.get_states()
+        assert isinstance(states, list)
+        assert len(states)
+        for state in states:
+            assert isinstance(state, np.ndarray)
 
 class RNNCellWithConstants(keras.layers.Layer):
     def __init__(self, units, constant_size, **kwargs):
