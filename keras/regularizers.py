@@ -20,6 +20,7 @@ import math
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
@@ -417,16 +418,25 @@ orthogonal_regularizer = OrthogonalRegularizer
 
 
 @keras_export("keras.regularizers.serialize")
-def serialize(regularizer):
+def serialize(regularizer, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(regularizer)
     return serialize_keras_object(regularizer)
 
 
 @keras_export("keras.regularizers.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
     if config == "l1_l2":
         # Special case necessary since the defaults used for "l1_l2" (string)
         # differ from those of the L1L2 class.
         return L1L2(l1=0.01, l2=0.01)
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=globals(),
+            custom_objects=custom_objects,
+            printable_module_name="regularizer",
+        )
     return deserialize_keras_object(
         config,
         module_objects=globals(),
@@ -441,7 +451,8 @@ def get(identifier):
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
         return deserialize(str(identifier))
     elif callable(identifier):

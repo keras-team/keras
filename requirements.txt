@@ -4,6 +4,7 @@ pandas
 pydot
 scipy ~= 1.7.2
 tf-nightly
+tb-nightly==2.12.0a20230119    # Remove this once b/266221964 is resolved
 portpicker
 pyyaml
 Pillow

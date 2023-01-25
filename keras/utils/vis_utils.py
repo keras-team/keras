@@ -212,6 +212,7 @@ def model_to_dot(
                     rankdir,
                     expand_nested,
                     subgraph=True,
+                    show_layer_activations=show_layer_activations,
                     show_trainable=show_trainable,
                 )
                 # sub_w : submodel_wrapper
@@ -233,6 +234,7 @@ def model_to_dot(
                 rankdir,
                 expand_nested,
                 subgraph=True,
+                show_layer_activations=show_layer_activations,
                 show_trainable=show_trainable,
             )
             # sub_n : submodel_not_wrapper

@@ -56,12 +56,12 @@ def _build_attention_equation(rank, attn_axes):
     dims>, <query attention dims>, num_heads, channels)`
 
     Args:
-      rank: Rank of query, key, value tensors.
-      attn_axes: List/tuple of axes, `[-1, rank)`,
-        that attention will be applied to.
+        rank: Rank of query, key, value tensors.
+        attn_axes: List/tuple of axes, `[-1, rank)`,
+            that attention will be applied to.
 
     Returns:
-      Einsum equations.
+        Einsum equations.
     """
     target_notation = _CHR_IDX[:rank]
     # `batch_dims` includes the head dim.
@@ -181,52 +181,54 @@ class MultiHeadAttention(Layer):
     (None, 5, 3, 4, 16)
 
     Args:
-      num_heads: Number of attention heads.
-      key_dim: Size of each attention head for query and key.
-      value_dim: Size of each attention head for value.
-      dropout: Dropout probability.
-      use_bias: Boolean, whether the dense layers use bias vectors/matrices.
-      output_shape: The expected shape of an output tensor, besides the batch
-        and sequence dims. If not specified, projects back to the query feature
-        dim (the query input's last dimension).
-      attention_axes: axes over which the attention is applied. `None` means
-        attention over all axes, but batch, heads, and features.
-      kernel_initializer: Initializer for dense layer kernels.
-      bias_initializer: Initializer for dense layer biases.
-      kernel_regularizer: Regularizer for dense layer kernels.
-      bias_regularizer: Regularizer for dense layer biases.
-      activity_regularizer: Regularizer for dense layer activity.
-      kernel_constraint: Constraint for dense layer kernels.
-      bias_constraint: Constraint for dense layer kernels.
+        num_heads: Number of attention heads.
+        key_dim: Size of each attention head for query and key.
+        value_dim: Size of each attention head for value.
+        dropout: Dropout probability.
+        use_bias: Boolean, whether the dense layers use bias vectors/matrices.
+        output_shape: The expected shape of an output tensor, besides the batch
+            and sequence dims. If not specified, projects back to the query feature
+            dim (the query input's last dimension).
+        attention_axes: axes over which the attention is applied. `None` means
+            attention over all axes, but batch, heads, and features.
+        kernel_initializer: Initializer for dense layer kernels.
+        bias_initializer: Initializer for dense layer biases.
+        kernel_regularizer: Regularizer for dense layer kernels.
+        bias_regularizer: Regularizer for dense layer biases.
+        activity_regularizer: Regularizer for dense layer activity.
+        kernel_constraint: Constraint for dense layer kernels.
+        bias_constraint: Constraint for dense layer kernels.
 
     Call arguments:
-      query: Query `Tensor` of shape `(B, T, dim)`.
-      value: Value `Tensor` of shape `(B, S, dim)`.
-      key: Optional key `Tensor` of shape `(B, S, dim)`. If not given, will use
-        `value` for both `key` and `value`, which is the most common case.
-      attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
-        attention to certain positions. The boolean mask specifies which query
-        elements can attend to which key elements, 1 indicates attention and 0
-        indicates no attention. Broadcasting can happen for the missing batch
-        dimensions and the head dimension.
-      return_attention_scores: A boolean to indicate whether the output should
-        be `(attention_output, attention_scores)` if `True`, or
-        `attention_output` if `False`. Defaults to `False`.
-      training: Python boolean indicating whether the layer should behave in
-        training mode (adding dropout) or in inference mode (no dropout).
-        Defaults to either using the training mode of the parent layer/model,
-        or False (inference) if there is no parent layer.
-      use_causal_mask: A boolean to indicate whether to apply a causal mask to
-        prevent tokens from attending to future tokens (e.g., used in a decoder
-        Transformer).
+        query: Query `Tensor` of shape `(B, T, dim)`.
+        value: Value `Tensor` of shape `(B, S, dim)`.
+        key: Optional key `Tensor` of shape `(B, S, dim)`. If not given, will
+            use `value` for both `key` and `value`, which is the most common
+            case.
+        attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
+            attention to certain positions. The boolean mask specifies which
+            query elements can attend to which key elements, 1 indicates
+            attention and 0 indicates no attention. Broadcasting can happen for
+            the missing batch dimensions and the head dimension.
+        return_attention_scores: A boolean to indicate whether the output should
+            be `(attention_output, attention_scores)` if `True`, or
+            `attention_output` if `False`. Defaults to `False`.
+        training: Python boolean indicating whether the layer should behave in
+            training mode (adding dropout) or in inference mode (no dropout).
+            Defaults to either using the training mode of the parent
+            layer/model, or False (inference) if there is no parent layer.
+        use_causal_mask: A boolean to indicate whether to apply a causal mask to
+            prevent tokens from attending to future tokens (e.g., used in a
+            decoder Transformer).
 
     Returns:
-      attention_output: The result of the computation, of shape `(B, T, E)`,
-        where `T` is for target sequence shapes and `E` is the query input last
-        dimension if `output_shape` is `None`. Otherwise, the multi-head outputs
-        are projected to the shape specified by `output_shape`.
-      attention_scores: [Optional] multi-head attention coefficients over
-        attention axes.
+        attention_output: The result of the computation, of shape `(B, T, E)`,
+            where `T` is for target sequence shapes and `E` is the query input
+            last dimension if `output_shape` is `None`. Otherwise, the
+            multi-head outputs are projected to the shape specified by
+            `output_shape`.
+        attention_scores: [Optional] multi-head attention coefficients over
+            attention axes.
     """
 
     def __init__(
@@ -326,9 +328,9 @@ class MultiHeadAttention(Layer):
         True.
 
         Args:
-          query: Query tensor or TensorShape.
-          value: Value tensor or TensorShape.
-          key: Key tensor or TensorShape.
+            query: Query tensor or TensorShape.
+            value: Value tensor or TensorShape.
+            key: Key tensor or TensorShape.
         """
         self._built_from_signature = True
         if hasattr(query, "shape"):
@@ -423,12 +425,12 @@ class MultiHeadAttention(Layer):
         """Builds the output projection matrix.
 
         Args:
-          free_dims: Number of free dimensions for einsum equation building.
-          common_kwargs: Common keyword arguments for einsum layer.
-          name: Name for the projection layer.
+            free_dims: Number of free dimensions for einsum equation building.
+            common_kwargs: Common keyword arguments for einsum layer.
+            name: Name for the projection layer.
 
         Returns:
-          Projection layer.
+            Projection layer.
         """
         if self._output_shape:
             if not isinstance(self._output_shape, collections.abc.Sized):
@@ -456,7 +458,7 @@ class MultiHeadAttention(Layer):
         attention.
 
         Args:
-          rank: the rank of query, key, value tensors.
+            rank: the rank of query, key, value tensors.
         """
         if self._attention_axes is None:
             self._attention_axes = tuple(range(1, rank - 2))
@@ -501,14 +503,15 @@ class MultiHeadAttention(Layer):
         customized attention implementation.
 
         Args:
-          query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
-          key: Projected key `Tensor` of shape `(B, S, N, key_dim)`.
-          value: Projected value `Tensor` of shape `(B, S, N, value_dim)`.
-          attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
-            attention to certain positions. It is generally not needed if the
-            `query` and `value` (and/or `key`) are masked.
-          training: Python boolean indicating whether the layer should behave in
-            training mode (adding dropout) or in inference mode (doing nothing).
+            query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
+            key: Projected key `Tensor` of shape `(B, S, N, key_dim)`.
+            value: Projected value `Tensor` of shape `(B, S, N, value_dim)`.
+            attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
+                attention to certain positions. It is generally not needed if
+                the `query` and `value` (and/or `key`) are masked.
+            training: Python boolean indicating whether the layer should behave
+                in training mode (adding dropout) or in inference mode (doing
+                nothing).
 
         Returns:
           attention_output: Multi-headed outputs of attention computation.
@@ -624,20 +627,20 @@ class MultiHeadAttention(Layer):
         to define the `attention_mask`.
 
         Args:
-          query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
-          key: Projected key `Tensor` of shape `(B, T, N, key_dim)`.
-          value: Projected value `Tensor` of shape `(B, T, N, value_dim)`.
-          attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
-            attention to certain positions.
-          use_causal_mask: A boolean to indicate whether to apply a causal mask
-            to prevent tokens from attending to future tokens (e.g., used in a
-            decoder Transformer).
+            query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
+            key: Projected key `Tensor` of shape `(B, T, N, key_dim)`.
+            value: Projected value `Tensor` of shape `(B, T, N, value_dim)`.
+            attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
+                attention to certain positions.
+            use_causal_mask: A boolean to indicate whether to apply a causal
+                mask to prevent tokens from attending to future tokens (e.g.,
+                used in a decoder Transformer).
 
         Returns:
-          attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
-            attention to certain positions, based on the Keras masks of the
-            `query`, `key`, `value`, and `attention_mask` tensors, and the
-            causal mask if `use_causal_mask=True`.
+            attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
+                attention to certain positions, based on the Keras masks of the
+                `query`, `key`, `value`, and `attention_mask` tensors, and the
+                causal mask if `use_causal_mask=True`.
         """
         query_mask = getattr(query, "_keras_mask", None)
         value_mask = getattr(value, "_keras_mask", None)
@@ -682,13 +685,14 @@ class MultiHeadAttention(Layer):
           [True,  True,  True,  False],
           [True,  True,  True,  True]]]
         ```
+
         Args:
-          query: query `Tensor` of shape `(B, T, ...)`.
-          value: value `Tensor` of shape `(B, S, ...)` (optional, defaults to
-          query).
+            query: query `Tensor` of shape `(B, T, ...)`.
+            value: value `Tensor` of shape `(B, S, ...)` (optional, defaults to
+                query).
 
         Returns:
-          mask: a boolean `Tensor` of shape [1, T, S] containing a lower
+            mask: a boolean `Tensor` of shape [1, T, S] containing a lower
                 triangular matrix of shape [T, S].
         """
         q_seq_length = tf.shape(query)[1]

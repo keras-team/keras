@@ -1352,6 +1352,8 @@ class RevivedNetwork(RevivedLayer):
                 revived_obj.activity_regularizer = regularizers.deserialize(
                     metadata["activity_regularizer"]
                 )
+            if metadata.get("autocast") is not None:
+                revived_obj._autocast = metadata["autocast"]
 
         return revived_obj, _revive_setter
 

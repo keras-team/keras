@@ -24,6 +24,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.saving import saving_lib
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 from keras.utils import losses_utils
@@ -2568,7 +2569,7 @@ def is_categorical_crossentropy(loss):
 
 
 @keras_export("keras.losses.serialize")
-def serialize(loss):
+def serialize(loss, use_legacy_format=False):
     """Serializes loss function or `Loss` instance.
 
     Args:
@@ -2577,11 +2578,13 @@ def serialize(loss):
     Returns:
       Loss configuration dictionary.
     """
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(loss)
     return serialize_keras_object(loss)
 
 
 @keras_export("keras.losses.deserialize")
-def deserialize(name, custom_objects=None):
+def deserialize(name, custom_objects=None, use_legacy_format=False):
     """Deserializes a serialized loss class/function instance.
 
     Args:
@@ -2593,6 +2596,13 @@ def deserialize(name, custom_objects=None):
     Returns:
         A Keras `Loss` instance or a loss function.
     """
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            name,
+            module_objects=globals(),
+            custom_objects=custom_objects,
+            printable_module_name="loss function",
+        )
     return deserialize_keras_object(
         name,
         module_objects=globals(),
@@ -2639,7 +2649,8 @@ def get(identifier):
         return None
     if isinstance(identifier, str):
         identifier = str(identifier)
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     if isinstance(identifier, dict):
         return deserialize(identifier)
     if callable(identifier):
