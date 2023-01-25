@@ -987,9 +987,11 @@ class GRULayerTest(test_combinations.TestCase):
         rnn = keras.layers.GRU(units=3)
         model = keras.Model(inp, rnn(inp))
         clone = keras.models.clone_model(model)
-        assert len(model.weights) == len(clone.weights)
-        for a, b in zip(model.weights, clone.weights):
-            assert a.name == b.name
+
+        model_names = [x.name for x in model.weights]
+        clone_names = [x.name for x in clone.weights]
+        self.assertEqual(model_names, clone_names)
+
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class GRULayerGenericTest(tf.test.TestCase):
