@@ -146,6 +146,7 @@ class Bidirectional(Wrapper):
             )
         else:
             self.backward_layer = backward_layer
+
             # Keep the custom backward layer config, so that we can save it
             # later. The layer's name might be updated below with prefix
             # 'backward_', and we want to preserve the original config.
@@ -175,7 +176,7 @@ class Bidirectional(Wrapper):
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
         self.supports_masking = True
-        self._trainable = kwargs.get('trainable', True)
+        self._trainable = kwargs.get("trainable", layer.trainable)
         self._num_constants = 0
         self.input_spec = layer.input_spec
 

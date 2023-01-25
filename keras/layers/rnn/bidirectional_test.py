@@ -1022,17 +1022,44 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_trainable_parameter_argument(self):
         inp = keras.layers.Input([None, 3])
-        rnn = keras.layers.SimpleRNN(units=3)
-        bid = keras.layers.Bidirectional(rnn)
-        model = keras.Model(inp, bid(inp))
 
-        clone_trainable = keras.models.clone_model(model)
-        assert clone_trainable.get_config() == model.get_config()
+        def test(fwd, bwd, **kwargs):
+            bid = keras.layers.Bidirectional(fwd, backward_layer=bwd, **kwargs)
 
-        bid.trainable = False
+            model = keras.Model(inp, bid(inp))
 
-        clone_untrainable = keras.models.clone_model(model)
-        assert clone_untrainable.get_config() == model.get_config()
+            clone = keras.models.clone_model(model)
+            self.assertEqual(clone.get_config(), model.get_config())
+
+        # test fetching trainable from `layer`
+        fwd = keras.layers.SimpleRNN(units=3)
+        bwd = keras.layers.SimpleRNN(units=3, go_backwards=True)
+
+        fwd.trainable = True
+        test(fwd, None)
+
+        fwd.trainable = False
+        test(fwd, None)
+
+        fwd.trainable = True
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = True
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        # test fetching trainable from `kwargs`
+        test(fwd, None, trainable=True)
+        test(fwd, None, trainable=False)
 
 
 def _to_list(ls):
