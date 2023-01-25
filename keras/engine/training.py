@@ -1842,6 +1842,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return self.compute_metrics(x, y, y_pred, sample_weight)
 
     def _make_test_function_exact(self):
+        if getattr(self, "_shard_test_function", None):
+            return self._shard_test_function
+
         def step_function(batch):
             def run_step(data):
                 # TODO(b/272050910): Use sample_weight for weighted metrics.
@@ -1886,11 +1889,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 shard_test_function, reduce_retracing=True
             )
 
-        self.test_function = lambda *args: self._cluster_coordinator.schedule(
-            shard_test_function,
-            args=args,
+        self._shard_test_function = (
+            lambda *args: self._cluster_coordinator.schedule(
+                shard_test_function,
+                args=args,
+            )
         )
-        return self.test_function
+        return self._shard_test_function
 
     def make_test_function(self, force=False):
         """Creates a function that executes one step of evaluation.
