@@ -8,4 +8,8 @@ tf_module {
     name: "legacy"
     mtype: "<type \'module\'>"
   }
+  member_method {
+    name: "enable_unsafe_deserialization"
+    argspec: "args=[], varargs=None, keywords=None, defaults=None"
+  }
 }
