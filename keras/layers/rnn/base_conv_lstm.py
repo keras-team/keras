@@ -489,7 +489,7 @@ class ConvLSTM(ConvRNN):
             bias_constraint=bias_constraint,
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
-            name="lstm_cell",
+            name="conv_lstm_cell",
             dtype=kwargs.get("dtype"),
         )
         super().__init__(
