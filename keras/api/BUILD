@@ -159,6 +159,8 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        "//third_party/tensorflow/lite/python:analyzer",
+        "//third_party/tensorflow/lite/python:lite",
     ],
     packages = keras_packages,
 )
