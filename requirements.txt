@@ -9,7 +9,7 @@ portpicker
 pyyaml
 Pillow
 # TF uses a different NumPy version for Python 3.10 and lower; b/262592253
-numpy ~= 1.21.4; python_version < '3.11'
+numpy ~= 1.22.0; python_version < '3.11'
 numpy ~= 1.23.2; python_version >= '3.11' # Sync with the numpy version used in TF
 black==22.3.0
 isort==5.10.1
