@@ -269,7 +269,7 @@ class GRU(RNN):
             reset_after=reset_after,
             dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
-			name='gru_cell',
+            name="gru_cell",
             **cell_kwargs
         )
         super().__init__(
