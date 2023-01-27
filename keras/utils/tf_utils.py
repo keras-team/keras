@@ -31,6 +31,7 @@ from keras.utils import tf_contextlib
 # isort: off
 from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python import pywrap_tfe
 
 
 @keras_export("keras.utils.set_random_seed", v1=[])
@@ -696,8 +697,15 @@ def can_jit_compile(warn=False):
     if platform.system() == "Darwin" and "arm" in platform.processor().lower():
         if warn:
             logging.warning(
-                "Tensorflow is not compiled with XLA on Mac M1 Arm processors, "
-                "so cannot set `jit_compile` to True."
+                "XLA (`jit_compile`) is not yet supported on Apple M1/M2 ARM "
+                "processors. Falling back to `jit_compile=False`."
+            )
+        return False
+    if pywrap_tfe.TF_ListPluggablePhysicalDevices():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not supported on your system. "
+                "Falling back to `jit_compile=False`."
             )
         return False
     return True
