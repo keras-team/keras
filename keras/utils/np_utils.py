@@ -81,6 +81,10 @@ def to_categorical(y, num_classes=None, dtype="float32"):
 def to_ordinal(y, num_classes=None, dtype="float32"):
     """Converts a class vector (integers) to an ordinal regression matrix.
 
+    This utility encodes class vector to ordinal regression/classification
+    matrix where each sample is indicated by a row and rank of that sample is
+    indicated by number of ones in that row.
+
     Args:
         y: Array-like with class values to be converted into a matrix
             (integers from 0 to `num_classes - 1`).
