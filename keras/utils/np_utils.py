@@ -79,8 +79,7 @@ def to_categorical(y, num_classes=None, dtype="float32"):
 
 @keras_export("keras.utils.to_ordinal")
 def to_ordinal(y, num_classes=None, dtype="float32"):
-    """Converts a class vector (integers) to an ordinal class matrix for ordinal
-        regression/classification.
+    """Converts a class vector (integers) to an ordinal regression matrix.
 
     Args:
         y: Array-like with class values to be converted into a matrix
