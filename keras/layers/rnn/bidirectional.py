@@ -454,10 +454,11 @@ class Bidirectional(Wrapper):
             self.backward_layer.reset_states()
         else:
             if not isinstance(states, (list, tuple)):
-                raise ValueError("Unrecognized value for `states`. "
-                f"Received: {states}"
-                "Expected `states` to be list or tuple"
-            )
+                raise ValueError(
+                    "Unrecognized value for `states`. "
+                    f"Received: {states}"
+                    "Expected `states` to be list or tuple"
+                )
 
             half = len(states) // 2
             self.forward_layer.reset_states(states[:half])

@@ -1032,25 +1032,45 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         bid_stateless = keras.layers.Bidirectional(stateless)
         bid_stateful = keras.layers.Bidirectional(stateful)
 
-        model = keras.Model(inp, [
-            bid_stateless(inp),
-            bid_stateful(inp),
-        ])
+        _ = keras.Model(
+            inp,
+            [
+                bid_stateless(inp),
+                bid_stateful(inp),
+            ],
+        )
 
-        try:
-            bid_stateless.reset_states()
-            assert False, "Expected AttributeError"
-        except AttributeError:
-            pass
+        self.assertRaisesRegex(
+            AttributeError,
+            "Layer must be stateful.",
+            bid_stateless.reset_states,
+        )
+        self.assertRaisesRegex(
+            AttributeError,
+            "Layer must be stateful.",
+            bid_stateless.reset_states,
+            [],
+        )
 
-        try:
-            bid_stateless.reset_states([])
-            assert False, "Expected AttributeError"
-        except AttributeError:
-            pass
-        
         bid_stateful.reset_states()
         bid_stateful.reset_states([ref_state, ref_state])
+
+        self.assertRaisesRegex(
+            ValueError,
+            "Unrecognized value for `states`. Received: {}Expected `states` "
+            "to be list or tuple",
+            bid_stateful.reset_states,
+            {},
+        )
+
+
+def test(states):
+    raise ValueError(
+        "Unrecognized value for `states`. "
+        f"Received: {states}"
+        "Expected `states` to be list or tuple"
+    )
+
 
 def _to_list(ls):
     if isinstance(ls, list):
