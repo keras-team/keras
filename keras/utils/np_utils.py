@@ -90,7 +90,7 @@ def to_ordinal(y, num_classes=None, dtype="float32"):
         dtype: The data type expected by the input. Default: `'float32'`.
 
     Returns:
-        A ordinal regression matrix representation of the input as a NumPy
+        An ordinal regression matrix representation of the input as a NumPy
         array. The class axis is placed last.
 
     Example:
