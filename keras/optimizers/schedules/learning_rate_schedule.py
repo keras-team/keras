@@ -641,6 +641,12 @@ class CosineDecay(LearningRateSchedule):
         self.decay_steps = decay_steps
         self.alpha = alpha
         self.name = name
+        
+        #validating decay_steps argument to raise error if passed
+        #negative values or zero or float values
+        if not isinstance(self.decay_steps,int) or self.decay_steps<=0:
+            raise ValueError("'decay_steps' should be a nonzero "+
+                             "positive integer")
 
     def __call__(self, step):
         with tf.name_scope(self.name or "CosineDecay"):
