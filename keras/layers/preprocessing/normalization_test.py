@@ -455,6 +455,42 @@ class NormalizationAdaptTest(
         # Validate correctness of the new model.
         new_output_data = loaded_model.predict(input_data)
         self.assertAllClose(new_output_data, expected_output)
+        
+    @parameterized.product(
+        save_format=["tf", "h5"],
+        adapt=[True, False],
+    )
+    def test_saved_model_keras_invert(self, save_format, adapt):
+        expected_output = [[0.0], [2.0], [0.0], [2.0]]
+        input_data = [[-1.0], [1.0], [-1.0], [1.0]]
+
+        cls = normalization.Normalization
+        cls.invert = True
+        inputs = keras.Input(shape=(1,), dtype=tf.float32)
+        if adapt:
+            layer = cls(axis=-1)
+            layer.adapt(expected_output)
+        else:
+            layer = cls(mean=1.0, variance=1.0)
+        outputs = layer(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
+
+        output_data = model.predict(input_data)
+        self.assertAllClose(output_data, expected_output)
+
+        # Save the model to disk.
+        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model_invert")
+        model.save(output_path, save_format=save_format)
+        loaded_model = keras.models.load_model(
+            output_path, custom_objects={"Normalization": cls}
+        )
+
+        # Ensure that the loaded model is unique (so that the save/load is real)
+        self.assertIsNot(model, loaded_model)
+
+        # Validate correctness of the new model.
+        new_output_data = loaded_model.predict(input_data)
+        self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.parameters(
         {"adapted": True},
