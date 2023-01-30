@@ -102,6 +102,29 @@ def is_generator_or_sequence(x):
     )
 
 
+def _resolve_path(path):
+    return os.path.realpath(os.path.abspath(path))
+
+
+def _is_path_in_dir(path, base_dir):
+    return _resolve_path(os.path.join(base_dir, path)).startswith(base_dir)
+
+
+def _is_link_in_dir(info, base):
+    tip = _resolve_path(os.path.join(base, os.path.dirname(info.name)))
+    return _is_path_in_dir(info.linkname, base_dir=tip)
+
+
+def _filter_safe_paths(members):
+    base_dir = _resolve_path(".")
+    for finfo in members:
+        if _is_path_in_dir(finfo.name, base_dir):
+            yield finfo
+        if finfo.issym() or finfo.islnk():
+            if _is_link_in_dir(finfo, base_dir):
+                yield finfo
+
+
 def _extract_archive(file_path, path=".", archive_format="auto"):
     """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
@@ -139,7 +162,14 @@ def _extract_archive(file_path, path=".", archive_format="auto"):
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
                 try:
-                    archive.extractall(path)
+                    if zipfile.is_zipfile(file_path):
+                        # Zip archive.
+                        archive.extractall(path)
+                    else:
+                        # Tar archive, perhaps unsafe. Filter paths.
+                        archive.extractall(
+                            path, members=_filter_safe_paths(archive)
+                        )
                 except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
