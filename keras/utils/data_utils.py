@@ -28,6 +28,7 @@ import threading
 import time
 import typing
 import urllib
+import warnings
 import weakref
 import zipfile
 from abc import abstractmethod
@@ -118,24 +119,32 @@ def _is_link_in_dir(info, base):
 def _filter_safe_paths(members):
     base_dir = _resolve_path(".")
     for finfo in members:
+        valid_path = False
         if _is_path_in_dir(finfo.name, base_dir):
+            valid_path = True
             yield finfo
-        if finfo.issym() or finfo.islnk():
+        elif finfo.issym() or finfo.islnk():
             if _is_link_in_dir(finfo, base_dir):
+                valid_path = True
                 yield finfo
+        if not valid_path:
+            warnings.warn(
+                "Skipping invalid path during archive extraction: "
+                f"'{finfo.name}'."
+            )
 
 
 def _extract_archive(file_path, path=".", archive_format="auto"):
     """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
     Args:
-        file_path: path to the archive file
-        path: path to extract the archive file
+        file_path: Path to the archive file.
+        path: Where to extract the archive file.
         archive_format: Archive format to try for extracting the file.
-            Options are 'auto', 'tar', 'zip', and None.
-            'tar' includes tar, tar.gz, and tar.bz files.
-            The default 'auto' is ['tar', 'zip'].
-            None or an empty list will return no matches found.
+            Options are `'auto'`, `'tar'`, `'zip'`, and `None`.
+            `'tar'` includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is `['tar', 'zip']`.
+            `None` or an empty list will return no matches found.
 
     Returns:
         True if a match was found and an archive extraction was completed,
@@ -209,9 +218,9 @@ def get_file(
 
     ```python
     path_to_downloaded_file = tf.keras.utils.get_file(
-        "flower_photos",
-        "https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
-        untar=True)
+        origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
+        extract=True,
+    )
     ```
 
     Args:
@@ -241,7 +250,7 @@ def get_file(
             defaults to the default directory `~/.keras/`.
 
     Returns:
-        Path to the downloaded file
+        Path to the downloaded file.
 
     **/!\ Warning on malicious downloads /!\ **
     Downloading something from the Internet carries a risk.
@@ -249,14 +258,6 @@ def get_file(
     We recommend that you specify the `file_hash` argument
     (if the hash of the source file is known) to make sure that the file you
     are getting is the one you expect.
-
-    **/!\ Warning on file extraction /!\**
-    Extracting a compressed archive carries a risk.
-    NEVER extract archives from untrusted sources without prior inspection.
-    If you set `extract=True`, and the archive is in `tar` format,
-    it is possible that files will be created outside of the target `cache_dir`,
-    e.g. archive members may have absolute filenames
-    starting with `"/"` or filenames with two dots, `".."`.
     """
     if origin is None:
         raise ValueError(
@@ -402,13 +403,13 @@ def _hash_file(fpath, algorithm="sha256", chunk_size=65535):
     ```
 
     Args:
-        fpath: path to the file being validated
-        algorithm: hash algorithm, one of `'auto'`, `'sha256'`, or `'md5'`.
+        fpath: Path to the file being validated.
+        algorithm: Hash algorithm, one of `'auto'`, `'sha256'`, or `'md5'`.
             The default `'auto'` detects the hash algorithm in use.
         chunk_size: Bytes to read at a time, important for large files.
 
     Returns:
-        The file hash
+        The file hash.
     """
     if isinstance(algorithm, str):
         hasher = _resolve_hasher(algorithm)
