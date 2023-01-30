@@ -15,6 +15,7 @@
 """Base class of optimizer."""
 
 import abc
+import platform
 import re
 
 import tensorflow.compat.v2 as tf
@@ -63,6 +64,16 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
             self.jit_compile = True
         else:
             self.jit_compile = False
+
+        if platform.system() == "Darwin" and platform.processor() == "arm":
+            logging.warning(
+                "At this time, the v2.11+ optimizer "
+                f"`tf.keras.optimizers.{self.__class__.__name__}` runs slowly "
+                "on M1/M2 Macs, please use the legacy Keras optimizer "
+                "instead, located at "
+                f"`tf.keras.optimizers.legacy.{self.__class__.__name__}`."
+            )
+
         if use_ema:
             # Verify the arguments related to EMA.
             if ema_momentum > 1 or ema_momentum < 0:
