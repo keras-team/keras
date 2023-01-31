@@ -496,10 +496,9 @@ def deserialize_keras_object(
 
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
-    with (
-        object_registration.custom_object_scope(custom_objects),
-        SafeModeScope(safe_mode),
-    ):
+    custom_obj_scope = object_registration.custom_object_scope(custom_objects)
+    safe_mode_scope = SafeModeScope(safe_mode)
+    with custom_obj_scope, safe_mode_scope:
         instance = cls.from_config(inner_config)
         build_config = config.get("build_config", None)
         if build_config:
