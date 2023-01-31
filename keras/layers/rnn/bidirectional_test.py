@@ -1112,6 +1112,7 @@ def test(states):
         "Expected `states` to be list or tuple"
     )
 
+
 def _to_list(ls):
     if isinstance(ls, list):
         return ls
