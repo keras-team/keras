@@ -455,7 +455,7 @@ class NormalizationAdaptTest(
         # Validate correctness of the new model.
         new_output_data = loaded_model.predict(input_data)
         self.assertAllClose(new_output_data, expected_output)
-        
+
     @parameterized.product(
         save_format=["tf", "h5"],
         adapt=[True, False],
@@ -479,7 +479,10 @@ class NormalizationAdaptTest(
         self.assertAllClose(output_data, expected_output)
 
         # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model_invert")
+        output_path = os.path.join(
+            self.get_temp_dir(),
+            "tf_keras_saved_model_invert"
+        )
         model.save(output_path, save_format=save_format)
         loaded_model = keras.models.load_model(
             output_path, custom_objects={"Normalization": cls}
