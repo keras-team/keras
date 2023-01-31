@@ -15,6 +15,8 @@
 """Keras 2D convolution layer."""
 
 
+import tensorflow.compat.v2 as tf
+
 from keras import activations
 from keras import constraints
 from keras import initializers
@@ -195,6 +197,24 @@ class Conv2D(Conv):
             kernel_constraint=constraints.get(kernel_constraint),
             bias_constraint=constraints.get(bias_constraint),
             **kwargs
+        )
+
+    def convolution_op(self, inputs, kernel):
+        if self.padding == "causal":
+            tf_padding = "VALID"  # Causal padding handled in `call`.
+        elif isinstance(self.padding, str):
+            tf_padding = self.padding.upper()
+        else:
+            tf_padding = self.padding
+
+        return tf.nn.conv2d(
+            inputs,
+            kernel,
+            strides=list(self.strides),
+            padding=tf_padding,
+            dilations=list(self.dilation_rate),
+            data_format=self._tf_data_format,
+            name=self.__class__.__name__,
         )
 
 
