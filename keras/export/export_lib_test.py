@@ -20,7 +20,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.saving import export_lib
+from keras.export import export_lib
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 

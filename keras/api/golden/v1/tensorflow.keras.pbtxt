@@ -41,6 +41,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "export"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "initializers"
     mtype: "<type \'module\'>"
   }

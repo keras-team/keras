@@ -3419,10 +3419,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         ```
 
         If you would like to customize your serving endpoints, you can
-        use the lower-level `keras.saving.ExportArchive` class. The `export()`
+        use the lower-level `keras.export.ExportArchive` class. The `export()`
         method relies on `ExportArchive` internally.
         """
-        from keras.saving import export_lib
+        from keras.export import export_lib
 
         export_lib.export_model(self, filepath)
 

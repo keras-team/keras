@@ -1,0 +1,7 @@
+path: "tensorflow.keras.export"
+tf_module {
+  member {
+    name: "ExportArchive"
+    mtype: "<type \'type\'>"
+  }
+}

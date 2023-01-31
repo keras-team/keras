@@ -23,7 +23,7 @@ from keras.engine import sequential
 from keras.utils import io_utils
 
 
-@keras_export("keras.saving.ExportArchive")
+@keras_export("keras.export.ExportArchive")
 class ExportArchive(tf.__internal__.tracking.AutoTrackable):
     """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
 
