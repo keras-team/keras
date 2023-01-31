@@ -15,6 +15,7 @@
 """Library for exporting inference-only Keras models/layers."""
 
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 from keras.engine import base_layer
 from keras.engine import functional
@@ -22,13 +23,15 @@ from keras.engine import sequential
 from keras.utils import io_utils
 
 
+@keras_export("keras.saving.ExportArchive")
 class ExportArchive(tf.__internal__.tracking.AutoTrackable):
     """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
 
     If you have a Keras model or layer that you want to export as SavedModel for
-    serving (e.g. via TensorFlow-Serving), you can use ExportArchive
+    serving (e.g. via TensorFlow-Serving), you can use `ExportArchive`
     to configure the different serving endpoints you need to make available,
-    as well as their signatures. Simply instantiate an ExportArchive,
+    as well as their signatures. Simply instantiate an `ExportArchive`,
+    use `track()` to register the layer(s) or model(s) to be used,
     then use the `add_endpoint()` method to register a new serving endpoint.
     When done, use the `write_out()` method to save the artifact.
 
@@ -110,7 +113,7 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
             fn: A function. It should only leverage resources
                 (e.g. `tf.Variable` objects or `tf.lookup.StaticHashTable`
                 objects) that are available on the models/layers
-                tracked by the ExportArchive (you can call `.track(model)`
+                tracked by the `ExportArchive` (you can call `.track(model)`
                 to track a new model).
                 The shape and dtype of the inputs to the function must be
                 known. For that purpose, you can either 1) make sure that

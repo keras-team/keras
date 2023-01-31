@@ -1,5 +1,8 @@
 """Tests for Dataset Utils"""
 
+import os
+import shutil
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -546,6 +549,44 @@ class SplitDatasetTest(tf.test.TestCase):
 
         self.assertEqual(len(left_split), 8000)
         self.assertEqual(len(right_split), 2000)
+
+
+@test_utils.run_v2_only
+class IndexDirectoryStructureTest(tf.test.TestCase):
+    def test_explicit_labels_and_unnested_files(self):
+
+        # Get a unique temp directory
+        temp_dir = os.path.join(
+            self.get_temp_dir(), str(np.random.randint(1e6))
+        )
+        os.mkdir(temp_dir)
+        self.addCleanup(shutil.rmtree, temp_dir)
+
+        # Number of temp files, each of which
+        # will have its own explicit label
+        num_files = 10
+
+        explicit_labels = np.random.randint(0, 10, size=num_files).tolist()
+
+        # Save empty text files to root of temp directory
+        # (content is not important, only location)
+        for i in range(len(explicit_labels)):
+            with open(os.path.join(temp_dir, f"file{i}.txt"), "w"):
+                pass
+
+        file_paths, labels, class_names = dataset_utils.index_directory(
+            temp_dir, labels=explicit_labels, formats=".txt"
+        )
+
+        # Files are found at the root of the temp directory, when
+        # `labels` are passed explicitly to `index_directory` and
+        # the number of returned and passed labels match
+        self.assertLen(file_paths, num_files)
+        self.assertLen(labels, num_files)
+
+        # Class names are returned as a sorted list
+        expected_class_names = sorted(set(explicit_labels))
+        self.assertEqual(expected_class_names, class_names)
 
 
 if __name__ == "__main__":

@@ -77,6 +77,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "saving"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "utils"
     mtype: "<type \'module\'>"
   }

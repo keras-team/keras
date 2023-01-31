@@ -30,6 +30,7 @@ from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.util import tf_export
+from tensorflow.python.util.tf_export import keras_export
 
 PLAIN_TYPES = (str, int, float, bool)
 SHARED_OBJECTS = threading.local()
@@ -56,6 +57,12 @@ class SafeModeScope:
 
     def __exit__(self, *args, **kwargs):
         SAFE_MODE.safe_mode = self.original_value
+
+
+@keras_export("keras.__internal__.enable_unsafe_deserialization")
+def enable_unsafe_deserialization():
+    """Disables safe mode globally, allowing deserialization of lambdas."""
+    SAFE_MODE.safe_mode = False
 
 
 def in_safe_mode():

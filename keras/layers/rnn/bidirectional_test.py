@@ -1063,6 +1063,47 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             {},
         )
 
+    def test_trainable_parameter_argument(self):
+        inp = keras.layers.Input([None, 3])
+
+        def test(fwd, bwd, **kwargs):
+            bid = keras.layers.Bidirectional(fwd, backward_layer=bwd, **kwargs)
+
+            model = keras.Model(inp, bid(inp))
+
+            clone = keras.models.clone_model(model)
+            self.assertEqual(clone.get_config(), model.get_config())
+
+        # test fetching trainable from `layer`
+        fwd = keras.layers.SimpleRNN(units=3)
+        bwd = keras.layers.SimpleRNN(units=3, go_backwards=True)
+
+        fwd.trainable = True
+        test(fwd, None)
+
+        fwd.trainable = False
+        test(fwd, None)
+
+        fwd.trainable = True
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = True
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        # test fetching trainable from `kwargs`
+        test(fwd, None, trainable=True)
+        test(fwd, None, trainable=False)
+
 
 def test(states):
     raise ValueError(
@@ -1070,7 +1111,6 @@ def test(states):
         f"Received: {states}"
         "Expected `states` to be list or tuple"
     )
-
 
 def _to_list(ls):
     if isinstance(ls, list):

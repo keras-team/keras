@@ -19,7 +19,6 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.layers.preprocessing import image_preprocessing
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -643,12 +642,9 @@ class TestSequentialEagerIntegration(test_combinations.TestCase):
         self.assertTrue(model.built)
 
 
-class ImageAugmentLayer(image_preprocessing.BaseImageAugmentationLayer):
-    def augment_image(self, image, transformation=None):
-        return image
-
-    def augment_label(self, label, transformation=None):
-        return label
+class ImageAugmentLayer(keras.layers.Layer):
+    def call(self, inputs):
+        return inputs
 
 
 if __name__ == "__main__":
