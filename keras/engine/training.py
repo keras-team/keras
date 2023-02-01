@@ -3148,15 +3148,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             layer state, either size wise or dtype wise.
         """
         if states is not None and not isinstance(states, (list, tuple)):
-            raise ValueError(f'Expected states to be None, list or tuple but is {type(states)}')
-        
+            raise ValueError(
+                "Expected states to be None, list or tuple but is "
+                f"{type(states)}"
+            )
+
         start = 0
         for layer in self.layers:
             if hasattr(layer, "reset_states") and getattr(
                 layer, "stateful", False
             ):
                 end = start + len(layer.states)
-                layer.reset_states(None if states is None else states[start:end])
+                layer.reset_states(
+                    None if states is None else states[start:end]
+                )
                 start = end
 
     @property
@@ -3750,7 +3755,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         states = []
         # needs to be recursive, as Bidirectional don't have stateful argument
         for l in self._flatten_layers(include_self=False, recursive=True):
-            if getattr(l, 'stateful', False):
+            if getattr(l, "stateful", False):
                 states += l.states
         return self._dedup_weights(states)
 

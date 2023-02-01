@@ -2392,7 +2392,7 @@ class TrainingTest(test_combinations.TestCase):
 
     def test_states(self):
         inp = keras.Input(batch_shape=[1, 2, 3])
-        
+
         stateless = keras.layers.SimpleRNN(units=3, stateful=False)
         stateful = keras.layers.SimpleRNN(units=3, stateful=True)
 
@@ -2406,7 +2406,7 @@ class TrainingTest(test_combinations.TestCase):
 
     def test_get_states(self):
         inp = keras.Input(batch_shape=[1, 2, 3])
-        
+
         stateless = keras.layers.SimpleRNN(units=3, stateful=False)
         stateful = keras.layers.SimpleRNN(units=3, stateful=True)
 
@@ -2424,7 +2424,7 @@ class TrainingTest(test_combinations.TestCase):
         ref_states = [np.random.rand(1, 3).astype(np.float32)]
 
         inp = keras.Input(batch_shape=[1, 2, 3])
-        
+
         stateless = keras.layers.SimpleRNN(units=3, stateful=False)
         stateful = keras.layers.SimpleRNN(units=3, stateful=True)
 
@@ -2433,19 +2433,20 @@ class TrainingTest(test_combinations.TestCase):
         # test zero init
         model.reset_states()
         states = model.get_states()
-        assert len(states) == len(ref_states)       
+        assert len(states) == len(ref_states)
         for a in states:
             assert isinstance(a, np.ndarray)
-            assert (a == 0).all() # init as 0
+            assert (a == 0).all()  # init as 0
 
         # test random init
         model.reset_states(ref_states)
         states = model.get_states()
-        assert len(states) == len(ref_states) 
+        assert len(states) == len(ref_states)
         for a, b in zip(model.get_states(), ref_states):
             assert isinstance(a, np.ndarray)
             assert isinstance(b, np.ndarray)
             assert (a == b).all()
+
 
 class TestExceptionsAndWarnings(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)

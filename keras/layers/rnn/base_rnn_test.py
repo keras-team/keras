@@ -1993,11 +1993,11 @@ class RNNTest(test_combinations.TestCase):
 
     def test_get_states(self):
         inp = keras.Input(batch_shape=[1, 2, 3])
-        
+
         stateless = keras.layers.SimpleRNN(units=3, stateful=False)
         stateful = keras.layers.SimpleRNN(units=3, stateful=True)
-		
-        model = keras.Model(inp, [stateless(inp), stateful(inp)])
+
+        _ = keras.Model(inp, [stateless(inp), stateful(inp)])
 
         states = stateless.get_states()
         assert isinstance(states, list)
@@ -2008,6 +2008,7 @@ class RNNTest(test_combinations.TestCase):
         assert len(states)
         for state in states:
             assert isinstance(state, np.ndarray)
+
 
 class RNNCellWithConstants(keras.layers.Layer):
     def __init__(self, units, constant_size, **kwargs):
