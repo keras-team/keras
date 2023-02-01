@@ -60,6 +60,7 @@ keras_packages = [
     "keras.engine.sequential",
     "keras.engine.training",
     "keras.estimator",
+    "keras.export.export_lib",
     "keras.feature_column.dense_features",
     "keras.feature_column.dense_features_v2",
     "keras.feature_column.sequence_feature_column",

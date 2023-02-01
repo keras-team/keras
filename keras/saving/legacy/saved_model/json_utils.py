@@ -33,7 +33,7 @@ import wrapt
 from keras.saving.legacy import serialization
 
 # isort: off
-from tensorflow.python.framework import type_spec
+from tensorflow.python.framework import type_spec_registry
 
 _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 
@@ -108,7 +108,7 @@ def _decode_helper(
         if obj["class_name"] == "TensorShape":
             return tf.TensorShape(obj["items"])
         elif obj["class_name"] == "TypeSpec":
-            return type_spec.lookup(obj["type_spec"])._deserialize(
+            return type_spec_registry.lookup(obj["type_spec"])._deserialize(
                 _decode_helper(obj["serialized"])
             )
         elif obj["class_name"] == "CompositeTensor":
@@ -195,7 +195,7 @@ def get_json_type(obj):
 
     if isinstance(obj, tf.TypeSpec):
         try:
-            type_spec_name = type_spec.get_name(type(obj))
+            type_spec_name = type_spec_registry.get_name(type(obj))
             return {
                 "class_name": "TypeSpec",
                 "type_spec": type_spec_name,

@@ -66,8 +66,8 @@ class TestText(tf.test.TestCase):
         sequences = []
         for seq in tokenizer.texts_to_sequences_generator(sample_texts):
             sequences.append(seq)
-        self.assertLess(np.max(np.max(sequences)), 10)
-        self.assertEqual(np.min(np.min(sequences)), 1)
+        self.assertLess(np.max(np.max(np.asarray(sequences, dtype=object))), 10)
+        self.assertEqual(np.min(np.min(np.asarray(sequences, dtype=object))), 1)
 
         tokenizer.fit_on_sequences(sequences)
 

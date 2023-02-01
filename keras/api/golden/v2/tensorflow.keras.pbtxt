@@ -44,6 +44,10 @@ tf_module {
     name: "experimental"
     mtype: "<type \'module\'>"
   }
+  member {
+    name: "export"
+    mtype: "<type \'module\'>"
+  }
   # Placeholder for internal API
   member {
     name: "initializers"
@@ -79,6 +83,10 @@ tf_module {
   }
   member {
     name: "regularizers"
+    mtype: "<type \'module\'>"
+  }
+  member {
+    name: "saving"
     mtype: "<type \'module\'>"
   }
   member {

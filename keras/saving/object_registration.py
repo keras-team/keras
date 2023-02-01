@@ -27,6 +27,7 @@ _THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
 
 
 @keras_export(
+    "keras.saving.custom_object_scope",
     "keras.utils.custom_object_scope",
     "keras.utils.CustomObjectScope",
 )
@@ -71,7 +72,9 @@ class CustomObjectScope:
         _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
 
 
-@keras_export("keras.utils.get_custom_objects")
+@keras_export(
+    "keras.saving.get_custom_objects", "keras.utils.get_custom_objects"
+)
 def get_custom_objects():
     """Retrieves a live reference to the global dictionary of custom objects.
 
@@ -92,7 +95,10 @@ def get_custom_objects():
     return _GLOBAL_CUSTOM_OBJECTS
 
 
-@keras_export("keras.utils.register_keras_serializable")
+@keras_export(
+    "keras.saving.register_keras_serializable",
+    "keras.utils.register_keras_serializable",
+)
 def register_keras_serializable(package="Custom", name=None):
     """Registers an object with the Keras serialization framework.
 
@@ -112,12 +118,12 @@ def register_keras_serializable(package="Custom", name=None):
     ```python
     # Note that `'my_package'` is used as the `package` argument here, and since
     # the `name` argument is not provided, `'MyDense'` is used as the `name`.
-    @keras.utils.register_keras_serializable('my_package')
+    @keras.saving.register_keras_serializable('my_package')
     class MyDense(keras.layers.Dense):
       pass
 
-    assert keras.utils.get_registered_object('my_package>MyDense') == MyDense
-    assert keras.utils.get_registered_name(MyDense) == 'my_package>MyDense'
+    assert keras.saving.get_registered_object('my_package>MyDense') == MyDense
+    assert keras.saving.get_registered_name(MyDense) == 'my_package>MyDense'
     ```
 
     Args:
@@ -163,7 +169,9 @@ def register_keras_serializable(package="Custom", name=None):
     return decorator
 
 
-@keras_export("keras.utils.get_registered_name")
+@keras_export(
+    "keras.saving.get_registered_name", "keras.utils.get_registered_name"
+)
 def get_registered_name(obj):
     """Returns the name registered to an object within the Keras framework.
 
@@ -184,7 +192,9 @@ def get_registered_name(obj):
         return obj.__name__
 
 
-@keras_export("keras.utils.get_registered_object")
+@keras_export(
+    "keras.saving.get_registered_object", "keras.utils.get_registered_object"
+)
 def get_registered_object(name, custom_objects=None, module_objects=None):
     """Returns the class associated with `name` if it is registered with Keras.
 
@@ -197,7 +207,7 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
     ```python
     def from_config(cls, config, custom_objects=None):
       if 'my_custom_object_name' in config:
-        config['hidden_cls'] = tf.keras.utils.get_registered_object(
+        config['hidden_cls'] = tf.keras.saving.get_registered_object(
             config['my_custom_object_name'], custom_objects=custom_objects)
     ```
 

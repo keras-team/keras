@@ -151,7 +151,13 @@ def _convert_dataset_to_list(
         start_time,
     ):
         if dataset_type_spec in [tuple, list]:
-            dataset_as_list.append(np.array(sample))
+            # The try-except here is for NumPy 1.24 compatibility, see:
+            # https://numpy.org/neps/nep-0034-infer-dtype-is-object.html
+            try:
+                arr = np.array(sample)
+            except ValueError:
+                arr = np.array(sample, dtype=object)
+            dataset_as_list.append(arr)
         else:
             dataset_as_list.append(sample)
 
@@ -496,10 +502,13 @@ def index_directory(
     seed=None,
     follow_links=False,
 ):
-    """Make list of all files in the subdirs of `directory`, with their labels.
+    """Make list of all files in `directory`, with their labels.
 
     Args:
-      directory: The target directory (string).
+      directory: Directory where the data is located.
+          If `labels` is "inferred", it should contain
+          subdirectories, each containing files for a class.
+          Otherwise, the directory structure is ignored.
       labels: Either "inferred"
           (labels are generated from the directory structure),
           None (no labels),
@@ -524,8 +533,8 @@ def index_directory(
         class_names: names of the classes corresponding to these labels, in
           order.
     """
-    if labels is None:
-        # in the no-label case, index from the parent directory down.
+    if labels != "inferred":
+        # in the explicit/no-label cases, index from the parent directory down.
         subdirs = [""]
         class_names = subdirs
     else:
@@ -572,6 +581,7 @@ def index_directory(
                 f"{len(labels)} while we found {len(filenames)} files "
                 f"in directory {directory}."
             )
+        class_names = sorted(set(labels))
     else:
         i = 0
         labels = np.zeros((len(filenames),), dtype="int32")

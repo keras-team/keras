@@ -239,6 +239,10 @@ tf_class {
     argspec: "args=[\'self\', \'generator\', \'steps\', \'callbacks\', \'max_queue_size\', \'workers\', \'use_multiprocessing\', \'verbose\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'10\', \'1\', \'False\', \'0\'], "
   }
   member_method {
+    name: "export"
+    argspec: "args=[\'self\', \'filepath\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "finalize_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }

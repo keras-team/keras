@@ -121,6 +121,10 @@ tf_module {
     argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
   }
   member_method {
+    name: "to_ordinal"
+    argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
+  }
+  member_method {
     name: "track_tf1_style_variables"
     argspec: "args=[\'method\'], varargs=None, keywords=None, defaults=None"
   }
