@@ -35,6 +35,7 @@ py_library(
         "accuracy_metrics.py",
         "base_metric.py",
         "confusion_metrics.py",
+        "f_score_metrics.py",
         "hinge_metrics.py",
         "iou_metrics.py",
         "probabilistic_metrics.py",
@@ -106,6 +107,22 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
         "//keras/utils:metrics_utils",
+    ],
+)
+
+tf_py_test(
+    name = "f_score_metrics_test",
+    size = "medium",
+    srcs = ["f_score_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )
 
