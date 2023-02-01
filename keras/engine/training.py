@@ -3391,6 +3391,41 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Create optimizer variables.
             self.optimizer.build(self.trainable_variables)
 
+    def export(self, filepath):
+        """Create a SavedModel artifact for inference (e.g. via TF-Serving).
+
+        This method lets you export a model to a lightweight SavedModel artifact
+        that contains the model's forward pass only (its `call()` method)
+        and can be served via e.g. TF-Serving. The forward pass is registered
+        under the name `serve()` (see example below).
+
+        The original code of the model (including any custom layers you may
+        have used) is *no longer* necessary to reload the artifact -- it is
+        entirely standalone.
+
+        Args:
+            filepath: `str` or `pathlib.Path` object. Path where to save
+                the artifact.
+
+        Example:
+
+        ```python
+        # Create the artifact
+        model.export("path/to/location")
+
+        # Later, in a different process / environment...
+        reloaded_artifact = tf.saved_model.load("path/to/location")
+        predictions = reloaded_artifact.serve(input_data)
+        ```
+
+        If you would like to customize your serving endpoints, you can
+        use the lower-level `keras.export.ExportArchive` class. The `export()`
+        method relies on `ExportArchive` internally.
+        """
+        from keras.export import export_lib
+
+        export_lib.export_model(self, filepath)
+
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
         """Defines the save spec so that serialization can trace `call()`.

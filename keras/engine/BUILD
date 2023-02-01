@@ -55,6 +55,7 @@ py_library(
         "//keras/distribute",
         "//keras/distribute:distribute_coordinator_utils",
         "//keras/dtensor:layout_map",
+        "//keras/export:export_lib",
         "//keras/initializers",
         "//keras/metrics",
         "//keras/mixed_precision:autocast_variable",
