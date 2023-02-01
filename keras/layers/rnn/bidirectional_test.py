@@ -1032,13 +1032,14 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         bid_stateless = keras.layers.Bidirectional(stateless)
         bid_stateful = keras.layers.Bidirectional(stateful)
 
-        # _ = keras.Model(
-        #    inp,
-        #    [
-        #        bid_stateless(inp),
-        #        bid_stateful(inp),
-        #    ],
-        # )
+        # required to correctly initialize the state in the layers
+        _ = keras.Model(
+            inp,
+            [
+                bid_stateless(inp),
+                bid_stateful(inp),
+            ],
+        )
 
         with self.assertRaisesRegex(
             AttributeError,
