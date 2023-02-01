@@ -82,16 +82,16 @@ sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
 )
 
 OPTIMIZER_FN = [
-    # adadelta_new_fn,
-    # adagrad_new_fn,
-    # adafactor_new_fn,
+    adadelta_new_fn,
+    adagrad_new_fn,
+    adafactor_new_fn,
     adam_new_fn,
-    # adamax_new_fn,
-    # adamw_new_fn,
-    # ftrl_new_fn,
-    # nadam_new_fn,
-    # rmsprop_new_fn,
-    # sgd_new_fn,
+    adamax_new_fn,
+    adamw_new_fn,
+    ftrl_new_fn,
+    nadam_new_fn,
+    rmsprop_new_fn,
+    sgd_new_fn,
 ]
 
 
