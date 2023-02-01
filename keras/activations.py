@@ -142,7 +142,7 @@ def elu(x, alpha=1.0):
 
 
     Reference:
-        [Fast and Accurate Deep Network Learning by Exponential Linear Units
+        - [Fast and Accurate Deep Network Learning by Exponential Linear Units
         (ELUs) (Clevert et al, 2016)](https://arxiv.org/abs/1511.07289)
     """
     return backend.elu(x, alpha)
@@ -288,7 +288,7 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
     change the max value of the activation,
     and to use a non-zero multiple of the input for values below the threshold.
 
-    For example:
+    Example:
 
     >>> foo = tf.constant([-10, -5, 0.0, 5, 10], dtype = tf.float32)
     >>> tf.keras.activations.relu(foo).numpy()
@@ -329,7 +329,7 @@ def gelu(x, approximate=False):
     The (GELU) nonlinearity weights inputs by their value, rather than gates
     inputs by their sign as in ReLU.
 
-    For example:
+    Example:
 
     >>> x = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype=tf.float32)
     >>> y = tf.keras.activations.gelu(x)
@@ -364,9 +364,9 @@ def gelu(x, approximate=False):
 def tanh(x):
     """Hyperbolic tangent activation function.
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.tanh(a)
     >>> b.numpy()
     array([-0.9950547, -0.7615942,  0.,  0.7615942,  0.9950547], dtype=float32)
@@ -394,7 +394,7 @@ def sigmoid(x):
     assumed to be zero. The sigmoid function always returns a value between
     0 and 1.
 
-    For example:
+    Example:
 
     >>> a = tf.constant([-20, -1.0, 0.0, 1.0, 20], dtype = tf.float32)
     >>> b = tf.keras.activations.sigmoid(a)
@@ -419,9 +419,9 @@ def sigmoid(x):
 def exponential(x):
     """Exponential activation function.
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.exponential(a)
     >>> b.numpy()
     array([0.04978707,  0.36787945,  1.,  2.7182817 , 20.085537], dtype=float32)
@@ -444,9 +444,9 @@ def hard_sigmoid(x):
     Piecewise linear approximation of the sigmoid function.
     Ref: 'https://en.wikipedia.org/wiki/Hard_sigmoid'
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.hard_sigmoid(a)
     >>> b.numpy()
     array([0. , 0.3, 0.5, 0.7, 1. ], dtype=float32)
@@ -469,9 +469,9 @@ def hard_sigmoid(x):
 def linear(x):
     """Linear activation function (pass-through).
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.linear(a)
     >>> b.numpy()
     array([-3., -1.,  0.,  1.,  3.], dtype=float32)
@@ -485,6 +485,45 @@ def linear(x):
     return x
 
 
+@keras_export("keras.activations.mish")
+@tf.__internal__.dispatch.add_dispatch_support
+def mish(x):
+    """Mish activation function.
+
+    It is defined as:
+
+    ```python
+    def mish(x):
+        return x * tanh(softplus(x))
+    ```
+
+    where `softplus` is defined as:
+
+    ```python
+    def softplus(x):
+        return log(exp(x) + 1)
+    ```
+
+    Example:
+
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0], dtype = tf.float32)
+    >>> b = tf.keras.activations.mish(a)
+    >>> b.numpy()
+    array([-0.14564745, -0.30340144,  0.,  0.86509836], dtype=float32)
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        The mish activation.
+
+    Reference:
+        - [Mish: A Self Regularized Non-Monotonic
+        Activation Function](https://arxiv.org/abs/1908.08681)
+    """
+    return x * tf.math.tanh(tf.math.softplus(x))
+
+
 @keras_export("keras.activations.serialize")
 @tf.__internal__.dispatch.add_dispatch_support
 def serialize(activation, use_legacy_format=False):
@@ -496,7 +535,7 @@ def serialize(activation, use_legacy_format=False):
     Returns:
         String denoting the name attribute of the input function
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.serialize(tf.keras.activations.tanh)
     'tanh'
@@ -523,7 +562,7 @@ def serialize(activation, use_legacy_format=False):
     return legacy_serialization.serialize_keras_object(activation)
 
 
-# Add additional globals so that deserialize can find these common activation
+# Add additional globals so that deserialize() can find these common activation
 # functions
 leaky_relu = tf.nn.leaky_relu
 log_softmax = tf.nn.log_softmax
@@ -544,7 +583,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
     Returns:
         Corresponding activation function.
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.deserialize('linear')
      <function linear at 0x1239596a8>
@@ -598,7 +637,7 @@ def get(identifier):
     Returns:
         Function corresponding to the input string or input function.
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.get('softmax')
      <function softmax at 0x1222a3d90>
