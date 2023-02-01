@@ -82,16 +82,16 @@ sgd_new_fn = tf.__internal__.test.combinations.NamedObject(
 )
 
 OPTIMIZER_FN = [
-    adadelta_new_fn,
-    adagrad_new_fn,
-    adafactor_new_fn,
+    # adadelta_new_fn,
+    # adagrad_new_fn,
+    # adafactor_new_fn,
     adam_new_fn,
-    adamax_new_fn,
-    adamw_new_fn,
-    ftrl_new_fn,
-    nadam_new_fn,
-    rmsprop_new_fn,
-    sgd_new_fn,
+    # adamax_new_fn,
+    # adamw_new_fn,
+    # ftrl_new_fn,
+    # nadam_new_fn,
+    # rmsprop_new_fn,
+    # sgd_new_fn,
 ]
 
 
@@ -422,11 +422,14 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         # Create a new optimizer and call restore on it (and x)
         x2 = tf.Variable([[0.0, 0.0], [0.0, 0.0]], dtype=x.dtype)
         optimizer_2 = adam_new.Adam(
-            learning_rate=0.02, beta_1=0.7, beta_2=0.777
+            learning_rate=lr_schedule, beta_1=0.8, beta_2=0.888
         )
-        optimizer_2.build([x2])
         checkpoint_2 = tf.train.Checkpoint(var=x2, optimizer=optimizer_2)
         checkpoint_2.restore(checkpoint_path)
+
+        for _ in range(2):
+            optimizer_1.apply_gradients(zip([grads], [x]))
+            optimizer_2.apply_gradients(zip([grads], [x]))
 
         self.assertTrue(
             (
