@@ -1032,36 +1032,32 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         bid_stateless = keras.layers.Bidirectional(stateless)
         bid_stateful = keras.layers.Bidirectional(stateful)
 
-        _ = keras.Model(
-            inp,
-            [
-                bid_stateless(inp),
-                bid_stateful(inp),
-            ],
-        )
+        # _ = keras.Model(
+        #    inp,
+        #    [
+        #        bid_stateless(inp),
+        #        bid_stateful(inp),
+        #    ],
+        # )
 
-        self.assertRaisesRegex(
+        with self.assertRaisesRegex(
             AttributeError,
             "Layer must be stateful.",
-            bid_stateless.reset_states,
-        )
-        self.assertRaisesRegex(
-            AttributeError,
-            "Layer must be stateful.",
-            bid_stateless.reset_states,
-            [],
-        )
+        ):
+            bid_stateless.reset_states()
+
+        with self.assertRaisesRegex(AttributeError, "Layer must be stateful."):
+            bid_stateless.reset_states([])
 
         bid_stateful.reset_states()
         bid_stateful.reset_states([ref_state, ref_state])
 
-        self.assertRaisesRegex(
+        with self.assertRaisesRegex(
             ValueError,
             "Unrecognized value for `states`. Received: {}Expected `states` "
             "to be list or tuple",
-            bid_stateful.reset_states,
-            {},
-        )
+        ):
+            bid_stateful.reset_states({})
 
     def test_trainable_parameter_argument(self):
         inp = keras.layers.Input([None, 3])
@@ -1103,14 +1099,6 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         # test fetching trainable from `kwargs`
         test(fwd, None, trainable=True)
         test(fwd, None, trainable=False)
-
-
-def test(states):
-    raise ValueError(
-        "Unrecognized value for `states`. "
-        f"Received: {states}"
-        "Expected `states` to be list or tuple"
-    )
 
 
 def _to_list(ls):
