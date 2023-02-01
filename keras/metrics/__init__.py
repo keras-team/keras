@@ -14,9 +14,10 @@
 # ==============================================================================
 """All Keras metrics."""
 
+# isort: off
+from tensorflow.python.util.tf_export import keras_export
 
-# Utilities
-# Base classes
+# Base classes and utilities
 from keras.metrics.base_metric import Mean
 from keras.metrics.base_metric import MeanMetricWrapper
 from keras.metrics.base_metric import MeanTensor
@@ -28,75 +29,86 @@ from keras.metrics.base_metric import SumOverBatchSizeMetricWrapper
 from keras.metrics.base_metric import clone_metric
 from keras.metrics.base_metric import clone_metrics
 
-# Metric functions
-# Individual metric classes
-from keras.metrics.metrics import AUC
-from keras.metrics.metrics import Accuracy
-from keras.metrics.metrics import BinaryAccuracy
-from keras.metrics.metrics import BinaryCrossentropy
-from keras.metrics.metrics import BinaryIoU
-from keras.metrics.metrics import CategoricalAccuracy
-from keras.metrics.metrics import CategoricalCrossentropy
-from keras.metrics.metrics import CategoricalHinge
-from keras.metrics.metrics import CosineSimilarity
-from keras.metrics.metrics import FalseNegatives
-from keras.metrics.metrics import FalsePositives
-from keras.metrics.metrics import Hinge
-from keras.metrics.metrics import IoU
-from keras.metrics.metrics import KLDivergence
-from keras.metrics.metrics import LogCoshError
-from keras.metrics.metrics import MeanAbsoluteError
-from keras.metrics.metrics import MeanAbsolutePercentageError
-from keras.metrics.metrics import MeanIoU
-from keras.metrics.metrics import MeanRelativeError
-from keras.metrics.metrics import MeanSquaredError
-from keras.metrics.metrics import MeanSquaredLogarithmicError
-from keras.metrics.metrics import OneHotIoU
-from keras.metrics.metrics import OneHotMeanIoU
-from keras.metrics.metrics import Poisson
-from keras.metrics.metrics import Precision
-from keras.metrics.metrics import PrecisionAtRecall
-from keras.metrics.metrics import Recall
-from keras.metrics.metrics import RecallAtPrecision
-from keras.metrics.metrics import RootMeanSquaredError
-from keras.metrics.metrics import SensitivityAtSpecificity
-from keras.metrics.metrics import SensitivitySpecificityBase
-from keras.metrics.metrics import SparseCategoricalAccuracy
-from keras.metrics.metrics import SparseCategoricalCrossentropy
-from keras.metrics.metrics import SparseTopKCategoricalAccuracy
-from keras.metrics.metrics import SpecificityAtSensitivity
-from keras.metrics.metrics import SquaredHinge
-from keras.metrics.metrics import TopKCategoricalAccuracy
-from keras.metrics.metrics import TrueNegatives
-from keras.metrics.metrics import TruePositives
-from keras.metrics.metrics import _ConfusionMatrixConditionCount
-from keras.metrics.metrics import _IoUBase
-from keras.metrics.metrics import accuracy
-from keras.metrics.metrics import binary_accuracy
-from keras.metrics.metrics import binary_crossentropy
-from keras.metrics.metrics import categorical_accuracy
-from keras.metrics.metrics import categorical_crossentropy
-from keras.metrics.metrics import categorical_hinge
-from keras.metrics.metrics import cosine_similarity
-from keras.metrics.metrics import hinge
-from keras.metrics.metrics import kullback_leibler_divergence
-from keras.metrics.metrics import logcosh
-from keras.metrics.metrics import mean_absolute_error
-from keras.metrics.metrics import mean_absolute_percentage_error
-from keras.metrics.metrics import mean_squared_error
-from keras.metrics.metrics import mean_squared_logarithmic_error
-from keras.metrics.metrics import poisson
-from keras.metrics.metrics import sparse_categorical_accuracy
-from keras.metrics.metrics import sparse_categorical_crossentropy
-from keras.metrics.metrics import sparse_top_k_categorical_accuracy
-from keras.metrics.metrics import squared_hinge
-from keras.metrics.metrics import top_k_categorical_accuracy
 from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
-# isort: off
-from tensorflow.python.util.tf_export import keras_export
+# Individual metric classes
+
+# Accuracy metrics
+from keras.metrics.accuracy_metrics import Accuracy
+from keras.metrics.accuracy_metrics import BinaryAccuracy
+from keras.metrics.accuracy_metrics import CategoricalAccuracy
+from keras.metrics.accuracy_metrics import SparseCategoricalAccuracy
+from keras.metrics.accuracy_metrics import SparseTopKCategoricalAccuracy
+from keras.metrics.accuracy_metrics import TopKCategoricalAccuracy
+
+from keras.metrics.accuracy_metrics import accuracy
+from keras.metrics.accuracy_metrics import binary_accuracy
+from keras.metrics.accuracy_metrics import categorical_accuracy
+from keras.metrics.accuracy_metrics import sparse_categorical_accuracy
+from keras.metrics.accuracy_metrics import sparse_top_k_categorical_accuracy
+from keras.metrics.accuracy_metrics import top_k_categorical_accuracy
+
+# Probabilistic metrics
+from keras.metrics.probabilistic_metrics import BinaryCrossentropy
+from keras.metrics.probabilistic_metrics import CategoricalCrossentropy
+from keras.metrics.probabilistic_metrics import KLDivergence
+from keras.metrics.probabilistic_metrics import Poisson
+from keras.metrics.probabilistic_metrics import SparseCategoricalCrossentropy
+
+from keras.metrics.probabilistic_metrics import binary_crossentropy
+from keras.metrics.probabilistic_metrics import categorical_crossentropy
+from keras.metrics.probabilistic_metrics import poisson
+from keras.metrics.probabilistic_metrics import kullback_leibler_divergence
+from keras.metrics.probabilistic_metrics import sparse_categorical_crossentropy
+
+# Regression metrics
+from keras.metrics.regression_metrics import CosineSimilarity
+from keras.metrics.regression_metrics import LogCoshError
+from keras.metrics.regression_metrics import MeanAbsoluteError
+from keras.metrics.regression_metrics import MeanAbsolutePercentageError
+from keras.metrics.regression_metrics import MeanRelativeError
+from keras.metrics.regression_metrics import MeanSquaredError
+from keras.metrics.regression_metrics import MeanSquaredLogarithmicError
+from keras.metrics.regression_metrics import RootMeanSquaredError
+
+from keras.metrics.regression_metrics import cosine_similarity
+from keras.metrics.regression_metrics import logcosh
+from keras.metrics.regression_metrics import mean_absolute_error
+from keras.metrics.regression_metrics import mean_absolute_percentage_error
+from keras.metrics.regression_metrics import mean_squared_error
+from keras.metrics.regression_metrics import mean_squared_logarithmic_error
+
+# Confusion metrics
+from keras.metrics.confusion_metrics import AUC
+from keras.metrics.confusion_metrics import FalseNegatives
+from keras.metrics.confusion_metrics import FalsePositives
+from keras.metrics.confusion_metrics import Precision
+from keras.metrics.confusion_metrics import PrecisionAtRecall
+from keras.metrics.confusion_metrics import Recall
+from keras.metrics.confusion_metrics import RecallAtPrecision
+from keras.metrics.confusion_metrics import SensitivityAtSpecificity
+from keras.metrics.confusion_metrics import SensitivitySpecificityBase
+from keras.metrics.confusion_metrics import SpecificityAtSensitivity
+from keras.metrics.confusion_metrics import TrueNegatives
+from keras.metrics.confusion_metrics import TruePositives
+
+# IoU metrics
+from keras.metrics.iou_metrics import BinaryIoU
+from keras.metrics.iou_metrics import IoU
+from keras.metrics.iou_metrics import MeanIoU
+from keras.metrics.iou_metrics import OneHotIoU
+from keras.metrics.iou_metrics import OneHotMeanIoU
+
+# Hinge metrics
+from keras.metrics.hinge_metrics import CategoricalHinge
+from keras.metrics.hinge_metrics import Hinge
+from keras.metrics.hinge_metrics import SquaredHinge
+
+from keras.metrics.hinge_metrics import categorical_hinge
+from keras.metrics.hinge_metrics import squared_hinge
+from keras.metrics.hinge_metrics import hinge
 
 # Aliases
 acc = ACC = accuracy
