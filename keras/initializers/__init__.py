@@ -18,8 +18,8 @@ import threading
 
 import tensorflow.compat.v2 as tf
 
+from keras.initializers import initializers
 from keras.initializers import initializers_v1
-from keras.initializers import initializers_v2
 from keras.saving.legacy import serialization as legacy_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
@@ -53,40 +53,40 @@ def populate_deserializable_objects():
     LOCAL.GENERATED_WITH_V2 = tf.__internal__.tf2.enabled()
 
     # Compatibility aliases (need to exist in both V1 and V2).
-    LOCAL.ALL_OBJECTS["ConstantV2"] = initializers_v2.Constant
-    LOCAL.ALL_OBJECTS["GlorotNormalV2"] = initializers_v2.GlorotNormal
-    LOCAL.ALL_OBJECTS["GlorotUniformV2"] = initializers_v2.GlorotUniform
-    LOCAL.ALL_OBJECTS["HeNormalV2"] = initializers_v2.HeNormal
-    LOCAL.ALL_OBJECTS["HeUniformV2"] = initializers_v2.HeUniform
-    LOCAL.ALL_OBJECTS["IdentityV2"] = initializers_v2.Identity
-    LOCAL.ALL_OBJECTS["LecunNormalV2"] = initializers_v2.LecunNormal
-    LOCAL.ALL_OBJECTS["LecunUniformV2"] = initializers_v2.LecunUniform
-    LOCAL.ALL_OBJECTS["OnesV2"] = initializers_v2.Ones
-    LOCAL.ALL_OBJECTS["OrthogonalV2"] = initializers_v2.Orthogonal
-    LOCAL.ALL_OBJECTS["RandomNormalV2"] = initializers_v2.RandomNormal
-    LOCAL.ALL_OBJECTS["RandomUniformV2"] = initializers_v2.RandomUniform
-    LOCAL.ALL_OBJECTS["TruncatedNormalV2"] = initializers_v2.TruncatedNormal
-    LOCAL.ALL_OBJECTS["VarianceScalingV2"] = initializers_v2.VarianceScaling
-    LOCAL.ALL_OBJECTS["ZerosV2"] = initializers_v2.Zeros
+    LOCAL.ALL_OBJECTS["ConstantV2"] = initializers.Constant
+    LOCAL.ALL_OBJECTS["GlorotNormalV2"] = initializers.GlorotNormal
+    LOCAL.ALL_OBJECTS["GlorotUniformV2"] = initializers.GlorotUniform
+    LOCAL.ALL_OBJECTS["HeNormalV2"] = initializers.HeNormal
+    LOCAL.ALL_OBJECTS["HeUniformV2"] = initializers.HeUniform
+    LOCAL.ALL_OBJECTS["IdentityV2"] = initializers.Identity
+    LOCAL.ALL_OBJECTS["LecunNormalV2"] = initializers.LecunNormal
+    LOCAL.ALL_OBJECTS["LecunUniformV2"] = initializers.LecunUniform
+    LOCAL.ALL_OBJECTS["OnesV2"] = initializers.Ones
+    LOCAL.ALL_OBJECTS["OrthogonalV2"] = initializers.Orthogonal
+    LOCAL.ALL_OBJECTS["RandomNormalV2"] = initializers.RandomNormal
+    LOCAL.ALL_OBJECTS["RandomUniformV2"] = initializers.RandomUniform
+    LOCAL.ALL_OBJECTS["TruncatedNormalV2"] = initializers.TruncatedNormal
+    LOCAL.ALL_OBJECTS["VarianceScalingV2"] = initializers.VarianceScaling
+    LOCAL.ALL_OBJECTS["ZerosV2"] = initializers.Zeros
 
     # Out of an abundance of caution we also include these aliases that have
     # a non-zero probability of having been included in saved configs in the
     # past.
-    LOCAL.ALL_OBJECTS["glorot_normalV2"] = initializers_v2.GlorotNormal
-    LOCAL.ALL_OBJECTS["glorot_uniformV2"] = initializers_v2.GlorotUniform
-    LOCAL.ALL_OBJECTS["he_normalV2"] = initializers_v2.HeNormal
-    LOCAL.ALL_OBJECTS["he_uniformV2"] = initializers_v2.HeUniform
-    LOCAL.ALL_OBJECTS["lecun_normalV2"] = initializers_v2.LecunNormal
-    LOCAL.ALL_OBJECTS["lecun_uniformV2"] = initializers_v2.LecunUniform
+    LOCAL.ALL_OBJECTS["glorot_normalV2"] = initializers.GlorotNormal
+    LOCAL.ALL_OBJECTS["glorot_uniformV2"] = initializers.GlorotUniform
+    LOCAL.ALL_OBJECTS["he_normalV2"] = initializers.HeNormal
+    LOCAL.ALL_OBJECTS["he_uniformV2"] = initializers.HeUniform
+    LOCAL.ALL_OBJECTS["lecun_normalV2"] = initializers.LecunNormal
+    LOCAL.ALL_OBJECTS["lecun_uniformV2"] = initializers.LecunUniform
 
     if tf.__internal__.tf2.enabled():
         # For V2, entries are generated automatically based on the content of
-        # initializers_v2.py.
+        # initializers.py.
         v2_objs = {}
-        base_cls = initializers_v2.Initializer
+        base_cls = initializers.Initializer
         generic_utils.populate_dict_with_module_objects(
             v2_objs,
-            [initializers_v2],
+            [initializers],
             obj_filter=lambda x: inspect.isclass(x) and issubclass(x, base_cls),
         )
         for key, value in v2_objs.items():
@@ -172,7 +172,7 @@ def get(identifier):
 
     >>> identifier = 'Ones'
     >>> tf.keras.initializers.deserialize(identifier)
-    <...keras.initializers.initializers_v2.Ones...>
+    <...keras.initializers.initializers.Ones...>
 
     You can also specify `config` of the initializer to this function by passing
     dict containing `class_name` and `config` as an identifier. Also note that
@@ -180,7 +180,7 @@ def get(identifier):
 
     >>> cfg = {'class_name': 'Ones', 'config': {}}
     >>> tf.keras.initializers.deserialize(cfg)
-    <...keras.initializers.initializers_v2.Ones...>
+    <...keras.initializers.initializers.Ones...>
 
     In the case that the `identifier` is a class, this method will return a new
     instance of the class by its constructor.
