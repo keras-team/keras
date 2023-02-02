@@ -4,6 +4,7 @@ More context in go/new-keras-optimizer
 """
 
 import os
+from unittest import mock
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -605,6 +606,19 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             optimizer.get_config()["learning_rate"],
             legacy_optimizer.get_config()["learning_rate"],
         )
+
+    @test_utils.run_v2_only
+    def test_arm_mac_get_legacy_optimizer(self):
+        with mock.patch(
+            "platform.system",
+            mock.MagicMock(return_value="Darwin"),
+        ):
+            with mock.patch(
+                "platform.processor",
+                mock.MagicMock(return_value="arm"),
+            ):
+                optimizer = keras.optimizers.get("adam")
+        self.assertIsInstance(optimizer, adam_old.Adam)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):
