@@ -465,13 +465,12 @@ class NormalizationAdaptTest(
         input_data = [[-1.0], [1.0], [-1.0], [1.0]]
 
         cls = normalization.Normalization
-        cls.invert = True
         inputs = keras.Input(shape=(1,), dtype=tf.float32)
         if adapt:
-            layer = cls(axis=-1)
+            layer = cls(axis=-1, invert=True)
             layer.adapt(expected_output)
         else:
-            layer = cls(mean=1.0, variance=1.0)
+            layer = cls(mean=1.0, variance=1.0, invert=True)
         outputs = layer(inputs)
         model = keras.Model(inputs=inputs, outputs=outputs)
 
