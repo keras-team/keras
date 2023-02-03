@@ -94,6 +94,10 @@ from keras.metrics.confusion_metrics import SpecificityAtSensitivity
 from keras.metrics.confusion_metrics import TrueNegatives
 from keras.metrics.confusion_metrics import TruePositives
 
+# F-Scores
+from keras.metrics.f_score_metrics import FBetaScore
+from keras.metrics.f_score_metrics import F1Score
+
 # IoU metrics
 from keras.metrics.iou_metrics import BinaryIoU
 from keras.metrics.iou_metrics import IoU
