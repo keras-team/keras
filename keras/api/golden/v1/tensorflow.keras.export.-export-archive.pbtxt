@@ -1,0 +1,27 @@
+path: "tensorflow.keras.export.ExportArchive"
+tf_class {
+  is_instance: "<class \'keras.export.export_lib.ExportArchive\'>"
+  is_instance: "<class \'tensorflow.python.trackable.autotrackable.AutoTrackable\'>"
+  is_instance: "<class \'tensorflow.python.trackable.base.Trackable\'>"
+  is_instance: "<type \'object\'>"
+  member_method {
+    name: "__init__"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "add_endpoint"
+    argspec: "args=[\'self\', \'name\', \'fn\', \'input_signature\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "add_variable_collection"
+    argspec: "args=[\'self\', \'name\', \'variables\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "track"
+    argspec: "args=[\'self\', \'layer\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "write_out"
+    argspec: "args=[\'self\', \'filepath\', \'options\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+}

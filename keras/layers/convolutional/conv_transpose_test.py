@@ -56,6 +56,13 @@ class Conv1DTransposeTest(test_combinations.TestCase):
         ) or tf.test.is_gpu_available(cuda_only=True):
             self._run_test(kwargs, expected_output_shape)
 
+    def test_conv1d_transpose_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": 2, "dilation_rate": 2}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.Conv1DTranspose(filters=1, kernel_size=2, **kwargs)
+
 
 @test_combinations.run_all_keras_modes
 class Conv2DTransposeTest(test_combinations.TestCase):
@@ -164,6 +171,13 @@ class Conv2DTransposeTest(test_combinations.TestCase):
             expected_output=expected_output,
         )
 
+    def test_conv2d_transpose_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": [2, 1], "dilation_rate": [2, 1]}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.Conv2DTranspose(filters=1, kernel_size=2, **kwargs)
+
 
 @test_combinations.run_all_keras_modes
 class Conv3DTransposeTest(test_combinations.TestCase):
@@ -264,6 +278,13 @@ class Conv3DTransposeTest(test_combinations.TestCase):
                     input_shape=(None, 3, None, None, None),
                     input_data=input_data,
                 )
+
+    def test_conv3d_transpose_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": [2, 2, 1], "dilation_rate": [2, 2, 1]}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.Conv3DTranspose(filters=1, kernel_size=2, **kwargs)
 
 
 if __name__ == "__main__":

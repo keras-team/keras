@@ -12,22 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for Keras metrics functions."""
+"""Tests for confusion metrics."""
 
 import json
 
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
+from tensorflow.python.platform import tf_logging
 
+from keras import backend
 from keras import layers
 from keras import metrics
 from keras import models
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 from keras.utils import metrics_utils
-
-# isort: off
-from tensorflow.python.platform import tf_logging
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
@@ -2089,6 +2089,646 @@ class ThresholdsTest(tf.test.TestCase, parameterized.TestCase):
             # Check all the variables are the same, eg tp, tn, fp, fn
             for v1, v2 in zip(metric_obj.variables, metric_obj2.variables):
                 self.assertAllClose(v1, v2)
+
+
+class BinaryTruePositives(metrics.Metric):
+    def __init__(self, name="binary_true_positives", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.true_positives = self.add_weight(name="tp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_true = tf.cast(y_true, tf.bool)
+        y_pred = tf.cast(y_pred, tf.bool)
+
+        values = tf.logical_and(tf.equal(y_true, True), tf.equal(y_pred, True))
+        values = tf.cast(values, self.dtype)
+        if sample_weight is not None:
+            sample_weight = tf.cast(sample_weight, dtype=self.dtype)
+            sample_weight = tf.__internal__.ops.broadcast_weights(
+                sample_weight, values
+            )
+            values = tf.multiply(values, sample_weight)
+        self.true_positives.assign_add(tf.reduce_sum(values))
+
+    def result(self):
+        return self.true_positives
+
+
+class BinaryTruePositivesViaControlFlow(metrics.Metric):
+    def __init__(self, name="binary_true_positives", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.true_positives = self.add_weight(name="tp", initializer="zeros")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_true = tf.cast(y_true, tf.bool)
+        y_pred = tf.cast(y_pred, tf.bool)
+
+        for i in range(len(y_true)):
+            for j in range(len(y_true[i])):
+                if y_true[i][j] and y_pred[i][j]:
+                    if sample_weight is None:
+                        self.true_positives.assign_add(1)
+                    else:
+                        self.true_positives.assign_add(sample_weight[i][0])
+
+    def result(self):
+        if tf.constant(True):
+            return self.true_positives
+        return 0.0
+
+
+def _get_model(compile_metrics):
+    model_layers = [
+        layers.Dense(3, activation="relu", kernel_initializer="ones"),
+        layers.Dense(1, activation="sigmoid", kernel_initializer="ones"),
+    ]
+
+    model = test_utils.get_model_from_layers(model_layers, input_shape=(4,))
+    model.compile(
+        loss="mae",
+        metrics=compile_metrics,
+        optimizer="rmsprop",
+        run_eagerly=test_utils.should_run_eagerly(),
+    )
+    return model
+
+
+@test_combinations.run_with_all_model_types
+@test_combinations.run_all_keras_modes
+class ResetStatesTest(test_combinations.TestCase):
+    def test_reset_state_false_positives(self):
+        fp_obj = metrics.FalsePositives()
+        model = _get_model([fp_obj])
+        x = np.ones((100, 4))
+        y = np.zeros((100, 1))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(fp_obj.accumulator), 100.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(fp_obj.accumulator), 100.0)
+
+    def test_reset_state_false_negatives(self):
+        fn_obj = metrics.FalseNegatives()
+        model = _get_model([fn_obj])
+        x = np.zeros((100, 4))
+        y = np.ones((100, 1))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(fn_obj.accumulator), 100.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(fn_obj.accumulator), 100.0)
+
+    def test_reset_state_true_negatives(self):
+        tn_obj = metrics.TrueNegatives()
+        model = _get_model([tn_obj])
+        x = np.zeros((100, 4))
+        y = np.zeros((100, 1))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(tn_obj.accumulator), 100.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(tn_obj.accumulator), 100.0)
+
+    def test_reset_state_true_positives(self):
+        tp_obj = metrics.TruePositives()
+        model = _get_model([tp_obj])
+        x = np.ones((100, 4))
+        y = np.ones((100, 1))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(tp_obj.accumulator), 100.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(tp_obj.accumulator), 100.0)
+
+    def test_reset_state_precision(self):
+        p_obj = metrics.Precision()
+        model = _get_model([p_obj])
+        x = np.concatenate((np.ones((50, 4)), np.ones((50, 4))))
+        y = np.concatenate((np.ones((50, 1)), np.zeros((50, 1))))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(p_obj.true_positives), 50.0)
+        self.assertEqual(self.evaluate(p_obj.false_positives), 50.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(p_obj.true_positives), 50.0)
+        self.assertEqual(self.evaluate(p_obj.false_positives), 50.0)
+
+    def test_precision_update_state_with_logits(self):
+        p_obj = metrics.Precision()
+        # Update state with logits (not in range (0, 1)) should not an raise
+        # error.
+        p_obj.update_state([-0.5, 0.5], [-2.0, 2.0])
+
+    def test_reset_state_recall(self):
+        r_obj = metrics.Recall()
+        model = _get_model([r_obj])
+        x = np.concatenate((np.ones((50, 4)), np.zeros((50, 4))))
+        y = np.concatenate((np.ones((50, 1)), np.ones((50, 1))))
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(r_obj.true_positives), 50.0)
+        self.assertEqual(self.evaluate(r_obj.false_negatives), 50.0)
+        model.evaluate(x, y)
+        self.assertEqual(self.evaluate(r_obj.true_positives), 50.0)
+        self.assertEqual(self.evaluate(r_obj.false_negatives), 50.0)
+
+    def test_reset_state_sensitivity_at_specificity(self):
+        s_obj = metrics.SensitivityAtSpecificity(0.5, num_thresholds=1)
+        model = _get_model([s_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(s_obj.true_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_negatives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.true_negatives), 25.0)
+
+    def test_reset_state_specificity_at_sensitivity(self):
+        s_obj = metrics.SpecificityAtSensitivity(0.5, num_thresholds=1)
+        model = _get_model([s_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(s_obj.true_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_negatives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.true_negatives), 25.0)
+
+    def test_reset_state_precision_at_recall(self):
+        s_obj = metrics.PrecisionAtRecall(recall=0.5, num_thresholds=1)
+        model = _get_model([s_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(s_obj.true_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_negatives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.true_negatives), 25.0)
+
+    def test_reset_state_recall_at_precision(self):
+        s_obj = metrics.RecallAtPrecision(precision=0.5, num_thresholds=1)
+        model = _get_model([s_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(s_obj.true_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_positives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.false_negatives), 25.0)
+            self.assertEqual(self.evaluate(s_obj.true_negatives), 25.0)
+
+    def test_reset_state_auc(self):
+        auc_obj = metrics.AUC(num_thresholds=3)
+        model = _get_model([auc_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(auc_obj.true_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_negatives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.true_negatives[1]), 25.0)
+
+    def test_reset_state_auc_from_logits(self):
+        auc_obj = metrics.AUC(num_thresholds=3, from_logits=True)
+
+        model_layers = [
+            layers.Dense(1, kernel_initializer="ones", use_bias=False)
+        ]
+        model = test_utils.get_model_from_layers(model_layers, input_shape=(4,))
+        model.compile(
+            loss="mae",
+            metrics=[auc_obj],
+            optimizer="rmsprop",
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                -np.ones((25, 4)),
+                -np.ones((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(auc_obj.true_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_negatives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.true_negatives[1]), 25.0)
+
+    def test_reset_state_auc_manual_thresholds(self):
+        auc_obj = metrics.AUC(thresholds=[0.5])
+        model = _get_model([auc_obj])
+        x = np.concatenate(
+            (
+                np.ones((25, 4)),
+                np.zeros((25, 4)),
+                np.zeros((25, 4)),
+                np.ones((25, 4)),
+            )
+        )
+        y = np.concatenate(
+            (
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+                np.ones((25, 1)),
+                np.zeros((25, 1)),
+            )
+        )
+
+        for _ in range(2):
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(auc_obj.true_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_positives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.false_negatives[1]), 25.0)
+            self.assertEqual(self.evaluate(auc_obj.true_negatives[1]), 25.0)
+
+    def test_reset_state_mean_iou(self):
+        m_obj = metrics.MeanIoU(num_classes=2)
+        model = _get_model([m_obj])
+        x = np.asarray(
+            [[0, 0, 0, 0], [1, 1, 1, 1], [1, 0, 1, 0], [0, 1, 0, 1]],
+            dtype=np.float32,
+        )
+        y = np.asarray([[0], [1], [1], [1]], dtype=np.float32)
+        model.evaluate(x, y)
+        self.assertArrayNear(self.evaluate(m_obj.total_cm)[0], [1, 0], 1e-1)
+        self.assertArrayNear(self.evaluate(m_obj.total_cm)[1], [3, 0], 1e-1)
+        model.evaluate(x, y)
+        self.assertArrayNear(self.evaluate(m_obj.total_cm)[0], [1, 0], 1e-1)
+        self.assertArrayNear(self.evaluate(m_obj.total_cm)[1], [3, 0], 1e-1)
+
+    def test_reset_state_recall_float64(self):
+        # Test case for GitHub issue 36790.
+        try:
+            backend.set_floatx("float64")
+            r_obj = metrics.Recall()
+            model = _get_model([r_obj])
+            x = np.concatenate((np.ones((50, 4)), np.zeros((50, 4))))
+            y = np.concatenate((np.ones((50, 1)), np.ones((50, 1))))
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(r_obj.true_positives), 50.0)
+            self.assertEqual(self.evaluate(r_obj.false_negatives), 50.0)
+            model.evaluate(x, y)
+            self.assertEqual(self.evaluate(r_obj.true_positives), 50.0)
+            self.assertEqual(self.evaluate(r_obj.false_negatives), 50.0)
+        finally:
+            backend.set_floatx("float32")
+
+    def test_function_wrapped_reset_state(self):
+        m = metrics.Mean(name="my_mean")
+
+        # check reset_state in function.
+        @tf.function
+        def reset_in_fn():
+            m.reset_state()
+            return m.update_state(100)
+
+        for _ in range(5):
+            self.evaluate(reset_in_fn())
+        self.assertEqual(self.evaluate(m.count), 1)
+
+
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class MergeStateTest(test_combinations.TestCase):
+    def test_merge_state_incompatible_metrics(self):
+        with self.assertRaisesRegex(
+            ValueError, "Metric .* is not compatible with .*"
+        ):
+            obj1 = metrics.FalsePositives()
+            self.evaluate(tf.compat.v1.variables_initializer(obj1.variables))
+            obj2 = metrics.Accuracy()
+            self.evaluate(tf.compat.v1.variables_initializer(obj2.variables))
+            self.evaluate(obj1.merge_state([obj2]))
+
+    def test_merge_state_accuracy(self):
+        a_objs = []
+        for y_true, y_pred in zip(
+            [[[1], [2]], [[3], [4]]], [[[0], [2]], [[3], [4]]]
+        ):
+            a_obj = metrics.Accuracy()
+            a_objs.append(a_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+            self.evaluate(a_obj.update_state(y_true, y_pred))
+        self.evaluate(a_objs[0].merge_state(a_objs[1:]))
+        self.assertEqual(self.evaluate(a_objs[0].total), 3.0)
+        self.assertEqual(self.evaluate(a_objs[0].count), 4.0)
+        self.assertEqual(self.evaluate(a_objs[0].result()), 0.75)
+
+    def test_merge_state_false_positives(self):
+        fp_objs = []
+        for _ in range(4):
+            fp_obj = metrics.FalsePositives()
+            fp_objs.append(fp_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
+            y_true = np.zeros((25, 1))
+            y_pred = np.ones((25, 1))
+            self.evaluate(fp_obj.update_state(y_true, y_pred))
+        self.evaluate(fp_objs[0].merge_state(fp_objs[1:]))
+        self.assertEqual(self.evaluate(fp_objs[0].accumulator), 100.0)
+
+    def test_merge_state_false_negatives(self):
+        fn_objs = []
+        for _ in range(4):
+            fn_obj = metrics.FalseNegatives()
+            fn_objs.append(fn_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
+            y_true = np.ones((25, 1))
+            y_pred = np.zeros((25, 1))
+            self.evaluate(fn_obj.update_state(y_true, y_pred))
+        self.evaluate(fn_objs[0].merge_state(fn_objs[1:]))
+        self.assertEqual(self.evaluate(fn_objs[0].accumulator), 100.0)
+
+    def test_merge_state_true_negatives(self):
+        tn_objs = []
+        for _ in range(4):
+            tn_obj = metrics.TrueNegatives()
+            tn_objs.append(tn_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
+            y_true = np.zeros((25, 1))
+            y_pred = np.zeros((25, 1))
+            self.evaluate(tn_obj.update_state(y_true, y_pred))
+        self.evaluate(tn_objs[0].merge_state(tn_objs[1:]))
+        self.assertEqual(self.evaluate(tn_objs[0].accumulator), 100.0)
+
+    def test_merge_state_true_positives(self):
+        tp_objs = []
+        for _ in range(4):
+            tp_obj = metrics.TruePositives()
+            tp_objs.append(tp_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
+            y_true = np.ones((25, 1))
+            y_pred = np.ones((25, 1))
+            self.evaluate(tp_obj.update_state(y_true, y_pred))
+        self.evaluate(tp_objs[0].merge_state(tp_objs[1:]))
+        self.assertEqual(self.evaluate(tp_objs[0].accumulator), 100.0)
+
+    def test_merge_state_precision(self):
+        p_objs = []
+        for _ in range(5):
+            p_obj = metrics.Precision()
+            p_objs.append(p_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
+            y_true = np.concatenate((np.ones((10, 1)), np.zeros((10, 1))))
+            y_pred = np.concatenate((np.ones((10, 1)), np.ones((10, 1))))
+            self.evaluate(p_obj.update_state(y_true, y_pred))
+        self.evaluate(p_objs[0].merge_state(p_objs[1:]))
+        self.assertEqual(self.evaluate(p_objs[0].true_positives), 50.0)
+        self.assertEqual(self.evaluate(p_objs[0].false_positives), 50.0)
+
+    def test_merge_state_recall(self):
+        r_objs = []
+        for _ in range(5):
+            r_obj = metrics.Recall()
+            r_objs.append(r_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
+            y_true = np.concatenate((np.ones((10, 1)), np.ones((10, 1))))
+            y_pred = np.concatenate((np.ones((10, 1)), np.zeros((10, 1))))
+            self.evaluate(r_obj.update_state(y_true, y_pred))
+        self.evaluate(r_objs[0].merge_state(r_objs[1:]))
+        self.assertEqual(self.evaluate(r_objs[0].true_positives), 50.0)
+        self.assertEqual(self.evaluate(r_objs[0].false_negatives), 50.0)
+
+    def test_merge_state_sensitivity_at_specificity(self):
+        sas_objs = []
+        for _ in range(5):
+            sas_obj = metrics.SensitivityAtSpecificity(0.5, num_thresholds=1)
+            sas_objs.append(sas_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(sas_obj.variables))
+            y_true = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                )
+            )
+            y_pred = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                )
+            )
+            self.evaluate(sas_obj.update_state(y_true, y_pred))
+        self.evaluate(sas_objs[0].merge_state(sas_objs[1:]))
+        self.assertEqual(self.evaluate(sas_objs[0].true_positives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].false_positives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].false_negatives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].true_negatives), 25.0)
+
+    def test_merge_state_specificity_at_sensitivity(self):
+        sas_objs = []
+        for _ in range(5):
+            sas_obj = metrics.SpecificityAtSensitivity(0.5, num_thresholds=1)
+            sas_objs.append(sas_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(sas_obj.variables))
+            y_true = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                )
+            )
+            y_pred = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                )
+            )
+            self.evaluate(sas_obj.update_state(y_true, y_pred))
+        self.evaluate(sas_objs[0].merge_state(sas_objs[1:]))
+        self.assertEqual(self.evaluate(sas_objs[0].true_positives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].false_positives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].false_negatives), 25.0)
+        self.assertEqual(self.evaluate(sas_objs[0].true_negatives), 25.0)
+
+    def test_merge_state_precision_at_recall(self):
+        par_objs = []
+        for _ in range(5):
+            par_obj = metrics.PrecisionAtRecall(recall=0.5, num_thresholds=1)
+            par_objs.append(par_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(par_obj.variables))
+            y_true = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                )
+            )
+            y_pred = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                )
+            )
+            self.evaluate(par_obj.update_state(y_true, y_pred))
+        self.evaluate(par_objs[0].merge_state(par_objs[1:]))
+        self.assertEqual(self.evaluate(par_objs[0].true_positives), 25.0)
+        self.assertEqual(self.evaluate(par_objs[0].false_positives), 25.0)
+        self.assertEqual(self.evaluate(par_objs[0].false_negatives), 25.0)
+        self.assertEqual(self.evaluate(par_objs[0].true_negatives), 25.0)
+
+    def test_merge_state_recall_at_precision(self):
+        rap_objs = []
+        for _ in range(5):
+            rap_obj = metrics.PrecisionAtRecall(recall=0.5, num_thresholds=1)
+            rap_objs.append(rap_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(rap_obj.variables))
+            y_true = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                )
+            )
+            y_pred = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                )
+            )
+            self.evaluate(rap_obj.update_state(y_true, y_pred))
+        self.evaluate(rap_objs[0].merge_state(rap_objs[1:]))
+        self.assertEqual(self.evaluate(rap_objs[0].true_positives), 25.0)
+        self.assertEqual(self.evaluate(rap_objs[0].false_positives), 25.0)
+        self.assertEqual(self.evaluate(rap_objs[0].false_negatives), 25.0)
+        self.assertEqual(self.evaluate(rap_objs[0].true_negatives), 25.0)
+
+    def test_merge_state_auc(self):
+        auc_objs = []
+        for _ in range(5):
+            auc_obj = metrics.AUC(num_thresholds=3)
+            auc_objs.append(auc_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(auc_obj.variables))
+            y_true = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                )
+            )
+            y_pred = np.concatenate(
+                (
+                    np.ones((5, 1)),
+                    np.zeros((5, 1)),
+                    np.zeros((5, 1)),
+                    np.ones((5, 1)),
+                )
+            )
+            self.evaluate(auc_obj.update_state(y_true, y_pred))
+        self.evaluate(auc_objs[0].merge_state(auc_objs[1:]))
+        self.assertEqual(self.evaluate(auc_objs[0].true_positives[1]), 25.0)
+        self.assertEqual(self.evaluate(auc_objs[0].false_positives[1]), 25.0)
+        self.assertEqual(self.evaluate(auc_objs[0].false_negatives[1]), 25.0)
+        self.assertEqual(self.evaluate(auc_objs[0].true_negatives[1]), 25.0)
+
+    def test_merge_state_mean_iou(self):
+        m_objs = []
+        for y_true, y_pred in zip(
+            [[0], [1], [1], [1]], [[0.5], [1.0], [1.0], [1.0]]
+        ):
+            m_obj = metrics.MeanIoU(num_classes=2)
+            m_objs.append(m_obj)
+            self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+            self.evaluate(m_obj.update_state(y_true, y_pred))
+        self.evaluate(m_objs[0].merge_state(m_objs[1:]))
+        self.assertArrayNear(self.evaluate(m_objs[0].total_cm)[0], [1, 0], 1e-1)
+        self.assertArrayNear(self.evaluate(m_objs[0].total_cm)[1], [0, 3], 1e-1)
 
 
 if __name__ == "__main__":

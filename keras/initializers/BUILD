@@ -14,8 +14,8 @@ py_library(
     name = "initializers",
     srcs = [
         "__init__.py",
+        "initializers.py",
         "initializers_v1.py",
-        "initializers_v2.py",
     ],
     srcs_version = "PY3",
     deps = [

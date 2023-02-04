@@ -1,7 +1,8 @@
-path: "tensorflow.keras.__internal__.layers.BaseImageAugmentationLayer"
+path: "tensorflow.keras.metrics.F1Score"
 tf_class {
-  is_instance: "<class \'keras.layers.preprocessing.image_preprocessing.BaseImageAugmentationLayer\'>"
-  is_instance: "<class \'keras.engine.base_layer.BaseRandomLayer\'>"
+  is_instance: "<class \'keras.metrics.f_score_metrics.F1Score\'>"
+  is_instance: "<class \'keras.metrics.f_score_metrics.FBetaScore\'>"
+  is_instance: "<class \'keras.metrics.base_metric.Metric\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"
   is_instance: "<class \'tensorflow.python.trackable.autotrackable.AutoTrackable\'>"
@@ -10,10 +11,6 @@ tf_class {
   is_instance: "<type \'object\'>"
   member {
     name: "activity_regularizer"
-    mtype: "<type \'property\'>"
-  }
-  member {
-    name: "auto_vectorize"
     mtype: "<type \'property\'>"
   }
   member {
@@ -134,7 +131,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'rate\', \'seed\'], varargs=None, keywords=kwargs, defaults=[\'1.0\', \'None\'], "
+    argspec: "args=[\'self\', \'average\', \'threshold\', \'name\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'f1_score\', \'None\'], "
   }
   member_method {
     name: "add_loss"
@@ -154,27 +151,11 @@ tf_class {
   }
   member_method {
     name: "add_weight"
-    argspec: "args=[\'self\', \'name\', \'shape\', \'dtype\', \'initializer\', \'regularizer\', \'trainable\', \'constraint\', \'use_resource\', \'synchronization\', \'aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'VariableSynchronization.AUTO\', \'VariableAggregationV2.NONE\'], "
-  }
-  member_method {
-    name: "augment_bounding_boxes"
-    argspec: "args=[\'self\', \'image\', \'bounding_boxes\', \'transformation\'], varargs=None, keywords=None, defaults=[\'None\'], "
-  }
-  member_method {
-    name: "augment_image"
-    argspec: "args=[\'self\', \'image\', \'transformation\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "augment_label"
-    argspec: "args=[\'self\', \'label\', \'transformation\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
-    name: "augment_target"
-    argspec: "args=[\'self\', \'target\', \'transformation\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'name\', \'shape\', \'aggregation\', \'synchronization\', \'initializer\', \'dtype\'], varargs=None, keywords=None, defaults=[\'()\', \'VariableAggregationV2.SUM\', \'VariableSynchronization.ON_READ\', \'None\', \'None\'], "
   }
   member_method {
     name: "build"
-    argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'y_true_shape\', \'y_pred_shape\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "build_from_config"
@@ -182,7 +163,7 @@ tf_class {
   }
   member_method {
     name: "call"
-    argspec: "args=[\'self\', \'inputs\', \'training\'], varargs=None, keywords=None, defaults=[\'True\'], "
+    argspec: "args=[\'self\', \'inputs\'], varargs=args, keywords=kwargs, defaults=None"
   }
   member_method {
     name: "compute_mask"
@@ -241,16 +222,32 @@ tf_class {
     argspec: "args=[\'self\', \'node_index\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "get_random_transformation"
-    argspec: "args=[\'self\', \'image\', \'label\', \'bounding_box\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\'], "
+    name: "get_weights"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "get_weights"
+    name: "merge_state"
+    argspec: "args=[\'self\', \'metrics\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "reset_state"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "reset_states"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "result"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_weights"
     argspec: "args=[\'self\', \'weights\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "update_state"
+    argspec: "args=[\'self\', \'y_true\', \'y_pred\', \'sample_weight\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "with_name_scope"

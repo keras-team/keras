@@ -28,4 +28,8 @@ tf_module {
     name: "apply_name_scope_on_model_declaration"
     argspec: "args=[\'enable\'], varargs=None, keywords=None, defaults=None"
   }
+  member_method {
+    name: "enable_unsafe_deserialization"
+    argspec: "args=[], varargs=None, keywords=None, defaults=None"
+  }
 }

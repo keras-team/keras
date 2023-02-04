@@ -90,6 +90,13 @@ class SeparableConv1DTest(test_combinations.TestCase):
             self.assertEqual(layer.pointwise_kernel.constraint, p_constraint)
             self.assertEqual(layer.bias.constraint, b_constraint)
 
+    def test_separable_conv1d_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": 2, "dilation_rate": 2}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.SeparableConv1D(filters=1, kernel_size=2, **kwargs)
+
 
 @test_combinations.run_all_keras_modes
 class SeparableConv2DTest(test_combinations.TestCase):
@@ -163,6 +170,13 @@ class SeparableConv2DTest(test_combinations.TestCase):
             self.assertEqual(layer.depthwise_kernel.constraint, d_constraint)
             self.assertEqual(layer.pointwise_kernel.constraint, p_constraint)
             self.assertEqual(layer.bias.constraint, b_constraint)
+
+    def test_separable_conv2d_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": [2, 1], "dilation_rate": [2, 1]}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.SeparableConv2D(filters=1, kernel_size=2, **kwargs)
 
 
 if __name__ == "__main__":
