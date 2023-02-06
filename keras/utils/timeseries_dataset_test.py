@@ -130,8 +130,8 @@ class TimeseriesDatasetTest(tf.test.TestCase):
             if i < 16:
                 self.assertEqual(inputs.shape, (5, 9))
             if i == 16:
-                # Last batch: size 3
-                self.assertEqual(inputs.shape, (3, 9))
+                # Last batch: size 4
+                self.assertEqual(inputs.shape, (4, 9))
             # Check target values
             self.assertAllClose(inputs[:, 0] * 2, targets)
             for j in range(min(5, len(inputs))):
