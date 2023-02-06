@@ -36,7 +36,7 @@ ds_combinations = tf.__internal__.distribute.combinations
 STRATEGIES = [
     # TODO(b/202992598): Add PSS strategy once the XLA issues is resolved.
     ds_combinations.one_device_strategy,
-    ds_combinations.mirrored_strategy_with_cpu_1_and_2,
+    ds_combinations.mirrored_strategy_with_two_cpus,
     ds_combinations.mirrored_strategy_with_two_gpus,
     ds_combinations.tpu_strategy,
     ds_combinations.cloud_tpu_strategy,

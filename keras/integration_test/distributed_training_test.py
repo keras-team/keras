@@ -29,7 +29,7 @@ ds_combinations = tf.__internal__.distribute.combinations
 # TODO(b/188763034): Proceed to export the strategy combinations as public APIs.
 STRATEGIES = [
     ds_combinations.default_strategy,
-    ds_combinations.mirrored_strategy_with_cpu_1_and_2,
+    ds_combinations.mirrored_strategy_with_two_cpus,
     ds_combinations.mirrored_strategy_with_two_gpus,
     ds_combinations.tpu_strategy,
     ds_combinations.cloud_tpu_strategy,
