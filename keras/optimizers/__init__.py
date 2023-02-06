@@ -19,7 +19,10 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 
 # Imports needed for deserialization.
 
+import platform
+
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.optimizers import adadelta
@@ -87,6 +90,10 @@ def serialize(optimizer, use_legacy_format=False):
     return serialize_keras_object(optimizer)
 
 
+def is_arm_mac():
+    return platform.system() == "Darwin" and platform.processor() == "arm"
+
+
 @keras_export("keras.optimizers.deserialize")
 def deserialize(config, custom_objects=None, use_legacy_format=False, **kwargs):
     """Inverse of the `serialize` function.
@@ -118,8 +125,11 @@ def deserialize(config, custom_objects=None, use_legacy_format=False, **kwargs):
     if (
         tf.__internal__.tf2.enabled()
         and tf.executing_eagerly()
+        and not is_arm_mac()
         and not use_legacy_optimizer
     ):
+        # We observed a slowdown of optimizer on M1 Mac, so we fall back to the
+        # legacy optimizer for M1 users now, see b/263339144 for more context.
         all_classes = {
             "adadelta": adadelta.Adadelta,
             "adagrad": adagrad.Adagrad,
@@ -270,10 +280,20 @@ def get(identifier, **kwargs):
     ):
         return identifier
     elif isinstance(identifier, base_optimizer.Optimizer):
-        if tf.__internal__.tf2.enabled():
+        if tf.__internal__.tf2.enabled() and not is_arm_mac():
             return identifier
         else:
-            # If TF2 is disabled, we convert to the legacy optimizer.
+            # If TF2 is disabled or on a M1 mac, we convert to the legacy
+            # optimizer. We observed a slowdown of optimizer on M1 Mac, so we
+            # fall back to the legacy optimizer for now, see b/263339144
+            # for more context.
+            optimizer_name = identifier.__class__.__name__
+            logging.warning(
+                "There is a known slowdown when using v2.11+ Keras optimizers "
+                "on M1/M2 Macs. Falling back to the "
+                "legacy Keras optimizer, i.e., "
+                f"`tf.keras.optimizers.legacy.{optimizer_name}`."
+            )
             return convert_to_legacy_optimizer(identifier)
 
     # Wrap legacy TF optimizer instances

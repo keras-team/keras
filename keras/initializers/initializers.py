@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras initializers for TF 2."""
+"""Keras initializers."""
 
 import math
 import warnings
@@ -120,7 +120,7 @@ class Initializer:
                 warnings.warn(
                     f"The initializer {self.__class__.__name__} is unseeded "
                     "and being called multiple times, which will return "
-                    "identical values  each time (even if the initializer is "
+                    "identical values each time (even if the initializer is "
                     "unseeded). Please update your code to provide a seed to "
                     "the initializer, or avoid using the same initalizer "
                     "instance more than once."

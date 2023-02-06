@@ -1,18 +1,11 @@
 # Description:
 #   Contains the Keras API (internal TensorFlow version).
 
-load("//tools/build_defs/license:license.bzl", "license")
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
-    default_applicable_licenses = ["//keras:license"],
     default_visibility = [":friends"],
     licenses = ["notice"],
-)
-
-license(
-    name = "license",
-    package_name = "keras",
 )
 
 # Keras code that doesn't live in core Keras directory, but still
