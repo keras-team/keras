@@ -178,6 +178,21 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "regression_metrics_test",
+    size = "medium",
+    srcs = ["regression_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
     name = "base_metric_test",
     size = "medium",
     srcs = ["base_metric_test.py"],
