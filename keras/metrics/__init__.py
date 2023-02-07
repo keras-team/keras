@@ -72,6 +72,7 @@ from keras.metrics.regression_metrics import MeanRelativeError
 from keras.metrics.regression_metrics import MeanSquaredError
 from keras.metrics.regression_metrics import MeanSquaredLogarithmicError
 from keras.metrics.regression_metrics import RootMeanSquaredError
+from keras.metrics.regression_metrics import R2Score
 
 from keras.metrics.regression_metrics import cosine_similarity
 from keras.metrics.regression_metrics import logcosh
