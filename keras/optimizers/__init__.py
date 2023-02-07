@@ -19,7 +19,10 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 
 # Imports needed for deserialization.
 
+import platform
+
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.optimizers import adadelta
@@ -56,6 +59,7 @@ from keras.optimizers.legacy.rmsprop import RMSprop
 from keras.optimizers.optimizer_v1 import Optimizer
 from keras.optimizers.optimizer_v1 import TFOptimizer
 from keras.optimizers.schedules import learning_rate_schedule
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
@@ -64,7 +68,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.serialize")
-def serialize(optimizer):
+def serialize(optimizer, use_legacy_format=False):
     """Serialize the optimizer configuration to JSON compatible python dict.
 
     The configuration can be used for persistence and reconstruct the
@@ -81,11 +85,17 @@ def serialize(optimizer):
     Returns:
       Python dict which contains the configuration of the input optimizer.
     """
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(optimizer)
     return serialize_keras_object(optimizer)
 
 
+def is_arm_mac():
+    return platform.system() == "Darwin" and platform.processor() == "arm"
+
+
 @keras_export("keras.optimizers.deserialize")
-def deserialize(config, custom_objects=None, **kwargs):
+def deserialize(config, custom_objects=None, use_legacy_format=False, **kwargs):
     """Inverse of the `serialize` function.
 
     Args:
@@ -104,6 +114,8 @@ def deserialize(config, custom_objects=None, **kwargs):
     )
 
     use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
+    if kwargs:
+        raise TypeError(f"Invalid keyword arguments: {kwargs}")
     if len(config["config"]) > 0:
         # If the optimizer config is not empty, then we use the value of
         # `is_legacy_optimizer` to override `use_legacy_optimizer`. If
@@ -113,8 +125,11 @@ def deserialize(config, custom_objects=None, **kwargs):
     if (
         tf.__internal__.tf2.enabled()
         and tf.executing_eagerly()
+        and not is_arm_mac()
         and not use_legacy_optimizer
     ):
+        # We observed a slowdown of optimizer on M1 Mac, so we fall back to the
+        # legacy optimizer for M1 users now, see b/263339144 for more context.
         all_classes = {
             "adadelta": adadelta.Adadelta,
             "adagrad": adagrad.Adagrad,
@@ -158,6 +173,15 @@ def deserialize(config, custom_objects=None, **kwargs):
     # Make deserialization case-insensitive for built-in optimizers.
     if config["class_name"].lower() in all_classes:
         config["class_name"] = config["class_name"].lower()
+
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=all_classes,
+            custom_objects=custom_objects,
+            printable_module_name="optimizer",
+        )
+
     return deserialize_keras_object(
         config,
         module_objects=all_classes,
@@ -245,6 +269,8 @@ def get(identifier, **kwargs):
         ValueError: If `identifier` cannot be interpreted.
     """
     use_legacy_optimizer = kwargs.pop("use_legacy_optimizer", False)
+    if kwargs:
+        raise TypeError(f"Invalid keyword arguments: {kwargs}")
     if isinstance(
         identifier,
         (
@@ -254,10 +280,20 @@ def get(identifier, **kwargs):
     ):
         return identifier
     elif isinstance(identifier, base_optimizer.Optimizer):
-        if tf.__internal__.tf2.enabled():
+        if tf.__internal__.tf2.enabled() and not is_arm_mac():
             return identifier
         else:
-            # If TF2 is disabled, we convert to the legacy optimizer.
+            # If TF2 is disabled or on a M1 mac, we convert to the legacy
+            # optimizer. We observed a slowdown of optimizer on M1 Mac, so we
+            # fall back to the legacy optimizer for now, see b/263339144
+            # for more context.
+            optimizer_name = identifier.__class__.__name__
+            logging.warning(
+                "There is a known slowdown when using v2.11+ Keras optimizers "
+                "on M1/M2 Macs. Falling back to the "
+                "legacy Keras optimizer, i.e., "
+                f"`tf.keras.optimizers.legacy.{optimizer_name}`."
+            )
             return convert_to_legacy_optimizer(identifier)
 
     # Wrap legacy TF optimizer instances
@@ -266,12 +302,18 @@ def get(identifier, **kwargs):
         backend.track_tf_optimizer(opt)
         return opt
     elif isinstance(identifier, dict):
+        use_legacy_format = "module" not in identifier
         return deserialize(
-            identifier, use_legacy_optimizer=use_legacy_optimizer
+            identifier,
+            use_legacy_optimizer=use_legacy_optimizer,
+            use_legacy_format=use_legacy_format,
         )
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(config, use_legacy_optimizer=use_legacy_optimizer)
+        return deserialize(
+            config,
+            use_legacy_optimizer=use_legacy_optimizer,
+        )
     else:
         raise ValueError(
             f"Could not interpret optimizer identifier: {identifier}"

@@ -50,7 +50,7 @@ from keras.layers.preprocessing import text_vectorization
 from keras.layers.rnn import cell_wrappers
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
-from keras.saving.legacy import serialization
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
@@ -187,7 +187,7 @@ def populate_deserializable_objects():
 
 
 @keras_export("keras.layers.serialize")
-def serialize(layer):
+def serialize(layer, use_legacy_format=False):
     """Serializes a `Layer` object into a JSON-compatible representation.
 
     Args:
@@ -207,11 +207,15 @@ def serialize(layer):
     pprint(tf.keras.layers.serialize(model))
     # prints the configuration of the model, as a dict.
     """
-    return serialization.serialize_keras_object(layer)
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(layer)
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.serialize_keras_object(layer)
 
 
 @keras_export("keras.layers.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
     """Instantiates a layer from a config dictionary.
 
     Args:
@@ -249,7 +253,16 @@ def deserialize(config, custom_objects=None):
     ```
     """
     populate_deserializable_objects()
-    return serialization.deserialize_keras_object(
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=LOCAL.ALL_OBJECTS,
+            custom_objects=custom_objects,
+            printable_module_name="layer",
+        )
+
+    # To be replaced by new serialization_lib
+    return legacy_serialization.deserialize_keras_object(
         config,
         module_objects=LOCAL.ALL_OBJECTS,
         custom_objects=custom_objects,

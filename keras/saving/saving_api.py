@@ -30,7 +30,7 @@ except ImportError:
     h5py = None
 
 
-@keras_export("keras.models.save_model")
+@keras_export("keras.saving.save_model", "keras.models.save_model")
 def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     """Saves a model as a TensorFlow SavedModel or HDF5 file.
 
@@ -72,12 +72,12 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
         tf.keras.layers.Dense(5, input_shape=(3,)),
         tf.keras.layers.Softmax()])
     model.save("model.keras")
-    loaded_model = tf.keras.models.load_model("model.keras")
+    loaded_model = tf.keras.saving.load_model("model.keras")
     x = tf.random.uniform((10, 3))
     assert np.allclose(model.predict(x), loaded_model.predict(x))
     ```
 
-    Note that `model.save()` is an alias for `tf.keras.models.save_model()`.
+    Note that `model.save()` is an alias for `tf.keras.saving.save_model()`.
 
     The SavedModel or HDF5 file contains:
 
@@ -113,7 +113,7 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     and the amount of disk space occupied by the output SavedModel. If you
     enable this option, then you _must_ provide all custom class definitions
     when loading the model. See the `custom_objects` argument in
-    `tf.keras.models.load_model`.
+    `tf.keras.saving.load_model`.
     """
     save_format = get_save_format(filepath, save_format)
     if save_format not in ("keras", "tf", "h5", "keras_v3"):
@@ -151,7 +151,7 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
         )
 
 
-@keras_export("keras.models.load_model")
+@keras_export("keras.saving.load_model", "keras.models.load_model")
 def load_model(
     filepath, custom_objects=None, compile=True, safe_mode=True, **kwargs
 ):
@@ -185,7 +185,7 @@ def load_model(
         tf.keras.layers.Dense(5, input_shape=(3,)),
         tf.keras.layers.Softmax()])
     model.save("model.keras")
-    loaded_model = tf.keras.models.load_model("model.keras")
+    loaded_model = tf.keras.saving.load_model("model.keras")
     x = tf.random.uniform((10, 3))
     assert np.allclose(model.predict(x), loaded_model.predict(x))
     ```

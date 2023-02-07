@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for Keras python-based idempotent saving functions (experimental)."""
+"""Tests for Keras python-based idempotent saving functions."""
 import os
 import sys
 import zipfile

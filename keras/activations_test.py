@@ -32,6 +32,10 @@ def _ref_softmax(values):
     return e / np.sum(e)
 
 
+def _ref_softplus(x):
+    return np.log(np.ones_like(x) + np.exp(x))
+
+
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
     def test_serialization(self):
@@ -48,6 +52,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
             "selu",
             "gelu",
             "relu6",
+            "mish",
         ]
         for name in all_activations:
             fn = activations.get(name)
@@ -147,14 +152,11 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(result, true_result)
 
     def test_softplus(self):
-        def softplus(x):
-            return np.log(np.ones_like(x) + np.exp(x))
-
         x = backend.placeholder(ndim=2)
         f = backend.function([x], [activations.softplus(x)])
         test_values = np.random.random((2, 5))
         result = f([test_values])[0]
-        expected = softplus(test_values)
+        expected = _ref_softplus(test_values)
         self.assertAllClose(result, expected, rtol=1e-05)
 
     def test_softsign(self):
@@ -270,6 +272,15 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
         f = backend.function([x], [exp])
         result = f([test_values])[0]
         expected = np.exp(test_values)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_mish(self):
+        test_values = np.random.random((2, 5))
+        x = backend.placeholder(ndim=2)
+        output = activations.mish(x)
+        f = backend.function([x], [output])
+        result = f([test_values])[0]
+        expected = test_values * np.tanh(_ref_softplus(test_values))
         self.assertAllClose(result, expected, rtol=1e-05)
 
     def test_linear(self):

@@ -19,6 +19,7 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
@@ -355,12 +356,21 @@ unitnorm = unit_norm
 
 
 @keras_export("keras.constraints.serialize")
-def serialize(constraint):
+def serialize(constraint, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(constraint)
     return serialize_keras_object(constraint)
 
 
 @keras_export("keras.constraints.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=globals(),
+            custom_objects=custom_objects,
+            printable_module_name="constraint",
+        )
     return deserialize_keras_object(
         config,
         module_objects=globals(),
@@ -375,7 +385,8 @@ def get(identifier):
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
         return deserialize(config)

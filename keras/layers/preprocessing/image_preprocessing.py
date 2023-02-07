@@ -14,9 +14,9 @@
 # ==============================================================================
 """Keras image preprocessing layers."""
 
-
 import numpy as np
 import tensorflow.compat.v2 as tf
+from tensorflow.python.util.tf_export import keras_export
 
 from keras import backend
 from keras.engine import base_layer
@@ -25,18 +25,8 @@ from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.utils import image_utils
 from keras.utils import tf_utils
 
-# isort: off
-from tensorflow.python.ops import stateless_random_ops
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.tools.docs import doc_controls
-
 H_AXIS = -3
 W_AXIS = -2
-
-IMAGES = "images"
-LABELS = "labels"
-TARGETS = "targets"
-BOUNDING_BOXES = "bounding_boxes"
 
 
 def check_fill_mode_and_interpolation(fill_mode, interpolation):
@@ -60,9 +50,9 @@ class Resizing(base_layer.Layer):
 
     This layer resizes an image input to a target height and width. The input
     should be a 4D (batched) or 3D (unbatched) tensor in `"channels_last"`
-    format.  Input pixel values can be of any range (e.g. `[0., 1.)` or `[0,
-    255]`) and of interger or floating point dtype. By default, the layer will
-    output floats.
+    format. Input pixel values can be of any range
+    (e.g. `[0., 1.)` or `[0, 255]`) and of integer or floating point dtype.
+    By default, the layer will output floats.
 
     This layer can be called on tf.RaggedTensor batches of input images of
     distinct sizes, and will resize the outputs to dense tensors of uniform
@@ -72,17 +62,19 @@ class Resizing(base_layer.Layer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      height: Integer, the height of the output shape.
-      width: Integer, the width of the output shape.
-      interpolation: String, the interpolation method. Defaults to `"bilinear"`.
-        Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`, `"lanczos3"`,
-        `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
-      crop_to_aspect_ratio: If True, resize the images without aspect
-        ratio distortion. When the original aspect ratio differs from the target
-        aspect ratio, the output image will be cropped so as to return the
-        largest possible window in the image (of size `(height, width)`) that
-        matches the target aspect ratio. By default
-        (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
+        height: Integer, the height of the output shape.
+        width: Integer, the width of the output shape.
+        interpolation: String, the interpolation method.
+            Defaults to `"bilinear"`.
+            Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
+            `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+        crop_to_aspect_ratio: If True, resize the images without aspect
+            ratio distortion. When the original aspect ratio differs
+            from the target aspect ratio, the output image will be
+            cropped so as to return the
+            largest possible window in the image (of size `(height, width)`)
+            that matches the target aspect ratio. By default
+            (`crop_to_aspect_ratio=False`), aspect ratio may not be preserved.
     """
 
     def __init__(
@@ -104,14 +96,15 @@ class Resizing(base_layer.Layer):
         base_preprocessing_layer.keras_kpl_gauge.get_cell("Resizing").set(True)
 
     def call(self, inputs):
-        # tf.image.resize will always output float32 and operate more
-        # efficiently on float32 unless interpolation is nearest, in which case
-        # ouput type matches input type.
+        # tf.image.resize will always output float32
+        # and operate more efficiently on float32
+        # unless interpolation is nearest, in which case ouput type matches
+        # input type.
         if self.interpolation == "nearest":
             input_dtype = self.compute_dtype
         else:
             input_dtype = tf.float32
-        inputs = utils.ensure_tensor(inputs, dtype=input_dtype)
+        inputs = convert_inputs(inputs, dtype=input_dtype)
         size = [self.height, self.width]
         if self.crop_to_aspect_ratio:
 
@@ -162,31 +155,31 @@ class CenterCrop(base_layer.Layer):
     """A preprocessing layer which crops images.
 
     This layers crops the central portion of the images to a target size. If an
-    image is smaller than the target size, it will be resized and cropped so as
-    to return the largest possible window in the image that matches the target
-    aspect ratio.
+    image is smaller than the target size, it will be resized and cropped
+    so as to return the largest possible window in the image that matches
+    the target aspect ratio.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
-    floats.
+    of integer or floating point dtype.
+    By default, the layer will output floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., target_height, target_width, channels)`.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., target_height, target_width, channels)`.
 
     If the input height/width is even and the target height/width is odd (or
     inversely), the input image is left-padded by 1 pixel.
 
     Args:
-      height: Integer, the height of the output shape.
-      width: Integer, the width of the output shape.
+        height: Integer, the height of the output shape.
+        width: Integer, the width of the output shape.
     """
 
     def __init__(self, height, width, **kwargs):
@@ -198,7 +191,7 @@ class CenterCrop(base_layer.Layer):
         )
 
     def call(self, inputs):
-        inputs = utils.ensure_tensor(inputs, self.compute_dtype)
+        inputs = convert_inputs(inputs, self.compute_dtype)
         input_shape = tf.shape(inputs)
         h_diff = input_shape[H_AXIS] - self.height
         w_diff = input_shape[W_AXIS] - self.width
@@ -236,290 +229,12 @@ class CenterCrop(base_layer.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export("keras.__internal__.layers.BaseImageAugmentationLayer")
-class BaseImageAugmentationLayer(base_layer.BaseRandomLayer):
-    """Abstract base layer for image augmentation.
-
-    This layer contains base functionalities for preprocessing layers which
-    augment image related data, eg. image and in future, label and bounding
-    boxes.  The subclasses could avoid making certain mistakes and reduce code
-    duplications.
-
-    This layer requires you to implement one method: `augment_image()`, which
-    augments one single image during the training. There are a few additional
-    methods that you can implement for added functionality on the layer:
-
-    `augment_label()`, which handles label augmentation if the layer supports
-    that.
-
-    `augment_bounding_boxes()` is not implemented by this layer. Please use
-    preprocessing layers in [KerasCV](https://keras.io/keras_cv/)
-    for bounding box augmentation support.
-
-    `get_random_transformation()`, which should produce a random transformation
-    setting. The tranformation object, which could be any type, will be passed
-    to `augment_image`, `augment_label` and `augment_bounding_boxes`, to
-    coodinate the randomness behavior, eg, in the RandomFlip layer, the image
-    and bounding_boxes should be changed in the same way.
-
-    The `call()` method support two formats of inputs:
-    1. Single image tensor with 3D (HWC) or 4D (NHWC) format.
-    2. A dict of tensors with stable keys. The supported keys are:
-      `"images"`, `"labels"` and `"bounding_boxes"` at the moment. We might add
-      more keys in future when we support more types of augmentation.
-
-    The output of the `call()` will be in two formats, which will be the same
-    structure as the inputs.
-
-    The `call()` will handle the logic detecting the training/inference mode,
-    unpack the inputs, forward to the correct function, and pack the output back
-    to the same structure as the inputs.
-
-    By default the `call()` method leverages the `tf.vectorized_map()` function.
-    Auto-vectorization can be disabled by setting `self.auto_vectorize = False`
-    in your `__init__()` method.  When disabled, `call()` instead relies
-    on `tf.map_fn()`. For example:
-
-    ```python
-    class SubclassLayer(BaseImageAugmentationLayer):
-      def __init__(self):
-        super().__init__()
-        self.auto_vectorize = False
-    ```
-
-    Example:
-
-    ```python
-    class RandomContrast(BaseImageAugmentationLayer):
-
-      def __init__(self, factor=(0.5, 1.5), **kwargs):
-        super().__init__(**kwargs)
-        self._factor = factor
-
-      def augment_image(self, image, transformation):
-        random_factor = tf.random.uniform([], self._factor[0], self._factor[1])
-        mean = tf.math.reduced_mean(inputs, axis=-1, keep_dim=True)
-        return (inputs - mean) * random_factor + mean
-    ```
-
-    Note that since the randomness is also a common functionnality, this layer
-    also includes a tf.keras.backend.RandomGenerator, which can be used to
-    produce the random numbers.  The random number generator is stored in the
-    `self._random_generator` attribute.
-    """
-
-    def __init__(self, rate=1.0, seed=None, **kwargs):
-        super().__init__(seed=seed, **kwargs)
-        self.rate = rate
-
-    @property
-    def auto_vectorize(self):
-        """Control whether automatic vectorization occurs.
-
-        By default the `call()` method leverages the `tf.vectorized_map()`
-        function.  Auto-vectorization can be disabled by setting
-        `self.auto_vectorize = False` in your `__init__()` method.  When
-        disabled, `call()` instead relies on `tf.map_fn()`. For example:
-
-        ```python
-        class SubclassLayer(BaseImageAugmentationLayer):
-          def __init__(self):
-            super().__init__()
-            self.auto_vectorize = False
-        ```
-        """
-        return getattr(self, "_auto_vectorize", True)
-
-    @auto_vectorize.setter
-    def auto_vectorize(self, auto_vectorize):
-        self._auto_vectorize = auto_vectorize
-
-    @property
-    def _map_fn(self):
-        if self.auto_vectorize:
-            return lambda fn, x: tf.vectorized_map(fn, x, warn=False)
-        else:
-            return tf.map_fn
-
-    @doc_controls.for_subclass_implementers
-    def augment_image(self, image, transformation):
-        """Augment a single image during training.
-
-        Args:
-          image: 3D image input tensor to the layer. Forwarded from
-            `layer.call()`.
-          transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness
-            between image, label and bounding box.
-
-        Returns:
-          output 3D tensor, which will be forward to `layer.call()`.
-        """
-        raise NotImplementedError()
-
-    @doc_controls.for_subclass_implementers
-    def augment_label(self, label, transformation):
-        """Augment a single label during training.
-
-        Args:
-          label: 1D label to the layer. Forwarded from `layer.call()`.
-          transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness
-            between image, label and bounding box.
-
-        Returns:
-          output 1D tensor, which will be forward to `layer.call()`.
-        """
-        raise NotImplementedError()
-
-    @doc_controls.for_subclass_implementers
-    def augment_target(self, target, transformation):
-        """Augment a single target during training.
-
-        Args:
-          target: 1D label to the layer. Forwarded from `layer.call()`.
-          transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness
-            between image, label and bounding box.
-
-        Returns:
-          output 1D tensor, which will be forward to `layer.call()`.
-        """
-        return self.augment_label(target, transformation)
-
-    @doc_controls.for_subclass_implementers
-    def augment_bounding_boxes(
-        self, image, bounding_boxes, transformation=None
-    ):
-        """Augment bounding boxes for one image during training.
-
-        Args:
-          image: 3D image input tensor to the layer. Forwarded from
-            `layer.call()`.
-          bounding_boxes: 2D bounding boxes to the layer. Forwarded from
-            `call()`.
-          transformation: The transformation object produced by
-            `get_random_transformation`. Used to coordinate the randomness
-            between image, label and bounding box.
-
-        Returns:
-          output 2D tensor, which will be forward to `layer.call()`.
-        """
-        layer = self.__class__.__name__
-        raise NotImplementedError(
-            "In order to use bounding_boxes, "
-            "please use "
-            f"keras_cv.layers.{layer} "
-            f"instead of keras.layers.{layer}."
-        )
-
-    @doc_controls.for_subclass_implementers
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        """Produce random transformation config for one single input.
-
-        This is used to produce same randomness between
-        image/label/bounding_box.
-
-        Args:
-          image: 3D image tensor from inputs.
-          label: optional 1D label tensor from inputs.
-          bounding_box: optional 2D bounding boxes tensor from inputs.
-
-        Returns:
-          Any type of object, which will be forwarded to `augment_image`,
-          `augment_label` and `augment_bounding_box` as the `transformation`
-          parameter.
-        """
-        return None
-
-    def call(self, inputs, training=True):
-        inputs = self._ensure_inputs_are_compute_dtype(inputs)
-        if training:
-            inputs, is_dict, use_targets = self._format_inputs(inputs)
-            images = inputs[IMAGES]
-            if images.shape.rank == 3:
-                return self._format_output(
-                    self._augment(inputs), is_dict, use_targets
-                )
-            elif images.shape.rank == 4:
-                return self._format_output(
-                    self._batch_augment(inputs), is_dict, use_targets
-                )
-            else:
-                raise ValueError(
-                    "Image augmentation layers are expecting inputs to be "
-                    "rank 3 (HWC) or 4D (NHWC) tensors. Got shape: "
-                    f"{images.shape}"
-                )
-        else:
-            return inputs
-
-    def _augment(self, inputs):
-        image = inputs.get(IMAGES, None)
-        label = inputs.get(LABELS, None)
-        bounding_box = inputs.get(BOUNDING_BOXES, None)
-        transformation = self.get_random_transformation(
-            image=image, label=label, bounding_box=bounding_box
-        )
-        image = self.augment_image(image, transformation=transformation)
-        result = {IMAGES: image}
-        if label is not None:
-            label = self.augment_target(label, transformation=transformation)
-            result[LABELS] = label
-        if bounding_box is not None:
-            bounding_box = self.augment_bounding_boxes(
-                image, bounding_box, transformation=transformation
-            )
-            result[BOUNDING_BOXES] = bounding_box
-        return result
-
-    def _batch_augment(self, inputs):
-        return self._map_fn(self._augment, inputs)
-
-    def _format_inputs(self, inputs):
-        if tf.is_tensor(inputs):
-            # single image input tensor
-            return {IMAGES: inputs}, False, False
-        elif isinstance(inputs, dict) and TARGETS in inputs:
-            # TODO(scottzhu): Check if it only contains the valid keys
-            inputs[LABELS] = inputs[TARGETS]
-            del inputs[TARGETS]
-            return inputs, True, True
-        elif isinstance(inputs, dict):
-            return inputs, True, False
-        else:
-            raise ValueError(
-                f"Expect the inputs to be image tensor or dict. Got {inputs}"
-            )
-
-    def _format_output(self, output, is_dict, use_targets):
-        if not is_dict:
-            return output[IMAGES]
-        elif use_targets:
-            output[TARGETS] = output[LABELS]
-            del output[LABELS]
-            return output
-        else:
-            return output
-
-    def _ensure_inputs_are_compute_dtype(self, inputs):
-        if isinstance(inputs, dict):
-            inputs[IMAGES] = utils.ensure_tensor(
-                inputs[IMAGES], self.compute_dtype
-            )
-        else:
-            inputs = utils.ensure_tensor(inputs, self.compute_dtype)
-        return inputs
-
-
 @keras_export(
     "keras.layers.RandomCrop",
     "keras.layers.experimental.preprocessing.RandomCrop",
     v1=[],
 )
-class RandomCrop(BaseImageAugmentationLayer):
+class RandomCrop(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly crops images during training.
 
     During training, this layer will randomly choose a location to crop images
@@ -533,24 +248,24 @@ class RandomCrop(BaseImageAugmentationLayer):
     True when calling the layer.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
+    of integer or floating point dtype. By default, the layer will output
     floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., target_height, target_width, channels)`.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., target_height, target_width, channels)`.
 
     Args:
-      height: Integer, the height of the output shape.
-      width: Integer, the width of the output shape.
-      seed: Integer. Used to create a random seed.
+        height: Integer, the height of the output shape.
+        width: Integer, the width of the output shape.
+        seed: Integer. Used to create a random seed.
     """
 
     def __init__(self, height, width, seed=None, **kwargs):
@@ -565,51 +280,34 @@ class RandomCrop(BaseImageAugmentationLayer):
         self.seed = seed
 
     def call(self, inputs, training=True):
-
-        if training:
-            return super().call(inputs, training)
-        else:
-            inputs = self._ensure_inputs_are_compute_dtype(inputs)
-            inputs, is_dict, targets = self._format_inputs(inputs)
-            output = inputs
-            # self._resize() returns valid results for both batched and
-            # unbatched
-            output["images"] = self._resize(inputs["images"])
-            return self._format_output(output, is_dict, targets)
-
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        input_shape = tf.shape(image)
+        inputs = convert_inputs(inputs, dtype=self.compute_dtype)
+        input_shape = tf.shape(inputs)
         h_diff = input_shape[H_AXIS] - self.height
         w_diff = input_shape[W_AXIS] - self.width
-        dtype = input_shape.dtype
-        rands = self._random_generator.random_uniform([2], 0, dtype.max, dtype)
-        h_start = rands[0] % (h_diff + 1)
-        w_start = rands[1] % (w_diff + 1)
-        return {"top": h_start, "left": w_start}
 
-    def augment_image(self, image, transformation):
-        input_shape = tf.shape(image)
-        h_diff = input_shape[H_AXIS] - self.height
-        w_diff = input_shape[W_AXIS] - self.width
+        def random_crop():
+            dtype = input_shape.dtype
+            rands = self._random_generator.random_uniform(
+                [2], 0, dtype.max, dtype
+            )
+            h_start = rands[0] % (h_diff + 1)
+            w_start = rands[1] % (w_diff + 1)
+            return tf.image.crop_to_bounding_box(
+                inputs, h_start, w_start, self.height, self.width
+            )
+
+        def resize():
+            outputs = image_utils.smart_resize(
+                inputs, [self.height, self.width]
+            )
+            # smart_resize will always output float32, so we need to re-cast.
+            return tf.cast(outputs, self.compute_dtype)
+
         return tf.cond(
-            tf.reduce_all((h_diff >= 0, w_diff >= 0)),
-            lambda: self._crop(image, transformation),
-            lambda: self._resize(image),
+            tf.reduce_all((training, h_diff >= 0, w_diff >= 0)),
+            random_crop,
+            resize,
         )
-
-    def _crop(self, image, transformation):
-        top = transformation["top"]
-        left = transformation["left"]
-        return tf.image.crop_to_bounding_box(
-            image, top, left, self.height, self.width
-        )
-
-    def _resize(self, image):
-        outputs = image_utils.smart_resize(image, [self.height, self.width])
-        # smart_resize will always output float32, so we need to re-cast.
-        return tf.cast(outputs, self.compute_dtype)
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
@@ -639,11 +337,11 @@ class Rescaling(base_layer.Layer):
 
     For instance:
 
-    1. To rescale an input in the ``[0, 255]`` range
+    1. To rescale an input in the `[0, 255]` range
     to be in the `[0, 1]` range, you would pass `scale=1./255`.
 
-    2. To rescale an input in the ``[0, 255]`` range to be in the `[-1, 1]`
-    range, you would pass `scale=1./127.5, offset=-1`.
+    2. To rescale an input in the `[0, 255]` range to be in the `[-1, 1]` range,
+    you would pass `scale=1./127.5, offset=-1`.
 
     The rescaling is applied both during training and inference. Inputs can be
     of integer or floating point dtype, and by default the layer will output
@@ -653,14 +351,14 @@ class Rescaling(base_layer.Layer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      Arbitrary.
+        Arbitrary.
 
     Output shape:
-      Same as input.
+        Same as input.
 
     Args:
-      scale: Float, the scale to apply to the inputs.
-      offset: Float, the offset to apply to the inputs.
+        scale: Float, the scale to apply to the inputs.
+        offset: Float, the offset to apply to the inputs.
     """
 
     def __init__(self, scale, offset=0.0, **kwargs):
@@ -671,6 +369,7 @@ class Rescaling(base_layer.Layer):
 
     def call(self, inputs):
         dtype = self.compute_dtype
+        inputs = convert_inputs(inputs, dtype=dtype)
         scale = tf.cast(self.scale, dtype)
         offset = tf.cast(self.offset, dtype)
         return tf.cast(inputs, dtype) * scale + offset
@@ -697,7 +396,7 @@ HORIZONTAL_AND_VERTICAL = "horizontal_and_vertical"
     "keras.layers.experimental.preprocessing.RandomFlip",
     v1=[],
 )
-class RandomFlip(BaseImageAugmentationLayer):
+class RandomFlip(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly flips images during training.
 
     This layer will flip the images horizontally and or vertically based on the
@@ -705,26 +404,26 @@ class RandomFlip(BaseImageAugmentationLayer):
     input. Call the layer with `training=True` to flip the input.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
-    floats.
+    of integer or floating point dtype.
+    By default, the layer will output floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
-    Arguments:
-      mode: String indicating which flip mode to use. Can be `"horizontal"`,
-        `"vertical"`, or `"horizontal_and_vertical"`. Defaults to
-        `"horizontal_and_vertical"`. `"horizontal"` is a left-right flip and
-        `"vertical"` is a top-bottom flip.
-      seed: Integer. Used to create a random seed.
+    Args:
+        mode: String indicating which flip mode to use. Can be `"horizontal"`,
+            `"vertical"`, or `"horizontal_and_vertical"`. Defaults to
+            `"horizontal_and_vertical"`. `"horizontal"` is a left-right flip and
+            `"vertical"` is a top-bottom flip.
+        seed: Integer. Used to create a random seed.
     """
 
     def __init__(self, mode=HORIZONTAL_AND_VERTICAL, seed=None, **kwargs):
@@ -747,33 +446,42 @@ class RandomFlip(BaseImageAugmentationLayer):
                 f"RandomFlip layer {self.name} received an unknown mode "
                 f"argument {mode}"
             )
-        self.auto_vectorize = False
+        self.seed = seed
 
-    def augment_label(self, label, transformation):
-        return label
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, self.compute_dtype)
 
-    def augment_image(self, image, transformation):
-        flipped_outputs = image
-        if self.horizontal and transformation["flip_horizontal"]:
-            flipped_outputs = tf.image.flip_left_right(flipped_outputs)
-        if self.vertical and transformation["flip_vertical"]:
-            flipped_outputs = tf.image.flip_up_down(flipped_outputs)
-        flipped_outputs.set_shape(image.shape)
-        return flipped_outputs
+        def random_flipped_inputs(inputs):
+            flipped_outputs = inputs
+            if self.horizontal:
+                seed = self._random_generator.make_seed_for_stateless_op()
+                if seed is not None:
+                    flipped_outputs = tf.image.stateless_random_flip_left_right(
+                        flipped_outputs, seed=seed
+                    )
+                else:
+                    flipped_outputs = tf.image.random_flip_left_right(
+                        flipped_outputs,
+                        self._random_generator.make_legacy_seed(),
+                    )
+            if self.vertical:
+                seed = self._random_generator.make_seed_for_stateless_op()
+                if seed is not None:
+                    flipped_outputs = tf.image.stateless_random_flip_up_down(
+                        flipped_outputs, seed=seed
+                    )
+                else:
+                    flipped_outputs = tf.image.random_flip_up_down(
+                        flipped_outputs,
+                        self._random_generator.make_legacy_seed(),
+                    )
+            flipped_outputs.set_shape(inputs.shape)
+            return flipped_outputs
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        flip_horizontal = False
-        flip_vertical = False
-        if self.horizontal:
-            flip_horizontal = np.random.choice([True, False])
-        if self.vertical:
-            flip_vertical = np.random.choice([True, False])
-        return {
-            "flip_horizontal": flip_horizontal,
-            "flip_vertical": flip_vertical,
-        }
+        if training:
+            return random_flipped_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -781,6 +489,7 @@ class RandomFlip(BaseImageAugmentationLayer):
     def get_config(self):
         config = {
             "mode": self.mode,
+            "seed": self.seed,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -792,14 +501,14 @@ class RandomFlip(BaseImageAugmentationLayer):
     "keras.layers.experimental.preprocessing.RandomTranslation",
     v1=[],
 )
-class RandomTranslation(BaseImageAugmentationLayer):
+class RandomTranslation(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly translates images during training.
 
     This layer will apply random translations to each image during training,
     filling empty space according to `fill_mode`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
+    of integer or floating point dtype. By default, the layer will output
     floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
@@ -807,44 +516,46 @@ class RandomTranslation(BaseImageAugmentationLayer):
 
     Args:
       height_factor: a float represented as fraction of value, or a tuple of
-        size 2 representing lower and upper bound for shifting vertically. A
-        negative value means shifting image up, while a positive value means
-        shifting image down. When represented as a single positive float, this
-        value is used for both the upper and lower bound. For instance,
-        `height_factor=(-0.2, 0.3)` results in an output shifted by a random
-        amount in the range `[-20%, +30%]`.  `height_factor=0.2` results in an
-        output height shifted by a random amount in the range `[-20%, +20%]`.
+          size 2 representing lower and upper bound for shifting vertically. A
+          negative value means shifting image up, while a positive value means
+          shifting image down. When represented as a single positive float, this
+          value is used for both the upper and lower bound. For instance,
+          `height_factor=(-0.2, 0.3)` results in an output shifted by a random
+          amount in the range `[-20%, +30%]`.  `height_factor=0.2` results in an
+          output height shifted by a random amount in the range `[-20%, +20%]`.
       width_factor: a float represented as fraction of value, or a tuple of size
-        2 representing lower and upper bound for shifting horizontally. A
-        negative value means shifting image left, while a positive value means
-        shifting image right. When represented as a single positive float, this
-        value is used for both the upper and lower bound. For instance,
-        `width_factor=(-0.2, 0.3)` results in an output shifted left by 20%, and
-        shifted right by 30%. `width_factor=0.2` results in an output height
-        shifted left or right by 20%.
+          2 representing lower and upper bound for shifting horizontally. A
+          negative value means shifting image left, while a positive value means
+          shifting image right. When represented as a single positive float,
+          this value is used for both the upper and lower bound. For instance,
+          `width_factor=(-0.2, 0.3)` results in an output shifted left by 20%,
+          and shifted right by 30%. `width_factor=0.2` results
+          in an output height shifted left or right by 20%.
       fill_mode: Points outside the boundaries of the input are filled according
-        to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
-        - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended by
-          reflecting about the edge of the last pixel.
-        - *constant*: `(k k k k | a b c d | k k k k)` The input is extended by
-          filling all values beyond the edge with the same constant value k = 0.
-        - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
-          wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
-          the nearest pixel.
+          to the given mode
+          (one of `{"constant", "reflect", "wrap", "nearest"}`).
+          - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended by
+              reflecting about the edge of the last pixel.
+          - *constant*: `(k k k k | a b c d | k k k k)` The input is extended by
+              filling all values beyond the edge with the same constant value
+              k = 0.
+          - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
+              wrapping around to the opposite edge.
+          - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
+              the nearest pixel.
       interpolation: Interpolation mode. Supported values: `"nearest"`,
-        `"bilinear"`.
+          `"bilinear"`.
       seed: Integer. Used to create a random seed.
       fill_value: a float represents the value to be filled outside the
-        boundaries when `fill_mode="constant"`.
+          boundaries when `fill_mode="constant"`.
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`,  in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`,  in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`,  in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`,  in `"channels_last"` format.
     """
 
     def __init__(
@@ -875,8 +586,8 @@ class RandomTranslation(BaseImageAugmentationLayer):
             )
         if abs(self.height_lower) > 1.0 or abs(self.height_upper) > 1.0:
             raise ValueError(
-                "`height_factor` must have values between [-1, 1], "
-                f"got {height_factor}"
+                "`height_factor` argument must have values between [-1, 1]. "
+                f"Received: height_factor={height_factor}"
             )
 
         self.width_factor = width_factor
@@ -904,66 +615,57 @@ class RandomTranslation(BaseImageAugmentationLayer):
         self.interpolation = interpolation
         self.seed = seed
 
-    @tf.function
-    def augment_image(self, image, transformation):
-        """Translated inputs with random ops."""
-        # The transform op only accepts rank 4 inputs, so if we have an
-        # unbatched image, we need to temporarily expand dims to a batch.
-        original_shape = image.shape
-        inputs = tf.expand_dims(image, 0)
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, self.compute_dtype)
 
-        inputs_shape = tf.shape(inputs)
-        img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-        img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-        height_translation = transformation["height_translation"]
-        width_translation = transformation["width_translation"]
-        height_translation = height_translation * img_hd
-        width_translation = width_translation * img_wd
-        translations = tf.cast(
-            tf.concat([width_translation, height_translation], axis=1),
-            dtype=tf.float32,
-        )
-        output = transform(
-            inputs,
-            get_translation_matrix(translations),
-            interpolation=self.interpolation,
-            fill_mode=self.fill_mode,
-            fill_value=self.fill_value,
-        )
+        def random_translated_inputs(inputs):
+            """Translated inputs with random ops."""
+            # The transform op only accepts rank 4 inputs,
+            # so if we have an unbatched image,
+            # we need to temporarily expand dims to a batch.
+            original_shape = inputs.shape
+            unbatched = inputs.shape.rank == 3
+            if unbatched:
+                inputs = tf.expand_dims(inputs, 0)
 
-        output = tf.squeeze(output, 0)
-        output.set_shape(original_shape)
-        return output
+            inputs_shape = tf.shape(inputs)
+            batch_size = inputs_shape[0]
+            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+            height_translate = self._random_generator.random_uniform(
+                shape=[batch_size, 1],
+                minval=self.height_lower,
+                maxval=self.height_upper,
+                dtype=tf.float32,
+            )
+            height_translate = height_translate * img_hd
+            width_translate = self._random_generator.random_uniform(
+                shape=[batch_size, 1],
+                minval=self.width_lower,
+                maxval=self.width_upper,
+                dtype=tf.float32,
+            )
+            width_translate = width_translate * img_wd
+            translations = tf.cast(
+                tf.concat([width_translate, height_translate], axis=1),
+                dtype=tf.float32,
+            )
+            output = transform(
+                inputs,
+                get_translation_matrix(translations),
+                interpolation=self.interpolation,
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+            )
+            if unbatched:
+                output = tf.squeeze(output, 0)
+            output.set_shape(original_shape)
+            return output
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        del image, label, bounding_box
-        batch_size = 1
-        height_translation = self._random_generator.random_uniform(
-            shape=[batch_size, 1],
-            minval=self.height_lower,
-            maxval=self.height_upper,
-            dtype=tf.float32,
-        )
-        width_translation = self._random_generator.random_uniform(
-            shape=[batch_size, 1],
-            minval=self.width_lower,
-            maxval=self.width_upper,
-            dtype=tf.float32,
-        )
-        return {
-            "height_translation": height_translation,
-            "width_translation": width_translation,
-        }
-
-    def _batch_augment(self, inputs):
-        # Change to vectorized_map for better performance, as well as work
-        # around issue for different tensorspec between inputs and outputs.
-        return tf.vectorized_map(self._augment, inputs)
-
-    def augment_label(self, label, transformation):
-        return label
+        if training:
+            return random_translated_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -985,13 +687,13 @@ def get_translation_matrix(translations, name=None):
     """Returns projective transform(s) for the given translation(s).
 
     Args:
-      translations: A matrix of 2-element lists representing `[dx, dy]`
-        to translate for each image (for a batch of images).
-      name: The name of the op.
+        translations: A matrix of 2-element lists representing `[dx, dy]`
+            to translate for each image (for a batch of images).
+        name: The name of the op.
 
     Returns:
-      A tensor of shape `(num_images, 8)` projective transforms which can be
-        given to `transform`.
+        A tensor of shape `(num_images, 8)` projective transforms
+            which can be given to `transform`.
     """
     with backend.name_scope(name or "translation_matrix"):
         num_translations = tf.shape(translations)[0]
@@ -1027,58 +729,58 @@ def transform(
     """Applies the given transform(s) to the image(s).
 
     Args:
-      images: A tensor of shape
-        `(num_images, num_rows, num_columns, num_channels)` (NHWC). The rank
-        must be statically known (the shape is not `TensorShape(None)`).
-      transforms: Projective transform matrix/matrices. A vector of length 8 or
-        tensor of size N x 8. If one row of transforms is [a0, a1, a2, b0, b1,
-        b2, c0, c1], then it maps the *output* point `(x, y)` to a transformed
-        *input* point
-        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
-        where `k = c0 x + c1 y + 1`. The transforms are *inverted* compared
-        to the transform mapping input points to output points. Note that
-        gradients are not backpropagated into transformation parameters.
-      fill_mode: Points outside the boundaries of the input are filled according
-        to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
-      fill_value: a float represents the value to be filled outside the
-        boundaries when `fill_mode="constant"`.
-      interpolation: Interpolation mode. Supported values: `"nearest"`,
-        `"bilinear"`.
-      output_shape: Output dimension after the transform, `[height, width]`.
-        If `None`, output is the same size as input image.
-      name: The name of the op.
+        images: A tensor of shape
+            `(num_images, num_rows, num_columns, num_channels)` (NHWC).
+            The rank must be statically known
+            (the shape is not `TensorShape(None)`).
+        transforms: Projective transform matrix/matrices.
+            A vector of length 8 or tensor of size N x 8.
+            If one row of transforms is [a0, a1, a2, b0, b1, b2,
+            c0, c1], then it maps the *output* point `(x, y)`
+            to a transformed *input* point
+            `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`, where
+            `k = c0 x + c1 y + 1`. The transforms are *inverted* compared to the
+            transform mapping input points to output points.
+            Note that gradients are not backpropagated
+            into transformation parameters.
+        fill_mode: Points outside the boundaries of the input are filled
+            according to the given mode
+            (one of `{"constant", "reflect", "wrap", "nearest"}`).
+        fill_value: a float represents the value to be filled outside
+            the boundaries when `fill_mode="constant"`.
+        interpolation: Interpolation mode. Supported values: `"nearest"`,
+            `"bilinear"`.
+        output_shape: Output dimension after the transform, `[height, width]`.
+            If `None`, output is the same size as input image.
+        name: The name of the op.
 
     Fill mode behavior for each valid value is as follows:
 
-    - reflect (d c b a | a b c d | d c b a)
+    - `"reflect"`: `(d c b a | a b c d | d c b a)`
     The input is extended by reflecting about the edge of the last pixel.
 
-    - constant (k k k k | a b c d | k k k k)
+    - `"constant"`: `(k k k k | a b c d | k k k k)`
     The input is extended by filling all
     values beyond the edge with the same constant value k = 0.
 
-    - wrap (a b c d | a b c d | a b c d)
+    - `"wrap"`: `(a b c d | a b c d | a b c d)`
     The input is extended by wrapping around to the opposite edge.
 
-    - nearest (a a a a | a b c d | d d d d)
+    - `"nearest"`: `(a a a a | a b c d | d d d d)`
     The input is extended by the nearest pixel.
 
     Input shape:
-      4D tensor with shape: `(samples, height, width, channels)`,
-        in `"channels_last"` format.
+        4D tensor with shape: `(samples, height, width, channels)`,
+            in `"channels_last"` format.
 
     Output shape:
-      4D tensor with shape: `(samples, height, width, channels)`,
-        in `"channels_last"` format.
+        4D tensor with shape: `(samples, height, width, channels)`,
+            in `"channels_last"` format.
 
     Returns:
-      Image(s) with the same type and shape as `images`, with the given
-      transform(s) applied. Transformed coordinates outside of the input image
-      will be filled with zeros.
-
-    Raises:
-      TypeError: If `image` is an invalid type.
-      ValueError: If output shape is not 1-D int32 Tensor.
+        Image(s) with the same type and shape as `images`, with the given
+        transform(s) applied. Transformed coordinates outside of the input image
+        will be filled with zeros.
     """
     with backend.name_scope(name or "transform"):
         if output_shape is None:
@@ -1096,7 +798,7 @@ def transform(
             raise ValueError(
                 "output_shape must be a 1-D Tensor of 2 elements: "
                 "new_height, new_width, instead got "
-                f"{output_shape}"
+                f"output_shape={output_shape}"
             )
 
         fill_value = tf.convert_to_tensor(
@@ -1117,20 +819,23 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
     """Returns projective transform(s) for the given angle(s).
 
     Args:
-      angles: A scalar angle to rotate all images by, or (for batches of images)
-        a vector with an angle to rotate each image in the batch. The rank must
-        be statically known (the shape is not `TensorShape(None)`).
-      image_height: Height of the image(s) to be transformed.
-      image_width: Width of the image(s) to be transformed.
-      name: The name of the op.
+        angles: A scalar angle to rotate all images by,
+            or (for batches of images) a vector with an angle to
+            rotate each image in the batch. The rank must be
+            statically known (the shape is not `TensorShape(None)`).
+        image_height: Height of the image(s) to be transformed.
+        image_width: Width of the image(s) to be transformed.
+        name: The name of the op.
 
     Returns:
-      A tensor of shape (num_images, 8). Projective transforms which can be
-        given to operation `image_projective_transform_v2`. If one row of
-        transforms is [a0, a1, a2, b0, b1, b2, c0, c1], then it maps the
-        *output* point `(x, y)` to a transformed *input* point
-        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
-        where `k = c0 x + c1 y + 1`.
+        A tensor of shape (num_images, 8).
+            Projective transforms which can be given
+            to operation `image_projective_transform_v2`.
+            If one row of transforms is
+            [a0, a1, a2, b0, b1, b2, c0, c1], then it maps the *output* point
+            `(x, y)` to a transformed *input* point
+            `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
+            where `k = c0 x + c1 y + 1`.
     """
     with backend.name_scope(name or "rotation_matrix"):
         x_offset = (
@@ -1167,7 +872,7 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
     "keras.layers.experimental.preprocessing.RandomRotation",
     v1=[],
 )
-class RandomRotation(BaseImageAugmentationLayer):
+class RandomRotation(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly rotates images during training.
 
     This layer will apply random rotations to each image, filling empty space
@@ -1178,45 +883,53 @@ class RandomRotation(BaseImageAugmentationLayer):
     rotations at inference time, set `training` to True when calling the layer.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
-    floats.
+    of integer or floating point dtype.
+    By default, the layer will output floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format
 
-    Arguments:
-      factor: a float represented as fraction of 2 Pi, or a tuple of size 2
-        representing lower and upper bound for rotating clockwise and
-        counter-clockwise. A positive values means rotating counter clock-wise,
-        while a negative value means clock-wise. When represented as a single
-        float, this value is used for both the upper and lower bound. For
-        instance, `factor=(-0.2, 0.3)` results in an output rotation by a random
-        amount in the range `[-20% * 2pi, 30% * 2pi]`. `factor=0.2` results in
-        an output rotating by a random amount in the range
-        `[-20% * 2pi, 20% * 2pi]`.
-      fill_mode: Points outside the boundaries of the input are filled according
-        to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
-        - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended by
-          reflecting about the edge of the last pixel.
-        - *constant*: `(k k k k | a b c d | k k k k)` The input is extended by
-          filling all values beyond the edge with the same constant value k = 0.
-        - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
-          wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
-          the nearest pixel.
-      interpolation: Interpolation mode. Supported values: `"nearest"`,
-        `"bilinear"`.
-      seed: Integer. Used to create a random seed.
-      fill_value: a float represents the value to be filled outside the
-        boundaries when `fill_mode="constant"`.
+    Args:
+        factor: a float represented as fraction of 2 Pi, or a tuple of size 2
+            representing lower and upper bound for rotating clockwise and
+            counter-clockwise. A positive values means rotating
+            counter clock-wise,
+            while a negative value means clock-wise.
+            When represented as a single
+            float, this value is used for both the upper and lower bound.
+            For instance, `factor=(-0.2, 0.3)`
+            results in an output rotation by a random
+            amount in the range `[-20% * 2pi, 30% * 2pi]`.
+            `factor=0.2` results in an
+            output rotating by a random amount
+            in the range `[-20% * 2pi, 20% * 2pi]`.
+        fill_mode: Points outside the boundaries of the input are filled
+            according to the given mode
+            (one of `{"constant", "reflect", "wrap", "nearest"}`).
+            - *reflect*: `(d c b a | a b c d | d c b a)`
+                The input is extended by reflecting about
+                the edge of the last pixel.
+            - *constant*: `(k k k k | a b c d | k k k k)`
+                The input is extended by
+                filling all values beyond the edge with
+                the same constant value k = 0.
+            - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
+                wrapping around to the opposite edge.
+            - *nearest*: `(a a a a | a b c d | d d d d)`
+                The input is extended by the nearest pixel.
+        interpolation: Interpolation mode. Supported values: `"nearest"`,
+            `"bilinear"`.
+        seed: Integer. Used to create a random seed.
+        fill_value: a float represents the value to be filled outside
+            the boundaries when `fill_mode="constant"`.
     """
 
     def __init__(
@@ -1241,7 +954,8 @@ class RandomRotation(BaseImageAugmentationLayer):
             self.upper = factor
         if self.upper < self.lower:
             raise ValueError(
-                f"Factor cannot have negative values, got {factor}"
+                "`factor` argument cannot have a negative value. "
+                f"Received: factor={factor}"
             )
         check_fill_mode_and_interpolation(fill_mode, interpolation)
         self.fill_mode = fill_mode
@@ -1249,37 +963,43 @@ class RandomRotation(BaseImageAugmentationLayer):
         self.interpolation = interpolation
         self.seed = seed
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        min_angle = self.lower * 2.0 * np.pi
-        max_angle = self.upper * 2.0 * np.pi
-        angle = self._random_generator.random_uniform(
-            shape=[1], minval=min_angle, maxval=max_angle
-        )
-        return {"angle": angle}
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, self.compute_dtype)
 
-    def augment_image(self, image, transformation):
-        image = utils.ensure_tensor(image, self.compute_dtype)
-        original_shape = image.shape
-        image = tf.expand_dims(image, 0)
-        image_shape = tf.shape(image)
-        img_hd = tf.cast(image_shape[H_AXIS], tf.float32)
-        img_wd = tf.cast(image_shape[W_AXIS], tf.float32)
-        angle = transformation["angle"]
-        output = transform(
-            image,
-            get_rotation_matrix(angle, img_hd, img_wd),
-            fill_mode=self.fill_mode,
-            fill_value=self.fill_value,
-            interpolation=self.interpolation,
-        )
-        output = tf.squeeze(output, 0)
-        output.set_shape(original_shape)
-        return output
+        def random_rotated_inputs(inputs):
+            """Rotated inputs with random ops."""
+            original_shape = inputs.shape
+            unbatched = inputs.shape.rank == 3
+            # The transform op only accepts rank 4 inputs,
+            # so if we have an unbatched image,
+            # we need to temporarily expand dims to a batch.
+            if unbatched:
+                inputs = tf.expand_dims(inputs, 0)
+            inputs_shape = tf.shape(inputs)
+            batch_size = inputs_shape[0]
+            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+            min_angle = self.lower * 2.0 * np.pi
+            max_angle = self.upper * 2.0 * np.pi
+            angles = self._random_generator.random_uniform(
+                shape=[batch_size], minval=min_angle, maxval=max_angle
+            )
+            output = transform(
+                inputs,
+                get_rotation_matrix(angles, img_hd, img_wd),
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+                interpolation=self.interpolation,
+            )
+            if unbatched:
+                output = tf.squeeze(output, 0)
+            output.set_shape(original_shape)
+            return output
 
-    def augment_label(self, label, transformation):
-        return label
+        if training:
+            return random_rotated_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -1301,50 +1021,61 @@ class RandomRotation(BaseImageAugmentationLayer):
     "keras.layers.experimental.preprocessing.RandomZoom",
     v1=[],
 )
-class RandomZoom(BaseImageAugmentationLayer):
+class RandomZoom(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly zooms images during training.
 
     This layer will randomly zoom in or out on each axis of an image
     independently, filling empty space according to `fill_mode`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    of interger or floating point dtype. By default, the layer will output
-    floats.
+    of integer or floating point dtype.
+    By default, the layer will output floats.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      height_factor: a float represented as fraction of value, or a tuple of
-        size 2 representing lower and upper bound for zooming vertically. When
-        represented as a single float, this value is used for both the upper and
-        lower bound. A positive value means zooming out, while a negative value
-        means zooming in. For instance, `height_factor=(0.2, 0.3)` result in an
-        output zoomed out by a random amount in the range `[+20%, +30%]`.
-        `height_factor=(-0.3, -0.2)` result in an output zoomed in by a random
-        amount in the range `[+20%, +30%]`.
-      width_factor: a float represented as fraction of value, or a tuple of size
-        2 representing lower and upper bound for zooming horizontally. When
-        represented as a single float, this value is used for both the upper and
-        lower bound. For instance, `width_factor=(0.2, 0.3)` result in an output
-        zooming out between 20% to 30%. `width_factor=(-0.3, -0.2)` result in an
-        output zooming in between 20% to 30%. Defaults to `None`, i.e., zooming
-        vertical and horizontal directions by preserving the aspect ratio.
-      fill_mode: Points outside the boundaries of the input are filled according
-        to the given mode (one of `{"constant", "reflect", "wrap", "nearest"}`).
-        - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended by
-          reflecting about the edge of the last pixel.
-        - *constant*: `(k k k k | a b c d | k k k k)` The input is extended by
-          filling all values beyond the edge with the same constant value k = 0.
-        - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
-          wrapping around to the opposite edge.
-        - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended by
-          the nearest pixel.
-      interpolation: Interpolation mode. Supported values: `"nearest"`,
-        `"bilinear"`.
-      seed: Integer. Used to create a random seed.
-      fill_value: a float represents the value to be filled outside the
-        boundaries when `fill_mode="constant"`.
+        height_factor: a float represented as fraction of value,
+            or a tuple of size 2 representing lower and upper bound
+            for zooming vertically. When represented as a single float,
+            this value is used for both the upper and
+            lower bound. A positive value means zooming out,
+            while a negative value
+            means zooming in. For instance, `height_factor=(0.2, 0.3)`
+            result in an output zoomed out by a random amount
+            in the range `[+20%, +30%]`.
+            `height_factor=(-0.3, -0.2)` result in an output zoomed
+            in by a random amount in the range `[+20%, +30%]`.
+        width_factor: a float represented as fraction of value,
+            or a tuple of size 2 representing lower and upper bound
+            for zooming horizontally. When
+            represented as a single float, this value is used
+            for both the upper and
+            lower bound. For instance, `width_factor=(0.2, 0.3)`
+            result in an output
+            zooming out between 20% to 30%.
+            `width_factor=(-0.3, -0.2)` result in an
+            output zooming in between 20% to 30%. Defaults to `None`,
+            i.e., zooming vertical and horizontal directions
+            by preserving the aspect ratio.
+        fill_mode: Points outside the boundaries of the input are
+            filled according to the given mode
+            (one of `{"constant", "reflect", "wrap", "nearest"}`).
+            - *reflect*: `(d c b a | a b c d | d c b a)`
+                The input is extended by reflecting about
+                the edge of the last pixel.
+            - *constant*: `(k k k k | a b c d | k k k k)`
+                The input is extended by filling all values beyond
+                the edge with the same constant value k = 0.
+            - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
+                wrapping around to the opposite edge.
+            - *nearest*: `(a a a a | a b c d | d d d d)`
+                The input is extended by the nearest pixel.
+        interpolation: Interpolation mode. Supported values: `"nearest"`,
+            `"bilinear"`.
+        seed: Integer. Used to create a random seed.
+        fill_value: a float represents the value to be filled outside
+            the boundaries when `fill_mode="constant"`.
 
     Example:
 
@@ -1355,12 +1086,12 @@ class RandomZoom(BaseImageAugmentationLayer):
     TensorShape([32, 224, 224, 3])
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
     """
 
     def __init__(
@@ -1387,8 +1118,8 @@ class RandomZoom(BaseImageAugmentationLayer):
 
         if abs(self.height_lower) > 1.0 or abs(self.height_upper) > 1.0:
             raise ValueError(
-                "`height_factor` must have values between [-1, 1], "
-                f"got {height_factor}"
+                "`height_factor` argument must have values between [-1, 1]. "
+                f"Received: height_factor={height_factor}"
             )
 
         self.width_factor = width_factor
@@ -1402,8 +1133,8 @@ class RandomZoom(BaseImageAugmentationLayer):
 
             if self.width_lower < -1.0 or self.width_upper < -1.0:
                 raise ValueError(
-                    "`width_factor` must have values larger than -1, "
-                    f"got {width_factor}"
+                    "`width_factor` argument must have values larger than -1. "
+                    f"Received: width_factor={width_factor}"
                 )
 
         check_fill_mode_and_interpolation(fill_mode, interpolation)
@@ -1413,50 +1144,54 @@ class RandomZoom(BaseImageAugmentationLayer):
         self.interpolation = interpolation
         self.seed = seed
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        height_zoom = self._random_generator.random_uniform(
-            shape=[1, 1],
-            minval=1.0 + self.height_lower,
-            maxval=1.0 + self.height_upper,
-        )
-        if self.width_factor is not None:
-            width_zoom = self._random_generator.random_uniform(
-                shape=[1, 1],
-                minval=1.0 + self.width_lower,
-                maxval=1.0 + self.width_upper,
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, self.compute_dtype)
+
+        def random_zoomed_inputs(inputs):
+            """Zoomed inputs with random ops."""
+            original_shape = inputs.shape
+            unbatched = inputs.shape.rank == 3
+            # The transform op only accepts rank 4 inputs,
+            # so if we have an unbatched image,
+            # we need to temporarily expand dims to a batch.
+            if unbatched:
+                inputs = tf.expand_dims(inputs, 0)
+            inputs_shape = tf.shape(inputs)
+            batch_size = inputs_shape[0]
+            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+            height_zoom = self._random_generator.random_uniform(
+                shape=[batch_size, 1],
+                minval=1.0 + self.height_lower,
+                maxval=1.0 + self.height_upper,
             )
+            if self.width_factor is not None:
+                width_zoom = self._random_generator.random_uniform(
+                    shape=[batch_size, 1],
+                    minval=1.0 + self.width_lower,
+                    maxval=1.0 + self.width_upper,
+                )
+            else:
+                width_zoom = height_zoom
+            zooms = tf.cast(
+                tf.concat([width_zoom, height_zoom], axis=1), dtype=tf.float32
+            )
+            output = transform(
+                inputs,
+                get_zoom_matrix(zooms, img_hd, img_wd),
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+                interpolation=self.interpolation,
+            )
+            if unbatched:
+                output = tf.squeeze(output, 0)
+            output.set_shape(original_shape)
+            return output
+
+        if training:
+            return random_zoomed_inputs(inputs)
         else:
-            width_zoom = height_zoom
-
-        return {"height_zoom": height_zoom, "width_zoom": width_zoom}
-
-    def augment_image(self, image, transformation):
-        image = utils.ensure_tensor(image, self.compute_dtype)
-        original_shape = image.shape
-        image = tf.expand_dims(image, 0)
-        image_shape = tf.shape(image)
-        img_hd = tf.cast(image_shape[H_AXIS], tf.float32)
-        img_wd = tf.cast(image_shape[W_AXIS], tf.float32)
-        width_zoom = transformation["width_zoom"]
-        height_zoom = transformation["height_zoom"]
-        zooms = tf.cast(
-            tf.concat([width_zoom, height_zoom], axis=1), dtype=tf.float32
-        )
-        output = transform(
-            image,
-            get_zoom_matrix(zooms, img_hd, img_wd),
-            fill_mode=self.fill_mode,
-            fill_value=self.fill_value,
-            interpolation=self.interpolation,
-        )
-        output = tf.squeeze(output, 0)
-        output.set_shape(original_shape)
-        return output
-
-    def augment_label(self, label, transformation):
-        return label
+            return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -1478,20 +1213,20 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
     """Returns projective transform(s) for the given zoom(s).
 
     Args:
-      zooms: A matrix of 2-element lists representing `[zx, zy]` to zoom for
-        each image (for a batch of images).
-      image_height: Height of the image(s) to be transformed.
-      image_width: Width of the image(s) to be transformed.
-      name: The name of the op.
+        zooms: A matrix of 2-element lists representing `[zx, zy]`
+            to zoom for each image (for a batch of images).
+        image_height: Height of the image(s) to be transformed.
+        image_width: Width of the image(s) to be transformed.
+        name: The name of the op.
 
     Returns:
-      A tensor of shape `(num_images, 8)`. Projective transforms which can be
-        given to operation `image_projective_transform_v2`.
-        If one row of transforms is
-         `[a0, a1, a2, b0, b1, b2, c0, c1]`, then it maps the *output* point
-         `(x, y)` to a transformed *input* point
-         `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
-         where `k = c0 x + c1 y + 1`.
+        A tensor of shape `(num_images, 8)`. Projective transforms which can be
+            given to operation `image_projective_transform_v2`.
+            If one row of transforms is
+            `[a0, a1, a2, b0, b1, b2, c0, c1]`, then it maps the *output* point
+            `(x, y)` to a transformed *input* point
+            `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
+            where `k = c0 x + c1 y + 1`.
     """
     with backend.name_scope(name or "zoom_matrix"):
         num_zooms = tf.shape(zooms)[0]
@@ -1522,41 +1257,43 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
     "keras.layers.experimental.preprocessing.RandomContrast",
     v1=[],
 )
-class RandomContrast(BaseImageAugmentationLayer):
+class RandomContrast(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly adjusts contrast during training.
 
-    This layer will randomly adjust the contrast of an image or images by a
-    random factor. Contrast is adjusted independently for each channel of each
-    image during training.
+    This layer will randomly adjust the contrast of an image or images
+    by a random factor. Contrast is adjusted independently
+    for each channel of each image during training.
 
     For each channel, this layer computes the mean of the image pixels in the
     channel and then adjusts each component `x` of each pixel to
     `(x - mean) * contrast_factor + mean`.
 
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
-    in integer or floating point dtype. By default, the layer will output
-    floats. The output value will be clipped to the range `[0, 255]`, the valid
+    in integer or floating point dtype.
+    By default, the layer will output floats.
+    The output value will be clipped to the range `[0, 255]`, the valid
     range of RGB colors.
 
     For an overview and full list of preprocessing layers, see the preprocessing
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
-    Arguments:
-      factor: a positive float represented as fraction of value, or a tuple of
-        size 2 representing lower and upper bound. When represented as a single
-        float, lower = upper. The contrast factor will be randomly picked
-        between `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel,
-        the output will be `(x - mean) * factor + mean` where `mean` is the mean
-        value of the channel.
-      seed: Integer. Used to create a random seed.
+    Args:
+        factor: a positive float represented as fraction of value, or a tuple of
+            size 2 representing lower and upper bound.
+            When represented as a single float, lower = upper.
+            The contrast factor will be randomly picked between
+            `[1.0 - lower, 1.0 + upper]`. For any pixel x in the channel,
+            the output will be `(x - mean) * factor + mean`
+            where `mean` is the mean value of the channel.
+        seed: Integer. Used to create a random seed.
     """
 
     def __init__(self, factor, seed=None, **kwargs):
@@ -1572,33 +1309,36 @@ class RandomContrast(BaseImageAugmentationLayer):
             self.lower = self.upper = factor
         if self.lower < 0.0 or self.upper < 0.0 or self.lower > 1.0:
             raise ValueError(
-                "Factor cannot have negative values or greater than 1.0,"
-                f" got {factor}"
+                "`factor` argument cannot have negative values or values "
+                "greater than 1."
+                f"Received: factor={factor}"
             )
         self.seed = seed
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        lower = 1.0 - self.lower
-        upper = 1.0 + self.upper
-        random_seed = self._random_generator.make_seed_for_stateless_op()
-        contrast_factor = stateless_random_ops.stateless_random_uniform(
-            shape=[], minval=lower, maxval=upper, seed=random_seed
-        )
-        return {"contrast_factor": contrast_factor}
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, self.compute_dtype)
 
-    def augment_image(self, image, transformation):
-        contrast_factor = transformation["contrast_factor"]
-        output = tf.image.adjust_contrast(
-            image, contrast_factor=contrast_factor
-        )
-        output = tf.clip_by_value(output, 0, 255)
-        output.set_shape(image.shape)
-        return output
+        def random_contrasted_inputs(inputs):
+            seed = self._random_generator.make_seed_for_stateless_op()
+            if seed is not None:
+                output = tf.image.stateless_random_contrast(
+                    inputs, 1.0 - self.lower, 1.0 + self.upper, seed=seed
+                )
+            else:
+                output = tf.image.random_contrast(
+                    inputs,
+                    1.0 - self.lower,
+                    1.0 + self.upper,
+                    seed=self._random_generator.make_legacy_seed(),
+                )
+            output = tf.clip_by_value(output, 0, 255)
+            output.set_shape(inputs.shape)
+            return output
 
-    def augment_label(self, label, transformation):
-        return label
+        if training:
+            return random_contrasted_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -1613,7 +1353,7 @@ class RandomContrast(BaseImageAugmentationLayer):
 
 
 @keras_export("keras.layers.RandomBrightness", v1=[])
-class RandomBrightness(BaseImageAugmentationLayer):
+class RandomBrightness(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly adjusts brightness during training.
 
     This layer will randomly increase/reduce the brightness for the input RGB
@@ -1627,27 +1367,31 @@ class RandomBrightness(BaseImageAugmentationLayer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      factor: Float or a list/tuple of 2 floats between -1.0 and 1.0. The
-        factor is used to determine the lower bound and upper bound of the
-        brightness adjustment. A float value will be chosen randomly between
-        the limits. When -1.0 is chosen, the output image will be black, and
-        when 1.0 is chosen, the image will be fully white. When only one float
-        is provided, eg, 0.2, then -0.2 will be used for lower bound and 0.2
-        will be used for upper bound.
-      value_range: Optional list/tuple of 2 floats for the lower and upper limit
-        of the values of the input data. Defaults to [0.0, 255.0]. Can be
-        changed to e.g. [0.0, 1.0] if the image input has been scaled before
-        this layer.  The brightness adjustment will be scaled to this range, and
-        the output values will be clipped to this range.
-      seed: optional integer, for fixed RNG behavior.
+        factor: Float or a list/tuple of 2 floats between -1.0 and 1.0. The
+            factor is used to determine the lower bound and upper bound of the
+            brightness adjustment. A float value will be chosen randomly between
+            the limits. When -1.0 is chosen, the output image will be black, and
+            when 1.0 is chosen, the image will be fully white.
+            When only one float is provided, eg, 0.2,
+            then -0.2 will be used for lower bound and 0.2
+            will be used for upper bound.
+        value_range: Optional list/tuple of 2 floats
+            for the lower and upper limit
+            of the values of the input data. Defaults to [0.0, 255.0].
+            Can be changed to e.g. [0.0, 1.0] if the image input
+            has been scaled before this layer.
+            The brightness adjustment will be scaled to this range, and the
+            output values will be clipped to this range.
+        seed: optional integer, for fixed RNG behavior.
 
     Inputs: 3D (HWC) or 4D (NHWC) tensor, with float or int dtype. Input pixel
-      values can be of any range (e.g. `[0., 1.)` or `[0, 255]`)
+        values can be of any range (e.g. `[0., 1.)` or `[0, 255]`)
 
     Output: 3D (HWC) or 4D (NHWC) tensor with brightness adjusted based on the
-      `factor`. By default, the layer will output floats. The output value will
-      be clipped to the range `[0, 255]`, the valid range of RGB colors, and
-      rescaled based on the `value_range` if needed.
+        `factor`. By default, the layer will output floats.
+        The output value will be clipped to the range `[0, 255]`,
+        the valid range of RGB colors, and
+        rescaled based on the `value_range` if needed.
 
     Sample usage:
 
@@ -1687,26 +1431,6 @@ class RandomBrightness(BaseImageAugmentationLayer):
         self._set_value_range(value_range)
         self._seed = seed
 
-    def augment_image(self, image, transformation):
-        return self._brightness_adjust(image, transformation["rgb_delta"])
-
-    def augment_label(self, label, transformation):
-        return label
-
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        rgb_delta_shape = (1, 1, 1)
-        random_rgb_delta = self._random_generator.random_uniform(
-            shape=rgb_delta_shape,
-            minval=self._factor[0],
-            maxval=self._factor[1],
-        )
-        random_rgb_delta = random_rgb_delta * (
-            self._value_range[1] - self._value_range[0]
-        )
-        return {"rgb_delta": random_rgb_delta}
-
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
             raise ValueError(
@@ -1740,18 +1464,36 @@ class RandomBrightness(BaseImageAugmentationLayer):
                 self._FACTOR_VALIDATION_ERROR + f"Got {input_number}"
             )
 
-    def _brightness_adjust(self, image, rgb_delta):
-        image = utils.ensure_tensor(image, self.compute_dtype)
-        rank = image.shape.rank
-        if rank != 3:
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs, dtype=self.compute_dtype)
+        if training:
+            return self._brightness_adjust(inputs)
+        else:
+            return inputs
+
+    def _brightness_adjust(self, images):
+        rank = images.shape.rank
+        if rank == 3:
+            rgb_delta_shape = (1, 1, 1)
+        elif rank == 4:
+            # Keep only the batch dim. This will ensure to have same adjustment
+            # with in one image, but different across the images.
+            rgb_delta_shape = [tf.shape(images)[0], 1, 1, 1]
+        else:
             raise ValueError(
-                "Expected the input image to be rank 3. Got "
-                f"inputs.shape = {image.shape}"
+                "Expected the input image to be rank 3 or 4. Got "
+                f"inputs.shape = {images.shape}"
             )
-        rgb_delta = tf.cast(rgb_delta, image.dtype)
-        image += rgb_delta
+        rgb_delta = self._random_generator.random_uniform(
+            shape=rgb_delta_shape,
+            minval=self._factor[0],
+            maxval=self._factor[1],
+        )
+        rgb_delta = rgb_delta * (self._value_range[1] - self._value_range[0])
+        rgb_delta = tf.cast(rgb_delta, images.dtype)
+        images += rgb_delta
         return tf.clip_by_value(
-            image, self._value_range[0], self._value_range[1]
+            images, self._value_range[0], self._value_range[1]
         )
 
     def get_config(self):
@@ -1769,13 +1511,13 @@ class RandomBrightness(BaseImageAugmentationLayer):
     "keras.layers.experimental.preprocessing.RandomHeight",
     v1=[],
 )
-class RandomHeight(BaseImageAugmentationLayer):
+class RandomHeight(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly varies image height during training.
 
     This layer adjusts the height of a batch of images by a random factor.
     The input should be a 3D (unbatched) or 4D (batched) tensor in the
     `"channels_last"` image data format. Input pixel values can be of any range
-    (e.g. `[0., 1.)` or `[0, 255]`) and of interger or floating point dtype. By
+    (e.g. `[0., 1.)` or `[0, 255]`) and of integer or floating point dtype. By
     default, the layer will output floats.
 
 
@@ -1785,27 +1527,30 @@ class RandomHeight(BaseImageAugmentationLayer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      factor: A positive float (fraction of original height), or a tuple of size
-        2 representing lower and upper bound for resizing vertically. When
-        represented as a single float, this value is used for both the upper and
-        lower bound. For instance, `factor=(0.2, 0.3)` results in an output with
-        height changed by a random amount in the range `[20%, 30%]`.
-        `factor=(-0.2, 0.3)` results in an output with height changed by a
-        random amount in the range `[-20%, +30%]`. `factor=0.2` results in an
-        output with height changed by a random amount in the range
-        `[-20%, +20%]`.
-      interpolation: String, the interpolation method. Defaults to `"bilinear"`.
-        Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
-        `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
-      seed: Integer. Used to create a random seed.
+        factor: A positive float (fraction of original height),
+            or a tuple of size 2 representing lower and upper bound
+            for resizing vertically. When represented as a single float,
+            this value is used for both the upper and
+            lower bound. For instance, `factor=(0.2, 0.3)` results
+            in an output with
+            height changed by a random amount in the range `[20%, 30%]`.
+            `factor=(-0.2, 0.3)` results in an output with height
+            changed by a random amount in the range `[-20%, +30%]`.
+            `factor=0.2` results in an output with
+            height changed by a random amount in the range `[-20%, +20%]`.
+        interpolation: String, the interpolation method.
+            Defaults to `"bilinear"`.
+            Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
+            `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+        seed: Integer. Used to create a random seed.
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., random_height, width, channels)`.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., random_height, width, channels)`.
     """
 
     def __init__(self, factor, interpolation="bilinear", seed=None, **kwargs):
@@ -1823,12 +1568,13 @@ class RandomHeight(BaseImageAugmentationLayer):
 
         if self.height_upper < self.height_lower:
             raise ValueError(
-                "`factor` cannot have upper bound less than "
-                f"lower bound, got {factor}"
+                "`factor` argument cannot have an upper bound lesser than the "
+                f"lower bound. Received: factor={factor}"
             )
         if self.height_lower < -1.0 or self.height_upper < -1.0:
             raise ValueError(
-                f"`factor` must have values larger than -1, got {factor}"
+                "`factor` argument must have values larger than -1. "
+                f"Received: factor={factor}"
             )
         self.interpolation = interpolation
         self._interpolation_method = image_utils.get_interpolation(
@@ -1836,44 +1582,37 @@ class RandomHeight(BaseImageAugmentationLayer):
         )
         self.seed = seed
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        height_factor = self._random_generator.random_uniform(
-            shape=[],
-            minval=(1.0 + self.height_lower),
-            maxval=(1.0 + self.height_upper),
-        )
-        inputs_shape = tf.shape(image)
-        img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-        adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
-        return {"height": adjusted_height}
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs)
 
-    def _batch_augment(self, inputs):
-        images = self.augment_image(
-            inputs[IMAGES],
-            transformation=self.get_random_transformation(image=inputs[IMAGES]),
-        )
-        result = {IMAGES: images}
-        # to-do augment bbox to clip bbox to resized height value
-        return result
+        def random_height_inputs(inputs):
+            """Inputs height-adjusted with random ops."""
+            inputs_shape = tf.shape(inputs)
+            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+            img_wd = inputs_shape[W_AXIS]
+            height_factor = self._random_generator.random_uniform(
+                shape=[],
+                minval=(1.0 + self.height_lower),
+                maxval=(1.0 + self.height_upper),
+            )
+            adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
+            adjusted_size = tf.stack([adjusted_height, img_wd])
+            output = tf.image.resize(
+                images=inputs,
+                size=adjusted_size,
+                method=self._interpolation_method,
+            )
+            # tf.resize will output float32 regardless of input type.
+            output = tf.cast(output, self.compute_dtype)
+            output_shape = inputs.shape.as_list()
+            output_shape[H_AXIS] = None
+            output.set_shape(output_shape)
+            return output
 
-    def augment_image(self, image, transformation):
-        # The batch dimension of the input=image is not modified. The output
-        # would be accurate for both unbatched and batched input
-        inputs_shape = tf.shape(image)
-        img_wd = inputs_shape[W_AXIS]
-        adjusted_height = transformation["height"]
-        adjusted_size = tf.stack([adjusted_height, img_wd])
-        output = tf.image.resize(
-            images=image, size=adjusted_size, method=self._interpolation_method
-        )
-        # tf.resize will output float32 in many cases regardless of input type.
-        output = tf.cast(output, self.compute_dtype)
-        output_shape = list(image.shape)
-        output_shape[H_AXIS] = None
-        output.set_shape(output_shape)
-        return output
+        if training:
+            return random_height_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
@@ -1895,14 +1634,14 @@ class RandomHeight(BaseImageAugmentationLayer):
     "keras.layers.experimental.preprocessing.RandomWidth",
     v1=[],
 )
-class RandomWidth(BaseImageAugmentationLayer):
+class RandomWidth(base_layer.BaseRandomLayer):
     """A preprocessing layer which randomly varies image width during training.
 
     This layer will randomly adjusts the width of a batch of images of a
     batch of images by a random factor. The input should be a 3D (unbatched) or
     4D (batched) tensor in the `"channels_last"` image data format. Input pixel
-    values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and of interger
-    or floating point dtype. By default, the layer will output floats.
+    values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and of integer or
+    floating point dtype. By default, the layer will output floats.
 
     By default, this layer is inactive during inference.
 
@@ -1910,26 +1649,30 @@ class RandomWidth(BaseImageAugmentationLayer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      factor: A positive float (fraction of original width), or a tuple of size
-        2 representing lower and upper bound for resizing vertically. When
-        represented as a single float, this value is used for both the upper and
-        lower bound. For instance, `factor=(0.2, 0.3)` results in an output with
-        width changed by a random amount in the range `[20%, 30%]`.
-        `factor=(-0.2, 0.3)` results in an output with width changed by a random
-        amount in the range `[-20%, +30%]`. `factor=0.2` results in an output
-        with width changed by a random amount in the range `[-20%, +20%]`.
-      interpolation: String, the interpolation method. Defaults to `bilinear`.
-        Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`, `"lanczos3"`,
-        `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
-      seed: Integer. Used to create a random seed.
+        factor: A positive float (fraction of original width),
+            or a tuple of size 2 representing lower and upper bound
+            for resizing vertically. When represented as a single float,
+            this value is used for both the upper and
+            lower bound. For instance, `factor=(0.2, 0.3)`
+            results in an output with
+            width changed by a random amount in the range `[20%, 30%]`.
+            `factor=(-0.2, 0.3)` results in an output with width changed
+            by a random amount in the range `[-20%, +30%]`.
+            `factor=0.2` results in an output with width changed
+            by a random amount in the range `[-20%, +20%]`.
+        interpolation: String, the interpolation method.
+            Defaults to `bilinear`.
+            Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
+            `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+        seed: Integer. Used to create a random seed.
 
     Input shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, width, channels)`, in `"channels_last"` format.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)`, in `"channels_last"` format.
 
     Output shape:
-      3D (unbatched) or 4D (batched) tensor with shape:
-      `(..., height, random_width, channels)`.
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, random_width, channels)`.
     """
 
     def __init__(self, factor, interpolation="bilinear", seed=None, **kwargs):
@@ -1946,59 +1689,51 @@ class RandomWidth(BaseImageAugmentationLayer):
             self.width_upper = factor
         if self.width_upper < self.width_lower:
             raise ValueError(
-                "`factor` cannot have upper bound less than "
-                f"lower bound, got {factor}"
+                "`factor` argument cannot have an upper bound less than the "
+                f"lower bound. Received: factor={factor}"
             )
         if self.width_lower < -1.0 or self.width_upper < -1.0:
             raise ValueError(
-                f"`factor` must have values larger than -1, got {factor}"
+                "`factor` argument must have values larger than -1. "
+                f"Received: factor={factor}"
             )
         self.interpolation = interpolation
         self._interpolation_method = image_utils.get_interpolation(
             interpolation
         )
         self.seed = seed
-        self.auto_vectorize = False
 
-    def _batch_augment(self, inputs):
-        images = self.augment_image(
-            inputs[IMAGES],
-            transformation=self.get_random_transformation(image=inputs[IMAGES]),
-        )
-        result = {IMAGES: images}
-        # to-do augment bbox to clip bbox to resized width value
-        return result
+    def call(self, inputs, training=True):
+        inputs = convert_inputs(inputs)
 
-    def augment_image(self, image, transformation):
-        # The batch dimension of the input=image is not modified. The output
-        # would be accurate for both unbatched and batched input
-        inputs = utils.ensure_tensor(image)
-        inputs_shape = tf.shape(inputs)
-        img_hd = inputs_shape[H_AXIS]
-        adjusted_width = transformation["width"]
-        adjusted_size = tf.stack([img_hd, adjusted_width])
-        output = tf.image.resize(
-            images=inputs, size=adjusted_size, method=self._interpolation_method
-        )
-        # tf.resize will output float32 in many cases regardless of input type.
-        output = tf.cast(output, self.compute_dtype)
-        output_shape = inputs.shape.as_list()
-        output_shape[W_AXIS] = None
-        output.set_shape(output_shape)
-        return output
+        def random_width_inputs(inputs):
+            """Inputs width-adjusted with random ops."""
+            inputs_shape = tf.shape(inputs)
+            img_hd = inputs_shape[H_AXIS]
+            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+            width_factor = self._random_generator.random_uniform(
+                shape=[],
+                minval=(1.0 + self.width_lower),
+                maxval=(1.0 + self.width_upper),
+            )
+            adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
+            adjusted_size = tf.stack([img_hd, adjusted_width])
+            output = tf.image.resize(
+                images=inputs,
+                size=adjusted_size,
+                method=self._interpolation_method,
+            )
+            # tf.resize will output float32 regardless of input type.
+            output = tf.cast(output, self.compute_dtype)
+            output_shape = inputs.shape.as_list()
+            output_shape[W_AXIS] = None
+            output.set_shape(output_shape)
+            return output
 
-    def get_random_transformation(
-        self, image=None, label=None, bounding_box=None
-    ):
-        inputs_shape = tf.shape(image)
-        img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-        width_factor = self._random_generator.random_uniform(
-            shape=[],
-            minval=(1.0 + self.width_lower),
-            maxval=(1.0 + self.width_upper),
-        )
-        adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
-        return {"width": adjusted_width}
+        if training:
+            return random_width_inputs(inputs)
+        else:
+            return inputs
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
@@ -2013,3 +1748,18 @@ class RandomWidth(BaseImageAugmentationLayer):
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def convert_inputs(inputs, dtype=None):
+    if isinstance(inputs, dict):
+        raise ValueError(
+            "This layer can only process a tensor representing an image or "
+            f"a batch of images. Received: type(inputs)={type(inputs)}."
+            "If you need to pass a dict containing "
+            "images, labels, and bounding boxes, you should "
+            "instead use the preprocessing and augmentation layers "
+            "from `keras_cv.layers`. See docs at "
+            "https://keras.io/api/keras_cv/layers/"
+        )
+    inputs = utils.ensure_tensor(inputs, dtype=dtype)
+    return inputs

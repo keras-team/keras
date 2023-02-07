@@ -26,6 +26,7 @@ from keras.testing_infra import test_combinations
 
 # isort: off
 from tensorflow.python.framework import type_spec
+from tensorflow.python.framework import type_spec_registry
 
 
 class TwoTensors(tf.__internal__.CompositeTensor):
@@ -67,7 +68,7 @@ def as_shape(shape):
         return tf.TensorShape(shape)
 
 
-@type_spec.register("tf.TwoTensorsSpec")
+@type_spec_registry.register("tf.TwoTensorsSpec")
 class TwoTensorsSpecNoOneDtype(tf.TypeSpec):
     """A TypeSpec for the TwoTensors value type."""
 
