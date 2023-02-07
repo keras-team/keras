@@ -54,6 +54,7 @@ from keras.utils.feature_space import FeatureSpace
 
 # Internal
 from keras.utils.layer_utils import get_source_inputs
+from keras.utils.layer_utils import warmstart_embedding_matrix
 
 # Deprecated
 from keras.utils.np_utils import normalize
