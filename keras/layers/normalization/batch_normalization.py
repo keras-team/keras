@@ -1423,12 +1423,13 @@ class SyncBatchNormalization(BatchNormalizationBase):
         gamma_constraint=None,
         **kwargs,
     ):
-        logging.warning(
+        warning = (
             "`tf.keras.layers.experimental.SyncBatchNormalization` endpoint is "
             "deprecated and will be removed in a future release. Please use "
             "`tf.keras.layers.BatchNormalization` with parameter "
             "`synchronized` set to True."
         )
+        logging.log_first_n(logging.WARN, warning, 1)
         super().__init__(
             axis=axis,
             momentum=momentum,
