@@ -53,6 +53,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "SidecarEvaluatorModelExport"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "TensorBoard"
     mtype: "<type \'type\'>"
   }

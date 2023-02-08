@@ -16,6 +16,7 @@
 
 import enum
 import os
+import shutil
 import threading
 import time
 
@@ -25,13 +26,22 @@ from absl.testing import parameterized
 
 import keras
 from keras.optimizers import sgd
+from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
+from keras.utils import np_utils
 from keras.utils import sidecar_evaluator as sidecar_evaluator_lib
+from keras.utils.sidecar_evaluator import SidecarEvaluatorModelExport
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
 
 _BATCH_SIZE = 32
+TRAIN_SAMPLES = 20
+TEST_SAMPLES = 20
+INPUT_DIM = 3
+NUM_CLASSES = 2
+NUM_HIDDEN = 5
+BATCH_SIZE = 5
 
 
 class TestModel(keras.Model):
@@ -344,6 +354,106 @@ class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
             "`tf.keras.experimental.SidecarEvaluator` endpoint is deprecated"
         )
         self.assertIn(warning_msg, "\n".join(warning_messages))
+
+    @test_combinations.run_with_all_model_types
+    def test_best_model_exporter_with_sidecarevaluator(self):
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+
+        # Create a model with synthetic data, and fit for 20 epochs.
+        layers = [
+            keras.layers.Dense(
+                NUM_HIDDEN, input_dim=INPUT_DIM, activation="relu"
+            ),
+            keras.layers.Dense(NUM_CLASSES, activation="softmax"),
+        ]
+        model = test_utils.get_model_from_layers(layers, input_shape=(3,))
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="rmsprop",
+            metrics=["acc"],
+        )
+
+        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+            train_samples=TRAIN_SAMPLES,
+            test_samples=TEST_SAMPLES,
+            input_shape=(INPUT_DIM,),
+            num_classes=NUM_CLASSES,
+        )
+        y_test = np_utils.to_categorical(y_test)
+        y_train = np_utils.to_categorical(y_train)
+
+        callbacks = [
+            keras.callbacks.ModelCheckpoint(
+                filepath=os.path.join(
+                    os.path.join(temp_dir, "ckpt"), "ckpt-{epoch:04d}"
+                ),
+                monitor="loss",
+                save_best_only=True,
+                save_weights_only=True,
+                save_freq="epoch",
+                mode="min",
+            )
+        ]
+
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            validation_data=(x_test, y_test),
+            callbacks=callbacks,
+            epochs=20,
+            verbose=0,
+        )
+        self.assertNotEmpty(
+            tf.io.gfile.listdir(os.path.join(temp_dir, "ckpt")),
+            "Checkpoints should have been written and "
+            "checkpoint_dir should not be empty.",
+        )
+
+        # Have a sidecar_evaluator evaluate once.
+        dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+        dataset = dataset.batch(BATCH_SIZE)
+        sidecar_evaluator = keras.utils.SidecarEvaluator(
+            model=model,
+            data=dataset,
+            checkpoint_dir=os.path.join(temp_dir, "ckpt"),
+            max_evaluations=1,
+            callbacks=[
+                SidecarEvaluatorModelExport(
+                    export_filepath=os.path.join(
+                        os.path.join(temp_dir, "ckpt"),
+                        "best_model_eval",
+                        "best-model-{epoch:04d}",
+                    ),
+                    checkpoint_filepath=os.path.join(
+                        os.path.join(temp_dir, "ckpt"), "ckpt-{epoch:04d}"
+                    ),
+                    save_weights_only=False,
+                    monitor="loss",
+                    mode="min",
+                    verbose=1,
+                ),
+            ],
+        )
+        sidecar_evaluator.start()
+
+        # Asserts output directory exists.
+        assert os.path.exists(
+            os.path.join(os.path.join(temp_dir, "ckpt"), "best_model_eval")
+        )
+
+        # Asserts best model files do get written.
+        self.assertRegex(
+            str(
+                tf.io.gfile.listdir(
+                    os.path.join(
+                        os.path.join(temp_dir, "ckpt"), "best_model_eval"
+                    )
+                )
+            ),
+            r"(.*best-model.*)+",
+        )
 
 
 if __name__ == "__main__":
