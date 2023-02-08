@@ -6089,10 +6089,8 @@ def conv2d_transpose(
         raise ValueError("Unknown data_format: " + str(data_format))
 
     # `atrous_conv2d_transpose` only supports NHWC format, even on GPU.
-    force_transpose = data_format == "channels_first" and dilation_rate != (
-        1,
-        1,
-    )
+    force_transpose = (data_format == "channels_first"
+                       and dilation_rate != (1, 1,))
 
     x, tf_data_format = _preprocess_conv2d_input(
         x, data_format, force_transpose
