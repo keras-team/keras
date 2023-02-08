@@ -349,8 +349,7 @@ def learning_phase():
             if context.executing_eagerly():
                 if _DUMMY_EAGER_GRAPH.key not in _GRAPH_LEARNING_PHASES:
                     return _default_learning_phase()
-                else:
-                    return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
+                return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
             else:
                 learning_phase = symbolic_learning_phase()
     _mark_func_graph_as_unsaveable(graph, learning_phase)
@@ -409,18 +408,16 @@ def _internal_get_learning_phase(graph):
     phase = _GRAPH_LEARNING_PHASES.get(graph, None)
     if isinstance(phase, weakref.ref):
         return phase()
-    else:
-        return phase
+    return phase
 
 
 def _default_learning_phase():
     if context.executing_eagerly():
         return 0
-    else:
-        with name_scope(""):
-            return tf.compat.v1.placeholder_with_default(
-                False, shape=(), name="keras_learning_phase"
-            )
+    with name_scope(""):
+        return tf.compat.v1.placeholder_with_default(
+            False, shape=(), name="keras_learning_phase"
+        )
 
 
 @keras_export("keras.backend.set_learning_phase")
@@ -730,31 +727,28 @@ def _get_session(op_input_list=()):
     global _SESSION
     default_session = tf.compat.v1.get_default_session()
     if default_session is not None:
-        session = default_session
-    else:
-        if tf.inside_function():
-            raise RuntimeError(
-                "Cannot get session inside Tensorflow graph function."
+        return default_session
+
+    if tf.inside_function():
+        raise RuntimeError(
+            "Cannot get session inside Tensorflow graph function."
+        )
+    # If we don't have a session, or that session does not match the current
+    # graph, create and cache a new session.
+    if getattr(
+        _SESSION, "session", None
+    ) is None or _SESSION.session.graph is not _current_graph(op_input_list):
+        # If we are creating the Session inside a tf.distribute.Strategy
+        # scope, we ask the strategy for the right session options to use.
+        if tf.distribute.has_strategy():
+            configure_and_create_distributed_session(
+                tf.distribute.get_strategy()
             )
-        # If we don't have a session, or that session does not match the current
-        # graph, create and cache a new session.
-        if getattr(
-            _SESSION, "session", None
-        ) is None or _SESSION.session.graph is not _current_graph(
-            op_input_list
-        ):
-            # If we are creating the Session inside a tf.distribute.Strategy
-            # scope, we ask the strategy for the right session options to use.
-            if tf.distribute.has_strategy():
-                configure_and_create_distributed_session(
-                    tf.distribute.get_strategy()
-                )
-            else:
-                _SESSION.session = tf.compat.v1.Session(
-                    config=get_default_session_config()
-                )
-        session = _SESSION.session
-    return session
+        else:
+            _SESSION.session = tf.compat.v1.Session(
+                config=get_default_session_config()
+            )
+    return _SESSION.session
 
 
 @keras_export(v1=["keras.backend.get_session"])
@@ -802,8 +796,7 @@ def get_graph():
         if not getattr(_GRAPH, "graph", None):
             _GRAPH.graph = tf.__internal__.FuncGraph("keras_graph")
         return _GRAPH.graph
-    else:
-        return tf.compat.v1.get_default_graph()
+    return tf.compat.v1.get_default_graph()
 
 
 @tf_contextlib.contextmanager
@@ -910,8 +903,7 @@ def _get_current_tf_device():
     graph._apply_device_functions(op)
     if tf.__internal__.tf2.enabled():
         return tf.DeviceSpec.from_string(op.device)
-    else:
-        return tf.compat.v1.DeviceSpec.from_string(op.device)
+    return tf.compat.v1.DeviceSpec.from_string(op.device)
 
 
 def _is_current_explicit_device(device_type):
@@ -1052,8 +1044,7 @@ def to_dense(tensor):
     """
     if is_sparse(tensor):
         return tf.sparse.to_dense(tensor)
-    else:
-        return tensor
+    return tensor
 
 
 @keras_export("keras.backend.name_scope", v1=[])
@@ -1476,8 +1467,7 @@ def is_placeholder(x):
         if tf_utils.is_extension_type(x) and not isinstance(x, tf.Variable):
             flat_components = tf.nest.flatten(x, expand_composites=True)
             return py_any(is_placeholder(c) for c in flat_components)
-        else:
-            return x.op.type == "Placeholder"
+        return x.op.type == "Placeholder"
     except AttributeError:
         return False
 
@@ -2029,8 +2019,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             return user_specified_seed
         elif getattr(_SEED_GENERATOR, "generator", None):
             return _SEED_GENERATOR.generator.randint(1, 1e9)
-        else:
-            return random.randint(1, int(1e9))
+        return random.randint(1, int(1e9))
 
     def random_normal(
         self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
@@ -2167,13 +2156,12 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
                 noise_shape=noise_shape,
                 seed=self.make_seed_for_stateless_op(),
             )
-        else:
-            return tf.nn.dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                seed=self.make_legacy_seed(),
-            )
+        return tf.nn.dropout(
+            inputs,
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=self.make_legacy_seed(),
+        )
 
 
 @keras_export("keras.backend.random_uniform_variable")
@@ -2386,10 +2374,9 @@ def moving_average_update(x, value, momentum):
         momentum = tf.cast(momentum, x.dtype)
         value = tf.cast(value, x.dtype)
         return x.assign_sub((x - value) * (1 - momentum))
-    else:
-        return tf.__internal__.train.assign_moving_average(
-            x, value, momentum, zero_debias=True
-        )
+    return tf.__internal__.train.assign_moving_average(
+        x, value, momentum, zero_debias=True
+    )
 
 
 # LINEAR ALGEBRA
@@ -3464,15 +3451,13 @@ def normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon=1e-3):
         return _fused_normalize_batch_in_training(
             x, gamma, beta, reduction_axes, epsilon=epsilon
         )
-    else:
-        if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
-            return _regular_normalize_batch_in_training(
-                x, gamma, beta, reduction_axes, epsilon=epsilon
-            )
-        else:
-            return _broadcast_normalize_batch_in_training(
-                x, gamma, beta, reduction_axes, epsilon=epsilon
-            )
+    if sorted(reduction_axes) == list(range(ndim(x)))[:-1]:
+        return _regular_normalize_batch_in_training(
+            x, gamma, beta, reduction_axes, epsilon=epsilon
+        )
+    return _broadcast_normalize_batch_in_training(
+        x, gamma, beta, reduction_axes, epsilon=epsilon
+    )
 
 
 @keras_export("keras.backend.batch_normalization")
@@ -3577,8 +3562,7 @@ def concatenate(tensors, axis=-1):
         return tf.compat.v1.sparse_concat(axis, tensors)
     elif py_all(isinstance(x, tf.RaggedTensor) for x in tensors):
         return tf.concat(tensors, axis)
-    else:
-        return tf.concat([to_dense(x) for x in tensors], axis)
+    return tf.concat([to_dense(x) for x in tensors], axis)
 
 
 @keras_export("keras.backend.reshape")
@@ -3673,8 +3657,7 @@ def resize_images(
         rows, cols = 2, 3
     elif data_format == "channels_last":
         rows, cols = 1, 2
-    else:
-        raise ValueError(f"Invalid `data_format` argument: {data_format}")
+    raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
     new_shape = x.shape[rows : cols + 1]
     if new_shape.is_fully_defined():
@@ -3741,8 +3724,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         output = repeat_elements(output, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
         return output
-    else:
-        raise ValueError("Invalid data_format: " + str(data_format))
+    raise ValueError("Invalid data_format: " + str(data_format))
 
 
 @keras_export("keras.backend.repeat_elements")
@@ -3952,8 +3934,7 @@ def batch_flatten(x):
     (2, 60)
 
     """
-    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
-    return x
+    return tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
 
 
 @keras_export("keras.backend.expand_dims")
@@ -4251,8 +4232,7 @@ def batch_get_value(tensors):
         raise RuntimeError("Cannot get value inside Tensorflow graph function.")
     if tensors:
         return get_session(tensors).run(tensors)
-    else:
-        return []
+    return []
 
 
 @keras_export("keras.backend.set_value")
@@ -4554,8 +4534,7 @@ class GraphExecutionFunction:
 
         if tf_utils.is_extension_type(tensor):
             return self._session.run(tensor)
-        else:
-            return tensor
+        return tensor
 
     def __call__(self, inputs):
         inputs = tf.nest.flatten(
@@ -5309,18 +5288,15 @@ def in_train_phase(x, alt, training=None):
         if training == 1 or training is True:
             if callable(x):
                 return x()
-            else:
-                return x
+            return x
 
         elif training == 0 or training is False:
             if callable(alt):
                 return alt()
-            else:
-                return alt
+            return alt
 
     # else: assume learning phase is a placeholder tensor.
-    x = switch(training, x, alt)
-    return x
+    return switch(training, x, alt)
 
 
 @keras_export("keras.backend.in_test_phase")
@@ -5422,8 +5398,7 @@ def elu(x, alpha=1.0):
     res = tf.nn.elu(x)
     if alpha == 1:
         return res
-    else:
-        return tf.where(x > 0, res, alpha * res)
+    return tf.where(x > 0, res, alpha * res)
 
 
 @keras_export("keras.backend.softmax")
@@ -5819,8 +5794,7 @@ def hard_sigmoid(x):
     point_five = _constant_to_tensor(0.5, x.dtype.base_dtype)
     x = tf.multiply(x, point_two)
     x = tf.add(x, point_five)
-    x = tf.clip_by_value(x, 0.0, 1.0)
-    return x
+    return tf.clip_by_value(x, 0.0, 1.0)
 
 
 @keras_export("keras.backend.tanh")
@@ -5973,12 +5947,10 @@ def _preprocess_padding(padding):
         ValueError: if invalid `padding'`
     """
     if padding == "same":
-        padding = "SAME"
+        return "SAME"
     elif padding == "valid":
-        padding = "VALID"
-    else:
-        raise ValueError("Invalid padding: " + str(padding))
-    return padding
+        return "VALID"
+    raise ValueError("Invalid padding: " + str(padding))
 
 
 @keras_export("keras.backend.conv1d")
@@ -6117,10 +6089,10 @@ def conv2d_transpose(
         raise ValueError("Unknown data_format: " + str(data_format))
 
     # `atrous_conv2d_transpose` only supports NHWC format, even on GPU.
-    if data_format == "channels_first" and dilation_rate != (1, 1):
-        force_transpose = True
-    else:
-        force_transpose = False
+    force_transpose = data_format == "channels_first" and dilation_rate != (
+        1,
+        1,
+    )
 
     x, tf_data_format = _preprocess_conv2d_input(
         x, data_format, force_transpose
@@ -7316,8 +7288,7 @@ def maybe_convert_to_ragged(
         output = reverse(output, [1])
         ragged = tf.RaggedTensor.from_tensor(output, nested_row_lengths)
         return reverse(ragged, [1])
-    else:
-        return tf.RaggedTensor.from_tensor(output, nested_row_lengths)
+    return tf.RaggedTensor.from_tensor(output, nested_row_lengths)
 
 
 class ContextValueCache(weakref.WeakKeyDictionary):
@@ -7375,8 +7346,7 @@ class ContextValueCache(weakref.WeakKeyDictionary):
     def _key(self):
         if tf.executing_eagerly():
             return _DUMMY_EAGER_GRAPH.key
-        else:
-            return tf.compat.v1.get_default_graph()
+        return tf.compat.v1.get_default_graph()
 
     def _get_parent_graph(self, graph):
         """Returns the parent graph or dummy eager object."""
