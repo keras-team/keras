@@ -18,9 +18,12 @@ import math
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
+from keras import Input
 from keras import metrics
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
@@ -394,6 +397,109 @@ class MeanRelativeErrorTest(tf.test.TestCase):
 
         result = mre_obj(y_true, y_pred)
         self.assertEqual(self.evaluate(result), 0)
+
+
+@test_utils.run_v2_only
+class R2ScoreTest(parameterized.TestCase, tf.test.TestCase):
+    def _run_test(
+        self,
+        y_true,
+        y_pred,
+        sample_weights,
+        class_aggregation,
+        num_regressors,
+        reference_result,
+    ):
+        y_true = tf.constant(y_true, dtype="float32")
+        y_pred = tf.constant(y_pred, dtype="float32")
+        r2 = metrics.R2Score(class_aggregation, num_regressors)
+        r2.update_state(y_true, y_pred, sample_weights)
+        result = r2.result().numpy()
+        self.assertAllClose(result, reference_result, atol=1e-6)
+
+    def test_config(self):
+        r2_obj = metrics.R2Score(
+            class_aggregation=None,
+            num_regressors=2,
+        )
+        self.assertEqual(r2_obj.class_aggregation, None)
+        self.assertEqual(r2_obj.num_regressors, 2)
+        self.assertEqual(r2_obj.dtype, tf.float32)
+
+        # Check save and restore config
+        r2_obj2 = metrics.R2Score.from_config(r2_obj.get_config())
+        self.assertEqual(r2_obj2.class_aggregation, None)
+        self.assertEqual(r2_obj2.num_regressors, 2)
+        self.assertEqual(r2_obj2.dtype, tf.float32)
+
+    @parameterized.parameters(
+        # class_aggregation, num_regressors, result
+        (None, 0, [0.37, -1.295, 0.565]),
+        ("uniform_average", 0, -0.12),
+        ("variance_weighted_average", 0, -0.12),
+    )
+    def test_r2_sklearn_comparison(
+        self, class_aggregation, num_regressors, result
+    ):
+        y_true = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]
+        y_pred = [[0.4, 0.5, 0.6], [0.1, 0.2, 0.3], [0.5, 0.8, 0.2]]
+        self._run_test(
+            y_true,
+            y_pred,
+            None,
+            class_aggregation=class_aggregation,
+            num_regressors=num_regressors,
+            reference_result=result,
+        )
+
+    @parameterized.parameters(
+        # class_aggregation, num_regressors, result
+        (None, 0, [0.17305559, -8.836666, -0.521]),
+        (None, 1, [0.054920673, -10.241904, -0.7382858]),
+        (None, 2, [-0.10259259, -12.115555, -1.0280001]),
+        ("uniform_average", 0, -3.0615367889404297),
+        ("uniform_average", 1, -3.641756534576416),
+        ("uniform_average", 2, -4.415382385253906),
+        ("variance_weighted_average", 0, -1.3710224628448486),
+        ("variance_weighted_average", 1, -1.7097399234771729),
+        ("variance_weighted_average", 2, -2.161363363265991),
+    )
+    def test_r2_tfa_comparison(self, class_aggregation, num_regressors, result):
+        y_true = [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]
+        y_pred = [[0.4, 0.9, 1.6], [0.1, 1.2, 0.6], [1.5, 0.8, 0.6]]
+        sample_weights = [0.8, 0.1, 0.4]
+        self._run_test(
+            y_true,
+            y_pred,
+            sample_weights,
+            class_aggregation=class_aggregation,
+            num_regressors=num_regressors,
+            reference_result=result,
+        )
+
+    def test_errors(self):
+        # Bad class_aggregation value
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for argument `class_aggregation`"
+        ):
+            metrics.R2Score(class_aggregation="wrong")
+
+        # Bad num_regressors value
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for argument `num_regressors`"
+        ):
+            metrics.R2Score(num_regressors=-1)
+
+        # Bad input shape
+        with self.assertRaisesRegex(ValueError, "expects 2D inputs with shape"):
+            r2 = metrics.R2Score()
+            r2.update_state(tf.constant([0.0, 1.0]), tf.constant([0.0, 1.0]))
+
+        with self.assertRaisesRegex(
+            ValueError, "with output_dim fully defined"
+        ):
+            r2 = metrics.R2Score()
+            r2.update_state(Input(shape=(None,)), tf.constant([[0.0], [1.0]]))
 
 
 if __name__ == "__main__":

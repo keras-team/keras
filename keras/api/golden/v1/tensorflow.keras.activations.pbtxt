@@ -25,6 +25,10 @@ tf_module {
     argspec: "args=[\'x\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "mish"
+    argspec: "args=[\'x\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "relu"
     argspec: "args=[\'x\', \'alpha\', \'max_value\', \'threshold\'], varargs=None, keywords=None, defaults=[\'0.0\', \'None\', \'0.0\'], "
   }
