@@ -191,6 +191,13 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertShapeEqual(output_shape, (None, last_dim))
 
+    @parameterized.parameters(MODEL_LIST)
+    def test_application_classifier_activation(self, app):
+        last_activation = _get_last_layer_activation(
+            lambda: app(weights=None, include_top=True, classifier_activation="softmax")
+        )
+        self.assertEqual(last_activation, "softmax")
+
     @parameterized.parameters(*MODEL_LIST_NO_NASNET)
     def test_application_variable_input_channels(self, app, last_dim):
         if backend.image_data_format() == "channels_first":
@@ -219,7 +226,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(*MOBILENET_V3_FOR_WEIGHTS)
     def test_mobilenet_v3_load_weights(
-        self, mobilenet_class, alpha, minimalistic, include_top
+            self, mobilenet_class, alpha, minimalistic, include_top
     ):
         mobilenet_class(
             input_shape=(224, 224, 3),
@@ -235,5 +242,11 @@ def _get_output_shape(model_fn):
     return model.output_shape
 
 
+def _get_last_layer_activation(model_fn):
+    model = model_fn()
+    return model.layers[-1].activation.__name__
+
+
 if __name__ == "__main__":
     tf.test.main()
+    
