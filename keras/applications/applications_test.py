@@ -193,7 +193,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(MODEL_LIST)
     def test_application_classifier_activation(self, app):
-        model = app(weights=None, include_top=True, classifier_activation="softmax")
+        model = app(
+            weights=None, include_top=True, classifier_activation="softmax"
+        )
         last_layer_act = model.layers[-1].activation.__name__
         self.assertEqual(last_layer_act, "softmax")
 
@@ -225,7 +227,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(*MOBILENET_V3_FOR_WEIGHTS)
     def test_mobilenet_v3_load_weights(
-            self, mobilenet_class, alpha, minimalistic, include_top
+        self, mobilenet_class, alpha, minimalistic, include_top
     ):
         mobilenet_class(
             input_shape=(224, 224, 3),
