@@ -193,10 +193,9 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(MODEL_LIST)
     def test_application_classifier_activation(self, app):
-        last_activation = _get_last_layer_activation(
-            lambda: app(weights=None, include_top=True, classifier_activation="softmax")
-        )
-        self.assertEqual(last_activation, "softmax")
+        model = app(weights=None, include_top=True, classifier_activation="softmax")
+        last_layer_act = model.layers[-1].activation.__name__
+        self.assertEqual(last_layer_act, "softmax")
 
     @parameterized.parameters(*MODEL_LIST_NO_NASNET)
     def test_application_variable_input_channels(self, app, last_dim):
@@ -242,11 +241,5 @@ def _get_output_shape(model_fn):
     return model.output_shape
 
 
-def _get_last_layer_activation(model_fn):
-    model = model_fn()
-    return model.layers[-1].activation.__name__
-
-
 if __name__ == "__main__":
     tf.test.main()
-    
