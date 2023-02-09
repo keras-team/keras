@@ -525,10 +525,10 @@ def ConvNeXt(
         cur += depths[i]
 
     if include_top:
+        imagenet_utils.validate_activation(classifier_activation, weights)
         x = Head(num_classes=classes,
                  classifier_activation=classifier_activation,
                  name=model_name)(x)
-        imagenet_utils.validate_activation(classifier_activation, weights)
 
     else:
         if pooling == "avg":
