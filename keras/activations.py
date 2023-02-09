@@ -90,7 +90,7 @@ def softmax(x, axis=-1):
     else:
         # nn.softmax does not support tuple axis.
         numerator = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
-        denominator = tf.reduce_sum(e, axis=axis, keepdims=True)
+        denominator = tf.reduce_sum(numerator, axis=axis, keepdims=True)
         output = numerator / denominator
 
     # Cache the logits to use for crossentropy loss.
