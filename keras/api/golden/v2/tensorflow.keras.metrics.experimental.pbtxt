@@ -1,0 +1,7 @@
+path: "tensorflow.keras.metrics.experimental"
+tf_module {
+  member {
+    name: "PyMetric"
+    mtype: "<type \'type\'>"
+  }
+}
