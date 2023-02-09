@@ -329,6 +329,7 @@ def Head(num_classes=1000, classifier_activation=None, name=None):
 
     Args:
       num_classes: number of classes for Dense layer
+      classifier_activation: activation function for the Dense layer
       name: name prefix
 
     Returns:
