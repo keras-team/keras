@@ -192,7 +192,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         self.assertShapeEqual(output_shape, (None, last_dim))
 
     @parameterized.parameters(MODEL_LIST)
-    def test_application_classifier_activation(self, app):
+    def test_application_classifier_activation(self, app, _):
         model = app(
             weights=None, include_top=True, classifier_activation="softmax"
         )
