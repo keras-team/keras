@@ -23,8 +23,6 @@ def gen_api_init_files(
         packages = ["keras"],
         package_deps = [
             "//keras:keras",
-            # "//third_party/tensorflow/lite/python:analyzer",
-            # "//third_party/tensorflow/lite/python:lite",
         ],
         output_package = "keras.api",
         output_dir = "",
