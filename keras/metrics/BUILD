@@ -16,8 +16,7 @@
 # Description:
 #   Contains the Keras metrics submodule.
 
-load("@org_keras//keras:keras.bzl", "cuda_py_test")
-load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
+load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     default_visibility = [
@@ -40,7 +39,6 @@ py_library(
         "hinge_metrics.py",
         "iou_metrics.py",
         "probabilistic_metrics.py",
-        "py_metric.py",
         "regression_metrics.py",
     ],
     srcs_version = "PY3",
@@ -223,23 +221,5 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
-    ],
-)
-
-cuda_py_test(
-    name = "py_metric_test",
-    size = "medium",
-    srcs = ["py_metric_test.py"],
-    shard_count = 2,
-    tags = [
-        "no_windows",
-    ],
-    deps = [
-        ":metrics",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/layers",
-        "//keras/testing_infra:test_combinations",
-        "//keras/testing_infra:test_utils",
     ],
 )

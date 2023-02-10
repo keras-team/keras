@@ -33,8 +33,6 @@ from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
-from keras.metrics.py_metric import PyMetric
-
 # Individual metric classes
 
 # Accuracy metrics
