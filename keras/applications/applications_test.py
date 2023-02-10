@@ -193,6 +193,8 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
     @parameterized.parameters(MODEL_LIST)
     def test_application_classifier_activation(self, app, _):
+        if "RegNet" in app.__name__:
+            self.skipTest("RegNet models do not support classifier activation")
         model = app(
             weights=None, include_top=True, classifier_activation="softmax"
         )
