@@ -252,7 +252,8 @@ def get_file(
     Returns:
         Path to the downloaded file.
 
-    **/!\ Warning on malicious downloads /!\ **
+    ⚠️ **Warning on malicious downloads** ⚠️
+
     Downloading something from the Internet carries a risk.
     NEVER download a file/archive if you do not trust the source.
     We recommend that you specify the `file_hash` argument

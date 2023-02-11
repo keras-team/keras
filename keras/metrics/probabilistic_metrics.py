@@ -33,9 +33,11 @@ from tensorflow.python.util.tf_export import keras_export
 
 @keras_export("keras.metrics.Poisson")
 class Poisson(base_metric.MeanMetricWrapper):
-    """Computes the Poisson metric between `y_true` and `y_pred`.
+    """Computes the Poisson score between `y_true` and `y_pred`.
 
-    `metric = y_pred - y_true * log(y_pred)`
+    🐟 🐟 🐟
+
+    It is defined as: `poisson_score = y_pred - y_true * log(y_pred)`.
 
     Args:
       name: (Optional) string name of the metric instance.
