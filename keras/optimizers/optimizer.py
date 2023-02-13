@@ -1097,13 +1097,6 @@ class Optimizer(_BaseOptimizer):
             **kwargs,
         )
         self._distribution_strategy = tf.distribute.get_strategy()
-        # `tf.CriticalSection()` is used to resolve race condition under
-        # PSS training. See b/261724919 for more context.
-        if isinstance(
-            self._distribution_strategy,
-            tf.distribute.ParameterServerStrategy,
-        ):
-            self._critical_section = tf.CriticalSection()
 
     def add_variable_from_reference(
         self, model_variable, variable_name, shape=None, initial_value=None
@@ -1247,35 +1240,16 @@ class Optimizer(_BaseOptimizer):
     ):
         """`apply_gradients` using a `DistributionStrategy`."""
 
-        def apply_grad_to_update_var_step(var, grad):
+        def apply_grad_to_update_var(var, grad):
             if self.jit_compile:
                 return self._update_step_xla(grad, var, id(self._var_key(var)))
             else:
                 return self._update_step(grad, var)
 
-        def apply_grad_to_update_var():
-            distribution.extended.update(
-                var, apply_grad_to_update_var_step, args=(grad,), group=False
-            )
-            # Functions executed inside `tf.CriticalSection` needs to return
-            # a tensor. Return a dummy tensor since we have nothing to return.
-            return tf.constant(0)
-
         for grad, var in grads_and_vars:
-            if isinstance(
-                self._distribution_strategy,
-                tf.distribute.ParameterServerStrategy,
-            ):
-                # Use `tf.CriticalSection` to avoid race condition, it's the
-                # same effect as acquiring a mutex. PSS training hit race
-                # condition without mutex, see b/261724919 for context.
-                self._critical_section.execute(
-                    apply_grad_to_update_var,
-                    exclusive_resource_access=True,
-                    name=None,
-                )
-            else:
-                apply_grad_to_update_var()
+            distribution.extended.update(
+                var, apply_grad_to_update_var, args=(grad,), group=False
+            )
 
         if self.use_ema:
             _, var_list = zip(*grads_and_vars)
