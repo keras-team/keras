@@ -9,20 +9,25 @@ Read the documentation at [keras.io](https://keras.io/).
 
 Keras is a deep learning API written in Python,
 running on top of the machine learning platform [TensorFlow](https://github.com/tensorflow/tensorflow).
-It was developed with a focus on enabling fast experimentation.
-*Being able to go from idea to result as fast as possible is key to doing good research.*
+It was developed with a focus on enabling fast experimentation and
+providing a delightful developer experience.
+
+**The purpose of Keras is to give an *unfair advantage* to any developer looking to ship ML-powered apps.**
 
 Keras is:
 
 -   **Simple** -- but not simplistic. Keras reduces developer *cognitive load*
     to free you to focus on the parts of the problem that really matter.
+    Keras focuses on ease of use, debugging speed, code elegance & conciseness,
+    maintainability, and deployability (via TFServing, TFLite, TF.js).
 -   **Flexible** -- Keras adopts the principle of *progressive disclosure of
     complexity*: simple workflows should be quick and easy, while arbitrarily
     advanced workflows should be *possible* via a clear path that builds upon
     what you've already learned.
 -   **Powerful** -- Keras provides industry-strength performance and
     scalability: it is used by organizations and companies including NASA,
-    YouTube, and Waymo.
+    YouTube, and Waymo. That's right -- your YouTube recommendations are
+    powered by Keras, and so is the world's most advanced driverless vehicle.
 
 ---
 
@@ -156,6 +161,11 @@ For more in-depth tutorials about Keras, you can check out:
 
 Keras comes packaged with TensorFlow 2 as `tensorflow.keras`.
 To start using Keras, simply [install TensorFlow 2](https://www.tensorflow.org/install).
+You can then import Keras as follows:
+
+```python
+from tensorflow import keras
+```
 
 ---
 
@@ -178,21 +188,13 @@ All the release branches can be found on [GitHub](https://github.com/keras-team/
 
 All the release binaries can be found on [Pypi](https://pypi.org/project/keras/#history).
 
-| Keras release | Note      | Compatible Tensorflow version |
-| -----------   | ----------- | -----------        |
-| [2.4](https://github.com/keras-team/keras/releases/tag/2.4.0)  | Last stable release of multi-backend Keras | < 2.5
-| 2.5-pre| Pre-release (not formal) for standalone Keras repo | >= 2.5 < 2.6
-| [2.6](https://github.com/keras-team/keras/releases/tag/v2.6.0)    | First formal release of standalone Keras.  | >= 2.6 < 2.7
-| [2.7](https://github.com/keras-team/keras/releases/tag/v2.7.0-rc0)    | (Upcoming release) | >= 2.7 < 2.8
-| nightly|                                            | tf-nightly
-
 ---
 ## Support
 
 You can ask questions and join the development discussion:
 
 - In the [TensorFlow forum](https://discuss.tensorflow.org/).
-- On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+- On the [Keras mailing list](https://groups.google.com/forum/#!forum/keras-users).
 
 ---
 
