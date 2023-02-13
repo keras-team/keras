@@ -4540,6 +4540,72 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
             ["loss", "mae", "my_mse", "my_rmse"],
         )
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_add_metric_in_model_call_that_returns_dict(self):
+        class DictMetric(metrics_module.Metric):
+            def __init__(self):
+                super().__init__()
+                self.sample_count = tf.Variable(0)
+                self.l2_sum = tf.Variable(0.0)
+
+            def update_state(self, y_true, y_pred, sample_weight=None):
+                self.l2_sum.assign_add(
+                    tf.reduce_sum(tf.square(y_true - y_pred))
+                )
+                self.sample_count.assign_add(tf.shape(y_true)[0])
+
+            def reset_state(self):
+                self.sample_count.assign(0)
+                self.l2_sum.assign(0.0)
+
+            def result(self):
+                mse = self.l2_sum / tf.cast(self.sample_count, "float32")
+                rmse = tf.sqrt(mse)
+                return {"my_mse": mse, "my_rmse": rmse}
+
+        class TestModel(training_module.Model):
+            def __init__(self):
+                super().__init__(name="test_model")
+                self.dense1 = layers_module.Dense(2, kernel_initializer="ones")
+                self.dict_metric = DictMetric()
+
+            def call(self, x):
+                self.add_metric(
+                    tf.reduce_sum(x), name="metric_2", aggregation="mean"
+                )
+                # Provide same name as in the instance created in __init__
+                # for eager mode
+                self.add_metric(self.dict_metric(x, 1 - x), name="metric_1")
+                return self.dense1(x)
+
+        model = TestModel()
+        model.compile(
+            loss="mse",
+            optimizer=RMSPropOptimizer(0.01),
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+
+        x = np.ones(shape=(10, 1))
+        y = np.ones(shape=(10, 2))
+        history = model.fit(
+            x, y, epochs=2, batch_size=5, validation_data=(x, y)
+        )
+        self.assertAlmostEqual(history.history["metric_2"][-1], 5, 0)
+        self.assertAlmostEqual(history.history["val_metric_2"][-1], 5, 0)
+        self.assertAlmostEqual(history.history["my_mse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["val_my_mse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["my_rmse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["val_my_rmse"][-1], 1, 0)
+
+        eval_results = model.evaluate(x, y, batch_size=5, return_dict=True)
+        self.assertAlmostEqual(eval_results["metric_2"], 5, 0)
+        self.assertAlmostEqual(eval_results["my_mse"], 1, 0)
+        self.assertAlmostEqual(eval_results["my_rmse"], 1, 0)
+
+        model.predict(x, batch_size=5)
+        model.train_on_batch(x, y)
+        model.test_on_batch(x, y)
+
 
 class BareUpdateLayer(layers_module.Layer):
     def build(self, input_shape):
