@@ -324,11 +324,12 @@ def PreStem(name=None):
     return apply
 
 
-def Head(num_classes=1000, name=None):
+def Head(num_classes=1000, classifier_activation=None, name=None):
     """Implementation of classification head of RegNet.
 
     Args:
       num_classes: number of classes for Dense layer
+      classifier_activation: activation function for the Dense layer
       name: name prefix
 
     Returns:
@@ -342,7 +343,11 @@ def Head(num_classes=1000, name=None):
         x = layers.LayerNormalization(
             epsilon=1e-6, name=name + "_head_layernorm"
         )(x)
-        x = layers.Dense(num_classes, name=name + "_head_dense")(x)
+        x = layers.Dense(
+            num_classes,
+            activation=classifier_activation,
+            name=name + "_head_dense",
+        )(x)
         return x
 
     return apply
@@ -522,8 +527,12 @@ def ConvNeXt(
         cur += depths[i]
 
     if include_top:
-        x = Head(num_classes=classes, name=model_name)(x)
         imagenet_utils.validate_activation(classifier_activation, weights)
+        x = Head(
+            num_classes=classes,
+            classifier_activation=classifier_activation,
+            name=model_name,
+        )(x)
 
     else:
         if pooling == "avg":
