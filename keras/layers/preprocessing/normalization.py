@@ -373,6 +373,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         config.update(
             {
                 "axis": self.axis,
+                "invert": self.invert,
                 "mean": utils.listify_tensors(self.input_mean),
                 "variance": utils.listify_tensors(self.input_variance),
             }
