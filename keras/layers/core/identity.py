@@ -35,4 +35,4 @@ class Identity(Layer):
     """
 
     def call(self, inputs):
-        return tf.identity(inputs)
+        return tf.nest.map_structure(tf.identity, inputs)
