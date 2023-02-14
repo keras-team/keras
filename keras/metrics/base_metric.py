@@ -191,6 +191,12 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
             with tf.control_dependencies(update_ops):
                 result_t = self.result()
 
+                # If the metric object return a dictionary as a result, wrap it
+                # with our custom dict object so we can attach the metric object
+                # to it.
+                if isinstance(result_t, dict):
+                    result_t = _MetricDict(**result_t)
+
                 # We are adding the metric object as metadata on the result
                 # tensor.  This is required when we want to use a metric with
                 # `add_metric` API on a Model/Layer in graph mode. This metric
@@ -943,3 +949,11 @@ def is_built_in(cls):
     return cls.__module__.startswith(
         ".".join(Metric.__module__.split(".")[:-1])
     )
+
+
+class _MetricDict(dict):
+    """Wrapper for returned dictionary of metrics."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._metric_obj = None
