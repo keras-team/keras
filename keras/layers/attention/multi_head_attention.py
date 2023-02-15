@@ -247,6 +247,7 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        parallel_iterations=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -264,6 +265,7 @@ class MultiHeadAttention(Layer):
         self._activity_regularizer = regularizers.get(activity_regularizer)
         self._kernel_constraint = constraints.get(kernel_constraint)
         self._bias_constraint = constraints.get(bias_constraint)
+        self._parallel_iterations = parallel_iterations
         if attention_axes is not None and not isinstance(
             attention_axes, collections.abc.Sized
         ):
@@ -469,21 +471,32 @@ class MultiHeadAttention(Layer):
             self._combine_equation,
             attn_scores_rank,
         ) = _build_attention_equation(rank, attn_axes=self._attention_axes)
-        norm_axes = tuple(
-            range(
-                attn_scores_rank - len(self._attention_axes), attn_scores_rank
-            )
-        )
-        self._softmax = activation.Softmax(axis=norm_axes)
+        if self._parallel_iterations > 0:
+            norm_axes = range(
+                    attn_scores_rank - len(self._attention_axes) - 1,
+                    attn_scores_rank - 1
+                )
+            self._dot_product_equation = self._dot_product_equation.replace(
+                    'a','')
+            self._combine_equation = self._combine_equation.replace(
+                    'a','')
+        else:
+            norm_axes = range(
+                    attn_scores_rank - len(self._attention_axes),
+                    attn_scores_rank
+                )
+        self._softmax = activation.Softmax(axis=tuple(norm_axes))
         self._dropout_layer = regularization.Dropout(rate=self._dropout)
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
         # Normalize the attention scores to probabilities.
-        # `attention_scores` = [B, N, T, S]
+        # `attention_scores` = [B, N, T, S] or [N, T, S]
         if attention_mask is not None:
             # The expand dim happens starting from the `num_heads` dimension,
-            # (<batch_dims>, num_heads, <query_attention_dims,
-            # key_attention_dims>)
+            # (<batch_dims>, num_heads, <query_attention_dims>,
+            # <key_attention_dims>)
+            # or
+            # (num_heads, <query_attention_dims>, <key_attention_dims>)
             mask_expansion_axis = -len(self._attention_axes) * 2 - 1
             for _ in range(
                 len(attention_scores.shape) - len(attention_mask.shape)
@@ -503,12 +516,15 @@ class MultiHeadAttention(Layer):
         customized attention implementation.
 
         Args:
-            query: Projected query `Tensor` of shape `(B, T, N, key_dim)`.
-            key: Projected key `Tensor` of shape `(B, S, N, key_dim)`.
-            value: Projected value `Tensor` of shape `(B, S, N, value_dim)`.
-            attention_mask: a boolean mask of shape `(B, T, S)`, that prevents
-                attention to certain positions. It is generally not needed if
-                the `query` and `value` (and/or `key`) are masked.
+            query: Projected query `Tensor` of shape `(B, T, N, key_dim)` or
+                `(T, N, key_dims)`.
+            key: Projected key `Tensor` of shape `(B, S, N, key_dim)` or
+                `(S, N, key_dims)`.
+            value: Projected value `Tensor` of shape `(B, S, N, value_dim)` or
+                `(S, N, value_dim)`.
+            attention_mask: a boolean mask of shape `(B, T, S)` or `(T, S)`,
+                that prevents attention to certain positions. It is generally
+                not needed if the `query` and `value` (and/or `key`) are masked.
             training: Python boolean indicating whether the layer should behave
                 in training mode (adding dropout) or in inference mode (doing
                 nothing).
@@ -541,6 +557,36 @@ class MultiHeadAttention(Layer):
             self._combine_equation, attention_scores_dropout, value
         )
         return attention_output, attention_scores
+
+    def _compute_attention_map(
+        self,
+        query,
+        key,
+        value,
+        attention_mask=None,
+        training=None):
+
+        if self._parallel_iterations > 0:
+            def _compute_fn(x):
+                return self._compute_attention(
+                        query=x[0],
+                        key=x[1],
+                        value=x[2],
+                        attention_mask=x[3] if len(x) >= 4 else None,
+                        training=training)
+
+            if attention_mask is not None:
+                elems = [query, key, value, attention_mask]
+            else:
+                elems = [query, key, value]
+
+            return tf.map_fn(fn=_compute_fn,
+                             elems=elems,
+                             fn_output_signature=(value.dtype, value.dtype),
+                             parallel_iterations=self._parallel_iterations)
+        else:
+            return self._compute_attention(
+                    query, key, value, attention_mask, training)
 
     def call(
         self,
@@ -595,9 +641,14 @@ class MultiHeadAttention(Layer):
         # `value` = [B, S, N, H]
         value = self._value_dense(value)
 
-        attention_output, attention_scores = self._compute_attention(
-            query, key, value, attention_mask, training
-        )
+        if self._parallel_iterations > 0:
+            attention_output, attention_scores = self._compute_attention_map(
+                query, key, value, attention_mask, training
+            )
+        else:
+            attention_output, attention_scores = self._compute_attention(
+                query, key, value, attention_mask, training
+            )
         attention_output = self._output_dense(attention_output)
 
         if query_is_ragged:
