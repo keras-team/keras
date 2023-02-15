@@ -38,7 +38,7 @@ def _large_compatible_negative(tensor_type):
       a large negative number.
     """
     if tensor_type == tf.float16:
-        return tf.float16.min
+        return tf.float16.min / 2.0
     return -1e9
 
 
