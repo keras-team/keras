@@ -122,7 +122,7 @@ class Initializer:
                     "and being called multiple times, which will return "
                     "identical values each time (even if the initializer is "
                     "unseeded). Please update your code to provide a seed to "
-                    "the initializer, or avoid using the same initalizer "
+                    "the initializer, or avoid using the same initializer "
                     "instance more than once."
                 )
         else:
