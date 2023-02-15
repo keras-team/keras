@@ -64,6 +64,7 @@ from keras.utils.data_utils import pad_sequences
 
 # Evaluation related
 from keras.utils.sidecar_evaluator import SidecarEvaluator
+from keras.utils.sidecar_evaluator import SidecarEvaluatorModelExport
 
 # Visualization related
 from keras.utils.vis_utils import model_to_dot
