@@ -24,6 +24,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.optimizers import optimizer as optimizer_base
 from keras.optimizers import optimizer_v1
+from keras.saving import object_registration
 from keras.saving.legacy import model_config as model_config_lib
 from keras.saving.legacy import saving_utils
 from keras.saving.legacy.saved_model import json_utils
@@ -171,6 +172,10 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
 
     if not custom_objects:
         custom_objects = {}
+
+    tlco = object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__
+    gco = object_registration._GLOBAL_CUSTOM_OBJECTS
+    custom_objects = {**custom_objects, **tlco, **gco}
 
     opened_new_file = not isinstance(filepath, h5py.File)
     if opened_new_file:

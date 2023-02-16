@@ -22,7 +22,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import base_layer
 from keras.layers.rnn import rnn_utils
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 from keras.utils import generic_utils
 from keras.utils import tf_utils
 
@@ -200,7 +200,7 @@ class StackedRNNCells(base_layer.Layer):
     def get_config(self):
         cells = []
         for cell in self.cells:
-            cells.append(serialization.serialize_keras_object(cell))
+            cells.append(serialization_lib.serialize_keras_object(cell))
         config = {"cells": cells}
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))

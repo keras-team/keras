@@ -22,7 +22,7 @@ from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import data_adapter
 from keras.engine import training as keras_training
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 
 # isort: off
 from tensorflow.python.util import deprecation
@@ -211,8 +211,10 @@ class WideDeepModel(keras_training.Model):
             self._set_trainable_state(current_trainable_state)
 
     def get_config(self):
-        linear_config = serialization.serialize_keras_object(self.linear_model)
-        dnn_config = serialization.serialize_keras_object(self.dnn_model)
+        linear_config = serialization_lib.serialize_keras_object(
+            self.linear_model
+        )
+        dnn_config = serialization_lib.serialize_keras_object(self.dnn_model)
         config = {
             "linear_model": linear_config,
             "dnn_model": dnn_config,

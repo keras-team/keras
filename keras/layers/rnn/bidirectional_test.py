@@ -1024,12 +1024,21 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         inp = keras.layers.Input([None, 3])
 
         def test(fwd, bwd, **kwargs):
+            def _remove_from_dict(d, remove_key):
+                if isinstance(d, dict):
+                    d.pop(remove_key, None)
+                    for key in list(d.keys()):
+                        _remove_from_dict(d[key], remove_key)
+
             bid = keras.layers.Bidirectional(fwd, backward_layer=bwd, **kwargs)
 
             model = keras.Model(inp, bid(inp))
-
             clone = keras.models.clone_model(model)
-            self.assertEqual(clone.get_config(), model.get_config())
+
+            # Comparison should exclude `build_config`
+            clone_config = _remove_from_dict(clone.get_config(), "build_config")
+            model_config = _remove_from_dict(model.get_config(), "build_config")
+            self.assertEqual(clone_config, model_config)
 
         # test fetching trainable from `layer`
         fwd = keras.layers.SimpleRNN(units=3)

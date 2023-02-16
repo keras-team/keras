@@ -20,6 +20,7 @@ import math
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization as legacy_serialization
 
 # isort: off
@@ -1106,15 +1107,16 @@ def serialize(learning_rate_schedule, use_legacy_format=False):
     >>> lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     ...   0.1, decay_steps=100000, decay_rate=0.96, staircase=True)
     >>> tf.keras.optimizers.schedules.serialize(lr_schedule)
-    {'class_name': 'ExponentialDecay', 'config': {...}}
+    {'module': 'keras.optimizers.schedules',
+    'class_name': 'ExponentialDecay', 'config': {...},
+    'registered_name': None}
     """
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(
             learning_rate_schedule
         )
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.serialize_keras_object(learning_rate_schedule)
+    return serialization_lib.serialize_keras_object(learning_rate_schedule)
 
 
 @keras_export("keras.optimizers.schedules.deserialize")
@@ -1153,8 +1155,7 @@ def deserialize(config, custom_objects=None, use_legacy_format=False):
             printable_module_name="decay",
         )
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.deserialize_keras_object(
+    return serialization_lib.deserialize_keras_object(
         config,
         module_objects=globals(),
         custom_objects=custom_objects,
