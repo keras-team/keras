@@ -3782,7 +3782,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @property
     def states(self):
-        """Returns the list of all layer states.
+        """Returns the list of all states from stateful layer. These are non-
+                trainable parameters.
 
         Returns:
           A list of variables.

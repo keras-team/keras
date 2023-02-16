@@ -2398,11 +2398,9 @@ class TrainingTest(test_combinations.TestCase):
 
         model = keras.Model(inp, [stateless(inp), stateful(inp)])
 
-        states = model.states
-        states_ = stateful.states
-        assert len(states) == len(states_)
-        for a, b in zip(states, states_):
-            assert a is b
+        model_states = model.states
+        stateful_states = stateful.states
+        self.assertEqual(model_states, stateful_states)
 
     def test_get_states(self):
         inp = keras.Input(batch_shape=[1, 2, 3])
@@ -2432,20 +2430,15 @@ class TrainingTest(test_combinations.TestCase):
 
         # test zero init
         model.reset_states()
-        states = model.get_states()
-        assert len(states) == len(ref_states)
-        for a in states:
-            assert isinstance(a, np.ndarray)
-            assert (a == 0).all()  # init as 0
+        model_states = model.get_states()
+        self.assertAllClose(
+            model_states, list(np.zeros_like(x) for x in ref_states)
+        )
 
         # test random init
         model.reset_states(ref_states)
-        states = model.get_states()
-        assert len(states) == len(ref_states)
-        for a, b in zip(model.get_states(), ref_states):
-            assert isinstance(a, np.ndarray)
-            assert isinstance(b, np.ndarray)
-            assert (a == b).all()
+        model_states = model.get_states()
+        self.assertAllClose(model_states, ref_states)
 
 
 class TestExceptionsAndWarnings(test_combinations.TestCase):
