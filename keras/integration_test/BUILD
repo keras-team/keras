@@ -349,3 +349,17 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
     ],
 )
+
+tf_py_test(
+    name = "py_metric_test",
+    size = "medium",
+    srcs = ["py_metric_test.py"],
+    python_version = "PY3",
+    shard_count = 2,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/metrics",
+        "//keras/testing_infra:test_combinations",
+    ],
+)

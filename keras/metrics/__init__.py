@@ -33,6 +33,8 @@ from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.serialization import deserialize_keras_object
 from keras.saving.legacy.serialization import serialize_keras_object
 
+from keras.metrics.py_metric import PyMetric
+
 # Individual metric classes
 
 # Accuracy metrics
@@ -72,6 +74,7 @@ from keras.metrics.regression_metrics import MeanRelativeError
 from keras.metrics.regression_metrics import MeanSquaredError
 from keras.metrics.regression_metrics import MeanSquaredLogarithmicError
 from keras.metrics.regression_metrics import RootMeanSquaredError
+from keras.metrics.regression_metrics import R2Score
 
 from keras.metrics.regression_metrics import cosine_similarity
 from keras.metrics.regression_metrics import logcosh
@@ -93,6 +96,10 @@ from keras.metrics.confusion_metrics import SensitivitySpecificityBase
 from keras.metrics.confusion_metrics import SpecificityAtSensitivity
 from keras.metrics.confusion_metrics import TrueNegatives
 from keras.metrics.confusion_metrics import TruePositives
+
+# F-Scores
+from keras.metrics.f_score_metrics import FBetaScore
+from keras.metrics.f_score_metrics import F1Score
 
 # IoU metrics
 from keras.metrics.iou_metrics import BinaryIoU

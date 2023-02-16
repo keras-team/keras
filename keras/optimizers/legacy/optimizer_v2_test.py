@@ -15,6 +15,7 @@
 """Functional test for OptimizerV2."""
 
 import collections
+from copy import deepcopy
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -1457,6 +1458,16 @@ class OptimizerCoefficientTest(test_combinations.TestCase):
 
             with backend.name_scope(APPLY_SCOPE):
                 optimizer.apply_gradients(zip(grads, trainable_variables))
+
+
+class DeepcopyTests(tf.test.TestCase):
+    def setUp(self):
+        self.optimizer = adam.Adam(0.42)
+        super().setUp()
+
+    def test_deepcopy(self):
+        clone = deepcopy(self.optimizer)
+        assert clone.get_config()["learning_rate"] == 0.42, "wrong lr"
 
 
 if __name__ == "__main__":

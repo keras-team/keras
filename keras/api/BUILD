@@ -66,8 +66,8 @@ keras_packages = [
     "keras.feature_column.sequence_feature_column",
     # Placeholder for internal API
     "keras.initializers",
+    "keras.initializers.initializers",
     "keras.initializers.initializers_v1",
-    "keras.initializers.initializers_v2",
     "keras.layers.activation",
     "keras.layers.attention",
     "keras.layers.convolutional",
@@ -159,6 +159,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -173,6 +176,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -187,6 +193,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )

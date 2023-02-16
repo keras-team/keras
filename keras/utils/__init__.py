@@ -54,6 +54,7 @@ from keras.utils.feature_space import FeatureSpace
 
 # Internal
 from keras.utils.layer_utils import get_source_inputs
+from keras.utils.layer_utils import warmstart_embedding_matrix
 
 # Deprecated
 from keras.utils.np_utils import normalize
@@ -63,6 +64,7 @@ from keras.utils.data_utils import pad_sequences
 
 # Evaluation related
 from keras.utils.sidecar_evaluator import SidecarEvaluator
+from keras.utils.sidecar_evaluator import SidecarEvaluatorModelExport
 
 # Visualization related
 from keras.utils.vis_utils import model_to_dot

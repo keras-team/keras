@@ -238,6 +238,17 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertEqual(state.shape, initial_state.shape)
 
+    @test_utils.run_v2_only
+    def test_cloned_weight_names(self):
+        inp = keras.Input([None, 3])
+        rnn = keras.layers.SimpleRNN(units=3)
+        model = keras.Model(inp, rnn(inp))
+        clone = keras.models.clone_model(model)
+
+        model_names = [x.name for x in model.weights]
+        clone_names = [x.name for x in clone.weights]
+        self.assertEqual(model_names, clone_names)
+
 
 if __name__ == "__main__":
     tf.test.main()
