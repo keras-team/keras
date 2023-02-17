@@ -35,7 +35,7 @@ from keras.optimizers.legacy import rmsprop
 maybe_distribute = tf.__internal__.test.combinations.combine(
     distribution=[
         tf.__internal__.distribute.combinations.default_strategy,
-        tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,  # noqa: E501
+        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_cpus,  # noqa: E501
     ]
 )
 
