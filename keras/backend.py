@@ -414,10 +414,11 @@ def _internal_get_learning_phase(graph):
 def _default_learning_phase():
     if context.executing_eagerly():
         return 0
-    with name_scope(""):
-        return tf.compat.v1.placeholder_with_default(
-            False, shape=(), name="keras_learning_phase"
-        )
+    else:
+        with name_scope(""):
+            return tf.compat.v1.placeholder_with_default(
+                False, shape=(), name="keras_learning_phase"
+            )
 
 
 @keras_export("keras.backend.set_learning_phase")
