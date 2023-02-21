@@ -309,3 +309,8 @@ mind.
     submitting PRs to fix one typo, one warning,etc. We recommend fixing the
     same issue at the file level at least (e.g.: fix all typos in a file, fix
     all compiler warnings in a file, etc.)
+
+## Using Keras Securely
+
+Since Keras is the high-level API of Tensorflow 2, Keras follows same security practices as Tensorflow.
+For details on guidelines on vulnarabilty and reporting them, you can refer [Using TensorFlow Securely](https://github.com/tensorflow/tensorflow/blob/master/SECURITY.md). 
