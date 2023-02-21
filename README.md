@@ -209,10 +209,3 @@ in [GitHub issues](https://github.com/keras-team/keras/issues).
 We welcome contributions! Before opening a PR, please read
 [our contributor guide](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md),
 and the [API design guideline](https://github.com/keras-team/governance/blob/master/keras_api_design_guidelines.md).
-
----
-
-## Using Keras Securely
-
-Since Keras is the high-level API of Tensorflow 2, Keras follows same security practices as Tensorflow.
-For details on guidelines on vulnarabilty and reporting them, you can refer [Using TensorFlow Securely](https://github.com/tensorflow/tensorflow/blob/master/SECURITY.md). 
