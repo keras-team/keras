@@ -14,11 +14,18 @@
 # ==============================================================================
 """Tests for initializers."""
 
+import os
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
+from keras import backend
+from keras import layers
+from keras import losses
+from keras import models
 from keras.dtensor import dtensor_api as dtensor
+from keras.dtensor import layout_map
 from keras.dtensor import optimizers
 from keras.dtensor import test_util
 
@@ -26,6 +33,7 @@ from keras.dtensor import test_util
 class OptimizersTest(test_util.DTensorBaseTest):
     def setUp(self):
         super().setUp()
+
         global_ids = test_util.create_device_ids_array((2, 2))
         local_device_ids = np.ravel(global_ids).tolist()
         mesh_dict = {
@@ -133,6 +141,69 @@ class OptimizersTest(test_util.DTensorBaseTest):
 
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertCountEqual(all_names, expect_variable_names)
+
+    def test_embedding_lookup_backward_path(self):
+        # See b/265441685 for more context.
+        backend.enable_tf_random_generator()
+        os.environ[
+            "DTENSOR_ENABLE_REPLICATED_SPMD_AS_DEFAULT_TF.RESOURCESCATTERADD"
+        ] = "1"
+        # Build a small functional model with embedding layer, it contains
+        # tf.gather ops which will trigger the _deduplicate_sparse_grad() code
+        # path. tf.unique op will have a shape mismatch issue for dtensor.
+        batch_size = 16
+        seq_length = 10
+        vocab_size = 100
+        output_size = 8
+
+        def produce_data():
+            inputs = tf.random.uniform(
+                maxval=vocab_size,
+                shape=(batch_size, seq_length),
+                dtype=tf.int32,
+            )
+            label = tf.random.uniform(
+                maxval=output_size, shape=(batch_size,), dtype=tf.int32
+            )
+            inputs = dtensor.copy_to_mesh(
+                inputs, layout=dtensor.Layout.replicated(self.mesh, rank=2)
+            )
+            inputs = dtensor.relayout(
+                inputs, dtensor.Layout.batch_sharded(self.mesh, "X", 2)
+            )
+            label = dtensor.copy_to_mesh(
+                label, layout=dtensor.Layout.replicated(self.mesh, rank=1)
+            )
+            label = dtensor.relayout(
+                label, dtensor.Layout.batch_sharded(self.mesh, "X", 1)
+            )
+            return inputs, label
+
+        with layout_map.LayoutMap(self.mesh).scope():
+            inputs = layers.Input(shape=(seq_length,))
+            x = layers.Embedding(vocab_size, 64)(inputs)
+            x = layers.GlobalAveragePooling1D()(x)
+            preds = layers.Dense(output_size, activation="softmax")(x)
+            model = models.Model(inputs, preds)
+
+        optimizer = optimizers.AdamW(mesh=self.mesh)
+
+        @tf.function
+        def train_func(model, inputs, label, optimizer):
+            with tf.GradientTape() as tape:
+                output = model(inputs)
+                loss = losses.sparse_categorical_crossentropy(label, output)
+            optimizer.minimize(loss, model.variables, tape)
+            return loss
+
+        # The error only happens across the batch, where the value of
+        # tf.unique are different.
+        input1, label1 = produce_data()
+        train_func(model, input1, label1, optimizer)
+        input2, label2 = produce_data()
+        train_func(model, input2, label2, optimizer)
+        # Assert nothing here, and expect the train_func can run properly with
+        # different inputs.
 
 
 if __name__ == "__main__":
