@@ -727,28 +727,29 @@ def _get_session(op_input_list=()):
     global _SESSION
     default_session = tf.compat.v1.get_default_session()
     if default_session is not None:
-        return default_session
-
-    if tf.inside_function():
-        raise RuntimeError(
-            "Cannot get session inside Tensorflow graph function."
-        )
-    # If we don't have a session, or that session does not match the current
-    # graph, create and cache a new session.
-    if getattr(
-        _SESSION, "session", None
-    ) is None or _SESSION.session.graph is not _current_graph(op_input_list):
-        # If we are creating the Session inside a tf.distribute.Strategy
-        # scope, we ask the strategy for the right session options to use.
-        if tf.distribute.has_strategy():
-            configure_and_create_distributed_session(
-                tf.distribute.get_strategy()
+        session = default_session
+    else:
+        if tf.inside_function():
+            raise RuntimeError(
+                "Cannot get session inside Tensorflow graph function."
             )
-        else:
-            _SESSION.session = tf.compat.v1.Session(
-                config=get_default_session_config()
-            )
-    return _SESSION.session
+        # If we don't have a session, or that session does not match the current
+        # graph, create and cache a new session.
+        if getattr(
+            _SESSION, "session", None
+        ) is None or _SESSION.session.graph is not _current_graph(op_input_list):
+            # If we are creating the Session inside a tf.distribute.Strategy
+            # scope, we ask the strategy for the right session options to use.
+            if tf.distribute.has_strategy():
+                configure_and_create_distributed_session(
+                    tf.distribute.get_strategy()
+                )
+            else:
+                _SESSION.session = tf.compat.v1.Session(
+                    config=get_default_session_config()
+                )
+        session = _SESSION.session
+    return session
 
 
 @keras_export(v1=["keras.backend.get_session"])
