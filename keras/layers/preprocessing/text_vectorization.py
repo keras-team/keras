@@ -116,13 +116,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
           - `"lower"`: Text will be lowercased.
           - `"strip_punctuation"`: All punctuation will be removed.
           - Callable: Inputs will passed to the callable function, which should
-            standardized and returned.
+            be standardized and returned.
       split: Optional specification for splitting the input text. Values can be:
           - `None`: No splitting.
           - `"whitespace"`: Split on whitespace.
           - `"character"`: Split on each unicode character.
           - Callable: Standardized inputs will passed to the callable function,
-            which should split and returned.
+            which should be split and returned.
       ngrams: Optional specification for ngrams to create from the
         possibly-split input text. Values can be None, an integer or tuple of
         integers; passing an integer will create ngrams up to that integer, and
@@ -159,11 +159,11 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         max_tokens)` regardless of vocabulary size. Defaults to False.
       vocabulary: Optional. Either an array of strings or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
-        or 1D tensor containing the string vocbulary terms. If passing a file
+        or 1D tensor containing the string vocabulary terms. If passing a file
         path, the file should contain one line per term in the vocabulary. If
         this argument is set, there is no need to `adapt()` the layer.
       idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list,
-        1D numpy array, or 1D tensor or the same length as the vocabulary,
+        1D numpy array, or 1D tensor of the same length as the vocabulary,
         containing the floating point inverse document frequency weights, which
         will be multiplied by per sample term counts for the final `tf_idf`
         weight. If the `vocabulary` argument is set, and `output_mode` is
