@@ -1424,6 +1424,21 @@ class LSTMLayerTest(test_combinations.TestCase):
         clone_names = [x.name for x in clone.weights]
         self.assertEqual(model_names, clone_names)
 
+    def test_unique_state_names(self):
+        inp = keras.Input(batch_shape=[3, None, 3])
+        a = keras.layers.LSTM(units=3, stateful=True)
+        b = keras.layers.LSTM(units=3)  # no states
+        c = keras.layers.LSTM(units=3, stateful=True)
+        _ = keras.Model(inp, [a(inp), b(inp), c(inp)])
+
+        names = set()
+
+        for l in [a, b, c]:
+            for s in l.states:
+                if s is not None:
+                    self.assertNotIn(s.name, names)
+                    names.add(s.name)
+
 
 if __name__ == "__main__":
     tf.test.main()

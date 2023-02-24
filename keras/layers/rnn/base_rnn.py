@@ -905,8 +905,22 @@ class RNN(base_layer.Layer):
                         self.variable_dtype or backend.floatx(),
                     )
                 )
+            if len(flat_init_state_values) == 1:
+
+                def assign_unique_var(x):
+                    return backend.variable(x, name="state")
+
+            else:
+                unique_id = 0
+
+                def assign_unique_var(x):
+                    nonlocal unique_id
+                    var = backend.variable(x, name=f"state_{unique_id}")
+                    unique_id += 1
+                    return var
+
             flat_states_variables = tf.nest.map_structure(
-                backend.variable, flat_init_state_values
+                assign_unique_var, flat_init_state_values
             )
             self.states = tf.nest.pack_sequence_as(
                 self.cell.state_size, flat_states_variables
