@@ -21,10 +21,11 @@ To add a new model for memory profile:
 """
 
 import numpy as np
-import tensorflow.compat.v2 as tf
 from absl import app
 from absl import flags
 from absl import logging
+
+import keras
 
 try:
     import memory_profiler
@@ -43,10 +44,10 @@ def _imdb_lstm_model():
     y_train = np.random.random((2500, 1))
 
     # IMDB LSTM model.
-    model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Embedding(20000, 128))
-    model.add(tf.keras.layers.LSTM(128, dropout=0.2, recurrent_dropout=0.2))
-    model.add(tf.keras.layers.Dense(1, activation="sigmoid"))
+    model = keras.Sequential()
+    model.add(keras.layers.Embedding(20000, 128))
+    model.add(keras.layers.LSTM(128, dropout=0.2, recurrent_dropout=0.2))
+    model.add(keras.layers.Dense(1, activation="sigmoid"))
 
     model.compile("sgd", "mse")
     # Warm up the model with one epoch.
