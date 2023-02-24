@@ -170,7 +170,7 @@ def has_fully_masked_sequence(mask):
 
 def is_cudnn_supported_inputs(mask, time_major, sequence_lengths):
     if tf.sysconfig.get_build_info()["is_rocm_build"]:
-        if not time_major:
+        if (not time_major) and (sequence_lengths is not None):
             return False
         if mask is not None:
             return tf.reduce_all(mask)
