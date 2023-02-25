@@ -30,6 +30,7 @@ py_library(
         "adamax.py",
         "adamw.py",
         "ftrl.py",
+        "lion.py",
         "nadam.py",
         "optimizer.py",
         "optimizer_v1.py",
