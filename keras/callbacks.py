@@ -2995,9 +2995,10 @@ class ReduceLROnPlateau(Callback):
         mode: one of `{'auto', 'min', 'max'}`. In `'min'` mode,
           the learning rate will be reduced when the
           quantity monitored has stopped decreasing; in `'max'` mode it will be
-          reduced when the quantity monitored has stopped increasing; in
-          `'auto'` mode, the direction is automatically inferred from the name
-          of the monitored quantity.
+          reduced when the quantity monitored has stopped increasing; in `auto` 
+          mode, the mode is set to `max` if the quantities
+          monitored contain 'acc' and are set to `min` for
+          the rest of the quantities.
         min_delta: threshold for measuring the new optimum, to only focus on
           significant changes.
         cooldown: number of epochs to wait before resuming normal operation
