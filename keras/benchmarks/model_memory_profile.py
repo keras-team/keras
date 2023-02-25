@@ -37,24 +37,23 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("model", None, "The model to run memory profiler.")
 
 
-@memory_profiler.profile
-def _imdb_lstm_model():
-    """LSTM model."""
-    x_train = np.random.randint(0, 1999, size=(2500, 100))
-    y_train = np.random.random((2500, 1))
-
-    # IMDB LSTM model.
-    model = keras.Sequential()
-    model.add(keras.layers.Embedding(20000, 128))
-    model.add(keras.layers.LSTM(128, dropout=0.2, recurrent_dropout=0.2))
-    model.add(keras.layers.Dense(1, activation="sigmoid"))
-
-    model.compile("sgd", "mse")
-    # Warm up the model with one epoch.
-    model.fit(x_train, y_train, batch_size=512, epochs=3)
-
-
 def main(_):
+    @memory_profiler.profile
+    def _imdb_lstm_model():
+        """LSTM model."""
+        x_train = np.random.randint(0, 1999, size=(2500, 100))
+        y_train = np.random.random((2500, 1))
+
+        # IMDB LSTM model.
+        model = keras.Sequential()
+        model.add(keras.layers.Embedding(20000, 128))
+        model.add(keras.layers.LSTM(128, dropout=0.2, recurrent_dropout=0.2))
+        model.add(keras.layers.Dense(1, activation="sigmoid"))
+
+        model.compile("sgd", "mse")
+        # Warm up the model with one epoch.
+        model.fit(x_train, y_train, batch_size=512, epochs=3)
+
     # Add the model for memory profile.
     models = {
         "lstm": _imdb_lstm_model,
