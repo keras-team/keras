@@ -89,13 +89,16 @@ class Lion(optimizer.Optimizer):
         )
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.beta_1 = beta_1
-        if isinstance(beta_1, (int, float)) and (beta_1 < 0 or beta_1 > 1):
-            raise ValueError("`beta_1` must be between [0, 1].")
         self.beta_2 = beta_2
-        if isinstance(beta_2, (int, float)) and (beta_2 < 0 or beta_2 > 1):
-            raise ValueError("`beta_2` must be between [0, 1].")
 
     def build(self, var_list):
+        """Initialize optimizer variables.
+
+        Lion optimizer has one variable `momentums`.
+
+        Args:
+          var_list: list of model variables to build Lion variables on.
+        """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
             return
