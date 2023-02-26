@@ -120,28 +120,27 @@ class Lion(optimizer.Optimizer):
         m = self.momentums[self._index_dict[var_key]]
 
         if isinstance(gradient, tf.IndexedSlices):
-            # Sparse gradients
-            m_t = m.assign(m * beta_1)
-            m_scaled_g_values = tf.IndexedSlices(
-                gradient.values * (1.0 - beta_1), gradient.indices
-            )
-            m_t = m_t.scatter_add(m_scaled_g_values)
-            variable_t = variable.assign_sub(lr * tf.math.sign(m_t))
-
-            with tf.control_dependencies([variable_t]):
-                m_t = m_t.scatter_sub(m_scaled_g_values)
-                m_t = m_t.assign(m_t * beta_2 / beta_1)
-                m_scaled_g_values = tf.IndexedSlices(
-                    gradient.values * (1.0 - beta_2), gradient.indices
+            # Sparse gradients (use m as a buffer)
+            m.assign(m * beta_1)
+            m.scatter_add(
+                tf.IndexedSlices(
+                    gradient.values * (1.0 - beta_1), gradient.indices
                 )
-                m_t.scatter_add(m_scaled_g_values)
+            )
+            variable.assign_sub(lr * tf.math.sign(m))
+
+            m.assign(m * beta_2 / beta_1)
+            m.scatter_add(
+                tf.IndexedSlices(
+                    gradient.values * (1.0 - beta_2 / beta_1), gradient.indices
+                )
+            )
         else:
             # Dense gradients
-            variable_t = variable.assign_sub(
+            variable.assign_sub(
                 lr * tf.math.sign(m * beta_1 + gradient * (1.0 - beta_1))
             )
-            with tf.control_dependencies([variable_t]):
-                m.assign(m * beta_2 + gradient * (1.0 - beta_2))
+            m.assign(m * beta_2 + gradient * (1.0 - beta_2))
 
     def get_config(self):
         config = super().get_config()
