@@ -670,14 +670,14 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     def _trackable_saved_model_saver(self):
         return layer_serialization.VocabularySavedModelSaver(self)
 
-    def _save_own_variables(self, store):
-        self._lookup_layer._save_own_variables(store)
+    def save_own_variables(self, store):
+        self._lookup_layer.save_own_variables(store)
 
-    def _load_own_variables(self, store):
-        self._lookup_layer._load_own_variables(store)
+    def load_own_variables(self, store):
+        self._lookup_layer.load_own_variables(store)
 
-    def _save_assets(self, dir_path):
-        self._lookup_layer._save_assets(dir_path)
+    def save_assets(self, dir_path):
+        self._lookup_layer.save_assets(dir_path)
 
-    def _load_assets(self, dir_path):
-        self._lookup_layer._load_assets(dir_path)
+    def load_assets(self, dir_path):
+        self._lookup_layer.load_assets(dir_path)

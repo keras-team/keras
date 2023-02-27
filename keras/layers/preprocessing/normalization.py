@@ -386,7 +386,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
             inputs = tf.cast(inputs, self.compute_dtype)
         return inputs
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         # Ensure that we call finalize_state after variable loading.
-        super()._load_own_variables(store)
+        super().load_own_variables(store)
         self.finalize_state()
