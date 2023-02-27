@@ -305,10 +305,24 @@ class KerasModelTest(test_combinations.TestCase):
         self.assertEqual(layer(np.ones((2, 1))).dtype, "float16")
 
         self.assertEqual(type(model.dtype_policy), policy.Policy)
-        self.assertEqual(
-            layer.get_config()["dtype"],
-            {"class_name": "Policy", "config": {"name": "mixed_float16"}},
-        )
+        if tf.__internal__.tf2.enabled():
+            self.assertEqual(
+                layer.get_config()["dtype"],
+                {
+                    "module": "keras.mixed_precision",
+                    "class_name": "Policy",
+                    "config": {"name": "mixed_float16"},
+                    "registered_name": None,
+                },
+            )
+        else:
+            self.assertEqual(
+                layer.get_config()["dtype"],
+                {
+                    "class_name": "Policy",
+                    "config": {"name": "mixed_float16"},
+                },
+            )
 
     @test_combinations.run_all_keras_modes
     @parameterized.named_parameters(

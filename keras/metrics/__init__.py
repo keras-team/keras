@@ -30,8 +30,8 @@ from keras.metrics.base_metric import clone_metric
 from keras.metrics.base_metric import clone_metrics
 
 from keras.saving.legacy import serialization as legacy_serialization
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 from keras.metrics.py_metric import PyMetric
 

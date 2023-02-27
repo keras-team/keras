@@ -54,7 +54,7 @@ tf_module {
   }
   member_method {
     name: "deserialize_keras_object"
-    argspec: "args=[\'identifier\', \'module_objects\', \'custom_objects\', \'printable_module_name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'object\'], "
+    argspec: "args=[\'config\', \'custom_objects\', \'safe_mode\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'True\'], "
   }
   member_method {
     name: "disable_interactive_logging"
@@ -130,7 +130,7 @@ tf_module {
   }
   member_method {
     name: "serialize_keras_object"
-    argspec: "args=[\'instance\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'obj\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_random_seed"

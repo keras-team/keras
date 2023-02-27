@@ -392,6 +392,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         expected_learning_rate = {
             "class_name": "CustomLRSchedule",
             "config": {"initial_learning_rate": 0.05},
+            "module": None,
+            "registered_name": "CustomLRSchedule",
         }
         self.assertDictContainsSubset(expected_config, config)
         self.assertDictEqual(expected_learning_rate, config["learning_rate"])

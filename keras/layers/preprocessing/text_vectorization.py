@@ -23,6 +23,7 @@ from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
 from keras.saving.legacy.saved_model import layer_serialization
+from keras.saving.serialization_lib import deserialize_keras_object
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 
@@ -522,6 +523,20 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        if config["standardize"] not in (
+            LOWER_AND_STRIP_PUNCTUATION,
+            LOWER,
+            STRIP_PUNCTUATION,
+        ):
+            config["standardize"] = deserialize_keras_object(
+                config["standardize"]
+            )
+        if config["split"] not in (WHITESPACE, CHARACTER):
+            config["split"] = deserialize_keras_object(config["split"])
+        return cls(**config)
 
     def set_vocabulary(self, vocabulary, idf_weights=None):
         """Sets vocabulary (and optionally document frequency) for this layer.

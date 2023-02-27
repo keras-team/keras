@@ -18,7 +18,7 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras.saving import object_registration
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 
 
 class TestObjectRegistration(tf.test.TestCase):
@@ -62,9 +62,9 @@ class TestObjectRegistration(tf.test.TestCase):
         inst = TestClass(value=10)
         class_name = object_registration._GLOBAL_CUSTOM_NAMES[TestClass]
         self.assertEqual(serialized_name, class_name)
-        config = serialization.serialize_keras_object(inst)
+        config = serialization_lib.serialize_keras_object(inst)
         self.assertEqual(class_name, config["class_name"])
-        new_inst = serialization.deserialize_keras_object(config)
+        new_inst = serialization_lib.deserialize_keras_object(config)
         self.assertIsNot(inst, new_inst)
         self.assertIsInstance(new_inst, TestClass)
         self.assertEqual(10, new_inst._value)

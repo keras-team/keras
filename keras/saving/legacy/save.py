@@ -219,7 +219,11 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):
         IOError: In case of an invalid savefile.
     """
     with serialization.SharedObjectLoadingScope():
-        with object_registration.CustomObjectScope(custom_objects or {}):
+        custom_objects = custom_objects or {}
+        tlco = object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__
+        gco = object_registration._GLOBAL_CUSTOM_OBJECTS
+        custom_objects = {**custom_objects, **tlco, **gco}
+        with object_registration.CustomObjectScope(custom_objects):
             with keras_option_scope(
                 save_traces=False, in_tf_saved_model_scope=True
             ):
