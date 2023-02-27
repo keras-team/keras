@@ -93,10 +93,6 @@ tf_module {
     name: "utils"
     mtype: "<type \'module\'>"
   }
-  member {
-    name: "wrappers"
-    mtype: "<type \'module\'>"
-  }
   member_method {
     name: "Input"
     argspec: "args=[\'shape\', \'batch_size\', \'name\', \'dtype\', \'sparse\', \'tensor\', \'ragged\', \'type_spec\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\'], "
