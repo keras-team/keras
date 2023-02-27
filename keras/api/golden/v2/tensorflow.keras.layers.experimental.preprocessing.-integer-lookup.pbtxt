@@ -242,12 +242,28 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "load_assets"
+    argspec: "args=[\'self\', \'dir_path\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "load_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "make_adapt_function"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "reset_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "save_assets"
+    argspec: "args=[\'self\', \'dir_path\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "save_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_vocabulary"

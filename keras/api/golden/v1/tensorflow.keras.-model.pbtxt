@@ -305,6 +305,10 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "load_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "load_weights"
     argspec: "args=[\'self\', \'filepath\', \'skip_mismatch\', \'by_name\', \'options\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'None\'], "
   }
@@ -347,6 +351,10 @@ tf_class {
   member_method {
     name: "save"
     argspec: "args=[\'self\', \'filepath\', \'overwrite\', \'save_format\'], varargs=None, keywords=kwargs, defaults=[\'True\', \'None\'], "
+  }
+  member_method {
+    name: "save_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "save_spec"
