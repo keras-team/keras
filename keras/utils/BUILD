@@ -4,6 +4,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    default_applicable_licenses = [""],
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = ["//keras:friends"],
     licenses = ["notice"],
