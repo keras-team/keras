@@ -17,27 +17,21 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers import optimizer
-from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
-@register_keras_serializable()
-@keras_export(
-    "keras.optimizers.experimental.Lion",
-    "keras.optimizers.Lion",
-    v1=[],
-)
+@keras_export("keras.optimizers.Lion", v1=[])
 class Lion(optimizer.Optimizer):
-    r"""Optimizer that implements the Lion algorithm.
+    """Optimizer that implements the Lion algorithm.
 
     The Lion optimizer is a stochastic-gradient-descent method that uses the
     sign operator to control the magnitude of the update, unlike other adaptive
     optimizers such as Adam that also rely on second-order moments. This make
     Lion more memory-efficient as it only keeps track of the momentum. According
     to the authors (see reference), its performance gain over Adam grows with
-    the training batch size.
+    the batch size.
 
     Args:
       learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
@@ -54,7 +48,7 @@ class Lion(optimizer.Optimizer):
 
     References:
       - [Chen et al., 2023](http://arxiv.org/abs/2302.06675)
-      - [Authors implementation](\
+      - [Authors' implementation](
           http://github.com/google/automl/tree/master/lion)
 
     """
