@@ -51,7 +51,7 @@ _ASSETS_DIRNAME = "assets"
 
 # A temporary flag to enable the new idempotent saving framework.
 _SAVING_V3_ENABLED = threading.local()
-_SAVING_V3_ENABLED.value = False
+_SAVING_V3_ENABLED.value = True
 
 ATTR_SKIPLIST = frozenset(
     {
@@ -689,7 +689,7 @@ def _is_keras_trackable(obj):
 
 
 def saving_v3_enabled():
-    return getattr(_SAVING_V3_ENABLED, "value", False)
+    return getattr(_SAVING_V3_ENABLED, "value", True)
 
 
 # Some debugging utilities.
