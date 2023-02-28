@@ -335,7 +335,7 @@ class RandomUniform(Initializer):
         if layout:
             _ensure_keras_seeded()
             return utils.call_with_layout(
-                self._random_generator.random_uniform,
+                self._random_generator.scope().random_uniform,
                 layout,
                 shape,
                 self.minval,
@@ -343,7 +343,7 @@ class RandomUniform(Initializer):
                 dtype,
                 nonce,
             )
-        return self._random_generator.random_uniform(
+        return self._random_generator.scope().random_uniform(
             shape, self.minval, self.maxval, dtype, nonce
         )
 
@@ -413,7 +413,7 @@ class RandomNormal(Initializer):
         if layout:
             _ensure_keras_seeded()
             return utils.call_with_layout(
-                self._random_generator.random_normal,
+                self._random_generator.scope().random_normal,
                 layout,
                 shape,
                 self.mean,
@@ -421,7 +421,7 @@ class RandomNormal(Initializer):
                 dtype,
                 nonce,
             )
-        return self._random_generator.random_normal(
+        return self._random_generator.scope().random_normal(
             shape, self.mean, self.stddev, dtype, nonce
         )
 
@@ -503,7 +503,7 @@ class TruncatedNormal(Initializer):
             )
             _ensure_keras_seeded()
             return utils.call_with_layout(
-                self._random_generator.truncated_normal,
+                self._random_generator.scope().truncated_normal,
                 layout,
                 shape,
                 self.mean,
@@ -511,7 +511,7 @@ class TruncatedNormal(Initializer):
                 dtype,
                 nonce,
             )
-        return self._random_generator.truncated_normal(
+        return self._random_generator.scope().truncated_normal(
             shape, self.mean, self.stddev, dtype, nonce
         )
 
@@ -645,21 +645,22 @@ class VarianceScaling(Initializer):
             scale /= max(1.0, fan_out)
         else:
             scale /= max(1.0, (fan_in + fan_out) / 2.0)
+
         if self.distribution == "truncated_normal":
             # constant from scipy.stats.truncnorm.std(a=-2, b=2, loc=0.,
             # scale=1.)
             stddev = math.sqrt(scale) / 0.87962566103423978
-            return self._random_generator.truncated_normal(
+            return self._random_generator.scope().truncated_normal(
                 shape, 0.0, stddev, dtype, nonce
             )
         elif self.distribution == "untruncated_normal":
             stddev = math.sqrt(scale)
-            return self._random_generator.random_normal(
+            return self._random_generator.scope().random_normal(
                 shape, 0.0, stddev, dtype, nonce
             )
         else:
             limit = math.sqrt(3.0 * scale)
-            return self._random_generator.random_uniform(
+            return self._random_generator.scope().random_uniform(
                 shape, -limit, limit, dtype, nonce
             )
 
@@ -759,7 +760,9 @@ class Orthogonal(Initializer):
         flat_shape = (max(num_cols, num_rows), min(num_cols, num_rows))
 
         # Generate a random matrix
-        a = self._random_generator.random_normal(flat_shape, dtype=dtype)
+        a = self._random_generator.scope().random_normal(
+            flat_shape, dtype=dtype
+        )
         # Compute the qr factorization
         q, r = tf.linalg.qr(a, full_matrices=False)
         # Make Q uniform

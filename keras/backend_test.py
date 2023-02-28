@@ -2967,15 +2967,15 @@ class ContextValueCacheTest(tf.test.TestCase):
 class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
     def test_generator_reproducibility(self):
         seed = 1337
-        gen1 = backend.RandomGenerator(seed, rng_type="stateful")
-        output1 = gen1.random_normal(shape=[2, 3])
-        output2 = gen1.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed, rng_type="stateful") as gen1:
+            output1 = gen1.random_normal(shape=[2, 3])
+            output2 = gen1.random_normal(shape=[2, 3])
 
         self.assertNotAllClose(output1, output2)
 
-        gen2 = backend.RandomGenerator(seed, rng_type="stateful")
-        output3 = gen2.random_normal(shape=[2, 3])
-        output4 = gen2.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed, rng_type="stateful") as gen2:
+            output3 = gen2.random_normal(shape=[2, 3])
+            output4 = gen2.random_normal(shape=[2, 3])
 
         if tf.compat.v1.executing_eagerly():
             # Make sure generator with same seed will produce same sequence.
@@ -2984,11 +2984,11 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_unseeded(self):
         seed = None
-        gen1 = backend.RandomGenerator(seed, rng_type="stateful")
-        output1 = gen1.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed, rng_type="stateful") as gen1:
+            output1 = gen1.random_normal(shape=[2, 3])
 
-        gen2 = backend.RandomGenerator(seed, rng_type="stateful")
-        output2 = gen2.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed, rng_type="stateful") as gen2:
+            output2 = gen2.random_normal(shape=[2, 3])
 
         self.assertNotAllClose(output1, output2)
 
@@ -3011,9 +3011,9 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
     def test_unseeded_with_utils_set_random_seed(self):
         keras_seed = 1337
         tf_utils.set_random_seed(keras_seed)
-        gen1 = backend.RandomGenerator(seed=None, rng_type="stateful")
-        output1 = gen1.random_normal(shape=[2, 3])
-        output2 = gen1.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed=None, rng_type="stateful") as gen1:
+            output1 = gen1.random_normal(shape=[2, 3])
+            output2 = gen1.random_normal(shape=[2, 3])
 
         self.assertNotAllClose(output1, output2)
 
@@ -3022,13 +3022,13 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
         # sequence. This will ensure all the client are in sync in the
         # multi-client setting, when they all set the keras seed.
         tf_utils.set_random_seed(keras_seed)
-        gen2 = backend.RandomGenerator(seed=None, rng_type="stateful")
-        output3 = gen2.random_normal(shape=[2, 3])
-        output4 = gen2.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed=None, rng_type="stateful") as gen2:
+            output3 = gen2.random_normal(shape=[2, 3])
+            output4 = gen2.random_normal(shape=[2, 3])
 
-        gen3 = backend.RandomGenerator(seed=None, rng_type="stateful")
-        output5 = gen3.random_normal(shape=[2, 3])
-        output6 = gen3.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed=None, rng_type="stateful") as gen3:
+            output5 = gen3.random_normal(shape=[2, 3])
+            output6 = gen3.random_normal(shape=[2, 3])
 
         if tf.compat.v1.executing_eagerly():
             # The generator is only used in the tf2 with eager.
@@ -3041,11 +3041,11 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
             self.assertNotAllEqual(output4, output6)
 
     def test_force_stateless(self):
-        gen = backend.RandomGenerator(seed=None, rng_type="stateless")
-        output1 = gen.random_normal(shape=[2, 3])
-        seed1 = gen._seed
-        output2 = gen.random_normal(shape=[2, 3])
-        seed2 = gen._seed
+        with backend.RandomGenerator(seed=None, rng_type="stateless") as gen:
+            output1 = gen.random_normal(shape=[2, 3])
+            seed1 = gen._seed
+            output2 = gen.random_normal(shape=[2, 3])
+            seed2 = gen._seed
 
         self.assertAllClose(output1, output2)
         # Make sure we always use the same seed, and it is not None
@@ -3053,11 +3053,11 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
         self.assertIsNotNone(seed1)
 
         # Make sure a new seed is used when creating a new generator instance.
-        gen2 = backend.RandomGenerator(seed=None, rng_type="stateless")
-        output3 = gen2.random_normal(shape=[2, 3])
-        seed3 = gen2._seed
-        output4 = gen2.random_normal(shape=[2, 3])
-        seed4 = gen2._seed
+        with backend.RandomGenerator(seed=None, rng_type="stateless") as gen2:
+            output3 = gen2.random_normal(shape=[2, 3])
+            seed3 = gen2._seed
+            output4 = gen2.random_normal(shape=[2, 3])
+            seed4 = gen2._seed
 
         self.assertAllClose(output3, output4)
         self.assertEqual(seed3, seed4)
@@ -3065,11 +3065,11 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_force_stateless_with_seed(self):
         seed = 1337
-        gen = backend.RandomGenerator(seed=seed, rng_type="stateless")
-        output1 = gen.random_normal(shape=[2, 3])
-        seed1 = gen._seed
-        output2 = gen.random_normal(shape=[2, 3])
-        seed2 = gen._seed
+        with backend.RandomGenerator(seed=seed, rng_type="stateless") as gen:
+            output1 = gen.random_normal(shape=[2, 3])
+            seed1 = gen._seed
+            output2 = gen.random_normal(shape=[2, 3])
+            seed2 = gen._seed
 
         self.assertAllClose(output1, output2)
         # Make sure we always use the same seed, and it is not None
@@ -3077,19 +3077,19 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(seed, seed2)
 
         # Make sure RandomGenerator always generate same value with same seed.
-        gen2 = backend.RandomGenerator(seed=seed, rng_type="stateless")
-        output3 = gen2.random_normal(shape=[2, 3])
+        with backend.RandomGenerator(seed=seed, rng_type="stateless") as gen2:
+            output3 = gen2.random_normal(shape=[2, 3])
         self.assertAllClose(output3, output1)
 
     @parameterized.named_parameters(("seeded", 1337), ("unseeded", None))
     def test_stateless_with_seed_delta(self, seed):
-        gen = backend.RandomGenerator(seed=seed, rng_type="stateless")
-        output1 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
-        seed1 = gen._seed
-        output2 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
-        seed2 = gen._seed
-        output3 = gen.random_normal(shape=[2, 3], nonce=hash((2, 1)))
-        seed3 = gen._seed
+        with backend.RandomGenerator(seed=seed, rng_type="stateless") as gen:
+            output1 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
+            seed1 = gen._seed
+            output2 = gen.random_normal(shape=[2, 3], nonce=hash((1, 1)))
+            seed2 = gen._seed
+            output3 = gen.random_normal(shape=[2, 3], nonce=hash((2, 1)))
+            seed3 = gen._seed
 
         self.assertAllClose(output1, output2)
         # Different seed_delta will produce different value.
@@ -3109,11 +3109,12 @@ class RandomGeneratorTest(tf.test.TestCase, parameterized.TestCase):
                 backend.enable_tf_random_generator()
 
             seed = 1337
-            gen = backend.RandomGenerator(seed=seed, rng_type="stateless")
-            output1 = gen.random_normal(shape=[2, 3])
-            output2 = gen.random_normal(shape=[2, 3])
-
-            self.assertIsNone(gen._generator)
+            with backend.RandomGenerator(
+                seed=seed, rng_type="stateless"
+            ) as gen:
+                output1 = gen.random_normal(shape=[2, 3])
+                output2 = gen.random_normal(shape=[2, 3])
+                self.assertIsNone(gen._generator)
             self.assertAllClose(output1, output2)
         finally:
             if not generator_enabled:

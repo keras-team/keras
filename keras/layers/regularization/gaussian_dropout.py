@@ -63,7 +63,7 @@ class GaussianDropout(base_layer.BaseRandomLayer):
 
             def noised():
                 stddev = np.sqrt(self.rate / (1.0 - self.rate))
-                return inputs * self._random_generator.random_normal(
+                return inputs * self._random_generator.scope().random_normal(
                     shape=tf.shape(inputs),
                     mean=1.0,
                     stddev=stddev,

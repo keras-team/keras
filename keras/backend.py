@@ -1919,10 +1919,225 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
     RNG_STATEFUL = "stateful"
     RNG_LEGACY_STATEFUL = "legacy_stateful"
 
+    class Scope:
+        def __init__(self, seed, rng_type, generator):
+            self._seed = seed
+            self._rng_type = rng_type
+            self._generator = generator
+            self._usage = 0
+
+        def make_legacy_seed(self):
+            if self._seed is not None:
+                seed = self._seed
+                self._seed += 1
+                return seed
+            return None
+
+        def make_seed_for_stateless_op(self):
+            """Generate a new seed based on the init config.
+
+            Note that this will not return python ints which will be frozen in
+            the graph and cause stateless op to return the same value. It will
+            only return value when generator is used, otherwise it will return
+            None.
+
+            Returns:
+            A tensor with shape [2,].
+            """
+            if self._rng_type == RandomGenerator.RNG_STATELESS:
+                return [self._seed, 0]
+            elif self._rng_type == RandomGenerator.RNG_STATEFUL:
+                return self._generator.make_seeds()[:, 0]
+            return None
+
+        def random_normal(
+            self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
+        ):
+            """Produce random number based on the normal distribution.
+
+            Args:
+            shape: The shape of the random values to generate.
+            mean: Floats, default to 0. Mean of the random values to generate.
+            stddev: Floats, default to 1. Standard deviation of the random
+                values to generate.
+            dtype: Optional dtype of the tensor. Only floating point types are
+                supported. If not specified, `tf.keras.backend.floatx()` is
+                used, which default to `float32` unless you configured it
+                otherwise (via `tf.keras.backend.set_floatx(float_dtype)`)
+            nonce: Optional integer scalar, that will be folded into the seed
+                in the stateless mode.
+            """
+            dtype = dtype or floatx()
+            if self._rng_type == RandomGenerator.RNG_STATEFUL:
+                return self._generator.normal(
+                    shape=shape, mean=mean, stddev=stddev, dtype=dtype
+                )
+            elif self._rng_type == RandomGenerator.RNG_STATELESS:
+                seed = self.make_seed_for_stateless_op()
+                if nonce:
+                    seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+                return tf.random.stateless_normal(
+                    shape=shape,
+                    mean=mean,
+                    stddev=stddev,
+                    dtype=dtype,
+                    seed=seed,
+                )
+            return tf.random.normal(
+                shape=shape,
+                mean=mean,
+                stddev=stddev,
+                dtype=dtype,
+                seed=self.make_legacy_seed(),
+            )
+
+        def random_uniform(
+            self, shape, minval=0.0, maxval=None, dtype=None, nonce=None
+        ):
+            """Produce random number based on the uniform distribution.
+
+            Args:
+            shape: The shape of the random values to generate.
+            minval: Floats, default to 0. Lower bound of the range of
+                random values to generate (inclusive).
+            minval: Floats, default to None. Upper bound of the range of
+                random values to generate (exclusive).
+            dtype: Optional dtype of the tensor. Only floating point types are
+                supported. If not specified, `tf.keras.backend.floatx()` is
+                used, which default to `float32` unless you configured it
+                otherwise (via `tf.keras.backend.set_floatx(float_dtype)`)
+            nonce: Optional integer scalar, that will be folded into the see
+                in the stateless mode.
+            """
+            dtype = dtype or floatx()
+            if self._rng_type == RandomGenerator.RNG_STATEFUL:
+                return self._generator.uniform(
+                    shape=shape, minval=minval, maxval=maxval, dtype=dtype
+                )
+            elif self._rng_type == RandomGenerator.RNG_STATELESS:
+                seed = self.make_seed_for_stateless_op()
+                if nonce:
+                    seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+                return tf.random.stateless_uniform(
+                    shape=shape,
+                    minval=minval,
+                    maxval=maxval,
+                    dtype=dtype,
+                    seed=seed,
+                )
+            return tf.random.uniform(
+                shape=shape,
+                minval=minval,
+                maxval=maxval,
+                dtype=dtype,
+                seed=self.make_legacy_seed(),
+            )
+
+        def truncated_normal(
+            self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
+        ):
+            """Produce random number based on the truncated normal distribution.
+
+            Args:
+            shape: The shape of the random values to generate.
+            mean: Floats, default to 0. Mean of the random values to generate.
+            stddev: Floats, default to 1. Standard deviation of the random
+                values to generate.
+            dtype: Optional dtype of the tensor. Only floating point types are
+                supported. If not specified, `tf.keras.backend.floatx()`
+                is used, which default to `float32` unless you configured it
+                otherwise (via `tf.keras.backend.set_floatx(float_dtype)`)
+            nonce: Optional integer scalar, that will be folded into the seed
+                in the stateless mode.
+            """
+            dtype = dtype or floatx()
+            if self._rng_type == RandomGenerator.RNG_STATEFUL:
+                return self._generator.truncated_normal(
+                    shape=shape, mean=mean, stddev=stddev, dtype=dtype
+                )
+            elif self._rng_type == RandomGenerator.RNG_STATELESS:
+                seed = self.make_seed_for_stateless_op()
+                if nonce:
+                    seed = tf.random.experimental.stateless_fold_in(seed, nonce)
+                return tf.random.stateless_truncated_normal(
+                    shape=shape,
+                    mean=mean,
+                    stddev=stddev,
+                    dtype=dtype,
+                    seed=seed,
+                )
+            return tf.random.truncated_normal(
+                shape=shape,
+                mean=mean,
+                stddev=stddev,
+                dtype=dtype,
+                seed=self.make_legacy_seed(),
+            )
+
+        def dropout(self, inputs, rate, noise_shape=None):
+            if self._rng_type == RandomGenerator.RNG_STATEFUL:
+                return tf.nn.experimental.general_dropout(
+                    inputs,
+                    rate=rate,
+                    noise_shape=noise_shape,
+                    uniform_sampler=self._generator.uniform,
+                )
+            elif self._rng_type == RandomGenerator.RNG_STATELESS:
+                return tf.nn.experimental.stateless_dropout(
+                    inputs,
+                    rate=rate,
+                    noise_shape=noise_shape,
+                    seed=self.make_seed_for_stateless_op(),
+                )
+            else:
+                return tf.nn.dropout(
+                    inputs,
+                    rate=rate,
+                    noise_shape=noise_shape,
+                    seed=self.make_legacy_seed(),
+                )
+
     def __init__(self, seed=None, rng_type=None, **kwargs):
         self._seed = seed
         self._set_rng_type(rng_type, **kwargs)
         self._built = False
+        self._scope = None
+
+    def scope(self):
+        """
+        Returns a Scope object that can be used to generate unique seeds
+        based on a single initial seed value.
+        """
+        self._maybe_init()
+        if self._scope is None:
+            return RandomGenerator.Scope(
+                self._seed, self._rng_type, self._generator
+            )
+        return self._scope
+
+    def __enter__(self):
+        """
+        Generates a unique Scope object, to ensure that nested calls don't
+        create multiple scope objects.
+
+        Usage:
+            def call(...):
+                with self._random_generator:
+                    ...
+                    self.sub_call(...)
+
+            def sub_call(...):
+                return self._random_generator.scope().dropout(...)
+        """
+        self._scope = self.scope()
+        self._scope._usage += 1
+        return self._scope
+
+    def __exit__(self, type, value, traceback):
+        assert self._scope is not None
+        self._scope._usage -= 1
+        if self._scope._usage == 0:
+            self._scope = None
 
     def _set_rng_type(self, rng_type, **kwargs):
         # Only supported kwargs is "force_generator", which we will remove once
@@ -1987,43 +2202,6 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._generator = None
         self._built = True
 
-    def make_seed_for_stateless_op(self):
-        """Generate a new seed based on the init config.
-
-        Note that this will not return python ints which will be frozen in the
-        graph and cause stateless op to return the same value. It will only
-        return value when generator is used, otherwise it will return None.
-
-        Returns:
-          A tensor with shape [2,].
-        """
-        self._maybe_init()
-        if self._rng_type == self.RNG_STATELESS:
-            return [self._seed, 0]
-        elif self._rng_type == self.RNG_STATEFUL:
-            return self._generator.make_seeds()[:, 0]
-        return None
-
-    def make_legacy_seed(self):
-        """Create a new seed for the legacy stateful ops to use.
-
-        When user didn't provide any original seed, this method will return
-        None.  Otherwise it will increment the counter and return as the new
-        seed.
-
-        Note that it is important to generate different seed for stateful ops in
-        the `tf.function`. The random ops will return same value when same seed
-        is provided in the `tf.function`.
-
-        Returns:
-          int as new seed, or None.
-        """
-        if self._seed is not None:
-            result = self._seed
-            self._seed += 1
-            return result
-        return None
-
     def _create_seed(self, user_specified_seed):
         if user_specified_seed is not None:
             return user_specified_seed
@@ -2031,149 +2209,6 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             return _SEED_GENERATOR.generator.randint(1, 1e9)
         else:
             return random.randint(1, int(1e9))
-
-    def random_normal(
-        self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
-    ):
-        """Produce random number based on the normal distribution.
-
-        Args:
-          shape: The shape of the random values to generate.
-          mean: Floats, default to 0. Mean of the random values to generate.
-          stddev: Floats, default to 1. Standard deviation of the random values
-            to generate.
-          dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
-            `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in
-            the stateless mode.
-        """
-        self._maybe_init()
-        dtype = dtype or floatx()
-        if self._rng_type == self.RNG_STATEFUL:
-            return self._generator.normal(
-                shape=shape, mean=mean, stddev=stddev, dtype=dtype
-            )
-        elif self._rng_type == self.RNG_STATELESS:
-            seed = self.make_seed_for_stateless_op()
-            if nonce:
-                seed = tf.random.experimental.stateless_fold_in(seed, nonce)
-            return tf.random.stateless_normal(
-                shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
-            )
-        return tf.random.normal(
-            shape=shape,
-            mean=mean,
-            stddev=stddev,
-            dtype=dtype,
-            seed=self.make_legacy_seed(),
-        )
-
-    def random_uniform(
-        self, shape, minval=0.0, maxval=None, dtype=None, nonce=None
-    ):
-        """Produce random number based on the uniform distribution.
-
-        Args:
-          shape: The shape of the random values to generate.
-          minval: Floats, default to 0. Lower bound of the range of
-            random values to generate (inclusive).
-          minval: Floats, default to None. Upper bound of the range of
-            random values to generate (exclusive).
-          dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
-            `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in
-            the stateless mode.
-        """
-        self._maybe_init()
-        dtype = dtype or floatx()
-        if self._rng_type == self.RNG_STATEFUL:
-            return self._generator.uniform(
-                shape=shape, minval=minval, maxval=maxval, dtype=dtype
-            )
-        elif self._rng_type == self.RNG_STATELESS:
-            seed = self.make_seed_for_stateless_op()
-            if nonce:
-                seed = tf.random.experimental.stateless_fold_in(seed, nonce)
-            return tf.random.stateless_uniform(
-                shape=shape,
-                minval=minval,
-                maxval=maxval,
-                dtype=dtype,
-                seed=seed,
-            )
-        return tf.random.uniform(
-            shape=shape,
-            minval=minval,
-            maxval=maxval,
-            dtype=dtype,
-            seed=self.make_legacy_seed(),
-        )
-
-    def truncated_normal(
-        self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
-    ):
-        """Produce random number based on the truncated normal distribution.
-
-        Args:
-          shape: The shape of the random values to generate.
-          mean: Floats, default to 0. Mean of the random values to generate.
-          stddev: Floats, default to 1. Standard deviation of the random values
-            to generate.
-          dtype: Optional dtype of the tensor. Only floating point types are
-            supported. If not specified, `tf.keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
-            `tf.keras.backend.set_floatx(float_dtype)`)
-          nonce: Optional integer scalar, that will be folded into the seed in
-            the stateless mode.
-        """
-        self._maybe_init()
-        dtype = dtype or floatx()
-        if self._rng_type == self.RNG_STATEFUL:
-            return self._generator.truncated_normal(
-                shape=shape, mean=mean, stddev=stddev, dtype=dtype
-            )
-        elif self._rng_type == self.RNG_STATELESS:
-            seed = self.make_seed_for_stateless_op()
-            if nonce:
-                seed = tf.random.experimental.stateless_fold_in(seed, nonce)
-            return tf.random.stateless_truncated_normal(
-                shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
-            )
-        return tf.random.truncated_normal(
-            shape=shape,
-            mean=mean,
-            stddev=stddev,
-            dtype=dtype,
-            seed=self.make_legacy_seed(),
-        )
-
-    def dropout(self, inputs, rate, noise_shape=None):
-        self._maybe_init()
-        if self._rng_type == self.RNG_STATEFUL:
-            return tf.nn.experimental.general_dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                uniform_sampler=self._generator.uniform,
-            )
-        elif self._rng_type == self.RNG_STATELESS:
-            return tf.nn.experimental.stateless_dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                seed=self.make_seed_for_stateless_op(),
-            )
-        else:
-            return tf.nn.dropout(
-                inputs,
-                rate=rate,
-                noise_shape=noise_shape,
-                seed=self.make_legacy_seed(),
-            )
 
 
 @keras_export("keras.backend.random_uniform_variable")

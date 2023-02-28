@@ -62,7 +62,7 @@ class GaussianNoise(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=None):
         def noised():
-            return inputs + self._random_generator.random_normal(
+            return inputs + self._random_generator.scope().random_normal(
                 shape=tf.shape(inputs),
                 mean=0.0,
                 stddev=self.stddev,

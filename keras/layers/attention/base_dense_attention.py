@@ -142,7 +142,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         if self.dropout > 0:
 
             def dropped_weights():
-                return self._random_generator.dropout(
+                return self._random_generator.scope().dropout(
                     weights, rate=self.dropout
                 )
 

@@ -1059,7 +1059,7 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
             std = tf.sqrt(variance)
             noisy_linear_decayed = (
                 linear_decayed
-                + self._random_generator.random_normal(
+                + self._random_generator.scope().random_normal(
                     linear_decayed.shape, stddev=std
                 )
             )

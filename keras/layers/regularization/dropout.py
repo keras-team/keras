@@ -113,7 +113,7 @@ class Dropout(base_layer.BaseRandomLayer):
             training = backend.learning_phase()
 
         def dropped_inputs():
-            return self._random_generator.dropout(
+            return self._random_generator.scope().dropout(
                 inputs, self.rate, noise_shape=self._get_noise_shape(inputs)
             )
 

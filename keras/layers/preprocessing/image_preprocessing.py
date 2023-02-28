@@ -287,7 +287,7 @@ class RandomCrop(base_layer.BaseRandomLayer):
 
         def random_crop():
             dtype = input_shape.dtype
-            rands = self._random_generator.random_uniform(
+            rands = self._random_generator.scope().random_uniform(
                 [2], 0, dtype.max, dtype
             )
             h_start = rands[0] % (h_diff + 1)
@@ -449,12 +449,14 @@ class RandomFlip(base_layer.BaseRandomLayer):
         self.seed = seed
 
     def call(self, inputs, training=True):
+        rand = self._random_generator.scope()
+
         inputs = convert_inputs(inputs, self.compute_dtype)
 
         def random_flipped_inputs(inputs):
             flipped_outputs = inputs
             if self.horizontal:
-                seed = self._random_generator.make_seed_for_stateless_op()
+                seed = rand.make_seed_for_stateless_op()
                 if seed is not None:
                     flipped_outputs = tf.image.stateless_random_flip_left_right(
                         flipped_outputs, seed=seed
@@ -462,10 +464,10 @@ class RandomFlip(base_layer.BaseRandomLayer):
                 else:
                     flipped_outputs = tf.image.random_flip_left_right(
                         flipped_outputs,
-                        self._random_generator.make_legacy_seed(),
+                        rand.make_legacy_seed(),
                     )
             if self.vertical:
-                seed = self._random_generator.make_seed_for_stateless_op()
+                seed = rand.make_seed_for_stateless_op()
                 if seed is not None:
                     flipped_outputs = tf.image.stateless_random_flip_up_down(
                         flipped_outputs, seed=seed
@@ -473,7 +475,7 @@ class RandomFlip(base_layer.BaseRandomLayer):
                 else:
                     flipped_outputs = tf.image.random_flip_up_down(
                         flipped_outputs,
-                        self._random_generator.make_legacy_seed(),
+                        rand.make_legacy_seed(),
                     )
             flipped_outputs.set_shape(inputs.shape)
             return flipped_outputs
@@ -617,6 +619,7 @@ class RandomTranslation(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
+        rand = self._random_generator.scope()
 
         def random_translated_inputs(inputs):
             """Translated inputs with random ops."""
@@ -632,14 +635,14 @@ class RandomTranslation(base_layer.BaseRandomLayer):
             batch_size = inputs_shape[0]
             img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
             img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            height_translate = self._random_generator.random_uniform(
+            height_translate = rand.random_uniform(
                 shape=[batch_size, 1],
                 minval=self.height_lower,
                 maxval=self.height_upper,
                 dtype=tf.float32,
             )
             height_translate = height_translate * img_hd
-            width_translate = self._random_generator.random_uniform(
+            width_translate = rand.random_uniform(
                 shape=[batch_size, 1],
                 minval=self.width_lower,
                 maxval=self.width_upper,
@@ -965,6 +968,7 @@ class RandomRotation(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
+        rand = self._random_generator.scope()
 
         def random_rotated_inputs(inputs):
             """Rotated inputs with random ops."""
@@ -981,7 +985,7 @@ class RandomRotation(base_layer.BaseRandomLayer):
             img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
             min_angle = self.lower * 2.0 * np.pi
             max_angle = self.upper * 2.0 * np.pi
-            angles = self._random_generator.random_uniform(
+            angles = rand.random_uniform(
                 shape=[batch_size], minval=min_angle, maxval=max_angle
             )
             output = transform(
@@ -1146,6 +1150,7 @@ class RandomZoom(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
+        rand = self._random_generator
 
         def random_zoomed_inputs(inputs):
             """Zoomed inputs with random ops."""
@@ -1160,13 +1165,13 @@ class RandomZoom(base_layer.BaseRandomLayer):
             batch_size = inputs_shape[0]
             img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
             img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            height_zoom = self._random_generator.random_uniform(
+            height_zoom = rand.random_uniform(
                 shape=[batch_size, 1],
                 minval=1.0 + self.height_lower,
                 maxval=1.0 + self.height_upper,
             )
             if self.width_factor is not None:
-                width_zoom = self._random_generator.random_uniform(
+                width_zoom = rand.random_uniform(
                     shape=[batch_size, 1],
                     minval=1.0 + self.width_lower,
                     maxval=1.0 + self.width_upper,
@@ -1317,9 +1322,10 @@ class RandomContrast(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
+        rand = self._random_generator
 
         def random_contrasted_inputs(inputs):
-            seed = self._random_generator.make_seed_for_stateless_op()
+            seed = rand.make_seed_for_stateless_op()
             if seed is not None:
                 output = tf.image.stateless_random_contrast(
                     inputs, 1.0 - self.lower, 1.0 + self.upper, seed=seed
@@ -1329,7 +1335,7 @@ class RandomContrast(base_layer.BaseRandomLayer):
                     inputs,
                     1.0 - self.lower,
                     1.0 + self.upper,
-                    seed=self._random_generator.make_legacy_seed(),
+                    seed=rand.make_legacy_seed(),
                 )
             output = tf.clip_by_value(output, 0, 255)
             output.set_shape(inputs.shape)
@@ -1473,6 +1479,7 @@ class RandomBrightness(base_layer.BaseRandomLayer):
 
     def _brightness_adjust(self, images):
         rank = images.shape.rank
+        rand = self._random_generator.scope()
         if rank == 3:
             rgb_delta_shape = (1, 1, 1)
         elif rank == 4:
@@ -1484,7 +1491,7 @@ class RandomBrightness(base_layer.BaseRandomLayer):
                 "Expected the input image to be rank 3 or 4. Got "
                 f"inputs.shape = {images.shape}"
             )
-        rgb_delta = self._random_generator.random_uniform(
+        rgb_delta = rand.random_uniform(
             shape=rgb_delta_shape,
             minval=self._factor[0],
             maxval=self._factor[1],
@@ -1584,13 +1591,14 @@ class RandomHeight(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs)
+        rand = self._random_generator.scope()
 
         def random_height_inputs(inputs):
             """Inputs height-adjusted with random ops."""
             inputs_shape = tf.shape(inputs)
             img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
             img_wd = inputs_shape[W_AXIS]
-            height_factor = self._random_generator.random_uniform(
+            height_factor = rand.random_uniform(
                 shape=[],
                 minval=(1.0 + self.height_lower),
                 maxval=(1.0 + self.height_upper),
@@ -1711,7 +1719,7 @@ class RandomWidth(base_layer.BaseRandomLayer):
             inputs_shape = tf.shape(inputs)
             img_hd = inputs_shape[H_AXIS]
             img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            width_factor = self._random_generator.random_uniform(
+            width_factor = self._random_generator.scope().random_uniform(
                 shape=[],
                 minval=(1.0 + self.width_lower),
                 maxval=(1.0 + self.width_upper),

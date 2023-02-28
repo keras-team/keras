@@ -75,7 +75,8 @@ class AlphaDropout(base_layer.BaseRandomLayer):
                 alpha_p = -alpha * scale
 
                 kept_idx = tf.greater_equal(
-                    self._random_generator.random_uniform(noise_shape), rate
+                    self._random_generator.scope().random_uniform(noise_shape),
+                    rate,
                 )
                 kept_idx = tf.cast(kept_idx, inputs.dtype)
 

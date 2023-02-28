@@ -135,6 +135,66 @@ class DropoutTest(test_combinations.TestCase):
             "dropout_layer/StateVar:0",
         )
 
+    def test_stable_seeds(self):
+        # This tests the behavior described in
+        # https://github.com/keras-team/keras/issues/17548
+
+        global_seed = 123
+        local_seed = 234
+
+        inputs = keras.Input(shape=(5, 10))
+        dropout = keras.layers.Dropout(0.5, seed=local_seed)
+        model = keras.Model(inputs, dropout(inputs))
+
+        data = np.random.rand(1, 5, 10).astype(np.float32)
+        ref1, ref2 = None, None
+
+        for _ in range(5):
+            keras.utils.set_random_seed(global_seed)
+            out1 = model(data, training=True)
+            out2 = model(data, training=True)
+
+            # two consecutive runs should generate different results
+            self.assertNotAllEqual(out1, out2)
+
+            # after resetting the seed, the model should return identical
+            # dropout sequences
+            if ref1 is None and ref2 is None:
+                ref1 = out1
+                ref2 = out2
+            else:
+                self.assertAllEqual(ref1, out1)
+                self.assertAllEqual(ref2, out2)
+
+            # seeds of the layer and RandomGenerator should not change through
+            # executing the model
+            self.assertEqual(dropout.seed, local_seed)
+            self.assertEqual(dropout._random_generator._seed, local_seed)
+
+    def test_stable_seeds_in_tf_function(self):
+        # This tests the behavior described in
+        # https://github.com/keras-team/keras/issues/17548
+
+        global_seed = 123
+        local_seed = 234
+        keras.utils.set_random_seed(global_seed)
+
+        inputs = keras.Input(shape=(5, 10))
+        dropout = keras.layers.Dropout(0.5, seed=local_seed)
+        alpha_dropout = keras.layers.AlphaDropout(0.5, seed=local_seed)
+        model = keras.Model(inputs, [dropout(inputs), alpha_dropout(inputs)])
+
+        data = np.random.rand(1, 5, 10).astype(np.float32)
+        for _ in range(5):
+            func = tf.function(model.__call__).get_concrete_function(
+                data, training=True
+            )
+
+            for node in func.graph.get_operations():
+                if node.op_def.name == "RandomUniform":
+                    self.assertEqual(node.get_attr("seed"), global_seed)
+                    self.assertEqual(node.get_attr("seed2"), local_seed)
+
 
 if __name__ == "__main__":
     tf.test.main()

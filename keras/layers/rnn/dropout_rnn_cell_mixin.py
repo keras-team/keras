@@ -91,7 +91,7 @@ class DropoutRNNCellMixin:
 
     def _create_dropout_mask(self, inputs, training, count=1):
         return _generate_dropout_mask(
-            self._random_generator,
+            self._random_generator.scope(),
             tf.ones_like(inputs),
             self.dropout,
             training=training,
@@ -100,7 +100,7 @@ class DropoutRNNCellMixin:
 
     def _create_recurrent_dropout_mask(self, inputs, training, count=1):
         return _generate_dropout_mask(
-            self._random_generator,
+            self._random_generator.scope(),
             tf.ones_like(inputs),
             self.recurrent_dropout,
             training=training,
