@@ -58,7 +58,6 @@ py_library(
         "//keras/testing_infra:keras_doctest_lib",
         "//keras/testing_infra:test_utils",  # For keras.__internal__ API
         "//keras/utils",
-        "//keras/wrappers",
     ],
 )
 
