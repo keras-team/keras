@@ -449,41 +449,45 @@ class RandomFlip(base_layer.BaseRandomLayer):
         self.seed = seed
 
     def call(self, inputs, training=True):
-        rand = self._random_generator.scope()
+        with self._random_generator as gen:
 
-        inputs = convert_inputs(inputs, self.compute_dtype)
+            inputs = convert_inputs(inputs, self.compute_dtype)
 
-        def random_flipped_inputs(inputs):
-            flipped_outputs = inputs
-            if self.horizontal:
-                seed = rand.make_seed_for_stateless_op()
-                if seed is not None:
-                    flipped_outputs = tf.image.stateless_random_flip_left_right(
-                        flipped_outputs, seed=seed
-                    )
-                else:
-                    flipped_outputs = tf.image.random_flip_left_right(
-                        flipped_outputs,
-                        rand.make_legacy_seed(),
-                    )
-            if self.vertical:
-                seed = rand.make_seed_for_stateless_op()
-                if seed is not None:
-                    flipped_outputs = tf.image.stateless_random_flip_up_down(
-                        flipped_outputs, seed=seed
-                    )
-                else:
-                    flipped_outputs = tf.image.random_flip_up_down(
-                        flipped_outputs,
-                        rand.make_legacy_seed(),
-                    )
-            flipped_outputs.set_shape(inputs.shape)
-            return flipped_outputs
+            def random_flipped_inputs(inputs):
+                flipped_outputs = inputs
+                if self.horizontal:
+                    seed = gen.make_seed_for_stateless_op()
+                    if seed is not None:
+                        flipped_outputs = (
+                            tf.image.stateless_random_flip_left_right(
+                                flipped_outputs, seed=seed
+                            )
+                        )
+                    else:
+                        flipped_outputs = tf.image.random_flip_left_right(
+                            flipped_outputs,
+                            gen.make_legacy_seed(),
+                        )
+                if self.vertical:
+                    seed = gen.make_seed_for_stateless_op()
+                    if seed is not None:
+                        flipped_outputs = (
+                            tf.image.stateless_random_flip_up_down(
+                                flipped_outputs, seed=seed
+                            )
+                        )
+                    else:
+                        flipped_outputs = tf.image.random_flip_up_down(
+                            flipped_outputs,
+                            gen.make_legacy_seed(),
+                        )
+                flipped_outputs.set_shape(inputs.shape)
+                return flipped_outputs
 
-        if training:
-            return random_flipped_inputs(inputs)
-        else:
-            return inputs
+            if training:
+                return random_flipped_inputs(inputs)
+            else:
+                return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -619,51 +623,51 @@ class RandomTranslation(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
-        rand = self._random_generator.scope()
+        with self._random_generator as gen:
 
-        def random_translated_inputs(inputs):
-            """Translated inputs with random ops."""
-            # The transform op only accepts rank 4 inputs,
-            # so if we have an unbatched image,
-            # we need to temporarily expand dims to a batch.
-            original_shape = inputs.shape
-            unbatched = inputs.shape.rank == 3
-            if unbatched:
-                inputs = tf.expand_dims(inputs, 0)
+            def random_translated_inputs(inputs):
+                """Translated inputs with random ops."""
+                # The transform op only accepts rank 4 inputs,
+                # so if we have an unbatched image,
+                # we need to temporarily expand dims to a batch.
+                original_shape = inputs.shape
+                unbatched = inputs.shape.rank == 3
+                if unbatched:
+                    inputs = tf.expand_dims(inputs, 0)
 
-            inputs_shape = tf.shape(inputs)
-            batch_size = inputs_shape[0]
-            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            height_translate = rand.random_uniform(
-                shape=[batch_size, 1],
-                minval=self.height_lower,
-                maxval=self.height_upper,
-                dtype=tf.float32,
-            )
-            height_translate = height_translate * img_hd
-            width_translate = rand.random_uniform(
-                shape=[batch_size, 1],
-                minval=self.width_lower,
-                maxval=self.width_upper,
-                dtype=tf.float32,
-            )
-            width_translate = width_translate * img_wd
-            translations = tf.cast(
-                tf.concat([width_translate, height_translate], axis=1),
-                dtype=tf.float32,
-            )
-            output = transform(
-                inputs,
-                get_translation_matrix(translations),
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-            )
-            if unbatched:
-                output = tf.squeeze(output, 0)
-            output.set_shape(original_shape)
-            return output
+                inputs_shape = tf.shape(inputs)
+                batch_size = inputs_shape[0]
+                img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+                img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+                height_translate = gen.random_uniform(
+                    shape=[batch_size, 1],
+                    minval=self.height_lower,
+                    maxval=self.height_upper,
+                    dtype=tf.float32,
+                )
+                height_translate = height_translate * img_hd
+                width_translate = gen.random_uniform(
+                    shape=[batch_size, 1],
+                    minval=self.width_lower,
+                    maxval=self.width_upper,
+                    dtype=tf.float32,
+                )
+                width_translate = width_translate * img_wd
+                translations = tf.cast(
+                    tf.concat([width_translate, height_translate], axis=1),
+                    dtype=tf.float32,
+                )
+                output = transform(
+                    inputs,
+                    get_translation_matrix(translations),
+                    interpolation=self.interpolation,
+                    fill_mode=self.fill_mode,
+                    fill_value=self.fill_value,
+                )
+                if unbatched:
+                    output = tf.squeeze(output, 0)
+                output.set_shape(original_shape)
+                return output
 
         if training:
             return random_translated_inputs(inputs)
@@ -968,42 +972,42 @@ class RandomRotation(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
-        rand = self._random_generator.scope()
+        with self._random_generator as gen:
 
-        def random_rotated_inputs(inputs):
-            """Rotated inputs with random ops."""
-            original_shape = inputs.shape
-            unbatched = inputs.shape.rank == 3
-            # The transform op only accepts rank 4 inputs,
-            # so if we have an unbatched image,
-            # we need to temporarily expand dims to a batch.
-            if unbatched:
-                inputs = tf.expand_dims(inputs, 0)
-            inputs_shape = tf.shape(inputs)
-            batch_size = inputs_shape[0]
-            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            min_angle = self.lower * 2.0 * np.pi
-            max_angle = self.upper * 2.0 * np.pi
-            angles = rand.random_uniform(
-                shape=[batch_size], minval=min_angle, maxval=max_angle
-            )
-            output = transform(
-                inputs,
-                get_rotation_matrix(angles, img_hd, img_wd),
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                interpolation=self.interpolation,
-            )
-            if unbatched:
-                output = tf.squeeze(output, 0)
-            output.set_shape(original_shape)
-            return output
+            def random_rotated_inputs(inputs):
+                """Rotated inputs with random ops."""
+                original_shape = inputs.shape
+                unbatched = inputs.shape.rank == 3
+                # The transform op only accepts rank 4 inputs,
+                # so if we have an unbatched image,
+                # we need to temporarily expand dims to a batch.
+                if unbatched:
+                    inputs = tf.expand_dims(inputs, 0)
+                inputs_shape = tf.shape(inputs)
+                batch_size = inputs_shape[0]
+                img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+                img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+                min_angle = self.lower * 2.0 * np.pi
+                max_angle = self.upper * 2.0 * np.pi
+                angles = gen.random_uniform(
+                    shape=[batch_size], minval=min_angle, maxval=max_angle
+                )
+                output = transform(
+                    inputs,
+                    get_rotation_matrix(angles, img_hd, img_wd),
+                    fill_mode=self.fill_mode,
+                    fill_value=self.fill_value,
+                    interpolation=self.interpolation,
+                )
+                if unbatched:
+                    output = tf.squeeze(output, 0)
+                output.set_shape(original_shape)
+                return output
 
-        if training:
-            return random_rotated_inputs(inputs)
-        else:
-            return inputs
+            if training:
+                return random_rotated_inputs(inputs)
+            else:
+                return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -1150,48 +1154,49 @@ class RandomZoom(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
-        rand = self._random_generator
+        with self._random_generator as gen:
 
-        def random_zoomed_inputs(inputs):
-            """Zoomed inputs with random ops."""
-            original_shape = inputs.shape
-            unbatched = inputs.shape.rank == 3
-            # The transform op only accepts rank 4 inputs,
-            # so if we have an unbatched image,
-            # we need to temporarily expand dims to a batch.
-            if unbatched:
-                inputs = tf.expand_dims(inputs, 0)
-            inputs_shape = tf.shape(inputs)
-            batch_size = inputs_shape[0]
-            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-            img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
-            height_zoom = rand.random_uniform(
-                shape=[batch_size, 1],
-                minval=1.0 + self.height_lower,
-                maxval=1.0 + self.height_upper,
-            )
-            if self.width_factor is not None:
-                width_zoom = rand.random_uniform(
+            def random_zoomed_inputs(inputs):
+                """Zoomed inputs with random ops."""
+                original_shape = inputs.shape
+                unbatched = inputs.shape.rank == 3
+                # The transform op only accepts rank 4 inputs,
+                # so if we have an unbatched image,
+                # we need to temporarily expand dims to a batch.
+                if unbatched:
+                    inputs = tf.expand_dims(inputs, 0)
+                inputs_shape = tf.shape(inputs)
+                batch_size = inputs_shape[0]
+                img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+                img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+                height_zoom = gen.random_uniform(
                     shape=[batch_size, 1],
-                    minval=1.0 + self.width_lower,
-                    maxval=1.0 + self.width_upper,
+                    minval=1.0 + self.height_lower,
+                    maxval=1.0 + self.height_upper,
                 )
-            else:
-                width_zoom = height_zoom
-            zooms = tf.cast(
-                tf.concat([width_zoom, height_zoom], axis=1), dtype=tf.float32
-            )
-            output = transform(
-                inputs,
-                get_zoom_matrix(zooms, img_hd, img_wd),
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                interpolation=self.interpolation,
-            )
-            if unbatched:
-                output = tf.squeeze(output, 0)
-            output.set_shape(original_shape)
-            return output
+                if self.width_factor is not None:
+                    width_zoom = gen.random_uniform(
+                        shape=[batch_size, 1],
+                        minval=1.0 + self.width_lower,
+                        maxval=1.0 + self.width_upper,
+                    )
+                else:
+                    width_zoom = height_zoom
+                zooms = tf.cast(
+                    tf.concat([width_zoom, height_zoom], axis=1),
+                    dtype=tf.float32,
+                )
+                output = transform(
+                    inputs,
+                    get_zoom_matrix(zooms, img_hd, img_wd),
+                    fill_mode=self.fill_mode,
+                    fill_value=self.fill_value,
+                    interpolation=self.interpolation,
+                )
+                if unbatched:
+                    output = tf.squeeze(output, 0)
+                output.set_shape(original_shape)
+                return output
 
         if training:
             return random_zoomed_inputs(inputs)
@@ -1322,29 +1327,29 @@ class RandomContrast(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs, self.compute_dtype)
-        rand = self._random_generator
+        with self._random_generator as gen:
 
-        def random_contrasted_inputs(inputs):
-            seed = rand.make_seed_for_stateless_op()
-            if seed is not None:
-                output = tf.image.stateless_random_contrast(
-                    inputs, 1.0 - self.lower, 1.0 + self.upper, seed=seed
-                )
+            def random_contrasted_inputs(inputs):
+                seed = gen.make_seed_for_stateless_op()
+                if seed is not None:
+                    output = tf.image.stateless_random_contrast(
+                        inputs, 1.0 - self.lower, 1.0 + self.upper, seed=seed
+                    )
+                else:
+                    output = tf.image.random_contrast(
+                        inputs,
+                        1.0 - self.lower,
+                        1.0 + self.upper,
+                        seed=gen.make_legacy_seed(),
+                    )
+                output = tf.clip_by_value(output, 0, 255)
+                output.set_shape(inputs.shape)
+                return output
+
+            if training:
+                return random_contrasted_inputs(inputs)
             else:
-                output = tf.image.random_contrast(
-                    inputs,
-                    1.0 - self.lower,
-                    1.0 + self.upper,
-                    seed=rand.make_legacy_seed(),
-                )
-            output = tf.clip_by_value(output, 0, 255)
-            output.set_shape(inputs.shape)
-            return output
-
-        if training:
-            return random_contrasted_inputs(inputs)
-        else:
-            return inputs
+                return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -1479,7 +1484,6 @@ class RandomBrightness(base_layer.BaseRandomLayer):
 
     def _brightness_adjust(self, images):
         rank = images.shape.rank
-        rand = self._random_generator.scope()
         if rank == 3:
             rgb_delta_shape = (1, 1, 1)
         elif rank == 4:
@@ -1491,7 +1495,7 @@ class RandomBrightness(base_layer.BaseRandomLayer):
                 "Expected the input image to be rank 3 or 4. Got "
                 f"inputs.shape = {images.shape}"
             )
-        rgb_delta = rand.random_uniform(
+        rgb_delta = self._random_generator.scope().random_uniform(
             shape=rgb_delta_shape,
             minval=self._factor[0],
             maxval=self._factor[1],
@@ -1591,36 +1595,36 @@ class RandomHeight(base_layer.BaseRandomLayer):
 
     def call(self, inputs, training=True):
         inputs = convert_inputs(inputs)
-        rand = self._random_generator.scope()
+        with self._random_generator as gen:
 
-        def random_height_inputs(inputs):
-            """Inputs height-adjusted with random ops."""
-            inputs_shape = tf.shape(inputs)
-            img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-            img_wd = inputs_shape[W_AXIS]
-            height_factor = rand.random_uniform(
-                shape=[],
-                minval=(1.0 + self.height_lower),
-                maxval=(1.0 + self.height_upper),
-            )
-            adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
-            adjusted_size = tf.stack([adjusted_height, img_wd])
-            output = tf.image.resize(
-                images=inputs,
-                size=adjusted_size,
-                method=self._interpolation_method,
-            )
-            # tf.resize will output float32 regardless of input type.
-            output = tf.cast(output, self.compute_dtype)
-            output_shape = inputs.shape.as_list()
-            output_shape[H_AXIS] = None
-            output.set_shape(output_shape)
-            return output
+            def random_height_inputs(inputs):
+                """Inputs height-adjusted with random ops."""
+                inputs_shape = tf.shape(inputs)
+                img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+                img_wd = inputs_shape[W_AXIS]
+                height_factor = gen.random_uniform(
+                    shape=[],
+                    minval=(1.0 + self.height_lower),
+                    maxval=(1.0 + self.height_upper),
+                )
+                adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
+                adjusted_size = tf.stack([adjusted_height, img_wd])
+                output = tf.image.resize(
+                    images=inputs,
+                    size=adjusted_size,
+                    method=self._interpolation_method,
+                )
+                # tf.resize will output float32 regardless of input type.
+                output = tf.cast(output, self.compute_dtype)
+                output_shape = inputs.shape.as_list()
+                output_shape[H_AXIS] = None
+                output.set_shape(output_shape)
+                return output
 
-        if training:
-            return random_height_inputs(inputs)
-        else:
-            return inputs
+            if training:
+                return random_height_inputs(inputs)
+            else:
+                return inputs
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()

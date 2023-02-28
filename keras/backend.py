@@ -1927,6 +1927,19 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._usage = 0
 
         def make_legacy_seed(self):
+            """Create a new seed for the legacy stateful ops to use.
+
+            When user didn't provide any original seed, this method will return
+            None.  Otherwise it will increment the counter and return as the new
+            seed.
+
+            Note that it is important to generate different seed for stateful
+            ops in the `tf.function`. The random ops will return same value when
+            same seed is provided in the `tf.function`.
+
+            Returns:
+              int as new seed, or None.
+            """
             if self._seed is not None:
                 seed = self._seed
                 self._seed += 1
@@ -2191,9 +2204,9 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
             self._generator = None
         elif self._rng_type == self.RNG_STATEFUL:
             with tf_utils.maybe_init_scope(self):
-                seed = self._create_seed(self._seed)
+                self._seed = self._create_seed(self._seed)
                 self._generator = tf.random.Generator.from_seed(
-                    seed, alg=tf.random.Algorithm.AUTO_SELECT
+                    self._seed, alg=tf.random.Algorithm.AUTO_SELECT
                 )
         else:
             # In legacy stateful, we use stateful op, regardless whether user
