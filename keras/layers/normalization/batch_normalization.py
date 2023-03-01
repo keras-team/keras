@@ -1448,3 +1448,21 @@ class SyncBatchNormalization(BatchNormalizationBase):
             synchronized=True,
             **kwargs,
         )
+
+
+def _running_with_dtensor_strategy():
+    """Check whether running with a `Strategy` that is backed by DTensor.
+
+    In the DTensor based training, all the tensors are in global context, which
+    means the existing way of calculating the mean/var will switch from local
+    context to global context, effectively changing from BN to sync BN.
+
+    To keep the status quo, a check of the DTensor context is needed, and
+    ops behavior need to be switched back.
+    """
+    if not tf.distribute.has_strategy():
+        return False
+    strategy = tf.distribute.get_strategy()
+    # TODO(scottzhu): Finalize the strategy API to check if a strategy is backed
+    # by DTensor.
+    return getattr(strategy, "_mesh", None) is not None
