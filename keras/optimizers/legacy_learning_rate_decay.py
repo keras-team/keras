@@ -180,7 +180,7 @@ def piecewise_constant(x, boundaries, values, name=None):
     for v in values[1:]:
         if v.dtype.base_dtype != values[0].dtype.base_dtype:
             raise ValueError(
-                f"`values` must have elements all with the same dtype "
+                "`values` must have elements all with the same dtype "
                 f"({values[0].dtype.base_dtype} vs {v.dtype.base_dtype})."
             )
     decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(

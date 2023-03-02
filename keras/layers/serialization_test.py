@@ -66,6 +66,9 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
         self.assertEqual(new_layer.units, 3)
 
     def test_implicit_serialize_deserialize_fails_without_object(self):
+        # After discussion (rchao, nkovela) decided to exclude from new saving
+        if tf.__internal__.tf2.enabled():
+            self.skipTest("Test excluded from new saving format.")
         layer = keras.layers.Dense(
             SerializableInt(3),
             activation="relu",
@@ -76,7 +79,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
         # Because we're passing an unknown class here, deserialization should
         # fail unless we add SerializableInt to the custom object dict.
         with self.assertRaisesRegex(
-            ValueError, "Unknown config_item: SerializableInt.*"
+            ValueError, "Unknown config_item: 'SerializableInt.*"
         ):
             _ = keras.layers.deserialize(config)
 

@@ -250,7 +250,7 @@ def EfficientNet(
     classes=1000,
     classifier_activation="softmax",
 ):
-    """Instantiates the EfficientNet architecture using given scaling coefficients.
+    """Instantiates the EfficientNet architecture.
 
     Args:
       width_coefficient: float, scaling coefficient for network width.
@@ -364,7 +364,9 @@ def EfficientNet(
         # original implementation.
         # See https://github.com/tensorflow/tensorflow/issues/49930 for more
         # details
-        x = layers.Rescaling(1.0 / tf.math.sqrt(IMAGENET_STDDEV_RGB))(x)
+        x = layers.Rescaling(
+            [1.0 / math.sqrt(stddev) for stddev in IMAGENET_STDDEV_RGB]
+        )(x)
 
     x = layers.ZeroPadding2D(
         padding=imagenet_utils.correct_pad(x, 3), name="stem_conv_pad"
@@ -386,7 +388,7 @@ def EfficientNet(
 
     b = 0
     blocks = float(sum(round_repeats(args["repeats"]) for args in blocks_args))
-    for (i, args) in enumerate(blocks_args):
+    for i, args in enumerate(blocks_args):
         assert args["repeats"] > 0
         # Update block input and output filters based on depth multiplier.
         args["filters_in"] = round_filters(args["filters_in"])
@@ -402,8 +404,8 @@ def EfficientNet(
                 x,
                 activation,
                 drop_connect_rate * b / blocks,
-                name="block{}{}_".format(i + 1, chr(j + 97)),
-                **args
+                name=f"block{i + 1}{chr(j + 97)}_",
+                **args,
             )
             b += 1
 
@@ -593,7 +595,7 @@ def EfficientNetB0(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.0,
@@ -608,7 +610,7 @@ def EfficientNetB0(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -624,7 +626,7 @@ def EfficientNetB1(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.0,
@@ -639,7 +641,7 @@ def EfficientNetB1(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -655,7 +657,7 @@ def EfficientNetB2(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.1,
@@ -670,7 +672,7 @@ def EfficientNetB2(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -686,7 +688,7 @@ def EfficientNetB3(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.2,
@@ -701,7 +703,7 @@ def EfficientNetB3(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -717,7 +719,7 @@ def EfficientNetB4(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.4,
@@ -732,7 +734,7 @@ def EfficientNetB4(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -748,7 +750,7 @@ def EfficientNetB5(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.6,
@@ -763,7 +765,7 @@ def EfficientNetB5(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -779,7 +781,7 @@ def EfficientNetB6(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         1.8,
@@ -794,7 +796,7 @@ def EfficientNetB6(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -810,7 +812,7 @@ def EfficientNetB7(
     pooling=None,
     classes=1000,
     classifier_activation="softmax",
-    **kwargs
+    **kwargs,
 ):
     return EfficientNet(
         2.0,
@@ -825,7 +827,7 @@ def EfficientNetB7(
         pooling=pooling,
         classes=classes,
         classifier_activation=classifier_activation,
-        **kwargs
+        **kwargs,
     )
 
 

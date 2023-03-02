@@ -128,9 +128,7 @@ class KerasDoctestOutputCheckerTest(parameterized.TestCase):
                 )
             )
         except AssertionError as e:
-            msg = "\n\n  expected: {}\n  found:     {}".format(
-                text_with_wildcards, text
-            )
+            msg = f"\n\n  expected: {text_with_wildcards}\n  found:     {text}"
             e.args = (e.args[0] + msg,)
             raise e
 

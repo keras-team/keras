@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import keras
 from keras.engine import training as keras_training
 from keras.layers import core as keras_core
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import rmsprop
 from keras.utils import kpl_test_utils
 
 # isort: off

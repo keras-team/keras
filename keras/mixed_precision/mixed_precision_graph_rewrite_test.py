@@ -22,9 +22,7 @@ from keras.mixed_precision import (
     loss_scale_optimizer as loss_scale_optimizer_v2,
 )
 from keras.mixed_precision import policy
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -147,7 +145,7 @@ class MixedPrecisionTest(test_combinations.TestCase):
         opt = loss_scale_optimizer_v2.LossScaleOptimizer(opt)
         with self.assertRaisesRegex(
             ValueError,
-            '"opt" must not already be an instance of a ' "LossScaleOptimizer.",
+            '"opt" must not already be an instance of a LossScaleOptimizer.',
         ):
             tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
                 opt

@@ -57,7 +57,7 @@ def make_variable(
     partitioner=None,
     layout=None,
 ):
-    """Temporary util to create a variable (relies on `variable_scope.variable`).
+    """Util to create a variable (relies on `variable_scope.variable`).
 
     Some reuse-related technicalities prevent us from using
     `variable_scope.get_variable()` directly, so we use a subcomponent
@@ -611,7 +611,7 @@ def is_subclassed(layer):
 
 def from_saved_model(layer):
     """Returns whether the layer is loaded from a SavedModel."""
-    return layer.__module__.find("keras.saving.saved_model") != -1
+    return layer.__module__.find("keras.saving.legacy.saved_model") != -1
 
 
 def check_graph_consistency(tensor=None, method="add_loss", force_raise=False):
@@ -823,7 +823,7 @@ def v2_dtype_behavior_enabled():
 
 
 class TrackableWeightHandler:
-    """Keras wrapper for handling tracking.Trackable object saving and restoring.
+    """Keras wrapper for handling Trackable object saving and restoring.
 
     This class handles Trackables in both V1 and V2 modes, ensuring that they
     can be saved and restored with the correct data and without adding
@@ -929,8 +929,10 @@ def no_ragged_support(inputs, layer_name):
 
 
 def is_split_variable(v):
-    """Returns True if `v` is a PartionedVariable or a ShardedVariable."""
-    return hasattr(v, "_variable_list") or hasattr(v, "_variables")
+    """Returns True if `v` is a PartitionedVariable or a ShardedVariable."""
+    return not {clz.__name__ for clz in v.__class__.__mro__}.isdisjoint(
+        {"PartitionedVariable", "ShardedVariable"}
+    )
 
 
 def has_weights(obj):

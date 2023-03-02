@@ -29,7 +29,7 @@ from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils.generic_utils import CustomObjectScope
+from keras.utils import CustomObjectScope
 
 
 def zip_and_sort(weight_values):
@@ -1919,12 +1919,10 @@ class IndexLookupVocabularyTest(
         layer.set_vocabulary(vocab_data)
         # Calling the layer should lock the vocabulary size.
         _ = layer([["earth"]])
-        layer.set_vocabulary(vocab_data[:2])
         with self.assertRaisesRegex(
             RuntimeError, "vocabulary size cannot be changed"
         ):
-            # Calling the layer again should cause an error.
-            _ = layer([["earth"]])
+            layer.set_vocabulary(vocab_data[:2])
 
     def test_vocab_with_idf_weights_non_tfidf_output_fails(self):
         vocab_data = ["earth", "wind", "and", "fire"]

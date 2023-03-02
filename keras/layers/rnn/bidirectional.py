@@ -24,6 +24,7 @@ from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.base_wrapper import Wrapper
+from keras.saving import serialization_lib
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -145,11 +146,12 @@ class Bidirectional(Wrapper):
             )
         else:
             self.backward_layer = backward_layer
+
             # Keep the custom backward layer config, so that we can save it
             # later. The layer's name might be updated below with prefix
             # 'backward_', and we want to preserve the original config.
-            self._backward_layer_config = generic_utils.serialize_keras_object(
-                backward_layer
+            self._backward_layer_config = (
+                serialization_lib.serialize_keras_object(backward_layer)
             )
 
         self.forward_layer._name = "forward_" + self.forward_layer.name
@@ -174,7 +176,7 @@ class Bidirectional(Wrapper):
         self.return_sequences = layer.return_sequences
         self.return_state = layer.return_state
         self.supports_masking = True
-        self._trainable = True
+        self._trainable = kwargs.get("trainable", layer.trainable)
         self._num_constants = 0
         self.input_spec = layer.input_spec
 
@@ -188,9 +190,9 @@ class Bidirectional(Wrapper):
             raise ValueError(
                 "Forward layer and backward layer should have different "
                 "`go_backwards` value."
-                f"forward_layer.go_backwards = "
+                "forward_layer.go_backwards = "
                 f"{self.forward_layer.go_backwards},"
-                f"backward_layer.go_backwards = "
+                "backward_layer.go_backwards = "
                 f"{self.backward_layer.go_backwards}"
             )
 

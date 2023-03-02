@@ -27,7 +27,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
@@ -325,6 +325,22 @@ class BaseLayerTest(test_combinations.TestCase):
             dtype=tf.string, getter=lambda *_, **__: variable
         )
         self.assertIs(variable, added)
+
+    def test_variable_resetting(self):
+        dense = layers.Dense(1)
+        dense.build([8, 2])
+
+        self.assertIs(dense.trainable_variables[0], dense.kernel)
+        self.assertIs(dense.trainable_variables[1], dense.bias)
+
+        # when we reset the variable to another instance, make sure the ordering
+        # of the variable in the trainable_variables doesn't change.
+        # This is important for h5 saving/loading.
+        dense.bias = tf.Variable(initial_value=tf.zeros(shape=(1,)))
+        dense.kernel = tf.Variable(initial_value=tf.zeros(shape=(2, 1)))
+
+        self.assertIs(dense.trainable_variables[0], dense.kernel)
+        self.assertIs(dense.trainable_variables[1], dense.bias)
 
     @test_combinations.generate(
         test_combinations.keras_mode_combinations(mode=["eager"])
@@ -655,8 +671,12 @@ class BaseLayerTest(test_combinations.TestCase):
 
         # `__init__` includes kwargs but `get_config` is not overridden, so
         # an error should be thrown:
-        with self.assertRaisesRegex(NotImplementedError, "Layer MyLayer has"):
-            MyLayer("custom").get_config()
+        with self.assertRaisesRegex(
+            NotImplementedError, "Layer MyLayer was created by"
+        ):
+            # We pass bytes because it's non-serializable and thus
+            # will not be handled by the auto-get_config
+            MyLayer(b"custom").get_config()
 
         class MyLayerNew(base_layer.Layer):
             def __init__(self, my_kwarg="default", **kwargs):
@@ -1036,6 +1056,65 @@ class BaseLayerTest(test_combinations.TestCase):
         self.assertLen(model.variables, 2)
         self.assertLen(model.trainable_variables, 0)
         self.assertLen(model.non_trainable_variables, 2)
+
+    def test_tf_tracking_lists(self):
+        class MyLayer(base_layer.Layer):
+            def __init__(self, num_weights):
+                super().__init__()
+                self.num_weights = num_weights
+
+            def build(self, input_shape):
+                super().build(input_shape)
+                self.my_weights = []
+                w_init = tf.random_normal_initializer()
+                for i in range(self.num_weights):
+                    self.my_weights.append(
+                        tf.Variable(
+                            name=f"w_{i}",
+                            initial_value=w_init(
+                                shape=(input_shape[1], input_shape[1]),
+                                dtype="float32",
+                            ),
+                            trainable=True,
+                        )
+                    )
+
+            def call(self, x):
+                for w in self.my_weights:
+                    x = tf.matmul(x, w)
+                return x
+
+        layer = MyLayer(3)
+        layer(tf.constant([[1.0, 1.0, 1.0, 1.0]]))
+        self.assertLen(layer.variables, 3)
+        self.assertLen(layer.trainable_variables, 3)
+        self.assertLen(layer.non_trainable_variables, 0)
+
+        layer.trainable = False
+        self.assertLen(layer.variables, 3)
+        self.assertLen(layer.trainable_variables, 0)
+        self.assertLen(layer.non_trainable_variables, 3)
+
+    def test_auto_get_config(self):
+        class MyLayer(base_layer.Layer):
+            def __init__(self, var1, var2, var3=None, **kwargs):
+                super().__init__(**kwargs)
+
+        layer = MyLayer("a", 2, var3=True, name="mylayer")
+        config = layer.get_config()
+        self.assertLen(config, 6)
+        self.assertEqual(config["var1"], "a")
+        self.assertEqual(config["var2"], 2)
+        self.assertEqual(config["var3"], True)
+        self.assertEqual(config["name"], "mylayer")
+        self.assertEqual(config["trainable"], True)
+        self.assertEqual(config["dtype"], "float32")
+        layer = MyLayer.from_config(config)
+        self.assertDictEqual(layer.get_config(), config)
+
+        layer = MyLayer("a", 2, var3=tf.nn.relu)
+        with self.assertRaises(NotImplementedError):
+            config = layer.get_config()
 
 
 @test_utils.run_v2_only
@@ -1530,12 +1609,12 @@ class NameScopingTest(test_combinations.TestCase):
                 "MatMul/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "MatMul/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "MatMul",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/MatMul",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp/resource",
                 "call_scope/model/outer/ThreeDenses/NestedDense3/"
                 "BiasAdd/ReadVariableOp",
-                "call_scope/model/outer/ThreeDenses/NestedDense3/" "BiasAdd",
+                "call_scope/model/outer/ThreeDenses/NestedDense3/BiasAdd",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp/resource",
                 "call_scope/model/OuterDense/MatMul/ReadVariableOp",
                 "call_scope/model/OuterDense/MatMul",

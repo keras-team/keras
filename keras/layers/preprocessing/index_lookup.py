@@ -24,7 +24,7 @@ from keras import backend
 from keras.engine import base_layer_utils
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 
@@ -73,6 +73,10 @@ class VocabWeightHandler(base_layer_utils.TrackableWeightHandler):
     """Adds the vocabulary as a layer weight during serialization."""
 
     def __init__(self, lookup_layer):
+        # Note that this class doesn't call super().__init__() in order to
+        # have customized behavior. The fileds like '_dtype' and
+        # '_distribute_strategy' are required by the parent class, as well as
+        # tf.distribute. See `strategy.extended.variable_created_in_scope`
         self._layer = lookup_layer
         self._dtype = lookup_layer.vocabulary_dtype
         self._distribute_strategy = tf.distribute.get_strategy()
@@ -179,19 +183,19 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # are creating a 0-element vocab, which doesn't make sense.
         if max_tokens is not None and max_tokens <= 1:
             raise ValueError(
-                f"If set, `max_tokens` must be greater than 1. "
+                "If set, `max_tokens` must be greater than 1. "
                 f"Received: max_tokens={max_tokens}"
             )
 
         if pad_to_max_tokens and max_tokens is None:
             raise ValueError(
-                f"If pad_to_max_tokens is True, must set `max_tokens`. "
+                "If pad_to_max_tokens is True, must set `max_tokens`. "
                 f"Received: max_tokens={max_tokens}"
             )
 
         if num_oov_indices < 0:
             raise ValueError(
-                f"`num_oov_indices` must be greater than or equal to 0. "
+                "`num_oov_indices` must be greater than or equal to 0. "
                 f"Received: num_oov_indices={num_oov_indices}"
             )
 
@@ -210,21 +214,21 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         if invert and output_mode != INT:
             raise ValueError(
-                f"`output_mode` must be `'int'` when `invert` is true. "
+                "`output_mode` must be `'int'` when `invert` is true. "
                 f"Received: output_mode={output_mode}"
             )
 
         if sparse and output_mode == INT:
             raise ValueError(
-                f"`sparse` may only be true if `output_mode` is "
-                f"`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
+                "`sparse` may only be true if `output_mode` is "
+                "`'one_hot'`, `'multi_hot'`, `'count'` or `'tf_idf'`. "
                 f"Received: sparse={sparse} and "
                 f"output_mode={output_mode}"
             )
 
         if idf_weights is not None and output_mode != TF_IDF:
             raise ValueError(
-                f"`idf_weights` should only be set if `output_mode` is "
+                "`idf_weights` should only be set if `output_mode` is "
                 f"`'tf_idf'`. Received: idf_weights={idf_weights} and "
                 f"output_mode={output_mode}"
             )
@@ -238,7 +242,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         self.sparse = sparse
         self.pad_to_max_tokens = pad_to_max_tokens
         self.vocabulary_dtype = vocabulary_dtype
-        self._frozen_vocab_size = None
+        self._frozen_vocab_size = kwargs.pop("vocabulary_size", None)
 
         self.input_vocabulary = vocabulary
         self.input_idf_weights = idf_weights
@@ -251,7 +255,6 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         )
 
         # Drop deprecated config options.
-        kwargs.pop("vocabulary_size", None)
         kwargs.pop("has_static_table", None)
 
         # By default, output int64 when output_mode='int' and floats otherwise.
@@ -326,8 +329,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         # Only set up adapt state if we did not receive a vocab on construction.
         if not self._has_input_vocabulary:
-            # Add a custom weight handler to return the layers vocab as it's
-            # weight.
+            # Add custom weight handler to return the layer's vocab as a weight.
             self._add_trackable(VocabWeightHandler(self), False)
             # Set adapt state.
             self.token_counts = tf.lookup.experimental.MutableHashTable(
@@ -424,16 +426,21 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             "output_mode": self.output_mode,
             "sparse": self.sparse,
             "pad_to_max_tokens": self.pad_to_max_tokens,
-            "vocabulary": utils.listify_tensors(self.input_vocabulary),
             "vocabulary_dtype": self.vocabulary_dtype,
             "idf_weights": utils.listify_tensors(self.input_idf_weights),
+            "vocabulary": utils.listify_tensors(self.input_vocabulary),
+            "vocabulary_size": self._frozen_vocab_size,
         }
-
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def _record_vocabulary_size(self):
+        self._ensure_vocab_size_unchanged()
+        with tf.init_scope():
+            self._frozen_vocab_size = self.vocabulary_size()
+
     def set_vocabulary(self, vocabulary, idf_weights=None):
-        """Sets vocabulary (and optionally document frequency) data for this layer.
+        """Sets vocabulary (and optionally document frequency) for this layer.
 
         This method sets the vocabulary and idf weights for this layer directly,
         instead of analyzing a dataset through `adapt`. It should be used
@@ -460,9 +467,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
           RuntimeError: If a tensor vocabulary is passed outside of eager
             execution.
         """
-        if self.output_mode != TF_IDF and idf_weights is not None:
+        if self.output_mode == TF_IDF:
+            if idf_weights is None:
+                raise ValueError(
+                    "`idf_weights` must be set if output_mode is TF_IDF"
+                )
+        elif idf_weights is not None:
             raise ValueError(
-                f"`idf_weights` should only be set if output_mode is "
+                "`idf_weights` should only be set if output_mode is "
                 f"`'tf_idf'`. Received: output_mode={self.output_mode} "
                 f"and idf_weights={idf_weights}"
             )
@@ -470,7 +482,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         if isinstance(vocabulary, str):
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
-                    "Vocabulary file {} does not exist.".format(vocabulary)
+                    f"Vocabulary file {vocabulary} does not exist."
                 )
             if self.output_mode == TF_IDF:
                 raise ValueError(
@@ -478,6 +490,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                     "vocabulary from file."
                 )
             self.lookup_table = self._lookup_table_from_file(vocabulary)
+            self._record_vocabulary_size()
             return
 
         if not tf.executing_eagerly() and (
@@ -504,9 +517,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
 
         if vocabulary.size == 0:
             raise ValueError(
-                "Cannot set an empty vocabulary, you passed {}.".format(
-                    vocabulary
-                )
+                f"Cannot set an empty vocabulary, you passed {vocabulary}."
             )
 
         oov_start = self._oov_start_index()
@@ -568,12 +579,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                 )
             )
         self.lookup_table = self._lookup_table_from_tokens(tokens)
+        self._record_vocabulary_size()
 
-        if self.output_mode == TF_IDF:
-            if idf_weights is None:
-                raise ValueError(
-                    "`idf_weights` must be set if output_mode is TF_IDF"
-                )
+        if self.output_mode == TF_IDF and idf_weights is not False:
             if len(vocabulary) != len(idf_weights):
                 raise ValueError(
                     "`idf_weights` must be the same length as vocabulary. "
@@ -660,6 +668,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             # compute a new vocabulary.
             if self.output_mode == TF_IDF:
                 self.idf_weights_const = self.idf_weights.value()
+            self._record_vocabulary_size()
             return
 
         # Remove special tokens from our counts.
@@ -712,6 +721,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         # we don't want to keep every token we've seen in separate lookup
         # tables.
         self.reset_state()
+        self._record_vocabulary_size()
 
     def reset_state(self):
         if self._has_input_vocabulary:
@@ -725,7 +735,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             self.num_documents.assign(0)
 
     def call(self, inputs):
-        self._maybe_freeze_vocab_size()
+        self._ensure_known_vocab_size()
 
         inputs = utils.ensure_tensor(inputs, dtype=self._key_dtype)
         original_shape = inputs.shape
@@ -815,6 +825,43 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         with tf.control_dependencies(lookup_checks):
             return tf.identity(lookups)
 
+    def save_own_variables(self, store):
+        if self.output_mode == TF_IDF:
+            store["idf_weights"] = self.idf_weights_const.numpy()
+
+    def load_own_variables(self, store):
+        if self.output_mode == TF_IDF:
+            self.idf_weights.assign(store["idf_weights"])
+            self.idf_weights_const = self.idf_weights.value()
+
+    def save_assets(self, dir_path):
+        if self.input_vocabulary:
+            # Vocab saved in config.
+            # TODO: consider unifying both paths.
+            return
+        vocabulary = self.get_vocabulary(include_special_tokens=True)
+        vocabulary_filepath = tf.io.gfile.join(dir_path, "vocabulary.txt")
+        with open(vocabulary_filepath, "w") as f:
+            f.write("\n".join([str(w) for w in vocabulary]))
+
+    def load_assets(self, dir_path):
+        if self.input_vocabulary:
+            # Vocab saved in config.
+            # TODO: consider unifying both paths.
+            return
+        vocabulary_filepath = tf.io.gfile.join(dir_path, "vocabulary.txt")
+        # TODO: fix bug with include_special_tokens and set reload from file.
+        with open(vocabulary_filepath, "r") as f:
+            lines = f.read().split("\n")
+            if tf.as_dtype(self.vocabulary_dtype) == tf.string:
+                values = [str(line) for line in lines]
+            else:
+                values = [int(line) for line in lines]
+            if self.output_mode == TF_IDF:
+                self.set_vocabulary(values, idf_weights=False)
+            else:
+                self.set_vocabulary(values)
+
     def _uninitialized_lookup_table(self):
         with tf.init_scope():
             initializer = NullInitializer(self._key_dtype, self._value_dtype)
@@ -871,35 +918,36 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     def _token_start_index(self):
         return self._oov_start_index() + self.num_oov_indices
 
-    def _maybe_freeze_vocab_size(self):
+    def _ensure_known_vocab_size(self):
         if self.output_mode == INT or self.pad_to_max_tokens:
             return
-        with tf.init_scope():
-            if not tf.executing_eagerly():
-                raise RuntimeError(
-                    "When using `output_mode={}` eager execution must "
-                    "be enabled.".format(self.output_mode)
-                )
-            new_vocab_size = self.vocabulary_size()
-        if new_vocab_size == self._token_start_index():
+        if self._frozen_vocab_size is None:
             raise RuntimeError(
-                "When using `output_mode={}` and `pad_to_max_tokens=False`, "
+                f"When using `output_mode={self.output_mode}` "
+                "and `pad_to_max_tokens=False`, "
                 "you must set the layer's vocabulary before calling it. Either "
                 "pass a `vocabulary` argument to the layer, or call `adapt` "
                 "with some sample data.".format(self.output_mode)
             )
-        elif (
+
+    def _ensure_vocab_size_unchanged(self):
+        if self.output_mode == INT or self.pad_to_max_tokens:
+            return
+
+        with tf.init_scope():
+            new_vocab_size = self.vocabulary_size()
+
+        if (
             self._frozen_vocab_size is not None
             and new_vocab_size != self._frozen_vocab_size
         ):
             raise RuntimeError(
-                "When using `output_mode={}` and `pad_to_max_tokens=False`, "
+                f"When using `output_mode={self.output_mode}` "
+                "and `pad_to_max_tokens=False`, "
                 "the vocabulary size cannot be changed after the layer is "
-                "called. Vocab size is {}, new vocab size is {}".format(
-                    self.output_mode, self._frozen_vocab_size, new_vocab_size
-                )
+                f"called. Old vocab size is {self._frozen_vocab_size}, "
+                f"new vocab size is {new_vocab_size}"
             )
-        self._frozen_vocab_size = new_vocab_size
 
     def _find_repeated_tokens(self, vocabulary):
         """Return all repeated tokens in a vocabulary."""

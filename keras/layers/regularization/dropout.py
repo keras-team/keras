@@ -14,6 +14,7 @@
 # ==============================================================================
 """Contains the Dropout layer."""
 
+import numbers
 
 import tensorflow.compat.v2 as tf
 
@@ -82,7 +83,7 @@ class Dropout(base_layer.BaseRandomLayer):
         if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
             raise ValueError(
                 f"Invalid value {rate} received for "
-                f"`rate`, expected a value between 0 and 1."
+                "`rate`, expected a value between 0 and 1."
             )
         self.rate = rate
         self.noise_shape = noise_shape
@@ -105,6 +106,9 @@ class Dropout(base_layer.BaseRandomLayer):
         return tf.convert_to_tensor(noise_shape)
 
     def call(self, inputs, training=None):
+        if isinstance(self.rate, numbers.Real) and self.rate == 0:
+            return tf.identity(inputs)
+
         if training is None:
             training = backend.learning_phase()
 

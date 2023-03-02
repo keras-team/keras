@@ -209,7 +209,7 @@ class BNTest(tf.test.TestCase):
         )
 
         checkpoint_path_a = os.path.join(
-            self.get_temp_dir(), "checkpoint_a_%s" % base_path
+            self.get_temp_dir(), f"checkpoint_a_{base_path}"
         )
         self._train(
             checkpoint_path_a,
@@ -220,7 +220,7 @@ class BNTest(tf.test.TestCase):
             freeze_mode=freeze_mode,
         )
         checkpoint_path_b = os.path.join(
-            self.get_temp_dir(), "checkpoint_b_%s" % base_path
+            self.get_temp_dir(), f"checkpoint_b_{base_path}"
         )
         self._train(
             checkpoint_path_b,
@@ -806,7 +806,7 @@ class BNTest(tf.test.TestCase):
         )
 
         updates = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
-        all_vars = dict([(v.name, v) for v in tf.compat.v1.global_variables()])
+        all_vars = {v.name: v for v in tf.compat.v1.global_variables()}
         moving_mean = all_vars["bn/moving_mean:0"]
         moving_variance = all_vars["bn/moving_variance:0"]
         beta = all_vars["bn/beta:0"]
@@ -873,7 +873,7 @@ class BNTest(tf.test.TestCase):
         updates = tf.compat.v1.get_collection(
             tf.compat.v1.GraphKeys.UPDATE_OPS
         )[-2:]
-        all_vars = dict([(v.name, v) for v in tf.compat.v1.global_variables()])
+        all_vars = {v.name: v for v in tf.compat.v1.global_variables()}
         moving_mean = all_vars["bn/moving_mean:0"]
         moving_variance = all_vars["bn/moving_variance:0"]
         beta = all_vars["bn/beta:0"]

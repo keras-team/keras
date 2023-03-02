@@ -33,7 +33,7 @@ from keras.engine import input_spec
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import object_identity
@@ -235,17 +235,17 @@ class Layer(base_layer.Layer):
         # Manage initial weight values if passed.
         self._initial_weights = kwargs.get("weights", None)
 
-        # Whether the layer will track any layers that is set as attribute on
+        # Whether the layer will track any layers that are set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
         # in the parent layer's variables() as well.  Default to True, which
         # means auto tracking is turned on. Certain subclass might want to turn
-        # it off, like Sequential model.
+        # it off, like the Sequential model.
         self._auto_track_sub_layers = True
 
         # Mark this layer as having been originally built as a tf1 layer/model
         self._originally_built_as_v1 = True
 
-        # For backwards compat reasons, most built-in layers do not guarantee
+        # For backward compat reasons, most built-in layers do not guarantee
         # That they will 100% preserve the structure of input args when saving
         # / loading configs. E.g. they may un-nest an arg that is
         # a list with one element.
@@ -254,7 +254,7 @@ class Layer(base_layer.Layer):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     @generic_utils.default
     def build(self, input_shape):
-        """Creates the variables of the layer (optional, for subclass implementers).
+        """Creates the variables of the layer (for subclass implementers).
 
         This is a method that implementers of subclasses of `Layer` or `Model`
         can override if they need a state-creation step in-between
@@ -342,7 +342,7 @@ class Layer(base_layer.Layer):
           constraint: Constraint instance (callable).
           partitioner: Partitioner to be passed to the `Trackable` API.
           use_resource: Whether to use `ResourceVariable`.
-          synchronization: Indicates when a distributed a variable will be
+          synchronization: Indicates when a distributed variable will be
             aggregated. Accepted values are constants defined in the class
             `tf.VariableSynchronization`. By default the synchronization is set
             to `AUTO` and the current `DistributionStrategy` chooses when to
@@ -407,7 +407,7 @@ class Layer(base_layer.Layer):
                     "synchronization=VariableSynchronization.ON_READ."
                 )
             else:
-                # Set trainable to be false when variable is to be synced on
+                # Set trainable to be false when the variable is to be synced on
                 # read.
                 trainable = False
         elif trainable is None:
@@ -2135,8 +2135,9 @@ class Layer(base_layer.Layer):
         """
         if not self._inbound_nodes:
             raise RuntimeError(
-                "The layer has never been called "
-                "and thus has no defined " + attr_name + "."
+                "The layer has never been called and thus has no defined "
+                + attr_name
+                + "."
             )
         if not len(self._inbound_nodes) > node_index:
             raise ValueError(
@@ -2232,7 +2233,7 @@ class Layer(base_layer.Layer):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _maybe_create_attribute(self, name, default_value):
-        """Create the attribute with the default value if it hasn't been created.
+        """Create attribute (with the default value) if it hasn't been created.
 
         This is useful for fields that is used for tracking purpose,
         _trainable_weights, or _layers. Note that user could create a layer

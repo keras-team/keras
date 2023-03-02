@@ -80,6 +80,10 @@ class Embedding(Layer):
         This argument is required if you are going to connect
         `Flatten` then `Dense` layers upstream
         (without it, the shape of the dense outputs cannot be computed).
+      sparse: If True, calling this layer returns a `tf.SparseTensor`. If False,
+        the layer returns a dense `tf.Tensor`. For an entry with no features in
+        a sparse tensor (entry with value 0), the embedding vector of index 0 is
+        returned by default.
 
     Input shape:
       2D tensor with shape: `(batch_size, input_length)`.
@@ -121,6 +125,7 @@ class Embedding(Layer):
         embeddings_constraint=None,
         mask_zero=False,
         input_length=None,
+        sparse=False,
         **kwargs,
     ):
         if "input_shape" not in kwargs:
@@ -146,6 +151,7 @@ class Embedding(Layer):
         # self.dtype before casting to int32 might cause the int32 values to be
         # different due to a loss of precision.
         kwargs["autocast"] = False
+        use_one_hot_matmul = kwargs.pop("use_one_hot_matmul", False)
         super().__init__(**kwargs)
 
         self.input_dim = input_dim
@@ -157,6 +163,16 @@ class Embedding(Layer):
         self.mask_zero = mask_zero
         self.supports_masking = mask_zero
         self.input_length = input_length
+        self.sparse = sparse
+        if self.sparse and self.mask_zero:
+            raise ValueError(
+                "`mask_zero` cannot be enabled when "
+                "`tf.keras.layers.Embedding` is used with `tf.SparseTensor` "
+                "input."
+            )
+        # Make this flag private and do not serialize it for now.
+        # It will be part of the public API after further testing.
+        self._use_one_hot_matmul = use_one_hot_matmul
 
     @tf_utils.shape_type_conversion
     def build(self, input_shape=None):
@@ -205,7 +221,59 @@ class Embedding(Layer):
         dtype = backend.dtype(inputs)
         if dtype != "int32" and dtype != "int64":
             inputs = tf.cast(inputs, "int32")
-        out = tf.nn.embedding_lookup(self.embeddings, inputs)
+        if isinstance(inputs, tf.sparse.SparseTensor):
+            if self.sparse:
+                # get sparse embedding values
+                embedding_values = tf.nn.embedding_lookup(
+                    params=self.embeddings, ids=inputs.values
+                )
+                embedding_values = tf.reshape(embedding_values, [-1])
+                # get sparse embedding indices
+                indices_values_embed_axis = tf.range(self.output_dim)
+                repeat_times = [inputs.indices.shape[0]]
+                indices_values_embed_axis = tf.expand_dims(
+                    tf.tile(indices_values_embed_axis, repeat_times), -1
+                )
+                indices_values_embed_axis = tf.cast(
+                    indices_values_embed_axis, dtype=tf.int64
+                )
+                current_indices = tf.repeat(
+                    inputs.indices, [self.output_dim], axis=0
+                )
+                new_indices = tf.concat(
+                    [current_indices, indices_values_embed_axis], 1
+                )
+                new_shape = tf.concat(
+                    [tf.cast(inputs.shape, dtype=tf.int64), [self.output_dim]],
+                    axis=-1,
+                )
+                out = tf.SparseTensor(
+                    indices=new_indices,
+                    values=embedding_values,
+                    dense_shape=new_shape,
+                )
+            else:
+                sparse_inputs_expanded = tf.sparse.expand_dims(inputs, axis=-1)
+                out = tf.nn.safe_embedding_lookup_sparse(
+                    embedding_weights=self.embeddings,
+                    sparse_ids=sparse_inputs_expanded,
+                    default_id=0,
+                )
+        elif self._use_one_hot_matmul:
+            # Note that we change the dtype of the one_hot to be same as the
+            # weight tensor, since the input data are usually ints, and weights
+            # are floats. The nn.embedding_lookup support ids as ints, but
+            # the one_hot matmul need both inputs and weights to be same dtype.
+            one_hot_data = tf.one_hot(
+                inputs, depth=self.input_dim, dtype=self.dtype
+            )
+            out = tf.matmul(one_hot_data, self.embeddings)
+        else:
+            out = tf.nn.embedding_lookup(self.embeddings, inputs)
+
+        if self.sparse and not isinstance(out, tf.SparseTensor):
+            out = tf.sparse.from_dense(out)
+
         if (
             self._dtype_policy.compute_dtype
             != self._dtype_policy.variable_dtype

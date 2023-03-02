@@ -14,6 +14,8 @@
 # ==============================================================================
 """The V2 implementation of Normalization layers."""
 
+import warnings
+
 import tensorflow.compat.v2 as tf
 
 from keras import backend
@@ -31,6 +33,7 @@ from tensorflow.python.ops.control_flow_ops import (
     get_enclosing_xla_context,
 )
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util import deprecation
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -111,7 +114,8 @@ class BatchNormalizationBase(Layer):
         the faster implementation if possible. If False, do not used the fused
         implementation. Note that in TensorFlow 1.x, the meaning of
         `fused=True` is different: if `False`, the layer uses the
-        system-recommended implementation.
+        system-recommended implementation. You cannot use `fused=True` if a
+        mask is passed in the `call()` method.
       trainable: Boolean, if `True` the variables will be marked as trainable.
       virtual_batch_size: An `int`. By default, `virtual_batch_size` is `None`,
         which means batch normalization is performed across the whole batch.
@@ -131,6 +135,11 @@ class BatchNormalizationBase(Layer):
               across all examples), and finally apply gamma and/or beta. If
               `None`, no adjustment is applied. Cannot be specified if
               virtual_batch_size is specified.
+      synchronized: If True, synchronizes the global batch statistics (mean and
+        variance) for the layer across all devices at each training step in a
+        distributed training strategy. If False, each replica uses its own
+        local batch statistics. Only relevant when used inside a
+        `tf.distribute` strategy.
 
     Call arguments:
       inputs: Input tensor (of any rank).
@@ -140,6 +149,8 @@ class BatchNormalizationBase(Layer):
           and variance of the current batch of inputs.
         - `training=False`: The layer will normalize its inputs using the mean
           and variance of its moving statistics, learned during training.
+      mask: Binary tensor of shape broadcastable to `inputs` tensor, indicating
+        the positions for which the mean and variance should be computed.
 
     Input shape: Arbitrary. Use the keyword argument `input_shape` (tuple of
       integers, does not include the samples axis) when using this layer as the
@@ -178,6 +189,7 @@ class BatchNormalizationBase(Layer):
         virtual_batch_size=None,
         adjustment=None,
         name=None,
+        synchronized=False,
         **kwargs,
     ):
         super().__init__(name=name, **kwargs)
@@ -190,6 +202,14 @@ class BatchNormalizationBase(Layer):
                 "Expected an int or a list/tuple of ints for the "
                 "argument 'axis', but received: %r" % axis
             )
+        if synchronized and fused:
+            raise ValueError(
+                "`fused=True` is not supported when `synchronized=True`."
+            )
+        self.synchronized = synchronized
+        if self.synchronized:
+            fused = False
+
         self.momentum = momentum
         self.epsilon = epsilon
         self.center = center
@@ -228,7 +248,7 @@ class BatchNormalizationBase(Layer):
             keys = ["rmax", "rmin", "dmax"]
             if set(renorm_clipping) - set(keys):
                 raise ValueError(
-                    f"Received invalid keys for `renorm_clipping` argument: "
+                    "Received invalid keys for `renorm_clipping` argument: "
                     f"{renorm_clipping}. Supported values: {keys}."
                 )
             self.renorm_clipping = renorm_clipping
@@ -250,8 +270,7 @@ class BatchNormalizationBase(Layer):
         # when no virtual batch size or adjustment is used.
         if self.renorm:
             raise ValueError(
-                "Passing both `fused=True` and `renorm=True` is "
-                "not supported"
+                "Passing both `fused=True` and `renorm=True` is not supported"
             )
         axis = [self.axis] if isinstance(self.axis, int) else self.axis
         # Axis -3 is equivalent to 1, and axis -1 is equivalent to 3, when the
@@ -328,8 +347,8 @@ class BatchNormalizationBase(Layer):
         if self.virtual_batch_size is not None:
             if self.virtual_batch_size <= 0:
                 raise ValueError(
-                    f"`virtual_batch_size` must be a positive integer that "
-                    f"divides the true batch size of the input tensor. "
+                    "`virtual_batch_size` must be a positive integer that "
+                    "divides the true batch size of the input tensor. "
                     f"Received: virtual_batch_size={self.virtual_batch_size}"
                 )
             # If using virtual batches, the first dimension must be the batch
@@ -572,8 +591,17 @@ class BatchNormalizationBase(Layer):
                 with tf.compat.v1.colocate_with(variable):
                     return tf.compat.v1.assign(variable, value, name=scope)
 
-    def _fused_batch_norm(self, inputs, training):
+    def _fused_batch_norm(self, inputs, mask, training):
         """Returns the output of fused batch norm."""
+        if mask is not None:
+            warnings.warn(
+                "Masking is not supported with `fused=True`. "
+                "You should either turn off fusing "
+                "(`fused=False`) or you should not pass a `mask` "
+                "argument when calling the layer. "
+                "For the moment `mask` will be ignored for the "
+                "normalization."
+            )
         if self.center:
             beta = self.beta
         else:
@@ -788,12 +816,39 @@ class BatchNormalizationBase(Layer):
 
         return (r, d, out_mean, out_variance)
 
-    def _calculate_mean_and_var(self, inputs, reduction_axes, keep_dims):
-        return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
+    def _calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        if self.synchronized:
+            return self._sync_calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
+        return self._no_sync_calculate_mean_and_var(
+            inputs, reduction_axes, keep_dims, mask=mask
+        )
 
-    def _moments(self, inputs, reduction_axes, keep_dims):
+    def _no_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        if mask is None:
+            return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
+        else:
+            mask_weights = tf.cast(
+                mask, self.compute_dtype, name="mask_weights"
+            )
+            mask_weights = tf.expand_dims(
+                mask_weights, axis=-1, name="mask_weights_broadcasted"
+            )
+            return tf.nn.weighted_moments(
+                inputs,
+                axes=reduction_axes,
+                frequency_weights=mask_weights,
+                keepdims=keep_dims,
+            )
+
+    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
         mean, variance = self._calculate_mean_and_var(
-            inputs, reduction_axes, keep_dims
+            inputs, reduction_axes, keep_dims, mask=mask
         )
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
@@ -819,9 +874,12 @@ class BatchNormalizationBase(Layer):
                 training = False
         return training
 
-    def call(self, inputs, training=None):
+    def call(self, inputs, training=None, mask=None):
         inputs = tf.cast(inputs, self.compute_dtype)
         training = self._get_training_value(training)
+        # Determine a boolean value for `training`: could be True, False, or
+        # None.
+        training_value = control_flow_util.constant_value(training)
 
         if self.virtual_batch_size is not None:
             # Virtual batches (aka ghost batches) can be simulated by reshaping
@@ -830,13 +888,27 @@ class BatchNormalizationBase(Layer):
             original_shape = tf.concat(
                 [tf.constant([-1]), original_shape[1:]], axis=0
             )
-            expanded_shape = tf.concat(
-                [
-                    tf.constant([self.virtual_batch_size, -1]),
-                    original_shape[1:],
-                ],
-                axis=0,
-            )
+
+            if tf.__internal__.tf2.enabled():
+                expanded_shape = (
+                    [self.virtual_batch_size, -1] if training_value else [-1, 1]
+                )
+                expanded_shape = tf.concat(
+                    [
+                        tf.constant(expanded_shape),
+                        original_shape[1:],
+                    ],
+                    axis=0,
+                )
+            else:
+                # Preserve incorrect legacy behavior for backwards compatibility
+                expanded_shape = tf.concat(
+                    [
+                        tf.constant([self.virtual_batch_size, -1]),
+                        original_shape[1:],
+                    ],
+                    axis=0,
+                )
 
             # Will cause errors if virtual_batch_size does not divide the batch
             # size
@@ -847,7 +919,9 @@ class BatchNormalizationBase(Layer):
                 return outputs
 
         if self.fused:
-            outputs = self._fused_batch_norm(inputs, training=training)
+            outputs = self._fused_batch_norm(
+                inputs, mask=mask, training=training
+            )
             if self.virtual_batch_size is not None:
                 # Currently never reaches here since fused_batch_norm does not
                 # support virtual batching
@@ -893,9 +967,6 @@ class BatchNormalizationBase(Layer):
                 offset += then_offset
             return (scale, offset)
 
-        # Determine a boolean value for `training`: could be True, False, or
-        # None.
-        training_value = control_flow_util.constant_value(training)
         if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
@@ -922,6 +993,7 @@ class BatchNormalizationBase(Layer):
                 tf.cast(inputs, self._param_dtype),
                 reduction_axes,
                 keep_dims=keep_dims,
+                mask=mask,
             )
 
             moving_mean = self.moving_mean
@@ -1086,119 +1158,7 @@ class BatchNormalizationBase(Layer):
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
-@keras_export("keras.layers.experimental.SyncBatchNormalization", v1=[])
-class SyncBatchNormalization(BatchNormalizationBase):
-    r"""Normalize and scale inputs or activations synchronously across replicas.
-
-    Applies batch normalization to activations of the previous layer at each
-    batch by synchronizing the global batch statistics across all devices that
-    are training the model. For specific details about batch normalization
-    please refer to the `tf.keras.layers.BatchNormalization` layer docs.
-
-    If this layer is used when using tf.distribute strategy to train models
-    across devices/workers, there will be an allreduce call to aggregate batch
-    statistics across all replicas at every training step. Without tf.distribute
-    strategy, this layer behaves as a regular
-    `tf.keras.layers.BatchNormalization` layer.
-
-    Example usage:
-
-    ```python
-    strategy = tf.distribute.MirroredStrategy()
-
-    with strategy.scope():
-      model = tf.keras.Sequential()
-      model.add(tf.keras.layers.Dense(16))
-      model.add(tf.keras.layers.experimental.SyncBatchNormalization())
-    ```
-
-    Args:
-      axis: Integer, the axis that should be normalized
-        (typically the features axis).
-        For instance, after a `Conv2D` layer with
-        `data_format="channels_first"`,
-        set `axis=1` in `BatchNormalization`.
-      momentum: Momentum for the moving average.
-      epsilon: Small float added to variance to avoid dividing by zero.
-      center: If True, add offset of `beta` to normalized tensor.
-        If False, `beta` is ignored.
-      scale: If True, multiply by `gamma`.
-        If False, `gamma` is not used.
-        When the next layer is linear (also e.g. `nn.relu`),
-        this can be disabled since the scaling
-        will be done by the next layer.
-      beta_initializer: Initializer for the beta weight.
-      gamma_initializer: Initializer for the gamma weight.
-      moving_mean_initializer: Initializer for the moving mean.
-      moving_variance_initializer: Initializer for the moving variance.
-      beta_regularizer: Optional regularizer for the beta weight.
-      gamma_regularizer: Optional regularizer for the gamma weight.
-      beta_constraint: Optional constraint for the beta weight.
-      gamma_constraint: Optional constraint for the gamma weight.
-
-    Call arguments:
-      inputs: Input tensor (of any rank).
-      training: Python boolean indicating whether the layer should behave in
-        training mode or in inference mode.
-        - `training=True`: The layer will normalize its inputs using the
-          mean and variance of the current batch of inputs.
-        - `training=False`: The layer will normalize its inputs using the
-          mean and variance of its moving statistics, learned during training.
-
-    Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the samples axis)
-      when using this layer as the first layer in a model.
-
-    Output shape:
-      Same shape as input.
-
-    """
-
-    def __init__(
-        self,
-        axis=-1,
-        momentum=0.99,
-        epsilon=1e-3,
-        center=True,
-        scale=True,
-        beta_initializer="zeros",
-        gamma_initializer="ones",
-        moving_mean_initializer="zeros",
-        moving_variance_initializer="ones",
-        beta_regularizer=None,
-        gamma_regularizer=None,
-        beta_constraint=None,
-        gamma_constraint=None,
-        **kwargs,
-    ):
-        if kwargs.pop("fused", None):
-            raise ValueError(
-                "`fused` argument cannot be True for SyncBatchNormalization."
-            )
-
-        # Currently we only support aggregating over the global batch size.
-        super().__init__(
-            axis=axis,
-            momentum=momentum,
-            epsilon=epsilon,
-            center=center,
-            scale=scale,
-            beta_initializer=beta_initializer,
-            gamma_initializer=gamma_initializer,
-            moving_mean_initializer=moving_mean_initializer,
-            moving_variance_initializer=moving_variance_initializer,
-            beta_regularizer=beta_regularizer,
-            gamma_regularizer=gamma_regularizer,
-            beta_constraint=beta_constraint,
-            gamma_constraint=gamma_constraint,
-            fused=False,
-            **kwargs,
-        )
-
-    def _calculate_mean_and_var(self, x, axes, keep_dims):
-
+    def _sync_calculate_mean_and_var(self, x, axes, keep_dims, mask=None):
         with backend.name_scope("moments"):
             # The dynamic range of fp16 is too limited to support the collection
             # of sufficient statistics. As a workaround we simply perform the
@@ -1206,50 +1166,47 @@ class SyncBatchNormalization(BatchNormalizationBase):
             # variance back to fp16
             y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
             replica_ctx = tf.distribute.get_replica_context()
-            if replica_ctx:
-                local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-                local_squared_sum = tf.reduce_sum(
-                    tf.square(y), axis=axes, keepdims=True
-                )
-                batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
-                # TODO(b/163099951): batch the all-reduces once we sort out the
-                # ordering issue for NCCL. We don't have a mechanism to launch
-                # NCCL in the same order in each replica nowadays, so we limit
-                # NCCL to batch all-reduces.
-                y_sum = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, local_sum
-                )
-                y_squared_sum = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, local_squared_sum
-                )
-                global_batch_size = replica_ctx.all_reduce(
-                    tf.distribute.ReduceOp.SUM, batch_size
+
+            if not replica_ctx:
+                return self._no_sync_calculate_mean_and_var(
+                    x, axes, keep_dims, mask=mask
                 )
 
-                axes_vals = [
-                    (tf.shape(y))[axes[i]] for i in range(1, len(axes))
-                ]
-                multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-                multiplier = multiplier * global_batch_size
-
-                mean = y_sum / multiplier
-                y_squared_mean = y_squared_sum / multiplier
-                # var = E(x^2) - E(x)^2
-                variance = y_squared_mean - tf.square(mean)
-            else:
-                # Compute true mean while keeping the dims for proper
-                # broadcasting.
-                mean = tf.reduce_mean(y, axes, keepdims=True, name="mean")
-                # sample variance, not unbiased variance
-                # Note: stop_gradient does not change the gradient that gets
-                # backpropagated to the mean from the variance calculation,
-                # because that gradient is zero
-                variance = tf.reduce_mean(
-                    tf.math.squared_difference(y, tf.stop_gradient(mean)),
-                    axes,
-                    keepdims=True,
-                    name="variance",
+            if mask is not None:
+                mask_weights = tf.cast(mask, tf.float32, name="mask_weights")
+                mask_weights = tf.expand_dims(
+                    mask_weights, axis=-1, name="mask_weights_broadcasted"
                 )
+                y *= mask_weights
+
+            local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+            local_squared_sum = tf.reduce_sum(
+                tf.square(y), axis=axes, keepdims=True
+            )
+
+            batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
+            # TODO(b/163099951): batch the all-reduces once we sort out the
+            # ordering issue for NCCL. We don't have a mechanism to launch
+            # NCCL in the same order in each replica nowadays, so we limit
+            # NCCL to batch all-reduces.
+            y_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_sum
+            )
+            y_squared_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_squared_sum
+            )
+            global_batch_size = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, batch_size
+            )
+
+            axes_vals = [(tf.shape(y))[axes[i]] for i in range(1, len(axes))]
+            multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
+            multiplier = multiplier * global_batch_size
+
+            mean = y_sum / multiplier
+            y_squared_mean = y_squared_sum / multiplier
+            # var = E(x^2) - E(x)^2
+            variance = y_squared_mean - tf.square(mean)
             if not keep_dims:
                 mean = tf.squeeze(mean, axes)
                 variance = tf.squeeze(variance, axes)
@@ -1302,6 +1259,23 @@ class BatchNormalization(BatchNormalizationBase):
     *after having been trained on data that has similar statistics as the
     inference data*.
 
+    When `synchronized=True` is set and if this layer is used within a
+    `tf.distribute` strategy, there will be an `allreduce` call
+    to aggregate batch statistics across all replicas at every
+    training step. Setting `synchronized` has no impact when the model is
+    trained without specifying any distribution strategy.
+
+    Example usage:
+
+    ```python
+    strategy = tf.distribute.MirroredStrategy()
+
+    with strategy.scope():
+      model = tf.keras.Sequential()
+      model.add(tf.keras.layers.Dense(16))
+      model.add(tf.keras.layers.BatchNormalization(synchronized=True))
+    ```
+
     Args:
       axis: Integer, the axis that should be normalized (typically the features
         axis). For instance, after a `Conv2D` layer with
@@ -1321,6 +1295,11 @@ class BatchNormalization(BatchNormalizationBase):
       gamma_regularizer: Optional regularizer for the gamma weight.
       beta_constraint: Optional constraint for the beta weight.
       gamma_constraint: Optional constraint for the gamma weight.
+      synchronized: If True, synchronizes the global batch statistics (mean and
+        variance) for the layer across all devices at each training step in a
+        distributed training strategy. If False, each replica uses its own
+        local batch statistics. Only relevant when used inside a
+        `tf.distribute` strategy.
 
     Call arguments:
       inputs: Input tensor (of any rank).
@@ -1391,8 +1370,10 @@ class BatchNormalization(BatchNormalizationBase):
         gamma_regularizer=None,
         beta_constraint=None,
         gamma_constraint=None,
+        synchronized=False,
         **kwargs,
     ):
+        # Currently we only support aggregating over the global batch size.
         super().__init__(
             axis=axis,
             momentum=momentum,
@@ -1407,5 +1388,62 @@ class BatchNormalization(BatchNormalizationBase):
             gamma_regularizer=gamma_regularizer,
             beta_constraint=beta_constraint,
             gamma_constraint=gamma_constraint,
+            synchronized=synchronized,
+            **kwargs,
+        )
+
+
+@keras_export("keras.layers.experimental.SyncBatchNormalization", v1=[])
+@deprecation.deprecated_endpoints(
+    "keras.layers.experimental.SyncBatchNormalization"
+)
+class SyncBatchNormalization(BatchNormalizationBase):
+    """Deprecated. Please use `tf.keras.layers.BatchNormalization` instead.
+
+    Caution: `tf.keras.layers.experimental.SyncBatchNormalization` endpoint is
+      deprecated and will be removed in a future release. Please use
+      `tf.keras.layers.BatchNormalization` with parameter `synchronized`
+      set to True
+    """
+
+    def __init__(
+        self,
+        axis=-1,
+        momentum=0.99,
+        epsilon=1e-3,
+        center=True,
+        scale=True,
+        beta_initializer="zeros",
+        gamma_initializer="ones",
+        moving_mean_initializer="zeros",
+        moving_variance_initializer="ones",
+        beta_regularizer=None,
+        gamma_regularizer=None,
+        beta_constraint=None,
+        gamma_constraint=None,
+        **kwargs,
+    ):
+        warning = (
+            "`tf.keras.layers.experimental.SyncBatchNormalization` endpoint is "
+            "deprecated and will be removed in a future release. Please use "
+            "`tf.keras.layers.BatchNormalization` with parameter "
+            "`synchronized` set to True."
+        )
+        logging.log_first_n(logging.WARN, warning, 1)
+        super().__init__(
+            axis=axis,
+            momentum=momentum,
+            epsilon=epsilon,
+            center=center,
+            scale=scale,
+            beta_initializer=beta_initializer,
+            gamma_initializer=gamma_initializer,
+            moving_mean_initializer=moving_mean_initializer,
+            moving_variance_initializer=moving_variance_initializer,
+            beta_regularizer=beta_regularizer,
+            gamma_regularizer=gamma_regularizer,
+            beta_constraint=beta_constraint,
+            gamma_constraint=gamma_constraint,
+            synchronized=True,
             **kwargs,
         )

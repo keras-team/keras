@@ -65,7 +65,7 @@ class SpatialDropout2D(Dropout):
             data_format = backend.image_data_format()
         if data_format not in {"channels_last", "channels_first"}:
             raise ValueError(
-                f'`data_format` must be "channels_last" or "channels_first". '
+                '`data_format` must be "channels_last" or "channels_first". '
                 f"Received: data_format={data_format}."
             )
         self.data_format = data_format

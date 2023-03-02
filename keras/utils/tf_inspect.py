@@ -19,8 +19,18 @@ import inspect as _inspect
 
 import tensorflow.compat.v2 as tf
 
-ArgSpec = _inspect.ArgSpec
-
+if hasattr(_inspect, "ArgSpec"):
+    ArgSpec = _inspect.ArgSpec
+else:
+    ArgSpec = collections.namedtuple(
+        "ArgSpec",
+        [
+            "args",
+            "varargs",
+            "keywords",
+            "defaults",
+        ],
+    )
 
 if hasattr(_inspect, "FullArgSpec"):
     FullArgSpec = _inspect.FullArgSpec

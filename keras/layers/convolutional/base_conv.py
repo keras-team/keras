@@ -174,14 +174,14 @@ class Conv(Layer):
 
         if not all(self.kernel_size):
             raise ValueError(
-                "The argument `kernel_size` cannot contain 0(s). "
-                "Received: %s" % (self.kernel_size,)
+                "The argument `kernel_size` cannot contain 0(s). Received: %s"
+                % (self.kernel_size,)
             )
 
         if not all(self.strides):
             raise ValueError(
-                "The argument `strides` cannot contains 0(s). "
-                "Received: %s" % (self.strides,)
+                "The argument `strides` cannot contains 0(s). Received: %s"
+                % (self.strides,)
             )
 
         if self.padding == "causal":
@@ -196,6 +196,13 @@ class Conv(Layer):
                     "Causal padding is only supported for `Conv1D`"
                     "and `SeparableConv1D`."
                 )
+
+        if max(self.strides) > 1 and max(self.dilation_rate) > 1:
+            raise ValueError(
+                "`strides > 1` not supported in conjunction with "
+                f"`dilation_rate > 1`. Received: strides={self.strides} and "
+                f"dilation_rate={self.dilation_rate}"
+            )
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
@@ -305,7 +312,7 @@ class Conv(Layer):
                         outputs, self.bias, data_format=self._tf_data_format
                     )
 
-        if not tf.executing_eagerly():
+        if not tf.executing_eagerly() and input_shape.rank:
             # Infer the static output shape:
             out_shape = self.compute_output_shape(input_shape)
             outputs.set_shape(out_shape)
@@ -345,12 +352,12 @@ class Conv(Layer):
 
         except ValueError:
             raise ValueError(
-                f"One of the dimensions in the output is <= 0 "
+                "One of the dimensions in the output is <= 0 "
                 f"due to downsampling in {self.name}. Consider "
-                f"increasing the input size. "
+                "increasing the input size. "
                 f"Received input shape {input_shape} which would produce "
-                f"output shape with a zero or negative value in a "
-                f"dimension."
+                "output shape with a zero or negative value in a "
+                "dimension."
             )
 
     def _recreate_conv_op(self, inputs):

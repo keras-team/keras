@@ -171,7 +171,7 @@ class LocallyConnected1D(Layer):
 
         if input_dim is None:
             raise ValueError(
-                "Axis 2 of input should be fully-defined. " "Found shape:",
+                "Axis 2 of input should be fully-defined. Found shape:",
                 input_shape,
             )
         self.output_length = conv_utils.conv_output_length(
@@ -180,12 +180,12 @@ class LocallyConnected1D(Layer):
 
         if self.output_length <= 0:
             raise ValueError(
-                f"One of the dimensions in the output is <= 0 "
+                "One of the dimensions in the output is <= 0 "
                 f"due to downsampling in {self.name}. Consider "
-                f"increasing the input size. "
+                "increasing the input size. "
                 f"Received input shape {input_shape} which would produce "
-                f"output shape with a zero or negative value in a "
-                f"dimension."
+                "output shape with a zero or negative value in a "
+                "dimension."
             )
 
         if self.implementation == 1:

@@ -354,8 +354,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         # explicitly cast here to also allow integer inputs to be passed
         inputs = tf.cast(inputs, self.compute_dtype)
         if self.invert:
-            return (inputs + self.mean) * tf.maximum(
-                tf.sqrt(self.variance), backend.epsilon()
+            return self.mean + (
+                inputs * tf.maximum(tf.sqrt(self.variance), backend.epsilon())
             )
         else:
             return (inputs - self.mean) / tf.maximum(
@@ -373,6 +373,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         config.update(
             {
                 "axis": self.axis,
+                "invert": self.invert,
                 "mean": utils.listify_tensors(self.input_mean),
                 "variance": utils.listify_tensors(self.input_variance),
             }
@@ -384,3 +385,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         if inputs.dtype != self.compute_dtype:
             inputs = tf.cast(inputs, self.compute_dtype)
         return inputs
+
+    def load_own_variables(self, store):
+        # Ensure that we call finalize_state after variable loading.
+        super().load_own_variables(store)
+        self.finalize_state()

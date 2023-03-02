@@ -35,9 +35,9 @@ from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.optimizers import optimizer_v1
-from keras.optimizers.optimizer_v2 import optimizer_v2
-from keras.saving import saving_utils
-from keras.saving.saved_model import model_serialization
+from keras.optimizers.legacy import optimizer_v2
+from keras.saving.legacy import saving_utils
+from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import data_utils
 from keras.utils import layer_utils
 from keras.utils import losses_utils
@@ -55,7 +55,7 @@ except ImportError:
 
 
 class Model(training_lib.Model):
-    """`Model` groups layers into an object with training and inference features.
+    """A model groups layers into an object with training & inference features.
 
     There are two ways to instantiate a `Model`:
 
@@ -165,7 +165,7 @@ class Model(training_lib.Model):
         return base_layer.Layer.get_weights(self)
 
     def load_weights(self, filepath, by_name=False, skip_mismatch=False):
-        """Loads all layer weights, either from a TensorFlow or an HDF5 weight file.
+        """Loads all layer weights, either from a TensorFlow or an HDF5 file.
 
         If `by_name` is False weights are loaded based on the network's
         topology. This means the architecture should be the same as when the
@@ -219,7 +219,9 @@ class Model(training_lib.Model):
                     "Load weights is not yet supported with TPUStrategy "
                     "with steps_per_run greater than 1."
                 )
-        return super().load_weights(filepath, by_name, skip_mismatch)
+        return super().load_weights(
+            filepath, by_name=by_name, skip_mismatch=skip_mismatch
+        )
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def compile(
@@ -232,7 +234,7 @@ class Model(training_lib.Model):
         weighted_metrics=None,
         target_tensors=None,
         distribute=None,
-        **kwargs
+        **kwargs,
     ):
         """Configures the model for training.
 
@@ -304,8 +306,7 @@ class Model(training_lib.Model):
         unknown_kwargs = set(kwargs.keys()) - allowed_kwargs
         if unknown_kwargs:
             raise TypeError(
-                "Invalid keyword argument(s) in `compile`: %s"
-                % (unknown_kwargs,)
+                f"Invalid keyword argument(s) in `compile`: {unknown_kwargs}"
             )
         self._function_kwargs = kwargs
         if self._function_kwargs:
@@ -687,9 +688,9 @@ class Model(training_lib.Model):
         max_queue_size=10,
         workers=1,
         use_multiprocessing=False,
-        **kwargs
+        **kwargs,
     ):
-        """Trains the model for a fixed number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (dataset iterations).
 
         Args:
             x: Input data. It could be:
@@ -1484,8 +1485,8 @@ class Model(training_lib.Model):
             if not isinstance(self.optimizer, optimizer_v2.OptimizerV2):
                 raise ValueError(
                     '"optimizer" must be an instance of '
-                    "tf.keras.optimizers.Optimizer when a dype policy "
-                    "with a loss scale  used, but got: %s. Using policy: "
+                    "tf.keras.optimizers.legacy.Optimizer when a dype policy "
+                    "with a loss scale is used, but got: %s. Using policy: "
                     "%s" % (self.optimizer, self._dtype_policy)
                 )
             self.optimizer = loss_scale_optimizer.LossScaleOptimizer(
@@ -1696,7 +1697,7 @@ class Model(training_lib.Model):
             self.total_loss = self._prepare_total_loss(masks)
 
     def _prepare_skip_target_masks(self):
-        """Boolean mask for whether the target in the output list should be skipped.
+        """Boolean mask for whether target in output list should be skipped.
 
         If the loss function corresponding to a model output is None, then this
         output will be skipped during total loss calculation and feed targets
@@ -1757,10 +1758,15 @@ class Model(training_lib.Model):
                             ) = losses_utils.squeeze_or_expand_dimensions(
                                 mask, sample_weight=sample_weight
                             )
-                            sample_weight *= mask
 
                     if hasattr(loss_fn, "reduction"):
                         per_sample_losses = loss_fn.call(y_true, y_pred)
+                        sample_weight = losses_utils.apply_valid_mask(
+                            per_sample_losses,
+                            sample_weight,
+                            mask,
+                            loss_fn.reduction,
+                        )
                         weighted_losses = losses_utils.compute_weighted_loss(
                             per_sample_losses,
                             sample_weight=sample_weight,
@@ -1860,7 +1866,7 @@ class Model(training_lib.Model):
         self._replicated_model.set_original_model(self)
 
     def _validate_or_infer_batch_size(self, batch_size, steps, x):
-        """Validates that the `batch_size` provided is consistent with InputLayer.
+        """Validates that `batch_size` provided is consistent with InputLayer.
 
         It's possible that the user specified a static batch size in their
         InputLayer. If so, this method checks the provided `batch_size` and `x`
@@ -2052,10 +2058,7 @@ class Model(training_lib.Model):
             # want to prepend the output name even if we are loading a
             # serialized model.
             if not getattr(metric_fn, "_from_serialized", False):
-                metric_name = "%s_%s" % (
-                    self.output_names[output_index],
-                    metric_name,
-                )
+                metric_name = f"{self.output_names[output_index]}_{metric_name}"
 
         j = 1
         base_metric_name = metric_name
@@ -2257,7 +2260,7 @@ class Model(training_lib.Model):
         self._check_trainable_weights_consistency()
         if isinstance(self.optimizer, list):
             raise ValueError(
-                "The `optimizer` in `compile` should be a single " "optimizer."
+                "The `optimizer` in `compile` should be a single optimizer."
             )
         # If we have re-compiled the loss/weighted metric sub-graphs then create
         # train function even if one exists already. This is because
@@ -2301,7 +2304,7 @@ class Model(training_lib.Model):
                     [self.total_loss] + metrics_tensors,
                     updates=updates,
                     name="train_function",
-                    **self._function_kwargs
+                    **self._function_kwargs,
                 )
                 setattr(self, "train_function", fn)
 
@@ -2337,7 +2340,7 @@ class Model(training_lib.Model):
                     [self.total_loss] + metrics_tensors,
                     updates=updates,
                     name="test_function",
-                    **self._function_kwargs
+                    **self._function_kwargs,
                 )
                 setattr(self, "test_function", fn)
 
@@ -2355,7 +2358,7 @@ class Model(training_lib.Model):
                     self.outputs,
                     updates=self.state_updates,
                     name="predict_function",
-                    **kwargs
+                    **kwargs,
                 )
 
     def _make_execution_function(self, mode):
@@ -2711,7 +2714,7 @@ class Model(training_lib.Model):
             flat_inputs = tf.nest.flatten(x)
             flat_expected_inputs = tf.nest.flatten(self.inputs)
             converted_x = []
-            for (a, b) in zip(flat_inputs, flat_expected_inputs):
+            for a, b in zip(flat_inputs, flat_expected_inputs):
                 converted_x.append(_convert_scipy_sparse_tensor(a, b))
             x = tf.nest.pack_sequence_as(x, converted_x)
 
@@ -2728,7 +2731,7 @@ class Model(training_lib.Model):
         flat_expected_inputs = tf.nest.flatten(
             tf_utils.convert_variables_to_tensors(self.inputs)
         )
-        for (a, b) in zip(flat_inputs, flat_expected_inputs):
+        for a, b in zip(flat_inputs, flat_expected_inputs):
             tf.nest.assert_same_structure(a, b, expand_composites=True)
 
         if y is not None:
@@ -3131,7 +3134,7 @@ class Model(training_lib.Model):
         ]
 
     def _maybe_load_initial_epoch_from_ckpt(self, initial_epoch, mode):
-        """Maybe load initial epoch from ckpt considering possible worker recovery.
+        """Maybe load 1st epoch from checkpoint, considering worker recovery.
 
         Refer to tensorflow/python/keras/distribute/worker_training_state.py
         for more information.

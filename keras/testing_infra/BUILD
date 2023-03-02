@@ -4,12 +4,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
-    default_visibility = [
-        "//keras:friends",
-        "//third_party/py/language/common/layers:__subpackages__",
-        "//third_party/py/tensorflow_probability:__subpackages__",
-        "//third_party/tensorflow_text:__subpackages__",
-    ],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 
@@ -40,7 +35,7 @@ py_library(
         "//keras/engine:base_layer_utils",
         "//keras/layers",
         "//keras/models",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:tf_contextlib",
         "//keras/utils:tf_inspect",
     ],

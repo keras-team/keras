@@ -25,6 +25,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras.distribute import distributed_training_utils
 from keras.engine import training_utils
 from keras.utils import data_utils
 from keras.utils import dataset_creator
@@ -118,9 +119,7 @@ class DataAdapter(object, metaclass=abc.ABCMeta):
             provided.
         """
         if not self.can_handle(x, y):
-            raise ValueError(
-                "{} Cannot handle input {}, {}".format(self.__class__, x, y)
-            )
+            raise ValueError(f"{self.__class__} Cannot handle input {x}, {y}")
 
     @abc.abstractmethod
     def get_dataset(self):
@@ -241,7 +240,7 @@ class TensorLikeDataAdapter(DataAdapter):
         epochs=1,
         steps=None,
         shuffle=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(x, y, **kwargs)
         x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
@@ -617,7 +616,7 @@ class CompositeTensorDataAdapter(DataAdapter):
         batch_size=None,
         steps=None,
         shuffle=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(x, y, **kwargs)
         x, y, sample_weights = _process_tensorlike((x, y, sample_weights))
@@ -701,7 +700,7 @@ class ListsOfScalarsDataAdapter(DataAdapter):
         sample_weight_modes=None,
         batch_size=None,
         shuffle=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(x, y, **kwargs)
         x = np.asarray(x)
@@ -720,7 +719,7 @@ class ListsOfScalarsDataAdapter(DataAdapter):
             sample_weight_modes=sample_weight_modes,
             batch_size=batch_size,
             shuffle=shuffle,
-            **kwargs
+            **kwargs,
         )
 
     def get_dataset(self):
@@ -797,7 +796,7 @@ class DatasetAdapter(DataAdapter):
         # Arguments that shouldn't be passed.
         if not is_none_or_empty(y):
             raise ValueError(
-                "`y` argument is not supported when using " "dataset as input."
+                "`y` argument is not supported when using dataset as input."
             )
         if not is_none_or_empty(sample_weights):
             raise ValueError(
@@ -845,7 +844,7 @@ class GeneratorDataAdapter(DataAdapter):
         use_multiprocessing=False,
         max_queue_size=10,
         model=None,
-        **kwargs
+        **kwargs,
     ):
         # Generators should never shuffle as exhausting the generator in order
         # to shuffle the batches is inefficient.
@@ -991,7 +990,7 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
         use_multiprocessing=False,
         max_queue_size=10,
         model=None,
-        **kwargs
+        **kwargs,
     ):
         if not is_none_or_empty(y):
             raise ValueError(
@@ -1014,7 +1013,7 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
             use_multiprocessing=use_multiprocessing,
             max_queue_size=max_queue_size,
             model=model,
-            **kwargs
+            **kwargs,
         )
 
     @staticmethod
@@ -1081,8 +1080,9 @@ def select_data_adapter(x, y):
     if not adapter_cls:
         # TODO(scottzhu): This should be a less implementation-specific error.
         raise ValueError(
-            "Failed to find data adapter that can handle "
-            "input: {}, {}".format(_type_name(x), _type_name(y))
+            "Failed to find data adapter that can handle input: {}, {}".format(
+                _type_name(x), _type_name(y)
+            )
         )
     elif len(adapter_cls) > 1:
         raise RuntimeError(
@@ -1100,12 +1100,10 @@ def _type_name(x):
     if isinstance(x, dict):
         key_types = set(_type_name(key) for key in x.keys())
         val_types = set(_type_name(key) for key in x.values())
-        return "({} containing {} keys and {} values)".format(
-            type(x), key_types, val_types
-        )
+        return f"({type(x)} containing {key_types} keys and {val_types} values)"
     if isinstance(x, (list, tuple)):
         types = set(_type_name(val) for val in x)
-        return "({} containing values of types {})".format(type(x), types)
+        return f"({type(x)} containing values of types {types})"
     return str(type(x))
 
 
@@ -1341,24 +1339,27 @@ class DataHandler:
     @contextlib.contextmanager
     def catch_stop_iteration(self):
         """Catches errors when an iterator runs out of data."""
-        try:
-            yield
-            self.sync()
-        except (StopIteration, tf.errors.OutOfRangeError):
-            if self._inferred_steps is None:
-                self._inferred_steps = self._current_step
-            else:
-                self._insufficient_data = True
-                total_epochs = self._epochs - self._initial_epoch
-                logging.warning(
-                    "Your input ran out of data; interrupting training. "
-                    "Make sure that your dataset or generator can generate at "
-                    "least `steps_per_epoch * epochs` batches (in this case, "
-                    "{} batches). You may need to use the repeat() function "
-                    "when building your dataset.".format(
-                        total_epochs * self._inferred_steps
+        with distributed_training_utils.maybe_preemption_handler_scope(
+            self._model
+        ):
+            try:
+                yield
+                self.sync()
+            except (StopIteration, tf.errors.OutOfRangeError):
+                if self._inferred_steps is None:
+                    self._inferred_steps = self._current_step
+                else:
+                    self._insufficient_data = True
+                    total_epochs = self._epochs - self._initial_epoch
+                    logging.warning(
+                        "Your input ran out of data; interrupting training. "
+                        "Make sure that your dataset or generator can generate "
+                        "at least `steps_per_epoch * epochs` batches (in this "
+                        "case, {} batches). You may need to use the repeat() "
+                        "function when building your dataset.".format(
+                            total_epochs * self._inferred_steps
+                        )
                     )
-                )
 
     def steps(self):
         """Yields steps for the current epoch."""
@@ -1621,7 +1622,7 @@ def _make_class_weight_map_fn(class_weight):
 
         if y.shape.rank > 2:
             raise ValueError(
-                "`class_weight` not supported for " "3+ dimensional targets."
+                "`class_weight` not supported for 3+ dimensional targets."
             )
 
         y_classes = tf.__internal__.smart_cond.smart_cond(
@@ -1805,8 +1806,8 @@ def pack_x_y_sample_weight(x, y=None, sample_weight=None):
         # For single x-input, we do no tuple wrapping since in this case
         # there is no ambiguity. This also makes NumPy and Dataset
         # consistent in that the user does not have to wrap their Dataset
-        # data in an unnecessary tuple
-        if not tf.nest.is_nested(x):
+        # data in an unnecessary tuple.
+        if not isinstance(x, tuple or list):
             return x
         else:
             return (x,)

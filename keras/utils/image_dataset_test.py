@@ -65,7 +65,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         # Generate paths to class subdirectories
         paths = []
         for class_index in range(num_classes):
-            class_directory = "class_%s" % (class_index,)
+            class_directory = f"class_{class_index}"
             if nested_dirs:
                 class_paths = [
                     class_directory,
@@ -89,7 +89,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
                 ext = "jpg"
             else:
                 ext = "png"
-            filename = os.path.join(path, "image_%s.%s" % (i, ext))
+            filename = os.path.join(path, f"image_{i}.{ext}")
             img.save(os.path.join(temp_dir, filename))
             i += 1
         return temp_dir
@@ -103,7 +103,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
         # Save a few extra images in the parent directory.
         directory = self._prepare_directory(count=7, num_classes=2)
         for i, img in enumerate(self._get_images(3)):
-            filename = "image_%s.jpg" % (i,)
+            filename = f"image_{i}.jpg"
             img.save(os.path.join(directory, filename))
 
         dataset = image_dataset.image_dataset_from_directory(
@@ -417,7 +417,7 @@ class ImageDatasetFromDirectoryTest(test_combinations.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            '`subset` must be either "training", ' '"validation" or "both"',
+            '`subset` must be either "training", "validation" or "both"',
         ):
             _ = image_dataset.image_dataset_from_directory(
                 directory, validation_split=0.2, subset="other"

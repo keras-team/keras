@@ -433,7 +433,7 @@ def Stem(name=None):
 
 
 def SqueezeAndExciteBlock(filters_in, se_filters, name=None):
-    """Implements the Squeeze and excite block (https://arxiv.org/abs/1709.01507).
+    """Implements the Squeeze & Excite block (https://arxiv.org/abs/1709.01507).
 
     Args:
       filters_in: input filters to the block
@@ -826,7 +826,7 @@ def Stage(block_type, depth, group_width, filters_in, filters_out, name=None):
         else:
             raise NotImplementedError(
                 f"Block type `{block_type}` not recognized."
-                f"block_type must be one of (`X`, `Y`, `Z`). "
+                "block_type must be one of (`X`, `Y`, `Z`). "
             )
         return x
 
@@ -951,7 +951,7 @@ def RegNet(
             img_input = input_tensor
 
     if input_tensor is not None:
-        inputs = layer_utils.get_source_inputs(input_tensor)
+        inputs = layer_utils.get_source_inputs(input_tensor)[0]
     else:
         inputs = img_input
 

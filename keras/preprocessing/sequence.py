@@ -136,9 +136,9 @@ class TimeseriesGenerator(data_utils.Sequence):
 
         if len(data) != len(targets):
             raise ValueError(
-                "Data and targets have to be" + " of same length. "
-                "Data length is {}".format(len(data))
-                + " while target length is {}".format(len(targets))
+                "Data and targets have to be"
+                + f" of same length. Data length is {len(data)}"
+                + f" while target length is {len(targets)}"
             )
 
         self.data = data
@@ -228,11 +228,12 @@ class TimeseriesGenerator(data_utils.Sequence):
         }
 
     def to_json(self, **kwargs):
-        """Returns a JSON string containing the timeseries generator configuration.
+        """Returns a JSON string containing the generator's configuration.
 
         Args:
-            **kwargs: Additional keyword arguments
-                to be passed to `json.dumps()`.
+            **kwargs: Additional keyword arguments to be passed
+                to `json.dumps()`.
+
         Returns:
             A JSON string containing the tokenizer configuration.
         """

@@ -89,7 +89,7 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
       unit_forget_bias: Boolean (default `True`). If True, add 1 to the bias of
         the forget gate at initialization. Setting it to true will also force
         `bias_initializer="zeros"`. This is recommended in [Jozefowicz et
-          al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+          al.](https://github.com/mlresearch/v37/blob/gh-pages/jozefowicz15.pdf)
       kernel_regularizer: Regularizer function applied to the `kernel` weights
         matrix. Default: `None`.
       recurrent_regularizer: Regularizer function applied to
@@ -139,9 +139,9 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         recurrent_dropout=0.0,
         **kwargs,
     ):
-        if units < 0:
+        if units <= 0:
             raise ValueError(
-                f"Received an invalid value for argument `units`, "
+                "Received an invalid value for argument `units`, "
                 f"expected a positive integer, got {units}."
             )
         # By default use cached variable under v2 mode, see b/143699808.
@@ -556,6 +556,7 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             implementation=implementation,
             dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
+            name="lstm_cell",
             **cell_kwargs,
         )
         super().__init__(
@@ -720,11 +721,8 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
                                 and tf.config.list_logical_devices("GPU")
                             )
                         )
-                        and (
-                            mask is None
-                            or gru_lstm_utils.is_cudnn_supported_inputs(
-                                mask, self.time_major
-                            )
+                        and gru_lstm_utils.is_cudnn_supported_inputs(
+                            mask, self.time_major, row_lengths
                         )
                     )
                     # Under eager context, check the device placement and prefer
@@ -1256,20 +1254,6 @@ def lstm_with_backend_selection(
         return_sequences,
     ):
         """Use cuDNN kernel when mask is none or strictly right padded."""
-        if mask is None:
-            return gpu_lstm(
-                inputs=inputs,
-                init_h=init_h,
-                init_c=init_c,
-                kernel=kernel,
-                recurrent_kernel=recurrent_kernel,
-                bias=bias,
-                mask=mask,
-                time_major=time_major,
-                go_backwards=go_backwards,
-                sequence_lengths=sequence_lengths,
-                return_sequences=return_sequences,
-            )
 
         def cudnn_lstm_fn():
             return gpu_lstm(
@@ -1302,8 +1286,10 @@ def lstm_with_backend_selection(
                 return_sequences=return_sequences,
             )
 
-        return tf.cond(
-            gru_lstm_utils.is_cudnn_supported_inputs(mask, time_major),
+        return tf.__internal__.smart_cond.smart_cond(
+            gru_lstm_utils.is_cudnn_supported_inputs(
+                mask, time_major, sequence_lengths
+            ),
             true_fn=cudnn_lstm_fn,
             false_fn=stardard_lstm_fn,
         )

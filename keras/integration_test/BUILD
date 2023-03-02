@@ -89,28 +89,28 @@ cuda_py_test(
     name = "gradient_checkpoint_test",
     srcs = ["gradient_checkpoint_test.py"],
     python_version = "PY3",
+    tags = ["no_oss"],  # TODO(b/249526796)
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
     ],
 )
 
-# cuda_py_test(
-#     name = "central_storage_strategy_test",
-#     srcs = ["central_storage_strategy_test.py"],
-#     python_version = "PY3",
-#     tags = [
-#         "multi_and_single_gpu",
-#         "no_windows_gpu",  # TODO(b/130551176)
-#     ],
-#     deps = [
-#         "//:expect_absl_installed",
-#         "//:expect_tensorflow_installed",
-#         "//third_party/tensorflow/python/distribute:combinations",
-#         "//third_party/tensorflow/python/distribute:strategy_combinations",
-#         "//third_party/tensorflow/python/keras/utils:kpl_test_utils",
-#     ],
-# )
+cuda_py_test(
+    name = "central_storage_strategy_test",
+    srcs = ["central_storage_strategy_test.py"],
+    python_version = "PY3",
+    tags = [
+        "multi_and_single_gpu",
+        "no_windows_gpu",  # TODO(b/130551176)
+    ],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/utils:kpl_test_utils",
+    ],
+)
 
 tpu_py_test(
     name = "tpu_strategy_test",
@@ -149,7 +149,7 @@ distribute_py_test(
     name = "parameter_server_keras_preprocessing_test",
     srcs = ["parameter_server_keras_preprocessing_test.py"],
     python_version = "PY3",
-    shard_count = 4,  # TODO(b/184290570): Investigate why only 1 shard times out.
+    shard_count = 6,  # TODO(b/184290570): Investigate why only 1 shard times out.
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/194935930): Flaky test
@@ -301,6 +301,65 @@ tf_py_test(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "parameter_server_training_metric_test",
+    srcs = ["parameter_server_training_metric_test.py"],
+    python_version = "PY3",
+    tags = [
+        "nomac",  # TODO(mihaimaruseac): b/127695564
+        "notsan",  # TODO(b/156029134)
+    ],
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/api:keras_api",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "fit_test",
+    size = "medium",
+    srcs = ["fit_test.py"],
+    python_version = "PY3",
+    shard_count = 28,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/integration_test/models",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "saving_v3_test",
+    size = "medium",
+    srcs = ["saving_v3_test.py"],
+    python_version = "PY3",
+    shard_count = 12,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/integration_test/models",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "py_metric_test",
+    size = "medium",
+    srcs = ["py_metric_test.py"],
+    python_version = "PY3",
+    shard_count = 2,
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/metrics",
         "//keras/testing_infra:test_combinations",
     ],
 )

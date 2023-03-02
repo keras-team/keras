@@ -67,7 +67,9 @@ def load_data(path="boston_housing.npz", test_split=0.2, seed=113):
     path = get_file(
         path,
         origin=origin_folder + "boston_housing.npz",
-        file_hash="f553886a1f8d56431e820c5b82552d9d95cfcb96d1e678153f8839538947dff5",  # noqa: E501
+        file_hash=(  # noqa: E501
+            "f553886a1f8d56431e820c5b82552d9d95cfcb96d1e678153f8839538947dff5"
+        ),
     )
     with np.load(path, allow_pickle=True) as f:
         x = f["x"]

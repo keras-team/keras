@@ -162,8 +162,7 @@ def _on_gcp():
         # issue. There is not default timeout, which means it might block
         # forever.
         response = requests.get(
-            "%s/computeMetadata/v1/%s"
-            % (gce_metadata_endpoint, "instance/hostname"),
+            f"{gce_metadata_endpoint}/computeMetadata/v1/{'instance/hostname'}",
             headers=GCP_METADATA_HEADER,
             timeout=5,
         )
@@ -172,8 +171,10 @@ def _on_gcp():
         return False
 
 
-def support_on_demand_checkpoint_callback():
-    if _on_gcp() and not tf.config.list_physical_devices("TPU"):
+def support_on_demand_checkpoint_callback(strategy):
+    if _on_gcp() and isinstance(
+        strategy, tf.distribute.MultiWorkerMirroredStrategy
+    ):
         return True
 
     return False

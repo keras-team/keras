@@ -29,7 +29,7 @@ from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
+from keras.utils import register_keras_serializable
 
 
 def _get_end_to_end_test_cases():
@@ -1704,11 +1704,10 @@ class TextVectorizationOutputTest(
         layer.adapt(vocab_data)
         _ = layer(input_data)
 
-        layer.set_vocabulary(vocab_data[:2])
         with self.assertRaisesRegex(
             RuntimeError, "vocabulary size cannot be changed"
         ):
-            _ = layer(input_data)
+            layer.set_vocabulary(vocab_data[:2])
 
     def test_count_output_hard_maximum(self):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -2010,7 +2009,7 @@ class TextVectorizationModelBuildingTest(
 
 @test_utils.run_v2_only
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
-class TextVectorizationVocbularyTest(
+class TextVectorizationVocabularyTest(
     test_combinations.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest,
 ):
@@ -2187,12 +2186,12 @@ class TextVectorizationErrorTest(
 
 # Custom functions for the custom callable serialization test. Declared here
 # to avoid multiple registrations from run_all_keras_modes().
-@generic_utils.register_keras_serializable(package="Test")
+@register_keras_serializable(package="Test")
 def custom_standardize_fn(x):
     return tf.strings.lower(x)
 
 
-@generic_utils.register_keras_serializable(package="Test")
+@register_keras_serializable(package="Test")
 def custom_split_fn(x):
     return tf.strings.split(x, sep=">")
 
@@ -2408,6 +2407,48 @@ class TextVectorizationSavingTest(
         new_model = keras.Model.from_config(serialized_model_data)
         new_output_dataset = new_model.predict(input_array)
         self.assertAllEqual(expected_output, new_output_dataset)
+
+    @test_utils.run_v2_only()
+    def test_saving_v3(self):
+        vocab_data = ["earth", "wind", "and", "fire"]
+        input_array = np.array(["earth, wind, and fire"])
+
+        # First, with a static vocabulary.
+        input_data = keras.Input(shape=(), dtype=tf.string)
+        layer = text_vectorization.TextVectorization(vocabulary=vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "mymodel.keras")
+        model.save(model_path, save_format="keras_v3")
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
+
+        # Second, with adapt().
+        input_data = keras.Input(shape=(), dtype=tf.string)
+        layer = text_vectorization.TextVectorization()
+        layer.adapt(vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        model.save(model_path, save_format="keras_v3", overwrite=True)
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
+
+        # Test TF-IDF + adapt().
+        input_data = keras.Input(shape=(), dtype=tf.string)
+        layer = text_vectorization.TextVectorization(output_mode="tf_idf")
+        layer.adapt(vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        model.save(model_path, save_format="keras_v3", overwrite=True)
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
 
 
 @test_utils.run_v2_only

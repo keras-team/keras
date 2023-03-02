@@ -26,7 +26,7 @@ from keras import optimizers
 from keras.distribute import distribute_coordinator_utils as dc
 from keras.distribute import distributed_training_utils as dist_utils
 from keras.engine import training_utils_v1
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.utils import tf_contextlib
 from keras.utils.mode_keys import ModeKeys
 
@@ -1057,8 +1057,8 @@ def _make_graph_execution_function(model, mode):
             all_inputs,
             all_outputs,
             updates=all_updates,
-            name="distributed_{}_function".format(mode),
-            **all_session_args
+            name=f"distributed_{mode}_function",
+            **all_session_args,
         )
 
 
@@ -1105,7 +1105,7 @@ def _make_eager_execution_function(model, mode):
         return backend.function(
             all_inputs,
             all_outputs,
-            name="eager_distributed_{}_function".format(mode),
+            name=f"eager_distributed_{mode}_function",
         )
 
 

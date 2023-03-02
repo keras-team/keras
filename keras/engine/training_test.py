@@ -36,9 +36,9 @@ from keras.engine import training as training_module
 from keras.engine import training_utils_v1
 from keras.layers.preprocessing import string_lookup
 from keras.mixed_precision import policy
-from keras.optimizers import optimizer_v2
-from keras.optimizers.optimizer_experimental import rmsprop
-from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
+from keras.optimizers import legacy as optimizer_legacy
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd as sgd_experimental
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import data_utils
@@ -147,6 +147,84 @@ class TrainingTest(test_combinations.TestCase):
         model.predict(x)
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_distribution_reduction_method_sum_default_train_step(self):
+
+        strategy = tf.distribute.MirroredStrategy(
+            ["/cpu:1", "/cpu:2", "/cpu:3", "/cpu:4"]
+        )
+        BATCH_SIZE = 10
+
+        # A model that always outputs `1`:
+        with strategy.scope():
+            inputs = layers_module.Input(shape=(1,), name="my_input")
+            outputs = layers_module.Dense(
+                units=1, kernel_initializer="zeros", bias_initializer="ones"
+            )(inputs)
+            model = training_module.Model(inputs, outputs)
+
+        model.trainable = False
+        model.compile(optimizer="sgd", loss="mean_absolute_error")
+
+        # Data points are always equal to `2`:
+        x, y = 2 * np.ones((40, 1)), 2 * np.ones((40, 1))
+
+        # For every output x_i = 1, every target y_i = 2,
+        #   loss_i     = |1-2| = 1; and
+        #   loss_total = sum([1, 1, ..., 1]) / BATCH_SIZE = 1.0
+        history = model.fit(x, y, epochs=1, batch_size=BATCH_SIZE)
+        self.assertAllClose(history.history["loss"][-1], 1.0)
+
+        eval_output = model.evaluate(x, y, batch_size=BATCH_SIZE)
+        self.assertAllClose(eval_output, 1.0)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_distribution_reduction_method_sum_custom_train_step(self):
+
+        strategy = tf.distribute.MirroredStrategy(
+            ["/cpu:1", "/cpu:2", "/cpu:3", "/cpu:4"]
+        )
+        BATCH_SIZE = 10
+
+        class MyModel(training_module.Model):
+            @staticmethod
+            def reduce_loss(loss_value, global_batch_size):
+                REDUCTION_AXES = range(1, backend.ndim(loss_value))
+                loss_value = tf.reduce_mean(loss_value, axis=REDUCTION_AXES)
+                return tf.nn.compute_average_loss(
+                    loss_value, global_batch_size=global_batch_size
+                )
+
+            def train_step(self, data):
+                loss_value = tf.ones_like(data[0])
+                return {
+                    "loss": MyModel.reduce_loss(
+                        loss_value, global_batch_size=BATCH_SIZE
+                    )
+                }
+
+            def test_step(self, data):
+                loss_value = tf.ones_like(data[0])
+                return {
+                    "metric": MyModel.reduce_loss(
+                        loss_value, global_batch_size=BATCH_SIZE
+                    )
+                }
+
+        with strategy.scope():
+            inputs = layers_module.Input(shape=(1,), name="my_input")
+            outputs = layers_module.Dense(1)(inputs)
+            model = MyModel(inputs, outputs)
+
+        model.compile()
+
+        x, y = np.ones((40, 1)), np.ones((40, 1))
+        history = model.fit(x, y, epochs=2, batch_size=BATCH_SIZE)
+        self.assertAllClose(history.history["loss"][-1], 1.0)
+
+        eval_output = model.evaluate(x, y, batch_size=BATCH_SIZE)
+        self.assertAllClose(eval_output, 1.0)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_verify_xla_compile_with_jit_compile(self):
         vocab_data = ["earth", "wind", "and", "fire"]
         input_array = np.array(
@@ -186,6 +264,56 @@ class TrainingTest(test_combinations.TestCase):
         model.fit(x, y, epochs=2)
         model.evaluate(x, y)
         model.predict(x)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_jit_compile_true_for_evaluate_predict_but_false_for_compile(self):
+        # Test with jit_compile = True for model.compile(), model.evaluate(),
+        # model.predict()
+        model = sequential.Sequential([layers_module.Dense(1)])
+        self.assertIsNone(model._jit_compile)
+        self.assertIsNone(model.jit_compile)
+        model.compile("sgd", loss="mse")
+        model.jit_compile = True
+        self.assertTrue(model._jit_compile)
+        self.assertTrue(model.jit_compile)
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
+        model.evaluate(x, y)
+        model.predict(x)
+        self.assertTrue(model._jit_compile)
+        self.assertTrue(model.jit_compile)
+        model.compile("sgd", loss="mse", jit_compile=False)
+        self.assertFalse(model._jit_compile)
+        self.assertFalse(model.jit_compile)
+        model.compile("sgd", loss="mse", jit_compile=True)
+        self.assertTrue(model._jit_compile)
+        self.assertTrue(model.jit_compile)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_predict_xla_compile_with_jit_compile_setter_false_then_true(self):
+        vocab_data = ["earth", "wind", "and", "fire"]
+        input_array = np.array(
+            [
+                ["earth", "wind", "and", "fire"],
+                ["fire", "and", "earth", "michigan"],
+            ]
+        )
+        strategy = tf.distribute.MirroredStrategy()
+        with strategy.scope():
+            input_data = keras.Input(shape=(None,), dtype=tf.string)
+            # Added a string op unsupported by XLA compiler to make sure that an
+            # error is thrown, This ensures that the graph is indeed being
+            # compiled using XLA
+            layer = string_lookup.StringLookup(vocabulary=vocab_data)
+            int_data = layer(input_data)
+            model = keras.Model(inputs=input_data, outputs=int_data)
+            # Compiled without jit_compile
+            model.predict(input_array)
+            model.jit_compile = True
+            with self.assertRaisesRegex(
+                tf.errors.InvalidArgumentError, "Graph execution error"
+            ):
+                model.predict(input_array)
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_fit_without_loss_at_compile(self):
@@ -864,6 +992,79 @@ class TrainingTest(test_combinations.TestCase):
         model = MyModel()
         self.assertIn('{"a": {}}', model.to_json())
 
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_default(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+        # Test default config with named args
+        model = MyModel(units=10)
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+        # Test default config with positinal args
+        model = MyModel(10)
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+        # Test non-serializable
+        model = MyModel(units=np.int32(10))
+        config = model.get_config()
+        self.assertNotIn("units", config)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_kwargs(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units, **kwargs):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+        model = MyModel(10, extra=1)
+        config = model.get_config()
+        # config = {'name': 'my_model', 'trainable': True, 'dtype': 'float32',
+        # 'extra': 1, 'units': 10}
+        self.assertLen(config, 5)
+        self.assertEqual(config["units"], 10)
+        self.assertEqual(config["extra"], 1)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_get_config_override(self):
+        class MyModel(training_module.Model):
+            def __init__(self, units):
+                super().__init__()
+                self.units = units
+
+            def call(self, inputs):
+                return inputs
+
+            def get_config(self):
+                config = {"units": int(self.units)}
+                config.update(super().get_config())
+                return config
+
+        model = MyModel(units=np.int32(10))
+        config = model.get_config()
+        self.assertLen(config, 1)
+        self.assertEqual(config["units"], 10)
+        model = model.from_config(config)
+        self.assertDictEqual(model.get_config(), config)
+
     def test_training_on_sparse_data_with_dense_placeholders_v1(self):
         with tf.Graph().as_default():
             if scipy_sparse is None:
@@ -999,7 +1200,7 @@ class TrainingTest(test_combinations.TestCase):
         # while the correct case will drop very quickly.
         model.compile(
             loss="mse",
-            optimizer=optimizer_v2.gradient_descent.SGD(0.24),
+            optimizer=optimizer_legacy.gradient_descent.SGD(0.24),
             run_eagerly=test_utils.should_run_eagerly(),
         )
 
@@ -1303,7 +1504,9 @@ class TrainingTest(test_combinations.TestCase):
             outputs = layers_module.Dense(1, activation="sigmoid")(inputs)
             model = training_module.Model(inputs, outputs)
 
-            model.compile(optimizer_v2.adam.Adam(0.001), "binary_crossentropy")
+            model.compile(
+                optimizer_legacy.adam.Adam(0.001), "binary_crossentropy"
+            )
             counter = Counter()
             model.fit(x, y, callbacks=[counter])
             self.assertEqual(counter.batches, expected_batches)
@@ -1311,7 +1514,9 @@ class TrainingTest(test_combinations.TestCase):
             model = sequential.Sequential(
                 [layers_module.Dense(1, batch_input_shape=(batch_size, 10))]
             )
-            model.compile(optimizer_v2.adam.Adam(0.001), "binary_crossentropy")
+            model.compile(
+                optimizer_legacy.adam.Adam(0.001), "binary_crossentropy"
+            )
             counter = Counter()
             model.fit(x, y, callbacks=[counter])
             self.assertEqual(counter.batches, expected_batches)
@@ -1327,7 +1532,7 @@ class TrainingTest(test_combinations.TestCase):
         inputs = input_layer.Input(batch_size=2, shape=(10,))
         outputs = layers_module.Dense(1, activation="sigmoid")(inputs)
         model = training_module.Model(inputs, outputs)
-        model.compile(optimizer_v2.adam.Adam(0.001), "binary_crossentropy")
+        model.compile(optimizer_legacy.adam.Adam(0.001), "binary_crossentropy")
         with self.assertRaisesRegex(
             ValueError, "incompatible with the specified batch size"
         ):
@@ -1729,7 +1934,7 @@ class TrainingTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_calling_aggregate_gradient(self):
-        class _Optimizer(optimizer_v2.gradient_descent.SGD):
+        class _Optimizer(optimizer_legacy.gradient_descent.SGD):
             """Mock optimizer to check if _aggregate_gradient is called."""
 
             _HAS_AGGREGATE_GRAD = True
@@ -1791,7 +1996,7 @@ class TrainingTest(test_combinations.TestCase):
             [DenseWithExtraWeight(4, input_shape=(4,))]
         )
         # Test clipping can handle None gradients
-        opt = optimizer_v2.adam.Adam(clipnorm=1.0, clipvalue=1.0)
+        opt = optimizer_legacy.adam.Adam(clipnorm=1.0, clipvalue=1.0)
         model.compile(opt, "mse", run_eagerly=test_utils.should_run_eagerly())
         inputs = np.random.normal(size=(64, 4))
         targets = np.random.normal(size=(64, 4))
@@ -2047,7 +2252,7 @@ class TrainingTest(test_combinations.TestCase):
         model = MyModel([layers_module.Dense(10)])
         model.custom_metric = CustomMetric("my_metric")
         initial_result = model.custom_metric.result()
-        optimizer = optimizer_v2.gradient_descent.SGD()
+        optimizer = optimizer_legacy.gradient_descent.SGD()
         model.compile(optimizer, loss="mse", steps_per_execution=10)
         model.fit(dataset, epochs=2, steps_per_epoch=10, verbose=2)
         after_fit_result = model.custom_metric.result()
@@ -2085,7 +2290,7 @@ class TrainingTest(test_combinations.TestCase):
         model = MyModel(inputs, outputs)
         model.add_loss(tf.reduce_sum(outputs))
 
-        optimizer = optimizer_v2.gradient_descent.SGD()
+        optimizer = optimizer_legacy.gradient_descent.SGD()
         model.compile(optimizer, loss="mse", steps_per_execution=10)
         history = model.fit(dataset, epochs=2, steps_per_epoch=10)
         self.assertLen(history.history["loss"], 2)
@@ -2094,8 +2299,13 @@ class TrainingTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
-    def test_ema_overwrite(self):
-
+    @parameterized.named_parameters(
+        ("mixed_float16", "mixed_float16"), ("float32", "float32")
+    )
+    def test_ema_overwrite(self, test_policy):
+        if not tf.__internal__.tf2.enabled():
+            self.skipTest("EMA optimizer is only available in TF2.")
+        policy.set_global_policy(test_policy)
         model = sequential.Sequential()
         model.add(input_layer.Input(shape=(4,)))
         model.add(layers_module.Dense(1, activation="relu"))
@@ -2109,6 +2319,7 @@ class TrainingTest(test_combinations.TestCase):
         history = model.fit(dataset, epochs=2, steps_per_epoch=10)
         self.assertLen(history.history["loss"], 2)
         self.assertAllClose(initial_value, model.trainable_variables[0])
+        policy.set_global_policy("float32")
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_get_verbosity(self):
@@ -3664,15 +3875,25 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
         )
 
         # verify that masking is applied.
-        x = np.array([[[1], [1]], [[1], [1]], [[0], [0]]])
+        x = np.array(
+            # third row is masked
+            [[[1], [1]], [[1], [1]], [[0], [0]]]
+        )
         y = np.array([[[1], [1]], [[0], [1]], [[1], [1]]])
-        scores = model.train_on_batch(x, y)
-        self.assertArrayNear(scores, [0.25, 0.75], 0.1)
+
+        scores = model.test_on_batch(x, y)
+        self.assertArrayNear(scores, [0.25, 0.75], 0.0001)
 
         # verify that masking is combined with sample weights.
         w = np.array([3, 2, 4])
+        scores = model.test_on_batch(x, y, sample_weight=w)
+        self.assertArrayNear(scores, [0.5, 0.8], 0.0001)
+
+        scores = model.train_on_batch(x, y)
+        self.assertArrayNear(scores, [0.25, 0.75], 0.0001)
+
         scores = model.train_on_batch(x, y, sample_weight=w)
-        self.assertArrayNear(scores, [0.3328, 0.8], 0.001)
+        self.assertArrayNear(scores, [0.5 - 0.001037, 0.8], 0.0001)
 
     @test_combinations.run_all_keras_modes
     def test_add_metric_with_tensor_on_model(self):
@@ -4048,7 +4269,7 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
 
         model.compile(
             loss="mae",
-            optimizer=optimizer_v2.gradient_descent.SGD(0.1),
+            optimizer=optimizer_legacy.gradient_descent.SGD(0.1),
             metrics=[metrics_module.MeanAbsoluteError(name="mae_3")],
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -4318,6 +4539,72 @@ class TestTrainingWithMetrics(test_combinations.TestCase):
             list(dict_test_on_batch_res.keys()),
             ["loss", "mae", "my_mse", "my_rmse"],
         )
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_add_metric_in_model_call_that_returns_dict(self):
+        class DictMetric(metrics_module.Metric):
+            def __init__(self):
+                super().__init__()
+                self.sample_count = tf.Variable(0)
+                self.l2_sum = tf.Variable(0.0)
+
+            def update_state(self, y_true, y_pred, sample_weight=None):
+                self.l2_sum.assign_add(
+                    tf.reduce_sum(tf.square(y_true - y_pred))
+                )
+                self.sample_count.assign_add(tf.shape(y_true)[0])
+
+            def reset_state(self):
+                self.sample_count.assign(0)
+                self.l2_sum.assign(0.0)
+
+            def result(self):
+                mse = self.l2_sum / tf.cast(self.sample_count, "float32")
+                rmse = tf.sqrt(mse)
+                return {"my_mse": mse, "my_rmse": rmse}
+
+        class TestModel(training_module.Model):
+            def __init__(self):
+                super().__init__(name="test_model")
+                self.dense1 = layers_module.Dense(2, kernel_initializer="ones")
+                self.dict_metric = DictMetric()
+
+            def call(self, x):
+                self.add_metric(
+                    tf.reduce_sum(x), name="metric_2", aggregation="mean"
+                )
+                # Provide same name as in the instance created in __init__
+                # for eager mode
+                self.add_metric(self.dict_metric(x, 1 - x), name="metric_1")
+                return self.dense1(x)
+
+        model = TestModel()
+        model.compile(
+            loss="mse",
+            optimizer=RMSPropOptimizer(0.01),
+            run_eagerly=test_utils.should_run_eagerly(),
+        )
+
+        x = np.ones(shape=(10, 1))
+        y = np.ones(shape=(10, 2))
+        history = model.fit(
+            x, y, epochs=2, batch_size=5, validation_data=(x, y)
+        )
+        self.assertAlmostEqual(history.history["metric_2"][-1], 5, 0)
+        self.assertAlmostEqual(history.history["val_metric_2"][-1], 5, 0)
+        self.assertAlmostEqual(history.history["my_mse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["val_my_mse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["my_rmse"][-1], 1, 0)
+        self.assertAlmostEqual(history.history["val_my_rmse"][-1], 1, 0)
+
+        eval_results = model.evaluate(x, y, batch_size=5, return_dict=True)
+        self.assertAlmostEqual(eval_results["metric_2"], 5, 0)
+        self.assertAlmostEqual(eval_results["my_mse"], 1, 0)
+        self.assertAlmostEqual(eval_results["my_rmse"], 1, 0)
+
+        model.predict(x, batch_size=5)
+        model.train_on_batch(x, y)
+        model.test_on_batch(x, y)
 
 
 class BareUpdateLayer(layers_module.Layer):
@@ -4603,7 +4890,7 @@ class ScalarDataModelTest(test_combinations.TestCase):
 
         model = MyModel()
         model.compile(
-            optimizer_v2.gradient_descent.SGD(1e-2),
+            optimizer_legacy.gradient_descent.SGD(1e-2),
             loss="mse",
             metrics=["binary_accuracy"],
         )

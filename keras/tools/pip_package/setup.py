@@ -31,7 +31,7 @@ DOCLINES = __doc__.split("\n")
 # This version string is semver compatible, but incompatible with pip.
 # For pip, we will remove all '-' characters from this string, and use the
 # result for pip.
-_VERSION = "2.11.0"
+_VERSION = "2.13.0"
 
 REQUIRED_PACKAGES = [
     # We depend on TensorFlow's declared pip dependencies.
@@ -57,6 +57,8 @@ setuptools.setup(
     author_email="keras-users@googlegroups.com",
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
+    # Supported Python versions
+    python_requires=">=3.8",
     # PyPI package information.
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -65,9 +67,10 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3 :: Only",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Mathematics",

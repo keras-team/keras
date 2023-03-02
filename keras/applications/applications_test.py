@@ -138,13 +138,11 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
     def assertShapeEqual(self, shape1, shape2):
         if len(shape1) != len(shape2):
             raise AssertionError(
-                "Shapes are different rank: %s vs %s" % (shape1, shape2)
+                f"Shapes are different rank: {shape1} vs {shape2}"
             )
         for v1, v2 in zip(shape1, shape2):
             if v1 != v2:
-                raise AssertionError(
-                    "Shapes differ: %s vs %s" % (shape1, shape2)
-                )
+                raise AssertionError(f"Shapes differ: {shape1} vs {shape2}")
 
     @parameterized.parameters(*MODEL_LIST)
     def test_application_base(self, app, _):
@@ -192,6 +190,16 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
             lambda: app(weights=None, include_top=False, pooling="avg")
         )
         self.assertShapeEqual(output_shape, (None, last_dim))
+
+    @parameterized.parameters(MODEL_LIST)
+    def test_application_classifier_activation(self, app, _):
+        if "RegNet" in app.__name__:
+            self.skipTest("RegNet models do not support classifier activation")
+        model = app(
+            weights=None, include_top=True, classifier_activation="softmax"
+        )
+        last_layer_act = model.layers[-1].activation.__name__
+        self.assertEqual(last_layer_act, "softmax")
 
     @parameterized.parameters(*MODEL_LIST_NO_NASNET)
     def test_application_variable_input_channels(self, app, last_dim):

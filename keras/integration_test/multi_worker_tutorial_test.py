@@ -85,7 +85,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
                 raise
 
     def mnist_dataset(self):
-        path_to_use = "mnist_{}.npz".format(str(uuid.uuid4()))
+        path_to_use = f"mnist_{str(uuid.uuid4())}.npz"
         with self.skip_fetch_failure_exception():
             (x_train, y_train), _ = tf.keras.datasets.mnist.load_data(
                 path=path_to_use
@@ -149,7 +149,7 @@ class MultiWorkerTutorialTest(parameterized.TestCase, tf.test.TestCase):
         )
     )
     def testMwmsWithModelFit(self, mode):
-        """Test multi-worker training flow demo'ed in go/multi-worker-with-keras.
+        """Test multi-worker training flow demoed in go/multi-worker-with-keras.
 
         This test should be kept in sync with the code samples in
         go/multi-worker-with-keras.

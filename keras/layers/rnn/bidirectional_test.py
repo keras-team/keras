@@ -27,7 +27,6 @@ from keras.layers import core
 from keras.layers.rnn.cell_wrappers import ResidualWrapper
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
-from keras.utils import generic_utils
 
 # isort: off
 from tensorflow.python.checkpoint import (
@@ -505,7 +504,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             c = keras.Input((3,))
             cell = _RNNCellWithConstants(32, 3)
             custom_objects = {"_RNNCellWithConstants": _RNNCellWithConstants}
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional(keras.layers.RNN(cell))
             y = layer(x, constants=c)
             model = keras.Model([x, c], y)
@@ -521,7 +520,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             weights = model.get_weights()
             config = layer.get_config()
 
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -532,7 +531,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllClose(y_np, y_np_2, atol=1e-4)
 
             # Test flat list inputs
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -551,7 +550,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             s_bac = keras.Input((32,))
             cell = _RNNCellWithConstants(32, 3)
             custom_objects = {"_RNNCellWithConstants": _RNNCellWithConstants}
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional(keras.layers.RNN(cell))
             y = layer(x, initial_state=[s_for, s_bac], constants=c)
             model = keras.Model([x, s_for, s_bac, c], y)
@@ -575,7 +574,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             weights = model.get_weights()
             config = layer.get_config()
 
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -592,7 +591,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
             assert np.mean(y_np - y_np_2_different_s) != 0
 
             # Test flat list inputs
-            with generic_utils.CustomObjectScope(custom_objects):
+            with keras.utils.CustomObjectScope(custom_objects):
                 layer = keras.layers.Bidirectional.from_config(
                     copy.deepcopy(config)
                 )
@@ -663,8 +662,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_last_output_with_masking(self):
         rnn = keras.layers.LSTM
@@ -696,8 +696,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters([keras.layers.LSTM, keras.layers.GRU])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_Bidirectional_sequence_output_with_masking(self, rnn):
         samples = 2
@@ -925,8 +926,9 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     @parameterized.parameters(["ave", "concat", "mul"])
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm RNN does not support ragged "
-        "tensors yet.",
+        skip_message=(
+            "Skipping as ROCm RNN does not support ragged tensors yet."
+        ),
     )
     def test_Bidirectional_ragged_input(self, merge_mode):
         np.random.seed(100)
@@ -1017,6 +1019,56 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(output1, output3)
         self.assertNotAllClose(output1, output2)
+
+    def test_trainable_parameter_argument(self):
+        inp = keras.layers.Input([None, 3])
+
+        def test(fwd, bwd, **kwargs):
+            def _remove_from_dict(d, remove_key):
+                if isinstance(d, dict):
+                    d.pop(remove_key, None)
+                    for key in list(d.keys()):
+                        _remove_from_dict(d[key], remove_key)
+
+            bid = keras.layers.Bidirectional(fwd, backward_layer=bwd, **kwargs)
+
+            model = keras.Model(inp, bid(inp))
+            clone = keras.models.clone_model(model)
+
+            # Comparison should exclude `build_config`
+            clone_config = _remove_from_dict(clone.get_config(), "build_config")
+            model_config = _remove_from_dict(model.get_config(), "build_config")
+            self.assertEqual(clone_config, model_config)
+
+        # test fetching trainable from `layer`
+        fwd = keras.layers.SimpleRNN(units=3)
+        bwd = keras.layers.SimpleRNN(units=3, go_backwards=True)
+
+        fwd.trainable = True
+        test(fwd, None)
+
+        fwd.trainable = False
+        test(fwd, None)
+
+        fwd.trainable = True
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = True
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        # test fetching trainable from `kwargs`
+        test(fwd, None, trainable=True)
+        test(fwd, None, trainable=False)
 
 
 def _to_list(ls):

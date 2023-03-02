@@ -16,10 +16,12 @@
 
 import collections
 import copy
+import platform
 import random
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.engine import keras_tensor
@@ -29,6 +31,7 @@ from keras.utils import tf_contextlib
 # isort: off
 from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python import pywrap_tfe
 
 
 @keras_export("keras.utils.set_random_seed", v1=[])
@@ -64,6 +67,18 @@ def set_random_seed(seed):
     np.random.seed(seed)
     tf.random.set_seed(seed)
     backend._SEED_GENERATOR.generator = random.Random(seed)
+
+
+def get_random_seed():
+    """Retrieve a seed value to seed a random generator.
+
+    Returns:
+      the random seed as an integer.
+    """
+    if getattr(backend._SEED_GENERATOR, "generator", None):
+        return backend._SEED_GENERATOR.generator.randint(1, 1e9)
+    else:
+        return random.randint(1, 1e9)
 
 
 def is_tensor_or_tensor_list(v):
@@ -116,7 +131,7 @@ def get_reachable_from_inputs(inputs, targets=None):
             outputs = x.consumers()
         else:
             raise TypeError(
-                f"Expected tf.Operation, tf.Variable, or tf.Tensor. "
+                "Expected tf.Operation, tf.Variable, or tf.Tensor. "
                 f"Received: {x}"
             )
 
@@ -675,3 +690,22 @@ def _astuple(attrs):
     for field in fields:
         values.append(getattr(attrs, field.name))
     return tuple(values)
+
+
+def can_jit_compile(warn=False):
+    """Returns True if TensorFlow XLA is available for the platform."""
+    if platform.system() == "Darwin" and "arm" in platform.processor().lower():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not yet supported on Apple M1/M2 ARM "
+                "processors. Falling back to `jit_compile=False`."
+            )
+        return False
+    if pywrap_tfe.TF_ListPluggablePhysicalDevices():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not supported on your system. "
+                "Falling back to `jit_compile=False`."
+            )
+        return False
+    return True

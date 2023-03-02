@@ -199,11 +199,9 @@ class NormalizationTest(
     def test_list_input(self):
         with self.assertRaisesRegex(
             ValueError,
-            (
-                "Normalization only accepts a single input. If you are "
-                "passing a python list or tuple as a single input, "
-                "please convert to a numpy array or `tf.Tensor`."
-            ),
+            "Normalization only accepts a single input. If you are "
+            "passing a python list or tuple as a single input, "
+            "please convert to a numpy array or `tf.Tensor`.",
         ):
             normalization.Normalization()([1, 2, 3])
 
@@ -230,25 +228,26 @@ class NormalizationTest(
         self.assertAllEqual(output.dtype, tf.float64)
 
     def test_invert(self):
-        data = np.array([0.0, 2.0, 0.0, 2.0])
-        norm = normalization.Normalization(mean=1.0, variance=1.0)
+        input_data = np.array([0.0, 4.0, 0.0, 4.0])
+        norm = normalization.Normalization(mean=2.0, variance=4.0)
         inv_norm = normalization.Normalization(
-            mean=1.0, variance=1.0, invert=True
+            mean=2.0, variance=4.0, invert=True
         )
-        output = norm(data)
+        output = norm(input_data)
         output2 = inv_norm(output)
         self.assertListEqual(output2.shape.as_list(), [4])
-        self.assertAllClose(output2, [0.0, 2.0, 0.0, 2.0])
+        self.assertAllClose(input_data, output2)
 
     @test_utils.run_v2_only
     def test_invert_adapt(self):
-        input_data = [[0.0], [2.0], [0.0], [2.0]]
+        input_data = [[0.0], [4.0], [0.0], [4.0]]
         norm = keras.layers.Normalization(axis=-1)
         norm.adapt(input_data)
         inv_norm = keras.layers.Normalization(axis=-1, invert=True)
         inv_norm.adapt(input_data)
         output = norm(input_data)
         output2 = inv_norm(output)
+        self.assertListEqual(output2.shape.as_list(), [4, 1])
         self.assertAllClose(input_data, output2)
 
 
@@ -445,7 +444,44 @@ class NormalizationAdaptTest(
 
         # Save the model to disk.
         output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format=format)
+        model.save(output_path, save_format=save_format)
+        loaded_model = keras.models.load_model(
+            output_path, custom_objects={"Normalization": cls}
+        )
+
+        # Ensure that the loaded model is unique (so that the save/load is real)
+        self.assertIsNot(model, loaded_model)
+
+        # Validate correctness of the new model.
+        new_output_data = loaded_model.predict(input_data)
+        self.assertAllClose(new_output_data, expected_output)
+
+    @parameterized.product(
+        save_format=["tf", "h5"],
+        adapt=[True, False],
+    )
+    def test_saved_model_keras_invert(self, save_format, adapt):
+        expected_output = [[0.0], [2.0], [0.0], [2.0]]
+        input_data = [[-1.0], [1.0], [-1.0], [1.0]]
+
+        cls = normalization.Normalization
+        inputs = keras.Input(shape=(1,), dtype=tf.float32)
+        if adapt:
+            layer = cls(axis=-1, invert=True)
+            layer.adapt(expected_output)
+        else:
+            layer = cls(mean=1.0, variance=1.0, invert=True)
+        outputs = layer(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
+
+        output_data = model.predict(input_data)
+        self.assertAllClose(output_data, expected_output)
+
+        # Save the model to disk.
+        output_path = os.path.join(
+            self.get_temp_dir(), "tf_keras_saved_model_invert"
+        )
+        model.save(output_path, save_format=save_format)
         loaded_model = keras.models.load_model(
             output_path, custom_objects={"Normalization": cls}
         )

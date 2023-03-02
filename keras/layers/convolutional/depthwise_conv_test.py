@@ -72,6 +72,13 @@ class DepthwiseConv1DTest(test_combinations.TestCase):
         }
         self._run_test(kwargs)
 
+    def test_depthwise_conv1d_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": 2, "dilation_rate": 2}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.DepthwiseConv1D(kernel_size=2, **kwargs)
+
 
 @test_combinations.run_all_keras_modes
 class DepthwiseConv2DTest(test_combinations.TestCase):
@@ -123,6 +130,13 @@ class DepthwiseConv2DTest(test_combinations.TestCase):
             "depth_multiplier": 1,
         }
         self._run_test(kwargs)
+
+    def test_depthwise_conv2d_invalid_strides_and_dilation_rate(self):
+        kwargs = {"strides": [2, 1], "dilation_rate": [2, 1]}
+        with self.assertRaisesRegex(
+            ValueError, r"""`strides > 1` not supported in conjunction"""
+        ):
+            keras.layers.DepthwiseConv2D(kernel_size=2, **kwargs)
 
 
 if __name__ == "__main__":

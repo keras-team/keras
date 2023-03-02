@@ -22,8 +22,7 @@ def _to_matrix(u):
     u_rank = len(u.shape)
     if u_rank not in [1, 2]:
         raise ValueError(
-            "The input tensor should have rank 1 or 2. "
-            f"Received rank: {u_rank}"
+            f"The input tensor should have rank 1 or 2. Received rank: {u_rank}"
         )
     if u_rank == 1:
         return tf.expand_dims(u, 0)
@@ -85,7 +84,7 @@ def exact_gaussian_kernel(x, y, stddev):
 
 
 def exact_laplacian_kernel(x, y, stddev):
-    r"""Computes exact Laplacian kernel value(s) for tensors x and y using stddev.
+    r"""Computes exact Laplacian kernel value(s) for tensors x & y using stddev.
 
     The Laplacian kernel for vectors u, v is defined as follows:
          K(u, v) = exp(-||u-v|| / stddev)

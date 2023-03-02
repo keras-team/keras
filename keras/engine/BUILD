@@ -9,11 +9,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
-    default_visibility = [
-        "//keras:friends",
-        "//third_party/tensorflow/python:__pkg__",
-        "//third_party/tensorflow/python/feature_column:__pkg__",
-    ],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 
@@ -59,6 +55,7 @@ py_library(
         "//keras/distribute",
         "//keras/distribute:distribute_coordinator_utils",
         "//keras/dtensor:layout_map",
+        "//keras/export:export_lib",
         "//keras/initializers",
         "//keras/metrics",
         "//keras/mixed_precision:autocast_variable",
@@ -66,7 +63,6 @@ py_library(
         "//keras/mixed_precision:policy",
         "//keras/optimizers",
         "//keras/saving",
-        "//keras/saving/experimental",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
@@ -153,6 +149,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/distribute",
         "//keras/utils:dataset_creator",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
@@ -462,7 +459,7 @@ tf_py_test(
         "//keras:losses",
         "//keras/layers",
         "//keras/metrics",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
         "//keras/utils:data_utils",
@@ -628,7 +625,7 @@ tf_py_test(
         "//keras/layers",
         "//keras/legacy_tf_layers:core",
         "//keras/mixed_precision:policy",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
         "//keras/utils:tf_utils",
@@ -658,6 +655,7 @@ tf_py_test(
     size = "medium",
     srcs = ["sequential_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],

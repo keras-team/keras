@@ -67,8 +67,12 @@ def compare_single_input_op_to_numpy(
         np.testing.assert_allclose(keras_output, np_output, atol=1e-4)
     except AssertionError:
         raise AssertionError(
-            "Test for op `" + str(keras_op.__name__) + "` failed; "
-            "Expected " + str(np_output) + " but got " + str(keras_output)
+            "Test for op `"
+            + str(keras_op.__name__)
+            + "` failed; Expected "
+            + str(np_output)
+            + " but got "
+            + str(keras_output)
         )
 
 
@@ -93,7 +97,7 @@ def compare_two_inputs_op_to_numpy(
         backend.variable(input_a, dtype=dtype),
         backend.variable(input_b, dtype=dtype),
         *keras_args,
-        **keras_kwargs
+        **keras_kwargs,
     )
     keras_output = backend.eval(keras_output)
     np_output = np_op(
@@ -103,8 +107,12 @@ def compare_two_inputs_op_to_numpy(
         np.testing.assert_allclose(keras_output, np_output, atol=1e-4)
     except AssertionError:
         raise AssertionError(
-            "Test for op `" + str(keras_op.__name__) + "` failed; "
-            "Expected " + str(np_output) + " but got " + str(keras_output)
+            "Test for op `"
+            + str(keras_op.__name__)
+            + "` failed; Expected "
+            + str(np_output)
+            + " but got "
+            + str(keras_output)
         )
 
 
@@ -178,6 +186,22 @@ class BackendUtilsTest(tf.test.TestCase):
                 if not tf.executing_eagerly():
                     self.evaluate(tf.compat.v1.global_variables_initializer())
                     sess.run(y, feed_dict={x: np.random.random((2, 3))})
+
+    def test_get_learning_phase_eager(self):
+        if not tf.executing_eagerly():
+            self.skipTest("Check for eager only.")
+        # see b/251520266 for more details.
+        # By default the learning phase should be False
+        self.assertFalse(backend.learning_phase())
+        # Also make sure retrieving the learning phase doesn't set the default
+        # value
+        self.assertFalse(backend.global_learning_phase_is_set())
+
+        with backend.learning_phase_scope(1):
+            self.assertTrue(backend.learning_phase())
+            self.assertTrue(backend.global_learning_phase_is_set())
+
+        self.assertFalse(backend.global_learning_phase_is_set())
 
     def test_learning_phase_name(self):
         with backend.name_scope("test_scope"):
@@ -295,7 +319,7 @@ class BackendUtilsTest(tf.test.TestCase):
         # we cannot test correctness.
         # The message gets correctly printed in practice.
         x = backend.placeholder(shape=())
-        y = backend.print_tensor(x, "eager=%s" % tf.executing_eagerly())
+        y = backend.print_tensor(x, f"eager={tf.executing_eagerly()}")
         f = backend.function(x, y)
         f(0)
 
@@ -1445,7 +1469,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
             state_list[i].append(backend.eval(new_states[0]))
 
             def assert_list_pairwise(z_list, atol=1e-05):
-                for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+                for z1, z2 in zip(z_list[1:], z_list[:-1]):
                     self.assertAllClose(z1, z2, atol=atol)
 
             assert_list_pairwise(last_output_list[0], atol=1e-04)
@@ -1557,7 +1581,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
             additional_state_list[i].append(backend.eval(new_states[1]))
 
             def assert_list_pairwise(z_list, atol=1e-05):
-                for (z1, z2) in zip(z_list[1:], z_list[:-1]):
+                for z1, z2 in zip(z_list[1:], z_list[:-1]):
                     self.assertAllClose(z1, z2, atol=atol)
 
             assert_list_pairwise(last_output_list[0], atol=1e-04)

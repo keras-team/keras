@@ -29,15 +29,13 @@ from keras import backend
 from keras import layers
 from keras import models
 from keras.engine import base_layer_utils
-from keras.optimizers.optimizer_v2 import adadelta as adadelta_v2
-from keras.optimizers.optimizer_v2 import adagrad as adagrad_v2
-from keras.optimizers.optimizer_v2 import adam as adam_v2
-from keras.optimizers.optimizer_v2 import adamax as adamax_v2
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
-from keras.optimizers.optimizer_v2 import nadam as nadam_v2
-from keras.optimizers.optimizer_v2 import rmsprop as rmsprop_v2
+from keras.optimizers.legacy import adadelta as adadelta_v2
+from keras.optimizers.legacy import adagrad as adagrad_v2
+from keras.optimizers.legacy import adam as adam_v2
+from keras.optimizers.legacy import adamax as adamax_v2
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
+from keras.optimizers.legacy import nadam as nadam_v2
+from keras.optimizers.legacy import rmsprop as rmsprop_v2
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 
@@ -494,6 +492,8 @@ class SmallSubclassMLP(models.Model):
         self, num_hidden, num_classes, use_bn=False, use_dp=False, **kwargs
     ):
         super().__init__(name="test_model", **kwargs)
+        self.num_hidden = num_hidden
+        self.num_classes = num_classes
         self.use_bn = use_bn
         self.use_dp = use_dp
 
@@ -512,6 +512,18 @@ class SmallSubclassMLP(models.Model):
         if self.use_bn:
             x = self.bn(x)
         return self.layer_b(x)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "num_hidden": self.num_hidden,
+                "num_classes": self.num_classes,
+                "use_bn": self.use_bn,
+                "use_dp": self.use_dp,
+            }
+        )
+        return config
 
 
 class _SmallSubclassMLPCustomBuild(models.Model):
@@ -553,7 +565,7 @@ def get_small_mlp(num_hidden, num_classes, input_dim):
         return get_small_sequential_mlp(num_hidden, num_classes, input_dim)
     if model_type == "functional":
         return get_small_functional_mlp(num_hidden, num_classes, input_dim)
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 class _SubclassModel(models.Model):
@@ -582,7 +594,7 @@ class _SubclassModel(models.Model):
             self._set_inputs(inputs)
 
     def _layer_name_for_i(self, i):
-        return "layer{}".format(i)
+        return f"layer{i}"
 
     def call(self, inputs, **kwargs):
         x = inputs
@@ -691,7 +703,7 @@ def get_model_from_layers(
             outputs = layer(outputs)
         return models.Model(inputs, outputs, name=name)
 
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 class Bias(layers.Layer):
@@ -902,7 +914,7 @@ def get_multi_io_model(
 
     if model_type == "sequential":
         raise ValueError(
-            "Cannot use `get_multi_io_model` to construct " "sequential models"
+            "Cannot use `get_multi_io_model` to construct sequential models"
         )
 
     if model_type == "functional":
@@ -927,7 +939,7 @@ def get_multi_io_model(
 
         return models.Model(inputs, outputs)
 
-    raise ValueError("Unknown model type {}".format(model_type))
+    raise ValueError(f"Unknown model type {model_type}")
 
 
 _V2_OPTIMIZER_MAP = {
@@ -1168,8 +1180,7 @@ def generate_combinations_with_testcase_name(**kwargs):
         )
         named_combinations.append(
             collections.OrderedDict(
-                list(combination.items())
-                + [("testcase_name", "_test{}".format(name))]
+                list(combination.items()) + [("testcase_name", f"_test{name}")]
             )
         )
 

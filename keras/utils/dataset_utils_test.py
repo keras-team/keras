@@ -1,5 +1,8 @@
 """Tests for Dataset Utils"""
 
+import os
+import shutil
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 
@@ -47,28 +50,34 @@ class SplitDatasetTest(tf.test.TestCase):
             dataset, left_size=0.3
         )
 
-        self.assertEqual(np.array(list(left_split)).shape, (2, 2))
-        self.assertEqual(np.array(list(right_split)).shape, (3, 2))
+        self.assertEqual(np.array(list(left_split), dtype=object).shape, (2, 2))
+        self.assertEqual(
+            np.array(list(right_split), dtype=object).shape, (3, 2)
+        )
 
-        self.assertEqual(np.array(list(left_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(left_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(left_split)[0][0]).shape, (3,))
         self.assertEqual(np.array(list(left_split)[0][1]).shape, ())
 
-        self.assertEqual(np.array(list(right_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(right_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(right_split)[0][0]).shape, (3,))
         self.assertEqual(np.array(list(right_split)[0][1]).shape, ())
 
     def test_dataset_with_invalid_shape(self):
         with self.assertRaisesRegex(
             ValueError,
-            "Received a list of NumPy arrays " "with different lengths",
+            "Received a list of NumPy arrays with different lengths",
         ):
             dataset = [np.ones(shape=(200, 32)), np.zeros(shape=(100, 32))]
             dataset_utils.split_dataset(dataset, left_size=4)
 
         with self.assertRaisesRegex(
             ValueError,
-            "Received a tuple of NumPy arrays " "with different lengths",
+            "Received a tuple of NumPy arrays with different lengths",
         ):
             dataset = (np.ones(shape=(200, 32)), np.zeros(shape=(201, 32)))
             dataset_utils.split_dataset(dataset, left_size=4)
@@ -118,14 +127,20 @@ class SplitDatasetTest(tf.test.TestCase):
         self.assertIsInstance(left_split, tf.data.Dataset)
         self.assertIsInstance(right_split, tf.data.Dataset)
 
-        self.assertEqual(np.array(list(left_split)).shape, (2, 2))
-        self.assertEqual(np.array(list(right_split)).shape, (3, 2))
+        self.assertEqual(np.array(list(left_split), dtype=object).shape, (2, 2))
+        self.assertEqual(
+            np.array(list(right_split), dtype=object).shape, (3, 2)
+        )
 
-        self.assertEqual(np.array(list(left_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(left_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(left_split)[0][0]).shape, (32, 32))
         self.assertEqual(np.array(list(left_split)[0][1]).shape, ())
 
-        self.assertEqual(np.array(list(right_split)[0]).shape, (2,))
+        self.assertEqual(
+            np.array(list(right_split)[0], dtype=object).shape, (2,)
+        )
         self.assertEqual(np.array(list(right_split)[0][0]).shape, (32, 32))
         self.assertEqual(np.array(list(right_split)[0][1]).shape, ())
 
@@ -534,6 +549,44 @@ class SplitDatasetTest(tf.test.TestCase):
 
         self.assertEqual(len(left_split), 8000)
         self.assertEqual(len(right_split), 2000)
+
+
+@test_utils.run_v2_only
+class IndexDirectoryStructureTest(tf.test.TestCase):
+    def test_explicit_labels_and_unnested_files(self):
+
+        # Get a unique temp directory
+        temp_dir = os.path.join(
+            self.get_temp_dir(), str(np.random.randint(1e6))
+        )
+        os.mkdir(temp_dir)
+        self.addCleanup(shutil.rmtree, temp_dir)
+
+        # Number of temp files, each of which
+        # will have its own explicit label
+        num_files = 10
+
+        explicit_labels = np.random.randint(0, 10, size=num_files).tolist()
+
+        # Save empty text files to root of temp directory
+        # (content is not important, only location)
+        for i in range(len(explicit_labels)):
+            with open(os.path.join(temp_dir, f"file{i}.txt"), "w"):
+                pass
+
+        file_paths, labels, class_names = dataset_utils.index_directory(
+            temp_dir, labels=explicit_labels, formats=".txt"
+        )
+
+        # Files are found at the root of the temp directory, when
+        # `labels` are passed explicitly to `index_directory` and
+        # the number of returned and passed labels match
+        self.assertLen(file_paths, num_files)
+        self.assertLen(labels, num_files)
+
+        # Class names are returned as a sorted list
+        expected_class_names = sorted(set(explicit_labels))
+        self.assertEqual(expected_class_names, class_names)
 
 
 if __name__ == "__main__":

@@ -63,6 +63,7 @@ from keras.layers.core.activation import Activation
 from keras.layers.core.dense import Dense
 from keras.layers.core.einsum_dense import EinsumDense
 from keras.layers.core.embedding import Embedding
+from keras.layers.core.identity import Identity
 from keras.layers.core.lambda_layer import Lambda
 from keras.layers.core.masking import Masking
 from keras.layers.core.tf_op_layer import ClassMethod
@@ -102,6 +103,7 @@ from keras.layers.normalization.batch_normalization import (
 )
 
 # Normalization layers.
+from keras.layers.normalization.group_normalization import GroupNormalization
 from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.unit_normalization import UnitNormalization
 
@@ -155,9 +157,6 @@ from keras.layers.reshaping.up_sampling3d import UpSampling3D
 from keras.layers.reshaping.zero_padding1d import ZeroPadding1D
 from keras.layers.reshaping.zero_padding2d import ZeroPadding2D
 from keras.layers.reshaping.zero_padding3d import ZeroPadding3D
-
-# isort: off
-from tensorflow.python import tf2
 
 if tf.__internal__.tf2.enabled():
     from keras.layers.normalization.batch_normalization import (

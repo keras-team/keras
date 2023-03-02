@@ -95,13 +95,22 @@ class BatchNormalizationTest(test_combinations.TestCase):
         self.assertEqual(layer.gamma.constraint, max_norm)
         self.assertEqual(layer.beta.constraint, max_norm)
 
-    @test_combinations.run_all_keras_modes
-    def test_batchnorm_convnet(self):
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_batchnorm_sync_fused_error(self):
+        with self.assertRaises(ValueError):
+            _ = batch_normalization.BatchNormalization(
+                synchronized=True, fused=True
+            )
+
+    def _test_batchnorm_convnet(self, synchronized=False):
         if tf.test.is_gpu_available(cuda_only=True):
             with self.session():
                 model = keras.models.Sequential()
                 norm = keras.layers.BatchNormalization(
-                    axis=1, input_shape=(3, 4, 4), momentum=0.8
+                    axis=1,
+                    input_shape=(3, 4, 4),
+                    momentum=0.8,
+                    synchronized=synchronized,
                 )
                 model.add(norm)
                 model.compile(
@@ -123,6 +132,14 @@ class BatchNormalizationTest(test_combinations.TestCase):
                 np.testing.assert_allclose(
                     np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1
                 )
+
+    @test_combinations.run_all_keras_modes
+    def test_batchnorm_convnet(self):
+        self._test_batchnorm_convnet(synchronized=False)
+
+    @test_combinations.run_all_keras_modes
+    def test_batchnorm_convnet_synchronized(self):
+        self._test_batchnorm_convnet(synchronized=True)
 
     @test_combinations.run_all_keras_modes
     def test_batchnorm_convnet_channel_last(self):
@@ -154,6 +171,11 @@ class BatchNormalizationTest(test_combinations.TestCase):
         )
         _run_batchnorm_correctness_test(
             batch_normalization.BatchNormalization, dtype="float32"
+        )
+        _run_batchnorm_correctness_test(
+            batch_normalization.BatchNormalization,
+            dtype="float32",
+            synchronized=True,
         )
 
     @test_combinations.run_all_keras_modes
@@ -224,6 +246,26 @@ class BatchNormalizationTest(test_combinations.TestCase):
         )
         train_loss = model.train_on_batch(test_data, test_targets)
         self.assertAlmostEqual(test_loss, train_loss)
+
+    @test_combinations.run_all_keras_modes
+    def test_batchnorm_ignore_masked_values(self):
+        padded_data = np.array(
+            [[[1, 5], [2, 5], [0, 0], [0, 0]] for _ in range(10)],
+            dtype="float32",
+        )  # Pad value of 0
+
+        inputs = keras.layers.Input((None, 2))
+        masked = keras.layers.Masking()(inputs)
+        normed = keras.layers.BatchNormalization(momentum=0.0)(masked)
+        model = keras.models.Model(inputs, normed)
+        model.compile(
+            "rmsprop", "mse", run_eagerly=test_utils.should_run_eagerly()
+        )
+
+        model.fit(x=padded_data, y=padded_data, batch_size=10, epochs=5)
+
+        self.assertAllEqual(model.layers[2].moving_mean, [1.5, 5.0])
+        self.assertAllEqual(model.layers[2].moving_variance, [0.25, 0.0])
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_eager_batchnorm_in_custom_model_call_with_tf_function(self):
@@ -408,11 +450,20 @@ class BatchNormalizationV2Test(test_combinations.TestCase):
         wrapped_fn()
 
     @test_combinations.run_all_keras_modes
-    def test_basic_batchnorm_v2_none_shape_and_virtual_batch_size(self):
+    @test_utils.run_v2_only
+    def test_basic_batchnorm_v2_input_shape_and_virtual_batch_size(self):
         # Test case for GitHub issue for 32380
         norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
         inp = keras.layers.Input(shape=(None, None, 3))
         _ = norm(inp)
+
+        # Test case for https://github.com/tensorflow/tensorflow/issues/23050
+        norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
+        _ = norm(np.ones((1, 28, 28)))
+
+        with self.assertRaisesRegex(Exception, "Reshape"):
+            norm = batch_normalization.BatchNormalization(virtual_batch_size=8)
+            _ = norm(np.ones((1, 28, 28)), training=True)
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_fused_batchnorm_empty_batch(self):
@@ -442,10 +493,12 @@ class BatchNormalizationV2Test(test_combinations.TestCase):
         self.assertAllEqual(layer.beta, tape_vars[1])
 
 
-def _run_batchnorm_correctness_test(layer, dtype="float32", fused=False):
+def _run_batchnorm_correctness_test(
+    layer, dtype="float32", fused=False, synchronized=False
+):
     model = keras.models.Sequential()
     model.add(keras.Input(shape=(2, 2, 2), dtype=dtype))
-    norm = layer(momentum=0.8, fused=fused)
+    norm = layer(momentum=0.8, fused=fused, synchronized=synchronized)
     model.add(norm)
     if dtype == "float16":
         # Keras models require float32 losses.
@@ -549,7 +602,7 @@ class NormalizationLayersGraphModeOnlyTest(
             self.assertAllClose(x1, x2, atol=1e-7)
 
     def test_batchnorm_trainable(self, layer):
-        """Tests that batchnorm layer is trainable when learning phase is enabled.
+        """Tests that batchnorm layer is trainable when learning phase enabled.
 
         Computes mean and std for current inputs then
         applies batch normalization using them.

@@ -292,9 +292,7 @@ class TFOpLambda(Layer):
             v for v in created_variables if v.ref() not in tracked_weights
         ]
         if untracked_new_vars:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_new_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_new_vars)
             raise ValueError(
                 "The following Variables were created within a Lambda layer "
                 f"({self.name}) but are not tracked by said layer: "
@@ -311,9 +309,7 @@ class TFOpLambda(Layer):
             v for v in accessed_variables if v.ref() not in tracked_weights
         ]
         if untracked_used_vars and not self._already_warned:
-            variable_str = "\n".join(
-                "  {}".format(i) for i in untracked_used_vars
-            )
+            variable_str = "\n".join(f"  {i}" for i in untracked_used_vars)
             self._warn(
                 "The following Variables were used in a Lambda layer's call "
                 f"({self.name}), but are not present in its tracked objects: "

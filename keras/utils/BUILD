@@ -5,11 +5,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
-    default_visibility = [
-        "//keras:friends",
-        "//third_party/tensorflow/python/feature_column:__pkg__",
-        "//third_party/tensorflow/tools/pip_package:__pkg__",
-    ],
+    default_visibility = ["//keras:friends"],
     licenses = ["notice"],
 )
 
@@ -17,16 +13,19 @@ py_library(
     name = "utils",
     srcs = [
         "__init__.py",
+        "legacy/__init__.py",
     ],
     srcs_version = "PY3",
     deps = [
         ":audio_dataset",
         ":data_utils",
+        ":feature_space",
         ":generic_utils",
         ":image_dataset",
         ":image_utils",
         ":layer_utils",
         ":np_utils",
+        ":sidecar_evaluator",
         ":text_dataset",
         ":timeseries_dataset",
         ":vis_utils",
@@ -299,6 +298,42 @@ py_library(
     ],
 )
 
+py_library(
+    name = "sidecar_evaluator",
+    srcs = ["sidecar_evaluator.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorboard_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+py_library(
+    name = "feature_space",
+    srcs = ["feature_space.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras:backend",
+        "//keras/layers",
+    ],
+)
+
+tf_py_test(
+    name = "sidecar_evaluator_test",
+    size = "medium",
+    srcs = ["sidecar_evaluator_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":sidecar_evaluator",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
 tf_py_test(
     name = "dataset_creator_test",
     srcs = ["dataset_creator_test.py"],
@@ -447,6 +482,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -592,6 +628,20 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":audio_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "feature_space_test",
+    size = "medium",
+    srcs = ["feature_space_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":feature_space",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",

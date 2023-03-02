@@ -20,7 +20,7 @@ from absl.testing import parameterized
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
 from keras.mixed_precision import policy as mp_policy
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -61,7 +61,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
             "_infer",
         ):
             self.assertEqual(
-                repr(mp_policy.Policy(policy)), '<Policy "%s">' % policy
+                repr(mp_policy.Policy(policy)), f'<Policy "{policy}">'
             )
 
     @test_utils.enable_v2_dtype_behavior
@@ -241,13 +241,35 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
             MyPolicy("float32"),
         ):
             config = mp_policy.serialize(policy)
-            self.assertEqual(
-                config,
-                {
-                    "class_name": policy.__class__.__name__,
-                    "config": {"name": policy.name},
-                },
-            )
+            if tf.__internal__.tf2.enabled():
+                if policy.name == "float32":
+                    self.assertEqual(
+                        config,
+                        {
+                            "module": None,
+                            "class_name": policy.__class__.__name__,
+                            "config": {"name": policy.name},
+                            "registered_name": "MyPolicy",
+                        },
+                    )
+                else:
+                    self.assertEqual(
+                        config,
+                        {
+                            "module": "keras.mixed_precision",
+                            "class_name": policy.__class__.__name__,
+                            "config": {"name": policy.name},
+                            "registered_name": None,
+                        },
+                    )
+            else:
+                self.assertEqual(
+                    config,
+                    {
+                        "class_name": policy.__class__.__name__,
+                        "config": {"name": policy.name},
+                    },
+                )
             new_policy = mp_policy.deserialize(
                 config, custom_objects={"MyPolicy": MyPolicy}
             )

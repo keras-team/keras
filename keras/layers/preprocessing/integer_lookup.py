@@ -375,14 +375,14 @@ class IntegerLookup(index_lookup.IndexLookup):
         # are creating a 0-element vocab, which doesn't make sense.
         if max_tokens is not None and max_tokens <= 1:
             raise ValueError(
-                f"If `max_tokens` is set for `IntegerLookup`, it must be "
+                "If `max_tokens` is set for `IntegerLookup`, it must be "
                 f"greater than 1. Received: max_tokens={max_tokens}."
             )
 
         if num_oov_indices < 0:
             raise ValueError(
-                f"The value of `num_oov_indices` argument for `IntegerLookup` "
-                f"must >= 0. Received num_oov_indices="
+                "The value of `num_oov_indices` argument for `IntegerLookup` "
+                "must >= 0. Received num_oov_indices="
                 f"{num_oov_indices}."
             )
 

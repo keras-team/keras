@@ -140,10 +140,7 @@ def result_wrapper(result_fn):
                 if isinstance(raw_result, (tf.Tensor, tf.Variable, float, int)):
                     result_t = tf.identity(raw_result)
                 elif isinstance(raw_result, dict):
-                    result_t = {
-                        key: tf.identity(value)
-                        for key, value in raw_result.items()
-                    }
+                    result_t = tf.nest.map_structure(tf.identity, raw_result)
                 else:
                     try:
                         result_t = tf.identity(raw_result)
@@ -174,7 +171,7 @@ def result_wrapper(result_fn):
                 # Wrapping result in identity so that control dependency between
                 # update_op from `update_state` and result works in case result
                 # returns a tensor.
-                return tf.identity(result)
+                return tf.nest.map_structure(tf.identity, result)
 
             # Wrapping result in merge_call. merge_call is used when we want to
             # leave replica mode and compute a value in cross replica mode.
@@ -213,7 +210,7 @@ def assert_thresholds_range(thresholds):
         ]
         if invalid_thresholds:
             raise ValueError(
-                f"Threshold values must be in [0, 1]. "
+                "Threshold values must be in [0, 1]. "
                 f"Received: {invalid_thresholds}"
             )
 
@@ -457,10 +454,10 @@ def _update_confusion_matrix_variables_optimized(
             )
 
         tp_bucket_v = tf.vectorized_map(
-            gather_bucket, (true_labels, bucket_indices)
+            gather_bucket, (true_labels, bucket_indices), warn=False
         )
         fp_bucket_v = tf.vectorized_map(
-            gather_bucket, (false_labels, bucket_indices)
+            gather_bucket, (false_labels, bucket_indices), warn=False
         )
         tp = tf.transpose(tf.cumsum(tp_bucket_v, reverse=True, axis=1))
         fp = tf.transpose(tf.cumsum(fp_bucket_v, reverse=True, axis=1))
@@ -676,8 +673,9 @@ def update_confusion_matrix_variables(
     if top_k is not None:
         y_pred = _filter_top_k(y_pred, top_k)
     if class_id is not None:
-        y_true = y_true[..., class_id]
-        y_pred = y_pred[..., class_id]
+        # Preserve dimension to match with sample_weight
+        y_true = y_true[..., class_id, None]
+        y_pred = y_pred[..., class_id, None]
 
     if thresholds_distributed_evenly:
         return _update_confusion_matrix_variables_optimized(

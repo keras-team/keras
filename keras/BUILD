@@ -4,13 +4,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
-    default_visibility = [
-        ":friends",
-        "//third_party/py/tensorflow:__subpackages__",
-        "//third_party/tensorflow/python/feature_column:__subpackages__",  # For unit test
-        "//third_party/tensorflow/python/tpu:__subpackages__",  # For unit test
-        "//third_party/tensorflow_estimator:__subpackages__",
-    ],
+    default_visibility = [":friends"],
     licenses = ["notice"],
 )
 
@@ -64,7 +58,6 @@ py_library(
         "//keras/testing_infra:keras_doctest_lib",
         "//keras/testing_infra:test_utils",  # For keras.__internal__ API
         "//keras/utils",
-        "//keras/wrappers",
     ],
 )
 
@@ -183,7 +176,7 @@ py_library(
     deps = [
         ":backend",
         "//:expect_tensorflow_installed",
-        "//keras/saving/experimental",
+        "//keras/saving:saving_lib",
         "//keras/utils:engine_utils",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
@@ -278,6 +271,7 @@ tf_py_test(
     size = "small",
     srcs = ["losses_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "noasan",  # b/186128525
     ],

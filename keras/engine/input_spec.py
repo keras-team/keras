@@ -126,7 +126,7 @@ class InputSpec:
             ("min_ndim=" + str(self.min_ndim)) if self.min_ndim else "",
             ("axes=" + str(self.axes)) if self.axes else "",
         ]
-        return "InputSpec(%s)" % ", ".join(x for x in spec if x)
+        return f"InputSpec({', '.join(x for x in spec if x)})"
 
     def get_config(self):
         return {
@@ -210,7 +210,10 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
         # invalid type we are guarding for is a Layer instance (Functional API),
         # which does not have a `shape` attribute.
         if not hasattr(x, "shape"):
-            raise TypeError(f"Inputs to a layer should be tensors. Got: {x}")
+            raise TypeError(
+                f"Inputs to a layer should be tensors. Got '{x}' "
+                f"(of type {type(x)}) as input for layer '{layer_name}'."
+            )
 
     if len(inputs) != len(input_spec):
         raise ValueError(

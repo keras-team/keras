@@ -28,7 +28,7 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.engine import sequential
 from keras.engine import training as training_lib
-from keras.saving import save
+from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import layer_utils
@@ -897,13 +897,10 @@ class NetworkConstructionTest(test_combinations.TestCase):
         # See https://github.com/keras-team/keras/issues/14838.
         inp = input_layer_lib.Input(shape=[5], name="main_input")
 
-        zeros = layers.Lambda(tf.zeros_like, name="generate_zeros")(inp)
-        ones = layers.Lambda(tf.ones_like, name="generate_ones")(inp)
-
         shared_layer = layers.Layer(name="shared")
 
-        ones_result = shared_layer(ones)
-        zeros_result = shared_layer(zeros)
+        ones_result = shared_layer(tf.ones_like(inp))
+        zeros_result = shared_layer(tf.zeros_like(inp))
         zeros_result = layers.Layer(name="blank")(zeros_result)
 
         m = training_lib.Model(
@@ -1702,7 +1699,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1739,7 +1736,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)
@@ -1772,7 +1769,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         self.assertTrue(model.built, "Model should be built")
         self.assertTrue(
             model.weights,
-            "Model should have its weights created as it " "has been built",
+            "Model should have its weights created as it has been built",
         )
         sample_input = tf.ones((1, 10, 10, 1))
         output = model(sample_input)

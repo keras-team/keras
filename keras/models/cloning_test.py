@@ -320,7 +320,7 @@ class TestModelCloning(test_combinations.TestCase):
         model = keras.Model(inputs=inputs, outputs=outputs)
         model.compile(
             loss=keras.losses.CategoricalCrossentropy(),
-            optimizer=keras.optimizers.optimizer_v2.rmsprop.RMSprop(lr=0.01),
+            optimizer=keras.optimizers.legacy.rmsprop.RMSprop(lr=0.01),
             metrics=["accuracy"],
         )
         keras.models.clone_model(model)
@@ -524,7 +524,7 @@ class TestCloneAndBuildModel(test_combinations.TestCase):
             model.optimizer,
             (
                 optimizer_v1.RMSprop,
-                keras.optimizers.optimizer_v2.rmsprop.RMSprop,
+                keras.optimizers.legacy.rmsprop.RMSprop,
             ),
         )
 
@@ -636,7 +636,7 @@ class TestCloneAndBuildModel(test_combinations.TestCase):
         with tf.Graph().as_default():
             with self.session():
                 model = test_utils.get_small_sequential_mlp(3, 4)
-                optimizer = keras.optimizers.optimizer_v2.adam.Adam()
+                optimizer = keras.optimizers.legacy.adam.Adam()
                 model.compile(
                     optimizer,
                     "mse",

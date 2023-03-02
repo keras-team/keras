@@ -1,7 +1,7 @@
 path: "tensorflow.keras.__internal__.layers"
 tf_module {
   member {
-    name: "BaseImageAugmentationLayer"
+    name: "BaseDenseAttention"
     mtype: "<type \'type\'>"
   }
   member {

@@ -65,7 +65,7 @@ def get_model(sync_batchnorm=False):
         )
     )
     if sync_batchnorm:
-        model.add(keras.layers.SyncBatchNormalization())
+        model.add(keras.layers.BatchNormalization(synchronized=True))
     else:
         model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dense(10, activation="relu"))
@@ -359,7 +359,7 @@ class TestDistributionStrategyDnnCorrectness(
         )
     )
     def test_fused_batch_norm_uneven_batch(self, distribution):
-        """Test that fused batch norm works when the last device may get empty data.
+        """Test that fused BN works when the last device gets empty data.
 
         Adapted from
         https://www.tensorflow.org/tutorials/distribute/custom_training
@@ -368,6 +368,7 @@ class TestDistributionStrategyDnnCorrectness(
         Arguments:
           distribution: distribute test configuration
         """
+        self.skipTest("TODO(b/234354008): Requires fetching data from network.")
         (train_images, train_labels), _ = fashion_mnist.load_data()
         # add channel dimension to make 2D data into 3D, since some ops of the
         # model require it.
@@ -442,7 +443,7 @@ class TestDistributionStrategyDnnCorrectness(
 
             model = create_model()
 
-            optimizer = optimizers.adam_v2.Adam()
+            optimizer = optimizers.adam_legacy.Adam()
 
         def train_step(inputs):
             images, labels = inputs

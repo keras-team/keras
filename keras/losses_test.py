@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for Keras loss functions."""
 
+import warnings
+
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
@@ -1793,6 +1795,19 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         # sum([0.0018*1.2, 0.0004*3.4, 0.1698*5.6]) / 3
         loss = cce_obj(y_true, logits, sample_weight=sample_weight)
         self.assertAlmostEqual(self.evaluate(loss), 0.3181, 3)
+
+    def test_binary_labels(self):
+        # raise a warning if the shape of y_true and y_pred are all (None, 1).
+        # categorical_crossentropy shouldn't be used with binary labels.
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cce_obj = losses.CategoricalCrossentropy()
+            cce_obj(tf.constant([[1.0], [0.0]]), tf.constant([[1.0], [1.0]]))
+            self.assertIs(w[-1].category, SyntaxWarning)
+            self.assertIn(
+                "In loss categorical_crossentropy, expected ",
+                str(w[-1].message),
+            )
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

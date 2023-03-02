@@ -764,13 +764,13 @@ class NumpyArrayIterator(Iterator):
         channels_axis = 3 if data_format == "channels_last" else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             warnings.warn(
-                "NumpyArrayIterator is set to use the "
-                'data format convention "' + data_format + '" '
-                "(channels on axis "
+                'NumpyArrayIterator is set to use the data format convention "'
+                + data_format
+                + '" (channels on axis '
                 + str(channels_axis)
-                + "), i.e. expected either 1, 3, or 4 "
-                "channels on axis " + str(channels_axis) + ". "
-                "However, it was passed an array with shape "
+                + "), i.e. expected either 1, 3, or 4 channels on axis "
+                + str(channels_axis)
+                + ". However, it was passed an array with shape "
                 + str(self.x.shape)
                 + " ("
                 + str(self.x.shape[channels_axis])
@@ -841,7 +841,7 @@ def validate_filename(filename, white_list_formats):
 
 
 class DataFrameIterator(BatchFromFilesMixin, Iterator):
-    """Iterator capable of reading images from a directory on disk as a dataframe.
+    """Iterator capable of reading images from a directory as a dataframe.
 
     Args:
         dataframe: Pandas dataframe containing the filepaths relative to
@@ -1028,7 +1028,7 @@ class DataFrameIterator(BatchFromFilesMixin, Iterator):
         # check that filenames/filepaths column values are all strings
         if not all(df[x_col].apply(lambda x: isinstance(x, str))):
             raise TypeError(
-                "All values in column x_col={} must be strings.".format(x_col)
+                f"All values in column x_col={x_col} must be strings."
             )
         # check labels are string if class_mode is binary or sparse
         if self.class_mode in {"binary", "sparse"}:
@@ -1075,9 +1075,7 @@ class DataFrameIterator(BatchFromFilesMixin, Iterator):
             )
         # check that if weight column that the values are numerical
         if weight_col and not issubclass(df[weight_col].dtype.type, np.number):
-            raise TypeError(
-                "Column weight_col={} must be numeric.".format(weight_col)
-            )
+            raise TypeError(f"Column weight_col={weight_col} must be numeric.")
 
     def get_classes(self, df, y_col):
         labels = []
@@ -2087,8 +2085,8 @@ class ImageDataGenerator:
         x = np.asarray(x, dtype=self.dtype)
         if x.ndim != 4:
             raise ValueError(
-                "Input to `.fit()` should have rank 4. "
-                "Got array with shape: " + str(x.shape)
+                "Input to `.fit()` should have rank 4. Got array with shape: "
+                + str(x.shape)
             )
         if x.shape[self.channel_axis] not in {1, 3, 4}:
             warnings.warn(
@@ -2097,11 +2095,9 @@ class ImageDataGenerator:
                 + self.data_format
                 + '" (channels on axis '
                 + str(self.channel_axis)
-                + "), i.e. expected "
-                "either 1, 3 or 4 channels on axis "
+                + "), i.e. expected either 1, 3 or 4 channels on axis "
                 + str(self.channel_axis)
-                + ". "
-                "However, it was passed an array with shape "
+                + ". However, it was passed an array with shape "
                 + str(x.shape)
                 + " ("
                 + str(x.shape[self.channel_axis])
@@ -2347,8 +2343,8 @@ def random_zoom(
     """
     if len(zoom_range) != 2:
         raise ValueError(
-            "`zoom_range` should be a tuple or list of two"
-            " floats. Received: %s" % (zoom_range,)
+            "`zoom_range` should be a tuple or list of two floats. Received: %s"
+            % (zoom_range,)
         )
 
     if zoom_range[0] == 1 and zoom_range[1] == 1:
@@ -2425,7 +2421,7 @@ def apply_brightness_shift(x, brightness, scale=True):
     """
     if ImageEnhance is None:
         raise ImportError(
-            "Using brightness shifts requires PIL. " "Install PIL or Pillow."
+            "Using brightness shifts requires PIL. Install PIL or Pillow."
         )
     x_min, x_max = np.min(x), np.max(x)
     local_scale = (x_min < 0) or (x_max > 255)
@@ -2527,16 +2523,14 @@ def apply_affine_transform(
         ImportError: if SciPy is not available.
     """
     if scipy is None:
-        raise ImportError(
-            "Image transformations require SciPy. " "Install SciPy."
-        )
+        raise ImportError("Image transformations require SciPy. Install SciPy.")
 
     # Input sanity checks:
     # 1. x must 2D image with one or more channels (i.e., a 3D tensor)
     # 2. channels must be either first or last dimension
     if np.unique([row_axis, col_axis, channel_axis]).size != 3:
         raise ValueError(
-            "'row_axis', 'col_axis', and 'channel_axis'" " must be distinct"
+            "'row_axis', 'col_axis', and 'channel_axis' must be distinct"
         )
 
     # shall we support negative indices?

@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import model_collection_base
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 
 _BATCH_SIZE = 10
 

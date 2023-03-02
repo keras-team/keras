@@ -7,6 +7,8 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 package(
     default_visibility = [
         "//keras:friends",
+        "//learning/brain/distribute/experimental/auto_distribute:__pkg__",
+        "//learning/brain/distribute/python:__subpackages__",
         "//learning/brain/experimental/dtensor/models:__subpackages__",
     ],
     licenses = ["notice"],
@@ -128,7 +130,7 @@ py_library(
     deps = [
         ":dtensor",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_experimental:optimizer",
+        "//keras/optimizers",
         "//keras/optimizers/schedules:learning_rate_schedule",
     ],
 )
@@ -138,10 +140,14 @@ tf_py_test(
     srcs = ["optimizers_test.py"],
     deps = [
         ":dtensor",
+        ":layout_map",
         ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:losses",
+        "//keras/layers",
+        "//keras/models",
     ],
 )
 
@@ -183,5 +189,20 @@ py_library(
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "save_load_test",
+    srcs = ["save_load_test.py"],
+    deps = [
+        ":dtensor",
+        ":layout_map",
+        ":test_util",
+        "//keras",
+        "//keras:backend",
+        "//keras/layers",
+        "//keras/models",
+        "//keras/utils:tf_utils",
     ],
 )

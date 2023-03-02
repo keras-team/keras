@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
 jobs:
   lint:
     name: Check the code format
@@ -25,6 +28,6 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt && pip uninstall keras-nightly -y
+          pip install black==22.3.0 isort==5.10.1 flake8==4.0.1
       - name: Lint the code
         run: sh shell/lint.sh

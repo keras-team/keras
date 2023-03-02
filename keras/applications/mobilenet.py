@@ -74,7 +74,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_PATH = (
-    "https://storage.googleapis.com/tensorflow/" "keras-applications/mobilenet/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/mobilenet/"
 )
 layers = None
 
@@ -302,7 +302,7 @@ def MobileNet(
         inputs = img_input
 
     # Create model.
-    model = training.Model(inputs, x, name="mobilenet_%0.2f_%s" % (alpha, rows))
+    model = training.Model(inputs, x, name=f"mobilenet_{alpha:0.2f}_{rows}")
 
     # Load weights.
     if weights == "imagenet":

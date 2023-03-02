@@ -248,12 +248,12 @@ class CustomMnistBenchmark(tf.test.Benchmark):
 
         if not isinstance(loss_fn, tf.keras.losses.Loss):
             raise ValueError(
-                "`tf.keras.losses.Loss` instance " "for loss_fn is required."
+                "`tf.keras.losses.Loss` instance for loss_fn is required."
             )
 
         if not isinstance(optimizer, tf.keras.optimizers.Optimizer):
             raise ValueError(
-                "`tf.keras.optimizers` instance " "for optimizer is required."
+                "`tf.keras.optimizers` instance for optimizer is required."
             )
 
         avg_epoch_time_list, train_step_time_list = [], []

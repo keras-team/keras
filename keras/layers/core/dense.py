@@ -72,31 +72,31 @@ class Dense(Layer):
     (None, 32)
 
     Args:
-      units: Positive integer, dimensionality of the output space.
-      activation: Activation function to use.
-        If you don't specify anything, no activation is applied
-        (ie. "linear" activation: `a(x) = x`).
-      use_bias: Boolean, whether the layer uses a bias vector.
-      kernel_initializer: Initializer for the `kernel` weights matrix.
-      bias_initializer: Initializer for the bias vector.
-      kernel_regularizer: Regularizer function applied to
-        the `kernel` weights matrix.
-      bias_regularizer: Regularizer function applied to the bias vector.
-      activity_regularizer: Regularizer function applied to
-        the output of the layer (its "activation").
-      kernel_constraint: Constraint function applied to
-        the `kernel` weights matrix.
-      bias_constraint: Constraint function applied to the bias vector.
+        units: Positive integer, dimensionality of the output space.
+        activation: Activation function to use.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).
+        use_bias: Boolean, whether the layer uses a bias vector.
+        kernel_initializer: Initializer for the `kernel` weights matrix.
+        bias_initializer: Initializer for the bias vector.
+        kernel_regularizer: Regularizer function applied to
+            the `kernel` weights matrix.
+        bias_regularizer: Regularizer function applied to the bias vector.
+        activity_regularizer: Regularizer function applied to
+            the output of the layer (its "activation").
+        kernel_constraint: Constraint function applied to
+            the `kernel` weights matrix.
+        bias_constraint: Constraint function applied to the bias vector.
 
     Input shape:
-      N-D tensor with shape: `(batch_size, ..., input_dim)`.
-      The most common situation would be
-      a 2D input with shape `(batch_size, input_dim)`.
+        N-D tensor with shape: `(batch_size, ..., input_dim)`.
+        The most common situation would be
+        a 2D input with shape `(batch_size, input_dim)`.
 
     Output shape:
-      N-D tensor with shape: `(batch_size, ..., units)`.
-      For instance, for a 2D input with shape `(batch_size, input_dim)`,
-      the output would have shape `(batch_size, units)`.
+        N-D tensor with shape: `(batch_size, ..., units)`.
+        For instance, for a 2D input with shape `(batch_size, input_dim)`,
+        the output would have shape `(batch_size, units)`.
     """
 
     @utils.allow_initializer_layout
@@ -119,7 +119,7 @@ class Dense(Layer):
         self.units = int(units) if not isinstance(units, int) else units
         if self.units < 0:
             raise ValueError(
-                f"Received an invalid value for `units`, expected "
+                "Received an invalid value for `units`, expected "
                 f"a positive integer. Received: units={units}"
             )
         self.activation = activations.get(activation)

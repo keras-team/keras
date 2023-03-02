@@ -41,6 +41,10 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
+    name: "export"
+    mtype: "<type \'module\'>"
+  }
+  member {
     name: "initializers"
     mtype: "<type \'module\'>"
   }
@@ -77,11 +81,11 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
-    name: "utils"
+    name: "saving"
     mtype: "<type \'module\'>"
   }
   member {
-    name: "wrappers"
+    name: "utils"
     mtype: "<type \'module\'>"
   }
   member_method {

@@ -714,29 +714,30 @@ def MBConvBlock(
 
             x = layers.multiply([x, se], name=name + "se_excite")
 
-            # Output phase
-            x = layers.Conv2D(
-                filters=output_filters,
-                kernel_size=1,
-                strides=1,
-                kernel_initializer=CONV_KERNEL_INITIALIZER,
-                padding="same",
-                data_format="channels_last",
-                use_bias=False,
-                name=name + "project_conv",
-            )(x)
-            x = layers.BatchNormalization(
-                axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
-            )(x)
+        # Output phase
+        x = layers.Conv2D(
+            filters=output_filters,
+            kernel_size=1,
+            strides=1,
+            kernel_initializer=CONV_KERNEL_INITIALIZER,
+            padding="same",
+            data_format="channels_last",
+            use_bias=False,
+            name=name + "project_conv",
+        )(x)
+        x = layers.BatchNormalization(
+            axis=bn_axis, momentum=bn_momentum, name=name + "project_bn"
+        )(x)
 
-            if strides == 1 and input_filters == output_filters:
-                if survival_probability:
-                    x = layers.Dropout(
-                        survival_probability,
-                        noise_shape=(None, 1, 1, 1),
-                        name=name + "drop",
-                    )(x)
-                x = layers.add([x, inputs], name=name + "add")
+        if strides == 1 and input_filters == output_filters:
+            if survival_probability:
+                x = layers.Dropout(
+                    survival_probability,
+                    noise_shape=(None, 1, 1, 1),
+                    name=name + "drop",
+                )(x)
+            x = layers.add([x, inputs], name=name + "add")
+
         return x
 
     return apply
@@ -999,7 +1000,7 @@ def EfficientNetV2(
     b = 0
     blocks = float(sum(args["num_repeat"] for args in blocks_args))
 
-    for (i, args) in enumerate(blocks_args):
+    for i, args in enumerate(blocks_args):
         assert args["num_repeat"] > 0
 
         # Update block input and output filters based on depth multiplier.
@@ -1032,7 +1033,7 @@ def EfficientNetV2(
                 activation=activation,
                 bn_momentum=bn_momentum,
                 survival_probability=drop_connect_rate * b / blocks,
-                name="block{}{}_".format(i + 1, chr(j + 97)),
+                name=f"block{i + 1}{chr(j + 97)}_",
                 **args,
             )(x)
             b += 1

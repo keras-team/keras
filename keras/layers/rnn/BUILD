@@ -180,7 +180,7 @@ py_library(
         "//keras:backend",
         "//keras/engine:base_layer",
         "//keras/engine:input_spec",
-        "//keras/saving/saved_model",
+        "//keras/saving/legacy/saved_model",
         "//keras/utils:generic_utils",
     ],
 )
@@ -414,7 +414,6 @@ cuda_py_test(
     srcs = ["gru_test.py"],
     python_version = "PY3",
     shard_count = 12,
-    tags = ["no_rocm"],
     deps = [
         ":gru_lstm_utils",
         "//:expect_absl_installed",
@@ -501,7 +500,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 12,
     tags = [
-        "no_rocm",
         "notsan",  # TODO(b/170870794)
     ],
     deps = [
@@ -544,7 +542,6 @@ tf_py_test(
     srcs = ["conv_lstm_test.py"],
     python_version = "PY3",
     shard_count = 8,
-    tags = ["no_rocm"],
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
@@ -569,7 +566,7 @@ cuda_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],

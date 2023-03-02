@@ -24,22 +24,19 @@ from absl.testing import parameterized
 from keras import optimizers
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import test_util as mp_test_util
-from keras.optimizers.optimizer_experimental import adam as adam_experimental
-from keras.optimizers.optimizer_experimental import (
-    optimizer as optimizer_experimental,
-)
-from keras.optimizers.optimizer_experimental import sgd as sgd_experimental
-from keras.optimizers.optimizer_v2 import adam
-from keras.optimizers.optimizer_v2 import gradient_descent
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers import adam as adam_experimental
+from keras.optimizers import optimizer as optimizer_experimental
+from keras.optimizers import sgd as sgd_experimental
+from keras.optimizers.legacy import adam
+from keras.optimizers.legacy import gradient_descent
+from keras.optimizers.legacy import optimizer_v2
+from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 # isort: off
 from tensorflow.python.framework import (
     test_util as tf_test_utils,
-)
-from tensorflow.python.keras.optimizer_v2 import (
-    gradient_descent as legacy_sgd,
 )
 from tensorflow.python.platform import tf_logging
 
@@ -742,12 +739,16 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         class MyOptimizer(sgd_experimental.SGD):
             def apply_gradients(
-                self, grads_and_vars, skip_gradients_aggregation=False
+                self,
+                grads_and_vars,
+                skip_gradients_aggregation=False,
+                experimental_aggregate_gradients=True,
             ):
                 for grad, _ in grads_and_vars:
                     outer_self.assertIsInstance(grad, tf.Tensor)
                 return super().apply_gradients(
-                    grads_and_vars, skip_gradients_aggregation
+                    grads_and_vars,
+                    skip_gradients_aggregation=skip_gradients_aggregation,
                 )
 
         with create_mirrored_strategy().scope() as strategy:
@@ -1203,6 +1204,46 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(opt.dynamic_growth_steps, 3.0)
         self.assertEqual(opt.inner_optimizer.my_attribute, 123)
 
+    @test_utils.run_v2_only
+    def testConvertToLegacyOptimizer(self):
+        opt = sgd_experimental.SGD(1.0)
+        opt = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        converted_opt = optimizers.convert_to_legacy_optimizer(opt)
+        self.assertEqual(
+            type(converted_opt), loss_scale_optimizer.LossScaleOptimizer
+        )
+
+        reference_opt = gradient_descent.SGD(1.0)
+        reference_opt = loss_scale_optimizer.BaseLossScaleOptimizer(
+            reference_opt
+        )
+        self.assertEqual(converted_opt.get_config(), reference_opt.get_config())
+
+        # Test with a custom learning rate schedule
+        class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
+            def __init__(self, initial_learning_rate):
+                self.initial_learning_rate = initial_learning_rate
+
+            def __call__(self, step):
+                step = tf.cast(step, tf.float32)
+                return self.initial_learning_rate / (step + 1)
+
+            def get_config(self):
+                return {"initial_learning_rate": self.initial_learning_rate}
+
+        opt = sgd_experimental.SGD(CustomLRSchedule(1.0))
+        opt = loss_scale_optimizer.BaseLossScaleOptimizer(opt)
+        converted_opt = optimizers.convert_to_legacy_optimizer(opt)
+        self.assertEqual(
+            type(converted_opt), loss_scale_optimizer.LossScaleOptimizer
+        )
+
+        reference_opt = gradient_descent.SGD(CustomLRSchedule(1.0))
+        reference_opt = loss_scale_optimizer.BaseLossScaleOptimizer(
+            reference_opt
+        )
+        self.assertEqual(converted_opt.get_config(), reference_opt.get_config())
+
     @test_combinations.generate(opt_combinations_only())
     def testUnsupportedStrategy(self, opt_cls):
         strategy = tf.distribute.experimental.CentralStorageStrategy()
@@ -1280,6 +1321,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 "before",
                 mock_warn.call_args_list[0][0][0],
             )
+
+    @test_combinations.generate(opt_combinations_only())
+    def testScalingNoWarning(self, opt_cls):
+        var = tf.Variable(1.0)
         lso = create_lso(create_sgd(opt_cls))
         with mock.patch.object(tf_logging, "warning") as mock_warn:
             lso.get_scaled_loss(tf.constant(1.0))
@@ -1315,13 +1360,6 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             "`tf.keras.optimizers.experimental.Optimizer`, but got: 1",
         ):
             loss_scale_optimizer.BaseLossScaleOptimizer(1)
-
-    def testErrorWhenWrappingLegacyKerasOptimizers(self):
-        sgd = legacy_sgd.SGD()
-        with self.assertRaisesRegex(
-            TypeError, "not an instance of `tensorflow.python.keras.optimizers`"
-        ):
-            loss_scale_optimizer.BaseLossScaleOptimizer(sgd)
 
     def testErrorWhenV3LsoWrapsV2Optimizer(self):
         sgd = gradient_descent.SGD()

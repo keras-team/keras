@@ -265,8 +265,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_return_state(self):
         num_states = 2
@@ -349,8 +350,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
     @parameterized.named_parameters(("v0", 0), ("v1", 1), ("v2", 2))
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_implementation_mode_LSTM(self, implementation_mode):
         num_samples = 2
@@ -396,8 +398,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_masking_with_stacking_LSTM(self):
         inputs = np.random.random((2, 3, 4))
@@ -532,8 +535,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     def test_statefulness_LSTM(self):
         num_samples = 2
@@ -680,8 +684,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_explicit_device_with_go_backward_and_mask(self):
@@ -691,7 +696,7 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
         units = 4
 
         inputs = np.random.randn(batch_size, timestep, units).astype(np.float32)
-        mask = np.ones((batch_size, timestep)).astype(np.bool)
+        mask = np.ones((batch_size, timestep)).astype(bool)
         mask[:, masksteps:] = 0
 
         lstm_layer = keras.layers.LSTM(
@@ -809,10 +814,11 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
             existing_loss = loss_value
 
         _, runtime_value = model.predict(x_train)
-        if tf.test.is_gpu_available():
-            self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_GPU)
-        else:
-            self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_CPU)
+        if not tf.sysconfig.get_build_info()["is_rocm_build"]:
+            if tf.test.is_gpu_available():
+                self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_GPU)
+            else:
+                self.assertEqual(runtime_value[0], gru_lstm_utils.RUNTIME_CPU)
 
     @test_utils.run_v2_only
     def test_LSTM_runtime(self):
@@ -834,8 +840,9 @@ class LSTMGraphRewriteTest(test_combinations.TestCase):
 
     @tf.test.disable_with_predicate(
         pred=tf.test.is_built_with_rocm,
-        skip_message="Skipping as ROCm MIOpen does not support padded "
-        "input yet.",
+        skip_message=(
+            "Skipping as ROCm MIOpen does not support padded input yet."
+        ),
     )
     @test_utils.run_v2_only
     def test_LSTM_runtime_with_mask(self):
@@ -1405,6 +1412,17 @@ class LSTMLayerTest(test_combinations.TestCase):
         out7 = model.predict(right_padded_input)
 
         self.assertAllClose(out7, out6, atol=1e-5)
+
+    @test_utils.run_v2_only
+    def test_cloned_weight_names(self):
+        inp = keras.Input([None, 3])
+        rnn = keras.layers.LSTM(units=3)
+        model = keras.Model(inp, rnn(inp))
+        clone = keras.models.clone_model(model)
+
+        model_names = [x.name for x in model.weights]
+        clone_names = [x.name for x in clone.weights]
+        self.assertEqual(model_names, clone_names)
 
 
 if __name__ == "__main__":

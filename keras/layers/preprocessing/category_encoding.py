@@ -164,6 +164,7 @@ class CategoryEncoding(base_layer.Layer):
         self.sparse = sparse
 
     def compute_output_shape(self, input_shape):
+        input_shape = list(input_shape)
         if not input_shape:
             return tf.TensorShape([self.num_tokens])
         if self.output_mode == ONE_HOT and input_shape[-1] != 1:

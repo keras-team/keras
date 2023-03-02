@@ -259,9 +259,36 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
             outputs=outputs,
         )
         try:
-            vis_utils.plot_model(
+            vis_utils.model_to_dot(
                 model, show_shapes=True, show_dtype=True, show_layer_names=True
             )
+        except ImportError:
+            pass
+
+    def test_plot_model_with_show_trainable(self):
+        model = keras.Sequential(name="trainable")
+
+        untrained = keras.layers.Conv2D(
+            filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name="conv"
+        )
+        model.add(untrained)
+        model.add(keras.layers.Flatten(name="flat"))
+        model.add(keras.layers.Dense(5, name="dense"))
+
+        # Should display as Non Trainable
+        untrained.trainable = False
+
+        dot_img_file = "model_trainable.png"
+        try:
+            vis_utils.plot_model(
+                model,
+                to_file=dot_img_file,
+                show_shapes=True,
+                show_dtype=True,
+                show_trainable=True,
+            )
+            self.assertTrue(tf.io.gfile.exists(dot_img_file))
+            tf.io.gfile.remove(dot_img_file)
         except ImportError:
             pass
 

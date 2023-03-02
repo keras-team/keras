@@ -86,6 +86,7 @@ def model_to_dot(
     subgraph=False,
     layer_range=None,
     show_layer_activations=False,
+    show_trainable=False,
 ):
     """Convert a Keras model to dot format.
 
@@ -112,6 +113,8 @@ def model_to_dot(
           must be complete.
       show_layer_activations: Display layer activations (only for layers that
           have an `activation` property).
+      show_trainable: whether to display if a layer is trainable. Displays 'T'
+          when the layer is trainable and 'NT' when it is not trainable.
 
     Returns:
       A `pydot.Dot` instance representing the Keras model or
@@ -209,6 +212,8 @@ def model_to_dot(
                     rankdir,
                     expand_nested,
                     subgraph=True,
+                    show_layer_activations=show_layer_activations,
+                    show_trainable=show_trainable,
                 )
                 # sub_w : submodel_wrapper
                 sub_w_nodes = submodel_wrapper.get_nodes()
@@ -216,9 +221,9 @@ def model_to_dot(
                 sub_w_last_node[layer.layer.name] = sub_w_nodes[-1]
                 dot.add_subgraph(submodel_wrapper)
             else:
-                layer_name = "{}({})".format(layer_name, layer.layer.name)
+                layer_name = f"{layer_name}({layer.layer.name})"
                 child_class_name = layer.layer.__class__.__name__
-                class_name = "{}({})".format(class_name, child_class_name)
+                class_name = f"{class_name}({child_class_name})"
 
         if expand_nested and isinstance(layer, functional.Functional):
             submodel_not_wrapper = model_to_dot(
@@ -229,6 +234,8 @@ def model_to_dot(
                 rankdir,
                 expand_nested,
                 subgraph=True,
+                show_layer_activations=show_layer_activations,
+                show_trainable=show_trainable,
             )
             # sub_n : submodel_not_wrapper
             sub_n_nodes = submodel_not_wrapper.get_nodes()
@@ -255,7 +262,7 @@ def model_to_dot(
 
         # Rebuild the label as a table including the layer's name.
         if show_layer_names:
-            label = "%s|%s" % (layer_name, label)
+            label = f"{layer_name}|{label}"
 
         # Rebuild the label as a table including the layer's dtype.
         if show_dtype:
@@ -266,7 +273,7 @@ def model_to_dot(
                 else:
                     return str(dtype)
 
-            label = "%s|%s" % (label, format_dtype(layer.dtype))
+            label = f"{label}|{format_dtype(layer.dtype)}"
 
         # Rebuild the label as a table including input/output shapes.
         if show_shapes:
@@ -275,8 +282,8 @@ def model_to_dot(
                 return (
                     str(shape)
                     .replace(str(None), "None")
-                    .replace("{", "/{")
-                    .replace("}", "/}")
+                    .replace("{", "\{")
+                    .replace("}", "\}")
                 )
 
             try:
@@ -296,6 +303,11 @@ def model_to_dot(
                 inputlabels,
                 outputlabels,
             )
+
+        # Rebuild the label as a table including trainable status
+        if show_trainable:
+            label = f"{'T' if layer.trainable else 'NT'}|{label}"
+
         if not expand_nested or not isinstance(layer, functional.Functional):
             node = pydot.Node(layer_id, label=label)
             dot.add_node(node)
@@ -375,6 +387,7 @@ def plot_model(
     dpi=96,
     layer_range=None,
     show_layer_activations=False,
+    show_trainable=False,
 ):
     """Converts a Keras model to dot format and save to a file.
 
@@ -416,6 +429,8 @@ def plot_model(
         complete.
       show_layer_activations: Display layer activations (only for layers that
         have an `activation` property).
+      show_trainable: whether to display if a layer is trainable. Displays 'T'
+        when the layer is trainable and 'NT' when it is not trainable.
 
     Raises:
       ImportError: if graphviz or pydot are not available.
@@ -458,6 +473,7 @@ def plot_model(
         dpi=dpi,
         layer_range=layer_range,
         show_layer_activations=show_layer_activations,
+        show_trainable=show_trainable,
     )
     to_file = io_utils.path_to_string(to_file)
     if dot is None:

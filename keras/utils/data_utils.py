@@ -28,6 +28,7 @@ import threading
 import time
 import typing
 import urllib
+import warnings
 import weakref
 import zipfile
 from abc import abstractmethod
@@ -102,17 +103,48 @@ def is_generator_or_sequence(x):
     )
 
 
+def _resolve_path(path):
+    return os.path.realpath(os.path.abspath(path))
+
+
+def _is_path_in_dir(path, base_dir):
+    return _resolve_path(os.path.join(base_dir, path)).startswith(base_dir)
+
+
+def _is_link_in_dir(info, base):
+    tip = _resolve_path(os.path.join(base, os.path.dirname(info.name)))
+    return _is_path_in_dir(info.linkname, base_dir=tip)
+
+
+def _filter_safe_paths(members):
+    base_dir = _resolve_path(".")
+    for finfo in members:
+        valid_path = False
+        if _is_path_in_dir(finfo.name, base_dir):
+            valid_path = True
+            yield finfo
+        elif finfo.issym() or finfo.islnk():
+            if _is_link_in_dir(finfo, base_dir):
+                valid_path = True
+                yield finfo
+        if not valid_path:
+            warnings.warn(
+                "Skipping invalid path during archive extraction: "
+                f"'{finfo.name}'."
+            )
+
+
 def _extract_archive(file_path, path=".", archive_format="auto"):
     """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
     Args:
-        file_path: path to the archive file
-        path: path to extract the archive file
+        file_path: Path to the archive file.
+        path: Where to extract the archive file.
         archive_format: Archive format to try for extracting the file.
-            Options are 'auto', 'tar', 'zip', and None.
-            'tar' includes tar, tar.gz, and tar.bz files.
-            The default 'auto' is ['tar', 'zip'].
-            None or an empty list will return no matches found.
+            Options are `'auto'`, `'tar'`, `'zip'`, and `None`.
+            `'tar'` includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is `['tar', 'zip']`.
+            `None` or an empty list will return no matches found.
 
     Returns:
         True if a match was found and an archive extraction was completed,
@@ -139,7 +171,14 @@ def _extract_archive(file_path, path=".", archive_format="auto"):
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
                 try:
-                    archive.extractall(path)
+                    if zipfile.is_zipfile(file_path):
+                        # Zip archive.
+                        archive.extractall(path)
+                    else:
+                        # Tar archive, perhaps unsafe. Filter paths.
+                        archive.extractall(
+                            path, members=_filter_safe_paths(archive)
+                        )
                 except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
@@ -179,9 +218,9 @@ def get_file(
 
     ```python
     path_to_downloaded_file = tf.keras.utils.get_file(
-        "flower_photos",
-        "https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
-        untar=True)
+        origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
+        extract=True,
+    )
     ```
 
     Args:
@@ -211,7 +250,15 @@ def get_file(
             defaults to the default directory `~/.keras/`.
 
     Returns:
-        Path to the downloaded file
+        Path to the downloaded file.
+
+    ⚠️ **Warning on malicious downloads** ⚠️
+
+    Downloading something from the Internet carries a risk.
+    NEVER download a file/archive if you do not trust the source.
+    We recommend that you specify the `file_hash` argument
+    (if the hash of the source file is known) to make sure that the file you
+    are getting is the one you expect.
     """
     if origin is None:
         raise ValueError(
@@ -260,7 +307,7 @@ def get_file(
                 io_utils.print_msg(
                     "A local file was found, but it seems to be "
                     f"incomplete or outdated because the {hash_algorithm} "
-                    f"file hash does not match the original value of "
+                    "file hash does not match the original value of "
                     f"{file_hash} "
                     "so we will re-download the data."
                 )
@@ -284,11 +331,15 @@ def get_file(
                         total_size = None
                     self.progbar = Progbar(total_size)
                 current = block_num * block_size
-                if current < total_size:
+
+                if total_size is None:
                     self.progbar.update(current)
-                elif not self.finished:
-                    self.progbar.update(self.progbar.target)
-                    self.finished = True
+                else:
+                    if current < total_size:
+                        self.progbar.update(current)
+                    elif not self.finished:
+                        self.progbar.update(self.progbar.target)
+                        self.finished = True
 
         error_msg = "URL fetch failure on {}: {} -- {}"
         try:
@@ -309,9 +360,9 @@ def get_file(
         if os.path.exists(fpath) and file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
                 raise ValueError(
-                    f"Incomplete or corrupted file detected. "
+                    "Incomplete or corrupted file detected. "
                     f"The {hash_algorithm} "
-                    f"file hash does not match the provided value "
+                    "file hash does not match the provided value "
                     f"of {file_hash}."
                 )
 
@@ -353,13 +404,13 @@ def _hash_file(fpath, algorithm="sha256", chunk_size=65535):
     ```
 
     Args:
-        fpath: path to the file being validated
-        algorithm: hash algorithm, one of `'auto'`, `'sha256'`, or `'md5'`.
+        fpath: Path to the file being validated.
+        algorithm: Hash algorithm, one of `'auto'`, `'sha256'`, or `'md5'`.
             The default `'auto'` detects the hash algorithm in use.
         chunk_size: Bytes to read at a time, important for large files.
 
     Returns:
-        The file hash
+        The file hash.
     """
     if isinstance(algorithm, str):
         hasher = _resolve_hasher(algorithm)
@@ -443,15 +494,14 @@ class Sequence:
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
-    If you want to modify your dataset between epochs you may implement
-    `on_epoch_end`.
-    The method `__getitem__` should return a complete batch.
+    If you want to modify your dataset between epochs, you may implement
+    `on_epoch_end`. The method `__getitem__` should return a complete batch.
 
     Notes:
 
-    `Sequence` are a safer way to do multiprocessing. This structure guarantees
-    that the network will only train once
-     on each sample per epoch which is not the case with generators.
+    `Sequence` is a safer way to do multiprocessing. This structure guarantees
+    that the network will only train once on each sample per epoch, which is not
+    the case with generators.
 
     Examples:
 
@@ -474,10 +524,12 @@ class Sequence:
             return math.ceil(len(self.x) / self.batch_size)
 
         def __getitem__(self, idx):
-            batch_x = self.x[idx * self.batch_size:(idx + 1) *
-            self.batch_size]
-            batch_y = self.y[idx * self.batch_size:(idx + 1) *
-            self.batch_size]
+            low = idx * self.batch_size
+            # Cap upper bound at array length; the last batch may be smaller
+            # if the total number of items is not a multiple of batch size.
+            high = min(low + self.batch_size, len(self.x))
+            batch_x = self.x[low:high]
+            batch_y = self.y[low:high]
 
             return np.array([
                 resize(imread(file_name), (200, 200))
@@ -836,7 +888,7 @@ def init_pool_generator(gens, random_seed=None, id_queue=None):
 
     # name isn't used for anything, but setting a more descriptive name is
     # helpful when diagnosing orphaned processes.
-    worker_proc.name = "Keras_worker_{}".format(worker_proc.name)
+    worker_proc.name = f"Keras_worker_{worker_proc.name}"
 
     if random_seed is not None:
         np.random.seed(random_seed + worker_proc.ident)
@@ -986,22 +1038,22 @@ def pad_sequences(
     default.
 
     >>> sequence = [[1], [2, 3], [4, 5, 6]]
-    >>> tf.keras.preprocessing.sequence.pad_sequences(sequence)
+    >>> tf.keras.utils.pad_sequences(sequence)
     array([[0, 0, 1],
            [0, 2, 3],
            [4, 5, 6]], dtype=int32)
 
-    >>> tf.keras.preprocessing.sequence.pad_sequences(sequence, value=-1)
+    >>> tf.keras.utils.pad_sequences(sequence, value=-1)
     array([[-1, -1,  1],
            [-1,  2,  3],
            [ 4,  5,  6]], dtype=int32)
 
-    >>> tf.keras.preprocessing.sequence.pad_sequences(sequence, padding='post')
+    >>> tf.keras.utils.pad_sequences(sequence, padding='post')
     array([[1, 0, 0],
            [2, 3, 0],
            [4, 5, 6]], dtype=int32)
 
-    >>> tf.keras.preprocessing.sequence.pad_sequences(sequence, maxlen=2)
+    >>> tf.keras.utils.pad_sequences(sequence, maxlen=2)
     array([[0, 1],
            [2, 3],
            [5, 6]], dtype=int32)

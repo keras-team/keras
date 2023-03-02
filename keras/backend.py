@@ -31,6 +31,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend_config
 from keras.distribute import distribute_coordinator_utils as dc
+from keras.dtensor import dtensor_api as dtensor
 from keras.engine import keras_tensor
 from keras.utils import control_flow_util
 from keras.utils import object_identity
@@ -347,10 +348,9 @@ def learning_phase():
             # subgraph.
             if context.executing_eagerly():
                 if _DUMMY_EAGER_GRAPH.key not in _GRAPH_LEARNING_PHASES:
-                    phase = _default_learning_phase()
-                    _internal_set_learning_phase(_DUMMY_EAGER_GRAPH.key, phase)
-                    _DUMMY_EAGER_GRAPH.learning_phase_is_set = True
-                return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
+                    return _default_learning_phase()
+                else:
+                    return _internal_get_learning_phase(_DUMMY_EAGER_GRAPH.key)
             else:
                 learning_phase = symbolic_learning_phase()
     _mark_func_graph_as_unsaveable(graph, learning_phase)
@@ -362,7 +362,7 @@ def global_learning_phase_is_set():
 
 
 def _mark_func_graph_as_unsaveable(graph, learning_phase):
-    """Mark func graph as unsaveable due to use of symbolic keras learning phase.
+    """Mark graph as unsaveable due to use of symbolic keras learning phase.
 
     Functions that capture the symbolic learning phase cannot be exported to
     SavedModel. Mark the funcgraph as unsaveable, so that an error will be
@@ -689,7 +689,7 @@ def _current_graph(op_input_list, graph=None):
 
     op_input_list = tuple(op_input_list)  # Handle generators correctly
     if graph and not isinstance(graph, tf.Graph):
-        raise TypeError("Input graph needs to be a Graph: %s" % (graph,))
+        raise TypeError(f"Input graph needs to be a Graph: {graph}")
 
     # 1. We validate that all of the inputs are from the same graph. This is
     #    either the supplied graph parameter, or the first one selected from one
@@ -718,7 +718,7 @@ def _current_graph(op_input_list, graph=None):
                 _assert_same_graph(original_graph_element, graph_element)
             elif graph_element.graph is not graph:
                 raise ValueError(
-                    "%s is not from the passed-in graph." % graph_element
+                    f"{graph_element} is not from the passed-in graph."
                 )
 
     # 2. If all else fails, we use the default graph, which is always there.
@@ -915,7 +915,7 @@ def _get_current_tf_device():
 
 
 def _is_current_explicit_device(device_type):
-    """Check if the current device is explicitly set on the device type specified.
+    """Check if the current device is explicitly set to `device_type`.
 
     Args:
         device_type: A string containing `GPU` or `CPU` (case-insensitive).
@@ -1179,7 +1179,7 @@ def unique_object_name(
     zero_based=False,
     avoid_observed_names=False,
 ):
-    """Makes a object name (or arbitrary string) unique within a TensorFlow graph.
+    """Makes a object name (or any string) unique within a Keras session.
 
     Args:
       name: String name to make unique.
@@ -1470,7 +1470,10 @@ def is_placeholder(x):
         if tf.compat.v1.executing_eagerly_outside_functions():
             return hasattr(x, "_is_backend_placeholder")
 
-        if tf_utils.is_extension_type(x):
+        # TODO(b/246438937): Remove the special case for tf.Variable once
+        # tf.Variable becomes CompositeTensor and will be expanded into
+        # dt_resource tensors.
+        if tf_utils.is_extension_type(x) and not isinstance(x, tf.Variable):
             flat_components = tf.nest.flatten(x, expand_composites=True)
             return py_any(is_placeholder(c) for c in flat_components)
         else:
@@ -1508,7 +1511,7 @@ def shape(x):
 @keras_export("keras.backend.int_shape")
 @doc_controls.do_not_generate_docs
 def int_shape(x):
-    """Returns the shape of tensor or variable as a tuple of int or None entries.
+    """Returns shape of tensor/variable as a tuple of int/None entries.
 
     Args:
         x: Tensor or variable.
@@ -1823,7 +1826,7 @@ _USE_GENERATOR_FOR_RNG = False
 # way, so that each client of the program could start with same seed. This is
 # very important for certain use case that requires all the client to have their
 # state in sync. This instance will be set when user call
-# `tf.keras.util.set_random_seed()`
+# `tf.keras.utils.set_random_seed()`
 _SEED_GENERATOR = threading.local()
 
 
@@ -1974,7 +1977,9 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         elif self._rng_type == self.RNG_STATEFUL:
             with tf_utils.maybe_init_scope(self):
                 seed = self._create_seed(self._seed)
-                self._generator = tf.random.Generator.from_seed(seed)
+                self._generator = tf.random.Generator.from_seed(
+                    seed, alg=tf.random.Algorithm.AUTO_SELECT
+                )
         else:
             # In legacy stateful, we use stateful op, regardless whether user
             # provide seed or not. Seeded stateful op will ensure generating
@@ -2025,7 +2030,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         elif getattr(_SEED_GENERATOR, "generator", None):
             return _SEED_GENERATOR.generator.randint(1, 1e9)
         else:
-            return random.randint(1, 1e9)
+            return random.randint(1, int(1e9))
 
     def random_normal(
         self, shape, mean=0.0, stddev=1.0, dtype=None, nonce=None
@@ -2148,19 +2153,27 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
 
     def dropout(self, inputs, rate, noise_shape=None):
         self._maybe_init()
-        if self._rng_type in [self.RNG_STATEFUL, self.RNG_STATELESS]:
+        if self._rng_type == self.RNG_STATEFUL:
+            return tf.nn.experimental.general_dropout(
+                inputs,
+                rate=rate,
+                noise_shape=noise_shape,
+                uniform_sampler=self._generator.uniform,
+            )
+        elif self._rng_type == self.RNG_STATELESS:
             return tf.nn.experimental.stateless_dropout(
                 inputs,
                 rate=rate,
                 noise_shape=noise_shape,
                 seed=self.make_seed_for_stateless_op(),
             )
-        return tf.nn.dropout(
-            inputs,
-            rate=rate,
-            noise_shape=noise_shape,
-            seed=self.make_legacy_seed(),
-        )
+        else:
+            return tf.nn.dropout(
+                inputs,
+                rate=rate,
+                noise_shape=noise_shape,
+                seed=self.make_legacy_seed(),
+            )
 
 
 @keras_export("keras.backend.random_uniform_variable")
@@ -2576,8 +2589,8 @@ def batch_dot(x, y, axes=None):
             + str(y_shape)
             + " with axes="
             + str(axes)
-            + ". x.shape[%d] != "
-            "y.shape[%d] (%d != %d)." % (axes[0], axes[1], d1, d2)
+            + ". x.shape[%d] != y.shape[%d] (%d != %d)."
+            % (axes[0], axes[1], d1, d2)
         )
 
     # backup ndims. Need them later.
@@ -2828,7 +2841,7 @@ def cumsum(x, axis=0):
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs
 def cumprod(x, axis=0):
-    """Cumulative product of the values in a tensor, alongside the specified axis.
+    """Cumulative product of the values in a tensor alongside `axis`.
 
     Args:
         x: A tensor or variable.
@@ -3661,7 +3674,7 @@ def resize_images(
     elif data_format == "channels_last":
         rows, cols = 1, 2
     else:
-        raise ValueError("Invalid `data_format` argument: %s" % (data_format,))
+        raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
     new_shape = x.shape[rows : cols + 1]
     if new_shape.is_fully_defined():
@@ -4260,7 +4273,7 @@ def set_value(x, value):
     """
     value = np.asarray(value, dtype=dtype_numpy(x))
     if tf.compat.v1.executing_eagerly_outside_functions():
-        x.assign(value)
+        _assign_value_to_variable(x, value)
     else:
         with get_graph().as_default():
             tf_dtype = tf.as_dtype(x.dtype.name.split("_")[0])
@@ -4295,7 +4308,8 @@ def batch_set_value(tuples):
     """
     if tf.executing_eagerly() or tf.inside_function():
         for x, value in tuples:
-            x.assign(np.asarray(value, dtype=dtype_numpy(x)))
+            value = np.asarray(value, dtype=dtype_numpy(x))
+            _assign_value_to_variable(x, value)
     else:
         with get_graph().as_default():
             if tuples:
@@ -4327,6 +4341,23 @@ def batch_set_value(tuples):
 
 get_value.__doc__ = get_value.__doc__.format(snippet=_VALUE_SET_CODE_STRING)
 set_value.__doc__ = set_value.__doc__.format(snippet=_VALUE_SET_CODE_STRING)
+
+
+def _assign_value_to_variable(variable, value):
+    # Helper function to assign value to variable. It handles normal tf.Variable
+    # as well as DTensor variable.
+    if isinstance(variable, dtensor.DVariable):
+        mesh = variable.layout.mesh
+        replicate_layout = dtensor.Layout.replicated(
+            rank=variable.shape.rank, mesh=mesh
+        )
+        # TODO(b/262894693): Avoid the broadcast of tensor to all devices.
+        d_value = dtensor.copy_to_mesh(value, replicate_layout)
+        d_value = dtensor.relayout(d_value, variable.layout)
+        variable.assign(d_value)
+    else:
+        # For the normal tf.Variable assign
+        variable.assign(value)
 
 
 @keras_export("keras.backend.print_tensor")
@@ -4446,8 +4477,8 @@ class GraphExecutionFunction:
 
         if session_kwargs:
             raise ValueError(
-                "Some keys in session_kwargs are not supported at this "
-                "time: %s" % (session_kwargs.keys(),)
+                "Some keys in session_kwargs are not supported at this time: %s"
+                % (session_kwargs.keys(),)
             )
 
         self._callable_fn = None
@@ -4640,8 +4671,8 @@ def function(inputs, outputs, updates=None, name=None, **kwargs):
             ] and key not in ["inputs", "outputs", "updates", "name"]:
                 msg = (
                     'Invalid argument "%s" passed to K.function with '
-                    "TensorFlow backend"
-                ) % key
+                    "TensorFlow backend" % key
+                )
                 raise ValueError(msg)
     return GraphExecutionFunction(
         inputs, outputs, updates=updates, name=name, **kwargs
@@ -4809,11 +4840,11 @@ def rnn(
     def _expand_mask(mask_t, input_t, fixed_dim=1):
         if tf.nest.is_nested(mask_t):
             raise ValueError(
-                "mask_t is expected to be tensor, but got %s" % mask_t
+                f"mask_t is expected to be tensor, but got {mask_t}"
             )
         if tf.nest.is_nested(input_t):
             raise ValueError(
-                "input_t is expected to be tensor, but got %s" % input_t
+                f"input_t is expected to be tensor, but got {input_t}"
             )
         rank_diff = len(input_t.shape) - len(mask_t.shape)
         for _ in range(rank_diff):
@@ -4931,7 +4962,7 @@ def rnn(
             tf.TensorArray(
                 dtype=inp.dtype,
                 size=time_steps_t,
-                tensor_array_name="input_ta_%s" % i,
+                tensor_array_name=f"input_ta_{i}",
             )
             for i, inp in enumerate(flatted_inputs)
         )
@@ -4960,7 +4991,7 @@ def rnn(
                 dtype=out.dtype,
                 size=output_ta_size,
                 element_shape=out.shape,
-                tensor_array_name="output_ta_%s" % i,
+                tensor_array_name=f"output_ta_{i}",
             )
             for i, out in enumerate(tf.nest.flatten(output_time_zero))
         )
@@ -5224,8 +5255,8 @@ def switch(condition, then_expression, else_expression):
                 " equal to rank of `then_expression` and "
                 "`else_expression`. ndim(condition)="
                 + str(cond_ndim)
-                + ", ndim(then_expression)"
-                "=" + str(expr_ndim)
+                + ", ndim(then_expression)="
+                + str(expr_ndim)
             )
         if cond_ndim > 1:
             ndim_diff = expr_ndim - cond_ndim

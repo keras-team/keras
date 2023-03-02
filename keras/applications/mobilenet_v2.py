@@ -88,8 +88,7 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 BASE_WEIGHT_PATH = (
-    "https://storage.googleapis.com/tensorflow/"
-    "keras-applications/mobilenet_v2/"
+    "https://storage.googleapis.com/tensorflow/keras-applications/mobilenet_v2/"
 )
 layers = None
 
@@ -450,9 +449,7 @@ def MobileNetV2(
         inputs = img_input
 
     # Create model.
-    model = training.Model(
-        inputs, x, name="mobilenetv2_%0.2f_%s" % (alpha, rows)
-    )
+    model = training.Model(inputs, x, name=f"mobilenetv2_{alpha:0.2f}_{rows}")
 
     # Load weights.
     if weights == "imagenet":
@@ -498,7 +495,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     # 8.
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
-    prefix = "block_{}_".format(block_id)
+    prefix = f"block_{block_id}_"
 
     if block_id:
         # Expand with a pointwise 1x1 convolution.

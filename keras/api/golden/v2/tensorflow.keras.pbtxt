@@ -44,6 +44,10 @@ tf_module {
     name: "experimental"
     mtype: "<type \'module\'>"
   }
+  member {
+    name: "export"
+    mtype: "<type \'module\'>"
+  }
   # Placeholder for internal API
   member {
     name: "initializers"
@@ -82,11 +86,11 @@ tf_module {
     mtype: "<type \'module\'>"
   }
   member {
-    name: "utils"
+    name: "saving"
     mtype: "<type \'module\'>"
   }
   member {
-    name: "wrappers"
+    name: "utils"
     mtype: "<type \'module\'>"
   }
   member_method {

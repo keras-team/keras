@@ -106,7 +106,7 @@ tf_module {
   }
   member_method {
     name: "deserialize"
-    argspec: "args=[\'config\', \'custom_objects\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'config\', \'custom_objects\', \'use_legacy_format\'], varargs=None, keywords=None, defaults=[\'None\', \'False\'], "
   }
   member_method {
     name: "get"
@@ -114,6 +114,6 @@ tf_module {
   }
   member_method {
     name: "serialize"
-    argspec: "args=[\'initializer\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'initializer\', \'use_legacy_format\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
 }

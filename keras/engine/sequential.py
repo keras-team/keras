@@ -23,8 +23,10 @@ from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
 from keras.engine import input_layer
+from keras.engine import training
 from keras.engine import training_utils
-from keras.saving.saved_model import model_serialization
+from keras.saving import serialization_lib
+from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
@@ -424,11 +426,12 @@ class Sequential(functional.Functional):
 
             outputs = layer(inputs, **kwargs)
 
-            if len(tf.nest.flatten(outputs)) != 1:
-                raise ValueError(SINGLE_LAYER_OUTPUT_ERROR_MSG)
-            # `outputs` will be the inputs to the next layer.
             inputs = outputs
-            mask = getattr(outputs, "_keras_mask", None)
+
+            def _get_mask_from_keras_tensor(kt):
+                return getattr(kt, "_keras_mask", None)
+
+            mask = tf.nest.map_structure(_get_mask_from_keras_tensor, outputs)
         return outputs
 
     def compute_output_shape(self, input_shape):
@@ -451,8 +454,12 @@ class Sequential(functional.Functional):
             # filtered out of `self.layers`). Note that
             # `self._self_tracked_trackables` is managed by the tracking
             # infrastructure and should not be used.
-            layer_configs.append(generic_utils.serialize_keras_object(layer))
-        config = {"name": self.name, "layers": copy.deepcopy(layer_configs)}
+            layer_configs.append(
+                serialization_lib.serialize_keras_object(layer)
+            )
+        config = training.Model.get_config(self)
+        config["name"] = self.name
+        config["layers"] = copy.deepcopy(layer_configs)
         if not self._is_graph_network and self._build_input_shape is not None:
             config["build_input_shape"] = self._build_input_shape
         return config
@@ -465,20 +472,24 @@ class Sequential(functional.Functional):
             layer_configs = config["layers"]
         else:
             name = None
-            build_input_shape = None
             layer_configs = config
         model = cls(name=name)
         for layer_config in layer_configs:
+            use_legacy_format = "module" not in layer_config
             layer = layer_module.deserialize(
-                layer_config, custom_objects=custom_objects
+                layer_config,
+                custom_objects=custom_objects,
+                use_legacy_format=use_legacy_format,
             )
             model.add(layer)
+
         if (
             not model.inputs
             and build_input_shape
             and isinstance(build_input_shape, (tuple, list))
         ):
             model.build(build_input_shape)
+
         return model
 
     @property

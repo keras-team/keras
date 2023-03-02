@@ -3,8 +3,13 @@ name: Format the code
 on:
   workflow_dispatch:
 
+permissions: {}
 jobs:
   createPullRequest:
+    permissions:
+      contents: write # to create branch (peter-evans/create-pull-request)
+      pull-requests: write # to create a PR (peter-evans/create-pull-request)
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +28,7 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt && pip uninstall keras-nightly -y
+          pip install black==22.3.0 isort==5.10.1 flake8==4.0.1
       - name: Format the code
         run: sh shell/format.sh
 

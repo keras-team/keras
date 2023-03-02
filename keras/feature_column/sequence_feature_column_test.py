@@ -24,7 +24,7 @@ from absl.testing import parameterized
 
 import keras
 from keras.feature_column import sequence_feature_column as ksfc
-from keras.saving import model_config
+from keras.saving.legacy import model_config
 from keras.testing_infra import test_combinations
 
 
@@ -966,7 +966,7 @@ class SequenceFeaturesSavingTest(tf.test.TestCase, parameterized.TestCase):
             indices_a, values_a, (batch_size, timesteps, 1)
         )
 
-        values_b = np.zeros(10, dtype=np.str)
+        values_b = np.zeros(10, dtype=str)
         indices_b = np.zeros((10, 3), dtype=np.int64)
         indices_b[:, 0] = np.arange(10)
         inputs_b = tf.SparseTensor(

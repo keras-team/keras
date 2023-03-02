@@ -460,7 +460,7 @@ def experimental_tpu_test_loop(
     callbacks._call_end_hook(mode)
 
     scope.__exit__(None, None, None)
-    if len(outs) >= 0:
+    if len(outs) > 0:
         outs[0] /= target_steps
 
     if len(outs) == 1:

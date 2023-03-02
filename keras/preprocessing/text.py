@@ -209,7 +209,7 @@ class Tokenizer(object):
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
-    (words maybe include the `'` character). These sequences are then
+    (words may include the `'` character). These sequences are then
     split into lists of tokens. They will then be indexed or vectorized.
 
     `0` is a reserved index that won't be assigned to any word.
@@ -491,7 +491,7 @@ class Tokenizer(object):
 
         if mode == "tfidf" and not self.document_count:
             raise ValueError(
-                "Fit the Tokenizer on some data " "before using tfidf mode."
+                "Fit the Tokenizer on some data before using tfidf mode."
             )
 
         x = np.zeros((len(sequences), num_words))

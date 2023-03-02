@@ -53,7 +53,7 @@ class PreprocessingStage(
             data, (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)
         ):
             raise ValueError(
-                f"`adapt()` requires a batched Dataset, an EagerTensor, or a "
+                "`adapt()` requires a batched Dataset, an EagerTensor, or a "
                 f"Numpy array as input. Received data={data}"
             )
         if isinstance(data, tf.data.Dataset):
@@ -72,7 +72,7 @@ class PreprocessingStage(
                 continue
 
             def map_fn(x):
-                """Maps `PreprocessingStage` inputs to inputs at `current_layer_index`.
+                """Maps this object's inputs to those at current_layer_index.
 
                 Args:
                   x: Batch of inputs seen in entry of the `PreprocessingStage`
@@ -122,7 +122,7 @@ class FunctionalPreprocessingStage(
 
     >>> inputs = {'x2': tf.keras.Input(shape=(5,)),
     ...           'x1': tf.keras.Input(shape=(1,))}
-    >>> norm_layer = tf.keras.layers.experimental.preprocessing.Normalization()
+    >>> norm_layer = tf.keras.layers.Normalization()
     >>> y = norm_layer(inputs['x2'])
     >>> y, z = tf.keras.layers.Lambda(lambda x: (x, x))(inputs['x1'])
     >>> outputs = [inputs['x1'], [y, z]]

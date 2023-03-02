@@ -86,7 +86,7 @@ def timeseries_dataset_from_array(
 
     Example 1:
 
-    Consider indices `[0, 1, ... 99]`.
+    Consider indices `[0, 1, ... 98]`.
     With `sequence_length=10,  sampling_rate=2, sequence_stride=3`,
     `shuffle=False`, the dataset will yield batches of sequences
     composed of the following indices:
@@ -99,9 +99,9 @@ def timeseries_dataset_from_array(
     Last sequence:   [78 80 82 84 86 88 90 92 94 96]
     ```
 
-    In this case the last 3 data points are discarded since no full sequence
+    In this case the last 2 data points are discarded since no full sequence
     can be generated to include them (the next sequence would have started
-    at index 81, and thus its last step would have gone over 99).
+    at index 81, and thus its last step would have gone over 98).
 
     Example 2: Temporal regression.
 
@@ -152,25 +152,25 @@ def timeseries_dataset_from_array(
     if start_index:
         if start_index < 0:
             raise ValueError(
-                f"`start_index` must be 0 or greater. Received: "
+                "`start_index` must be 0 or greater. Received: "
                 f"start_index={start_index}"
             )
         if start_index >= len(data):
             raise ValueError(
-                f"`start_index` must be lower than the length of the "
+                "`start_index` must be lower than the length of the "
                 f"data. Received: start_index={start_index}, for data "
                 f"of length {len(data)}"
             )
     if end_index:
         if start_index and end_index <= start_index:
             raise ValueError(
-                f"`end_index` must be higher than `start_index`. "
+                "`end_index` must be higher than `start_index`. "
                 f"Received: start_index={start_index}, and "
                 f"end_index={end_index} "
             )
         if end_index >= len(data):
             raise ValueError(
-                f"`end_index` must be lower than the length of the "
+                "`end_index` must be lower than the length of the "
                 f"data. Received: end_index={end_index}, for data of "
                 f"length {len(data)}"
             )
@@ -183,23 +183,23 @@ def timeseries_dataset_from_array(
     # Validate strides
     if sampling_rate <= 0:
         raise ValueError(
-            f"`sampling_rate` must be higher than 0. Received: "
+            "`sampling_rate` must be higher than 0. Received: "
             f"sampling_rate={sampling_rate}"
         )
     if sampling_rate >= len(data):
         raise ValueError(
-            f"`sampling_rate` must be lower than the length of the "
+            "`sampling_rate` must be lower than the length of the "
             f"data. Received: sampling_rate={sampling_rate}, for data "
             f"of length {len(data)}"
         )
     if sequence_stride <= 0:
         raise ValueError(
-            f"`sequence_stride` must be higher than 0. Received: "
+            "`sequence_stride` must be higher than 0. Received: "
             f"sequence_stride={sequence_stride}"
         )
     if sequence_stride >= len(data):
         raise ValueError(
-            f"`sequence_stride` must be lower than the length of the "
+            "`sequence_stride` must be lower than the length of the "
             f"data. Received: sequence_stride={sequence_stride}, for "
             f"data of length {len(data)}"
         )
@@ -211,7 +211,7 @@ def timeseries_dataset_from_array(
 
     # Determine the lowest dtype to store start positions (to lower memory
     # usage).
-    num_seqs = end_index - start_index - (sequence_length * sampling_rate) + 1
+    num_seqs = end_index - start_index - (sequence_length - 1) * sampling_rate
     if targets is not None:
         num_seqs = min(num_seqs, len(targets))
 

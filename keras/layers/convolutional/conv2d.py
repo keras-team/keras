@@ -104,7 +104,8 @@ class Conv2D(Conv):
         shape `(batch_size, channels, height, width)`. It defaults to the
         `image_data_format` value found in your Keras config file at
         `~/.keras/keras.json`. If you never set it, then it will be
-        `channels_last`.
+        `channels_last`. Note that the `channels_first` format is currently not
+        supported by TensorFlow on CPU.
       dilation_rate: an integer or tuple/list of 2 integers, specifying the
         dilation rate to use for dilated convolution. Can be a single integer to
         specify the same value for all spatial dimensions. Currently, specifying

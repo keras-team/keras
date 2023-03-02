@@ -22,7 +22,8 @@ from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
-from keras.saving.saved_model import layer_serialization
+from keras.saving.legacy.saved_model import layer_serialization
+from keras.saving.serialization_lib import deserialize_keras_object
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 
@@ -265,7 +266,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         # a dtype of 'string'.
         if "dtype" in kwargs and kwargs["dtype"] != tf.string:
             raise ValueError(
-                f"`TextVectorization` may only have a dtype of string. "
+                "`TextVectorization` may only have a dtype of string. "
                 f"Received dtype: {kwargs['dtype']}."
             )
         elif "dtype" not in kwargs:
@@ -319,7 +320,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             and all(isinstance(item, int) for item in ngrams)
         ):
             raise ValueError(
-                f"`ngrams` must be None, an integer, or a tuple of "
+                "`ngrams` must be None, an integer, or a tuple of "
                 f"integers. Received: ngrams={ngrams}"
             )
 
@@ -330,28 +331,28 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             or (output_sequence_length is None)
         ):
             raise ValueError(
-                f"`output_sequence_length` must be either None or an "
-                f"integer when `output_mode` is 'int'. Received: "
+                "`output_sequence_length` must be either None or an "
+                "integer when `output_mode` is 'int'. Received: "
                 f"output_sequence_length={output_sequence_length}"
             )
 
         if output_mode != INT and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if `output_mode` is "
-                f"not 'int'. "
+                "`output_sequence_length` must not be set if `output_mode` is "
+                "not 'int'. "
                 f"Received output_sequence_length={output_sequence_length}."
             )
 
         if ragged and output_mode != INT:
             raise ValueError(
-                f"`ragged` must not be true if `output_mode` is "
+                "`ragged` must not be true if `output_mode` is "
                 f"`'int'`. Received: ragged={ragged} and "
                 f"output_mode={output_mode}"
             )
 
         if ragged and output_sequence_length is not None:
             raise ValueError(
-                f"`output_sequence_length` must not be set if ragged "
+                "`output_sequence_length` must not be set if ragged "
                 f"is True. Received: ragged={ragged} and "
                 f"output_sequence_length={output_sequence_length}"
             )
@@ -378,8 +379,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "has_input_vocabulary", (vocabulary is not None)
         )
 
-        # Drop deprecated config options.
-        kwargs.pop("vocabulary_size", None)
+        vocabulary_size = kwargs.pop("vocabulary_size", None)
 
         super().__init__(**kwargs)
         base_preprocessing_layer.keras_kpl_gauge.get_cell(
@@ -396,6 +396,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             sparse=sparse,
             has_input_vocabulary=self._has_input_vocabulary,
             encoding=encoding,
+            vocabulary_size=vocabulary_size,
         )
 
     def compute_output_shape(self, input_shape):
@@ -501,8 +502,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         return self._lookup_layer.vocabulary_size()
 
     def get_config(self):
-        vocab = self._lookup_layer.input_vocabulary
-        idf_weights = self._lookup_layer.input_idf_weights
         config = {
             "max_tokens": self._lookup_layer.max_tokens,
             "standardize": self._standardize,
@@ -513,15 +512,34 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
             "sparse": self._lookup_layer.sparse,
             "ragged": self._ragged,
-            "vocabulary": utils.listify_tensors(vocab),
-            "idf_weights": utils.listify_tensors(idf_weights),
+            "vocabulary": utils.listify_tensors(
+                self._lookup_layer.input_vocabulary
+            ),
+            "idf_weights": utils.listify_tensors(
+                self._lookup_layer.input_idf_weights
+            ),
             "encoding": self._encoding,
+            "vocabulary_size": self.vocabulary_size(),
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    @classmethod
+    def from_config(cls, config):
+        if config["standardize"] not in (
+            LOWER_AND_STRIP_PUNCTUATION,
+            LOWER,
+            STRIP_PUNCTUATION,
+        ):
+            config["standardize"] = deserialize_keras_object(
+                config["standardize"]
+            )
+        if config["split"] not in (WHITESPACE, CHARACTER):
+            config["split"] = deserialize_keras_object(config["split"])
+        return cls(**config)
+
     def set_vocabulary(self, vocabulary, idf_weights=None):
-        """Sets vocabulary (and optionally document frequency) data for this layer.
+        """Sets vocabulary (and optionally document frequency) for this layer.
 
         This method sets the vocabulary and idf weights for this layer directly,
         instead of analyzing a dataset through 'adapt'. It should be used
@@ -585,11 +603,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
                 inputs = self._split(inputs)
             else:
                 raise ValueError(
-                    (
-                        "%s is not a supported splitting."
-                        "TextVectorization supports the following options "
-                        "for `split`: None, 'whitespace', or a Callable."
-                    )
+                    "%s is not a supported splitting."
+                    "TextVectorization supports the following options "
+                    "for `split`: None, 'whitespace', or a Callable."
                     % self._split
                 )
 
@@ -653,3 +669,15 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     @property
     def _trackable_saved_model_saver(self):
         return layer_serialization.VocabularySavedModelSaver(self)
+
+    def save_own_variables(self, store):
+        self._lookup_layer.save_own_variables(store)
+
+    def load_own_variables(self, store):
+        self._lookup_layer.load_own_variables(store)
+
+    def save_assets(self, dir_path):
+        self._lookup_layer.save_assets(dir_path)
+
+    def load_assets(self, dir_path):
+        self._lookup_layer.load_assets(dir_path)

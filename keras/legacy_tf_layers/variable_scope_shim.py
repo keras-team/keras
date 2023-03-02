@@ -64,9 +64,7 @@ def _has_kwargs(fn):
         fn = fn.__call__
     elif not callable(fn):
         raise TypeError(
-            "fn should be a function-like object, but is of type {}.".format(
-                type(fn)
-            )
+            f"fn should be a function-like object, but is of type {type(fn)}."
         )
     return tf_inspect.getfullargspec(fn).varkw is not None
 
@@ -138,7 +136,7 @@ def validate_synchronization_aggregation_trainable(
 
 
 class _EagerVariableStore(tf.Module):
-    """TF2-compatible VariableStore that avoids collections & tracks regularizers.
+    """TF2-safe VariableStore that avoids collections & tracks regularizers.
 
     New variable names and new variables can be created; all stored
     variables are initialized with the initializer passed to __init__.
@@ -291,8 +289,7 @@ class _EagerVariableStore(tf.Module):
         """
         if custom_getter is not None and not callable(custom_getter):
             raise ValueError(
-                "Passed a custom_getter which is not callable: %s"
-                % custom_getter
+                f"Passed a custom_getter which is not callable: {custom_getter}"
             )
 
         with tf.init_scope():
@@ -352,7 +349,7 @@ class _EagerVariableStore(tf.Module):
                 )
 
             # Single variable case
-            if "%s/part_0" % name in self._vars:
+            if f"{name}/part_0" in self._vars:
                 raise ValueError(
                     "No partitioner was provided, but a partitioned version of "
                     "the variable was found: %s/part_0. Perhaps a variable of "

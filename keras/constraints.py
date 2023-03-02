@@ -19,8 +19,9 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras.utils.generic_utils import deserialize_keras_object
-from keras.utils.generic_utils import serialize_keras_object
+from keras.saving.legacy import serialization as legacy_serialization
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -78,6 +79,26 @@ class Constraint:
           Python dict containing the configuration of the constraint object.
         """
         return {}
+
+    @classmethod
+    def from_config(cls, config):
+        """Instantiates a weight constraint from a configuration dictionary.
+
+        Example:
+
+        ```python
+        constraint = UnitNorm()
+        config = constraint.get_config()
+        constraint = UnitNorm.from_config(config)
+        ```
+
+        Args:
+          config: A Python dictionary, the output of `get_config`.
+
+        Returns:
+          A `tf.keras.constraints.Constraint` instance.
+        """
+        return cls(**config)
 
 
 @keras_export("keras.constraints.MaxNorm", "keras.constraints.max_norm")
@@ -335,12 +356,21 @@ unitnorm = unit_norm
 
 
 @keras_export("keras.constraints.serialize")
-def serialize(constraint):
+def serialize(constraint, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.serialize_keras_object(constraint)
     return serialize_keras_object(constraint)
 
 
 @keras_export("keras.constraints.deserialize")
-def deserialize(config, custom_objects=None):
+def deserialize(config, custom_objects=None, use_legacy_format=False):
+    if use_legacy_format:
+        return legacy_serialization.deserialize_keras_object(
+            config,
+            module_objects=globals(),
+            custom_objects=custom_objects,
+            printable_module_name="constraint",
+        )
     return deserialize_keras_object(
         config,
         module_objects=globals(),
@@ -355,10 +385,11 @@ def get(identifier):
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        use_legacy_format = "module" not in identifier
+        return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(config)
+        return get(config)
     elif callable(identifier):
         return identifier
     else:

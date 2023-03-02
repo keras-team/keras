@@ -24,7 +24,7 @@ from keras.engine import sequential
 from keras.engine import training
 from keras.feature_column import dense_features_v2
 from keras.layers import core
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.premade_models import linear
 from keras.testing_infra import test_combinations
 

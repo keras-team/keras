@@ -21,22 +21,21 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
+from keras.layers import Dense
 from keras.mixed_precision import autocast_variable
-from keras.optimizers.optimizer_v2 import adadelta
-from keras.optimizers.optimizer_v2 import adagrad
-from keras.optimizers.optimizer_v2 import adam
-from keras.optimizers.optimizer_v2 import adamax
-from keras.optimizers.optimizer_v2 import ftrl
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
-from keras.optimizers.optimizer_v2 import nadam
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import adadelta
+from keras.optimizers.legacy import adagrad
+from keras.optimizers.legacy import adam
+from keras.optimizers.legacy import adamax
+from keras.optimizers.legacy import ftrl
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
+from keras.optimizers.legacy import nadam
+from keras.optimizers.legacy import rmsprop
 
 maybe_distribute = tf.__internal__.test.combinations.combine(
     distribution=[
         tf.__internal__.distribute.combinations.default_strategy,
-        tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,  # noqa: E501
+        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_cpus,  # noqa: E501
     ]
 )
 
@@ -114,6 +113,20 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
         with autocast_variable.enable_auto_cast_variables(tf.float16):
             self.assertEqual(x.sparse_read([0]).dtype, tf.float16)
             self.assertEqual(x.gather_nd([0]).dtype, tf.float16)
+
+    def test_tf_function_with_variable_and_autocast_variable(self):
+        ones = tf.ones((2, 2))
+        layer1 = Dense(2, dtype="float32")
+        layer2 = Dense(2, dtype="mixed_float16")
+        layer1(ones)
+        layer2(ones)
+
+        @tf.function
+        def f(x):
+            return x + 1
+
+        self.assertEqual(f(layer1.kernel).dtype, tf.dtypes.float32)
+        self.assertEqual(f(layer2.kernel).dtype, tf.dtypes.float32)
 
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_read_nested_scopes(self, distribution):

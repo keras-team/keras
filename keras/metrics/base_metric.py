@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-
 """Base Metric classes."""
 
 import abc
-import copy
 import types
 import warnings
 
@@ -30,7 +27,7 @@ from keras.dtensor import utils as dtensor_utils
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import keras_tensor
-from keras.saving.saved_model import metric_serialization
+from keras.saving.legacy.saved_model import metric_serialization
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
@@ -194,6 +191,12 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
             with tf.control_dependencies(update_ops):
                 result_t = self.result()
 
+                # If the metric object return a dictionary as a result, wrap it
+                # with our custom dict object so we can attach the metric object
+                # to it.
+                if isinstance(result_t, dict):
+                    result_t = _MetricDict(**result_t)
+
                 # We are adding the metric object as metadata on the result
                 # tensor.  This is required when we want to use a metric with
                 # `add_metric` API on a Model/Layer in graph mode. This metric
@@ -218,28 +221,22 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
         args = ",".join(f"{k}={v}" for k, v in self.get_config().items())
         return f"{self.__class__.__name__}({args})"
 
-    def __deepcopy__(self, memo):
-        result = type(self)(name=self.name, dtype=self.dtype)
-        memo[id(self)] = result
-
-        for k, v in self.__dict__.items():
-            if k in ["update_state", "result"]:
-                # `update_state` keeps a closure of `update_state_fn`, and deep
-                # copying it would result in copying that old reference. Avoid
-                # that.  Likewise for `result`.
-                continue
-            if k in ["_obj_reference_counts_dict"]:
-                # `Layer.__setattr__` attempts to flatten the
-                # `ObjectIdentityDictionary`, which can't be done since it
-                # stores heterogeneous instances.
-                tf.Module.__setattr__(result, k, copy.deepcopy(v, memo))
-            elif k in ["_thread_local", "_metrics_lock"]:
-                # Can't pickle _thread.lock objects.
-                setattr(result, k, v)
-            else:
-                setattr(result, k, copy.deepcopy(v, memo))
-
-        return result
+    def __deepcopy__(self, memo=None):
+        try:
+            new_self = self.from_config(self.get_config())
+        except NotImplementedError as e:
+            raise NotImplementedError(
+                "Calling `__deepcopy__()` on a Keras metric "
+                "requires the metric to be serializable,  "
+                "i.e. it should implement `get_config()`.\n\n"
+                f"Error encountered during serialization: [{e}]"
+            )
+        # Note that metrics don't implement `build()` so their variables
+        # are readily available after instantiation.
+        if self.weights:
+            new_self.set_weights(self.get_weights())
+        memo[self] = new_self
+        return new_self
 
     @property
     def dtype(self):
@@ -816,7 +813,7 @@ class MeanTensor(Metric):
         elif values.shape != self._shape:
             raise ValueError(
                 "MeanTensor input values must always have the same "
-                f"shape. Expected shape (set during the first call): "
+                "shape. Expected shape (set during the first call): "
                 f"{self._shape}. "
                 f"Got: {values.shape}."
             )
@@ -952,3 +949,11 @@ def is_built_in(cls):
     return cls.__module__.startswith(
         ".".join(Metric.__module__.split(".")[:-1])
     )
+
+
+class _MetricDict(dict):
+    """Wrapper for returned dictionary of metrics."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._metric_obj = None

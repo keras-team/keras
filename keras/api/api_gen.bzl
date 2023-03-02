@@ -21,7 +21,9 @@ def gen_api_init_files(
         compat_api_versions = [],
         compat_init_templates = [],
         packages = ["keras"],
-        package_deps = ["//keras:keras"],
+        package_deps = [
+            "//keras:keras",
+        ],
         output_package = "keras.api",
         output_dir = "",
         root_file_name = "__init__.py"):

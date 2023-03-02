@@ -141,7 +141,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
 
         if constraint is not None and not callable(constraint):
             raise ValueError(
-                f"Argument `constraint` must be None or a callable. "
+                "Argument `constraint` must be None or a callable. "
                 f"a callable. Got a {type(constraint)}:  {constraint}"
             )
 
@@ -186,9 +186,9 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
 
                 if not initial_value.shape.is_compatible_with(self._shape):
                     raise ValueError(
-                        f"In this `tf.Variable` creation, the initial value's "
+                        "In this `tf.Variable` creation, the initial value's "
                         f"shape ({initial_value.shape}) is not compatible with "
-                        f"the explicitly supplied `shape` "
+                        "the explicitly supplied `shape` "
                         f"argument ({self._shape})."
                     )
                 assert self._dtype is initial_value.dtype.base_dtype
