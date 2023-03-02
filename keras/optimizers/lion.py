@@ -88,6 +88,8 @@ class Lion(optimizer.Optimizer):
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.beta_1 = beta_1
         self.beta_2 = beta_2
+        if isinstance(beta_1, (int, float)) and (beta_1 < 0 or beta_1 > 1):
+            raise ValueError("`beta_1` must be between [0, 1].")
 
     def build(self, var_list):
         """Initialize optimizer variables.
@@ -100,13 +102,14 @@ class Lion(optimizer.Optimizer):
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
             return
-        self.momentums = []
-        for var in var_list:
-            self.momentums.append(
-                self.add_variable_from_reference(
-                    model_variable=var, variable_name="m"
+        if self.beta_1 != 0.0:
+            self.momentums = []
+            for var in var_list:
+                self.momentums.append(
+                    self.add_variable_from_reference(
+                        model_variable=var, variable_name="m"
+                    )
                 )
-            )
         self._built = True
 
     def update_step(self, gradient, variable):
@@ -115,30 +118,42 @@ class Lion(optimizer.Optimizer):
         beta_1 = tf.cast(self.beta_1, variable.dtype)
         beta_2 = tf.cast(self.beta_2, variable.dtype)
         var_key = self._var_key(variable)
-        m = self.momentums[self._index_dict[var_key]]
 
         if isinstance(gradient, tf.IndexedSlices):
-            # Sparse gradients (use m as a buffer)
-            m.assign(m * beta_1)
-            m.scatter_add(
-                tf.IndexedSlices(
-                    gradient.values * (1.0 - beta_1), gradient.indices
+            # Sparse gradients
+            if self.beta_1 == 0.0:
+                variable.scatter_sub(
+                    tf.IndexedSlices(
+                        lr * tf.math.sign(gradient.values), gradient.indices
+                    )
                 )
-            )
-            variable.assign_sub(lr * tf.math.sign(m))
+            else:  # use m as a buffer
+                m = self.momentums[self._index_dict[var_key]]
+                m.assign(m * beta_1)
+                m.scatter_add(
+                    tf.IndexedSlices(
+                        gradient.values * (1.0 - beta_1), gradient.indices
+                    )
+                )
+                variable.assign_sub(lr * tf.math.sign(m))
 
-            m.assign(m * beta_2 / beta_1)
-            m.scatter_add(
-                tf.IndexedSlices(
-                    gradient.values * (1.0 - beta_2 / beta_1), gradient.indices
+                m.assign(m * beta_2 / beta_1)
+                m.scatter_add(
+                    tf.IndexedSlices(
+                        gradient.values * (1.0 - beta_2 / beta_1),
+                        gradient.indices,
+                    )
                 )
-            )
         else:
             # Dense gradients
-            variable.assign_sub(
-                lr * tf.math.sign(m * beta_1 + gradient * (1.0 - beta_1))
-            )
-            m.assign(m * beta_2 + gradient * (1.0 - beta_2))
+            if self.beta_1 == 0.0:
+                variable.assign_sub(lr * tf.math.sign(gradient))
+            else:
+                m = self.momentums[self._index_dict[var_key]]
+                variable.assign_sub(
+                    lr * tf.math.sign(m * beta_1 + gradient * (1.0 - beta_1))
+                )
+                m.assign(m * beta_2 + gradient * (1.0 - beta_2))
 
     def get_config(self):
         config = super().get_config()
