@@ -1415,7 +1415,6 @@ class KerasCallbacksTest(test_combinations.TestCase):
         return model, train_ds, callback, filepath
 
     def _run_load_weights_on_restart_test_common_iterations(self):
-
         (
             model,
             train_ds,
@@ -3166,7 +3165,9 @@ class TestTensorBoardV2(test_combinations.TestCase):
             self.assertEqual(
                 self._strip_layer_names(summary_file.histograms, model_type),
                 {
-                    _ObservedSummary(logdir=self.train_dir, tag="bias_0/histogram"),
+                    _ObservedSummary(
+                        logdir=self.train_dir, tag="bias_0/histogram"
+                    ),
                     _ObservedSummary(
                         logdir=self.train_dir, tag="kernel_0/histogram"
                     ),
@@ -3179,10 +3180,12 @@ class TestTensorBoardV2(test_combinations.TestCase):
             self.assertEqual(
                 self._strip_layer_names(summary_file.histograms, model_type),
                 {
-                    _ObservedSummary(logdir=self.train_dir, tag="bias_0/histogram"),
+                    _ObservedSummary(
+                        logdir=self.train_dir, tag="bias_0/histogram"
+                    ),
                     _ObservedSummary(
                         logdir=self.train_dir, tag="kernel_0/histogram"
-                    )
+                    ),
                 },
             )
 
@@ -3219,20 +3222,24 @@ class TestTensorBoardV2(test_combinations.TestCase):
             self.assertEqual(
                 self._strip_layer_names(summary_file.histograms, model_type),
                 {
-                    _ObservedSummary(logdir=self.train_dir, tag="bias_0/histogram"),
+                    _ObservedSummary(
+                        logdir=self.train_dir, tag="bias_0/histogram"
+                    ),
                     _ObservedSummary(
                         logdir=self.train_dir, tag="kernel_0/histogram"
                     ),
                     _ObservedSummary(
                         logdir=self.train_dir, tag="activations/histogram"
-                    )
+                    ),
                 },
             )
         else:
             self.assertEqual(
                 self._strip_layer_names(summary_file.histograms, model_type),
                 {
-                    _ObservedSummary(logdir=self.train_dir, tag="bias_0/histogram"),
+                    _ObservedSummary(
+                        logdir=self.train_dir, tag="bias_0/histogram"
+                    ),
                     _ObservedSummary(
                         logdir=self.train_dir, tag="kernel_0/histogram"
                     ),
