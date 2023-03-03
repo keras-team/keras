@@ -1191,10 +1191,51 @@ class BatchNormalizationBase(Layer):
             else:
                 return (mean, variance)
 
-    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
-        mean, variance = self._calculate_mean_and_var(
+    def _dtensor_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        if self.synchronized:
+            return self._dtensor_sync_calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
+        return self._dtensor_no_sync_calculate_mean_and_var(
             inputs, reduction_axes, keep_dims, mask=mask
         )
+
+    def _dtensor_no_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        # For the DTensor non-sync BN, the mean/var need to be calculated based
+        # on the local batch. Think about following example:
+        # 2 replica with local batch size = 4, and global batch size = 8
+        # inputs = {'replica_0': (4, x, y), 'replica_1': (4, x, y)}
+        # From global dtensor context, it is (8, x, y).
+        # Give the inputs, we need to first need to reshape the inputs into
+        # (2, 4, x, y), so that when normalization happens, it will not cross
+        # the replica boundary.
+        # TODO(scottzhu): For next cl.
+        raise NotImplementedError()
+
+    def _dtensor_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        # In the DTensor sync BN, since the input tensor is already in global
+        # context, we just need to use the normal moments/weighted_moments
+        # to calculate mean/var, which is same as the non-sync BN in the normal
+        # mode.
+        return self._no_sync_calculate_mean_and_var(
+            inputs, reduction_axes, keep_dims, mask
+        )
+
+    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
+        if _running_with_dtensor_strategy():
+            mean, variance = self._dtensor_calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
+        else:
+            mean, variance = self._calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
         if self._support_zero_size_input():
