@@ -2488,6 +2488,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         # Used to restore any existing `SummaryWriter` after training ends.
         self._prev_summary_state = []
 
+        # Used to track activation values for histogram.
+        self.activations = {}
+
+        # Used to cache the original layer call methods.
+        self.layer_call = {}
+
     def _validate_kwargs(self, kwargs):
         """Handle arguments were supported in V1."""
         if kwargs.get("write_grads", False):
@@ -2549,6 +2555,8 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
             self._should_write_train_graph = True
         if self.embeddings_freq:
             self._configure_embeddings()
+        if self.histogram_freq:
+            self._override_layer_call()
 
     @property
     def _train_writer(self):
@@ -2736,12 +2744,40 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
             self._start_batch == 0 and self._stop_batch == 0
         )
 
+    def _override_layer_call(self):
+        """Overrides the `call` method of each layer to record activations."""
+        for layer in self.model.layers:
+            if not layer.trainable_variables:
+                continue
+            self.activations[layer.name] = tf.Variable(
+                initial_value=0,
+                trainable=False,
+                dtype=layer.output.dtype,
+                shape=tf.TensorShape(None),
+            )
+            self.layer_call[layer.name] = layer.call
+
+            def outer_call(
+                inputs, *args, layer=layer, layer_call=layer.call, **kwargs
+            ):
+                outputs = layer_call(inputs, *args, **kwargs)
+                self.activations[layer.name].assign(outputs)
+                return outputs
+
+            layer.call = outer_call
+
     def on_train_begin(self, logs=None):
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
         self._push_writer(self._train_writer, self._train_step)
 
     def on_train_end(self, logs=None):
+        # Restore the original layer call functions.
+        if self.histogram_freq:
+            for layer in self.model.layers:
+                if layer.name in self.layer_call:
+                    layer.call = self.layer_call[layer.name]
+
         self._pop_writer()
 
         if self._is_tracing:
@@ -2902,6 +2938,17 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                             self._log_weight_as_image(
                                 weight, image_weight_name, epoch
                             )
+                    if layer.name in self.activations:
+                        activation_name = layer.name + "/activations"
+                        # Add a suffix to prevent summary tag name collision.
+                        histogram_activation_name = (
+                            activation_name + "/histogram"
+                        )
+                        tf.summary.histogram(
+                            histogram_activation_name,
+                            self.activations[layer.name],
+                            step=epoch,
+                        )
                 self._train_writer.flush()
 
     def _log_weight_as_image(self, weight, weight_name, epoch):
