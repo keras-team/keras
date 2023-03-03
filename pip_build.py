@@ -59,9 +59,7 @@ SYMBOLS_TO_SKIP = ["layer_test"]
 
 def copy_keras_codebase(source_dir, target_dir):
     disallowed = [
-        "benchmarks",
         "tools",
-        "tests",
         "integration_test",
     ]
 
@@ -237,11 +235,11 @@ def generate_keras_api_files(package_directory, src_directory):
         root_offset=["api", "_v1", "keras"],
     )
     # Add missing __init__ files in api dirs.
-    with open(os.path.join(package_directory, "api", "__init__.py"), "w") as f:
+    with open(os.path.join(package_directory, "api", "__init__.py"), "w"):
         pass
-    with open(os.path.join(v1_path, "__init__.py"), "w") as f:
+    with open(os.path.join(v1_path, "__init__.py"), "w"):
         pass
-    with open(os.path.join(v2_path, "__init__.py"), "w") as f:
+    with open(os.path.join(v2_path, "__init__.py"), "w"):
         pass
 
 

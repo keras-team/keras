@@ -15,6 +15,7 @@
 """Public API surface for saving APIs."""
 
 import os
+import warnings
 import zipfile
 
 import tensorflow.compat.v2 as tf
@@ -116,15 +117,32 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     `tf.keras.saving.load_model`.
     """
     save_format = get_save_format(filepath, save_format)
-    if save_format not in ("keras", "tf", "h5", "keras_v3"):
-        raise ValueError(
-            "Unknown `save_format` argument. Expected one of "
-            "'keras', 'tf', or 'h5'. "
-            f"Received: save_format{save_format}"
+
+    # Deprecation warnings
+    if save_format == "tf":
+        warnings.warn(
+            "You are saving your model as a TensorFlow SavedModel via "
+            "`model.save()`. This is no longer a recommended workflow.\n\n"
+            "* If you intend to be able to reload the exact same model in a "
+            "Python runtime, we recommend using the native Keras format, "
+            "e.g. `model.save('my_model.keras')`.\n\n"
+            "* If you intend to export a SavedModel artifact for inference "
+            "(e.g. via TF-Serving), we recommend using "
+            "`model.export('my_export_artifact')`. If you want to further "
+            "customize SavedModel serving endpoints you can also use the "
+            "low-level `keras.export.ExportArchive` class.",
+            stacklevel=2,
         )
-    if save_format == "keras_v3" or (
-        saving_lib.saving_v3_enabled() and save_format == "keras"
-    ):
+    if save_format == "h5":
+        warnings.warn(
+            "You are saving your model as an HDF5 file via `model.save()`. "
+            "This file format is considered legacy. "
+            "We recommend using instead the native Keras format, "
+            "e.g. `model.save('my_model.keras')`.",
+            stacklevel=2,
+        )
+
+    if save_format == "keras":
         # If file exists and should not be overwritten.
         try:
             exists = os.path.exists(filepath)
@@ -248,21 +266,42 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
 
 def get_save_format(filepath, save_format):
-    if saving_lib.saving_v3_enabled():
-        default_format = "keras"
-    elif tf.__internal__.tf2.enabled():
-        default_format = "tf"
+    if save_format:
+        if save_format == "keras_v3":
+            return "keras"
+        if save_format == "keras":
+            if saving_lib.saving_v3_enabled():
+                return "keras"
+            else:
+                return "h5"
+        if save_format in ("h5", "hdf5"):
+            return "h5"
+        if save_format in ("tf", "tensorflow"):
+            return "tf"
+
+        raise ValueError(
+            "Unknown `save_format` argument. Expected one of "
+            "'keras', 'tf', or 'h5'. "
+            f"Received: save_format{save_format}"
+        )
+
+    # No save format specified: infer from filepath.
+
+    if str(filepath).endswith(".keras"):
+        if saving_lib.saving_v3_enabled():
+            return "keras"
+        else:
+            return "h5"
+
+    if str(filepath).endswith((".h5", ".hdf5")):
+        return "h5"
+
+    if h5py is not None and isinstance(filepath, h5py.File):
+        return "h5"
+
+    # No recognizable file format: default to TF in TF2 and h5 in TF1.
+
+    if tf.__internal__.tf2.enabled():
+        return "tf"
     else:
-        default_format = "h5"
-
-    if (h5py is not None and isinstance(filepath, h5py.File)) or str(
-        filepath
-    ).endswith((".h5", ".hdf5")):
-        if save_format and save_format != "h5":
-            raise ValueError(
-                "Provided `save_format` is inconsistent with `filepath`. "
-                f"Received: save_format='{save_format}', filepath='{filepath}'"
-            )
-        save_format = "h5"
-
-    return save_format or default_format
+        return "h5"

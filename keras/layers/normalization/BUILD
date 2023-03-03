@@ -1,7 +1,11 @@
 # Description:
 #   Contains the Keras normalization layers (internal TensorFlow version).
 
+# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
+
+# buildifier: disable=same-origin-load
+load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
     # TODO(scottzhu): Remove non-keras deps from TF.
@@ -131,6 +135,19 @@ cuda_py_test(
         "//keras/layers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "batch_normalization_dtensor_test",
+    srcs = ["batch_normalization_dtensor_test.py"],
+    tags = ["no_oss"],
+    deps = [
+        ":batch_normalization",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/dtensor:test_util",
+        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
     ],
 )
 
