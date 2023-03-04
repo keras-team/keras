@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.dtensor import test_util
-from keras.testing_infra import test_utils
 from keras.layers.normalization import batch_normalization
+from keras.testing_infra import test_utils
 
 # isort: off
 # Import the MirroredStrategy that is backed by DTensor
