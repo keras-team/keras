@@ -23,6 +23,8 @@ import time
 
 import tensorflow.compat.v2 as tf
 
+import keras
+
 
 def save_and_load_benchmark(app):
     """Util for saved model benchmarks."""
@@ -40,7 +42,7 @@ def save_and_load_benchmark(app):
 
     # Run one untimed iteration of saving/loading.
     model.save(save_dir, save_format="tf")
-    tf.keras.models.load_model(save_dir)
+    keras.models.load_model(save_dir)
 
     for _ in range(trials):
         start_time = time.time()
@@ -48,7 +50,7 @@ def save_and_load_benchmark(app):
         total_save_time += time.time() - start_time
 
         start_time = time.time()
-        tf.keras.models.load_model(save_dir)
+        keras.models.load_model(save_dir)
         total_load_time += time.time() - start_time
 
     save_result = {

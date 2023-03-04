@@ -44,6 +44,8 @@ py_library(
     srcs = ["utils.py"],
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/engine:base_layer_utils",
+        "//keras/utils:layer_utils",
     ],
 )
 

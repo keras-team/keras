@@ -277,10 +277,7 @@ def skip_failed_serialization():
         _SKIP_FAILED_SERIALIZATION = prev
 
 
-@keras_export(
-    "keras.utils.serialize_keras_object",
-    "keras.utils.legacy.serialize_keras_object",
-)
+@keras_export("keras.utils.legacy.serialize_keras_object")
 def serialize_keras_object(instance):
     """Serialize a Keras object into a JSON-compatible representation.
 
@@ -420,10 +417,7 @@ def class_and_config_for_serialized_keras_object(
     return (cls, cls_config)
 
 
-@keras_export(
-    "keras.utils.deserialize_keras_object",
-    "keras.utils.legacy.deserialize_keras_object",
-)
+@keras_export("keras.utils.legacy.deserialize_keras_object")
 def deserialize_keras_object(
     identifier,
     module_objects=None,

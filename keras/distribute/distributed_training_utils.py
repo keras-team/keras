@@ -134,7 +134,7 @@ def maybe_preemption_handler_scope(model):
 
     if getattr(model, "_preemption_handler", None):
         preemption_checkpoint_scope = (
-            model._preemption_handler._watch_error_scope()
+            model._preemption_handler.watch_preemption_scope()
         )
     else:
         preemption_checkpoint_scope = contextlib.nullcontext()

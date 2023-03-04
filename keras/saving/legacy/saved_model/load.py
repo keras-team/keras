@@ -29,6 +29,7 @@ from keras.optimizers.legacy import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration
+from keras.saving.legacy import model_config
 from keras.saving.legacy import saving_utils
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import constants
@@ -586,7 +587,7 @@ class KerasObjectLoader:
 
         try:
             try:
-                obj = layers_module.deserialize(
+                obj = model_config.model_from_config(
                     serialization.serialize_keras_class_and_config(
                         class_name, config, shared_object_id=shared_object_id
                     )

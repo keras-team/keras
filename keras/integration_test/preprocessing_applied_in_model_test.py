@@ -29,7 +29,7 @@ test_combinations = tf.__internal__.test.combinations
 # to API changes and backward-compatibility is not guaranteed.
 STRATEGIES = [
     ds_combinations.default_strategy,
-    ds_combinations.mirrored_strategy_with_cpu_1_and_2,
+    ds_combinations.mirrored_strategy_with_two_cpus,
     ds_combinations.mirrored_strategy_with_two_gpus,
     # TODO(b/183044870) TPU strategies with soft placement do not yet work.
     # ds_combinations.tpu_strategy,

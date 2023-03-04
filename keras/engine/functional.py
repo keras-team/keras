@@ -15,7 +15,6 @@
 
 """A `Network` is way to compose layers: the topological form of a `Model`."""
 
-
 import collections
 import copy
 import itertools
@@ -33,6 +32,7 @@ from keras.engine import input_spec
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import network_serialization
@@ -1265,6 +1265,10 @@ def _should_skip_first_node(layer):
     # Networks that are constructed with an Input layer/shape start with a
     # pre-existing node linking their input to output. This node is excluded
     # from the network config.
+    if not hasattr(layer, "_self_tracked_trackables"):
+        # Special case for serialization of Functional models without
+        # defined input shape argument.
+        return isinstance(layer, Functional)
     if layer._self_tracked_trackables:
         return (
             isinstance(layer, Functional)
@@ -1428,7 +1432,10 @@ def reconstruct_from_config(config, custom_objects=None, created_layers=None):
         # Call layer on its inputs, thus creating the node
         # and building the layer if needed.
         if input_tensors is not None:
-            if not layer._preserve_input_structure_in_config:
+            if (
+                not hasattr(layer, "_preserve_input_structure_in_config")
+                or not layer._preserve_input_structure_in_config
+            ):
                 input_tensors = base_layer_utils.unnest_if_single_tensor(
                     input_tensors
                 )
@@ -1546,10 +1553,11 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
     Returns:
       Config dictionary.
     """
-    serialize_layer_fn = (
-        serialize_layer_fn or serialization.serialize_keras_object
-    )
     config = config or {}
+    serialize_obj_fn = serialization_lib.serialize_keras_object
+    if "module" not in config:
+        serialize_obj_fn = serialization.serialize_keras_object
+    serialize_layer_fn = serialize_layer_fn or serialize_obj_fn
     config["name"] = network.name
     node_conversion_map = {}
     for layer in network.layers:

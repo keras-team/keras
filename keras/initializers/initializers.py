@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.dtensor import utils
+from keras.saving import serialization_lib
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -122,7 +123,7 @@ class Initializer:
                     "and being called multiple times, which will return "
                     "identical values each time (even if the initializer is "
                     "unseeded). Please update your code to provide a seed to "
-                    "the initializer, or avoid using the same initalizer "
+                    "the initializer, or avoid using the same initializer "
                     "instance more than once."
                 )
         else:
@@ -266,6 +267,16 @@ class Constant(Initializer):
 
     def get_config(self):
         return {"value": self.value}
+
+    @classmethod
+    def from_config(cls, config):
+        config.pop("dtype", None)
+        if "value" in config:
+            if isinstance(config["value"], dict):
+                config["value"] = serialization_lib.deserialize_keras_object(
+                    config["value"]
+                )
+        return cls(**config)
 
 
 @keras_export(

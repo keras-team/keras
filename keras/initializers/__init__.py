@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 
 from keras.initializers import initializers
 from keras.initializers import initializers_v1
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization as legacy_serialization
 from keras.utils import generic_utils
 from keras.utils import tf_inspect as inspect
@@ -138,8 +139,7 @@ def serialize(initializer, use_legacy_format=False):
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(initializer)
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.serialize_keras_object(initializer)
+    return serialization_lib.serialize_keras_object(initializer)
 
 
 @keras_export("keras.initializers.deserialize")
@@ -154,8 +154,7 @@ def deserialize(config, custom_objects=None, use_legacy_format=False):
             printable_module_name="initializer",
         )
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.deserialize_keras_object(
+    return serialization_lib.deserialize_keras_object(
         config,
         module_objects=LOCAL.ALL_OBJECTS,
         custom_objects=custom_objects,
@@ -203,8 +202,8 @@ def get(identifier):
         use_legacy_format = "module" not in identifier
         return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif isinstance(identifier, str):
-        identifier = str(identifier)
-        return deserialize(identifier)
+        config = {"class_name": str(identifier), "config": {}}
+        return get(config)
     elif callable(identifier):
         if inspect.isclass(identifier):
             identifier = identifier()

@@ -132,7 +132,6 @@ keras_packages = [
     "keras.utils.np_utils",
     "keras.utils.tf_utils",
     "keras.utils.vis_utils",
-    "keras.wrappers.scikit_learn",
 ]
 
 # The target used by PIP package which need to generate API init files during OSS build.
@@ -159,6 +158,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -173,6 +175,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -187,6 +192,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )

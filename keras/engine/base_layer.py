@@ -2295,7 +2295,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if self._build_input_shape is not None:
 
             def convert_tensorshapes(x):
-                if isinstance(x, tf.TensorShape):
+                if isinstance(x, tf.TensorShape) and x._dims:
                     return tuple(x.as_list())
                 return x
 
@@ -3499,13 +3499,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Bypass Trackable logic as `__dict__` already contains this info.
         object.__setattr__(self, "__dict__", state)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         """Experimental method for saving the state of this layer object."""
         all_vars = self._trainable_weights + self._non_trainable_weights
         for i, v in enumerate(all_vars):
             store[f"{i}"] = v.numpy()
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         """Experimental method for loading the state of this layer object."""
         self._update_trackables()
         all_vars = self._trainable_weights + self._non_trainable_weights
@@ -3608,6 +3608,10 @@ class TensorFlowOpLayer(Layer):
                 # Recreate constant in graph to add distribution context.
                 value = tf.get_static_value(constant)
                 if value is not None:
+                    if isinstance(value, dict):
+                        value = serialization_lib.deserialize_keras_object(
+                            value
+                        )
                     constant = tf.constant(value, name=node_def.input[index])
                 inputs.insert(index, constant)
             # TODO(b/183990973): We should drop or consolidate these private api

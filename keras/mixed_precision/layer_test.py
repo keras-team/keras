@@ -298,19 +298,47 @@ class LayerTest(test_combinations.TestCase):
 
             layer = mp_test_util.MultiplyLayer(dtype="mixed_float16")
             config = layer.get_config()
-            self.assertEqual(
-                config["dtype"],
-                {"class_name": "Policy", "config": {"name": "mixed_float16"}},
-            )
+            if tf.__internal__.tf2.enabled():
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "module": "keras.mixed_precision",
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                        "registered_name": None,
+                    },
+                )
+            else:
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                    },
+                )
             layer = mp_test_util.MultiplyLayer.from_config(config)
             self.assertEqual(layer.dtype, "float32")
             self.assertEqual(layer(x).dtype, "float16")
             self.assertEqual(layer.v.dtype, "float32")
             config = layer.get_config()
-            self.assertEqual(
-                config["dtype"],
-                {"class_name": "Policy", "config": {"name": "mixed_float16"}},
-            )
+            if tf.__internal__.tf2.enabled():
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "module": "keras.mixed_precision",
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                        "registered_name": None,
+                    },
+                )
+            else:
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                    },
+                )
 
             layer = mp_test_util.MultiplyLayer(dtype=policy.Policy("_infer"))
             config = layer.get_config()
@@ -334,24 +362,45 @@ class LayerTest(test_combinations.TestCase):
         # when deserialized.
         x = tf.constant([1.0], dtype=tf.float16)
         with strategy_fn().scope():
-
             layer = mp_test_util.MultiplyLayer(dtype="mixed_float16")
             config = layer.get_config()
             # Change the serialized dtype policy to a PolicyV1
-            config["dtype"] = {
-                "class_name": "PolicyV1",
-                "config": {"name": "mixed_float16", "loss_scale": None},
-            }
+            if tf.__internal__.tf2.enabled():
+                config["dtype"] = {
+                    "module": "keras.mixed_precision",
+                    "class_name": "PolicyV1",
+                    "config": {"name": "mixed_float16", "loss_scale": None},
+                    "registered_name": None,
+                }
+            else:
+                config["dtype"] = {
+                    "class_name": "PolicyV1",
+                    "config": {"name": "mixed_float16", "loss_scale": None},
+                }
             layer = mp_test_util.MultiplyLayer.from_config(config)
             self.assertEqual(layer.dtype, "float32")
             self.assertEqual(layer(x).dtype, "float16")
             self.assertEqual(layer.v.dtype, "float32")
             config = layer.get_config()
             # The loss_scale is silently dropped
-            self.assertEqual(
-                config["dtype"],
-                {"class_name": "Policy", "config": {"name": "mixed_float16"}},
-            )
+            if tf.__internal__.tf2.enabled():
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "module": "keras.mixed_precision",
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                        "registered_name": None,
+                    },
+                )
+            else:
+                self.assertEqual(
+                    config["dtype"],
+                    {
+                        "class_name": "Policy",
+                        "config": {"name": "mixed_float16"},
+                    },
+                )
 
             layer = mp_test_util.MultiplyLayer(dtype="float64")
             config = layer.get_config()

@@ -21,8 +21,8 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.saving.legacy import serialization as legacy_serialization
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export

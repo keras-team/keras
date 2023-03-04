@@ -140,10 +140,7 @@ def result_wrapper(result_fn):
                 if isinstance(raw_result, (tf.Tensor, tf.Variable, float, int)):
                     result_t = tf.identity(raw_result)
                 elif isinstance(raw_result, dict):
-                    result_t = {
-                        key: tf.identity(value)
-                        for key, value in raw_result.items()
-                    }
+                    result_t = tf.nest.map_structure(tf.identity, raw_result)
                 else:
                     try:
                         result_t = tf.identity(raw_result)
@@ -174,7 +171,7 @@ def result_wrapper(result_fn):
                 # Wrapping result in identity so that control dependency between
                 # update_op from `update_state` and result works in case result
                 # returns a tensor.
-                return tf.identity(result)
+                return tf.nest.map_structure(tf.identity, result)
 
             # Wrapping result in merge_call. merge_call is used when we want to
             # leave replica mode and compute a value in cross replica mode.
