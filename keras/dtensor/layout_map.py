@@ -465,7 +465,7 @@ def _init_state_variable_for_rng(model, layout_map):
             # When the keras_generator is not built yet. Call the init function
             # with DTensor device to init all the variable with default
             # replicated layout.
-            with dtensor.run_on(layout_map.get_default_mesh()):
+            with dtensor.default_mesh(layout_map.get_default_mesh()):
                 keras_generator._maybe_init()
 
 
