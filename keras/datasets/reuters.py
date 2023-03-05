@@ -164,6 +164,12 @@ def load_data(
 @keras_export("keras.datasets.reuters.get_word_index")
 def get_word_index(path="reuters_word_index.json"):
     """Retrieves a dict mapping words to their index in the Reuters dataset.
+    Actual word indices starts from 3, with 3 indices reserved for:
+    0 (padding), 1 (start), 2 (oof).
+
+    E.g. word index of 'the' is 1, but the in the actual training data, the
+    index of 'the' will be 1+3 = 4. Vice versa, to translate word indices in
+    training data back to words using this mapping, indices need to substract 3.
 
     Args:
         path: where to cache the data (relative to `~/.keras/dataset`).
@@ -182,3 +188,21 @@ def get_word_index(path="reuters_word_index.json"):
     )
     with open(path) as f:
         return json.load(f)
+
+
+@keras_export("keras.datasets.reuters.get_ylabels")
+def get_ylabels():
+    """Returns the y label as a list of strings with indices matching
+    training data.
+
+    See references from:
+    - https://github.com/keras-team/keras/issues/12072#issuecomment-458154097
+    - https://martin-thoma.com/nlp-reuters/
+    """
+    return ('cocoa','grain', 'veg-oil', 'earn', 'acq', 'wheat', 'copper',
+        'housing', 'money-supply', 'coffee', 'sugar', 'trade', 'reserves',
+        'ship', 'cotton', 'carcass', 'crude', 'nat-gas', 'cpi', 'money-fx',
+        'interest', 'gnp', 'meal-feed', 'alum', 'oilseed', 'gold', 'tin',
+        'strategic-metal', 'livestock', 'retail', 'ipi', 'iron-steel', 'rubber',
+        'heat', 'jobs', 'lei', 'bop', 'zinc', 'orange', 'pet-chem', 'dlr',
+        'gas', 'silver', 'wpi', 'hog', 'lead')
