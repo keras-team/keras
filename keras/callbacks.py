@@ -1971,10 +1971,10 @@ class EarlyStopping(Callback):
           displays messages when the callback takes an action.
       mode: One of `{"auto", "min", "max"}`. In `min` mode,
           training will stop when the quantity
-          monitored has stopped decreasing; in `max` mode, 
-          it will stop when the quantity monitored has stopped increasing; 
-          in `auto` mode, the mode is set to `max` if the quantity monitored 
-          ends in 'acc', 'accuracy' or 'auc' and are set to `min` for the rest 
+          monitored has stopped decreasing; in `max` mode,
+          it will stop when the quantity monitored has stopped increasing;
+          in `auto` mode, the mode is set to `max` if the quantity monitored
+          ends in 'acc', 'accuracy' or 'auc' and are set to `min` for the rest
           of the quantities."
       baseline: Baseline value for the monitored quantity.
           Training will stop if the model doesn't show improvement over the
@@ -2995,7 +2995,7 @@ class ReduceLROnPlateau(Callback):
         mode: one of `{'auto', 'min', 'max'}`. In `'min'` mode,
           the learning rate will be reduced when the
           quantity monitored has stopped decreasing; in `'max'` mode it will be
-          reduced when the quantity monitored has stopped increasing; in `auto` 
+          reduced when the quantity monitored has stopped increasing; in `auto`
           mode, the mode is set to `max` if the quantities
           monitored contain 'acc' and are set to `min` for
           the rest of the quantities.
