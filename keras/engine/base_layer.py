@@ -866,6 +866,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         """
         try:
             return cls(**config)
+        except TypeError:
+            for key in config:
+                if (
+                    isinstance(config[key], dict)
+                    and "class_name" in config[key]
+                ):
+                    config[key] = serialization_lib.deserialize_keras_object(
+                        config[key]
+                    )
+            return cls.from_config(config)
         except Exception as e:
             raise TypeError(
                 f"Error when deserializing class '{cls.__name__}' using "

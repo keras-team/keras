@@ -3050,13 +3050,28 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             if is_functional_config and revivable_as_functional:
                 # Revive Functional model
                 # (but not Functional subclasses with a custom __init__)
-                inputs, outputs, layers = functional.reconstruct_from_config(
-                    config, custom_objects
-                )
-                model = cls(
-                    inputs=inputs, outputs=outputs, name=config.get("name")
-                )
-                functional.connect_ancillary_layers(model, layers)
+                # In the case of incomplete deserialization, we dispatch
+                # an additional deserialize call for the inner config
+                # before retrying the revival `from_config`.
+                try:
+                    inputs, outputs, layers = functional.reconstruct_from_config(  # noqa:E501
+                        config, custom_objects
+                    )
+                    model = cls(
+                        inputs=inputs, outputs=outputs, name=config.get("name")
+                    )
+                    functional.connect_ancillary_layers(model, layers)
+                except TypeError:
+                    for i, layer in enumerate(config["layers"]):
+                        for key, val in layer["config"].items():
+                            if (
+                                isinstance(val, dict)
+                                and "class_name" in val
+                            ):
+                                config["layers"][i]["config"][key] = (
+                                    serialization_lib.deserialize_keras_object(val)  # noqa:E501
+                                )
+                    return cls.from_config(config, custom_objects)
 
             else:
                 # Either the model has a custom __init__, or the config
