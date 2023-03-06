@@ -928,6 +928,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             "method on your layer (%s)." % self.__class__.__name__
         )
 
+    def _return_output_dtype(self):
+        return self._compute_dtype
+
     @doc_controls.for_subclass_implementers
     def compute_output_signature(self, input_signature):
         """Compute the output tensor signature of the layer based on the inputs.
@@ -963,7 +966,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             check_type_return_shape, input_signature
         )
         output_shape = self.compute_output_shape(input_shape)
-        dtype = self._compute_dtype
+        dtype = self._return_output_dtype()
         if dtype is None:
             input_dtypes = [s.dtype for s in tf.nest.flatten(input_signature)]
             # Default behavior when self.dtype is None, is to use the first
