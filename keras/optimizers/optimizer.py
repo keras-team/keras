@@ -818,12 +818,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
             variable.assign(weight)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         """Get the state of this optimizer object."""
         for i, variable in enumerate(self.variables):
             store[str(i)] = variable.numpy()
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         """Set the state of this optimizer object."""
         if len(store.keys()) != len(self.variables):
             msg = (

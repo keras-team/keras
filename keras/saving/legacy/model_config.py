@@ -16,7 +16,12 @@
 """Functions that save the model's config into different formats."""
 
 # isort: off
+
+import threading
 from tensorflow.python.util.tf_export import keras_export
+from keras.saving.legacy import serialization
+
+MODULE_OBJECTS = threading.local()
 
 
 @keras_export("keras.models.model_from_config")
@@ -50,9 +55,20 @@ def model_from_config(config, custom_objects=None):
             f"Received: config={config}. Did you meant to use "
             "`Sequential.from_config(config)`?"
         )
-    from keras.layers import deserialize
+    from keras import layers
 
-    return deserialize(config, custom_objects=custom_objects)
+    global MODULE_OBJECTS
+
+    if not hasattr(MODULE_OBJECTS, "ALL_OBJECTS"):
+        layers.serialization.populate_deserializable_objects()
+        MODULE_OBJECTS.ALL_OBJECTS = layers.serialization.LOCAL.ALL_OBJECTS
+
+    return serialization.deserialize_keras_object(
+        config,
+        module_objects=MODULE_OBJECTS.ALL_OBJECTS,
+        custom_objects=custom_objects,
+        printable_module_name="layer",
+    )
 
 
 @keras_export("keras.models.model_from_yaml")

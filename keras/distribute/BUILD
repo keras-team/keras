@@ -532,6 +532,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_pip",  # The test imports distribute_strategy_test which is not in the pip package.
         "no_windows_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notsan",

@@ -85,8 +85,10 @@ class DefunWrapper:
 
             layer_func = gru.gru_with_backend_selection
 
-        self.defun_layer = tf.__internal__.function.defun_with_attributes(
-            layer_func, attributes=supportive_attributes, autograph=False
+        self.defun_layer = tf.function(
+            layer_func,
+            autograph=False,
+            experimental_attributes=supportive_attributes,
         )
 
     def __deepcopy__(self, memo):
@@ -223,8 +225,8 @@ def generate_defun_backend(
         _FUNCTION_DEVICE_ATTRIBUTE: preferred_device,
     }
     function_attributes.update(supportive_attributes)
-    return tf.__internal__.function.defun_with_attributes(
-        func=func, attributes=function_attributes, autograph=False
+    return tf.function(
+        func, autograph=False, experimental_attributes=function_attributes
     )
 
 
