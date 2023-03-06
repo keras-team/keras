@@ -92,8 +92,8 @@ class Lion(optimizer.Optimizer):
         self.beta_2 = beta_2
         if beta_1 <= 0 or beta_1 > 1:
             raise ValueError(
-                f"`beta_1`={beta_1} but it must be between ]0, 1], otherwise, "
-                " the optimizer degenerate to SignSGD."
+                f"`beta_1`={beta_1} must be between ]0, 1]. Otherwise, "
+                "the optimizer degenerates to SignSGD."
             )
 
     def build(self, var_list):
