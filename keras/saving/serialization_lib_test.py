@@ -312,6 +312,38 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         self.assertIs(layers[0].activation, layers[1].activation)
         self.assertIs(new_layers[0].activation, new_layers[1].activation)
 
+    def test_legacy_internal_object(self):
+        from keras.layers.rnn.legacy_cells import (
+            LSTMCell,  # pylint: disable=C6204
+        )
+
+        # tf.nn.rnn_cell.LSTMCell belongs to keras.__internal__.legacy namespace
+        cell = LSTMCell(32)
+        x = keras.Input((None, 5))
+        layer = keras.layers.RNN(cell)
+        y = layer(x)
+        model = keras.models.Model(x, y)
+        model.compile(optimizer="rmsprop", loss="mse")
+
+        x_in = np.random.random((3, 5, 5))
+        y_out_1 = model.predict(x_in)
+        weights = model.get_weights()
+
+        # serialize and deserialize
+        config = serialization_lib.serialize_keras_object(layer)
+        layer = serialization_lib.deserialize_keras_object(
+            config,
+            custom_objects={"LSTMCell": LSTMCell},
+        )
+
+        # Restore RNN cell into model with weights
+        y = layer(x)
+        model = keras.models.Model(x, y)
+        model.set_weights(weights)
+        y_out_2 = model.predict(x_in)
+
+        self.assertAllClose(y_out_1, y_out_2, atol=1e-5)
+
 
 @test_utils.run_v2_only
 class BackwardsCompatibilityTest(tf.test.TestCase, parameterized.TestCase):
