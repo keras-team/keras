@@ -17,11 +17,13 @@
 import tensorflow.compat.v2 as tf
 
 from keras.optimizers import optimizer
+from keras.saving.object_registration import register_keras_serializable
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
 
 
+@register_keras_serializable()
 @keras_export("keras.optimizers.Lion", v1=[])
 class Lion(optimizer.Optimizer):
     """Optimizer that implements the Lion algorithm.
@@ -88,10 +90,10 @@ class Lion(optimizer.Optimizer):
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.beta_1 = beta_1
         self.beta_2 = beta_2
-        if self.beta_1 == 0.0:
+        if beta_1 <= 0 or beta_1 > 1:
             raise ValueError(
-                "`beta_1` must be between [0, 1] otherwise the optimizer "
-                "degenerate to SignSGD."
+                f"`beta_1`={beta_1} but it must be between ]0, 1], otherwise, "
+                " the optimizer degenerate to SignSGD."
             )
 
     def build(self, var_list):
