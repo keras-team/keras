@@ -51,7 +51,7 @@ _ASSETS_DIRNAME = "assets"
 
 # A temporary flag to enable the new idempotent saving framework.
 _SAVING_V3_ENABLED = threading.local()
-_SAVING_V3_ENABLED.value = False
+_SAVING_V3_ENABLED.value = True
 
 ATTR_SKIPLIST = frozenset(
     {
@@ -368,11 +368,10 @@ def _save_state(
     if id(trackable) in visited_trackables:
         return
 
-    # TODO(fchollet): better name?
-    if hasattr(trackable, "_save_own_variables") and weights_store:
-        trackable._save_own_variables(weights_store.make(inner_path))
-    if hasattr(trackable, "_save_assets") and assets_store:
-        trackable._save_assets(assets_store.make(inner_path))
+    if hasattr(trackable, "save_own_variables") and weights_store:
+        trackable.save_own_variables(weights_store.make(inner_path))
+    if hasattr(trackable, "save_assets") and assets_store:
+        trackable.save_assets(assets_store.make(inner_path))
 
     visited_trackables.add(id(trackable))
 
@@ -407,10 +406,10 @@ def _load_state(
     if visited_trackables and id(trackable) in visited_trackables:
         return
 
-    if hasattr(trackable, "_load_own_variables") and weights_store:
+    if hasattr(trackable, "load_own_variables") and weights_store:
         if skip_mismatch:
             try:
-                trackable._load_own_variables(weights_store.get(inner_path))
+                trackable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
                 warnings.warn(
                     f"Could not load weights in object {trackable}. "
@@ -419,12 +418,12 @@ def _load_state(
                     stacklevel=2,
                 )
         else:
-            trackable._load_own_variables(weights_store.get(inner_path))
+            trackable.load_own_variables(weights_store.get(inner_path))
 
-    if hasattr(trackable, "_load_assets") and assets_store:
+    if hasattr(trackable, "load_assets") and assets_store:
         if skip_mismatch:
             try:
-                trackable._load_assets(assets_store.get(inner_path))
+                trackable.load_assets(assets_store.get(inner_path))
             except Exception as e:
                 warnings.warn(
                     f"Could not load assets in object {trackable}. "
@@ -433,7 +432,7 @@ def _load_state(
                     stacklevel=2,
                 )
         else:
-            trackable._load_assets(assets_store.get(inner_path))
+            trackable.load_assets(assets_store.get(inner_path))
 
     if visited_trackables is not None:
         visited_trackables.add(id(trackable))
@@ -690,7 +689,7 @@ def _is_keras_trackable(obj):
 
 
 def saving_v3_enabled():
-    return getattr(_SAVING_V3_ENABLED, "value", False)
+    return getattr(_SAVING_V3_ENABLED, "value", True)
 
 
 # Some debugging utilities.
@@ -707,7 +706,6 @@ def _print_h5_file(h5_file, prefix="", action=None):
 
 
 def _print_zip_file(zipfile, action):
-    # TODO(fchollet): move to debugging logs.
     io_utils.print_msg(f"Keras model archive {action}:")
     # Same as `ZipFile.printdir()` except for using Keras' printing utility.
     io_utils.print_msg(

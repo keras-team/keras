@@ -4,6 +4,7 @@ More context in go/new-keras-optimizer
 """
 
 import os
+from unittest import mock
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -35,7 +36,7 @@ ds_combinations = tf.__internal__.distribute.combinations
 STRATEGIES = [
     # TODO(b/202992598): Add PSS strategy once the XLA issues is resolved.
     ds_combinations.one_device_strategy,
-    ds_combinations.mirrored_strategy_with_cpu_1_and_2,
+    ds_combinations.mirrored_strategy_with_two_cpus,
     ds_combinations.mirrored_strategy_with_two_gpus,
     ds_combinations.tpu_strategy,
     ds_combinations.cloud_tpu_strategy,
@@ -391,6 +392,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         expected_learning_rate = {
             "class_name": "CustomLRSchedule",
             "config": {"initial_learning_rate": 0.05},
+            "module": None,
+            "registered_name": "CustomLRSchedule",
         }
         self.assertDictContainsSubset(expected_config, config)
         self.assertDictEqual(expected_learning_rate, config["learning_rate"])
@@ -422,11 +425,14 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         # Create a new optimizer and call restore on it (and x)
         x2 = tf.Variable([[0.0, 0.0], [0.0, 0.0]], dtype=x.dtype)
         optimizer_2 = adam_new.Adam(
-            learning_rate=0.02, beta_1=0.7, beta_2=0.777
+            learning_rate=lr_schedule, beta_1=0.8, beta_2=0.888
         )
-        optimizer_2.build([x2])
         checkpoint_2 = tf.train.Checkpoint(var=x2, optimizer=optimizer_2)
         checkpoint_2.restore(checkpoint_path)
+
+        for _ in range(2):
+            optimizer_1.apply_gradients(zip([grads], [x]))
+            optimizer_2.apply_gradients(zip([grads], [x]))
 
         self.assertTrue(
             (
@@ -602,6 +608,19 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             optimizer.get_config()["learning_rate"],
             legacy_optimizer.get_config()["learning_rate"],
         )
+
+    @test_utils.run_v2_only
+    def test_arm_mac_get_legacy_optimizer(self):
+        with mock.patch(
+            "platform.system",
+            mock.MagicMock(return_value="Darwin"),
+        ):
+            with mock.patch(
+                "platform.processor",
+                mock.MagicMock(return_value="arm"),
+            ):
+                optimizer = keras.optimizers.get("adam")
+        self.assertIsInstance(optimizer, adam_old.Adam)
 
 
 class OptimizerRegressionTest(tf.test.TestCase, parameterized.TestCase):

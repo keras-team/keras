@@ -78,6 +78,7 @@ class LayerCorrectnessTest(test_combinations.TestCase):
                 tf.config.LogicalDeviceConfiguration(),
             ],
         )
+        self.strategy = create_mirrored_strategy()
 
     def _create_model_from_layer(self, layer, input_shapes):
         inputs = [layers.Input(batch_input_shape=s) for s in input_shapes]
@@ -269,7 +270,6 @@ class LayerCorrectnessTest(test_combinations.TestCase):
             input_shapes = [input_shape]
         else:
             input_shapes = input_shape
-        strategy = create_mirrored_strategy()
         f32_layer = f32_layer_fn()
 
         # Create the layers
@@ -281,12 +281,13 @@ class LayerCorrectnessTest(test_combinations.TestCase):
 
         # Compute per_replica_input_shapes for the distributed model
         global_batch_size = input_shapes[0][0]
-        assert global_batch_size % strategy.num_replicas_in_sync == 0, (
+        assert global_batch_size % self.strategy.num_replicas_in_sync == 0, (
             "The number of replicas, %d, does not divide the global batch "
-            "size of %d" % (strategy.num_replicas_in_sync, global_batch_size)
+            "size of %d"
+            % (self.strategy.num_replicas_in_sync, global_batch_size)
         )
         per_replica_batch_size = (
-            global_batch_size // strategy.num_replicas_in_sync
+            global_batch_size // self.strategy.num_replicas_in_sync
         )
         per_replica_input_shapes = [
             (per_replica_batch_size,) + s[1:] for s in input_shapes
@@ -295,7 +296,7 @@ class LayerCorrectnessTest(test_combinations.TestCase):
         # Create the models
         f32_model = self._create_model_from_layer(f32_layer, input_shapes)
         mp_model = self._create_model_from_layer(mp_layer, input_shapes)
-        with strategy.scope():
+        with self.strategy.scope():
             distributed_mp_model = self._create_model_from_layer(
                 distributed_mp_layer, per_replica_input_shapes
             )

@@ -635,25 +635,27 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-        grads_and_vars = list(zip(grads, trainable_variables))
-        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
-        if len(list(grads_and_vars)) == 0:
-            # Check again after filtering gradients.
-            return self._iterations
+            grads_and_vars = list(zip(grads, trainable_variables))
+            grads_and_vars = optimizer_utils.filter_empty_gradients(
+                grads_and_vars
+            )
+            if len(list(grads_and_vars)) == 0:
+                # Check again after filtering gradients.
+                return self._iterations
 
-        grads, trainable_variables = zip(*grads_and_vars)
+            grads, trainable_variables = zip(*grads_and_vars)
 
-        grads = self._clip_gradients(grads)
-        grads = self._deduplicate_sparse_grad(grads)
-        self._apply_weight_decay(trainable_variables)
-        grads_and_vars = list(zip(grads, trainable_variables))
-        iteration = self._internal_apply_gradients(grads_and_vars)
+            grads = self._clip_gradients(grads)
+            grads = self._deduplicate_sparse_grad(grads)
+            self._apply_weight_decay(trainable_variables)
+            grads_and_vars = list(zip(grads, trainable_variables))
+            iteration = self._internal_apply_gradients(grads_and_vars)
 
-        # Apply variable constraints after applying gradients.
-        for variable in trainable_variables:
-            if variable.constraint is not None:
-                variable.assign(variable.constraint(variable))
-        return iteration
+            # Apply variable constraints after applying gradients.
+            for variable in trainable_variables:
+                if variable.constraint is not None:
+                    variable.assign(variable.constraint(variable))
+            return iteration
 
     def _apply_weight_decay(self, variables):
         if self.weight_decay is None:
@@ -816,12 +818,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
             variable.assign(weight)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         """Get the state of this optimizer object."""
         for i, variable in enumerate(self.variables):
             store[str(i)] = variable.numpy()
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         """Set the state of this optimizer object."""
         if len(store.keys()) != len(self.variables):
             msg = (

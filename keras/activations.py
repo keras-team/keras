@@ -15,12 +15,16 @@
 """Built-in activation functions."""
 
 import sys
+import types
 
 import tensorflow.compat.v2 as tf
 
 import keras.layers.activation as activation_layers
 from keras import backend
+from keras.saving import object_registration
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization as legacy_serialization
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.utils import generic_utils
 
 # isort: off
@@ -80,18 +84,18 @@ def softmax(x, axis=-1):
     >>> layer = tf.keras.layers.Dense(32,
     ...                               activation=tf.keras.activations.softmax)
     """
-    if x.shape.rank > 1:
-        if isinstance(axis, int):
-            output = tf.nn.softmax(x, axis=axis)
-        else:
-            # nn.softmax does not support tuple axis.
-            e = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
-            s = tf.reduce_sum(e, axis=axis, keepdims=True)
-            output = e / s
-    else:
+    if x.shape.rank <= 1:
         raise ValueError(
             f"Cannot apply softmax to a tensor that is 1D. Received input: {x}"
         )
+
+    if isinstance(axis, int):
+        output = tf.nn.softmax(x, axis=axis)
+    else:
+        # nn.softmax does not support tuple axis.
+        numerator = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
+        denominator = tf.reduce_sum(numerator, axis=axis, keepdims=True)
+        output = numerator / denominator
 
     # Cache the logits to use for crossentropy loss.
     output._keras_logits = x
@@ -142,7 +146,7 @@ def elu(x, alpha=1.0):
 
 
     Reference:
-        [Fast and Accurate Deep Network Learning by Exponential Linear Units
+        - [Fast and Accurate Deep Network Learning by Exponential Linear Units
         (ELUs) (Clevert et al, 2016)](https://arxiv.org/abs/1511.07289)
     """
     return backend.elu(x, alpha)
@@ -288,7 +292,7 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
     change the max value of the activation,
     and to use a non-zero multiple of the input for values below the threshold.
 
-    For example:
+    Example:
 
     >>> foo = tf.constant([-10, -5, 0.0, 5, 10], dtype = tf.float32)
     >>> tf.keras.activations.relu(foo).numpy()
@@ -329,7 +333,7 @@ def gelu(x, approximate=False):
     The (GELU) nonlinearity weights inputs by their value, rather than gates
     inputs by their sign as in ReLU.
 
-    For example:
+    Example:
 
     >>> x = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype=tf.float32)
     >>> y = tf.keras.activations.gelu(x)
@@ -364,9 +368,9 @@ def gelu(x, approximate=False):
 def tanh(x):
     """Hyperbolic tangent activation function.
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.tanh(a)
     >>> b.numpy()
     array([-0.9950547, -0.7615942,  0.,  0.7615942,  0.9950547], dtype=float32)
@@ -394,7 +398,7 @@ def sigmoid(x):
     assumed to be zero. The sigmoid function always returns a value between
     0 and 1.
 
-    For example:
+    Example:
 
     >>> a = tf.constant([-20, -1.0, 0.0, 1.0, 20], dtype = tf.float32)
     >>> b = tf.keras.activations.sigmoid(a)
@@ -419,9 +423,9 @@ def sigmoid(x):
 def exponential(x):
     """Exponential activation function.
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.exponential(a)
     >>> b.numpy()
     array([0.04978707,  0.36787945,  1.,  2.7182817 , 20.085537], dtype=float32)
@@ -444,9 +448,9 @@ def hard_sigmoid(x):
     Piecewise linear approximation of the sigmoid function.
     Ref: 'https://en.wikipedia.org/wiki/Hard_sigmoid'
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.hard_sigmoid(a)
     >>> b.numpy()
     array([0. , 0.3, 0.5, 0.7, 1. ], dtype=float32)
@@ -469,9 +473,9 @@ def hard_sigmoid(x):
 def linear(x):
     """Linear activation function (pass-through).
 
-    For example:
+    Example:
 
-    >>> a = tf.constant([-3.0,-1.0, 0.0,1.0,3.0], dtype = tf.float32)
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0, 3.0], dtype = tf.float32)
     >>> b = tf.keras.activations.linear(a)
     >>> b.numpy()
     array([-3., -1.,  0.,  1.,  3.], dtype=float32)
@@ -485,6 +489,45 @@ def linear(x):
     return x
 
 
+@keras_export("keras.activations.mish")
+@tf.__internal__.dispatch.add_dispatch_support
+def mish(x):
+    """Mish activation function.
+
+    It is defined as:
+
+    ```python
+    def mish(x):
+        return x * tanh(softplus(x))
+    ```
+
+    where `softplus` is defined as:
+
+    ```python
+    def softplus(x):
+        return log(exp(x) + 1)
+    ```
+
+    Example:
+
+    >>> a = tf.constant([-3.0, -1.0, 0.0, 1.0], dtype = tf.float32)
+    >>> b = tf.keras.activations.mish(a)
+    >>> b.numpy()
+    array([-0.14564745, -0.30340144,  0.,  0.86509836], dtype=float32)
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        The mish activation.
+
+    Reference:
+        - [Mish: A Self Regularized Non-Monotonic
+        Activation Function](https://arxiv.org/abs/1908.08681)
+    """
+    return x * tf.math.tanh(tf.math.softplus(x))
+
+
 @keras_export("keras.activations.serialize")
 @tf.__internal__.dispatch.add_dispatch_support
 def serialize(activation, use_legacy_format=False):
@@ -496,7 +539,7 @@ def serialize(activation, use_legacy_format=False):
     Returns:
         String denoting the name attribute of the input function
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.serialize(tf.keras.activations.tanh)
     'tanh'
@@ -505,7 +548,7 @@ def serialize(activation, use_legacy_format=False):
     >>> tf.keras.activations.serialize('abcd')
     Traceback (most recent call last):
     ...
-    ValueError: ('Cannot serialize', 'abcd')
+    ValueError: Unknown activation function 'abcd' cannot be serialized.
 
     Raises:
         ValueError: The input function is not a valid one.
@@ -519,11 +562,38 @@ def serialize(activation, use_legacy_format=False):
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(activation)
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.serialize_keras_object(activation)
+    fn_config = serialization_lib.serialize_keras_object(activation)
+    if (
+        not tf.__internal__.tf2.enabled()
+        or saved_model_utils.in_tf_saved_model_scope()
+    ):
+        return fn_config
+    if "config" not in fn_config:
+        raise ValueError(
+            f"Unknown activation function '{activation}' cannot be "
+            "serialized due to invalid function name. Make sure to use "
+            "an activation name that matches the references defined in "
+            "activations.py or use `@keras.utils.register_keras_serializable` "
+            "for any custom activations. "
+            f"config={fn_config}"
+        )
+    if not isinstance(activation, types.FunctionType):
+        # Case for additional custom activations represented by objects
+        return fn_config
+    if (
+        isinstance(fn_config["config"], str)
+        and fn_config["config"] not in globals()
+    ):
+        # Case for custom activation functions from external activations modules
+        fn_config["config"] = object_registration.get_registered_name(
+            activation
+        )
+        return fn_config
+    return fn_config["config"]
+    # Case for keras.activations builtins (simply return name)
 
 
-# Add additional globals so that deserialize can find these common activation
+# Add additional globals so that deserialize() can find these common activation
 # functions
 leaky_relu = tf.nn.leaky_relu
 log_softmax = tf.nn.log_softmax
@@ -544,7 +614,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
     Returns:
         Corresponding activation function.
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.deserialize('linear')
      <function linear at 0x1239596a8>
@@ -553,7 +623,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
     >>> tf.keras.activations.deserialize('abcd')
     Traceback (most recent call last):
     ...
-    ValueError: Unknown activation function:abcd
+    ValueError: Unknown activation function 'abcd' cannot be deserialized.
 
     Raises:
         ValueError: `Unknown activation function` if the input string does not
@@ -578,13 +648,19 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
             printable_module_name="activation function",
         )
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.deserialize_keras_object(
+    returned_fn = serialization_lib.deserialize_keras_object(
         name,
         module_objects=activation_functions,
         custom_objects=custom_objects,
         printable_module_name="activation function",
     )
+
+    if isinstance(returned_fn, str):
+        raise ValueError(
+            f"Unknown activation function '{name}' cannot be deserialized."
+        )
+
+    return returned_fn
 
 
 @keras_export("keras.activations.get")
@@ -598,7 +674,7 @@ def get(identifier):
     Returns:
         Function corresponding to the input string or input function.
 
-    For example:
+    Example:
 
     >>> tf.keras.activations.get('softmax')
      <function softmax at 0x1222a3d90>
@@ -628,7 +704,6 @@ def get(identifier):
         return deserialize(identifier, use_legacy_format=use_legacy_format)
     elif callable(identifier):
         return identifier
-    else:
-        raise TypeError(
-            f"Could not interpret activation function identifier: {identifier}"
-        )
+    raise TypeError(
+        f"Could not interpret activation function identifier: {identifier}"
+    )

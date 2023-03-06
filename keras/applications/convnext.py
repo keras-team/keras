@@ -26,6 +26,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras import initializers
 from keras import layers
 from keras import utils
 from keras.applications import imagenet_utils
@@ -217,8 +218,10 @@ class LayerScale(layers.Layer):
         self.projection_dim = projection_dim
 
     def build(self, input_shape):
-        self.gamma = tf.Variable(
-            self.init_values * tf.ones((self.projection_dim,))
+        self.gamma = self.add_weight(
+            shape=(self.projection_dim,),
+            initializer=initializers.Constant(self.init_values),
+            trainable=True,
         )
 
     def call(self, x):
@@ -324,11 +327,12 @@ def PreStem(name=None):
     return apply
 
 
-def Head(num_classes=1000, name=None):
+def Head(num_classes=1000, classifier_activation=None, name=None):
     """Implementation of classification head of RegNet.
 
     Args:
       num_classes: number of classes for Dense layer
+      classifier_activation: activation function for the Dense layer
       name: name prefix
 
     Returns:
@@ -342,7 +346,11 @@ def Head(num_classes=1000, name=None):
         x = layers.LayerNormalization(
             epsilon=1e-6, name=name + "_head_layernorm"
         )(x)
-        x = layers.Dense(num_classes, name=name + "_head_dense")(x)
+        x = layers.Dense(
+            num_classes,
+            activation=classifier_activation,
+            name=name + "_head_dense",
+        )(x)
         return x
 
     return apply
@@ -522,8 +530,12 @@ def ConvNeXt(
         cur += depths[i]
 
     if include_top:
-        x = Head(num_classes=classes, name=model_name)(x)
         imagenet_utils.validate_activation(classifier_activation, weights)
+        x = Head(
+            num_classes=classes,
+            classifier_activation=classifier_activation,
+            name=model_name,
+        )(x)
 
     else:
         if pooling == "avg":

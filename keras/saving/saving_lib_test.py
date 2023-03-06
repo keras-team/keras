@@ -78,19 +78,19 @@ class LayerWithCustomSaving(MyDense):
         self.stored_variables = variables_data
         return super().build(input_shape)
 
-    def _save_assets(self, inner_path):
+    def save_assets(self, inner_path):
         with open(os.path.join(inner_path, "assets.txt"), "w") as f:
             f.write(self.assets)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         store["variables"] = self.stored_variables
 
-    def _load_assets(self, inner_path):
+    def load_assets(self, inner_path):
         with open(os.path.join(inner_path, "assets.txt"), "r") as f:
             text = f.read()
         self.assets = text
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         self.stored_variables = np.array(store["variables"])
 
 
