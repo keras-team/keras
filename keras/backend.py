@@ -5574,6 +5574,42 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     return -tf.reduce_sum(target * tf.math.log(output), axis)
 
 
+@keras_export("keras.backend.categorical_focal_crossentropy")
+@tf.__internal__.dispatch.add_dispatch_support
+@doc_controls.do_not_generate_docs
+def categorical_focal_crossentropy(
+        target,
+        output,
+        alpha=0.25,
+        gamma=2.0,
+        from_logits=False,
+        axis=-1,
+):
+    
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "categorical_focal_crossentropy"
+    )
+
+    output = tf.__internal__.smart_cond.smart_cond(
+        from_logits,
+        lambda: softmax(output),
+        lambda: output,
+    )
+
+    epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+    output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
+
+    cce = -target * tf.math.log(output)
+
+    # Calculate factors
+    modulating_factor = tf.pow(1.0 - output, gamma)
+    weighting_factor = tf.multiply(modulating_factor, alpha)
+
+    # Apply weighting factor
+    focal_cce = tf.multiply(weighting_factor, cce)
+    focal_cce = tf.reduce_sum(focal_cce, axis=axis)
+    return focal_cce
+
 @keras_export("keras.backend.sparse_categorical_crossentropy")
 @tf.__internal__.dispatch.add_dispatch_support
 @doc_controls.do_not_generate_docs

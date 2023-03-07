@@ -921,6 +921,40 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             axis=axis,
         )
 
+@keras_export("keras.losses.CategoricalFocalCrossentropy")
+class CategoricalFocalCrossentropy(LossFunctionWrapper):
+    def __init__(
+            self,
+            alpha=0.25,
+            gamma=2.0,
+            from_logits=False,
+            label_smoothing=0.0,
+            axis=-1,
+            reduction=losses_utils.ReductionV2.AUTO,
+            name="categorical_focal_crossentropy",
+    ):
+        """Initializes `CategoricalFocalCrossentropy` instance."""
+        super().__init__(
+            categorical_focal_crossentropy,
+            alpha=alpha,
+            gamma=gamma,
+            name=name,
+            reduction=reduction,
+            from_logits=from_logits,
+            label_smoothing=label_smoothing,
+            axis=axis,
+        )
+        self.from_logits = from_logits
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def get_config(self):
+        config = {
+            "alpha": self.alpha,
+            "gamma": self.gamma,
+        }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 @keras_export("keras.losses.SparseCategoricalCrossentropy")
 class SparseCategoricalCrossentropy(LossFunctionWrapper):
@@ -2024,6 +2058,58 @@ def _ragged_tensor_categorical_crossentropy(
     )
     return _ragged_tensor_apply_loss(fn, y_true, y_pred)
 
+
+@keras_export(
+    "keras.metrics.categorical_focal_crossentropy",
+    "keras.losses.categorical_focal_crossentropy",
+)
+@tf.__internal__.dispatch.add_dispatch_support
+def categorical_focal_crossentropy(
+        y_true,
+        y_pred,
+        alpha=0.25,
+        gamma=2.0,
+        from_logits=False,
+        label_smoothing=0.0,
+        axis=-1,
+):
+
+    if isinstance(axis, bool):
+        raise ValueError(
+            "`axis` must be of type `int`. "
+            f"Received: axis={axis} of type {type(axis)}"
+        )
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.cast(y_true, y_pred.dtype)
+    label_smoothing = tf.convert_to_tensor(label_smoothing, dtype=y_pred.dtype)
+
+    if y_pred.shape[-1] == 1:
+        warnings.warn(
+            "In loss categorical_focal_crossentropy, expected "
+            "y_pred.shape to be (batch_size, num_classes) "
+            f"with num_classes > 1. Received: y_pred.shape={y_pred.shape}. "
+            "Consider using 'binary_crossentropy' if you only have 2 classes.",
+            SyntaxWarning,
+            stacklevel=2,
+        )
+
+    def _smooth_labels():
+        num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
+        return y_true * (1.0 - label_smoothing) + (
+                label_smoothing / num_classes
+        )
+
+    y_true = tf.__internal__.smart_cond.smart_cond(
+        label_smoothing, _smooth_labels, lambda: y_true
+    )
+
+    return backend.categorical_focal_crossentropy(
+            target=y_true,
+            output=y_pred,
+            alpha=alpha,
+            gamma=gamma,
+            from_logits=from_logits,
+            axis=axis, )
 
 @keras_export(
     "keras.metrics.sparse_categorical_crossentropy",
