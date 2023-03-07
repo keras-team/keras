@@ -372,16 +372,18 @@ def save_weights(
         if not tf.executing_eagerly():
             # Call `get_session` to initialize any uninitialized variables.
             backend.get_session()
-        model._checkpoint.write(filepath, options=options)
 
-        # Record this checkpoint so it's visible from
-        # tf.train.latest_checkpoint.
-        tf.__internal__.train.update_checkpoint_state(
-            save_dir=os.path.dirname(filepath),
-            model_checkpoint_path=filepath,
-            save_relative_paths=True,
-            all_model_checkpoint_paths=[filepath],
-        )
+        def write_done_callback(filepath):
+            # Record this checkpoint so it's visible from
+            # tf.train.latest_checkpoint.
+            tf.__internal__.train.update_checkpoint_state(
+                save_dir=os.path.dirname(filepath),
+                model_checkpoint_path=filepath,
+                save_relative_paths=True,
+                all_model_checkpoint_paths=[filepath])
+
+        model._checkpoint._write(
+            filepath, options=options, write_done_callback=write_done_callback)
 
 
 def load_weights(
