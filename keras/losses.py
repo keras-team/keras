@@ -2111,6 +2111,26 @@ def categorical_focal_crossentropy(
             from_logits=from_logits,
             axis=axis, )
 
+@dispatch.dispatch_for_types(categorical_focal_crossentropy, tf.RaggedTensor)
+def _ragged_tensor_categorical_focal_crossentropy(
+    y_true,
+    y_pred,
+    alpha=0.25,
+    gamma=2.0,
+    from_logits=False,
+    label_smoothing=0.0,
+    axis=-1,
+):
+    fn = functools.partial(
+        categorical_focal_crossentropy,
+        alpha=alpha,
+        gamma=gamma,
+        from_logits=from_logits,
+        label_smoothing=label_smoothing,
+        axis=axis,
+    )
+    return _ragged_tensor_apply_loss(fn, y_true, y_pred)
+
 @keras_export(
     "keras.metrics.sparse_categorical_crossentropy",
     "keras.losses.sparse_categorical_crossentropy",
