@@ -49,12 +49,14 @@ class _UnwrapPreventer:
 def _is_all_finite(grads):
     """Returns a scalar boolean tensor indicating if all gradients are
     finite."""
+
     def raw_values(g):
         return g.values if isinstance(g, tf.IndexedSlices) else g
 
     is_finite_per_grad = [
         tf.reduce_all(tf.math.is_finite(raw_values(g)))
-        for g in grads if g is not None
+        for g in grads
+        if g is not None
     ]
     return tf.reduce_all(is_finite_per_grad)
 
