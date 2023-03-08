@@ -191,13 +191,12 @@ def get_word_index(path="reuters_word_index.json"):
         return json.load(f)
 
 
-@keras_export("keras.datasets.reuters.get_ylabels")
+@keras_export("keras.datasets.reuters.get_label_names")
 def get_label_names():
     """Returns labels as a list of strings with indices matching training data.
 
-    See references from:
+    Reference:
 
-    - [Github Discussion](https://github.com/keras-team/keras/issues/12072)
     - [Reuters Dataset](https://martin-thoma.com/nlp-reuters/)
     """
     return (
