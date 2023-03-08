@@ -44,35 +44,10 @@ def get_var(val, dtype, name=None):
     return tf.Variable(val, dtype=dtype, name=name)
 
 
-def set_cpu_logical_devices_to_at_least(num):
-    """Create cpu logical devices of at least a given number."""
-    physical_devices = tf.config.list_physical_devices("CPU")
-    if not physical_devices:
-        raise RuntimeError("No CPU found")
-    if len(physical_devices) >= num:
-        return
-    # By default each physical device corresponds to one logical device. We
-    # create multiple logical devices for the last physical device so that we
-    # have `num` logical devices.
-    num = num - len(physical_devices) + 1
-    logical_devices = []
-    for _ in range(num):
-        logical_devices.append(tf.config.LogicalDeviceConfiguration())
-    # Create logical devices from the last device since sometimes the first GPU
-    # is the primary graphic card and may have less memory available.
-    tf.config.set_logical_device_configuration(
-        physical_devices[-1], logical_devices
-    )
-
-
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(mode=["graph", "eager"])
 )
 class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
-    def setUp(self):
-        set_cpu_logical_devices_to_at_least(3)
-        super().setUp()
-
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_read(self, distribution):
         with distribution.scope():
