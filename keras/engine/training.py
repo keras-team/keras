@@ -4070,7 +4070,9 @@ def reduce_per_replica(values, strategy, reduction):
             elif reduction == "sum":
                 return strategy.reduce("SUM", v, axis=None)
 
-        if not _is_per_replica_instance(v):
+        if _is_dtensor_per_replica_instance(v):
+            return _reduce_dtensor_per_replica(v, strategy, reduction)
+        elif not _is_per_replica_instance(v):
             return v
         elif reduction == "first":
             return strategy.experimental_local_results(v)[0]
@@ -4143,6 +4145,28 @@ def potentially_ragged_concat(tensors):
     return tf.ragged.constant(
         [tensor.numpy() for tensor in tensors], inner_shape=constant_inner_shape
     ).merge_dims(0, 1)
+
+
+def _reduce_dtensor_per_replica(value, strategy, reduction):
+    # Note that this function could happen in graph, so we can't just access
+    # the per-replica.values(), which will trigger unpack in graph and result
+    # into error.
+    # For now we will perform ops on dtensor instance directly on a global
+    # context.
+    dtensor = value._dtensor
+    if reduction == "first":
+        num_replica = strategy.num_replicas_in_sync
+        return tf.split(dtensor, num_replica, axis=0)[0]
+    elif reduction == "concat":
+        # Since dtensor is already in global context, the concat is a no-op
+        return dtensor
+    elif reduction == "sum":
+        return tf.reduce_sum(dtensor)
+    else:
+        raise ValueError(
+            '`reduction` must be one of "first", "concat", "sum", or "auto". '
+            f"Received: reduction={reduction}."
+        )
 
 
 def _get_verbosity(verbose, distribute_strategy):
@@ -4269,6 +4293,16 @@ def flatten_metrics_in_order(logs, metrics_names):
 def _is_per_replica_instance(obj):
     return isinstance(obj, tf.distribute.DistributedValues) and isinstance(
         obj, tf.__internal__.CompositeTensor
+    )
+
+
+def _is_dtensor_per_replica_instance(obj):
+    # This is a temp check for DTensorDistributedValue, which is not public API
+    # yet.
+    # TODO(scottzhu): Move to more stable API when dtensor based strategy is
+    # ready.
+    return isinstance(obj, tf.distribute.DistributedValues) and hasattr(
+        obj, "_dtensor"
     )
 
 
