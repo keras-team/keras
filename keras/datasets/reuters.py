@@ -197,8 +197,8 @@ def get_label_names():
 
     See references from:
 
-    - [Github Discussion](https://github.com/keras-team/keras/issues/12072#issuecomment-458154097)
-    - [Blog Introduction to Reuters Dataset](https://martin-thoma.com/nlp-reuters/)
+    - [Github Discussion](https://github.com/keras-team/keras/issues/12072)
+    - [Reuters Dataset](https://martin-thoma.com/nlp-reuters/)
     """
     return (
         "cocoa",
