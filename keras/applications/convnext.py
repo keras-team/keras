@@ -219,6 +219,7 @@ class LayerScale(layers.Layer):
 
     def build(self, input_shape):
         self.gamma = self.add_weight(
+            name="gamma",
             shape=(self.projection_dim,),
             initializer=initializers.Constant(self.init_values),
             trainable=True,
