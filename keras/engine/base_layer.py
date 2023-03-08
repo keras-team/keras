@@ -2292,6 +2292,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         return self.add_weight(*args, **kwargs)
 
     def get_build_config(self):
+        """Returns a dictionary with the layer's input shape.
+
+        This method returns a config dict that can be used by
+        `build_from_config(config)` to create all states (e.g. Variables and
+        Lookup tables) needed by the layer.
+
+        By default, the config only contains the input shape that the layer
+        was built with. If you're writing a custom layer that creates state in
+        an unusual way, you should override this method to make sure this state
+        is already created when Keras attempts to load its value upon model
+        loading.
+
+        Returns:
+            A dict containing the input shape associated with the layer.
+        """
         if self._build_input_shape is not None:
 
             def convert_tensorshapes(x):
@@ -2306,6 +2321,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             }
 
     def build_from_config(self, config):
+        """Builds the layer's states with the supplied config dict.
+
+        By default, this method calls the `build(config["input_shape"])` method,
+        which creates weights based on the layer's input shape in the supplied
+        config. If your config contains other information needed to load the
+        layer's state, you should override this method.
+
+        Args:
+            config: Dict containing the input shape associated with this layer.
+        """
         input_shape = config["input_shape"]
         if input_shape is not None:
             self.build(input_shape)
@@ -3500,13 +3525,27 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         object.__setattr__(self, "__dict__", state)
 
     def save_own_variables(self, store):
-        """Experimental method for saving the state of this layer object."""
+        """Saves the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is saved upon calling `model.save()`.
+
+        Args:
+            store: Dict where the state of the model will be saved.
+        """
         all_vars = self._trainable_weights + self._non_trainable_weights
         for i, v in enumerate(all_vars):
             store[f"{i}"] = v.numpy()
 
     def load_own_variables(self, store):
-        """Experimental method for loading the state of this layer object."""
+        """Loads the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is loaded upon calling `keras.models.load_model()`.
+
+        Args:
+            store: Dict from which the state of the model will be loaded.
+        """
         self._update_trackables()
         all_vars = self._trainable_weights + self._non_trainable_weights
         if len(store.keys()) != len(all_vars):
