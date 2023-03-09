@@ -345,6 +345,93 @@ class SerializationLibTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(y_out_1, y_out_2, atol=1e-5)
 
 
+@keras.utils.register_keras_serializable()
+class MyDense(keras.layers.Layer):
+    def __init__(
+        self,
+        units,
+        *,
+        kernel_regularizer=None,
+        kernel_initializer=None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self._units = units
+        self._kernel_regularizer = kernel_regularizer
+        self._kernel_initializer = kernel_initializer
+
+    def get_config(self):
+        return dict(
+            units=self._units,
+            kernel_initializer=self._kernel_initializer,
+            kernel_regularizer=self._kernel_regularizer,
+            **super().get_config()
+        )
+
+    def build(self, input_shape):
+        unused_batch_size, input_units = input_shape.as_list()
+        self._kernel = self.add_weight(
+            "kernel",
+            [input_units, self._units],
+            dtype=tf.float32,
+            regularizer=self._kernel_regularizer,
+            initializer=self._kernel_initializer,
+        )
+
+    def call(self, inputs):
+        return tf.matmul(inputs, self._kernel)
+
+
+@keras.utils.register_keras_serializable()
+class MyWrapper(keras.layers.Layer):
+    def __init__(self, wrapped, **kwargs):
+        super().__init__(**kwargs)
+        self._wrapped = wrapped
+
+    def get_config(self):
+        return dict(wrapped=self._wrapped, **super().get_config())
+
+    @classmethod
+    def from_config(cls, config):
+        config["wrapped"] = keras.utils.deserialize_keras_object(
+            config["wrapped"]
+        )
+        return cls(**config)
+
+    def call(self, inputs):
+        return self._wrapped(inputs)
+
+
+@test_utils.run_v2_only
+class JsonSerializationTest(tf.test.TestCase, parameterized.TestCase):
+    def test_serialize_deserialize_custom_layer_json(self):
+        reg = keras.regularizers.L2(0.101)
+        ini = keras.initializers.Constant(1.0)
+        dense = MyDense(4, kernel_regularizer=reg, kernel_initializer=ini)
+        inputs = keras.layers.Input(shape=[3])
+        outputs = dense(inputs)
+        model = keras.Model(inputs, outputs)
+
+        model_json = model.to_json()
+        model2 = keras.models.model_from_json(model_json)
+
+        self.assertEqual(model_json, model2.to_json())
+
+    def test_serialize_deserialize_custom_layer_with_wrapper_json(self):
+        reg = keras.regularizers.L2(0.101)
+        ini = keras.initializers.Constant(1.0)
+        dense = MyDense(4, kernel_regularizer=reg, kernel_initializer=ini)
+        wrapper = MyWrapper(dense)
+        inputs = keras.layers.Input(shape=[3])
+        outputs = wrapper(inputs)
+        model = keras.Model(inputs, outputs)
+
+        model_json = model.to_json()
+        model2 = keras.models.model_from_json(model_json)
+
+        self.assertEqual(model_json, model2.to_json())
+
+
 @test_utils.run_v2_only
 class BackwardsCompatibilityTest(tf.test.TestCase, parameterized.TestCase):
     def assert_old_format_can_be_deserialized(self, obj, custom_objects=None):
