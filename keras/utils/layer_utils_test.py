@@ -27,6 +27,7 @@ import timeit
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
 from keras.testing_infra import test_utils
@@ -50,7 +51,7 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
         return id(self)
 
 
-class LayerUtilsTest(tf.test.TestCase):
+class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
     def test_print_summary(self):
         model = keras.Sequential()
         model.add(
@@ -148,9 +149,9 @@ class LayerUtilsTest(tf.test.TestCase):
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 18\n"
-                "Non-trainable params: 6\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 18 (72.00 Byte)\n"
+                "Non-trainable params: 6 (24.00 Byte)\n"
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
@@ -276,9 +277,9 @@ class LayerUtilsTest(tf.test.TestCase):
                 " dense (Dense)               (None, 5)                 65        Y          \n"  # noqa: E501
                 "                                                                            \n"  # noqa: E501
                 "============================================================================\n"  # noqa: E501
-                "Total params: 127\n"
-                "Trainable params: 65\n"
-                "Non-trainable params: 62\n"
+                "Total params: 127 (508.00 Byte)\n"
+                "Trainable params: 65 (260.00 Byte)\n"
+                "Non-trainable params: 62 (248.00 Byte)\n"
                 "____________________________________________________________________________\n"  # noqa: E501
                 "____________________________________________________________________________\n"  # noqa: E501
             )
@@ -350,9 +351,9 @@ class LayerUtilsTest(tf.test.TestCase):
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "============================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 6\n"
-                "Non-trainable params: 18\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 6 (24.00 Byte)\n"
+                "Non-trainable params: 18 (72.00 Byte)\n"
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
@@ -460,9 +461,9 @@ class LayerUtilsTest(tf.test.TestCase):
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 18\n"
-                "Non-trainable params: 6\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 18 (72.00 Byte)\n"
+                "Non-trainable params: 6 (24.00 Byte)\n"
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
@@ -475,6 +476,34 @@ class LayerUtilsTest(tf.test.TestCase):
             self.assertEqual(len(lines), len(check_lines))
         except ImportError:
             pass
+
+    def test_weight_memory_size(self):
+        v1 = tf.Variable(tf.zeros(shape=(1, 2), dtype=tf.float32))
+        v2 = tf.Variable(tf.zeros(shape=(2, 3), dtype=tf.float64))
+        v3 = tf.Variable(tf.zeros(shape=(4, 5), dtype=tf.int16))
+        v4 = tf.Variable(tf.zeros(shape=(6,), dtype=tf.uint8))
+
+        weights = [v1, v1, v2, v3, v4]
+        weight_memory_size = layer_utils.weight_memory_size(weights)
+        expected_memory_size = 1 * 2 * 4 + 2 * 3 * 8 + 4 * 5 * 2 + 6 * 1
+        self.assertEqual(weight_memory_size, expected_memory_size)
+
+    @parameterized.parameters(
+        (0, "0.00 Byte"),
+        (1000, "1000.00 Byte"),
+        (1024, "1.00 KB"),
+        (1024 * 2 - 1, "2.00 KB"),
+        (1024 * 2 + 1, "2.00 KB"),
+        (1024**2 + 1, "1.00 MB"),
+        (1024**3 - 1, "1024.00 MB"),
+        (1024**3, "1.00 GB"),
+        (1024**4, "1.00 TB"),
+        (1024**5, "1.00 PB"),
+        (1024**5 * 1.41415, "1.41 PB"),
+    )
+    def test_readable_weight_memory_size(self, size, expected_result):
+        result = layer_utils.readable_weight_memory_size(size)
+        self.assertEqual(result, expected_result)
 
     def test_property_cache(self):
         test_counter = collections.Counter()
