@@ -911,13 +911,11 @@ class RNN(base_layer.Layer):
                     return backend.variable(x, name="state")
 
             else:
-                unique_id = 0
+                unique_names = iter(["hidden_state", "output_state"])
 
                 def assign_unique_var(x):
-                    nonlocal unique_id
-                    var = backend.variable(x, name=f"state_{unique_id}")
-                    unique_id += 1
-                    return var
+                    nonlocal unique_names
+                    return backend.variable(x, name=next(unique_names))
 
             flat_states_variables = tf.nest.map_structure(
                 assign_unique_var, flat_init_state_values
