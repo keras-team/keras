@@ -85,8 +85,10 @@ class DefunWrapper:
 
             layer_func = gru.gru_with_backend_selection
 
-        self.defun_layer = tf.__internal__.function.defun_with_attributes(
-            layer_func, attributes=supportive_attributes, autograph=False
+        self.defun_layer = tf.function(
+            layer_func,
+            autograph=False,
+            experimental_attributes=supportive_attributes,
         )
 
     def __deepcopy__(self, memo):
@@ -170,7 +172,7 @@ def has_fully_masked_sequence(mask):
 
 def is_cudnn_supported_inputs(mask, time_major, sequence_lengths):
     if tf.sysconfig.get_build_info()["is_rocm_build"]:
-        if not time_major:
+        if (not time_major) and (sequence_lengths is not None):
             return False
         if mask is not None:
             return tf.reduce_all(mask)
@@ -223,8 +225,8 @@ def generate_defun_backend(
         _FUNCTION_DEVICE_ATTRIBUTE: preferred_device,
     }
     function_attributes.update(supportive_attributes)
-    return tf.__internal__.function.defun_with_attributes(
-        func=func, attributes=function_attributes, autograph=False
+    return tf.function(
+        func, autograph=False, experimental_attributes=function_attributes
     )
 
 

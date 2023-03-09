@@ -21,7 +21,8 @@ Wrappers are layers that augment the functionality of another layer.
 import copy
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
+from keras.saving.legacy import serialization as legacy_serialization
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -40,7 +41,14 @@ class Wrapper(Layer):
     """
 
     def __init__(self, layer, **kwargs):
-        assert isinstance(layer, Layer)
+        try:
+            assert isinstance(layer, Layer)
+        except Exception:
+            raise ValueError(
+                f"Layer {layer} supplied to wrapper is"
+                " not a supported layer type. Please"
+                " ensure wrapped layer is a valid Keras layer."
+            )
         self.layer = layer
         super().__init__(**kwargs)
 
@@ -58,7 +66,14 @@ class Wrapper(Layer):
             return None
 
     def get_config(self):
-        config = {"layer": serialization.serialize_keras_object(self.layer)}
+        try:
+            config = {
+                "layer": serialization_lib.serialize_keras_object(self.layer)
+            }
+        except TypeError:  # Case of incompatible custom wrappers
+            config = {
+                "layer": legacy_serialization.serialize_keras_object(self.layer)
+            }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -68,7 +83,10 @@ class Wrapper(Layer):
 
         # Avoid mutating the input dict
         config = copy.deepcopy(config)
+        use_legacy_format = "module" not in config
         layer = deserialize_layer(
-            config.pop("layer"), custom_objects=custom_objects
+            config.pop("layer"),
+            custom_objects=custom_objects,
+            use_legacy_format=use_legacy_format,
         )
         return cls(layer, **config)

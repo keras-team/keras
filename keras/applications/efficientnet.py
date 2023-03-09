@@ -364,7 +364,9 @@ def EfficientNet(
         # original implementation.
         # See https://github.com/tensorflow/tensorflow/issues/49930 for more
         # details
-        x = layers.Rescaling(1.0 / tf.math.sqrt(IMAGENET_STDDEV_RGB))(x)
+        x = layers.Rescaling(
+            [1.0 / math.sqrt(stddev) for stddev in IMAGENET_STDDEV_RGB]
+        )(x)
 
     x = layers.ZeroPadding2D(
         padding=imagenet_utils.correct_pad(x, 3), name="stem_conv_pad"

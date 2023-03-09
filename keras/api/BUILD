@@ -132,7 +132,6 @@ keras_packages = [
     "keras.utils.np_utils",
     "keras.utils.tf_utils",
     "keras.utils.vis_utils",
-    "keras.wrappers.scikit_learn",
 ]
 
 # The target used by PIP package which need to generate API init files during OSS build.

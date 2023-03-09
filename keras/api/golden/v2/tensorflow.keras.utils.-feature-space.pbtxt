@@ -268,8 +268,16 @@ tf_class {
     argspec: "args=[\'cls\', \'num_bins\', \'output_mode\', \'name\'], varargs=None, keywords=None, defaults=[\'one_hot\', \'None\'], "
   }
   member_method {
+    name: "load_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "save"
     argspec: "args=[\'self\', \'filepath\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "save_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_weights"

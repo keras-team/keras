@@ -15,12 +15,16 @@
 """Built-in activation functions."""
 
 import sys
+import types
 
 import tensorflow.compat.v2 as tf
 
 import keras.layers.activation as activation_layers
 from keras import backend
+from keras.saving import object_registration
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization as legacy_serialization
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.utils import generic_utils
 
 # isort: off
@@ -544,7 +548,7 @@ def serialize(activation, use_legacy_format=False):
     >>> tf.keras.activations.serialize('abcd')
     Traceback (most recent call last):
     ...
-    ValueError: ('Cannot serialize', 'abcd')
+    ValueError: Unknown activation function 'abcd' cannot be serialized.
 
     Raises:
         ValueError: The input function is not a valid one.
@@ -558,8 +562,35 @@ def serialize(activation, use_legacy_format=False):
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(activation)
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.serialize_keras_object(activation)
+    fn_config = serialization_lib.serialize_keras_object(activation)
+    if (
+        not tf.__internal__.tf2.enabled()
+        or saved_model_utils.in_tf_saved_model_scope()
+    ):
+        return fn_config
+    if "config" not in fn_config:
+        raise ValueError(
+            f"Unknown activation function '{activation}' cannot be "
+            "serialized due to invalid function name. Make sure to use "
+            "an activation name that matches the references defined in "
+            "activations.py or use `@keras.utils.register_keras_serializable` "
+            "for any custom activations. "
+            f"config={fn_config}"
+        )
+    if not isinstance(activation, types.FunctionType):
+        # Case for additional custom activations represented by objects
+        return fn_config
+    if (
+        isinstance(fn_config["config"], str)
+        and fn_config["config"] not in globals()
+    ):
+        # Case for custom activation functions from external activations modules
+        fn_config["config"] = object_registration.get_registered_name(
+            activation
+        )
+        return fn_config
+    return fn_config["config"]
+    # Case for keras.activations builtins (simply return name)
 
 
 # Add additional globals so that deserialize() can find these common activation
@@ -592,7 +623,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
     >>> tf.keras.activations.deserialize('abcd')
     Traceback (most recent call last):
     ...
-    ValueError: Unknown activation function:abcd
+    ValueError: Unknown activation function 'abcd' cannot be deserialized.
 
     Raises:
         ValueError: `Unknown activation function` if the input string does not
@@ -617,13 +648,19 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
             printable_module_name="activation function",
         )
 
-    # To be replaced by new serialization_lib
-    return legacy_serialization.deserialize_keras_object(
+    returned_fn = serialization_lib.deserialize_keras_object(
         name,
         module_objects=activation_functions,
         custom_objects=custom_objects,
         printable_module_name="activation function",
     )
+
+    if isinstance(returned_fn, str):
+        raise ValueError(
+            f"Unknown activation function '{name}' cannot be deserialized."
+        )
+
+    return returned_fn
 
 
 @keras_export("keras.activations.get")

@@ -17,8 +17,8 @@
 import timeit
 
 import numpy as np
-import tensorflow.compat.v2 as tf
 
+from keras import callbacks
 from keras.benchmarks import distribution_util
 
 
@@ -72,7 +72,7 @@ def get_keras_examples_metadata(
     }
 
 
-class TimerCallBack(tf.keras.callbacks.Callback):
+class TimerCallBack(callbacks.Callback):
     """Callback for logging time in each epoch or batch."""
 
     def __init__(self):

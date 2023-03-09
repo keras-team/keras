@@ -60,11 +60,13 @@ from keras.optimizers.optimizer_v1 import Optimizer
 from keras.optimizers.optimizer_v1 import TFOptimizer
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.saving.legacy import serialization as legacy_serialization
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=line-too-long
 
 
 @keras_export("keras.optimizers.serialize")
@@ -75,10 +77,8 @@ def serialize(optimizer, use_legacy_format=False):
     `Optimizer` instance again.
 
     >>> tf.keras.optimizers.serialize(tf.keras.optimizers.legacy.SGD())
-    {'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01,
-                                     'decay': 0.0, 'momentum': 0.0,
-                                     'nesterov': False}}
-
+    {'module': 'keras.optimizers.legacy', 'class_name': 'SGD', 'config': {'name': 'SGD', 'learning_rate': 0.01, 'decay': 0.0, 'momentum': 0.0, 'nesterov': False}, 'registered_name': None}"""  # noqa: E501
+    """
     Args:
       optimizer: An `Optimizer` instance to serialize.
 
@@ -310,7 +310,7 @@ def get(identifier, **kwargs):
         )
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(
+        return get(
             config,
             use_legacy_optimizer=use_legacy_optimizer,
         )
