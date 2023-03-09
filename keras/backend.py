@@ -5585,7 +5585,7 @@ def categorical_focal_crossentropy(
         from_logits=False,
         axis=-1,
 ):
-    
+
     output, from_logits = _get_logits(
         output, from_logits, "Softmax", "categorical_focal_crossentropy"
     )
@@ -5595,6 +5595,8 @@ def categorical_focal_crossentropy(
         lambda: softmax(output),
         lambda: output,
     )
+
+    output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
 
     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
