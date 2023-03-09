@@ -1809,14 +1809,17 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
                 str(w[-1].message),
             )
 
+
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class CategoricalFocalCrossentropyTest(tf.test.TestCase):
     def test_config(self):
 
-        cce_obj = losses.CategoricalFocalCrossentropy(name="focal_cce",
-                                                      reduction=losses_utils.ReductionV2.SUM,
-                                                      alpha=0.25,
-                                                      gamma=2.0)
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            name="focal_cce",
+            reduction=losses_utils.ReductionV2.SUM,
+            alpha=0.25,
+            gamma=2.0,
+        )
         self.assertEqual(cce_obj.name, "focal_cce")
         self.assertEqual(cce_obj.reduction, losses_utils.ReductionV2.SUM)
         self.assertEqual(cce_obj.alpha, 0.25)
@@ -1909,7 +1912,9 @@ class CategoricalFocalCrossentropyTest(tf.test.TestCase):
         )
         loss = cce_obj(y_true, logits)
         self.assertAllClose(
-            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03), self.evaluate(loss), 3
+            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
+            self.evaluate(loss),
+            3,
         )
 
     def test_label_smoothing(self):
@@ -1918,7 +1923,8 @@ class CategoricalFocalCrossentropyTest(tf.test.TestCase):
         label_smoothing = 0.1
 
         cce_obj = losses.CategoricalFocalCrossentropy(
-            from_logits=True, label_smoothing=label_smoothing)
+            from_logits=True, label_smoothing=label_smoothing
+        )
         loss = cce_obj(y_true, logits)
 
         expected_value = 0.06685
@@ -1930,7 +1936,8 @@ class CategoricalFocalCrossentropyTest(tf.test.TestCase):
         label_smoothing = 0.1
 
         cce_obj = losses.CategoricalFocalCrossentropy(
-            from_logits=True, label_smoothing=label_smoothing)
+            from_logits=True, label_smoothing=label_smoothing
+        )
         loss = cce_obj(y_true, logits)
 
         expected_value = 0.06685
@@ -2002,6 +2009,7 @@ class CategoricalFocalCrossentropyTest(tf.test.TestCase):
                 "In loss categorical_focal_crossentropy, expected ",
                 str(w[-1].message),
             )
+
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class SparseCategoricalCrossentropyTest(tf.test.TestCase):
