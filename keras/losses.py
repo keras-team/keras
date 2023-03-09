@@ -924,20 +924,27 @@ class CategoricalCrossentropy(LossFunctionWrapper):
 
 @keras_export("keras.losses.CategoricalFocalCrossentropy")
 class CategoricalFocalCrossentropy(LossFunctionWrapper):
-    """Computes the alpha balanced focal crossentropy loss between the labels and predictions.
+    """Computes the alpha balanced focal crossentropy loss between
+    the labels and predictions.
     According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
     helps to apply a focal factor to down-weight easy examples and focus more on
     hard examples. By default, the focal tensor is computed as follows:
+
     It has pt defined as:
     pt = p, if y = 1 else 1 - p
+
     The authors use alpha-balanced variant of focal loss in the paper:
     FL(pt) = −α_t * (1 − pt)^gamma * log(pt)
+
     Extending this to multi-class case is straightforward:
-    FL(pt) = α_t * (1 − pt)^gamma * CE, where minus comes from negative log-likelihood and included in CE.
-    `modulating_factor` is (1 − pt)^gamma,
-    where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
-    effect on the categorical crossentropy. And if alpha = 1, at the same time the loss is
-    equivalent to the categorical crossentropy.
+    FL(pt) = α_t * (1 − pt)^gamma * CE, where minus comes from
+    negative log-likelihood and included in CE.
+
+    `modulating_factor` is (1 − pt)^gamma, where `gamma` is a focusing
+    parameter. When `gamma` = 0, there is no focal effect on the categorical
+    crossentropy. And if alpha = 1, at the same time the loss is equivalent to
+    the categorical crossentropy.
+
     In the snippet below, there is `# classes` floating pointing values per
     example. The shape of both `y_pred` and `y_true` are
     `[batch_size, num_classes]`.
@@ -969,8 +976,8 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
     Args:
       alpha: A weight balancing factor for all classes, default is `0.25` as
              mentioned in the reference. It can be a list of floats or a scalar.
-             In the multi-class case, alpha may be set by inverse class frequency by
-             using `compute_class_weight` from `sklearn.utils`.
+             In the multi-class case, alpha may be set by inverse class
+             frequency by using `compute_class_weight` from `sklearn.utils`.
       gamma: A focusing parameter, default is `2.0` as mentioned in the
              reference. It helps to gradually reduce the importance given to
              simple (easy) examples in a smooth manner.
