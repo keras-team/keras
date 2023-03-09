@@ -5585,7 +5585,7 @@ def categorical_focal_crossentropy(
         from_logits=False,
         axis=-1,
 ):
-
+    target.shape.assert_is_compatible_with(output.shape)
     output, from_logits = _get_logits(
         output, from_logits, "Softmax", "categorical_focal_crossentropy"
     )
