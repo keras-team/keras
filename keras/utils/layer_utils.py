@@ -123,6 +123,42 @@ def count_params(weights):
     return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
+def weight_memory_size(weights):
+    """Calculate the memory footprint for weights based on their dtypes.
+
+    Args:
+        weights: An iterable contains the weights to compute weight size.
+
+    Returns:
+        The total memory size (in Bytes) of the weights.
+    """
+    unique_weights = {id(w): w for w in weights}.values()
+
+    total_memory_size = 0
+    for w in unique_weights:
+        # Ignore TrackableWeightHandlers, which will not have a shape defined.
+        if not hasattr(w, "shape"):
+            continue
+        elif None in w.shape.as_list():
+            continue
+        weight_shape = np.prod(w.shape.as_list())
+        per_param_size = w.dtype.size
+        total_memory_size += weight_shape * per_param_size
+    return total_memory_size
+
+
+def readable_weight_memory_size(weight_memory_size):
+    """Convert the weight memory size (Bytes) to a readable string."""
+    units = ["Byte", "KB", "MB", "GB", "TB", "PB"]
+    scale = 1024
+    for unit in units:
+        if weight_memory_size / scale < 1:
+            return "{:.2f} {}".format(weight_memory_size, unit)
+        else:
+            weight_memory_size /= scale
+    return "{:.2f} {}".format(weight_memory_size, units[-1])
+
+
 def get_layer_index_bound_by_layer_name(model, layer_range=None):
     """Get the layer indexes from the model based on layer names.
 
@@ -432,14 +468,30 @@ def print_summary(
 
     if hasattr(model, "_collected_trainable_weights"):
         trainable_count = count_params(model._collected_trainable_weights)
+        trainable_memory_size = weight_memory_size(
+            model._collected_trainable_weights
+        )
     else:
         trainable_count = count_params(model.trainable_weights)
+        trainable_memory_size = weight_memory_size(model.trainable_weights)
 
     non_trainable_count = count_params(model.non_trainable_weights)
+    non_trainable_memory_size = weight_memory_size(model.non_trainable_weights)
 
-    print_fn(f"Total params: {trainable_count + non_trainable_count:,}")
-    print_fn(f"Trainable params: {trainable_count:,}")
-    print_fn(f"Non-trainable params: {non_trainable_count:,}")
+    total_memory_size = trainable_memory_size + non_trainable_memory_size
+
+    print_fn(
+        f"Total params: {trainable_count + non_trainable_count} "
+        f"({readable_weight_memory_size(total_memory_size)})"
+    )
+    print_fn(
+        f"Trainable params: {trainable_count} "
+        f"({readable_weight_memory_size(trainable_memory_size)})"
+    )
+    print_fn(
+        f"Non-trainable params: {non_trainable_count} "
+        f"({readable_weight_memory_size(non_trainable_memory_size)})"
+    )
     print_fn("_" * line_length)
 
 
