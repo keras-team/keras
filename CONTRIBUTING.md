@@ -199,7 +199,7 @@ A **class docstring** may contain the following items:
     * Optional `Raises` section for possible errors.
 
 You can check out `MultiHeadAttention` as an example
-[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/layers/attention/multi_head_attention.py#L130).
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/layers/attention/multi_head_attention.py#L131).
 
 A **function docstring** may contain the following items:
 
@@ -211,7 +211,7 @@ A **function docstring** may contain the following items:
 * Optional `Raises` section for possible errors.
 
 You can check out `text_dataset_from_directory` as an example
-[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/utils/text_dataset.py#L26).
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/utils/text_dataset.py#L31).
 
 
 ## Run tests
