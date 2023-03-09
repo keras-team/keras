@@ -30,9 +30,7 @@ from tensorflow.python.distribute.experimental import (
 )
 
 
-class BatchNormalizationDTensorTest(
-    test_util.DTensorBaseTest, parameterized.TestCase
-):
+class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
     def setUp(self):
         super().setUp()
 
@@ -67,21 +65,24 @@ class BatchNormalizationDTensorTest(
                 batch_normalization._running_with_dtensor_strategy()
             )
 
-    @parameterized.named_parameters(("training", True), ("inference", False))
+    @parameterized.product(
+        training=[True, False],
+        synchronized=[True, False],
+        renorm=[True, False],
+    )
     @test_utils.run_v2_only
-    def test_sync_bn_strategy(self, training):
+    def test_batch_normalization_with_dtensor_strategy(
+        self, training, synchronized, renorm
+    ):
         num_replica = 2
         local_batch_size = 4
         global_batch_size = num_replica * local_batch_size
-        num_feature = 2
-        global_inputs = tf.range(
-            0, global_batch_size * num_feature, dtype=tf.float32
-        )
-        global_inputs = tf.reshape(
-            global_inputs, (global_batch_size, num_feature)
+        feature_shape = [3, 5]
+        global_inputs = tf.random.uniform(
+            shape=[global_batch_size, *feature_shape], dtype=tf.float32
         )
         replica_inputs = tf.reshape(
-            global_inputs, (num_replica, local_batch_size, num_feature)
+            global_inputs, [num_replica, local_batch_size, *feature_shape]
         )
 
         def value_fn(value_context):
@@ -91,23 +92,37 @@ class BatchNormalizationDTensorTest(
         dtensor_strategy = dtensor_mirrored_strategy.MirroredStrategy(
             mesh=self.mesh
         )
-        bn_layer_0 = batch_normalization.BatchNormalization(synchronized=True)
-        bn_layer_1 = batch_normalization.BatchNormalization(synchronized=True)
+        init_kwargs = {"synchronized": synchronized, "renorm": renorm}
+        bn_layer_0 = batch_normalization.BatchNormalization(**init_kwargs)
+        bn_layer_1 = batch_normalization.BatchNormalization(**init_kwargs)
         run_kwargs = {"training": training}
 
         normal_strategy_result = self._run_bn_training_with_strategy(
             normal_strategy, value_fn, bn_layer_0, run_kwargs
         )
-        dtensor_strategy_result = self._run_bn_training_with_strategy(
-            dtensor_strategy, value_fn, bn_layer_1, run_kwargs
-        )
+        if training and not synchronized and renorm:
+            # This is an unsupported case at the moment.
+            with self.assertRaisesRegexp(NotImplementedError, "not supported"):
+                self._run_bn_training_with_strategy(
+                    dtensor_strategy, value_fn, bn_layer_1, run_kwargs
+                )
+            return
+        else:
+            dtensor_strategy_result = self._run_bn_training_with_strategy(
+                dtensor_strategy, value_fn, bn_layer_1, run_kwargs
+            )
         self.assertAllClose(
             normal_strategy_result.values, dtensor_strategy_result.values
+        )
+        self.assertAllClose(bn_layer_0.moving_mean, bn_layer_1.moving_mean)
+        self.assertAllClose(
+            bn_layer_0.moving_variance, bn_layer_1.moving_variance
         )
 
     def _run_bn_training_with_strategy(
         self, strategy, value_fn, bn_layer, run_kwargs
     ):
+        @tf.function
         def run_fn(inputs):
             return bn_layer(inputs, **run_kwargs)
 

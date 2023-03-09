@@ -148,6 +148,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/dtensor:test_util",
+        "//keras/testing_infra:test_utils",
         "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
     ],
 )
