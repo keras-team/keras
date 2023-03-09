@@ -3369,10 +3369,26 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return result
 
     def get_compile_config(self):
+        """Returns a serialized config with information for compiling the model.
+
+        This method returns a config dictionary containing all the information
+        (optimizer, loss, metrics, etc.) with which the model was compiled.
+
+        Returns:
+            A dict containing information for compiling the model.
+        """
         if self._is_compiled and hasattr(self, "_compile_config"):
             return self._compile_config.serialize()
 
     def compile_from_config(self, config):
+        """Compiles the model with the information given in config.
+
+        This method uses the information in the config (optimizer, loss,
+        metrics, etc.) to compile the model.
+
+        Args:
+            config: Dict containing information for compiling the model.
+        """
         has_overridden_compile = self.__class__.compile != Model.compile
         if has_overridden_compile:
             logging.warning(
