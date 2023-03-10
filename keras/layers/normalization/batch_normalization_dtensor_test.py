@@ -30,6 +30,7 @@ from tensorflow.python.distribute.experimental import (
 )
 
 
+@test_utils.run_v2_only
 class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
     def setUp(self):
         super().setUp()
@@ -70,7 +71,6 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
         synchronized=[True, False],
         renorm=[True, False],
     )
-    @test_utils.run_v2_only
     def test_batch_normalization_with_dtensor_strategy(
         self, training, synchronized, renorm
     ):
