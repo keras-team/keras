@@ -571,12 +571,20 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
                     "dtype_to_cast_to=float16>",
                 )
 
-    def test_repr_distributed(self):
-        strategy = tf.distribute.MirroredStrategy(["/cpu:1", "/cpu:2"])
-        with strategy.scope():
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            distribution=[
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_cpus,  # noqa: E501
+            ]
+        )
+    )
+    def test_repr_distributed(self, distribution):
+        with distribution.scope():
             x = get_var(1.0, tf.float32)
             x = autocast_variable.create_autocast_variable(x)
-            use_policy = getattr(strategy.extended, "_use_var_policy", False)
+            use_policy = getattr(
+                distribution.extended, "_use_var_policy", False
+            )
             if use_policy:
                 self.assertRegex(
                     repr(x).replace("\n", " "),
