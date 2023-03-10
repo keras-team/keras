@@ -613,6 +613,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 "caching_device",
                 "getter",
                 "layout",
+                "experimental_enable_variable_lifting",
             ]:
                 raise TypeError("Unknown keyword argument:", kwarg)
         collections_arg = kwargs.pop("collections", None)

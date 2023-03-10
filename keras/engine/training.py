@@ -33,6 +33,7 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
+from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer
 from keras.optimizers import optimizer_v1
@@ -56,6 +57,8 @@ from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.eager import context
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.distribute import distribute_utils
+from tensorflow.python.distribute import input_ops
 from tensorflow.tools.docs import doc_controls
 
 try:
@@ -601,6 +604,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         run_eagerly=None,
         steps_per_execution=None,
         jit_compile=None,
+        pss_evaluation_shards=0,
         **kwargs,
     ):
         """Configures the model for training.
@@ -695,6 +699,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               Also refer to
               [known XLA issues](https://www.tensorflow.org/xla/known_issues)
               for more details.
+            pss_evaluation_shards: Integer or 'auto'. Used for
+              `tf.distribute.ParameterServerStrategy` training only. This arg
+              sets the number of shards to split the dataset into, to enable an
+              exact visitation guarantee for evaluation, meaning the model will
+              be applied to each dataset element exactly once, even if workers
+              fail. The dataset must be sharded to ensure separate workers do
+              not process the same data. The number of shards should be at least
+              the number of workers for good performance. A value of 'auto'
+              turns on exact evaluation and uses a heuristic for the number of
+              shards based on the number of workers. Defaults to 0, meaning no
+              visitation guarantee is provided. NOTE: Custom implementations of
+              `Model.test_step` will be ignored when doing exact evaluation.
             **kwargs: Arguments supported for backwards compatibility only.
         """
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
@@ -746,6 +762,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
             self._configure_steps_per_execution(steps_per_execution or 1)
+
+            self._pss_evaluation_shards = self._infer_exact_eval_shards(
+                pss_evaluation_shards
+            )
 
             # Initializes attrs that are reset each time `compile` is called.
             self._reset_compile_cache()
@@ -1213,6 +1233,32 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             elif self._cluster_coordinator:
                 logging.warning(PSS_WARN_MSG)
         return logs
+
+    def _aggregate_exact_metrics(self, logs):
+        # When doing exact evaluation, `logs` is a list of each data shard's
+        # metric variables, which will be used to update the metrics.
+        for shard_result in logs:
+            for metric in self.metrics:
+                if metric.name == "loss":
+                    continue
+                if metric.name not in shard_result.keys():
+                    logging.log_first_n(
+                        logging.WARN,
+                        f"No matching result found for metric {metric.name}. "
+                        "This metric's computed result may be incorrect.",
+                        3,
+                    )
+                    continue
+                metric_result = shard_result[metric.name]
+                if len(metric_result) != len(metric.weights):
+                    raise ValueError(
+                        f"Expected {len(metric.weights)} variables in result "
+                        f"for metric {metric.name}, but found "
+                        f"{len(metric_result)}."
+                    )
+                for weight, val in zip(metric.weights, metric_result):
+                    weight.assign_add(val)
+        return self.get_metrics_result()
 
     def make_train_function(self, force=False):
         """Creates a function that executes one step of training.
@@ -1710,6 +1756,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if validation_data and self._should_eval(
                     epoch, validation_freq
                 ):
+                    if self._pss_evaluation_shards:
+                        self._disallow_exact_eval_with_add_metrics()
                     # Create data_handler for evaluation and cache it.
                     if getattr(self, "_eval_data_handler", None) is None:
                         self._eval_data_handler = data_adapter.get_data_handler(
@@ -1725,6 +1773,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             use_multiprocessing=use_multiprocessing,
                             model=self,
                             steps_per_execution=self._steps_per_execution,
+                            pss_evaluation_shards=self._pss_evaluation_shards,
                         )
                     val_logs = self.evaluate(
                         x=val_x,
@@ -1789,6 +1838,57 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Updates stateful loss metrics.
         self.compute_loss(x, y, y_pred, sample_weight)
         return self.compute_metrics(x, y, y_pred, sample_weight)
+
+    def _make_test_function_exact(self):
+        def step_function(batch):
+            def run_step(data):
+                # TODO(b/272050910): Use sample_weight for weighted metrics.
+                x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
+                y_pred = self(x, training=False)
+                return x, y, y_pred
+
+            if self._jit_compile:
+                run_step = tf.function(
+                    run_step, jit_compile=True, reduce_retracing=True
+                )
+
+            outputs = self.distribute_strategy.run(run_step, args=(batch,))
+            outputs = reduce_per_replica(
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
+            )
+            return outputs
+
+        def shard_test_function(dataset, total_shards, shard_idx):
+            local_metrics = []
+            with tf_utils.with_metric_local_vars_scope():
+                for metric in self.compiled_metrics.metrics:
+                    local_metrics.append(base_metric.clone_metric(metric))
+            dataset = input_ops.auto_shard_dataset(
+                dataset, total_shards, shard_idx
+            )
+            iterator = iter(dataset)
+            with distribute_utils.cache_variable_reads():
+                for batch in iterator:
+                    x, y, y_pred = step_function(batch)
+                    for local_metric in local_metrics:
+                        local_metric.update_state(y, y_pred)
+            outputs = {metric.name: metric.weights for metric in local_metrics}
+            with tf.control_dependencies(_minimum_control_deps(outputs)):
+                self._test_counter.assign_add(1)
+            return outputs
+
+        if not self.run_eagerly:
+            shard_test_function = tf.function(
+                shard_test_function, reduce_retracing=True
+            )
+
+        self.test_function = lambda *args: self._cluster_coordinator.schedule(
+            shard_test_function,
+            args=args,
+        )
+        return self.test_function
 
     def make_test_function(self, force=False):
         """Creates a function that executes one step of evaluation.
@@ -2020,6 +2120,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
         verbose = _get_verbosity(verbose, self.distribute_strategy)
+        if self._pss_evaluation_shards:
+            self._disallow_exact_eval_with_add_metrics()
         with self.distribute_strategy.scope():
             # Use cached evaluation data only when it's called in `Model.fit`
             if (
@@ -2043,6 +2145,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     use_multiprocessing=use_multiprocessing,
                     model=self,
                     steps_per_execution=self._steps_per_execution,
+                    pss_evaluation_shards=self._pss_evaluation_shards,
                 )
 
             # Container that configures and calls `tf.keras.Callback`s.
@@ -2057,11 +2160,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     steps=data_handler.inferred_steps,
                 )
 
-            logs = {}
-            self.test_function = self.make_test_function()
+            test_function_runner = self._get_test_function_runner(callbacks)
             self._test_counter.assign(0)
             callbacks.on_test_begin()
-            for _, iterator in data_handler.enumerate_epochs():  # Single epoch.
+            for (
+                _,
+                dataset_or_iterator,
+            ) in data_handler.enumerate_epochs():  # Single epoch.
                 self.reset_metrics()
                 with data_handler.catch_stop_iteration():
                     for step in data_handler.steps():
@@ -2069,23 +2174,67 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             "test", step_num=step, _r=1
                         ):
                             callbacks.on_test_batch_begin(step)
-                            tmp_logs = self.test_function(iterator)
-                            if data_handler.should_sync:
-                                context.async_wait()
-                            # No error, now safe to assign to logs.
-                            logs = tmp_logs
-                            end_step = step + data_handler.step_increment
-                            callbacks.on_test_batch_end(end_step, logs)
+                            logs = test_function_runner.run_step(
+                                dataset_or_iterator,
+                                data_handler,
+                                step,
+                                self._pss_evaluation_shards,
+                            )
 
             logs = tf_utils.sync_to_numpy_or_python_type(logs)
             # Override with model metrics instead of last step logs
-            logs = self._validate_and_get_metrics_result(logs)
+            if self._pss_evaluation_shards:
+                logs = self._aggregate_exact_metrics(logs)
+            else:
+                logs = self._validate_and_get_metrics_result(logs)
             callbacks.on_test_end(logs=logs)
 
             if return_dict:
                 return logs
             else:
                 return flatten_metrics_in_order(logs, self.metrics_names)
+
+    def _disallow_exact_eval_with_add_metrics(self):
+        metrics_from_add_metric = [
+            metric
+            for layer in self._flatten_layers()
+            for metric in layer._metrics
+        ]
+        compiled_metrics = self.compiled_metrics.metrics
+        if any(
+            [
+                metric not in compiled_metrics
+                for metric in metrics_from_add_metric
+            ]
+        ):
+            raise ValueError(
+                "Detected that a metric was added to this model "
+                "via `Model.add_metric`. This is not currently "
+                "supported when using exact evaluation with "
+                "`tf.distribute.ParameterServerStrategy`."
+            )
+
+    def _infer_exact_eval_shards(self, pss_evaluation_shards):
+        if not self.distribute_strategy._should_use_with_coordinator:
+            return 0
+        if pss_evaluation_shards == "auto":
+            # TODO(b/264265138) evaluate and improve this heuristic
+            return self.distribute_strategy._num_workers * 5
+        return pss_evaluation_shards
+
+    def _get_test_function_runner(self, callbacks):
+        if (
+            self._pss_evaluation_shards
+            and self.distribute_strategy._should_use_with_coordinator
+        ):
+            self.test_function = self._make_test_function_exact()
+            test_function_runner = _ExactTestFunction(
+                self.test_function, callbacks
+            )
+        else:
+            self.test_function = self.make_test_function()
+            test_function_runner = _TestFunction(self.test_function, callbacks)
+        return test_function_runner
 
     def predict_step(self, data):
         """The logic for one inference step.
@@ -3814,6 +3963,38 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     def _save_experimental(self, filepath):
         return saving_lib.save_model(self, filepath)
+
+
+class _TestFunction:
+    def __init__(self, function, callbacks):
+        self._function = function
+        self._callbacks = callbacks
+
+    def run_step(self, dataset_or_iterator, data_handler, step, unused_shards):
+        tmp_logs = self._function(dataset_or_iterator)
+        if data_handler.should_sync:
+            context.async_wait()
+        logs = tmp_logs
+        end_step = step + data_handler.step_increment
+        self._callbacks.on_test_batch_end(end_step, logs)
+        return logs
+
+
+class _ExactTestFunction(_TestFunction):
+    def __init__(self, function, callbacks):
+        super().__init__(function, callbacks)
+        self._logs = []
+
+    def run_step(self, dataset_or_iterator, data_handler, step, shards):
+        tmp_logs = self._function(
+            dataset_or_iterator,
+            tf.constant(shards, dtype=tf.int64),
+            tf.constant(step, dtype=tf.int64),
+        )
+        if data_handler.should_sync:
+            context.async_wait()
+        self._logs.append(tmp_logs)
+        return self._logs
 
 
 def reduce_per_replica(values, strategy, reduction):
