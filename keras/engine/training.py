@@ -2160,6 +2160,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     steps=data_handler.inferred_steps,
                 )
 
+            # Initialize to prevent errors if 0 epochs are evaluated.
+            logs = {}
+
             test_function_runner = self._get_test_function_runner(callbacks)
             self._test_counter.assign(0)
             callbacks.on_test_begin()
