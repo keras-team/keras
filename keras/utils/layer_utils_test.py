@@ -16,6 +16,7 @@
 
 import collections
 import contextlib
+import io
 import multiprocessing.dummy
 import os
 import pickle
@@ -30,9 +31,15 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
+from keras import backend
+from keras import layers
+from keras.dtensor import dtensor_api as dtensor
+from keras.dtensor import layout_map as layout_map_lib
+from keras.dtensor import test_util
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
+from keras.utils import tf_utils
 
 _PICKLEABLE_CALL_COUNT = collections.Counter()
 
@@ -52,6 +59,12 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
 
 
 class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
+    def setUp(self):
+        super().setUp()
+        # Reset the UID so that all the layer/model ID will always start with 1.
+        # This will help remove the undetermined IDs from the model.summary()
+        backend.reset_uids()
+
     def test_print_summary(self):
         model = keras.Sequential()
         model.add(
@@ -502,7 +515,7 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         (1024**5 * 1.41415, "1.41 PB"),
     )
     def test_readable_weight_memory_size(self, size, expected_result):
-        result = layer_utils.readable_weight_memory_size(size)
+        result = layer_utils.readable_memory_size(size)
         self.assertEqual(result, expected_result)
 
     def test_property_cache(self):
@@ -792,6 +805,106 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
             warmstarted_embedding_matrix[3],
             vectorized_vocab_base[1],
         )
+
+
+@test_utils.run_v2_only
+class DTensorVariableSummaryTest(test_util.DTensorBaseTest):
+    def setUp(self):
+        super().setUp()
+        backend.reset_uids()
+        backend.enable_tf_random_generator()
+        tf_utils.set_random_seed(1337)
+        global_ids = test_util.create_device_ids_array((2, 2))
+        local_device_ids = np.ravel(global_ids).tolist()
+        mesh_dict = {
+            "CPU": dtensor.Mesh(
+                ["batch", "model"],
+                global_ids,
+                local_device_ids,
+                test_util.create_device_list((2, 2), "CPU"),
+            )
+        }
+        self.mesh = self.configTestMesh(mesh_dict)
+        self.replicated_2d = dtensor.Layout.replicated(self.mesh, rank=2)
+        self.replicated_1d = dtensor.Layout.replicated(self.mesh, rank=1)
+        self.sharded_2d = dtensor.Layout(["model", "batch"], self.mesh)
+        self.sharded_1d = dtensor.Layout(["model"], self.mesh)
+
+    def test_model_summary(self):
+        layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+        layout_map["d1.kernel"] = self.replicated_2d
+        layout_map["d1.bias"] = self.replicated_1d
+        layout_map["d2.kernel"] = self.sharded_2d
+        layout_map["d2.bias"] = self.sharded_1d
+
+        with layout_map.scope():
+            inputs = layers.Input((10,), batch_size=10)
+            x = layers.Dense(20, name="d1")(inputs)
+            x = layers.Dropout(0.1)(x)
+            output = layers.Dense(30, name="d2")(x)
+
+            model = keras.Model(inputs, output)
+
+        # For dtype = float32, following value are expected from memory stats
+        expected_result = {}
+        replicated_var_count = 10 * 20 + 20  # For d1 kernel and bias
+        model_batch_shard_var_count = 30 * 20  # For d2 kernel
+        model_shard_var_count = 30  # For d2 bias
+        expected_result[()] = (replicated_var_count, replicated_var_count * 4)
+        expected_result[("batch", "model")] = (
+            model_batch_shard_var_count,
+            model_batch_shard_var_count * 4,
+        )
+        expected_result[("model",)] = (
+            model_shard_var_count,
+            model_shard_var_count * 4,
+        )
+
+        expected_total_weight_count = (
+            replicated_var_count
+            + model_batch_shard_var_count
+            + model_shard_var_count
+        )
+        expected_total_memory_size = expected_total_weight_count * 4
+
+        (
+            total_weight_count,
+            total_memory_size,
+            per_sharing_spec_result,
+        ) = layer_utils.dtensor_variable_summary(model.weights)
+
+        self.assertEqual(total_weight_count, expected_total_weight_count)
+        self.assertEqual(total_memory_size, expected_total_memory_size)
+        self.assertDictEqual(per_sharing_spec_result, expected_result)
+
+        output_buffer = io.StringIO()
+
+        def print_to_buffer(content):
+            output_buffer.write(content)
+
+        model.summary(print_fn=print_to_buffer)
+
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{replicated_var_count} / {expected_total_weight_count} params "
+            ".* are fully replicated",
+        )
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{model_batch_shard_var_count} / {expected_total_weight_count} "
+            r"params .* are sharded based on spec .*batch.*model"
+            r".* across 4 devices",
+        )
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{model_shard_var_count} / {expected_total_weight_count} "
+            r"params .* are sharded based on spec .*model"
+            r".* across 2 devices",
+        )
+        self.assertIn(
+            "Overall per device memory usage: 1.50 KB", output_buffer.getvalue()
+        )
+        self.assertIn("Overall sharding factor: 2.21", output_buffer.getvalue())
 
 
 if __name__ == "__main__":
