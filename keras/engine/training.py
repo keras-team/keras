@@ -1742,7 +1742,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if logs is None:
                     raise ValueError(
                         "Unexpected result of `train_function` "
-                        "(Empty logs). Please use "
+                        "(Empty logs). This could be due to issues in input "
+                        "pipeline that resulted in an empty dataset. "
+                        "Otherwise, please use "
                         "`Model.compile(..., run_eagerly=True)`, or "
                         "`tf.config.run_functions_eagerly(True)` for more "
                         "information of where went wrong, or file a "
