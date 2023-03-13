@@ -466,9 +466,14 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":layer_utils",
+        ":tf_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:backend",
+        "//keras/dtensor",
+        "//keras/dtensor:layout_map",
+        "//keras/dtensor:test_util",
     ],
 )
 

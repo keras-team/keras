@@ -39,6 +39,13 @@ from tensorflow.python.eager import context
 from tensorflow.python.framework import type_spec
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.data.ops import (
+    from_sparse_tensor_slices_op,
+)
+from tensorflow.python.data.ops import from_generator_op
+from tensorflow.python.data.ops import range_op
+from tensorflow.python.data.ops import from_tensors_op
+from tensorflow.python.data.ops import from_tensor_slices_op
 
 try:
     import pandas as pd
@@ -535,13 +542,14 @@ class DatasetCreatorAdapter(DataAdapter):
                 "`DatasetCreator` but it received type {}.".format(type(x))
             )
         if steps is None:
-            raise ValueError(
-                "When using a "
-                "`tf.keras.utils.experimental.DatasetCreator`, "
-                "`steps_per_epoch`, `validation_steps` or `steps` "
-                "argument must be provided in `Model.fit`, "
-                "`Model.evaluate`, or `Model.predict`."
-            )
+            if not kwargs.get("pss_evaluation_shards"):
+                raise ValueError(
+                    "When using a "
+                    "`tf.keras.utils.experimental.DatasetCreator`, "
+                    "`steps_per_epoch`, `validation_steps`, `steps`, or "
+                    "`pss_evaluation_shards` argument must be provided in "
+                    "`Model.fit`, `Model.evaluate`, or `Model.predict`."
+                )
         self.dataset_creator = x
         self.steps = steps
         self.strategy = distribution_strategy
@@ -759,7 +767,9 @@ class DatasetAdapter(DataAdapter):
         # The user-provided steps.
         self._user_steps = steps
 
-        self._validate_args(y, sample_weights, steps)
+        self._validate_args(
+            y, sample_weights, steps, kwargs.get("pss_evaluation_shards")
+        )
 
     def get_dataset(self):
         return self._dataset
@@ -791,7 +801,7 @@ class DatasetAdapter(DataAdapter):
             == self._user_steps
         )
 
-    def _validate_args(self, y, sample_weights, steps):
+    def _validate_args(self, y, sample_weights, steps, pss_evaluation_shards):
         """Validates `__init__` arguments."""
         # Arguments that shouldn't be passed.
         if not is_none_or_empty(y):
@@ -806,22 +816,27 @@ class DatasetAdapter(DataAdapter):
 
         if steps is None:
             if _is_distributed_dataset(self._dataset):
-                raise ValueError(
-                    "When providing a distributed dataset, you must "
-                    "specify the number of steps to run."
-                )
-
-            size = tf.data.experimental.cardinality(self._dataset).numpy()
-            if (
-                size == tf.data.experimental.INFINITE_CARDINALITY
-                and steps is None
-            ):
-                raise ValueError(
-                    "When providing an infinite dataset, you must specify "
-                    "the number of steps to run (if you did not intend to "
-                    "create an infinite dataset, make sure to not call "
-                    "`repeat()` on the dataset)."
-                )
+                if not pss_evaluation_shards:
+                    raise ValueError(
+                        "When providing a distributed dataset, you must "
+                        "specify the number of steps to run."
+                    )
+            else:
+                size = tf.data.experimental.cardinality(self._dataset).numpy()
+                if size == tf.data.experimental.INFINITE_CARDINALITY:
+                    if pss_evaluation_shards:
+                        raise ValueError(
+                            "When performing exact evaluation, the dataset "
+                            "must be finite. Make sure not to call `repeat()` "
+                            "on your dataset."
+                        )
+                    else:
+                        raise ValueError(
+                            "When providing an infinite dataset, you must "
+                            "specify the number of steps to run (if you did "
+                            "not intend to create an infinite dataset, make "
+                            "sure to not call `repeat()` on the dataset)."
+                        )
 
 
 class GeneratorDataAdapter(DataAdapter):
@@ -1073,6 +1088,14 @@ ALL_ADAPTER_CLS = [
     DatasetCreatorAdapter,
 ]
 
+UNSHARDABLE_DATASET_TYPES = [
+    from_generator_op._GeneratorDataset,
+    range_op._RangeDataset,
+    from_sparse_tensor_slices_op._SparseTensorSliceDataset,
+    from_tensors_op._TensorDataset,
+    from_tensor_slices_op._TensorSliceDataset,
+]
+
 
 def select_data_adapter(x, y):
     """Selects a data adapter that can handle a given x and y."""
@@ -1216,6 +1239,7 @@ class DataHandler:
         model=None,
         steps_per_execution=None,
         distribute=True,
+        pss_evaluation_shards=0,
     ):
         """Initializes a `DataHandler`.
 
@@ -1238,6 +1262,7 @@ class DataHandler:
           distribute: Whether to distribute the `tf.dataset`.
             `PreprocessingLayer.adapt` does not support distributed datasets,
             `Model` should always set this to `True`.
+          pss_evaluation_shards: See `Model.fit`.
         """
 
         self._initial_epoch = initial_epoch
@@ -1270,6 +1295,7 @@ class DataHandler:
             use_multiprocessing=use_multiprocessing,
             distribution_strategy=tf.distribute.get_strategy(),
             model=model,
+            pss_evaluation_shards=pss_evaluation_shards,
         )
 
         strategy = tf.distribute.get_strategy()
@@ -1540,6 +1566,69 @@ class _ClusterCoordinatorDataHandler(DataHandler):
         self._model._cluster_coordinator.join()
 
 
+class _ClusterCoordinatorExactEvalDataHandler(_ClusterCoordinatorDataHandler):
+    def __init__(self, x, y=None, **kwargs):
+        super().__init__(x=x, **kwargs)
+        self._total_shards = kwargs.get("pss_evaluation_shards")
+
+    def _warn_if_not_file_shardable(self, dataset):
+        # Traverse backwards to find source dataset and check if that is one of
+        # the unshardable types
+        # TODO(b/268521864): expand this to inspect dataset function graphs and
+        # use the auto-sharding logic rather than re-creating it here.
+        cur_dataset = dataset
+        while hasattr(cur_dataset, "_input_dataset"):
+            cur_dataset = cur_dataset._input_dataset
+        if type(cur_dataset) in UNSHARDABLE_DATASET_TYPES:
+            logging.warning(
+                "Found source dataset of type {}. This type is not "
+                "efficiently shardable, so exact evaluation may be "
+                "slower than inexact evaluation. Try converting to "
+                "a TFRecord or other file-based dataset if "
+                "performance is a concern.".format(type(cur_dataset))
+            )
+
+    def _configure_dataset_and_inferred_steps(
+        self, strategy, x, steps_per_epoch, class_weight, distribute
+    ):
+        if isinstance(x, dataset_creator.DatasetCreator):
+            raise NotImplementedError(
+                "Using DatasetCreator with exact evaluation is not yet "
+                "supported. Please use a tf.data.Dataset type."
+            )
+        else:
+            # TODO(b/268226218): Support DistributedDataset input
+            if _is_distributed_dataset(x):
+                assert strategy.extended._num_replicas_in_sync == 1, (
+                    "Multi-device workers not yet supported for exact "
+                    "evaluation.",
+                )
+                x = x._original_dataset
+
+            self._warn_if_not_file_shardable(x)
+
+            coordinator = self._model._cluster_coordinator
+            self._dataset = coordinator.create_per_worker_dataset(x)
+            self._dataset = self._dataset.build()
+
+        if steps_per_epoch == -1:
+            self._inferred_steps = None
+            self._log_indefinite_training_warning()
+        else:
+            self._inferred_steps = steps_per_epoch
+
+    def enumerate_epochs(self):
+        """Yields `(epoch, dataset)`."""
+        for epoch in range(self._initial_epoch, self._epochs):
+            yield epoch, self._dataset
+            self._adapter.on_epoch_end()
+
+    def steps(self):
+        """Yields steps for the current epoch."""
+        for step in range(self._total_shards):
+            yield step
+
+
 @keras_export("keras.__internal__.utils.get_data_handler", v1=[])
 def get_data_handler(*args, **kwargs):
     """Creates a `DataHandler`, providing standardized access to a `Dataset`.
@@ -1579,6 +1668,8 @@ def get_data_handler(*args, **kwargs):
 
     """
     if getattr(kwargs["model"], "_cluster_coordinator", None):
+        if kwargs.get("pss_evaluation_shards"):
+            return _ClusterCoordinatorExactEvalDataHandler(*args, **kwargs)
         return _ClusterCoordinatorDataHandler(*args, **kwargs)
     return DataHandler(*args, **kwargs)
 
