@@ -370,6 +370,42 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
                 my_endpoint,
             )
 
+    def test_export_no_assets(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        # Case where there are assets but they aren't tracked.
+        model = keras.Sequential([keras.layers.Dense(2)])
+        model(tf.random.normal((2, 3)))
+        export_archive = export_lib.ExportArchive()
+        export_archive.add_endpoint(
+            "call",
+            model.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 3),
+                    dtype=tf.float32,
+                )
+            ],
+        )
+        with self.assertRaisesRegex(ValueError, "No assets"):
+            export_archive.write_out(temp_filepath)
+
+        # Case where there are legitimately no assets.
+        model = keras.Sequential([keras.layers.Flatten()])
+        model(tf.random.normal((2, 3)))
+        export_archive = export_lib.ExportArchive()
+        export_archive.add_endpoint(
+            "call",
+            model.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 3),
+                    dtype=tf.float32,
+                )
+            ],
+        )
+        export_archive.write_out(temp_filepath)
+
     @test_combinations.run_with_all_model_types
     def test_model_export_method(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")

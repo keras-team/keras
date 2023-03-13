@@ -314,7 +314,9 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
                 "No endpoints have been set yet. Call add_endpoint()."
             )
         if not self._trackables:
-            raise ValueError("No assets are being tracked. Call track().")
+            tvs, ntvs = self._get_variables_used_by_endpoints()
+            if tvs or ntvs:
+                raise ValueError("No assets are being tracked. Call `track()`.")
         signatures = {}
         for name in self._endpoint_names:
             signatures[name] = self._get_concrete_fn(name)
@@ -345,6 +347,10 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
         else:
             traces = getattr(self, endpoint)._trackable_children("saved_model")
             return list(traces.values())[0]
+
+    def _get_variables_used_by_endpoints(self):
+        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
+        return _list_variables_used_by_fns(fns)
 
 
 def export_model(model, filepath):
@@ -458,27 +464,11 @@ class ReloadedLayer(base_layer.Layer):
         all_fns = [self.call_endpoint_fn]
         if call_training_endpoint:
             all_fns.append(self.call_training_endpoint_fn)
-        trainable_variables_ids = set()
-        non_trainable_variables_ids = set()
-        for fn in all_fns:
-            # The function may or may not be already a concrete function
-            if hasattr(fn, "concrete_functions"):
-                concrete_functions = fn.concrete_functions
-            else:
-                concrete_functions = [fn]
-            for concrete_fn in concrete_functions:
-                for v in concrete_fn.trainable_variables:
-                    if id(v) not in trainable_variables_ids:
-                        self._add_existing_weight(v, trainable=True)
-                        trainable_variables_ids.add(id(v))
-
-                for v in concrete_fn.variables:
-                    if (
-                        id(v) not in trainable_variables_ids
-                        and id(v) not in non_trainable_variables_ids
-                    ):
-                        self._add_existing_weight(v, trainable=False)
-                        non_trainable_variables_ids.add(id(v))
+        tvs, ntvs = _list_variables_used_by_fns(all_fns)
+        for v in tvs:
+            self._add_existing_weight(v, trainable=True)
+        for v in ntvs:
+            self._add_existing_weight(v, trainable=False)
         self.built = True
 
     def _add_existing_weight(self, weight, trainable):
@@ -519,3 +509,31 @@ def _print_signature(fn, name):
     lines = [f"* Endpoint '{name}'"] + lines[1:]
     endpoint = "\n".join(lines)
     return endpoint
+
+
+def _list_variables_used_by_fns(fns):
+    trainable_variables = []
+    non_trainable_variables = []
+    trainable_variables_ids = set()
+    non_trainable_variables_ids = set()
+    for fn in fns:
+        if hasattr(fn, "concrete_functions"):
+            concrete_functions = fn.concrete_functions
+        elif hasattr(fn, "get_concrete_function"):
+            concrete_functions = [fn.get_concrete_function()]
+        else:
+            concrete_functions = [fn]
+        for concrete_fn in concrete_functions:
+            for v in concrete_fn.trainable_variables:
+                if id(v) not in trainable_variables_ids:
+                    trainable_variables.append(v)
+                    trainable_variables_ids.add(id(v))
+
+            for v in concrete_fn.variables:
+                if (
+                    id(v) not in trainable_variables_ids
+                    and id(v) not in non_trainable_variables_ids
+                ):
+                    non_trainable_variables.append(v)
+                    non_trainable_variables_ids.add(id(v))
+    return trainable_variables, non_trainable_variables
