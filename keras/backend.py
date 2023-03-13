@@ -5605,24 +5605,28 @@ def categorical_focal_crossentropy(
     parameter. When `gamma` = 0, there is no focal effect on the categorical
     crossentropy. And if alpha = 1, at the same time the loss is equivalent
     to the categorical crossentropy.
+
     Args:
-      target: A tensor with the same shape as `output`.
-      output: A tensor.
-      alpha: A weight balancing factor for all classes, default is `0.25` as
-             mentioned in the reference. It can be a list of floats or a scalar.
-             In the multi-class case, alpha may be set by inverse class
-             frequency by using `compute_class_weight` from `sklearn.utils`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-             reference. It helps to gradually reduce the importance given to
-             simple examples in a smooth manner.
-      from_logits: Whether `output` is expected to be a logits tensor. By
-        default, we consider that `output` encodes a probability distribution.
+        target: A tensor with the same shape as `output`.
+        output: A tensor.
+        alpha: A weight balancing factor for all classes, default is `0.25` as
+            mentioned in the reference. It can be a list of floats or a scalar.
+            In the multi-class case, alpha may be set by inverse class
+            frequency by using `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference. It helps to gradually reduce the importance given to
+            simple examples in a smooth manner.
+        from_logits: Whether `output` is expected to be a logits tensor. By
+            default, we consider that `output` encodes a probability
+            distribution.
+
     Returns:
-      A tensor.
+        A tensor.
     """
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
     target.shape.assert_is_compatible_with(output.shape)
+
     output, from_logits = _get_logits(
         output, from_logits, "Softmax", "categorical_focal_crossentropy"
     )
@@ -5633,11 +5637,13 @@ def categorical_focal_crossentropy(
         lambda: output,
     )
 
+    # scale preds so that the class probas of each sample sum to 1
     output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
 
     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
 
+    # Calculate cross entropy
     cce = -target * tf.math.log(output)
 
     # Calculate factors
