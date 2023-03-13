@@ -1926,6 +1926,30 @@ class KerasCallbacksTest(test_combinations.TestCase):
         self.assertEqual(epochs_trained, 5)
         self.assertEqual(early_stop.model.get_weights(), 2)
 
+        # Verify that early stopping restores weights when training completes
+        # without any interruption by early stopping.
+        early_stop = keras.callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=6,  # Larger than number of epochs
+            restore_best_weights=True,
+        )
+        early_stop.model = DummyModel()
+        losses = [0.9, 0.8, 0.7, 0.71, 0.72, 0.73]
+        # The best configuration is in the epoch 2 (loss = 0.7000).
+        epochs_trained = 0
+        early_stop.on_train_begin()
+        for epoch in range(len(losses)):
+            epochs_trained += 1
+            early_stop.model.set_weight_to_epoch(epoch=epoch)
+            early_stop.on_epoch_end(epoch, logs={"val_loss": losses[epoch]})
+            if early_stop.model.stop_training:
+                raise ValueError("Should not have early stopped for this test")
+        early_stop.on_train_end()
+        # No epoch improves on the baseline, but patiece doesn't stop training
+        # to complete all epochs, but should still restore the best model.
+        self.assertEqual(epochs_trained, 6)
+        self.assertEqual(early_stop.model.get_weights(), 2)
+
     def test_EarlyStopping_with_start_from_epoch(self):
         with self.cached_session():
             np.random.seed(1337)
