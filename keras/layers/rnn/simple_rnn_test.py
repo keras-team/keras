@@ -261,6 +261,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
         for l in [a, b, c]:
             for s in l.states:
                 if s is not None:
+                    self.assertEqual(s.name.rsplit("/", 1)[1], "state:0")
                     self.assertNotIn(s.name, names)
                     names.add(s.name)
 

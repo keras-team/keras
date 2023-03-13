@@ -183,6 +183,10 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         self.state_size = [self.units, self.units]
         self.output_size = self.units
 
+    def _gen_state_names(self):
+        yield "hidden_state"
+        yield "output_state"
+
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
         super().build(input_shape)

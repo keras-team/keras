@@ -1436,6 +1436,10 @@ class LSTMLayerTest(test_combinations.TestCase):
         for l in [a, b, c]:
             for s in l.states:
                 if s is not None:
+                    self.assertIn(
+                        s.name.rsplit("/", 1)[1],
+                        ["hidden_state:0", "output_state:0"],
+                    )
                     self.assertNotIn(s.name, names)
                     names.add(s.name)
 

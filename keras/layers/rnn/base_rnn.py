@@ -905,17 +905,20 @@ class RNN(base_layer.Layer):
                         self.variable_dtype or backend.floatx(),
                     )
                 )
-            if len(flat_init_state_values) == 1:
 
-                def assign_unique_var(x):
-                    return backend.variable(x, name="state")
+            def gen_state_names():
+                yield "state"
+                cnt = 1
+                while True:
+                    yield f"state_{cnt}"
+                    cnt += 1
 
-            else:
-                unique_names = iter(["hidden_state", "output_state"])
+            unique_state_names = iter(
+                getattr(self.cell, "_gen_state_names", gen_state_names)()
+            )
 
-                def assign_unique_var(x):
-                    nonlocal unique_names
-                    return backend.variable(x, name=next(unique_names))
+            def assign_unique_var(x):
+                return backend.variable(x, name=next(unique_state_names))
 
             flat_states_variables = tf.nest.map_structure(
                 assign_unique_var, flat_init_state_values
