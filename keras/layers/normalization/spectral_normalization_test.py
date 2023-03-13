@@ -26,13 +26,13 @@ class SpectralNormalizationTest(test_combinations.TestCase):
     def test_basic_spectralnorm(self):
         test_utils.layer_test(
             keras.layers.SpectralNormalization,
-            kwargs={"layer": tf.keras.layers.Dense(2), "input_shape": (3, 4)},
+            kwargs={"layer": keras.layers.Dense(2), "input_shape": (3, 4)},
             input_data=tf.random.uniform((10, 3, 4)),
         )
 
     @test_combinations.run_all_keras_modes
     def test_from_to_config(self):
-        base_layer = tf.keras.layers.Dense(1)
+        base_layer = keras.layers.Dense(1)
         sn = keras.layers.SpectralNormalization(base_layer)
         config = sn.get_config()
 
@@ -41,18 +41,18 @@ class SpectralNormalizationTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_save_load_model(self):
-        base_layer = tf.keras.layers.Dense(1)
+        base_layer = keras.layers.Dense(1)
         input_shape = [1]
 
-        inputs = tf.keras.layers.Input(shape=input_shape)
+        inputs = keras.layers.Input(shape=input_shape)
         sn_layer = keras.layers.SpectralNormalization(base_layer)
-        model = tf.keras.models.Sequential(layers=[inputs, sn_layer])
+        model = keras.models.Sequential(layers=[inputs, sn_layer])
 
         # initialize model
         model.predict(tf.random.uniform((2, 1)))
 
         model.save("test.h5")
-        new_model = tf.keras.models.load_model("test.h5")
+        new_model = keras.models.load_model("test.h5")
 
         self.assertEqual(
             model.layers[0].get_config(), new_model.layers[0].get_config()
@@ -60,13 +60,13 @@ class SpectralNormalizationTest(test_combinations.TestCase):
 
     @test_combinations.run_all_keras_modes
     def test_normalization(self):
-        inputs = tf.keras.layers.Input(shape=[2, 2, 1])
+        inputs = keras.layers.Input(shape=[2, 2, 1])
 
-        base_layer = tf.keras.layers.Conv2D(
+        base_layer = keras.layers.Conv2D(
             1, (2, 2), kernel_initializer=tf.constant_initializer(value=2)
         )
         sn_layer = keras.layers.SpectralNormalization(base_layer)
-        model = tf.keras.models.Sequential(layers=[inputs, sn_layer])
+        model = keras.models.Sequential(layers=[inputs, sn_layer])
 
         weights = tf.squeeze(model.layers[0].w.numpy())
         # This wrapper normalizes weights by the maximum eigen value
@@ -88,7 +88,7 @@ class SpectralNormalizationTest(test_combinations.TestCase):
     def test_apply_layer(self):
         images = tf.ones((1, 2, 2, 1))
         sn_wrapper = keras.layers.SpectralNormalization(
-            tf.keras.layers.Conv2D(
+            keras.layers.Conv2D(
                 1, [2, 2], kernel_initializer=tf.constant_initializer(value=1)
             ),
             input_shape=(2, 2, 1),
@@ -113,50 +113,50 @@ class SpectralNormalizationTest(test_combinations.TestCase):
     def test_no_kernel(self):
         with self.assertRaises(AttributeError):
             keras.layers.SpectralNormalization(
-                tf.keras.layers.MaxPooling2D(2, 2)
+                keras.layers.MaxPooling2D(2, 2)
             ).build((2, 2))
 
     @test_combinations.run_all_keras_modes
     @parameterized.parameters(
         [
-            (lambda: tf.keras.layers.Dense(2), [3, 2]),
+            (lambda: keras.layers.Dense(2), [3, 2]),
             (
-                lambda: tf.keras.layers.Conv2D(3, (2, 2), padding="same"),
+                lambda: keras.layers.Conv2D(3, (2, 2), padding="same"),
                 [4, 4, 3],
             ),
-            (lambda: tf.keras.layers.Embedding(2, 10), [2]),
+            (lambda: keras.layers.Embedding(2, 10), [2]),
         ],
     )
     def test_model_build(self, base_layer_fn, input_shape):
-        inputs = tf.keras.layers.Input(shape=input_shape)
+        inputs = keras.layers.Input(shape=input_shape)
         base_layer = base_layer_fn()
         sn_layer = keras.layers.SpectralNormalization(base_layer)
-        model = tf.keras.models.Sequential(layers=[inputs, sn_layer])
+        model = keras.models.Sequential(layers=[inputs, sn_layer])
         model.build()
         self.assertTrue(hasattr(model.layers[0], "u"))
 
     @test_combinations.run_all_keras_modes
     @parameterized.parameters(
         [
-            (lambda: tf.keras.layers.Dense(2), [3, 2], [3, 2]),
+            (lambda: keras.layers.Dense(2), [3, 2], [3, 2]),
             (
-                lambda: tf.keras.layers.Conv2D(3, (2, 2), padding="same"),
+                lambda: keras.layers.Conv2D(3, (2, 2), padding="same"),
                 [4, 4, 3],
                 [4, 4, 3],
             ),
-            (lambda: tf.keras.layers.Embedding(2, 10), [2], [2, 10]),
+            (lambda: keras.layers.Embedding(2, 10), [2], [2, 10]),
         ],
     )
     def test_model_fit(self, base_layer_fn, input_shape, output_shape):
-        inputs = tf.keras.layers.Input(shape=input_shape)
+        inputs = keras.layers.Input(shape=input_shape)
         base_layer = base_layer_fn()
 
         sn_layer = keras.layers.SpectralNormalization(base_layer)
-        model = tf.keras.models.Sequential(layers=[inputs, sn_layer])
-        model.add(tf.keras.layers.Activation("relu"))
+        model = keras.models.Sequential(layers=[inputs, sn_layer])
+        model.add(keras.layers.Activation("relu"))
 
         model.compile(
-            optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
+            optimizer=keras.optimizers.RMSprop(learning_rate=0.001),
             loss="mse",
         )
         model.fit(

@@ -15,6 +15,7 @@
 
 import tensorflow.compat.v2 as tf
 
+from keras.initializers import TruncatedNormal
 from keras.layers.rnn import Wrapper
 
 # isort: off
@@ -25,30 +26,30 @@ from tensorflow.python.util.tf_export import keras_export
 @keras_export("keras.layers.SpectralNormalization", v1=[])
 class SpectralNormalization(Wrapper):
     """Performs spectral normalization on weights.
+
     This wrapper controls the Lipschitz constant of the layer by
     constraining its spectral norm, which can stabilize the training of GANs.
     See [Spectral Normalization for GAN](https://arxiv.org/abs/1802.05957).
-    Wrap `tf.keras.layers.Conv2D`:
-    >>> x = np.random.rand(1, 10, 10, 1)
-    >>> conv2d = SpectralNormalization(tf.keras.layers.Conv2D(2, 2))
-    >>> y = conv2d(x)
-    >>> y.shape
-    TensorShape([1, 9, 9, 2])
-    Wrap `tf.keras.layers.Dense`:
-    >>> x = np.random.rand(1, 10, 10, 1)
-    >>> dense = SpectralNormalization(tf.keras.layers.Dense(10))
-    >>> y = dense(x)
-    >>> y.shape
-    TensorShape([1, 10, 10, 10])
+
     Args:
-      layer: A `tf.keras.layers.Layer` instance that
+      layer: a `tf.keras.layers.Layer` instance that
         has either `kernel` or `embeddings` attribute.
       power_iterations: `int`, the number of iterations during normalization.
-    Raises:
-      AssertionError: If not initialized with a `Layer` instance.
-      ValueError: If initialized with negative `power_iterations`.
-      AttributeError: If `layer` does not has `kernel` or `embeddings`
-        attribute.
+
+    Examples:
+      Wrap `tf.keras.layers.Conv2D`:
+      >>> x = np.random.rand(1, 10, 10, 1)
+      >>> conv2d = SpectralNormalization(tf.keras.layers.Conv2D(2, 2))
+      >>> y = conv2d(x)
+      >>> y.shape
+      TensorShape([1, 9, 9, 2])
+
+      Wrap `tf.keras.layers.Dense`:
+      >>> x = np.random.rand(1, 10, 10, 1)
+      >>> dense = SpectralNormalization(tf.keras.layers.Dense(10))
+      >>> y = dense(x)
+      >>> y.shape
+      TensorShape([1, 10, 10, 10])
     """
 
     def __init__(self, layer, power_iterations=1, **kwargs):
@@ -56,13 +57,11 @@ class SpectralNormalization(Wrapper):
         if power_iterations <= 0:
             raise ValueError(
                 "`power_iterations` should be greater than zero, got "
-                "`power_iterations={}`".format(power_iterations)
+                f"`power_iterations={power_iterations}`"
             )
         self.power_iterations = power_iterations
-        self._initialized = False
 
     def build(self, input_shape):
-        """Build `Layer`"""
         super().build(input_shape)
         input_shape = tf.TensorShape(input_shape)
         self.input_spec = tf.keras.layers.InputSpec(
@@ -70,30 +69,26 @@ class SpectralNormalization(Wrapper):
         )
 
         if hasattr(self.layer, "kernel"):
-            self.w = self.layer.kernel
+            self.kernel = self.layer.kernel
         elif hasattr(self.layer, "embeddings"):
-            self.w = self.layer.embeddings
+            self.kernel = self.layer.embeddings
         else:
-            raise AttributeError(
-                "{} object has no attribute 'kernel' nor "
-                "'embeddings'".format(type(self.layer).__name__)
+            raise ValueError(
+                f"{type(self.layer).__name__} object has no attribute 'kernel' "
+                "nor 'embeddings'"
             )
 
-        self.w_shape = self.w.shape.as_list()
+        self.kernel_shape = self.kernel.shape.as_list()
 
-        self.u = self.add_weight(
-            shape=(1, self.w_shape[-1]),
-            initializer=tf.initializers.TruncatedNormal(stddev=0.02),
+        self.sn_u = self.add_weight(
+            shape=(1, self.self.kernel_shape[-1]),
+            initializer=TruncatedNormal(stddev=0.02),
             trainable=False,
             name="sn_u",
-            dtype=self.w.dtype,
+            dtype=self.kernel.dtype,
         )
 
-    def call(self, inputs, training=None):
-        """Call `Layer`"""
-        if training is None:
-            training = tf.keras.backend.learning_phase()
-
+    def call(self, inputs, training=False):
         if training:
             self.normalize_weights()
 
@@ -107,12 +102,13 @@ class SpectralNormalization(Wrapper):
 
     def normalize_weights(self):
         """Generate spectral normalized weights.
-        This method will update the value of `self.w` with the
+
+        This method will update the value of `self.kernel` with the
         spectral normalized value, so that the layer is ready for `call()`.
         """
 
-        w = tf.reshape(self.w, [-1, self.w_shape[-1]])
-        u = self.u
+        w = tf.reshape(self.kernel, [-1, self.self.kernel_shape[-1]])
+        u = self.sn_u
 
         # check for zeroes weights
         if not tf.reduce_all(tf.equal(w, 0.0)):
@@ -122,9 +118,12 @@ class SpectralNormalization(Wrapper):
             u = tf.stop_gradient(u)
             v = tf.stop_gradient(v)
             sigma = tf.matmul(tf.matmul(v, w), u, transpose_b=True)
-            self.u.assign(tf.cast(u, self.u.dtype))
-            self.w.assign(
-                tf.cast(tf.reshape(self.w / sigma, self.w_shape), self.w.dtype)
+            self.sn_u.assign(tf.cast(u, self.sn_u.dtype))
+            self.kernel.assign(
+                tf.cast(
+                    tf.reshape(self.kernel / sigma, self.self.kernel_shape),
+                    self.kernel.dtype,
+                )
             )
 
     def get_config(self):
