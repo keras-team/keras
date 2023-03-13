@@ -328,7 +328,7 @@ def PreStem(name=None):
 
 
 def Head(num_classes=1000, classifier_activation=None, name=None):
-    """Implementation of classification head of RegNet.
+    """Implementation of classification head of ConvNeXt.
 
     Args:
       num_classes: number of classes for Dense layer
@@ -336,7 +336,7 @@ def Head(num_classes=1000, classifier_activation=None, name=None):
       name: name prefix
 
     Returns:
-      Classification head function.
+      Tensor of logits or softmax values as the output.
     """
     if name is None:
         name = str(backend.get_uid("head"))
