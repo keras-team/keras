@@ -33,7 +33,7 @@ class SpectralNormalization(Wrapper):
 
     Args:
       layer: a `tf.keras.layers.Layer` instance that
-        has either `kernel` or `embeddings` attribute.
+        has either a `kernel` or an `embeddings` attribute.
       power_iterations: `int`, the number of iterations during normalization.
 
     Examples:
