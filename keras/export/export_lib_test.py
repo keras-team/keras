@@ -77,7 +77,9 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
             my_endpoint,
         )
         export_archive.write_out(temp_filepath)
+
         revived_model = tf.saved_model.load(temp_filepath)
+        self.assertFalse(hasattr(revived_model, "_tracked"))
         self.assertAllClose(
             ref_output, revived_model.call(ref_input).numpy(), atol=1e-6
         )
@@ -208,6 +210,69 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(
             ref_outputs[1].numpy(),
             revived_model.serve(ref_inputs)[1].numpy(),
+            atol=1e-6,
+        )
+
+    def test_model_with_lookup_table(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        text_vectorization = keras.layers.TextVectorization()
+        text_vectorization.adapt(["one two", "three four", "five six"])
+        model = keras.Sequential(
+            [
+                text_vectorization,
+                keras.layers.Embedding(10, 32),
+                keras.layers.Dense(1),
+            ]
+        )
+        ref_input = tf.convert_to_tensor(["one two three four"])
+        ref_output = model(ref_input).numpy()
+
+        export_lib.export_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.serve(ref_input).numpy(), atol=1e-6
+        )
+
+    def test_track_multiple_layers(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        layer_1 = keras.layers.Dense(2)
+        ref_input_1 = tf.random.normal((3, 4))
+        ref_output_1 = layer_1(ref_input_1).numpy()
+        layer_2 = keras.layers.Dense(3)
+        ref_input_2 = tf.random.normal((3, 5))
+        ref_output_2 = layer_2(ref_input_2).numpy()
+
+        export_archive = export_lib.ExportArchive()
+        export_archive.add_endpoint(
+            "call_1",
+            layer_1.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 4),
+                    dtype=tf.float32,
+                ),
+            ],
+        )
+        export_archive.add_endpoint(
+            "call_2",
+            layer_2.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 5),
+                    dtype=tf.float32,
+                ),
+            ],
+        )
+        export_archive.write_out(temp_filepath)
+        revived_layer = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output_1,
+            revived_layer.call_1(ref_input_1).numpy(),
+            atol=1e-6,
+        )
+        self.assertAllClose(
+            ref_output_2,
+            revived_layer.call_2(ref_input_2).numpy(),
             atol=1e-6,
         )
 
@@ -372,23 +437,6 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
 
     def test_export_no_assets(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-
-        # Case where there are assets but they aren't tracked.
-        model = keras.Sequential([keras.layers.Dense(2)])
-        model(tf.random.normal((2, 3)))
-        export_archive = export_lib.ExportArchive()
-        export_archive.add_endpoint(
-            "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 3),
-                    dtype=tf.float32,
-                )
-            ],
-        )
-        with self.assertRaisesRegex(ValueError, "No assets"):
-            export_archive.write_out(temp_filepath)
 
         # Case where there are legitimately no assets.
         model = keras.Sequential([keras.layers.Flatten()])
