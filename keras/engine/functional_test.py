@@ -2309,7 +2309,7 @@ class DTypeTest(test_combinations.TestCase):
         # create a simple network
         x = input_layer_lib.Input(shape=(32,), dtype="float32")
         dense_a = layers.Rescaling(scale=1.0 / 255)
-        dense_b = layers.Activation('softmax', dtype="float64")
+        dense_b = layers.Activation("softmax", dtype="float64")
         y = dense_b(dense_a(x))
         network = functional.Functional(x, y)
 
