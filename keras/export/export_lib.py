@@ -76,14 +76,29 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
     )
     export_archive.write_out("path/to/location")
     ```
+
+    **Note on resource tracking:**
+
+    `ExportArchive` is able to automatically track all `tf.Variables` used
+    by its endpoints, so most of the time calling `.track(model)`
+    is not strictly required. However, if your model uses lookup layers such
+    as `IntegerLookup`, `StringLookup`, or `TextVectorization`,
+    it will need to be tracked explicitly via `.track(model)`.
+
+    Explicit tracking is also required if you need to be able to access
+    the properties `variables`, `trainable_variables`, or
+    `non_trainable_variables` on the revived archive.
     """
 
     def __init__(self):
         self._endpoint_names = []
         self._endpoint_signatures = {}
-        self._trackables = []
         self.tensorflow_version = tf.__version__
+        self.variables = []
+        self.trainable_variables = []
+        self.non_trainable_variables = []
 
+    @tf.__internal__.tracking.no_automatic_dependency_tracking
     def track(self, layer):
         """Track the variables (and other resources) of a layer or model."""
         if not isinstance(layer, base_layer.Layer):
@@ -93,17 +108,24 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
                 f"Received instead an object of type '{type(layer)}'. "
                 f"Object received: {layer}"
             )
-
         if not layer.built:
             raise ValueError(
                 "The layer provided has not yet been built. "
                 "It must be built before export."
             )
 
-        self._trackables = list(layer._trackable_children().values())
-        self.variables = list(layer.variables)
-        self.trainable_variables = list(layer.trainable_variables)
-        self.non_trainable_variables = list(layer.non_trainable_variables)
+        # Layers in `_tracked` are not part of the trackables that get saved,
+        # because we're creating the attribute in a
+        # no_automatic_dependency_tracking scope.
+        if not hasattr(self, "_tracked"):
+            self._tracked = []
+        self._tracked.append(layer)
+
+        # Variables in the lists below are actually part of the trackables
+        # that get saved, because the lists are created in __init__.
+        self.variables += layer.variables
+        self.trainable_variables += layer.trainable_variables
+        self.non_trainable_variables += layer.non_trainable_variables
 
     def add_endpoint(self, name, fn, input_signature=None):
         """Register a new serving endpoint.
@@ -313,10 +335,8 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
             raise ValueError(
                 "No endpoints have been set yet. Call add_endpoint()."
             )
-        if not self._trackables:
-            tvs, ntvs = self._get_variables_used_by_endpoints()
-            if tvs or ntvs:
-                raise ValueError("No assets are being tracked. Call `track()`.")
+        self._filter_and_track_resources()
+
         signatures = {}
         for name in self._endpoint_names:
             signatures[name] = self._get_concrete_fn(name)
@@ -328,7 +348,6 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
         tf.saved_model.save(
             self, filepath, options=options, signatures=signatures
         )
-
         # Print out available endpoints
         endpoints = "\n\n".join(
             _print_signature(getattr(self, name), name)
@@ -351,6 +370,25 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
     def _get_variables_used_by_endpoints(self):
         fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
         return _list_variables_used_by_fns(fns)
+
+    def _filter_and_track_resources(self):
+        """Track resources used by endpoints / referenced in `track()` calls."""
+        # Start by extracting variables from endpoints.
+        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
+        tvs, ntvs = _list_variables_used_by_fns(fns)
+        self._all_variables = list(tvs + ntvs)
+
+        # Next, track lookup tables.
+        # Hopefully, one day this will be automated at the tf.function level.
+        self._misc_assets = []
+        from keras.layers.preprocessing.index_lookup import IndexLookup
+
+        if hasattr(self, "_tracked"):
+            for root in self._tracked:
+                descendants = tf.train.TrackableView(root).descendants()
+                for trackable in descendants:
+                    if isinstance(trackable, IndexLookup):
+                        self._misc_assets.append(trackable)
 
 
 def export_model(model, filepath):
