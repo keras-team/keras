@@ -3295,11 +3295,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             "Provide either a layer name or layer index at `get_layer`."
         )
 
-    def _return_output_dtype(self):
-        """this method was implemented in order to
-        fix a small bug in tf.keras.layer.Layer.compute_output_signature"""
-        return self.get_layer(index=-1)._compute_dtype
-
     def get_weight_paths(self):
         """Retrieve all the variables and their paths for the model.
 
