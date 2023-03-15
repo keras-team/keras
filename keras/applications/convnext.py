@@ -336,7 +336,7 @@ def Head(num_classes=1000, classifier_activation=None, name=None):
       name: name prefix
 
     Returns:
-      Tensor of logits or softmax values as the output.
+      Classification head function.
     """
     if name is None:
         name = str(backend.get_uid("head"))

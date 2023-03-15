@@ -841,7 +841,7 @@ def Head(num_classes=1000, name=None):
       name: name prefix
 
     Returns:
-      Output logits tensor.
+      Classification head function.
     """
     if name is None:
         name = str(backend.get_uid("head"))
