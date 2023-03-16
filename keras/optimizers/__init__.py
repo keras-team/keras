@@ -32,6 +32,7 @@ from keras.optimizers import adam
 from keras.optimizers import adamax
 from keras.optimizers import adamw
 from keras.optimizers import ftrl
+from keras.optimizers import lion
 from keras.optimizers import nadam
 from keras.optimizers import optimizer as base_optimizer
 from keras.optimizers import rmsprop

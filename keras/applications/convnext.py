@@ -328,7 +328,7 @@ def PreStem(name=None):
 
 
 def Head(num_classes=1000, classifier_activation=None, name=None):
-    """Implementation of classification head of RegNet.
+    """Implementation of classification head of ConvNeXt.
 
     Args:
       num_classes: number of classes for Dense layer

@@ -41,6 +41,24 @@ def create_mean_metric(value, name=None):
     return metric_obj, metric_obj(value)
 
 
+def infer_init_val_and_dtype(initializer, dtype, shape, layout=None):
+    if initializer is not None and not callable(initializer):
+        init_val = initializer
+        variable_dtype = None
+    else:
+        # Instantiate initializer if provided initializer is a type object.
+        if tf_inspect.isclass(initializer):
+            initializer = initializer()
+        if layout:
+            init_val = functools.partial(
+                initializer, shape, dtype=dtype, layout=layout
+            )
+        else:
+            init_val = functools.partial(initializer, shape, dtype=dtype)
+        variable_dtype = dtype.base_dtype
+    return init_val, variable_dtype
+
+
 def make_variable(
     name,
     shape=None,
@@ -56,6 +74,7 @@ def make_variable(
     aggregation=tf.VariableAggregation.NONE,
     partitioner=None,
     layout=None,
+    experimental_enable_variable_lifting=True,
 ):
     """Util to create a variable (relies on `variable_scope.variable`).
 
@@ -102,25 +121,9 @@ def make_variable(
     Returns:
       Variable instance.
     """
-    initializing_from_value = False
-    if initializer is not None and not callable(initializer):
-        initializing_from_value = True
-
-    if initializing_from_value:
-        init_val = initializer
-        variable_dtype = None
-    else:
-        # Instantiate initializer if provided initializer is a type object.
-        if tf_inspect.isclass(initializer):
-            initializer = initializer()
-        if layout:
-            init_val = functools.partial(
-                initializer, shape, dtype=dtype, layout=layout
-            )
-        else:
-            init_val = functools.partial(initializer, shape, dtype=dtype)
-        variable_dtype = dtype.base_dtype
-
+    init_val, variable_dtype = infer_init_val_and_dtype(
+        initializer, dtype, shape, layout
+    )
     variable_shape = tf.TensorShape(shape)
 
     if use_resource is None:
@@ -144,6 +147,7 @@ def make_variable(
             synchronization=synchronization,
             aggregation=aggregation,
             shape=variable_shape if variable_shape else None,
+            experimental_enable_variable_lifting=experimental_enable_variable_lifting,  # noqa: E501
         )
     else:
         return dtensor.DVariable(

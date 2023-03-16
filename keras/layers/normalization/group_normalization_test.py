@@ -34,7 +34,7 @@ def _build_group_normalization_model(norm):
     return model
 
 
-@test_utils.run_v2_only()
+@test_utils.run_v2_only
 class GroupNormalizationTest(test_combinations.TestCase):
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -79,7 +79,7 @@ class GroupNormalizationTest(test_combinations.TestCase):
             groups=1, axis=-1, input_shape=(8,), scale=False, center=False
         )
         layer_with_2_groups = GroupNormalization(
-            groups=2, axis=-1, input_shape=(8,), scale=False, center=False
+            groups=2, axis=1, input_shape=(8,), scale=False, center=False
         )
 
         inputs = tf.constant(
@@ -111,7 +111,7 @@ class GroupNormalizationTest(test_combinations.TestCase):
             groups=1, axis=-1, input_shape=(2, 4), scale=False, center=False
         )
         layer_with_2_groups = GroupNormalization(
-            groups=2, axis=-1, input_shape=(2, 4), scale=False, center=False
+            groups=2, axis=2, input_shape=(2, 4), scale=False, center=False
         )
 
         inputs = tf.constant(
