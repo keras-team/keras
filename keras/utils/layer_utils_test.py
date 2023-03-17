@@ -106,6 +106,59 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
             layer_utils.print_summary(model)
         self.assertIn("dense (Dense)", printed.contents())
 
+    def test_print_summary_format_long_names(self):
+        shape = (8, 8, 3)
+
+        model = keras.Sequential(
+            [
+                keras.Input(shape),
+                keras.layers.Conv2D(4, 3, name="Really-Long-name-test"),
+                keras.layers.Conv2D(4, 3, name="Another-long-name-test"),
+                keras.layers.Flatten(),
+                keras.layers.Dense(2, name="long-name-test-output"),
+            ]
+        )
+        file_name = "sequential.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        layer_utils.print_summary(model, print_fn=print_to_file)
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        reader = open(fpath, "r")
+        lines = reader.readlines()
+        reader.close()
+        check_str = (
+            'Model: "sequential"\n'
+            "_________________________________________________________________\n"  # noqa: E501
+            " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
+            "=================================================================\n"  # noqa: E501
+            " Really-Long-name-test (Con  (None, 6, 6, 4)           112       \n"  # noqa: E501
+            " v2D)                                                            \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " Another-long-name-test (Co  (None, 4, 4, 4)           148       \n"  # noqa: E501
+            " nv2D)                                                           \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " flatten (Flatten)           (None, 64)                0         \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " long-name-test-output (Den  (None, 2)                 130       \n"  # noqa: E501
+            " se)                                                             \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            "=================================================================\n"  # noqa: E501
+            "Total params: 390 (1.52 KB)\n"
+            "Trainable params: 390 (1.52 KB)\n"
+            "Non-trainable params: 0 (0.00 Byte)\n"
+            "_________________________________________________________________\n"  # noqa: E501
+        )
+        fin_str = "".join(lines)
+        self.assertIn(fin_str, check_str)
+        self.assertEqual(len(lines), 20)
+
     def test_print_summary_expand_nested(self):
         shape = (None, None, 3)
 
@@ -149,16 +202,16 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
                 "                                                                 \n"  # noqa: E501
                 " model_1 (Functional)        (None, None, None, 3)     24        \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"  # noqa: E501
+                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
                 "|                                                               |\n"  # noqa: E501
-                "| model (Functional)        (None, None, None, 3)     24        |\n"  # noqa: E501
+                "| model (Functional)         (None, None, None, 3)     24       |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"  # noqa: E501
+                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"  # noqa: E501
-                "|| ormalization)                                               ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
+                "|| chNormalization)                                            ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
@@ -351,16 +404,16 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
                 "                                                                            \n"  # noqa: E501
                 " model_1 (Functional)        (None, None, None, 3)     24        Y          \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input1 (InputLayer)       [(None, None, None, 3)]   0         Y          |\n"  # noqa: E501
+                "| input1 (InputLayer)        [(None, None, None, 3)]   0         Y         |\n"  # noqa: E501
                 "|                                                                          |\n"  # noqa: E501
-                "| model (Functional)        (None, None, None, 3)     24        Y          |\n"  # noqa: E501
+                "| model (Functional)         (None, None, None, 3)     24        Y         |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input2 (InputLayer)     [(None, None, None, 3)]   0         Y          ||\n"  # noqa: E501
+                "|| input2 (InputLayer)       [(None, None, None, 3)]   0         Y        ||\n"  # noqa: E501
                 "||                                                                        ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        N          ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12        N        ||\n"  # noqa: E501
                 "||                                                                        ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      Y          ||\n"  # noqa: E501
-                "|| ormalization)                                                          ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12        Y        ||\n"  # noqa: E501
+                "|| chNormalization)                                                       ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "============================================================================\n"  # noqa: E501
@@ -461,16 +514,16 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
                 "=================================================================\n"  # noqa: E501
                 " 1st_inner (Functional)      (None, None, None, 3)     24        \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"  # noqa: E501
+                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
                 "|                                                               |\n"  # noqa: E501
-                "| 2nd_inner (Functional)    (None, None, None, 3)     24        |\n"  # noqa: E501
+                "| 2nd_inner (Functional)     (None, None, None, 3)     24       |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"  # noqa: E501
+                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"  # noqa: E501
-                "|| ormalization)                                               ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
+                "|| chNormalization)                                            ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
