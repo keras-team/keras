@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for evaluation using Keras model and ParameterServerStrategy."""
+import threading
 import time
 
 import numpy as np
@@ -23,6 +24,7 @@ from tensorflow.python.platform import tf_logging as logging
 import keras
 from keras.metrics import base_metric
 from keras.testing_infra import test_utils
+from keras.utils import dataset_creator
 from keras.utils import tf_utils
 
 # isort: off
@@ -212,13 +214,14 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.__internal__.distribute.combinations.generate(
         tf.__internal__.test.combinations.combine(
+            input_type=["dataset", "dataset_creator", "distributed_dataset"],
             eval_in_model_fit=[True, False],
             use_auto=[True, False],
             custom_metric=[True, False],
         )
     )
     def testDistributedModelEvaluation(
-        self, eval_in_model_fit, use_auto, custom_metric
+        self, input_type, eval_in_model_fit, use_auto, custom_metric
     ):
 
         # Define dataset by batch size, number of shards, and batches per shard
@@ -238,7 +241,8 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             def __call__(self, x, training=False):
                 return tf.cast(x >= 0, tf.float32)
 
-        def dataset_fn():
+        def dataset_fn(input_context=None):
+            del input_context
             x = np.arange(num_examples)
 
             def make_batch_with_n_true(n):
@@ -318,16 +322,44 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
                 pss_evaluation_shards=num_shards,
             )
 
-        dataset = dataset_fn()
+        if input_type == "dataset":
+            train_dataset = dataset_fn()
+            val_dataset = dataset_fn()
+        elif input_type == "dataset_creator":
+            train_dataset = dataset_creator.DatasetCreator(dataset_fn)
+            val_dataset = dataset_creator.DatasetCreator(dataset_fn)
+        elif input_type == "distributed_dataset":
+            train_dataset = self.strategy.experimental_distribute_dataset(
+                dataset_fn()
+            )
+            val_dataset = self.strategy.experimental_distribute_dataset(
+                dataset_fn()
+            )
+
         metric_name = "custom_acc" if custom_metric else "accuracy"
         expected_results = {metric_name: expected_acc}
 
+        def kill_and_revive_in_thread(wait_secs=2):
+            def _kill_and_revive_fn():
+                time.sleep(wait_secs)
+                logging.info("Killing 2 workers")
+                self._cluster.kill_task("worker", 0)
+                self._cluster.kill_task("worker", 1)
+                time.sleep(1)
+                self._cluster.start_task("worker", 0)
+                self._cluster.start_task("worker", 1)
+
+            restart_thread = threading.Thread(target=_kill_and_revive_fn)
+            restart_thread.start()
+            return restart_thread
+
         eval_results = {}
         if eval_in_model_fit:
+            kill_and_revive_in_thread()
             history = model.fit(
-                dataset,
+                train_dataset,
                 steps_per_epoch=1,
-                validation_data=dataset,
+                validation_data=val_dataset,
             )
             logging.info(
                 "History: params (%r), history (%r)",
@@ -341,8 +373,9 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             }
         else:
             # run a single train step to compile metrics
-            model.fit(dataset, steps_per_epoch=1)
-            eval_results = model.evaluate(dataset, return_dict=True)
+            model.fit(train_dataset, steps_per_epoch=1)
+            kill_and_revive_in_thread()
+            eval_results = model.evaluate(val_dataset, return_dict=True)
             eval_results = {
                 metric: val.numpy() for metric, val in eval_results.items()
             }
