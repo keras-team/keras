@@ -26,7 +26,7 @@ from keras.engine.input_spec import InputSpec
 from keras.layers.rnn import rnn_utils
 from keras.layers.rnn.dropout_rnn_cell_mixin import DropoutRNNCellMixin
 from keras.layers.rnn.stacked_rnn_cells import StackedRNNCells
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 
@@ -958,7 +958,7 @@ class RNN(base_layer.Layer):
         if self.zero_output_for_mask:
             config["zero_output_for_mask"] = self.zero_output_for_mask
 
-        config["cell"] = serialization.serialize_keras_object(self.cell)
+        config["cell"] = serialization_lib.serialize_keras_object(self.cell)
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

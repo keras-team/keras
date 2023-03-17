@@ -140,10 +140,14 @@ tf_py_test(
     srcs = ["optimizers_test.py"],
     deps = [
         ":dtensor",
+        ":layout_map",
         ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:losses",
+        "//keras/layers",
+        "//keras/models",
     ],
 )
 

@@ -765,8 +765,8 @@ class FeatureSpace(base_layer.Layer):
         """
         saving_lib.save_model(self, filepath)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         return
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         return

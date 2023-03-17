@@ -136,20 +136,21 @@ class DropoutLayersTest(test_combinations.TestCase):
 @test_combinations.run_all_keras_modes
 class LambdaLayerTest(test_combinations.TestCase):
     def test_lambda(self):
-        test_utils.layer_test(
-            keras.layers.Lambda,
-            kwargs={"function": lambda x: x + 1},
-            input_shape=(3, 2),
-        )
+        with SafeModeScope(safe_mode=False):
+            test_utils.layer_test(
+                keras.layers.Lambda,
+                kwargs={"function": lambda x: x + 1},
+                input_shape=(3, 2),
+            )
 
-        test_utils.layer_test(
-            keras.layers.Lambda,
-            kwargs={
-                "function": lambda x, a, b: x * a + b,
-                "arguments": {"a": 0.6, "b": 0.4},
-            },
-            input_shape=(3, 2),
-        )
+            test_utils.layer_test(
+                keras.layers.Lambda,
+                kwargs={
+                    "function": lambda x, a, b: x * a + b,
+                    "arguments": {"a": 0.6, "b": 0.4},
+                },
+                input_shape=(3, 2),
+            )
 
         # test serialization with function
         def f(x):

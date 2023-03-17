@@ -26,6 +26,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras import backend
+from keras import initializers
 from keras import layers
 from keras import utils
 from keras.applications import imagenet_utils
@@ -217,8 +218,10 @@ class LayerScale(layers.Layer):
         self.projection_dim = projection_dim
 
     def build(self, input_shape):
-        self.gamma = tf.Variable(
-            self.init_values * tf.ones((self.projection_dim,))
+        self.gamma = self.add_weight(
+            shape=(self.projection_dim,),
+            initializer=initializers.Constant(self.init_values),
+            trainable=True,
         )
 
     def call(self, x):
@@ -325,7 +328,7 @@ def PreStem(name=None):
 
 
 def Head(num_classes=1000, classifier_activation=None, name=None):
-    """Implementation of classification head of RegNet.
+    """Implementation of classification head of ConvNeXt.
 
     Args:
       num_classes: number of classes for Dense layer

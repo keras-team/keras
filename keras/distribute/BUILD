@@ -532,6 +532,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_pip",  # The test imports distribute_strategy_test which is not in the pip package.
         "no_windows_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notsan",
@@ -746,6 +747,27 @@ distribute_py_test(
     srcs = ["parameter_server_evaluation_test.py"],
     python_version = "PY3",
     shard_count = 1,
+    tags = [
+        "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/186361027)
+        "no_oss",  # TODO(b/186248973)
+        "no_tfrt",
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_utils",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
+    name = "parameter_server_exact_evaluation_test",
+    srcs = ["parameter_server_exact_evaluation_test.py"],
+    python_version = "PY3",
+    shard_count = 11,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)

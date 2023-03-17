@@ -15,6 +15,7 @@
 """Contains AutoCastVariable, a variable which automatically casts itself."""
 
 import threading
+from typing import Optional
 
 import tensorflow.compat.v2 as tf
 
@@ -183,6 +184,13 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
             self._variable, dtype=self._variable.dtype, name=name
         )
         return tf.cast(val, self._cast_dtype)
+
+    def __tf_tensor__(
+        self,
+        dtype: Optional[tf.dtypes.DType] = None,
+        name: Optional[str] = None,
+    ) -> tf.Tensor:
+        return self._dense_var_to_tensor(dtype=dtype, name=name)
 
     def _should_act_as_resource_variable(self):
         """Pass resource_variable_ops.is_resource_variable check."""

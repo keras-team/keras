@@ -311,6 +311,10 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "load_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "reset_dropout_mask"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
@@ -321,6 +325,10 @@ tf_class {
   member_method {
     name: "reset_states"
     argspec: "args=[\'self\', \'states\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "save_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_weights"

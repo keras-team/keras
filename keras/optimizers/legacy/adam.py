@@ -464,7 +464,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
             vhat = self.get_slot(var, "vhat")
             vhat.assign(tf.maximum(vhat, v))
             v = vhat
-        var.assign_sub((m * alpha) / (tf.sqrt(v) - coefficients["epsilon"]))
+        var.assign_sub((m * alpha) / (tf.sqrt(v) + coefficients["epsilon"]))
 
     @tf.function(jit_compile=True)
     def _resource_apply_sparse(self, grad, var, indices, apply_state=None):

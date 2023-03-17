@@ -44,7 +44,7 @@ export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
 export TF_CUDA_COMPUTE_CAPABILITIES=6.0
 TF_CUDA_CONFIG_REPO="@ubuntu16.04-py3-gcc7_manylinux2010-cuda10.1-cudnn7-tensorrt6.0_config_cuda"
 
-tag_filters="gpu,-no_gpu,-nogpu,-benchmark-test,-no_oss,-oss_serial,-no_gpu_presubmit"
+tag_filters="gpu,-no_gpu,-nogpu,-benchmark-test,-no_oss,-oss_excluded,-oss_serial,-no_gpu_presubmit"
 # There are only 4 GPU available on the local test machine.
 TF_GPU_COUNT=4
 TF_TESTS_PER_GPU=8

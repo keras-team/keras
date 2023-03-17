@@ -199,7 +199,7 @@ A **class docstring** may contain the following items:
     * Optional `Raises` section for possible errors.
 
 You can check out `MultiHeadAttention` as an example
-[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/layers/attention/multi_head_attention.py#L130).
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/layers/attention/multi_head_attention.py#L131).
 
 A **function docstring** may contain the following items:
 
@@ -211,7 +211,7 @@ A **function docstring** may contain the following items:
 * Optional `Raises` section for possible errors.
 
 You can check out `text_dataset_from_directory` as an example
-[(link)](https://github.com/keras-team/keras/blob/v2.10.0/keras/utils/text_dataset.py#L26).
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/utils/text_dataset.py#L31).
 
 
 ## Run tests
@@ -248,7 +248,7 @@ You can run all the tests locally by running the following command in the repo
 root directory.
 
 ```
-bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...
+bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss,-oss_excluded --test_tag_filters=-no_oss,-oss_excluded keras/...
 ```
 
 ### Useful configs
@@ -309,3 +309,8 @@ mind.
     submitting PRs to fix one typo, one warning,etc. We recommend fixing the
     same issue at the file level at least (e.g.: fix all typos in a file, fix
     all compiler warnings in a file, etc.)
+
+## Security vulnerability reports
+
+Since Keras is the high-level API of TensorFlow 2, Keras follows same security practices as TensorFlow.
+For details on guidelines on vulnerabilities and reporting them, you can refer [Using TensorFlow Securely](https://github.com/tensorflow/tensorflow/blob/master/SECURITY.md). 

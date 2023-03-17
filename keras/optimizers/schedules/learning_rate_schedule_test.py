@@ -361,6 +361,28 @@ class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
             expected = self.np_cosine_decay(step, num_training_steps)
             self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
+    def linear_warmup(self, step, warmup_steps, initial_lr, target_lr):
+        completed_fraction = step / warmup_steps
+        total_delta = target_lr - initial_lr
+        return completed_fraction * total_delta
+
+    def testWarmup(self, serialize):
+        warmup_steps = 1500
+        initial_lr = 0.0
+        target_lr = 10.0
+        for step in range(0, 1500, 250):
+            lr = learning_rate_schedule.CosineDecay(
+                initial_lr,
+                0,
+                warmup_target=target_lr,
+                warmup_steps=warmup_steps,
+            )
+            lr = _maybe_serialized(lr, serialize)
+            expected = self.linear_warmup(
+                step, warmup_steps, initial_lr, target_lr
+            )
+            self.assertAllClose(self.evaluate(lr(step)), expected)
+
     def testAlpha(self, serialize):
         num_training_steps = 1000
         initial_lr = 1.0
@@ -383,6 +405,29 @@ class CosineDecayTestV2(tf.test.TestCase, parameterized.TestCase):
             decayed_lr = _maybe_serialized(decayed_lr, serialize)
             expected = self.np_cosine_decay(step, num_training_steps)
             self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
+
+    def testWarmupDecay(self, serialize):
+        warmup_steps = 2000
+        decay_steps = 1000
+        initial_lr = 0.0
+        target_lr = 10.0
+        for step in range(0, 3000, 250):
+            lr = learning_rate_schedule.CosineDecay(
+                initial_lr,
+                decay_steps,
+                warmup_target=target_lr,
+                warmup_steps=warmup_steps,
+            )
+            lr = _maybe_serialized(lr, serialize)
+            if step < warmup_steps + 1:
+                expected = self.linear_warmup(
+                    step, warmup_steps, initial_lr, target_lr
+                )
+            else:
+                expected = target_lr * self.np_cosine_decay(
+                    step - warmup_steps, decay_steps
+                )
+            self.assertAllClose(self.evaluate(lr(step)), expected)
 
 
 @test_combinations.generate(

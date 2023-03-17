@@ -825,16 +825,16 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         with tf.control_dependencies(lookup_checks):
             return tf.identity(lookups)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         if self.output_mode == TF_IDF:
             store["idf_weights"] = self.idf_weights_const.numpy()
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         if self.output_mode == TF_IDF:
             self.idf_weights.assign(store["idf_weights"])
             self.idf_weights_const = self.idf_weights.value()
 
-    def _save_assets(self, dir_path):
+    def save_assets(self, dir_path):
         if self.input_vocabulary:
             # Vocab saved in config.
             # TODO: consider unifying both paths.
@@ -844,7 +844,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         with open(vocabulary_filepath, "w") as f:
             f.write("\n".join([str(w) for w in vocabulary]))
 
-    def _load_assets(self, dir_path):
+    def load_assets(self, dir_path):
         if self.input_vocabulary:
             # Vocab saved in config.
             # TODO: consider unifying both paths.

@@ -89,6 +89,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_registration",
+        ":serialization",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/saving/legacy/saved_model:utils",

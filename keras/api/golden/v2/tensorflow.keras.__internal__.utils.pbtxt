@@ -6,7 +6,7 @@ tf_module {
   }
   member_method {
     name: "layer_test"
-    argspec: "args=[\'self\'], varargs=args, keywords=kwargs, defaults=None"
+    argspec: "args=[\'layer_cls\', \'kwargs\', \'input_shape\', \'input_dtype\', \'input_data\', \'expected_output\', \'expected_output_dtype\', \'expected_output_shape\', \'validate_training\', \'adapt_data\', \'custom_objects\', \'test_harness\', \'supports_masking\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'True\', \'None\', \'None\', \'None\', \'None\'], "
   }
   member_method {
     name: "register_symbolic_tensor_type"

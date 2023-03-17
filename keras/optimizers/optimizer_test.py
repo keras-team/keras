@@ -18,6 +18,7 @@ from keras.optimizers import adam as adam_new
 from keras.optimizers import adamax as adamax_new
 from keras.optimizers import adamw as adamw_new
 from keras.optimizers import ftrl as ftrl_new
+from keras.optimizers import lion as lion_new
 from keras.optimizers import nadam as nadam_new
 from keras.optimizers import rmsprop as rmsprop_new
 from keras.optimizers import sgd as sgd_new
@@ -36,7 +37,7 @@ ds_combinations = tf.__internal__.distribute.combinations
 STRATEGIES = [
     # TODO(b/202992598): Add PSS strategy once the XLA issues is resolved.
     ds_combinations.one_device_strategy,
-    ds_combinations.mirrored_strategy_with_cpu_1_and_2,
+    ds_combinations.mirrored_strategy_with_two_cpus,
     ds_combinations.mirrored_strategy_with_two_gpus,
     ds_combinations.tpu_strategy,
     ds_combinations.cloud_tpu_strategy,
@@ -69,6 +70,9 @@ adamw_new_fn = tf.__internal__.test.combinations.NamedObject(
 ftrl_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentalftrl", lambda: ftrl_new.Ftrl(0.002)
 )
+lion_new_fn = tf.__internal__.test.combinations.NamedObject(
+    "lion", lambda: lion_new.Lion(0.002)
+)
 nadam_new_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentnadam", lambda: nadam_new.Nadam(0.002)
 )
@@ -90,6 +94,7 @@ OPTIMIZER_FN = [
     adamax_new_fn,
     adamw_new_fn,
     ftrl_new_fn,
+    lion_new_fn,
     nadam_new_fn,
     rmsprop_new_fn,
     sgd_new_fn,
@@ -392,6 +397,8 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         expected_learning_rate = {
             "class_name": "CustomLRSchedule",
             "config": {"initial_learning_rate": 0.05},
+            "module": None,
+            "registered_name": "CustomLRSchedule",
         }
         self.assertDictContainsSubset(expected_config, config)
         self.assertDictEqual(expected_learning_rate, config["learning_rate"])

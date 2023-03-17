@@ -241,13 +241,35 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
             MyPolicy("float32"),
         ):
             config = mp_policy.serialize(policy)
-            self.assertEqual(
-                config,
-                {
-                    "class_name": policy.__class__.__name__,
-                    "config": {"name": policy.name},
-                },
-            )
+            if tf.__internal__.tf2.enabled():
+                if policy.name == "float32":
+                    self.assertEqual(
+                        config,
+                        {
+                            "module": None,
+                            "class_name": policy.__class__.__name__,
+                            "config": {"name": policy.name},
+                            "registered_name": "MyPolicy",
+                        },
+                    )
+                else:
+                    self.assertEqual(
+                        config,
+                        {
+                            "module": "keras.mixed_precision",
+                            "class_name": policy.__class__.__name__,
+                            "config": {"name": policy.name},
+                            "registered_name": None,
+                        },
+                    )
+            else:
+                self.assertEqual(
+                    config,
+                    {
+                        "class_name": policy.__class__.__name__,
+                        "config": {"name": policy.name},
+                    },
+                )
             new_policy = mp_policy.deserialize(
                 config, custom_objects={"MyPolicy": MyPolicy}
             )
