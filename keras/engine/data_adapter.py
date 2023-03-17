@@ -542,7 +542,7 @@ class DatasetCreatorAdapter(DataAdapter):
                 "`DatasetCreator` but it received type {}.".format(type(x))
             )
         if steps is None:
-            if not kwargs.get("pss_evaluation_shards"):
+            if kwargs.get("pss_evaluation_shards") is None:
                 raise ValueError(
                     "When using a "
                     "`tf.keras.utils.experimental.DatasetCreator`, "
