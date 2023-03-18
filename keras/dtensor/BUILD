@@ -206,3 +206,20 @@ tf_py_test(
         "//keras/utils:tf_utils",
     ],
 )
+
+tf_py_test(
+    name = "training_test",
+    srcs = ["training_test.py"],
+    tags = ["no_oss"],
+    deps = [
+        ":integration_test_utils",
+        ":test_util",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//third_party/tensorflow/lite/python:analyzer",
+        "//third_party/tensorflow/lite/python:lite",
+        "//third_party/tensorflow/lite/python/authoring",
+        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
+    ],
+)
