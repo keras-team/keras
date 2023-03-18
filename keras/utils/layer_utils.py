@@ -425,6 +425,11 @@ def print_summary(
                 # we don't need any if we are printing the last column
                 space = 2 if col != len(positions) - 1 else 0
                 cutoff = end_pos - start_pos - space
+                # Except for last col, offset by one to align the start of col
+                if col != len(positions) - 1:
+                    cutoff -= 1
+                if col == 0:
+                    cutoff -= nested_level
                 fit_into_line = left_to_print[col][:cutoff]
                 # For nicer formatting we line-break on seeing end of
                 # tuple/dict etc.
@@ -445,7 +450,8 @@ def print_summary(
                 left_to_print[col] = left_to_print[col][cutoff:]
 
                 # Pad out to the next position
-                if nested_level:
+                # Make space for nested_level for last column
+                if nested_level and col == len(positions) - 1:
                     line += " " * (positions[col] - len(line) - nested_level)
                 else:
                     line += " " * (positions[col] - len(line))
