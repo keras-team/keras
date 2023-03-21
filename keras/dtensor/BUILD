@@ -217,9 +217,6 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-        "//third_party/tensorflow/lite/python:analyzer",
-        "//third_party/tensorflow/lite/python:lite",
-        "//third_party/tensorflow/lite/python/authoring",
         "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
     ],
 )

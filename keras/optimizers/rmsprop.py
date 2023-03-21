@@ -25,7 +25,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.experimental.RMSprop", "keras.optimizers.RMSprop", v1=[]
+    "keras.optimizers.experimental.RMSprop",
+    "keras.optimizers.RMSprop",
+    "keras.dtensor.experimental.optimizers.RMSprop",
+    v1=[],
 )
 class RMSprop(optimizer.Optimizer):
     r"""Optimizer that implements the RMSprop algorithm.
