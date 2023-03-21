@@ -34,7 +34,6 @@ from keras.utils import tf_utils
 from keras.utils import traceback_utils
 
 # isort: off
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 SINGLE_LAYER_OUTPUT_ERROR_MSG = (
@@ -394,13 +393,6 @@ class Sequential(functional.Functional):
                 self._build_input_shape = tf.nest.map_structure(
                     _get_shape_tuple, inputs
                 )
-                if tf.__internal__.tf2.enabled():
-                    logging.warning(
-                        "Layers in a Sequential model should only have a "
-                        f"single input tensor. Received: inputs={inputs}. "
-                        "Consider rewriting this model with the Functional "
-                        "API."
-                    )
             else:
                 self._build_graph_network_for_inferred_shape(
                     inputs.shape, inputs.dtype
