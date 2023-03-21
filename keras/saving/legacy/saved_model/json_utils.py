@@ -30,10 +30,12 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 import wrapt
 
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model.utils import in_tf_saved_model_scope
 
 # isort: off
-from tensorflow.python.framework import type_spec
+from tensorflow.python.framework import type_spec_registry
 
 _EXTENSION_TYPE_SPEC = "_EXTENSION_TYPE_SPEC"
 
@@ -108,7 +110,7 @@ def _decode_helper(
         if obj["class_name"] == "TensorShape":
             return tf.TensorShape(obj["items"])
         elif obj["class_name"] == "TypeSpec":
-            return type_spec.lookup(obj["type_spec"])._deserialize(
+            return type_spec_registry.lookup(obj["type_spec"])._deserialize(
                 _decode_helper(obj["serialized"])
             )
         elif obj["class_name"] == "CompositeTensor":
@@ -129,11 +131,18 @@ def _decode_helper(
             # __passive_serialization__ is added by the JSON encoder when
             # encoding an object that has a `get_config()` method.
             try:
-                return serialization.deserialize_keras_object(
-                    obj,
-                    module_objects=module_objects,
-                    custom_objects=custom_objects,
-                )
+                if in_tf_saved_model_scope() or "module" not in obj:
+                    return serialization.deserialize_keras_object(
+                        obj,
+                        module_objects=module_objects,
+                        custom_objects=custom_objects,
+                    )
+                else:
+                    return serialization_lib.deserialize_keras_object(
+                        obj,
+                        module_objects=module_objects,
+                        custom_objects=custom_objects,
+                    )
             except ValueError:
                 pass
         elif obj["class_name"] == "__bytes__":
@@ -195,7 +204,7 @@ def get_json_type(obj):
 
     if isinstance(obj, tf.TypeSpec):
         try:
-            type_spec_name = type_spec.get_name(type(obj))
+            type_spec_name = type_spec_registry.get_name(type(obj))
             return {
                 "class_name": "TypeSpec",
                 "type_spec": type_spec_name,

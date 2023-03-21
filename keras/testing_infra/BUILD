@@ -35,7 +35,7 @@ py_library(
         "//keras/engine:base_layer_utils",
         "//keras/layers",
         "//keras/models",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:tf_contextlib",
         "//keras/utils:tf_inspect",
     ],

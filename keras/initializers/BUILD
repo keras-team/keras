@@ -14,15 +14,15 @@ py_library(
     name = "initializers",
     srcs = [
         "__init__.py",
+        "initializers.py",
         "initializers_v1.py",
-        "initializers_v2.py",
     ],
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/dtensor:utils",
-        "//keras/saving:serialization",
+        "//keras/saving:serialization_lib",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_inspect",
     ],

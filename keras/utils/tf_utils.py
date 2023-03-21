@@ -15,11 +15,15 @@
 """TensorFlow-related utilities."""
 
 import collections
+import contextlib
 import copy
+import platform
 import random
+import threading
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl import logging
 
 from keras import backend
 from keras.engine import keras_tensor
@@ -29,6 +33,7 @@ from keras.utils import tf_contextlib
 # isort: off
 from tensorflow.python.framework import ops
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python import pywrap_tfe
 
 
 @keras_export("keras.utils.set_random_seed", v1=[])
@@ -64,6 +69,18 @@ def set_random_seed(seed):
     np.random.seed(seed)
     tf.random.set_seed(seed)
     backend._SEED_GENERATOR.generator = random.Random(seed)
+
+
+def get_random_seed():
+    """Retrieve a seed value to seed a random generator.
+
+    Returns:
+      the random seed as an integer.
+    """
+    if getattr(backend._SEED_GENERATOR, "generator", None):
+        return backend._SEED_GENERATOR.generator.randint(1, 1e9)
+    else:
+        return random.randint(1, 1e9)
 
 
 def is_tensor_or_tensor_list(v):
@@ -557,9 +574,17 @@ def maybe_init_scope(layer):
     Yields:
       None
     """
-    # Don't open an init_scope in V1 mode or when using legacy tf.layers.
-    if tf.compat.v1.executing_eagerly_outside_functions() and getattr(
-        layer, "_keras_style", True
+    # Don't open an init_scope in V1 mode, when using legacy tf.layers, or in a
+    # local-variable scope.
+    # The local-variable scope should ensure that created variables are local to
+    # the function being executed, rather than lifted out of the graph by
+    # `init_scope`. This way the variables are freely usable and mutable within
+    # the function, which enables a visitation guarantee for model evaluation,
+    # when the scope is applied to metric variable creation.
+    if (
+        tf.compat.v1.executing_eagerly_outside_functions()
+        and getattr(layer, "_keras_style", True)
+        and not in_local_vars_context()
     ):
         with tf.init_scope():
             yield
@@ -651,6 +676,10 @@ def sync_to_numpy_or_python_type(tensors):
     """
     if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
         tensors = tensors.fetch()
+    if isinstance(tensors, list) and isinstance(
+        tensors[0], tf.distribute.experimental.coordinator.RemoteValue
+    ):
+        tensors = tf.nest.map_structure(lambda t: t.fetch(), tensors)
 
     def _to_single_numpy_or_python_type(t):
         # Don't turn ragged or sparse tensors to NumPy.
@@ -675,3 +704,52 @@ def _astuple(attrs):
     for field in fields:
         values.append(getattr(attrs, field.name))
     return tuple(values)
+
+
+def can_jit_compile(warn=False):
+    """Returns True if TensorFlow XLA is available for the platform."""
+    if platform.system() == "Darwin" and "arm" in platform.processor().lower():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not yet supported on Apple M1/M2 ARM "
+                "processors. Falling back to `jit_compile=False`."
+            )
+        return False
+    if pywrap_tfe.TF_ListPluggablePhysicalDevices():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not supported on your system. "
+                "Falling back to `jit_compile=False`."
+            )
+        return False
+    return True
+
+
+_metric_local_vars_scope = threading.local()
+
+
+def get_metric_local_vars_scope():
+    try:
+        return _metric_local_vars_scope.current
+    except AttributeError:
+        return None
+
+
+def in_local_vars_context():
+    ctx = get_metric_local_vars_scope()
+    return ctx is not None
+
+
+@contextlib.contextmanager
+def with_metric_local_vars_scope():
+    previous_scope = getattr(_metric_local_vars_scope, "current", None)
+    _metric_local_vars_scope.current = MetricLocalVarsScope()
+    yield
+    _metric_local_vars_scope.current = previous_scope
+
+
+class MetricLocalVarsScope:
+    """Turn on local variable creation for Metrics.
+
+    No functionality is needed here, it just exists to modulate Metric's
+    variable creation."""

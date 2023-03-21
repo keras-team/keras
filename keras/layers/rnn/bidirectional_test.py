@@ -1020,6 +1020,96 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(output1, output3)
         self.assertNotAllClose(output1, output2)
 
+    def test_reset_states(self):
+        ref_state = np.random.rand(1, 3).astype(np.float32)
+
+        # build model
+        inp = keras.Input(batch_shape=[1, 2, 3])
+
+        stateful = keras.layers.SimpleRNN(units=3, stateful=True)
+        stateless = keras.layers.SimpleRNN(units=3, stateful=False)
+
+        bid_stateless = keras.layers.Bidirectional(stateless)
+        bid_stateful = keras.layers.Bidirectional(stateful)
+
+        # required to correctly initialize the state in the layers
+        _ = keras.Model(
+            inp,
+            [
+                bid_stateless(inp),
+                bid_stateful(inp),
+            ],
+        )
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "Layer must be stateful.",
+        ):
+            bid_stateless.reset_states()
+
+        with self.assertRaisesRegex(AttributeError, "Layer must be stateful."):
+            bid_stateless.reset_states([])
+
+        bid_stateful.reset_states()
+        bid_stateful.reset_states([ref_state, ref_state])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unrecognized value for `states`. Expected `states` "
+            "to be list or tuple",
+        ):
+            bid_stateful.reset_states({})
+
+    def test_trainable_parameter_argument(self):
+        inp = keras.layers.Input([None, 3])
+
+        def test(fwd, bwd, **kwargs):
+            def _remove_from_dict(d, remove_key):
+                if isinstance(d, dict):
+                    d.pop(remove_key, None)
+                    for key in list(d.keys()):
+                        _remove_from_dict(d[key], remove_key)
+
+            bid = keras.layers.Bidirectional(fwd, backward_layer=bwd, **kwargs)
+
+            model = keras.Model(inp, bid(inp))
+            clone = keras.models.clone_model(model)
+
+            # Comparison should exclude `build_config`
+            clone_config = _remove_from_dict(clone.get_config(), "build_config")
+            model_config = _remove_from_dict(model.get_config(), "build_config")
+            self.assertEqual(clone_config, model_config)
+
+        # test fetching trainable from `layer`
+        fwd = keras.layers.SimpleRNN(units=3)
+        bwd = keras.layers.SimpleRNN(units=3, go_backwards=True)
+
+        fwd.trainable = True
+        test(fwd, None)
+
+        fwd.trainable = False
+        test(fwd, None)
+
+        fwd.trainable = True
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = True
+        bwd.trainable = True
+        test(fwd, bwd)
+
+        fwd.trainable = False
+        bwd.trainable = False
+        test(fwd, bwd)
+
+        # test fetching trainable from `kwargs`
+        test(fwd, None, trainable=True)
+        test(fwd, None, trainable=False)
+
 
 def _to_list(ls):
     if isinstance(ls, list):

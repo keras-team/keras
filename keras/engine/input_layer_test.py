@@ -21,10 +21,12 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.layers import core
 from keras.saving.legacy import model_config
+from keras.saving.serialization_lib import SafeModeScope
 from keras.testing_infra import test_combinations
 
 # isort: off
 from tensorflow.python.framework import type_spec
+from tensorflow.python.framework import type_spec_registry
 
 
 class TwoTensors(tf.__internal__.CompositeTensor):
@@ -66,7 +68,7 @@ def as_shape(shape):
         return tf.TensorShape(shape)
 
 
-@type_spec.register("tf.TwoTensorsSpec")
+@type_spec_registry.register("tf.TwoTensorsSpec")
 class TwoTensorsSpecNoOneDtype(tf.TypeSpec):
     """A TypeSpec for the TwoTensors value type."""
 
@@ -406,10 +408,11 @@ class InputLayerTest(test_combinations.TestCase):
             self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
 
             # Test serialization / deserialization
-            model = functional.Functional.from_config(model.get_config())
-            self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
-            model = model_config.model_from_json(model.to_json())
-            self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
+            with SafeModeScope(safe_mode=False):
+                model = functional.Functional.from_config(model.get_config())
+                self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
+                model = model_config.model_from_json(model.to_json())
+                self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
 
     def test_serialize_with_unknown_rank(self):
         inp = backend.placeholder(shape=None, dtype=tf.string)

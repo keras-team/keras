@@ -60,13 +60,14 @@ keras_packages = [
     "keras.engine.sequential",
     "keras.engine.training",
     "keras.estimator",
+    "keras.export.export_lib",
     "keras.feature_column.dense_features",
     "keras.feature_column.dense_features_v2",
     "keras.feature_column.sequence_feature_column",
     # Placeholder for internal API
     "keras.initializers",
+    "keras.initializers.initializers",
     "keras.initializers.initializers_v1",
-    "keras.initializers.initializers_v2",
     "keras.layers.activation",
     "keras.layers.attention",
     "keras.layers.convolutional",
@@ -102,15 +103,15 @@ keras_packages = [
     "keras.optimizers.sgd",
     "keras.optimizers.optimizer",
     "keras.optimizers.rmsprop",
-    "keras.optimizers.optimizer_v2.adadelta",
-    "keras.optimizers.optimizer_v2.adagrad",
-    "keras.optimizers.optimizer_v2.adam",
-    "keras.optimizers.optimizer_v2.adamax",
-    "keras.optimizers.optimizer_v2.ftrl",
-    "keras.optimizers.optimizer_v2.gradient_descent",
-    "keras.optimizers.optimizer_v2.nadam",
-    "keras.optimizers.optimizer_v2.optimizer_v2",
-    "keras.optimizers.optimizer_v2.rmsprop",
+    "keras.optimizers.legacy.adadelta",
+    "keras.optimizers.legacy.adagrad",
+    "keras.optimizers.legacy.adam",
+    "keras.optimizers.legacy.adamax",
+    "keras.optimizers.legacy.ftrl",
+    "keras.optimizers.legacy.gradient_descent",
+    "keras.optimizers.legacy.nadam",
+    "keras.optimizers.legacy.optimizer_v2",
+    "keras.optimizers.legacy.rmsprop",
     "keras.optimizers.schedules.learning_rate_schedule",
     "keras.optimizers",
     "keras.premade_models.linear",
@@ -121,6 +122,7 @@ keras_packages = [
     "keras.regularizers",
     "keras.saving.legacy.model_config",
     "keras.saving.legacy.save",
+    "keras.saving.legacy.serialization",
     "keras.testing_infra.test_utils",
     "keras.utils.data_utils",
     "keras.utils.generic_utils",
@@ -130,7 +132,6 @@ keras_packages = [
     "keras.utils.np_utils",
     "keras.utils.tf_utils",
     "keras.utils.vis_utils",
-    "keras.wrappers.scikit_learn",
 ]
 
 # The target used by PIP package which need to generate API init files during OSS build.
@@ -157,6 +158,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -171,6 +175,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )
@@ -185,6 +192,9 @@ gen_api_init_files(
     package_deps = [
         "//keras",
         "//:expect_tensorflow_installed",
+        # "//third_party/tensorflow/lite/python:analyzer",
+        # "//third_party/tensorflow/lite/python:lite",
+        # "//third_party/tensorflow/lite/python/authoring",
     ],
     packages = keras_packages,
 )

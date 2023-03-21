@@ -23,6 +23,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 import keras
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
 from keras.utils import generic_utils
 from keras.utils import io_utils
@@ -83,9 +84,9 @@ class HasArgTest(tf.test.TestCase):
 
 class SerializeKerasObjectTest(tf.test.TestCase):
     def test_serialize_none(self):
-        serialized = serialization.serialize_keras_object(None)
+        serialized = serialization_lib.serialize_keras_object(None)
         self.assertEqual(serialized, None)
-        deserialized = serialization.deserialize_keras_object(serialized)
+        deserialized = serialization_lib.deserialize_keras_object(serialized)
         self.assertEqual(deserialized, None)
 
     def test_serializable_object(self):
@@ -262,7 +263,7 @@ class SerializeKerasObjectTest(tf.test.TestCase):
                 }
             ],
         }
-        old_model = serialization.deserialize_keras_object(
+        old_model = serialization_lib.deserialize_keras_object(
             old_model_config, module_objects={"Sequential": keras.Sequential}
         )
         new_model = keras.Sequential(
@@ -282,12 +283,19 @@ class SerializeKerasObjectTest(tf.test.TestCase):
             pass
 
         layer = CustomLayer()
-        config = serialization.serialize_keras_object(layer)
-        with self.assertRaisesRegexp(
-            ValueError, "using a `keras.utils.custom_object_scope`"
-        ):
-            serialization.deserialize_keras_object(config)
-        restored = serialization.deserialize_keras_object(
+        config = serialization_lib.serialize_keras_object(layer)
+        if tf.__internal__.tf2.enabled():
+            with self.assertRaisesRegex(
+                TypeError,
+                "Could not locate class 'CustomLayer'. Make sure custom classes",  # noqa: E501
+            ):
+                serialization_lib.deserialize_keras_object(config)
+        else:
+            with self.assertRaisesRegex(
+                ValueError, "using a `keras.utils.custom_object_scope`"
+            ):
+                serialization.deserialize_keras_object(config)
+        restored = serialization_lib.deserialize_keras_object(
             config, custom_objects={"CustomLayer": CustomLayer}
         )
         self.assertIsInstance(restored, CustomLayer)

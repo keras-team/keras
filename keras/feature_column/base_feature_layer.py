@@ -27,7 +27,7 @@ import re
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 
 
 class _BaseFeaturesLayer(Layer):
@@ -130,7 +130,7 @@ class _BaseFeaturesLayer(Layer):
             for fc in self._feature_columns
         ]
         config = {"feature_columns": column_configs}
-        config["partitioner"] = serialization.serialize_keras_object(
+        config["partitioner"] = serialization_lib.serialize_keras_object(
             self._partitioner
         )
 
@@ -147,7 +147,7 @@ class _BaseFeaturesLayer(Layer):
             )
             for c in config["feature_columns"]
         ]
-        config_cp["partitioner"] = serialization.deserialize_keras_object(
+        config_cp["partitioner"] = serialization_lib.deserialize_keras_object(
             config["partitioner"], custom_objects
         )
 

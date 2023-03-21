@@ -15,12 +15,13 @@
 """Public API surface for saving APIs."""
 
 import os
+import warnings
 import zipfile
 
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 from keras.saving.legacy import save as legacy_sm_saving_lib
 from keras.utils import io_utils
 
@@ -30,7 +31,7 @@ except ImportError:
     h5py = None
 
 
-@keras_export("keras.models.save_model")
+@keras_export("keras.saving.save_model", "keras.models.save_model")
 def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     """Saves a model as a TensorFlow SavedModel or HDF5 file.
 
@@ -72,12 +73,12 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
         tf.keras.layers.Dense(5, input_shape=(3,)),
         tf.keras.layers.Softmax()])
     model.save("model.keras")
-    loaded_model = tf.keras.models.load_model("model.keras")
+    loaded_model = tf.keras.saving.load_model("model.keras")
     x = tf.random.uniform((10, 3))
     assert np.allclose(model.predict(x), loaded_model.predict(x))
     ```
 
-    Note that `model.save()` is an alias for `tf.keras.models.save_model()`.
+    Note that `model.save()` is an alias for `tf.keras.saving.save_model()`.
 
     The SavedModel or HDF5 file contains:
 
@@ -113,18 +114,35 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     and the amount of disk space occupied by the output SavedModel. If you
     enable this option, then you _must_ provide all custom class definitions
     when loading the model. See the `custom_objects` argument in
-    `tf.keras.models.load_model`.
+    `tf.keras.saving.load_model`.
     """
     save_format = get_save_format(filepath, save_format)
-    if save_format not in ("keras", "tf", "h5", "keras_v3"):
-        raise ValueError(
-            "Unknown `save_format` argument. Expected one of "
-            "'keras', 'tf', or 'h5'. "
-            f"Received: save_format{save_format}"
+
+    # Deprecation warnings
+    if save_format == "tf":
+        warnings.warn(
+            "You are saving your model as a TensorFlow SavedModel via "
+            "`model.save()`. This is no longer a recommended workflow.\n\n"
+            "* If you intend to be able to reload the exact same model in a "
+            "Python runtime, we recommend using the native Keras format, "
+            "e.g. `model.save('my_model.keras')`.\n\n"
+            "* If you intend to export a SavedModel artifact for inference "
+            "(e.g. via TF-Serving), we recommend using "
+            "`model.export('my_export_artifact')`. If you want to further "
+            "customize SavedModel serving endpoints you can also use the "
+            "low-level `keras.export.ExportArchive` class.",
+            stacklevel=2,
         )
-    if save_format == "keras_v3" or (
-        saving_lib.saving_v3_enabled() and save_format == "keras"
-    ):
+    if save_format == "h5":
+        warnings.warn(
+            "You are saving your model as an HDF5 file via `model.save()`. "
+            "This file format is considered legacy. "
+            "We recommend using instead the native Keras format, "
+            "e.g. `model.save('my_model.keras')`.",
+            stacklevel=2,
+        )
+
+    if save_format == "keras":
         # If file exists and should not be overwritten.
         try:
             exists = os.path.exists(filepath)
@@ -151,8 +169,10 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
         )
 
 
-@keras_export("keras.models.load_model")
-def load_model(filepath, custom_objects=None, compile=True, **kwargs):
+@keras_export("keras.saving.load_model", "keras.models.load_model")
+def load_model(
+    filepath, custom_objects=None, compile=True, safe_mode=True, **kwargs
+):
     """Loads a model saved via `model.save()`.
 
     Args:
@@ -161,6 +181,10 @@ def load_model(filepath, custom_objects=None, compile=True, **kwargs):
             (strings) to custom classes or functions to be
             considered during deserialization.
         compile: Boolean, whether to compile the model after loading.
+        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
+            When `safe_mode=False`, loading an object has the potential to
+            trigger arbitrary code execution. This argument is only
+            applicable to the Keras v3 model format. Defaults to True.
 
     SavedModel format arguments:
         options: Only applies to SavedModel format.
@@ -179,7 +203,7 @@ def load_model(filepath, custom_objects=None, compile=True, **kwargs):
         tf.keras.layers.Dense(5, input_shape=(3,)),
         tf.keras.layers.Softmax()])
     model.save("model.keras")
-    loaded_model = tf.keras.models.load_model("model.keras")
+    loaded_model = tf.keras.saving.load_model("model.keras")
     x = tf.random.uniform((10, 3))
     assert np.allclose(model.predict(x), loaded_model.predict(x))
     ```
@@ -196,7 +220,10 @@ def load_model(filepath, custom_objects=None, compile=True, **kwargs):
                 f"with the native Keras format: {list(kwargs.keys())}"
             )
         return saving_lib.load_model(
-            filepath, custom_objects=custom_objects, compile=compile
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
         )
 
     # Legacy case.
@@ -223,31 +250,58 @@ def save_weights(model, filepath, overwrite=True, **kwargs):
         )
 
 
-def load_weights(model, filepath, **kwargs):
+def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
-        saving_lib.load_weights_only(model, filepath)
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
     elif str(filepath).endswith(".weights.h5"):
-        saving_lib.load_weights_only(model, filepath)
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
     else:
-        return legacy_sm_saving_lib.load_weights(model, filepath, **kwargs)
+        return legacy_sm_saving_lib.load_weights(
+            model, filepath, skip_mismatch=skip_mismatch, **kwargs
+        )
 
 
 def get_save_format(filepath, save_format):
-    if saving_lib.saving_v3_enabled():
-        default_format = "keras"
-    elif tf.__internal__.tf2.enabled():
-        default_format = "tf"
+    if save_format:
+        if save_format == "keras_v3":
+            return "keras"
+        if save_format == "keras":
+            if saving_lib.saving_v3_enabled():
+                return "keras"
+            else:
+                return "h5"
+        if save_format in ("h5", "hdf5"):
+            return "h5"
+        if save_format in ("tf", "tensorflow"):
+            return "tf"
+
+        raise ValueError(
+            "Unknown `save_format` argument. Expected one of "
+            "'keras', 'tf', or 'h5'. "
+            f"Received: save_format{save_format}"
+        )
+
+    # No save format specified: infer from filepath.
+
+    if str(filepath).endswith(".keras"):
+        if saving_lib.saving_v3_enabled():
+            return "keras"
+        else:
+            return "h5"
+
+    if str(filepath).endswith((".h5", ".hdf5")):
+        return "h5"
+
+    if h5py is not None and isinstance(filepath, h5py.File):
+        return "h5"
+
+    # No recognizable file format: default to TF in TF2 and h5 in TF1.
+
+    if tf.__internal__.tf2.enabled():
+        return "tf"
     else:
-        default_format = "h5"
-
-    if (h5py is not None and isinstance(filepath, h5py.File)) or str(
-        filepath
-    ).endswith((".h5", ".hdf5")):
-        if save_format and save_format != "h5":
-            raise ValueError(
-                "Provided `save_format` is inconsistent with `filepath`. "
-                f"Received: save_format='{save_format}', filepath='{filepath}'"
-            )
-        save_format = "h5"
-
-    return save_format or default_format
+        return "h5"

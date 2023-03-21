@@ -8,6 +8,7 @@ package(
     default_visibility = [
         "//keras:friends",
         "//learning/brain/distribute/experimental/auto_distribute:__pkg__",
+        "//learning/brain/distribute/python:__subpackages__",
         "//learning/brain/experimental/dtensor/models:__subpackages__",
     ],
     licenses = ["notice"],
@@ -139,10 +140,14 @@ tf_py_test(
     srcs = ["optimizers_test.py"],
     deps = [
         ":dtensor",
+        ":layout_map",
         ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:losses",
+        "//keras/layers",
+        "//keras/models",
     ],
 )
 
@@ -184,5 +189,37 @@ py_library(
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "save_load_test",
+    srcs = ["save_load_test.py"],
+    deps = [
+        ":dtensor",
+        ":layout_map",
+        ":test_util",
+        "//keras",
+        "//keras:backend",
+        "//keras/layers",
+        "//keras/models",
+        "//keras/utils:tf_utils",
+    ],
+)
+
+tf_py_test(
+    name = "training_test",
+    srcs = ["training_test.py"],
+    tags = ["no_oss"],
+    deps = [
+        ":integration_test_utils",
+        ":test_util",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//third_party/tensorflow/lite/python:analyzer",
+        "//third_party/tensorflow/lite/python:lite",
+        "//third_party/tensorflow/lite/python/authoring",
+        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
     ],
 )

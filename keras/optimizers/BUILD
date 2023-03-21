@@ -30,6 +30,7 @@ py_library(
         "adamax.py",
         "adamw.py",
         "ftrl.py",
+        "lion.py",
         "nadam.py",
         "optimizer.py",
         "optimizer_v1.py",
@@ -41,7 +42,7 @@ py_library(
         ":utils",
         "//:expect_tensorflow_installed",
         "//keras:backend",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/optimizers/schedules:learning_rate_schedule",
         "//keras/utils:engine_utils",
     ],
@@ -131,5 +132,17 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "lion_test",
+    size = "medium",
+    srcs = ["lion_test.py"],
+    shard_count = 4,
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )

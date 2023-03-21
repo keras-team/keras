@@ -20,7 +20,7 @@ from absl.testing import parameterized
 
 import keras
 from keras import metrics as metrics_module
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 

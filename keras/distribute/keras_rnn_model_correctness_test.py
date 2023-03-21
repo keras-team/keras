@@ -24,9 +24,7 @@ from keras.layers.rnn import gru_v1
 from keras.layers.rnn import lstm
 from keras.layers.rnn import lstm_v1
 from keras.mixed_precision import policy
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_keras,
-)
+from keras.optimizers.legacy import gradient_descent as gradient_descent_keras
 from keras.testing_infra import test_utils
 
 

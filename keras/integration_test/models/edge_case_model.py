@@ -42,21 +42,23 @@ class LinearA(keras.layers.Layer):
 
 
 class LinearB(keras.layers.Layer):
-    """Layer that tracks weights in a dict attribute."""
+    """Layer that tracks weights in a dict attribute that gets updated later."""
 
-    def __init__(self, units=32, input_dim=32):
-        super().__init__()
+    def __init__(self, units=32, input_dim=32, **kwargs):
+        super().__init__(**kwargs)
         w_init = tf.random_normal_initializer()
         b_init = tf.zeros_initializer()
         self.state = {
             "kernel": tf.Variable(
                 initial_value=w_init(shape=(input_dim, units), dtype="float32"),
                 trainable=True,
+                name="kernel",
             )
         }
         self.state["bias"] = tf.Variable(
             initial_value=b_init(shape=(units,), dtype="float32"),
             trainable=True,
+            name="bias",
         )
 
     def call(self, inputs):
@@ -66,8 +68,8 @@ class LinearB(keras.layers.Layer):
 class LinearC(keras.layers.Layer):
     """Layer that creates weights in call()."""
 
-    def __init__(self, units=32, input_dim=32):
-        super().__init__()
+    def __init__(self, units=32, input_dim=32, **kwargs):
+        super().__init__(**kwargs)
         self._custom_built = False
         self.units = units
         self.input_dim = input_dim
@@ -89,8 +91,10 @@ class LinearC(keras.layers.Layer):
 class BatchNorm(keras.layers.Layer):
     """Layer with different training/test behavior and non-trainable updates."""
 
-    def __init__(self, scale=True, center=True, epsilon=1e-6, momentum=0.9):
-        super().__init__()
+    def __init__(
+        self, scale=True, center=True, epsilon=1e-6, momentum=0.9, **kwargs
+    ):
+        super().__init__(**kwargs)
         self.scale = scale
         self.center = center
         self.epsilon = epsilon
@@ -122,7 +126,7 @@ class BatchNorm(keras.layers.Layer):
 
 
 class FunctionalSubclassModel(keras.Model):
-    def __init__(self):
+    def __init__(self, **kwargs):
         inputs = keras.Input((INPUT_DIM,))
         x = inputs
         x = LinearA(32, INPUT_DIM)(x, x)
@@ -130,7 +134,7 @@ class FunctionalSubclassModel(keras.Model):
         x = LinearC(32, 32)(x)
         x = BatchNorm()(x)
         outputs = keras.layers.Dense(NUM_CLASSES, activation="softmax")(x)
-        super().__init__(inputs, outputs)
+        super().__init__(inputs, outputs, **kwargs)
 
 
 def get_model(

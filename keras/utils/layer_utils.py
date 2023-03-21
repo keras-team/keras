@@ -123,6 +123,142 @@ def count_params(weights):
     return int(sum(np.prod(p) for p in standardized_weight_shapes))
 
 
+def weight_memory_size(weights):
+    """Calculate the memory footprint for weights based on their dtypes.
+
+    Args:
+        weights: An iterable contains the weights to compute weight size.
+
+    Returns:
+        The total memory size (in Bytes) of the weights.
+    """
+    unique_weights = {id(w): w for w in weights}.values()
+
+    total_memory_size = 0
+    for w in unique_weights:
+        # Ignore TrackableWeightHandlers, which will not have a shape defined.
+        if not hasattr(w, "shape"):
+            continue
+        elif None in w.shape.as_list():
+            continue
+        weight_shape = np.prod(w.shape.as_list())
+        per_param_size = w.dtype.size
+        total_memory_size += weight_shape * per_param_size
+    return total_memory_size
+
+
+def dtensor_variable_summary(weights):
+    """Group and calculate DTensor based weights memory size.
+
+    Since DTensor weights can be sharded across multiple device, the result
+    will be grouped by the layout/sharding spec for the variables, so that
+    the accurate per-device memory size can be calculated.
+
+    Args:
+        weights: An iterable contains the weights to compute weight size.
+
+    Returns:
+        total_weight_count, total_memory_size and per_sharing_spec_result which
+        is a dict with normalized layout spec as key and tuple of weight count
+        and weight size as value.
+    """
+    unique_weights = {id(w): w for w in weights}.values()
+    total_weight_count = 0
+    total_memory_size = 0
+    per_sharing_spec_result = {}
+    for w in unique_weights:
+        # Ignore TrackableWeightHandlers, which will not have a shape defined.
+        if not hasattr(w, "shape"):
+            continue
+        if not isinstance(w, tf.experimental.dtensor.DVariable):
+            continue
+        layout = w.layout
+        # Remove all the duplication axis, and sort the column name.
+        # 1D replicated and 2D replicated variable will still be fully
+        # replicated, and [batch, model] sharding will have same memory
+        # footprint as the [model, batch] layout.
+        reduced_sharding_spec = list(sorted(set(layout.sharding_specs)))
+        if tf.experimental.dtensor.UNSHARDED in reduced_sharding_spec:
+            reduced_sharding_spec.remove(tf.experimental.dtensor.UNSHARDED)
+        reduced_sharding_spec = tuple(reduced_sharding_spec)  # For dict key
+        weight_count, memory_size = per_sharing_spec_result.get(
+            reduced_sharding_spec, (0, 0)
+        )
+        reduced_weight_shape = np.prod(w.shape.as_list())
+        per_param_size = w.dtype.size
+        weight_count += reduced_weight_shape
+        memory_size += reduced_weight_shape * per_param_size
+        per_sharing_spec_result[reduced_sharding_spec] = (
+            weight_count,
+            memory_size,
+        )
+        total_weight_count += reduced_weight_shape
+        total_memory_size += reduced_weight_shape * per_param_size
+    return total_weight_count, total_memory_size, per_sharing_spec_result
+
+
+def print_dtensor_variable_summary(model, print_fn, line_length):
+    if getattr(model, "_layout_map", None) is not None:
+        mesh = model._layout_map.get_default_mesh()
+    elif hasattr(model, "distribute_strategy") and hasattr(
+        model.distribute_strategy, "_mesh"
+    ):
+        mesh = model.distribute_strategy._mesh
+    else:
+        # Not running with DTensor
+        mesh = None
+    if mesh:
+        (
+            total_weight_count,
+            total_memory_size,
+            per_sharing_spec_result,
+        ) = dtensor_variable_summary(model.weights)
+        total_per_device_memory_size = 0
+        for sharding_spec in sorted(per_sharing_spec_result.keys()):
+            count, memory_size = per_sharing_spec_result[sharding_spec]
+            if len(sharding_spec) == 0:
+                print_fn(
+                    f"{count} / {total_weight_count} params "
+                    f"({readable_memory_size(memory_size)}) "
+                    "are fully replicated"
+                )
+                per_device_size = memory_size
+            else:
+                sharding_factor = np.prod(
+                    [mesh.dim_size(s) for s in sharding_spec]
+                )
+                per_device_size = memory_size / sharding_factor
+                print_fn(
+                    f"{count} / {total_weight_count} params "
+                    f"({readable_memory_size(memory_size)}) are sharded based "
+                    f"on spec '{sharding_spec}' and across {sharding_factor} "
+                    f"devices."
+                )
+            total_per_device_memory_size += per_device_size
+        print_fn(
+            "Overall per device memory usage: "
+            f"{readable_memory_size(total_per_device_memory_size)}"
+        )
+        print_fn(
+            "Overall sharding factor: {:.2f}".format(
+                total_memory_size / total_per_device_memory_size
+            )
+        )
+        print_fn("_" * line_length)
+
+
+def readable_memory_size(weight_memory_size):
+    """Convert the weight memory size (Bytes) to a readable string."""
+    units = ["Byte", "KB", "MB", "GB", "TB", "PB"]
+    scale = 1024
+    for unit in units:
+        if weight_memory_size / scale < 1:
+            return "{:.2f} {}".format(weight_memory_size, unit)
+        else:
+            weight_memory_size /= scale
+    return "{:.2f} {}".format(weight_memory_size, units[-1])
+
+
 def get_layer_index_bound_by_layer_name(model, layer_range=None):
     """Get the layer indexes from the model based on layer names.
 
@@ -289,6 +425,11 @@ def print_summary(
                 # we don't need any if we are printing the last column
                 space = 2 if col != len(positions) - 1 else 0
                 cutoff = end_pos - start_pos - space
+                # Except for last col, offset by one to align the start of col
+                if col != len(positions) - 1:
+                    cutoff -= 1
+                if col == 0:
+                    cutoff -= nested_level
                 fit_into_line = left_to_print[col][:cutoff]
                 # For nicer formatting we line-break on seeing end of
                 # tuple/dict etc.
@@ -309,7 +450,8 @@ def print_summary(
                 left_to_print[col] = left_to_print[col][cutoff:]
 
                 # Pad out to the next position
-                if nested_level:
+                # Make space for nested_level for last column
+                if nested_level and col == len(positions) - 1:
                     line += " " * (positions[col] - len(line) - nested_level)
                 else:
                     line += " " * (positions[col] - len(line))
@@ -432,15 +574,33 @@ def print_summary(
 
     if hasattr(model, "_collected_trainable_weights"):
         trainable_count = count_params(model._collected_trainable_weights)
+        trainable_memory_size = weight_memory_size(
+            model._collected_trainable_weights
+        )
     else:
         trainable_count = count_params(model.trainable_weights)
+        trainable_memory_size = weight_memory_size(model.trainable_weights)
 
     non_trainable_count = count_params(model.non_trainable_weights)
+    non_trainable_memory_size = weight_memory_size(model.non_trainable_weights)
 
-    print_fn(f"Total params: {trainable_count + non_trainable_count:,}")
-    print_fn(f"Trainable params: {trainable_count:,}")
-    print_fn(f"Non-trainable params: {non_trainable_count:,}")
+    total_memory_size = trainable_memory_size + non_trainable_memory_size
+
+    print_fn(
+        f"Total params: {trainable_count + non_trainable_count} "
+        f"({readable_memory_size(total_memory_size)})"
+    )
+    print_fn(
+        f"Trainable params: {trainable_count} "
+        f"({readable_memory_size(trainable_memory_size)})"
+    )
+    print_fn(
+        f"Non-trainable params: {non_trainable_count} "
+        f"({readable_memory_size(non_trainable_memory_size)})"
+    )
     print_fn("_" * line_length)
+
+    print_dtensor_variable_summary(model, print_fn, line_length)
 
 
 def convert_dense_weights_data_format(

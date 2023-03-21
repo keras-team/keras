@@ -15,6 +15,7 @@
 """Base class of optimizer."""
 
 import abc
+import platform
 import re
 
 import tensorflow.compat.v2 as tf
@@ -53,11 +54,26 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
         self.use_ema = use_ema
-        self.jit_compile = jit_compile
-        if not tf.config.list_physical_devices("GPU"):
-            # Optimizer only benefits from XLA when training on GPU. So if no
-            # GPU is found, we turn off XLA.
+        # Optimizer only benefits from XLA when training on GPU. So if no
+        # GPU is found, we turn off XLA.
+        if (
+            jit_compile
+            and tf_utils.can_jit_compile()
+            and tf.config.list_physical_devices("GPU")
+        ):
+            self.jit_compile = True
+        else:
             self.jit_compile = False
+
+        if platform.system() == "Darwin" and platform.processor() == "arm":
+            logging.warning(
+                "At this time, the v2.11+ optimizer "
+                f"`tf.keras.optimizers.{self.__class__.__name__}` runs slowly "
+                "on M1/M2 Macs, please use the legacy Keras optimizer "
+                "instead, located at "
+                f"`tf.keras.optimizers.legacy.{self.__class__.__name__}`."
+            )
+
         if use_ema:
             # Verify the arguments related to EMA.
             if ema_momentum > 1 or ema_momentum < 0:
@@ -219,7 +235,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 "update different parts of the model separately. Please call "
                 "`optimizer.build(variables)` with the full list of trainable "
                 "variables before the training loop or use legacy optimizer "
-                "`tf.keras.optimizers.legacy.{self.__class__.__name__}."
+                f"`tf.keras.optimizers.legacy.{self.__class__.__name__}."
             )
         self.update_step(gradient, variable)
 
@@ -619,25 +635,27 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-        grads_and_vars = list(zip(grads, trainable_variables))
-        grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
-        if len(list(grads_and_vars)) == 0:
-            # Check again after filtering gradients.
-            return self._iterations
+            grads_and_vars = list(zip(grads, trainable_variables))
+            grads_and_vars = optimizer_utils.filter_empty_gradients(
+                grads_and_vars
+            )
+            if len(list(grads_and_vars)) == 0:
+                # Check again after filtering gradients.
+                return self._iterations
 
-        grads, trainable_variables = zip(*grads_and_vars)
+            grads, trainable_variables = zip(*grads_and_vars)
 
-        grads = self._clip_gradients(grads)
-        grads = self._deduplicate_sparse_grad(grads)
-        self._apply_weight_decay(trainable_variables)
-        grads_and_vars = list(zip(grads, trainable_variables))
-        iteration = self._internal_apply_gradients(grads_and_vars)
+            grads = self._clip_gradients(grads)
+            grads = self._deduplicate_sparse_grad(grads)
+            self._apply_weight_decay(trainable_variables)
+            grads_and_vars = list(zip(grads, trainable_variables))
+            iteration = self._internal_apply_gradients(grads_and_vars)
 
-        # Apply variable constraints after applying gradients.
-        for variable in trainable_variables:
-            if variable.constraint is not None:
-                variable.assign(variable.constraint(variable))
-        return iteration
+            # Apply variable constraints after applying gradients.
+            for variable in trainable_variables:
+                if variable.constraint is not None:
+                    variable.assign(variable.constraint(variable))
+            return iteration
 
     def _apply_weight_decay(self, variables):
         if self.weight_decay is None:
@@ -770,9 +788,10 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
         return cls(**config)
 
+    @property
     def variables(self):
         """Returns variables of this optimizer."""
-        return self._variables
+        return CallableList(self._variables)
 
     def set_weights(self, weights):
         """Set the weights of the optimizer.
@@ -799,47 +818,64 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 )
             variable.assign(weight)
 
-    def _save_own_variables(self, store):
+    def save_own_variables(self, store):
         """Get the state of this optimizer object."""
-        for i, variable in enumerate(self.variables()):
+        for i, variable in enumerate(self.variables):
             store[str(i)] = variable.numpy()
 
-    def _load_own_variables(self, store):
+    def load_own_variables(self, store):
         """Set the state of this optimizer object."""
-        for i, variable in enumerate(self.variables()):
+        if len(store.keys()) != len(self.variables):
+            msg = (
+                f"Skipping variable loading for optimizer '{self.name}', "
+                f"because it has {len(self.variables)} variables whereas "
+                f"the saved optimizer has {len(store.keys())} variables. "
+            )
+            if len(self.variables) == 0:
+                msg += (
+                    "This is likely because the optimizer has not been "
+                    "called/built yet."
+                )
+            logging.warning(msg)
+            return
+        for i, variable in enumerate(self.variables):
             variable.assign(store[str(i)])
 
 
 base_optimizer_keyword_args = """name: String. The name to use
-        for momentum accumulator weights created by
-        the optimizer.
+          for momentum accumulator weights created by
+          the optimizer.
       weight_decay: Float, defaults to None. If set, weight decay is applied.
       clipnorm: Float. If set, the gradient of each weight is individually
-        clipped so that its norm is no higher than this value.
+          clipped so that its norm is no higher than this value.
       clipvalue: Float. If set, the gradient of each weight is clipped to be no
-        higher than this value.
+          higher than this value.
       global_clipnorm: Float. If set, the gradient of all weights is clipped so
-        that their global norm is no higher than this value.
+          that their global norm is no higher than this value.
       use_ema: Boolean, defaults to False. If True, exponential moving average
-        (EMA) is applied. EMA consists of computing an exponential moving
-        average of the weights of the model (as the weight values change after
-        each training batch), and periodically overwriting the weights with
-        their moving average.
-      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`. This is  # noqa: E501
-        the momentum to use when computing the EMA of the model's weights:
-        `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-        current_variable_value`.
+          (EMA) is applied. EMA consists of computing an exponential moving
+          average of the weights of the model (as the weight values change after
+          each training batch), and periodically overwriting the weights with
+          their moving average.
+      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`.
+          This is the momentum to use when computing
+          the EMA of the model's weights:
+          `new_average = ema_momentum * old_average + (1 - ema_momentum) *
+          current_variable_value`.
       ema_overwrite_frequency: Int or None, defaults to None. Only used if
-        `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations, we
-        overwrite the model variable by its moving average. If None, the optimizer  # noqa: E501
-         does not overwrite model variables in the middle of training, and you
-        need to explicitly overwrite the variables at the end of training
-        by calling `optimizer.finalize_variable_values()` (which updates the model  # noqa: E501
-        variables in-place). When using the built-in `fit()` training loop, this
-        happens automatically after the last epoch, and you don't need to do
-        anything.
-      jit_compile: Boolean, defaults to True. If True, the optimizer will use XLA  # noqa: E501
-        compilation. If no GPU device is found, this flag will be ignored.
+          `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
+          we overwrite the model variable by its moving average.
+          If None, the optimizer
+          does not overwrite model variables in the middle of training, and you
+          need to explicitly overwrite the variables at the end of training
+          by calling `optimizer.finalize_variable_values()`
+          (which updates the model
+          variables in-place). When using the built-in `fit()` training loop,
+          this happens automatically after the last epoch,
+          and you don't need to do anything.
+      jit_compile: Boolean, defaults to True.
+          If True, the optimizer will use XLA
+          compilation. If no GPU device is found, this flag will be ignored.
       **kwargs: keyword arguments only used for backward compatibility."""
 
 
@@ -1246,6 +1282,13 @@ class RestoredOptimizer(Optimizer):
             "supported. Please file a feature request if this limitation "
             "bothers you."
         )
+
+
+class CallableList(list):
+    """Temporary shim to support both `opt.variables()` and `opt.variables`."""
+
+    def __call__(self):
+        return self
 
 
 # Register the optimizer for loading from saved_model purpose.

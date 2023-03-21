@@ -21,22 +21,21 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
+from keras.layers import Dense
 from keras.mixed_precision import autocast_variable
-from keras.optimizers.optimizer_v2 import adadelta
-from keras.optimizers.optimizer_v2 import adagrad
-from keras.optimizers.optimizer_v2 import adam
-from keras.optimizers.optimizer_v2 import adamax
-from keras.optimizers.optimizer_v2 import ftrl
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_v2,
-)
-from keras.optimizers.optimizer_v2 import nadam
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import adadelta
+from keras.optimizers.legacy import adagrad
+from keras.optimizers.legacy import adam
+from keras.optimizers.legacy import adamax
+from keras.optimizers.legacy import ftrl
+from keras.optimizers.legacy import gradient_descent as gradient_descent_v2
+from keras.optimizers.legacy import nadam
+from keras.optimizers.legacy import rmsprop
 
 maybe_distribute = tf.__internal__.test.combinations.combine(
     distribution=[
         tf.__internal__.distribute.combinations.default_strategy,
-        tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2,  # noqa: E501
+        tf.__internal__.distribute.combinations.mirrored_strategy_with_two_cpus,  # noqa: E501
     ]
 )
 
@@ -45,35 +44,10 @@ def get_var(val, dtype, name=None):
     return tf.Variable(val, dtype=dtype, name=name)
 
 
-def set_cpu_logical_devices_to_at_least(num):
-    """Create cpu logical devices of at least a given number."""
-    physical_devices = tf.config.list_physical_devices("CPU")
-    if not physical_devices:
-        raise RuntimeError("No CPU found")
-    if len(physical_devices) >= num:
-        return
-    # By default each physical device corresponds to one logical device. We
-    # create multiple logical devices for the last physical device so that we
-    # have `num` logical devices.
-    num = num - len(physical_devices) + 1
-    logical_devices = []
-    for _ in range(num):
-        logical_devices.append(tf.config.LogicalDeviceConfiguration())
-    # Create logical devices from the last device since sometimes the first GPU
-    # is the primary graphic card and may have less memory available.
-    tf.config.set_logical_device_configuration(
-        physical_devices[-1], logical_devices
-    )
-
-
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(mode=["graph", "eager"])
 )
 class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
-    def setUp(self):
-        set_cpu_logical_devices_to_at_least(3)
-        super().setUp()
-
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_read(self, distribution):
         with distribution.scope():
@@ -114,6 +88,20 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
         with autocast_variable.enable_auto_cast_variables(tf.float16):
             self.assertEqual(x.sparse_read([0]).dtype, tf.float16)
             self.assertEqual(x.gather_nd([0]).dtype, tf.float16)
+
+    def test_tf_function_with_variable_and_autocast_variable(self):
+        ones = tf.ones((2, 2))
+        layer1 = Dense(2, dtype="float32")
+        layer2 = Dense(2, dtype="mixed_float16")
+        layer1(ones)
+        layer2(ones)
+
+        @tf.function
+        def f(x):
+            return x + 1
+
+        self.assertEqual(f(layer1.kernel).dtype, tf.dtypes.float32)
+        self.assertEqual(f(layer2.kernel).dtype, tf.dtypes.float32)
 
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_read_nested_scopes(self, distribution):
@@ -583,12 +571,20 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
                     "dtype_to_cast_to=float16>",
                 )
 
-    def test_repr_distributed(self):
-        strategy = tf.distribute.MirroredStrategy(["/cpu:1", "/cpu:2"])
-        with strategy.scope():
+    @tf.__internal__.distribute.combinations.generate(
+        tf.__internal__.test.combinations.combine(
+            distribution=[
+                tf.__internal__.distribute.combinations.mirrored_strategy_with_two_cpus,  # noqa: E501
+            ]
+        )
+    )
+    def test_repr_distributed(self, distribution):
+        with distribution.scope():
             x = get_var(1.0, tf.float32)
             x = autocast_variable.create_autocast_variable(x)
-            use_policy = getattr(strategy.extended, "_use_var_policy", False)
+            use_policy = getattr(
+                distribution.extended, "_use_var_policy", False
+            )
             if use_policy:
                 self.assertRegex(
                     repr(x).replace("\n", " "),

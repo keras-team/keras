@@ -17,8 +17,8 @@
 # isort: off
 
 # Serialization related
-from keras.saving.legacy.serialization import deserialize_keras_object
-from keras.saving.legacy.serialization import serialize_keras_object
+from keras.saving.serialization_lib import deserialize_keras_object
+from keras.saving.serialization_lib import serialize_keras_object
 from keras.saving.object_registration import CustomObjectScope
 from keras.saving.object_registration import custom_object_scope
 from keras.saving.object_registration import get_custom_objects
@@ -54,14 +54,17 @@ from keras.utils.feature_space import FeatureSpace
 
 # Internal
 from keras.utils.layer_utils import get_source_inputs
+from keras.utils.layer_utils import warmstart_embedding_matrix
 
 # Deprecated
 from keras.utils.np_utils import normalize
 from keras.utils.np_utils import to_categorical
+from keras.utils.np_utils import to_ordinal
 from keras.utils.data_utils import pad_sequences
 
 # Evaluation related
 from keras.utils.sidecar_evaluator import SidecarEvaluator
+from keras.utils.sidecar_evaluator import SidecarEvaluatorModelExport
 
 # Visualization related
 from keras.utils.vis_utils import model_to_dot

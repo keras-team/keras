@@ -63,7 +63,7 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/optimizers",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -143,7 +143,7 @@ distribute_py_test(
     ],
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -244,7 +244,7 @@ distribute_py_test(
         ":strategy_combinations",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -532,6 +532,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_pip",  # The test imports distribute_strategy_test which is not in the pip package.
         "no_windows_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notsan",
@@ -641,7 +642,7 @@ cuda_py_test(
         "//keras:callbacks",
         "//keras:engine",
         "//keras/optimizers",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:kpl_test_utils",
     ],
 )
@@ -671,7 +672,7 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
     ],
 )
 
@@ -746,6 +747,27 @@ distribute_py_test(
     srcs = ["parameter_server_evaluation_test.py"],
     python_version = "PY3",
     shard_count = 1,
+    tags = [
+        "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/186361027)
+        "no_oss",  # TODO(b/186248973)
+        "no_tfrt",
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_utils",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
+    name = "parameter_server_exact_evaluation_test",
+    srcs = ["parameter_server_exact_evaluation_test.py"],
+    python_version = "PY3",
+    shard_count = 28,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)
@@ -877,7 +899,7 @@ py_library(
         "//keras/engine",
         "//keras/layers/core",
         "//keras/layers/preprocessing:string_lookup",
-        "//keras/optimizers/optimizer_v2",
+        "//keras/optimizers/legacy:optimizers",
         "//keras/utils:dataset_creator",
     ],
 )

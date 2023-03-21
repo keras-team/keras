@@ -26,7 +26,7 @@ from keras import metrics as metrics_module
 from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_generator_v1
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import data_utils

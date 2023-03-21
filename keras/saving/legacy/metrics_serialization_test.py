@@ -24,7 +24,7 @@ from absl.testing import parameterized
 import keras
 from keras import layers
 from keras import metrics
-from keras.optimizers import optimizer_v2
+from keras.optimizers import legacy as optimizer_legacy
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import custom_object_scope
@@ -185,7 +185,7 @@ class MetricsSerialization(test_combinations.TestCase):
         ):
             model = _get_multi_io_model()
             model.compile(
-                optimizer_v2.gradient_descent.SGD(0.1),
+                optimizer_legacy.gradient_descent.SGD(0.1),
                 "mae",
                 metrics=metric_input,
                 weighted_metrics=weighted_metric_input,
@@ -234,7 +234,7 @@ class MetricsSerialization(test_combinations.TestCase):
 
         model = _get_multi_io_model()
         model.compile(
-            optimizer_v2.gradient_descent.SGD(0.1),
+            optimizer_legacy.gradient_descent.SGD(0.1),
             "mae",
             metrics=metric_input,
             weighted_metrics=weighted_metric_input,

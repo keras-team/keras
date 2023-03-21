@@ -23,7 +23,7 @@ import keras
 from keras import backend
 from keras.engine import sequential
 from keras.feature_column import dense_features
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.saving.legacy import saving_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils

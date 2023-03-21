@@ -22,6 +22,7 @@ from keras.distribute import distributed_training_utils
 from keras.engine import base_layer
 from keras.engine import keras_tensor
 from keras.engine import node as node_module
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
@@ -200,6 +201,12 @@ class InputLayer(base_layer.Layer):
                 raise ValueError(
                     "Creating Keras inputs from a type_spec is only "
                     "supported when eager execution is enabled."
+                )
+            # Needed for type_spec deserialization since TypeSpec objects
+            # are not Keras-native (not automatically deserialized).
+            if isinstance(type_spec, dict):
+                type_spec = serialization_lib.deserialize_keras_object(
+                    type_spec
                 )
             input_tensor = keras_tensor.keras_tensor_from_type_spec(type_spec)
             if isinstance(input_tensor, keras_tensor.SparseKerasTensor):

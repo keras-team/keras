@@ -19,7 +19,6 @@ import os
 import pathlib
 import shutil
 import tempfile
-import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -39,6 +38,7 @@ from keras.saving import object_registration
 from keras.saving.legacy import model_config
 from keras.saving.legacy import save
 from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -384,7 +384,7 @@ class TestJson(test_combinations.TestCase):
             indices_a, values_a, (batch_size, timesteps, 1)
         )
 
-        values_b = np.zeros(10, dtype=np.str)
+        values_b = np.zeros(10, dtype=str)
         indices_b = np.zeros((10, 3), dtype=np.int64)
         indices_b[:, 0] = np.arange(10)
         inputs_b = tf.SparseTensor(
@@ -487,8 +487,8 @@ class TestWholeModelSaving(test_combinations.TestCase):
             ):
                 loaded_model.optimizer.build(loaded_model.trainable_variables)
                 self.assertAllClose(
-                    model.optimizer.variables(),
-                    loaded_model.optimizer.variables(),
+                    model.optimizer.variables,
+                    loaded_model.optimizer.variables,
                 )
             else:
                 self.assertAllClose(
@@ -533,9 +533,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             )
             model.compile(
                 loss=keras.losses.MSE,
-                optimizer=keras.optimizers.optimizer_v2.rmsprop.RMSprop(
-                    lr=0.0001
-                ),
+                optimizer=keras.optimizers.legacy.rmsprop.RMSprop(lr=0.0001),
                 metrics=[
                     keras.metrics.categorical_accuracy,
                     keras.metrics.CategoricalCrossentropy(
@@ -1012,7 +1010,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             model = _make_model()
             model.compile(
                 loss=keras.losses.SparseCategoricalCrossentropy(),
-                optimizer=optimizers.gradient_descent_v2.SGD(),
+                optimizer=optimizers.gradient_descent_legacy.SGD(),
                 metrics=[keras.metrics.SparseCategoricalCrossentropy()],
             )
             x = np.random.normal(size=(32, 4))
@@ -1052,9 +1050,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
             )
             # Set the model's optimizer but don't compile. This can happen if
             # the model is trained with a custom training loop.
-            model.optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop(
-                lr=0.0001
-            )
+            model.optimizer = keras.optimizers.legacy.rmsprop.RMSprop(lr=0.0001)
             if not tf.executing_eagerly():
                 session.run([v.initializer for v in model.variables])
             model.save(saved_model_dir, save_format=save_format)
@@ -1063,7 +1059,7 @@ class TestWholeModelSaving(test_combinations.TestCase):
                 loaded = keras.models.load_model(saved_model_dir)
                 self.assertIsInstance(
                     loaded.optimizer,
-                    keras.optimizers.optimizer_v2.optimizer_v2.OptimizerV2,
+                    keras.optimizers.legacy.optimizer_v2.OptimizerV2,
                 )
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
@@ -1322,55 +1318,6 @@ class TestWholeModelSaving(test_combinations.TestCase):
         # loaded model.
         self.assertSequenceEqual(model.metrics_names, loaded.metrics_names)
 
-    @test_combinations.generate(
-        test_combinations.combine(mode=["graph", "eager"])
-    )
-    def test_warning_when_saving_invalid_custom_mask_layer(self):
-        class MyMasking(keras.layers.Layer):
-            def call(self, inputs):
-                return inputs
-
-            def compute_mask(self, inputs, mask=None):
-                mask = tf.not_equal(inputs, 0)
-                return mask
-
-        class MyLayer(keras.layers.Layer):
-            def call(self, inputs, mask=None):
-                return tf.identity(inputs)
-
-        samples = np.random.random((2, 2))
-        model = keras.Sequential([MyMasking(), MyLayer()])
-        model.predict(samples)
-        with warnings.catch_warnings(record=True) as w:
-            model.save(self._save_model_dir(), test_utils.get_save_format())
-        self.assertIn(
-            serialization.CustomMaskWarning, {warning.category for warning in w}
-        )
-
-        # Test that setting up a custom mask correctly does not issue a warning.
-        class MyCorrectMasking(keras.layers.Layer):
-            def call(self, inputs):
-                return inputs
-
-            def compute_mask(self, inputs, mask=None):
-                mask = tf.not_equal(inputs, 0)
-                return mask
-
-            # This get_config doesn't actually do anything because our mask is
-            # static and doesn't need any external information to work. We do
-            # need a dummy get_config method to prevent the warning from
-            # appearing, however.
-            def get_config(self, *args, **kwargs):
-                return {}
-
-        model = keras.Sequential([MyCorrectMasking(), MyLayer()])
-        model.predict(samples)
-        with warnings.catch_warnings(record=True) as w:
-            model.save(self._save_model_dir(), test_utils.get_save_format())
-        self.assertNotIn(
-            serialization.CustomMaskWarning, {warning.category for warning in w}
-        )
-
     # Test only in eager mode because ragged tensor inputs
     # cannot be used in graph mode.
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
@@ -1563,4 +1510,7 @@ class TestWholeModelSavingWithNesting(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with saved_model_utils.keras_option_scope(
+        save_traces=False, in_tf_saved_model_scope=True
+    ):
+        tf.test.main()

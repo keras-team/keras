@@ -16,7 +16,8 @@
 # Description:
 #   Contains the Keras metrics submodule.
 
-load("@org_keras//keras:keras.bzl", "tf_py_test")
+load("@org_keras//keras:keras.bzl", "cuda_py_test")
+load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
 package(
     default_visibility = [
@@ -32,8 +33,15 @@ py_library(
     name = "metrics",
     srcs = [
         "__init__.py",
+        "accuracy_metrics.py",
         "base_metric.py",
-        "metrics.py",
+        "confusion_metrics.py",
+        "f_score_metrics.py",
+        "hinge_metrics.py",
+        "iou_metrics.py",
+        "probabilistic_metrics.py",
+        "py_metric.py",
+        "regression_metrics.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -67,9 +75,9 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "metrics_test",
+    name = "accuracy_metrics_test",
     size = "medium",
-    srcs = ["metrics_test.py"],
+    srcs = ["accuracy_metrics_test.py"],
     python_version = "PY3",
     shard_count = 4,
     deps = [
@@ -80,6 +88,109 @@ tf_py_test(
         "//keras/layers",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "confusion_metrics_test",
+    size = "medium",
+    srcs = ["confusion_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_scipy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/models",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+        "//keras/utils:metrics_utils",
+    ],
+)
+
+tf_py_test(
+    name = "f_score_metrics_test",
+    size = "medium",
+    srcs = ["f_score_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "hinge_metrics_test",
+    size = "medium",
+    srcs = ["hinge_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "iou_metrics_test",
+    size = "medium",
+    srcs = ["iou_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "probabilistic_metrics_test",
+    size = "medium",
+    srcs = ["probabilistic_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "regression_metrics_test",
+    size = "medium",
+    srcs = ["regression_metrics_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":metrics",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -101,25 +212,6 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "confusion_matrix_test",
-    size = "medium",
-    srcs = ["confusion_matrix_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    deps = [
-        ":metrics",
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_scipy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/layers",
-        "//keras/models",
-        "//keras/testing_infra:test_combinations",
-        "//keras/utils:metrics_utils",
-    ],
-)
-
-tf_py_test(
     name = "metrics_correctness_test",
     size = "medium",
     srcs = ["metrics_correctness_test.py"],
@@ -131,5 +223,23 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "py_metric_test",
+    size = "medium",
+    srcs = ["py_metric_test.py"],
+    shard_count = 2,
+    tags = [
+        "no_windows",
+    ],
+    deps = [
+        ":metrics",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/layers",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
     ],
 )

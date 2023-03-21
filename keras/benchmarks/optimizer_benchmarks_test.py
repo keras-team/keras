@@ -17,7 +17,7 @@
 import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
-from keras.optimizers.optimizer_v2 import adam
+from keras.optimizers.legacy import adam
 
 # isort: off
 from tensorflow.python.platform.benchmark import (

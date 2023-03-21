@@ -106,3 +106,13 @@ py_library(
     visibility = ["//visibility:public"],
     deps = [],
 )
+
+# Note that this dependency is for testing only.
+py_library(
+    name = "expect_tensorflow_io_installed",
+    # This is a dummy rule used as a tensorflow_io dependency in open-source.
+    # We expect tensorflow_io to already be installed on the system, e.g. via
+    # `pip install tensorflow-io`
+    visibility = ["//visibility:public"],
+    deps = [],
+)

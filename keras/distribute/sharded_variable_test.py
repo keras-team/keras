@@ -298,7 +298,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
             # keying
             var = tf.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], name="test")
 
-        opt = keras.optimizers.optimizer_v2.adam.Adam()
+        opt = keras.optimizers.legacy.adam.Adam()
 
         # Run once to trigger apply_gradients to populate optimizer slot
         # variables.
@@ -357,7 +357,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
             # keying
             var = tf.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], name="test")
 
-        opt = keras.optimizers.optimizer_v2.adam.Adam()
+        opt = keras.optimizers.legacy.adam.Adam()
 
         # Run once to trigger apply_gradients to populate optimizer slot
         # variables.
@@ -393,7 +393,7 @@ class ShardedVariableTest(tf.test.TestCase, parameterized.TestCase):
         with strategy2.scope():
             var = tf.Variable([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], name="test")
 
-        opt = keras.optimizers.optimizer_v2.adam.Adam()
+        opt = keras.optimizers.legacy.adam.Adam()
         # Run once to trigger apply_gradients to populate optimizer slot
         # variables.
         strategy2.run(train_step)

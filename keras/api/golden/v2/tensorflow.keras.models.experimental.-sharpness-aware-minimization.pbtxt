@@ -186,12 +186,20 @@ tf_class {
     argspec: "args=[\'self\', \'input_shape\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "build_from_config"
+    argspec: "args=[\'self\', \'config\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "call"
     argspec: "args=[\'self\', \'inputs\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "compile"
-    argspec: "args=[\'self\', \'optimizer\', \'loss\', \'metrics\', \'loss_weights\', \'weighted_metrics\', \'run_eagerly\', \'steps_per_execution\', \'jit_compile\'], varargs=None, keywords=kwargs, defaults=[\'rmsprop\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\'], "
+    argspec: "args=[\'self\', \'optimizer\', \'loss\', \'metrics\', \'loss_weights\', \'weighted_metrics\', \'run_eagerly\', \'steps_per_execution\', \'jit_compile\', \'pss_evaluation_shards\'], varargs=None, keywords=kwargs, defaults=[\'rmsprop\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'None\', \'0\'], "
+  }
+  member_method {
+    name: "compile_from_config"
+    argspec: "args=[\'self\', \'config\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "compute_loss"
@@ -226,6 +234,10 @@ tf_class {
     argspec: "args=[\'self\', \'generator\', \'steps\', \'callbacks\', \'max_queue_size\', \'workers\', \'use_multiprocessing\', \'verbose\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'10\', \'1\', \'False\', \'0\'], "
   }
   member_method {
+    name: "export"
+    argspec: "args=[\'self\', \'filepath\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "finalize_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
@@ -240,6 +252,14 @@ tf_class {
   member_method {
     name: "from_config"
     argspec: "args=[\'cls\', \'config\', \'custom_objects\'], varargs=None, keywords=None, defaults=[\'None\'], "
+  }
+  member_method {
+    name: "get_build_config"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "get_compile_config"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "get_config"
@@ -286,8 +306,12 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
+    name: "load_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "load_weights"
-    argspec: "args=[\'self\', \'filepath\', \'by_name\', \'skip_mismatch\', \'options\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'None\'], "
+    argspec: "args=[\'self\', \'filepath\', \'skip_mismatch\', \'by_name\', \'options\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'None\'], "
   }
   member_method {
     name: "make_predict_function"
@@ -328,6 +352,10 @@ tf_class {
   member_method {
     name: "save"
     argspec: "args=[\'self\', \'filepath\', \'overwrite\', \'save_format\'], varargs=None, keywords=kwargs, defaults=[\'True\', \'None\'], "
+  }
+  member_method {
+    name: "save_own_variables"
+    argspec: "args=[\'self\', \'store\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "save_spec"

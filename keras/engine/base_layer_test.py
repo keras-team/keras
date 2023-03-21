@@ -27,7 +27,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
-from keras.optimizers.optimizer_v2 import rmsprop
+from keras.optimizers.legacy import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
@@ -325,6 +325,22 @@ class BaseLayerTest(test_combinations.TestCase):
             dtype=tf.string, getter=lambda *_, **__: variable
         )
         self.assertIs(variable, added)
+
+    def test_variable_resetting(self):
+        dense = layers.Dense(1)
+        dense.build([8, 2])
+
+        self.assertIs(dense.trainable_variables[0], dense.kernel)
+        self.assertIs(dense.trainable_variables[1], dense.bias)
+
+        # when we reset the variable to another instance, make sure the ordering
+        # of the variable in the trainable_variables doesn't change.
+        # This is important for h5 saving/loading.
+        dense.bias = tf.Variable(initial_value=tf.zeros(shape=(1,)))
+        dense.kernel = tf.Variable(initial_value=tf.zeros(shape=(2, 1)))
+
+        self.assertIs(dense.trainable_variables[0], dense.kernel)
+        self.assertIs(dense.trainable_variables[1], dense.bias)
 
     @test_combinations.generate(
         test_combinations.keras_mode_combinations(mode=["eager"])

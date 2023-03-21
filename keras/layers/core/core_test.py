@@ -24,6 +24,7 @@ import keras
 from keras import initializers
 from keras.layers import core
 from keras.mixed_precision import policy
+from keras.saving.serialization_lib import SafeModeScope
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -135,20 +136,21 @@ class DropoutLayersTest(test_combinations.TestCase):
 @test_combinations.run_all_keras_modes
 class LambdaLayerTest(test_combinations.TestCase):
     def test_lambda(self):
-        test_utils.layer_test(
-            keras.layers.Lambda,
-            kwargs={"function": lambda x: x + 1},
-            input_shape=(3, 2),
-        )
+        with SafeModeScope(safe_mode=False):
+            test_utils.layer_test(
+                keras.layers.Lambda,
+                kwargs={"function": lambda x: x + 1},
+                input_shape=(3, 2),
+            )
 
-        test_utils.layer_test(
-            keras.layers.Lambda,
-            kwargs={
-                "function": lambda x, a, b: x * a + b,
-                "arguments": {"a": 0.6, "b": 0.4},
-            },
-            input_shape=(3, 2),
-        )
+            test_utils.layer_test(
+                keras.layers.Lambda,
+                kwargs={
+                    "function": lambda x, a, b: x * a + b,
+                    "arguments": {"a": 0.6, "b": 0.4},
+                },
+                input_shape=(3, 2),
+            )
 
         # test serialization with function
         def f(x):
@@ -156,9 +158,10 @@ class LambdaLayerTest(test_combinations.TestCase):
 
         ld = keras.layers.Lambda(f)
         config = ld.get_config()
-        ld = keras.layers.deserialize(
-            {"class_name": "Lambda", "config": config}
-        )
+        with SafeModeScope(safe_mode=False):
+            ld = keras.layers.deserialize(
+                {"class_name": "Lambda", "config": config}
+            )
         self.assertEqual(ld.function(3), 4)
 
         # test with lambda
@@ -248,9 +251,10 @@ class LambdaLayerTest(test_combinations.TestCase):
         layer(keras.backend.variable(np.ones((1, 1))))
         config = layer.get_config()
 
-        layer = keras.layers.deserialize(
-            {"class_name": "Lambda", "config": config}
-        )
+        with SafeModeScope(safe_mode=False):
+            layer = keras.layers.deserialize(
+                {"class_name": "Lambda", "config": config}
+            )
         self.assertAllEqual(layer.function(1), 2)
         self.assertAllEqual(layer._output_shape, (1, 1))
         self.assertAllEqual(layer.mask(1, True), True)
@@ -331,7 +335,7 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         model = test_utils.get_model_from_layers([layer], input_shape=(10,))
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -437,7 +441,7 @@ class TestStatefulLambda(test_combinations.TestCase):
 
         model = test_utils.get_model_from_layers([layer], input_shape=(10,))
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )

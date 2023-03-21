@@ -35,7 +35,7 @@ from keras.engine import training_utils
 from keras.engine import training_utils_v1
 from keras.mixed_precision import loss_scale_optimizer
 from keras.optimizers import optimizer_v1
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.saving.legacy import saving_utils
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import data_utils
@@ -219,7 +219,9 @@ class Model(training_lib.Model):
                     "Load weights is not yet supported with TPUStrategy "
                     "with steps_per_run greater than 1."
                 )
-        return super().load_weights(filepath, by_name, skip_mismatch)
+        return super().load_weights(
+            filepath, by_name=by_name, skip_mismatch=skip_mismatch
+        )
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def compile(
@@ -1483,8 +1485,8 @@ class Model(training_lib.Model):
             if not isinstance(self.optimizer, optimizer_v2.OptimizerV2):
                 raise ValueError(
                     '"optimizer" must be an instance of '
-                    "tf.keras.optimizers.Optimizer when a dype policy "
-                    "with a loss scale  used, but got: %s. Using policy: "
+                    "tf.keras.optimizers.legacy.Optimizer when a dype policy "
+                    "with a loss scale is used, but got: %s. Using policy: "
                     "%s" % (self.optimizer, self._dtype_policy)
                 )
             self.optimizer = loss_scale_optimizer.LossScaleOptimizer(
@@ -1756,10 +1758,15 @@ class Model(training_lib.Model):
                             ) = losses_utils.squeeze_or_expand_dimensions(
                                 mask, sample_weight=sample_weight
                             )
-                            sample_weight *= mask
 
                     if hasattr(loss_fn, "reduction"):
                         per_sample_losses = loss_fn.call(y_true, y_pred)
+                        sample_weight = losses_utils.apply_valid_mask(
+                            per_sample_losses,
+                            sample_weight,
+                            mask,
+                            loss_fn.reduction,
+                        )
                         weighted_losses = losses_utils.compute_weighted_loss(
                             per_sample_losses,
                             sample_weight=sample_weight,

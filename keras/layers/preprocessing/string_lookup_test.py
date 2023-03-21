@@ -481,6 +481,48 @@ class StringLookupVocabularyTest(
         ):
             fn()
 
+    @test_utils.run_v2_only()
+    def test_saving_v3(self):
+        vocab_data = ["earth", "wind", "and", "fire"]
+        input_array = np.array(["earth", "wind", "and", "fire"])
+
+        # First, with a static vocabulary.
+        input_data = keras.Input(shape=(None,), dtype=tf.string)
+        layer = string_lookup.StringLookup(vocabulary=vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "mymodel.keras")
+        model.save(model_path, save_format="keras_v3")
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
+
+        # Second, with adapt().
+        input_data = keras.Input(shape=(None,), dtype=tf.string)
+        layer = string_lookup.StringLookup()
+        layer.adapt(vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        model.save(model_path, save_format="keras_v3", overwrite=True)
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
+
+        # Test TF-IDF + adapt().
+        input_data = keras.Input(shape=(None,), dtype=tf.string)
+        layer = string_lookup.StringLookup(output_mode="tf_idf")
+        layer.adapt(vocab_data)
+        output = layer(input_data)
+        model = keras.Model(inputs=input_data, outputs=output)
+        ref_output = model.predict(input_array)
+        model.save(model_path, save_format="keras_v3", overwrite=True)
+        model = keras.models.load_model(model_path)
+        output = model.predict(input_array)
+        self.assertAllEqual(output, ref_output)
+
 
 if __name__ == "__main__":
     tf.test.main()

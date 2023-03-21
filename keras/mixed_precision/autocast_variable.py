@@ -15,6 +15,7 @@
 """Contains AutoCastVariable, a variable which automatically casts itself."""
 
 import threading
+from typing import Optional
 
 import tensorflow.compat.v2 as tf
 
@@ -36,6 +37,37 @@ def numpy_text(tensor, is_repr=False):
     if "\n" in text:
         text = "\n" + text
     return text
+
+
+class AutoCastVariableSpec(tf.types.experimental.TraceType):
+    """TraceType for AutoCastVariableSpec for tracing with tf.function.
+
+    This class implements the Type for AutoCastVariable used in tracing.
+    """
+
+    def __init__(self, value):
+        self._value = value
+
+    def is_subtype_of(self, other) -> bool:
+        """If the other spec is the same as `self`, return True."""
+        return self == other
+
+    def most_specific_common_supertype(self, others):
+        """`self` is the common supertype if all input types match it."""
+        return self if all(self == other for other in others) else None
+
+    def placeholder_value(self, placeholder_context=None):
+        """Use the AutoCastVariable value itself as a placeholder."""
+        return self._value
+
+    def _to_tensors(self, value):
+        return []
+
+    def __hash__(self) -> int:
+        return hash(id(self._value))
+
+    def __eq__(self, other) -> bool:
+        return self is other
 
 
 class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
@@ -152,6 +184,13 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
             self._variable, dtype=self._variable.dtype, name=name
         )
         return tf.cast(val, self._cast_dtype)
+
+    def __tf_tensor__(
+        self,
+        dtype: Optional[tf.dtypes.DType] = None,
+        name: Optional[str] = None,
+    ) -> tf.Tensor:
+        return self._dense_var_to_tensor(dtype=dtype, name=name)
 
     def _should_act_as_resource_variable(self):
         """Pass resource_variable_ops.is_resource_variable check."""
@@ -363,19 +402,15 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     def get_shape(self):
         return self._variable.get_shape()
 
+    def __tf_tracing_type__(self, context):
+        return AutoCastVariableSpec(self)
+
     def _gather_saveables_for_checkpoint(self):
         # By delegating this method to the wrapped variable, checkpoints with
         # AutoCastVariables are identical to checkpoints with normal variables.
         # Therefore models checkpointed with AutoCastVariables can be restored
         # on models with normal variables, and vice versa.
         return self._variable._gather_saveables_for_checkpoint()
-
-    def _map_resources(self, save_options):
-        # By delegating this method to the wrapped variable, SavedModel with
-        # AutoCastVariables are identical to SavedModel with normal variables.
-        obj_map, resource_map = self._variable._map_resources(save_options)
-        obj_map[self] = obj_map[self._variable]
-        return obj_map, resource_map
 
     def _export_to_saved_model_graph(
         self, object_map, tensor_map, options, **kwargs

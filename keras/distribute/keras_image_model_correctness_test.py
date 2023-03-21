@@ -19,7 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import keras
 from keras.distribute import keras_correctness_test_base
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import gradient_descent
 from keras.testing_infra import test_utils
 
 

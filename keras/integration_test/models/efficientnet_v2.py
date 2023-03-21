@@ -309,3 +309,7 @@ def get_model(
             "adam", loss="categorical_crossentropy", jit_compile=jit_compile
         )
     return model
+
+
+def get_custom_objects():
+    return {}

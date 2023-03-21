@@ -23,6 +23,7 @@ from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 from keras.layers.preprocessing import string_lookup
 from keras.saving.legacy.saved_model import layer_serialization
+from keras.saving.serialization_lib import deserialize_keras_object
 from keras.utils import layer_utils
 from keras.utils import tf_utils
 
@@ -116,13 +117,13 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
           - `"lower"`: Text will be lowercased.
           - `"strip_punctuation"`: All punctuation will be removed.
           - Callable: Inputs will passed to the callable function, which should
-            standardized and returned.
+            be standardized and returned.
       split: Optional specification for splitting the input text. Values can be:
           - `None`: No splitting.
           - `"whitespace"`: Split on whitespace.
           - `"character"`: Split on each unicode character.
           - Callable: Standardized inputs will passed to the callable function,
-            which should split and returned.
+            which should be split and returned.
       ngrams: Optional specification for ngrams to create from the
         possibly-split input text. Values can be None, an integer or tuple of
         integers; passing an integer will create ngrams up to that integer, and
@@ -159,11 +160,11 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         max_tokens)` regardless of vocabulary size. Defaults to False.
       vocabulary: Optional. Either an array of strings or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
-        or 1D tensor containing the string vocbulary terms. If passing a file
+        or 1D tensor containing the string vocabulary terms. If passing a file
         path, the file should contain one line per term in the vocabulary. If
         this argument is set, there is no need to `adapt()` the layer.
       idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list,
-        1D numpy array, or 1D tensor or the same length as the vocabulary,
+        1D numpy array, or 1D tensor of the same length as the vocabulary,
         containing the floating point inverse document frequency weights, which
         will be multiplied by per sample term counts for the final `tf_idf`
         weight. If the `vocabulary` argument is set, and `output_mode` is
@@ -378,8 +379,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "has_input_vocabulary", (vocabulary is not None)
         )
 
-        # Drop deprecated config options.
-        kwargs.pop("vocabulary_size", None)
+        vocabulary_size = kwargs.pop("vocabulary_size", None)
 
         super().__init__(**kwargs)
         base_preprocessing_layer.keras_kpl_gauge.get_cell(
@@ -396,6 +396,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             sparse=sparse,
             has_input_vocabulary=self._has_input_vocabulary,
             encoding=encoding,
+            vocabulary_size=vocabulary_size,
         )
 
     def compute_output_shape(self, input_shape):
@@ -501,8 +502,6 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         return self._lookup_layer.vocabulary_size()
 
     def get_config(self):
-        vocab = self._lookup_layer.input_vocabulary
-        idf_weights = self._lookup_layer.input_idf_weights
         config = {
             "max_tokens": self._lookup_layer.max_tokens,
             "standardize": self._standardize,
@@ -513,12 +512,31 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
             "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
             "sparse": self._lookup_layer.sparse,
             "ragged": self._ragged,
-            "vocabulary": utils.listify_tensors(vocab),
-            "idf_weights": utils.listify_tensors(idf_weights),
+            "vocabulary": utils.listify_tensors(
+                self._lookup_layer.input_vocabulary
+            ),
+            "idf_weights": utils.listify_tensors(
+                self._lookup_layer.input_idf_weights
+            ),
             "encoding": self._encoding,
+            "vocabulary_size": self.vocabulary_size(),
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        if config["standardize"] not in (
+            LOWER_AND_STRIP_PUNCTUATION,
+            LOWER,
+            STRIP_PUNCTUATION,
+        ):
+            config["standardize"] = deserialize_keras_object(
+                config["standardize"]
+            )
+        if config["split"] not in (WHITESPACE, CHARACTER):
+            config["split"] = deserialize_keras_object(config["split"])
+        return cls(**config)
 
     def set_vocabulary(self, vocabulary, idf_weights=None):
         """Sets vocabulary (and optionally document frequency) for this layer.
@@ -651,3 +669,15 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     @property
     def _trackable_saved_model_saver(self):
         return layer_serialization.VocabularySavedModelSaver(self)
+
+    def save_own_variables(self, store):
+        self._lookup_layer.save_own_variables(store)
+
+    def load_own_variables(self, store):
+        self._lookup_layer.load_own_variables(store)
+
+    def save_assets(self, dir_path):
+        self._lookup_layer.save_assets(dir_path)
+
+    def load_assets(self, dir_path):
+        self._lookup_layer.load_assets(dir_path)

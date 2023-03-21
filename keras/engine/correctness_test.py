@@ -54,7 +54,7 @@ class SimpleBiasTest(test_combinations.TestCase):
             [test_utils.Bias()], input_shape=(1,)
         )
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )
@@ -92,7 +92,7 @@ class MultipleInputTest(test_combinations.TestCase):
         else:
             model = multi_input_functional()
         model.compile(
-            keras.optimizers.optimizer_v2.gradient_descent.SGD(0.1),
+            keras.optimizers.legacy.gradient_descent.SGD(0.1),
             "mae",
             run_eagerly=test_utils.should_run_eagerly(),
         )

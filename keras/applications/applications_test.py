@@ -191,6 +191,16 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
         )
         self.assertShapeEqual(output_shape, (None, last_dim))
 
+    @parameterized.parameters(MODEL_LIST)
+    def test_application_classifier_activation(self, app, _):
+        if "RegNet" in app.__name__:
+            self.skipTest("RegNet models do not support classifier activation")
+        model = app(
+            weights=None, include_top=True, classifier_activation="softmax"
+        )
+        last_layer_act = model.layers[-1].activation.__name__
+        self.assertEqual(last_layer_act, "softmax")
+
     @parameterized.parameters(*MODEL_LIST_NO_NASNET)
     def test_application_variable_input_channels(self, app, last_dim):
         if backend.image_data_format() == "channels_first":

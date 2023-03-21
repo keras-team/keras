@@ -27,6 +27,7 @@ py_library(
     deps = [
         ":object_registration",
         ":serialization",
+        ":serialization_lib",
         "//:expect_h5py_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -45,11 +46,54 @@ py_library(
 )
 
 py_library(
+    name = "saving_lib",
+    srcs = [
+        "saving_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":serialization_lib",
+        "//:expect_tensorflow_installed",
+        "//keras/utils:generic_utils",
+        "//keras/utils:io_utils",
+    ],
+)
+
+tf_py_test(
+    name = "saving_lib_test",
+    size = "medium",
+    srcs = ["saving_lib_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_combinations",
+        "//keras/utils:generic_utils",
+    ],
+)
+
+py_library(
     name = "object_registration",
     srcs = [
         "object_registration.py",
     ],
     srcs_version = "PY3",
+)
+
+py_library(
+    name = "serialization_lib",
+    srcs = [
+        "serialization_lib.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":object_registration",
+        ":serialization",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/saving/legacy/saved_model:utils",
+    ],
 )
 
 py_library(
@@ -175,6 +219,20 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
+tf_py_test(
+    name = "serialization_lib_test",
+    size = "small",
+    srcs = ["serialization_lib_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/saving:serialization",
         "//keras/testing_infra:test_combinations",
     ],
 )

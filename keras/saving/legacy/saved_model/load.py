@@ -25,10 +25,11 @@ from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
-from keras.optimizers.optimizer_v2 import optimizer_v2
+from keras.optimizers.legacy import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import object_registration
+from keras.saving.legacy import model_config
 from keras.saving.legacy import saving_utils
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import constants
@@ -585,30 +586,34 @@ class KerasObjectLoader:
             return None
 
         try:
-            obj = layers_module.deserialize(
-                serialization.serialize_keras_class_and_config(
-                    class_name, config, shared_object_id=shared_object_id
+            try:
+                obj = model_config.model_from_config(
+                    serialization.serialize_keras_class_and_config(
+                        class_name, config, shared_object_id=shared_object_id
+                    )
                 )
-            )
-        except (TypeError, KeyError) as e:
-            # A name conflict has occurred. The `class_name` is in the Keras
-            # native framework; however, the value in the framework is different
-            # from the user's class definition which confuses the
-            # KerasObjectLoader.
-            builtin_layer = layers_module.get_builtin_layer(class_name)
-            if builtin_layer:
-                raise RuntimeError(
-                    f"Unable to restore object of class '{class_name}' likely "
-                    "due to name conflict with built-in Keras class "
-                    f"'{builtin_layer}'. To override the built-in Keras "
-                    "definition of the object, decorate your class with "
-                    "`@keras.utils.register_keras_serializable` and include "
-                    "that file in your program, or pass your class in a "
-                    "`keras.utils.CustomObjectScope` that wraps this load call."
-                ) from e
-            else:
-                raise
-        except ValueError as e:
+            except (TypeError, KeyError) as e:
+                # A name conflict has occurred. The `class_name` is in the Keras
+                # native framework; however, the value in the framework is
+                # different from the user's class definition which confuses the
+                # KerasObjectLoader.
+                builtin_layer = layers_module.get_builtin_layer(class_name)
+                if builtin_layer:
+                    raise RuntimeError(
+                        f"Unable to restore object of class '{class_name}'. "
+                        "One of several possible causes could be "
+                        "a missing custom object. "
+                        "Decorate your custom object with "
+                        "`@keras.utils.register_keras_serializable` and "
+                        "include that file in your program, "
+                        "or pass your class in a "
+                        "`keras.utils.CustomObjectScope` "
+                        "that wraps this load call. "
+                        f"\n\nException: {e}"
+                    ) from e
+                else:
+                    raise
+        except Exception as e:
             if must_restore_from_config:
                 raise e
             else:
@@ -1128,18 +1133,18 @@ def revive_custom_object(identifier, metadata):
     }
     parent_classes = revived_classes.get(identifier, None)
 
+    class_name = tf.compat.as_str(metadata["class_name"])
     if parent_classes is not None:
         parent_classes = revived_classes[identifier]
-        revived_cls = type(
-            tf.compat.as_str(metadata["class_name"]), parent_classes, {}
-        )
+        revived_cls = type(class_name, parent_classes, {})
         return revived_cls._init_from_metadata(metadata)
     else:
         raise ValueError(
-            f"Unable to restore custom object of type {identifier}. "
-            "Please make sure that any custom layers are included in the "
-            "`custom_objects` arg when calling `load_model()` and make sure "
-            "that all layers implement `get_config` and `from_config`."
+            f'Unable to restore custom object of class "{class_name}" '
+            f"(type {identifier}). Please make sure that this class is "
+            "included in the `custom_objects` arg when calling `load_model()`. "
+            "Also, check that the class implements `get_config` and "
+            f"`from_config`.\n\nComplete metadata: {metadata}"
         )
 
 
@@ -1348,6 +1353,8 @@ class RevivedNetwork(RevivedLayer):
                 revived_obj.activity_regularizer = regularizers.deserialize(
                     metadata["activity_regularizer"]
                 )
+            if metadata.get("autocast") is not None:
+                revived_obj._autocast = metadata["autocast"]
 
         return revived_obj, _revive_setter
 

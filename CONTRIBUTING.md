@@ -14,7 +14,7 @@ to open a PR without discussion.
 ### Step 2. Make code changes
 
 To make code changes, you need to fork the repository. You will need to setup a
-development environment and run the unit tests. This is covered in section
+development environment and run the unit tests. This is covered in the section
 "Setup environment".
 
 ### Step 3. Create a pull request
@@ -39,7 +39,7 @@ add a `kokoro:force-run` label to trigger the continuous integration tests.
 
 ![CI tests tag](https://i.imgur.com/58NOCB0.png)
 
-If the tests fail, look into the error messages and try to fix it.
+If the tests fail, look into the error messages and try to fix them.
 
 ![CI tests](https://i.imgur.com/vVY0dZD.png)
 
@@ -99,7 +99,7 @@ You may modify the Dockerfile to your specific needs, like installing your own
 dev tools. You may also mount more volumes with the `-v` option, like your SSH
 credentials.
 
-Many popular editors today support developing in a container. Here is list of
+Many popular editors today support developing in a container. Here is the list of
 [supported editors](https://discuss.tensorflow.org/t/setup-your-favorite-editor-to-develop-keras)
 with setup instructions.
 
@@ -113,7 +113,7 @@ To setup your local dev environment, you will need the following tools.
 2.  [git](https://github.com/) for code repository management.
 3.  [python](https://www.python.org/) to build and code in Keras.
 
-The following commands checks the tools above are successfully installed. Note
+The following commands check the tools above are successfully installed. Note
 that Keras requires at least Python 3.7 to run.
 
 ```shell
@@ -125,7 +125,7 @@ python --version
 A [Python virtual environment](https://docs.python.org/3/tutorial/venv.html)
 (venv) is a powerful tool to create a self-contained environment that isolates
 any change from the system level config. It is highly recommended to avoid any
-unexpected dependency or version issue.
+unexpected dependency or version issues.
 
 With the following commands, you create a new venv, named `venv_dir`.
 
@@ -139,14 +139,14 @@ tests with the venv activated. You need to activate the venv every time you open
 a new shell.
 
 ```shell
-source venv_dir/bin/activate  # for linux or MacOS
+source venv_dir/bin/activate  # for Linux or MacOS
 venv_dir\Scripts\activate.bat  # for Windows
 ```
 
 Clone your forked repo to your local machine. Go to the cloned directory to
 install the dependencies into the venv. Since `tf-nightly` uses `keras-nightly`
 as a dependency, we need to uninstall `keras-nightly` so that tests will run
-against Keras code in local workspace.
+against Keras code in the local workspace.
 
 ```shell
 git clone https://github.com/YOUR_GITHUB_USERNAME/keras.git
@@ -181,6 +181,39 @@ need to follow the output of the command to resolve them manually.
 If you do not want to auto format the code but only show the lint errors, you
 can run `sh shell/lint.sh` **at the root directory of the repo**.
 
+### Docstrings
+
+We do not have an automated way to check docstring style, so if you write
+or edit any docstring, please make sure to check them manually.
+Keras docstrings follow the conventions below:
+
+A **class docstring** may contain the following items:
+
+* A one-line description of the class.
+* Paragraph(s) of more detailed information.
+* Optional `Examples` section.
+* `Args` section for arguments in `__init__()`.
+* If it's a layer:
+    * `Call arguments` section for arguments in `Layer.call()`.
+    * `Returns` section for the return values of `Layer.call()`.
+    * Optional `Raises` section for possible errors.
+
+You can check out `MultiHeadAttention` as an example
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/layers/attention/multi_head_attention.py#L131).
+
+A **function docstring** may contain the following items:
+
+* One-line description of the function.
+* Paragraph(s) of more detailed information.
+* Optional `Examples` section.
+* `Args` section for the function arguments.
+* `Returns` section for the return values.
+* Optional `Raises` section for possible errors.
+
+You can check out `text_dataset_from_directory` as an example
+[(link)](https://github.com/keras-team/keras/blob/v2.12.0-rc1/keras/utils/text_dataset.py#L31).
+
+
 ## Run tests
 
 We use [Bazel](https://bazel.build/) to build and run the tests.
@@ -201,7 +234,7 @@ defining the test. `base_layer_test` is the test target name defined with
 ### Run a single test case
 
 To run a single test, you can use `--test_filter=<your_regex>`
-to use regular expression to match the test you want to run. For example, you
+to use the regular expression to match the test you want to run. For example, you
 can use the following command to run all the tests in `activations_test.py`,
 whose names contain `test_serialization`.
 
@@ -215,7 +248,7 @@ You can run all the tests locally by running the following command in the repo
 root directory.
 
 ```
-bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss --test_tag_filters=-no_oss keras/...
+bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going --define=use_fast_cpp_protos=false --build_tests_only --build_tag_filters=-no_oss,-oss_excluded --test_tag_filters=-no_oss,-oss_excluded keras/...
 ```
 
 ### Useful configs
@@ -261,7 +294,7 @@ mind.
 -   You should add any new applications to the unit tests defined in
     `applications_test.py` and `applications_load_weight_test.py`.
 -   For backwards compatibility, all applications should provide a
-    `preprocess_input()` function. For new applciations, you should leave the
+    `preprocess_input()` function. For new applications, you should leave the
     function empty (pass through inputs unaltered), and write the model so it
     can handle raw inputs directly. Adding
     [preprocessing layers](https://keras.io/guides/preprocessing_layers/) to the
@@ -275,4 +308,9 @@ mind.
 -   As every PR requires several CPU/GPU hours of CI testing, we discourage
     submitting PRs to fix one typo, one warning,etc. We recommend fixing the
     same issue at the file level at least (e.g.: fix all typos in a file, fix
-    all compiler warning in a file, etc.)
+    all compiler warnings in a file, etc.)
+
+## Security vulnerability reports
+
+Since Keras is the high-level API of TensorFlow 2, Keras follows same security practices as TensorFlow.
+For details on guidelines on vulnerabilities and reporting them, you can refer [Using TensorFlow Securely](https://github.com/tensorflow/tensorflow/blob/master/SECURITY.md). 

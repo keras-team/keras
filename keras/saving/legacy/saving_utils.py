@@ -161,7 +161,7 @@ def trace_model_call(model, input_signature=None):
 def model_metadata(model, include_optimizer=True, require_config=True):
     """Returns a dictionary containing the model metadata."""
     from keras import __version__ as keras_version
-    from keras.optimizers.optimizer_v2 import optimizer_v2
+    from keras.optimizers.legacy import optimizer_v2
 
     model_config = {"class_name": model.__class__.__name__}
     try:

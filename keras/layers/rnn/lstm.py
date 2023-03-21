@@ -556,6 +556,7 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             implementation=implementation,
             dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
+            name="lstm_cell",
             **cell_kwargs,
         )
         super().__init__(

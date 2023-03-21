@@ -25,7 +25,11 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @register_keras_serializable()
-@keras_export("keras.optimizers.experimental.Adafactor", v1=[])
+@keras_export(
+    "keras.optimizers.Adafactor",
+    "keras.optimizers.experimental.Adafactor",
+    v1=[],
+)
 class Adafactor(optimizer.Optimizer):
     """Optimizer that implements the Adafactor algorithm.
 

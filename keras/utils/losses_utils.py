@@ -405,6 +405,7 @@ def apply_mask(y_p, sw, mask):
     if mask is not None:
         mask = tf.cast(mask, y_p.dtype)
         if sw is not None:
+            sw = tf.cast(sw, mask.dtype)
             mask, _, sw = squeeze_or_expand_dimensions(mask, sample_weight=sw)
             sw *= mask
         else:

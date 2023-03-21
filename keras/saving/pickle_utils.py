@@ -18,7 +18,7 @@ import tempfile
 
 import tensorflow.compat.v2 as tf
 
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
 
 
 def deserialize_model_from_bytecode(serialized_model):
@@ -43,7 +43,7 @@ def deserialize_model_from_bytecode(serialized_model):
         # Some custom objects (e.g. an activation in a Dense layer,
         # serialized as a string by Dense.get_config()) will require
         # a custom_object_scope.
-        model = saving_lib.load_model(filepath)
+        model = saving_lib.load_model(filepath, safe_mode=False)
     except Exception as e:
         raise e
     else:

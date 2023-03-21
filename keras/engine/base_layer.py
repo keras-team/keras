@@ -40,6 +40,7 @@ from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
 from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
+from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -612,6 +613,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 "caching_device",
                 "getter",
                 "layout",
+                "experimental_enable_variable_lifting",
             ]:
                 raise TypeError("Unknown keyword argument:", kwarg)
         collections_arg = kwargs.pop("collections", None)
@@ -769,7 +771,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         try:
             instance._auto_get_config = auto_get_config
             if auto_get_config:
-                instance._auto_config = generic_utils.Config(**kwargs)
+                instance._auto_config = serialization_lib.Config(**kwargs)
         except RecursionError:
             # Setting an instance attribute in __new__ has the potential
             # to trigger an infinite recursion if a subclass overrides
@@ -812,7 +814,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # In this case the subclass doesn't implement get_config():
         # Let's see if we can autogenerate it.
         if getattr(self, "_auto_get_config", False):
+            xtra_args = set(config.keys())
             config.update(self._auto_config.config)
+            # Remove args non explicitly supported
+            argspec = tf_inspect.getfullargspec(self.__init__)
+            if argspec.varkw != "kwargs":
+                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
+                    config.pop(key, None)
             return config
         else:
             raise NotImplementedError(
@@ -857,7 +865,13 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         Returns:
             A layer instance.
         """
-        return cls(**config)
+        try:
+            return cls(**config)
+        except Exception as e:
+            raise TypeError(
+                f"Error when deserializing class '{cls.__name__}' using "
+                f"config={config}.\n\nException encountered: {e}"
+            )
 
     def compute_output_shape(self, input_shape):
         """Computes the output shape of the layer.
@@ -1434,10 +1448,15 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             return inputs
         ```
 
-        This method can also be called directly on a Functional Model during
-        construction. In this case, any loss Tensors passed to this Model must
-        be symbolic and be able to be traced back to the model's `Input`s. These
-        losses become part of the model's topology and are tracked in
+        The same code works in distributed training: the input to `add_loss()`
+        is treated like a regularization loss and averaged across replicas
+        by the training loop (both built-in `Model.fit()` and compliant custom
+        training loops).
+
+        The `add_loss` method can also be called directly on a Functional Model
+        during construction. In this case, any loss Tensors passed to this Model
+        must be symbolic and be able to be traced back to the model's `Input`s.
+        These losses become part of the model's topology and are tracked in
         `get_config`.
 
         Example:
@@ -2272,6 +2291,50 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             stacklevel=2,
         )
         return self.add_weight(*args, **kwargs)
+
+    def get_build_config(self):
+        """Returns a dictionary with the layer's input shape.
+
+        This method returns a config dict that can be used by
+        `build_from_config(config)` to create all states (e.g. Variables and
+        Lookup tables) needed by the layer.
+
+        By default, the config only contains the input shape that the layer
+        was built with. If you're writing a custom layer that creates state in
+        an unusual way, you should override this method to make sure this state
+        is already created when Keras attempts to load its value upon model
+        loading.
+
+        Returns:
+            A dict containing the input shape associated with the layer.
+        """
+        if self._build_input_shape is not None:
+
+            def convert_tensorshapes(x):
+                if isinstance(x, tf.TensorShape) and x._dims:
+                    return tuple(x.as_list())
+                return x
+
+            return {
+                "input_shape": tf.nest.map_structure(
+                    convert_tensorshapes, self._build_input_shape
+                )
+            }
+
+    def build_from_config(self, config):
+        """Builds the layer's states with the supplied config dict.
+
+        By default, this method calls the `build(config["input_shape"])` method,
+        which creates weights based on the layer's input shape in the supplied
+        config. If your config contains other information needed to load the
+        layer's state, you should override this method.
+
+        Args:
+            config: Dict containing the input shape associated with this layer.
+        """
+        input_shape = config["input_shape"]
+        if input_shape is not None:
+            self.build(input_shape)
 
     ############################################################################
     # Methods & attributes below are all private and only used by the framework.
@@ -3130,6 +3193,37 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         reference_counts = self._obj_reference_counts
         reference_counts[value] = reference_counts.get(value, 0) + 1
 
+        # When replacing an existing tf.Variable with a new one, we want to
+        # check its existing position in the
+        # self._trainable/non_trainable_variable, so that we can put it back to
+        # the original position.
+        if isinstance(value, tf.Variable) and isinstance(
+            getattr(self, name, None), tf.Variable
+        ):
+            existing_variable = getattr(self, name)
+
+            def _get_variable_from_list(var_list, var):
+                # helper function to get the tf.variable from the list
+                # the default list.index() use == for comparison, which will
+                # cause issue for eager tensor.
+                for i in range(len(var_list)):
+                    if var_list[i] is var:
+                        return i
+                return None
+
+            if existing_variable.trainable:
+                self._maybe_create_attribute("_trainable_weights", [])
+                position = _get_variable_from_list(
+                    self._trainable_weights, existing_variable
+                )
+            else:
+                self._maybe_create_attribute("_non_trainable_variable", [])
+                position = _get_variable_from_list(
+                    self._non_trainable_variable, existing_variable
+                )
+        else:
+            position = None
+
         # Clean out the old attribute, which clears _layers and
         # _trainable_weights if necessary.
         try:
@@ -3163,7 +3257,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Append value to list of trainable / non-trainable weights if relevant
         # TODO(b/125122625): This won't pick up on any variables added to a
         # list/dict after creation.
-        self._track_variables(value)
+        self._track_variables(value, position=position)
 
         # TODO(b/180760306) Skip the auto trackable from tf.Module to keep
         # status quo. See the comment at __delattr__.
@@ -3179,19 +3273,19 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             ):
                 self._track_variables(trackable_obj)
 
-    def _track_variables(self, value):
+    def _track_variables(self, value, position=None):
         """Tracks `Variable`s including `Variable`s in `CompositeTensor`s."""
         for val in tf.nest.flatten(value):
             if isinstance(val, tf.Variable):
-                self._track_variable(val)
+                self._track_variable(val, position=position)
             elif tf_utils.is_extension_type(val):
                 # Manually expand extension types to track resource variables.
                 nested_vals = tf_utils.type_spec_from_value(val)._to_components(
                     val
                 )
-                self._track_variables(nested_vals)
+                self._track_variables(nested_vals, position=position)
 
-    def _track_variable(self, val):
+    def _track_variable(self, val, position=None):
         """Tracks the given `tf.Variable`."""
         # Users may add extra weights/variables simply by assigning them to
         # attributes (invalid for graph networks)
@@ -3200,11 +3294,17 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if val.trainable:
             if any(val is w for w in self._trainable_weights):
                 return
-            self._trainable_weights.append(val)
+            if position is None:
+                self._trainable_weights.append(val)
+            else:
+                self._trainable_weights.insert(position, val)
         else:
             if any(val is w for w in self._non_trainable_weights):
                 return
-            self._non_trainable_weights.append(val)
+            if position is None:
+                self._non_trainable_weights.append(val)
+            else:
+                self._non_trainable_weights.insert(position, val)
         backend.track_variable(val)
 
     def _gather_children_attribute(self, attribute):
@@ -3324,7 +3424,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 output.append(w)
                 # Track the Variable's identity to avoid __eq__ issues.
                 seen_ids.add(id(w))
-
         return output
 
     # SavedModel properties. Please see keras/saving/saved_model for details.
@@ -3426,21 +3525,36 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Bypass Trackable logic as `__dict__` already contains this info.
         object.__setattr__(self, "__dict__", state)
 
-    def _save_own_variables(self, store):
-        """Experimental method for saving the state of this layer object."""
+    def save_own_variables(self, store):
+        """Saves the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is saved upon calling `model.save()`.
+
+        Args:
+            store: Dict where the state of the model will be saved.
+        """
         all_vars = self._trainable_weights + self._non_trainable_weights
         for i, v in enumerate(all_vars):
             store[f"{i}"] = v.numpy()
 
-    def _load_own_variables(self, store):
-        """Experimental method for loading the state of this layer object."""
+    def load_own_variables(self, store):
+        """Loads the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is loaded upon calling `keras.models.load_model()`.
+
+        Args:
+            store: Dict from which the state of the model will be loaded.
+        """
+        self._update_trackables()
         all_vars = self._trainable_weights + self._non_trainable_weights
         if len(store.keys()) != len(all_vars):
             raise ValueError(
                 f"Layer '{self.name}' expected {len(all_vars)} variables, "
                 "but received "
                 f"{len(store.keys())} variables during loading. "
-                f"Names of variables received: {list(store.keys())}"
+                f"Expected: {[v.name for v in all_vars]}"
             )
         for i, v in enumerate(all_vars):
             # TODO(rchao): check shapes and raise errors.
@@ -3534,6 +3648,10 @@ class TensorFlowOpLayer(Layer):
                 # Recreate constant in graph to add distribution context.
                 value = tf.get_static_value(constant)
                 if value is not None:
+                    if isinstance(value, dict):
+                        value = serialization_lib.deserialize_keras_object(
+                            value
+                        )
                     constant = tf.constant(value, name=node_def.input[index])
                 inputs.insert(index, constant)
             # TODO(b/183990973): We should drop or consolidate these private api

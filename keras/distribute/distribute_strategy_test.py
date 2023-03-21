@@ -38,9 +38,7 @@ from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.optimizers import optimizer as optimizer_base
-from keras.optimizers.optimizer_v2 import (
-    gradient_descent as gradient_descent_keras,
-)
+from keras.optimizers.legacy import gradient_descent as gradient_descent_keras
 from keras.testing_infra import test_utils
 from keras.utils import losses_utils
 from keras.utils import np_utils
@@ -2879,7 +2877,7 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
         with distribution.scope():
             model = model_fn(input_shape, 10, l1, l2)
             model.compile(
-                optimizer=keras.optimizers.adam_v2.Adam(1e-4),
+                optimizer=keras.optimizers.adam_legacy.Adam(1e-4),
                 loss=keras.losses.SparseCategoricalCrossentropy(
                     from_logits=True,
                     reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
@@ -2947,7 +2945,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         # Make model with distribution strategy
         with distribution.scope():
             model = DeterministicModel(distribution)
-            optimizer = keras.optimizers.adam_v2.Adam(1e-4)
+            optimizer = keras.optimizers.adam_legacy.Adam(1e-4)
 
         # Compile & evaluate the model outside of the distribution strategy
         # scope
@@ -3027,7 +3025,7 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
                     keras.layers.Dense(1),
                 ]
             )
-            model.compile(optimizer="adam", loss="mse")
+            model.compile(optimizer=keras.optimizers.Adam(), loss="mse")
             model.build([None, 1])  # create weights.
             return model
 
@@ -3041,11 +3039,12 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             model.load_weights(temp_dir)
             if isinstance(model.optimizer, optimizer_base.Optimizer):
                 model.optimizer.build(model.trainable_variables)
-            self.assertNotEmpty(model.optimizer.variables())
+                variables = model.optimizer.variables
+            else:
+                variables = model.optimizer.variables()
+            self.assertNotEmpty(variables)
             self.assertTrue(
-                distributed_training_utils.is_distributed_variable(
-                    model.optimizer.variables()[0]
-                )
+                distributed_training_utils.is_distributed_variable(variables[0])
             )
 
         with distribution.scope():
@@ -3053,8 +3052,9 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
         # create/restore slot variables outside of scope is fine.
         model.load_weights(temp_dir)
         if isinstance(model.optimizer, optimizer_base.Optimizer):
-            # Experimental optimizer has to restore variables in scope.
+            # V3 optimizer has to restore variables in scope.
             return
+        # From this point on, the optimizer must be a V2 optimizer.
         self.assertNotEmpty(model.optimizer.variables())
         self.assertTrue(
             distributed_training_utils.is_distributed_variable(

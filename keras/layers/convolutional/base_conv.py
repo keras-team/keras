@@ -197,6 +197,13 @@ class Conv(Layer):
                     "and `SeparableConv1D`."
                 )
 
+        if max(self.strides) > 1 and max(self.dilation_rate) > 1:
+            raise ValueError(
+                "`strides > 1` not supported in conjunction with "
+                f"`dilation_rate > 1`. Received: strides={self.strides} and "
+                f"dilation_rate={self.dilation_rate}"
+            )
+
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
         input_channel = self._get_input_channel(input_shape)

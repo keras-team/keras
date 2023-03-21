@@ -40,6 +40,7 @@ from keras.saving import object_registration
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import load as keras_load
 from keras.saving.legacy.saved_model import save_impl as keras_save
+from keras.saving.legacy.saved_model import utils as saved_model_utils
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 from keras.utils import control_flow_util
@@ -1114,16 +1115,25 @@ class TestSavedModelFormatAllModes(test_combinations.TestCase):
             def __init__(self):
                 super().__init__(autocast=autocast)
 
-        x = tf.constant(3, dtype=tf.float64)
+        class CustomModel(keras.Model):
+            def __init__(self):
+                super().__init__(autocast=autocast)
 
-        x_in = keras.Input(tensor=x)
+            def call(self, inputs):
+                return inputs
+
+        x = tf.constant([3], dtype=tf.float64)
+
+        x_in = keras.Input((1,))
         output = CustomLayer()(x_in)
+        output = CustomModel()(output)
         model = keras.Model(inputs=x_in, outputs=output)
 
         saved_model_dir = self._save_model_dir()
         model.save(saved_model_dir, save_format="tf")
         loaded = keras_load.load(saved_model_dir)
         self.assertEqual(autocast, loaded.layers[-1]._autocast)
+        self.assertEqual(autocast, loaded.layers[-2]._autocast)
         self.assertEqual(self.evaluate(model(x)), self.evaluate(loaded(x)))
 
 
@@ -1170,16 +1180,6 @@ class TestSavedModelFormat(tf.test.TestCase):
         self.assertAllEqual([[1.0]], self.evaluate(loaded(inp)))
         self.assertAllEqual([[1.0]], self.evaluate(loaded.layer(inp)))
         self.assertIsInstance(loaded.layer, CustomLayer)
-
-        # If the symbol is no longer available, loading should raise an error.
-        del CustomLayer
-        with object_registration.custom_object_scope({"Model": Model}):
-            with self.assertRaisesRegex(
-                NameError,
-                "free variable 'CustomLayer' referenced "
-                "before assignment in enclosing scope",
-            ):
-                loaded = keras_load.load(saved_model_dir)
 
     def test_save_without_tracing(self):
         class DoNotTrace(keras.layers.Layer):
@@ -1624,4 +1624,7 @@ class TestUpdateMetadata(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-    tf.test.main()
+    with saved_model_utils.keras_option_scope(
+        save_traces=False, in_tf_saved_model_scope=True
+    ):
+        tf.test.main()

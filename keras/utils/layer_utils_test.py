@@ -16,6 +16,7 @@
 
 import collections
 import contextlib
+import io
 import multiprocessing.dummy
 import os
 import pickle
@@ -27,11 +28,18 @@ import timeit
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from absl.testing import parameterized
 
 import keras
+from keras import backend
+from keras import layers
+from keras.dtensor import dtensor_api as dtensor
+from keras.dtensor import layout_map as layout_map_lib
+from keras.dtensor import test_util
 from keras.testing_infra import test_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
+from keras.utils import tf_utils
 
 _PICKLEABLE_CALL_COUNT = collections.Counter()
 
@@ -50,7 +58,13 @@ class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
         return id(self)
 
 
-class LayerUtilsTest(tf.test.TestCase):
+class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
+    def setUp(self):
+        super().setUp()
+        # Reset the UID so that all the layer/model ID will always start with 1.
+        # This will help remove the undetermined IDs from the model.summary()
+        backend.reset_uids()
+
     def test_print_summary(self):
         model = keras.Sequential()
         model.add(
@@ -91,6 +105,59 @@ class LayerUtilsTest(tf.test.TestCase):
         with self.captureWritesToStream(sys.stdout) as printed:
             layer_utils.print_summary(model)
         self.assertIn("dense (Dense)", printed.contents())
+
+    def test_print_summary_format_long_names(self):
+        shape = (8, 8, 3)
+
+        model = keras.Sequential(
+            [
+                keras.Input(shape),
+                keras.layers.Conv2D(4, 3, name="Really-Long-name-test"),
+                keras.layers.Conv2D(4, 3, name="Another-long-name-test"),
+                keras.layers.Flatten(),
+                keras.layers.Dense(2, name="long-name-test-output"),
+            ]
+        )
+        file_name = "sequential.txt"
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        fpath = os.path.join(temp_dir, file_name)
+        writer = open(fpath, "w")
+
+        def print_to_file(text):
+            print(text, file=writer)
+
+        layer_utils.print_summary(model, print_fn=print_to_file)
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        reader = open(fpath, "r")
+        lines = reader.readlines()
+        reader.close()
+        check_str = (
+            'Model: "sequential"\n'
+            "_________________________________________________________________\n"  # noqa: E501
+            " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
+            "=================================================================\n"  # noqa: E501
+            " Really-Long-name-test (Con  (None, 6, 6, 4)           112       \n"  # noqa: E501
+            " v2D)                                                            \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " Another-long-name-test (Co  (None, 4, 4, 4)           148       \n"  # noqa: E501
+            " nv2D)                                                           \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " flatten (Flatten)           (None, 64)                0         \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            " long-name-test-output (Den  (None, 2)                 130       \n"  # noqa: E501
+            " se)                                                             \n"  # noqa: E501
+            "                                                                 \n"  # noqa: E501
+            "=================================================================\n"  # noqa: E501
+            "Total params: 390 (1.52 KB)\n"
+            "Trainable params: 390 (1.52 KB)\n"
+            "Non-trainable params: 0 (0.00 Byte)\n"
+            "_________________________________________________________________\n"  # noqa: E501
+        )
+        fin_str = "".join(lines)
+        self.assertIn(fin_str, check_str)
+        self.assertEqual(len(lines), 20)
 
     def test_print_summary_expand_nested(self):
         shape = (None, None, 3)
@@ -135,22 +202,22 @@ class LayerUtilsTest(tf.test.TestCase):
                 "                                                                 \n"  # noqa: E501
                 " model_1 (Functional)        (None, None, None, 3)     24        \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"  # noqa: E501
+                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
                 "|                                                               |\n"  # noqa: E501
-                "| model (Functional)        (None, None, None, 3)     24        |\n"  # noqa: E501
+                "| model (Functional)         (None, None, None, 3)     24       |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"  # noqa: E501
+                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"  # noqa: E501
-                "|| ormalization)                                               ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
+                "|| chNormalization)                                            ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 18\n"
-                "Non-trainable params: 6\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 18 (72.00 Byte)\n"
+                "Non-trainable params: 6 (24.00 Byte)\n"
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
@@ -276,9 +343,9 @@ class LayerUtilsTest(tf.test.TestCase):
                 " dense (Dense)               (None, 5)                 65        Y          \n"  # noqa: E501
                 "                                                                            \n"  # noqa: E501
                 "============================================================================\n"  # noqa: E501
-                "Total params: 127\n"
-                "Trainable params: 65\n"
-                "Non-trainable params: 62\n"
+                "Total params: 127 (508.00 Byte)\n"
+                "Trainable params: 65 (260.00 Byte)\n"
+                "Non-trainable params: 62 (248.00 Byte)\n"
                 "____________________________________________________________________________\n"  # noqa: E501
                 "____________________________________________________________________________\n"  # noqa: E501
             )
@@ -337,22 +404,22 @@ class LayerUtilsTest(tf.test.TestCase):
                 "                                                                            \n"  # noqa: E501
                 " model_1 (Functional)        (None, None, None, 3)     24        Y          \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input1 (InputLayer)       [(None, None, None, 3)]   0         Y          |\n"  # noqa: E501
+                "| input1 (InputLayer)        [(None, None, None, 3)]   0         Y         |\n"  # noqa: E501
                 "|                                                                          |\n"  # noqa: E501
-                "| model (Functional)        (None, None, None, 3)     24        Y          |\n"  # noqa: E501
+                "| model (Functional)         (None, None, None, 3)     24        Y         |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input2 (InputLayer)     [(None, None, None, 3)]   0         Y          ||\n"  # noqa: E501
+                "|| input2 (InputLayer)       [(None, None, None, 3)]   0         Y        ||\n"  # noqa: E501
                 "||                                                                        ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        N          ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12        N        ||\n"  # noqa: E501
                 "||                                                                        ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      Y          ||\n"  # noqa: E501
-                "|| ormalization)                                                          ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12        Y        ||\n"  # noqa: E501
+                "|| chNormalization)                                                       ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "============================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 6\n"
-                "Non-trainable params: 18\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 6 (24.00 Byte)\n"
+                "Non-trainable params: 18 (72.00 Byte)\n"
                 "____________________________________________________________________________\n"  # noqa: E501
             )
 
@@ -447,22 +514,22 @@ class LayerUtilsTest(tf.test.TestCase):
                 "=================================================================\n"  # noqa: E501
                 " 1st_inner (Functional)      (None, None, None, 3)     24        \n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)      [(None, None, None, 3)]   0         |\n"  # noqa: E501
+                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
                 "|                                                               |\n"  # noqa: E501
-                "| 2nd_inner (Functional)    (None, None, None, 3)     24        |\n"  # noqa: E501
+                "| 2nd_inner (Functional)     (None, None, None, 3)     24       |\n"  # noqa: E501
                 "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)    [(None, None, None, 3)]   0         ||\n"  # noqa: E501
+                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)         (None, None, None, 3)     12        ||\n"  # noqa: E501
+                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
                 "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (BatchN  (None, None, None, 3)  12      ||\n"  # noqa: E501
-                "|| ormalization)                                               ||\n"  # noqa: E501
+                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
+                "|| chNormalization)                                            ||\n"  # noqa: E501
                 "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
                 "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
                 "=================================================================\n"  # noqa: E501
-                "Total params: 24\n"
-                "Trainable params: 18\n"
-                "Non-trainable params: 6\n"
+                "Total params: 24 (96.00 Byte)\n"
+                "Trainable params: 18 (72.00 Byte)\n"
+                "Non-trainable params: 6 (24.00 Byte)\n"
                 "_________________________________________________________________\n"  # noqa: E501
             )
 
@@ -475,6 +542,34 @@ class LayerUtilsTest(tf.test.TestCase):
             self.assertEqual(len(lines), len(check_lines))
         except ImportError:
             pass
+
+    def test_weight_memory_size(self):
+        v1 = tf.Variable(tf.zeros(shape=(1, 2), dtype=tf.float32))
+        v2 = tf.Variable(tf.zeros(shape=(2, 3), dtype=tf.float64))
+        v3 = tf.Variable(tf.zeros(shape=(4, 5), dtype=tf.int16))
+        v4 = tf.Variable(tf.zeros(shape=(6,), dtype=tf.uint8))
+
+        weights = [v1, v1, v2, v3, v4]
+        weight_memory_size = layer_utils.weight_memory_size(weights)
+        expected_memory_size = 1 * 2 * 4 + 2 * 3 * 8 + 4 * 5 * 2 + 6 * 1
+        self.assertEqual(weight_memory_size, expected_memory_size)
+
+    @parameterized.parameters(
+        (0, "0.00 Byte"),
+        (1000, "1000.00 Byte"),
+        (1024, "1.00 KB"),
+        (1024 * 2 - 1, "2.00 KB"),
+        (1024 * 2 + 1, "2.00 KB"),
+        (1024**2 + 1, "1.00 MB"),
+        (1024**3 - 1, "1024.00 MB"),
+        (1024**3, "1.00 GB"),
+        (1024**4, "1.00 TB"),
+        (1024**5, "1.00 PB"),
+        (1024**5 * 1.41415, "1.41 PB"),
+    )
+    def test_readable_weight_memory_size(self, size, expected_result):
+        result = layer_utils.readable_memory_size(size)
+        self.assertEqual(result, expected_result)
 
     def test_property_cache(self):
         test_counter = collections.Counter()
@@ -763,6 +858,106 @@ class LayerUtilsTest(tf.test.TestCase):
             warmstarted_embedding_matrix[3],
             vectorized_vocab_base[1],
         )
+
+
+@test_utils.run_v2_only
+class DTensorVariableSummaryTest(test_util.DTensorBaseTest):
+    def setUp(self):
+        super().setUp()
+        backend.reset_uids()
+        backend.enable_tf_random_generator()
+        tf_utils.set_random_seed(1337)
+        global_ids = test_util.create_device_ids_array((2, 2))
+        local_device_ids = np.ravel(global_ids).tolist()
+        mesh_dict = {
+            "CPU": dtensor.Mesh(
+                ["batch", "model"],
+                global_ids,
+                local_device_ids,
+                test_util.create_device_list((2, 2), "CPU"),
+            )
+        }
+        self.mesh = self.configTestMesh(mesh_dict)
+        self.replicated_2d = dtensor.Layout.replicated(self.mesh, rank=2)
+        self.replicated_1d = dtensor.Layout.replicated(self.mesh, rank=1)
+        self.sharded_2d = dtensor.Layout(["model", "batch"], self.mesh)
+        self.sharded_1d = dtensor.Layout(["model"], self.mesh)
+
+    def test_model_summary(self):
+        layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
+        layout_map["d1.kernel"] = self.replicated_2d
+        layout_map["d1.bias"] = self.replicated_1d
+        layout_map["d2.kernel"] = self.sharded_2d
+        layout_map["d2.bias"] = self.sharded_1d
+
+        with layout_map.scope():
+            inputs = layers.Input((10,), batch_size=10)
+            x = layers.Dense(20, name="d1")(inputs)
+            x = layers.Dropout(0.1)(x)
+            output = layers.Dense(30, name="d2")(x)
+
+            model = keras.Model(inputs, output)
+
+        # For dtype = float32, following value are expected from memory stats
+        expected_result = {}
+        replicated_var_count = 10 * 20 + 20  # For d1 kernel and bias
+        model_batch_shard_var_count = 30 * 20  # For d2 kernel
+        model_shard_var_count = 30  # For d2 bias
+        expected_result[()] = (replicated_var_count, replicated_var_count * 4)
+        expected_result[("batch", "model")] = (
+            model_batch_shard_var_count,
+            model_batch_shard_var_count * 4,
+        )
+        expected_result[("model",)] = (
+            model_shard_var_count,
+            model_shard_var_count * 4,
+        )
+
+        expected_total_weight_count = (
+            replicated_var_count
+            + model_batch_shard_var_count
+            + model_shard_var_count
+        )
+        expected_total_memory_size = expected_total_weight_count * 4
+
+        (
+            total_weight_count,
+            total_memory_size,
+            per_sharing_spec_result,
+        ) = layer_utils.dtensor_variable_summary(model.weights)
+
+        self.assertEqual(total_weight_count, expected_total_weight_count)
+        self.assertEqual(total_memory_size, expected_total_memory_size)
+        self.assertDictEqual(per_sharing_spec_result, expected_result)
+
+        output_buffer = io.StringIO()
+
+        def print_to_buffer(content):
+            output_buffer.write(content)
+
+        model.summary(print_fn=print_to_buffer)
+
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{replicated_var_count} / {expected_total_weight_count} params "
+            ".* are fully replicated",
+        )
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{model_batch_shard_var_count} / {expected_total_weight_count} "
+            r"params .* are sharded based on spec .*batch.*model"
+            r".* across 4 devices",
+        )
+        self.assertRegex(
+            output_buffer.getvalue(),
+            f"{model_shard_var_count} / {expected_total_weight_count} "
+            r"params .* are sharded based on spec .*model"
+            r".* across 2 devices",
+        )
+        self.assertIn(
+            "Overall per device memory usage: 1.50 KB", output_buffer.getvalue()
+        )
+        self.assertIn("Overall sharding factor: 2.21", output_buffer.getvalue())
 
 
 if __name__ == "__main__":

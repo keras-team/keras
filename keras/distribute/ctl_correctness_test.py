@@ -443,7 +443,7 @@ class TestDistributionStrategyDnnCorrectness(
 
             model = create_model()
 
-            optimizer = optimizers.adam_v2.Adam()
+            optimizer = optimizers.adam_legacy.Adam()
 
         def train_step(inputs):
             images, labels = inputs

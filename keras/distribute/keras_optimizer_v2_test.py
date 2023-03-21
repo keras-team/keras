@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
-from keras.optimizers.optimizer_v2 import adam
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers.legacy import adam
+from keras.optimizers.legacy import gradient_descent
 
 
 def get_model():

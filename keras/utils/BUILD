@@ -13,6 +13,7 @@ py_library(
     name = "utils",
     srcs = [
         "__init__.py",
+        "legacy/__init__.py",
     ],
     srcs_version = "PY3",
     deps = [
@@ -121,7 +122,6 @@ py_library(
         ":tf_inspect",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras/saving/experimental:serialization_lib",
     ],
 )
 
@@ -329,6 +329,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],
 )
@@ -465,9 +466,14 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":layer_utils",
+        ":tf_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:backend",
+        "//keras/dtensor",
+        "//keras/dtensor:layout_map",
+        "//keras/dtensor:test_util",
     ],
 )
 
@@ -481,6 +487,7 @@ tf_py_test(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
@@ -628,6 +635,21 @@ tf_py_test(
         ":audio_dataset",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "audio_dataset_with_tfio_test",
+    size = "small",
+    srcs = ["audio_dataset_with_tfio_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":audio_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//:expect_tensorflow_io_installed",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],

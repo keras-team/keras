@@ -59,7 +59,7 @@ class LayerWithTrainingArg(keras.layers.Layer):
 
 
 def add_loss_step(defun):
-    optimizer = keras.optimizers.optimizer_v2.adam.Adam()
+    optimizer = keras.optimizers.legacy.adam.Adam()
     model = test_utils.get_model_from_layers(
         [LayerWithLosses()], input_shape=(10,)
     )
@@ -81,7 +81,7 @@ def add_loss_step(defun):
 
 
 def batch_norm_step(defun):
-    optimizer = keras.optimizers.optimizer_v2.adadelta.Adadelta()
+    optimizer = keras.optimizers.legacy.adadelta.Adadelta()
     model = test_utils.get_model_from_layers(
         [
             keras.layers.BatchNormalization(momentum=0.9),
@@ -108,7 +108,7 @@ def batch_norm_step(defun):
 
 
 def add_metric_step(defun):
-    optimizer = keras.optimizers.optimizer_v2.rmsprop.RMSprop()
+    optimizer = keras.optimizers.legacy.rmsprop.RMSprop()
     model = test_utils.get_model_from_layers(
         [
             LayerWithMetrics(),

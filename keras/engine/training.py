@@ -33,12 +33,14 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
+from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer
 from keras.optimizers import optimizer_v1
 from keras.saving import pickle_utils
 from keras.saving import saving_api
-from keras.saving.experimental import saving_lib
+from keras.saving import saving_lib
+from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
 from keras.saving.legacy.saved_model import json_utils
 from keras.saving.legacy.saved_model import model_serialization
@@ -55,6 +57,8 @@ from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.eager import context
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.distribute import distribute_utils
+from tensorflow.python.distribute import input_ops
 from tensorflow.tools.docs import doc_controls
 
 try:
@@ -600,6 +604,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         run_eagerly=None,
         steps_per_execution=None,
         jit_compile=None,
+        pss_evaluation_shards=0,
         **kwargs,
     ):
         """Configures the model for training.
@@ -694,10 +699,24 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               Also refer to
               [known XLA issues](https://www.tensorflow.org/xla/known_issues)
               for more details.
+            pss_evaluation_shards: Integer or 'auto'. Used for
+              `tf.distribute.ParameterServerStrategy` training only. This arg
+              sets the number of shards to split the dataset into, to enable an
+              exact visitation guarantee for evaluation, meaning the model will
+              be applied to each dataset element exactly once, even if workers
+              fail. The dataset must be sharded to ensure separate workers do
+              not process the same data. The number of shards should be at least
+              the number of workers for good performance. A value of 'auto'
+              turns on exact evaluation and uses a heuristic for the number of
+              shards based on the number of workers. Defaults to 0, meaning no
+              visitation guarantee is provided. NOTE: Custom implementations of
+              `Model.test_step` will be ignored when doing exact evaluation.
             **kwargs: Arguments supported for backwards compatibility only.
         """
+        if jit_compile and not tf_utils.can_jit_compile(warn=True):
+            jit_compile = False
         base_layer.keras_api_gauge.get_cell("compile").set(True)
-        self._compile_config = generic_utils.Config(
+        self._compile_config = serialization_lib.Config(
             optimizer=optimizer,
             loss=loss,
             metrics=metrics,
@@ -743,6 +762,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
             self._configure_steps_per_execution(steps_per_execution or 1)
+
+            self._pss_evaluation_shards = self._infer_exact_eval_shards(
+                pss_evaluation_shards
+            )
 
             # Initializes attrs that are reset each time `compile` is called.
             self._reset_compile_cache()
@@ -837,8 +860,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         """
         metrics = []
         if self._is_compiled:
-            # TODO(omalleyt): Track `LossesContainer` and `MetricsContainer`
-            # objects so that attr names are not load-bearing.
             if self.compiled_loss is not None:
                 metrics += self.compiled_loss.metrics
             if self.compiled_metrics is not None:
@@ -956,11 +977,15 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def jit_compile(self, value):
         # Function remains cached with previous jit_compile settings
         if self._jit_compile == value:
-            # Avoid reseting compiler cache if possible if the value is the same
+            # Avoid resetting compiler cache if possible if the value is the
+            # same
+            return
+        # Check if TensorFlow is compiled with XLA before setting the value
+        if value and not tf_utils.can_jit_compile(warn=True):
+            self._jit_compile = False
             return
 
         self._jit_compile = value
-
         # Setting `jit_compile` should invalidate previously cached functions.
         self._reset_compile_cache()
 
@@ -1208,6 +1233,32 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             elif self._cluster_coordinator:
                 logging.warning(PSS_WARN_MSG)
         return logs
+
+    def _aggregate_exact_metrics(self, logs):
+        # When doing exact evaluation, `logs` is a list of each data shard's
+        # metric variables, which will be used to update the metrics.
+        for shard_result in logs:
+            for metric in self.metrics:
+                if metric.name == "loss":
+                    continue
+                if metric.name not in shard_result.keys():
+                    logging.log_first_n(
+                        logging.WARN,
+                        f"No matching result found for metric {metric.name}. "
+                        "This metric's computed result may be incorrect.",
+                        3,
+                    )
+                    continue
+                metric_result = shard_result[metric.name]
+                if len(metric_result) != len(metric.weights):
+                    raise ValueError(
+                        f"Expected {len(metric.weights)} variables in result "
+                        f"for metric {metric.name}, but found "
+                        f"{len(metric_result)}."
+                    )
+                for weight, val in zip(metric.weights, metric_result):
+                    weight.assign_add(val)
+        return self.get_metrics_result()
 
     def make_train_function(self, force=False):
         """Creates a function that executes one step of training.
@@ -1691,7 +1742,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if logs is None:
                     raise ValueError(
                         "Unexpected result of `train_function` "
-                        "(Empty logs). Please use "
+                        "(Empty logs). This could be due to issues in input "
+                        "pipeline that resulted in an empty dataset. "
+                        "Otherwise, please use "
                         "`Model.compile(..., run_eagerly=True)`, or "
                         "`tf.config.run_functions_eagerly(True)` for more "
                         "information of where went wrong, or file a "
@@ -1705,6 +1758,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 if validation_data and self._should_eval(
                     epoch, validation_freq
                 ):
+                    if self._pss_evaluation_shards:
+                        self._disallow_exact_eval_with_add_metrics()
                     # Create data_handler for evaluation and cache it.
                     if getattr(self, "_eval_data_handler", None) is None:
                         self._eval_data_handler = data_adapter.get_data_handler(
@@ -1720,6 +1775,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             use_multiprocessing=use_multiprocessing,
                             model=self,
                             steps_per_execution=self._steps_per_execution,
+                            pss_evaluation_shards=self._pss_evaluation_shards,
                         )
                     val_logs = self.evaluate(
                         x=val_x,
@@ -1784,6 +1840,62 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Updates stateful loss metrics.
         self.compute_loss(x, y, y_pred, sample_weight)
         return self.compute_metrics(x, y, y_pred, sample_weight)
+
+    def _make_test_function_exact(self):
+        if getattr(self, "_shard_test_function", None):
+            return self._shard_test_function
+
+        def step_function(batch):
+            def run_step(data):
+                # TODO(b/272050910): Use sample_weight for weighted metrics.
+                x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
+                y_pred = self(x, training=False)
+                return x, y, y_pred
+
+            if self._jit_compile:
+                run_step = tf.function(
+                    run_step, jit_compile=True, reduce_retracing=True
+                )
+
+            outputs = self.distribute_strategy.run(run_step, args=(batch,))
+            outputs = reduce_per_replica(
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
+            )
+            return outputs
+
+        def shard_test_function(dataset, total_shards, shard_idx):
+            local_metrics = []
+            with tf_utils.with_metric_local_vars_scope():
+                for metric in self.compiled_metrics.metrics:
+                    local_metrics.append(base_metric.clone_metric(metric))
+            dataset = input_ops.auto_shard_dataset(
+                dataset, total_shards, shard_idx
+            )
+            iterator = iter(dataset)
+            with distribute_utils.cache_variable_reads():
+                for batch in iterator:
+                    x, y, y_pred = step_function(batch)
+                    for local_metric in local_metrics:
+                        local_metric.update_state(y, y_pred)
+            outputs = {metric.name: metric.weights for metric in local_metrics}
+            with tf.control_dependencies(_minimum_control_deps(outputs)):
+                self._test_counter.assign_add(1)
+            return outputs
+
+        if not self.run_eagerly:
+            shard_test_function = tf.function(
+                shard_test_function, reduce_retracing=True
+            )
+
+        self._shard_test_function = (
+            lambda *args: self._cluster_coordinator.schedule(
+                shard_test_function,
+                args=args,
+            )
+        )
+        return self._shard_test_function
 
     def make_test_function(self, force=False):
         """Creates a function that executes one step of evaluation.
@@ -2015,6 +2127,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
         verbose = _get_verbosity(verbose, self.distribute_strategy)
+        if self._pss_evaluation_shards:
+            self._disallow_exact_eval_with_add_metrics()
         with self.distribute_strategy.scope():
             # Use cached evaluation data only when it's called in `Model.fit`
             if (
@@ -2038,6 +2152,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     use_multiprocessing=use_multiprocessing,
                     model=self,
                     steps_per_execution=self._steps_per_execution,
+                    pss_evaluation_shards=self._pss_evaluation_shards,
                 )
 
             # Container that configures and calls `tf.keras.Callback`s.
@@ -2052,11 +2167,16 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     steps=data_handler.inferred_steps,
                 )
 
+            # Initialize to prevent errors if 0 epochs are evaluated.
             logs = {}
-            self.test_function = self.make_test_function()
+
+            test_function_runner = self._get_test_function_runner(callbacks)
             self._test_counter.assign(0)
             callbacks.on_test_begin()
-            for _, iterator in data_handler.enumerate_epochs():  # Single epoch.
+            for (
+                _,
+                dataset_or_iterator,
+            ) in data_handler.enumerate_epochs():  # Single epoch.
                 self.reset_metrics()
                 with data_handler.catch_stop_iteration():
                     for step in data_handler.steps():
@@ -2064,23 +2184,67 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                             "test", step_num=step, _r=1
                         ):
                             callbacks.on_test_batch_begin(step)
-                            tmp_logs = self.test_function(iterator)
-                            if data_handler.should_sync:
-                                context.async_wait()
-                            # No error, now safe to assign to logs.
-                            logs = tmp_logs
-                            end_step = step + data_handler.step_increment
-                            callbacks.on_test_batch_end(end_step, logs)
+                            logs = test_function_runner.run_step(
+                                dataset_or_iterator,
+                                data_handler,
+                                step,
+                                self._pss_evaluation_shards,
+                            )
 
             logs = tf_utils.sync_to_numpy_or_python_type(logs)
             # Override with model metrics instead of last step logs
-            logs = self._validate_and_get_metrics_result(logs)
+            if self._pss_evaluation_shards:
+                logs = self._aggregate_exact_metrics(logs)
+            else:
+                logs = self._validate_and_get_metrics_result(logs)
             callbacks.on_test_end(logs=logs)
 
             if return_dict:
                 return logs
             else:
                 return flatten_metrics_in_order(logs, self.metrics_names)
+
+    def _disallow_exact_eval_with_add_metrics(self):
+        metrics_from_add_metric = [
+            metric
+            for layer in self._flatten_layers()
+            for metric in layer._metrics
+        ]
+        compiled_metrics = self.compiled_metrics.metrics
+        if any(
+            [
+                metric not in compiled_metrics
+                for metric in metrics_from_add_metric
+            ]
+        ):
+            raise ValueError(
+                "Detected that a metric was added to this model "
+                "via `Model.add_metric`. This is not currently "
+                "supported when using exact evaluation with "
+                "`tf.distribute.ParameterServerStrategy`."
+            )
+
+    def _infer_exact_eval_shards(self, pss_evaluation_shards):
+        if not self.distribute_strategy._should_use_with_coordinator:
+            return 0
+        if pss_evaluation_shards == "auto":
+            # TODO(b/264265138) evaluate and improve this heuristic
+            return self.distribute_strategy._num_workers * 5
+        return pss_evaluation_shards
+
+    def _get_test_function_runner(self, callbacks):
+        if (
+            self._pss_evaluation_shards
+            and self.distribute_strategy._should_use_with_coordinator
+        ):
+            self.test_function = self._make_test_function_exact()
+            test_function_runner = _ExactTestFunction(
+                self.test_function, callbacks
+            )
+        else:
+            self.test_function = self.make_test_function()
+            test_function_runner = _TestFunction(self.test_function, callbacks)
+        return test_function_runner
 
     def predict_step(self, data):
         """The logic for one inference step.
@@ -2900,56 +3064,55 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @traceback_utils.filter_traceback
     def load_weights(
-        self, filepath, by_name=False, skip_mismatch=False, options=None
+        self, filepath, skip_mismatch=False, by_name=False, options=None
     ):
-        """Loads all layer weights, either from a SavedModel or H5 weights file.
+        """Loads all layer weights from a saved files.
 
-        If `by_name` is False weights are loaded based on the network's
+        The saved file could be a SavedModel file, a `.keras` file (v3 saving
+        format), or a file created via `model.save_weights()`.
+
+        By default, weights are loaded based on the network's
         topology. This means the architecture should be the same as when the
-        weights were saved.  Note that layers that don't have weights are not
+        weights were saved. Note that layers that don't have weights are not
         taken into account in the topological ordering, so adding or removing
         layers is fine as long as they don't have weights.
 
-        If `by_name` is True, weights are loaded into layers only if they share
+        **Partial weight loading**
+
+        If you have modified your model, for instance by adding a new layer
+        (with weights) or by changing the shape of the weights of a layer,
+        you can choose to ignore errors and continue loading
+        by setting `skip_mismatch=True`. In this case any layer with
+        mismatching weights will be skipped. A warning will be displayed
+        for each skipped layer.
+
+        **Weight loading by name**
+
+        If your weights are saved as a `.h5` file created
+        via `model.save_weights()`, you can use the argument `by_name=True`.
+
+        In this case, weights are loaded into layers only if they share
         the same name. This is useful for fine-tuning or transfer-learning
         models where some of the layers have changed.
 
-        Only topological loading (`by_name=False`) is supported when loading
-        weights from the TensorFlow format. Note that topological loading
-        differs slightly between TensorFlow and HDF5 formats for user-defined
-        classes inheriting from `tf.keras.Model`: HDF5 loads based on a
-        flattened list of weights, while the TensorFlow format loads based on
-        the object-local names of attributes to which layers are assigned in the
-        `Model`'s constructor.
+        Note that only topological loading (`by_name=False`) is supported when
+        loading weights from the `.keras` v3 format or from the TensorFlow
+        SavedModel format.
 
         Args:
             filepath: String, path to the weights file to load. For weight files
                 in TensorFlow format, this is the file prefix (the same as was
-                passed to `save_weights`). This can also be a path to a
-                SavedModel saved from `model.save`.
-            by_name: Boolean, whether to load weights by name or by topological
-                order. Only topological loading is supported for weight files in
-                TensorFlow format.
+                passed to `save_weights()`). This can also be a path to a
+                SavedModel or a `.keras` file (v3 saving format) saved
+                via `model.save()`.
             skip_mismatch: Boolean, whether to skip loading of layers where
                 there is a mismatch in the number of weights, or a mismatch in
-                the shape of the weight (only valid when `by_name=True`).
+                the shape of the weights.
+            by_name: Boolean, whether to load weights by name or by topological
+                order. Only topological loading is supported for weight files in
+                the `.keras` v3 format or in the TensorFlow SavedModel format.
             options: Optional `tf.train.CheckpointOptions` object that specifies
-                options for loading weights.
-
-        Returns:
-            When loading a weight file in TensorFlow format, returns the same
-            status object as `tf.train.Checkpoint.restore`. When graph building,
-            restore ops are run automatically as soon as the network is built
-            (on first call for user-defined classes inheriting from `Model`,
-            immediately if it is already built).
-
-            When loading weights in HDF5 format, returns `None`.
-
-        Raises:
-            ImportError: If `h5py` is not available and the weight file is in
-              HDF5 format.
-            ValueError: If `skip_mismatch` is set to `True` when `by_name` is
-              `False`.
+                options for loading weights (only valid for a SavedModel file).
         """
         return saving_api.load_weights(
             self,
@@ -3003,7 +3166,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # otherwise default to empty dict
         if generic_utils.is_default(self.get_config):
             try:
-                config = super().get_config()
+                config = base_layer.Layer.get_config(self)
             except NotImplementedError:
                 config = {}
                 logging.warning(
@@ -3012,26 +3175,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     "subclassed Model for proper saving and loading. "
                     "Defaulting to empty config."
                 )
-            # `super.get_config` adds additional keys, keep them if they
-            # are explicitly specified in `__init__`
-            init_args = tf_inspect.getfullargspec(self.__init__).args[1:]
-            xtra_args = set(["name", "trainable", "dtype", "batch_input_shape"])
-            for key in xtra_args - xtra_args.intersection(init_args):
-                config.pop(key, None)
         else:
             config = {}
-        if saving_lib.saving_v3_enabled():
-            if self._is_compiled and hasattr(self, "_compile_config"):
-                config["compile_config"] = self._compile_config.serialize()
-            if self.built:
-                config["build_input_shape"] = self._build_input_shape
         return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        compile_config = config.pop("compile_config", None)
-        build_input_shape = config.pop("build_input_shape", None)
-
         # `from_config` assumes `cls` is either `Functional` or a child class of
         # `Functional`. In the case that `cls` is meant to behave like a child
         # class of `Functional` but only inherits from the `Model` class, we
@@ -3039,13 +3188,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         from keras.engine import functional
 
         with serialization.SharedObjectLoadingScope():
-            functional_model_keys = [
+            functional_config_keys = [
                 "name",
                 "layers",
                 "input_layers",
                 "output_layers",
             ]
-            if all(key in config for key in functional_model_keys):
+            is_functional_config = all(
+                key in config for key in functional_config_keys
+            )
+            argspec = tf_inspect.getfullargspec(cls.__init__)
+            functional_init_args = tf_inspect.getfullargspec(
+                functional.Functional.__init__
+            ).args[1:]
+            revivable_as_functional = (
+                cls in {functional.Functional, Model}
+                or argspec.args[1:] == functional_init_args
+                or (argspec.varargs == "args" and argspec.varkw == "kwargs")
+            )
+            if is_functional_config and revivable_as_functional:
+                # Revive Functional model
+                # (but not Functional subclasses with a custom __init__)
                 inputs, outputs, layers = functional.reconstruct_from_config(
                     config, custom_objects
                 )
@@ -3055,7 +3218,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 functional.connect_ancillary_layers(model, layers)
 
             else:
-                # The config does not contain all the information necessary to
+                # Either the model has a custom __init__, or the config
+                # does not contain all the information necessary to
                 # revive a Functional model. This happens when the user creates
                 # subclassed models where `get_config()` is returning
                 # insufficient information to be considered a Functional model.
@@ -3066,21 +3230,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 except TypeError as e:
                     raise TypeError(
                         "Unable to revive model from config. When overriding "
-                        "the `get_config()`, make sure that the returned "
-                        "config contains all items used as arguments in the "
-                        f"constructor to {cls}, which is the default behavior. "
+                        "the `get_config()` method, make sure that the "
+                        "returned config contains all items used as arguments "
+                        f"in the  constructor to {cls}, "
+                        "which is the default behavior. "
                         "You can override this default behavior by defining a "
-                        "`from_config` method to specify how to create an "
-                        f"instance of {cls.__name__} from the config. \n\n"
-                        f"Error encountered during deserialization:\n{e}"
+                        "`from_config(cls, config)` class method to specify "
+                        "how to create an "
+                        f"instance of {cls.__name__} from its config.\n\n"
+                        f"Received config={config}\n\n"
+                        f"Error encountered during deserialization: {e}"
                     )
-
-            if saving_lib.saving_v3_enabled():
-                if build_input_shape:
-                    model.build(build_input_shape)
-                if compile_config is not None:
-                    model._compile_from_config(compile_config, base_class=Model)
-
             return model
 
     def to_json(self, **kwargs):
@@ -3203,7 +3363,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             positions: Relative or absolute positions of log elements
                 in each line. If not provided,
                 defaults to `[.33, .55, .67, 1.]`.
-            print_fn: Print function to use. Defaults to `print`.
+            print_fn: Print function to use. By default, prints to `stdout`.
+                If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
                 You can set it to a custom function
                 in order to capture the string summary.
@@ -3296,7 +3457,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def get_weight_paths(self):
         """Retrieve all the variables and their paths for the model.
 
-        The variable path (string) is a stable key to indentify a `tf.Variable`
+        The variable path (string) is a stable key to identify a `tf.Variable`
         instance owned by the model. It can be used to specify variable-specific
         configurations (e.g. DTensor, quantization) from a global view.
 
@@ -3365,6 +3526,80 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 object_path = ".".join([t.name for t in trackable_references])
                 result[object_path] = descendant
         return result
+
+    def get_compile_config(self):
+        """Returns a serialized config with information for compiling the model.
+
+        This method returns a config dictionary containing all the information
+        (optimizer, loss, metrics, etc.) with which the model was compiled.
+
+        Returns:
+            A dict containing information for compiling the model.
+        """
+        if self._is_compiled and hasattr(self, "_compile_config"):
+            return self._compile_config.serialize()
+
+    def compile_from_config(self, config):
+        """Compiles the model with the information given in config.
+
+        This method uses the information in the config (optimizer, loss,
+        metrics, etc.) to compile the model.
+
+        Args:
+            config: Dict containing information for compiling the model.
+        """
+        has_overridden_compile = self.__class__.compile != Model.compile
+        if has_overridden_compile:
+            logging.warning(
+                "`compile()` was not called as part of model loading "
+                "because the model's `compile()` method is custom. "
+                "All subclassed Models that have `compile()` "
+                "overridden should also override "
+                "`get_compile_config()` and `compile_from_config(config)`. "
+                "Alternatively, you can "
+                "call `compile()` manually after loading."
+            )
+            return
+        config = saving_lib.deserialize_keras_object(config)
+        self.compile(**config)
+        if hasattr(self, "optimizer") and self.built:
+            # Create optimizer variables.
+            self.optimizer.build(self.trainable_variables)
+
+    def export(self, filepath):
+        """Create a SavedModel artifact for inference (e.g. via TF-Serving).
+
+        This method lets you export a model to a lightweight SavedModel artifact
+        that contains the model's forward pass only (its `call()` method)
+        and can be served via e.g. TF-Serving. The forward pass is registered
+        under the name `serve()` (see example below).
+
+        The original code of the model (including any custom layers you may
+        have used) is *no longer* necessary to reload the artifact -- it is
+        entirely standalone.
+
+        Args:
+            filepath: `str` or `pathlib.Path` object. Path where to save
+                the artifact.
+
+        Example:
+
+        ```python
+        # Create the artifact
+        model.export("path/to/location")
+
+        # Later, in a different process / environment...
+        reloaded_artifact = tf.saved_model.load("path/to/location")
+        predictions = reloaded_artifact.serve(input_data)
+        ```
+
+        If you would like to customize your serving endpoints, you can
+        use the lower-level `keras.export.ExportArchive` class. The `export()`
+        method relies on `ExportArchive` internally.
+        """
+        from keras.export import export_lib
+
+        export_lib.export_model(self, filepath)
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -3478,9 +3713,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # Also make sure to exclude Model class itself which has build()
             # defined.
             raise ValueError(
-                f"Weights for model {self.name} have not yet been "
+                f"Weights for model '{self.name}' have not yet been "
                 "created. "
-                "Weights are created when the Model is first called on "
+                "Weights are created when the model is first called on "
                 "inputs or `build()` is called with an `input_shape`."
             )
 
@@ -3693,27 +3928,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 f"type {type(validation_freq)}."
             )
 
-    def _compile_from_config(self, compile_config, base_class):
-        has_overridden_compile = self.__class__.compile != base_class.compile
-        has_overridden_from_config = (
-            self.__class__.from_config.__func__.__qualname__
-            != base_class.from_config.__func__.__qualname__
-        )
-
-        if not has_overridden_compile:
-            compile_config = saving_lib.deserialize_keras_object(compile_config)
-            self.compile(**compile_config)
-        else:
-            if not has_overridden_from_config:
-                logging.warning(
-                    "`compile()` was not called as part of model loading "
-                    "because the model's `compile()` method is custom. "
-                    "All subclassed Models that have `compile()` "
-                    "overridden should also override `from_config()` in "
-                    "order to call `compile()`. Alternatively, you can "
-                    "call `compile()` manually after loading."
-                )
-
     ######################################################################
     # Functions below exist only as v1 / v2 compatibility shims.
     ######################################################################
@@ -3759,6 +3973,38 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     def _save_experimental(self, filepath):
         return saving_lib.save_model(self, filepath)
+
+
+class _TestFunction:
+    def __init__(self, function, callbacks):
+        self._function = function
+        self._callbacks = callbacks
+
+    def run_step(self, dataset_or_iterator, data_handler, step, unused_shards):
+        tmp_logs = self._function(dataset_or_iterator)
+        if data_handler.should_sync:
+            context.async_wait()
+        logs = tmp_logs
+        end_step = step + data_handler.step_increment
+        self._callbacks.on_test_batch_end(end_step, logs)
+        return logs
+
+
+class _ExactTestFunction(_TestFunction):
+    def __init__(self, function, callbacks):
+        super().__init__(function, callbacks)
+        self._logs = []
+
+    def run_step(self, dataset_or_iterator, data_handler, step, shards):
+        tmp_logs = self._function(
+            dataset_or_iterator,
+            tf.constant(shards, dtype=tf.int64),
+            tf.constant(step, dtype=tf.int64),
+        )
+        if data_handler.should_sync:
+            context.async_wait()
+        self._logs.append(tmp_logs)
+        return self._logs
 
 
 def reduce_per_replica(values, strategy, reduction):
@@ -3824,7 +4070,9 @@ def reduce_per_replica(values, strategy, reduction):
             elif reduction == "sum":
                 return strategy.reduce("SUM", v, axis=None)
 
-        if not _is_per_replica_instance(v):
+        if _is_dtensor_per_replica_instance(v):
+            return _reduce_dtensor_per_replica(v, strategy, reduction)
+        elif not _is_per_replica_instance(v):
             return v
         elif reduction == "first":
             return strategy.experimental_local_results(v)[0]
@@ -3897,6 +4145,28 @@ def potentially_ragged_concat(tensors):
     return tf.ragged.constant(
         [tensor.numpy() for tensor in tensors], inner_shape=constant_inner_shape
     ).merge_dims(0, 1)
+
+
+def _reduce_dtensor_per_replica(value, strategy, reduction):
+    # Note that this function could happen in graph, so we can't just access
+    # the per-replica.values(), which will trigger unpack in graph and result
+    # into error.
+    # For now we will perform ops on dtensor instance directly on a global
+    # context.
+    dtensor = value._dtensor
+    if reduction == "first":
+        num_replica = strategy.num_replicas_in_sync
+        return tf.split(dtensor, num_replica, axis=0)[0]
+    elif reduction == "concat":
+        # Since dtensor is already in global context, the concat is a no-op
+        return dtensor
+    elif reduction == "sum":
+        return tf.reduce_sum(dtensor)
+    else:
+        raise ValueError(
+            '`reduction` must be one of "first", "concat", "sum", or "auto". '
+            f"Received: reduction={reduction}."
+        )
 
 
 def _get_verbosity(verbose, distribute_strategy):
@@ -4023,6 +4293,16 @@ def flatten_metrics_in_order(logs, metrics_names):
 def _is_per_replica_instance(obj):
     return isinstance(obj, tf.distribute.DistributedValues) and isinstance(
         obj, tf.__internal__.CompositeTensor
+    )
+
+
+def _is_dtensor_per_replica_instance(obj):
+    # This is a temp check for DTensorDistributedValue, which is not public API
+    # yet.
+    # TODO(scottzhu): Move to more stable API when dtensor based strategy is
+    # ready.
+    return isinstance(obj, tf.distribute.DistributedValues) and hasattr(
+        obj, "_dtensor"
     )
 
 

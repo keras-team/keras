@@ -23,7 +23,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
-from keras.saving.legacy import serialization
+from keras.saving import serialization_lib
 from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
@@ -38,7 +38,7 @@ class Lambda(Layer):
     """Wraps arbitrary expressions as a `Layer` object.
 
     The `Lambda` layer exists so that arbitrary expressions can be used
-    as a `Layer` when constructing `Sequential`
+    as a `Layer` when constructing Sequential
     and Functional API models. `Lambda` layers are best suited for simple
     operations or quick experimentation. For more advanced use cases, follow
     [this guide](
@@ -52,7 +52,7 @@ class Lambda(Layer):
     are saved by serializing the Python bytecode, which is fundamentally
     non-portable. They should only be loaded in the same environment where
     they were saved. Subclassed layers can be saved in a more portable way
-    by overriding their `get_config` method. Models that rely on
+    by overriding their `get_config()` method. Models that rely on
     subclassed Layers are also often easier to visualize and reason about.
 
     Examples:
@@ -61,6 +61,7 @@ class Lambda(Layer):
     # add a x -> x^2 layer
     model.add(Lambda(lambda x: x ** 2))
     ```
+
     ```python
     # add a layer that returns the concatenation
     # of the positive part of the input and
@@ -76,35 +77,35 @@ class Lambda(Layer):
     model.add(Lambda(antirectifier))
     ```
 
-    Variables:
-      While it is possible to use Variables with Lambda layers, this practice is
-      discouraged as it can easily lead to bugs. For instance, consider the
-      following layer:
+    **Note on Variables:**
+
+    While it is possible to use Variables with Lambda layers,
+    this practice is discouraged as it can easily lead to bugs.
+    For instance, consider the following layer:
 
     ```python
-      scale = tf.Variable(1.)
-      scale_layer = tf.keras.layers.Lambda(lambda x: x * scale)
+    scale = tf.Variable(1.)
+    scale_layer = tf.keras.layers.Lambda(lambda x: x * scale)
     ```
 
-      Because scale_layer does not directly track the `scale` variable, it will
-      not appear in `scale_layer.trainable_weights` and will therefore not be
-      trained if `scale_layer` is used in a Model.
+    Because `scale_layer` does not directly track the `scale` variable, it will
+    not appear in `scale_layer.trainable_weights` and will therefore not be
+    trained if `scale_layer` is used in a Model.
 
-      A better pattern is to write a subclassed Layer:
+    A better pattern is to write a subclassed Layer:
 
     ```python
-      class ScaleLayer(tf.keras.layers.Layer):
-        def __init__(self):
-          super(ScaleLayer, self).__init__()
-          self.scale = tf.Variable(1.)
+    class ScaleLayer(tf.keras.layers.Layer):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.scale = tf.Variable(1.)
 
         def call(self, inputs):
-          return inputs * self.scale
+            return inputs * self.scale
     ```
 
-      In general, Lambda layers can be convenient for simple stateless
-      computation, but anything more complex should use a subclass Layer
-      instead.
+    In general, `Lambda` layers can be convenient for simple stateless
+    computation, but anything more complex should use a subclass Layer instead.
 
     Args:
       function: The function to be evaluated. Takes input tensor as first
@@ -123,9 +124,11 @@ class Lambda(Layer):
         returned as output mask regardless of what the input is.
       arguments: Optional dictionary of keyword arguments to be passed to the
         function.
+
     Input shape: Arbitrary. Use the keyword argument input_shape (tuple of
       integers, does not include the samples axis) when using this layer as the
       first layer in a model.
+
     Output shape: Specified by `output_shape` argument
     """
 
@@ -381,13 +384,23 @@ class Lambda(Layer):
         function_type = config.pop(func_type_attr_name)
         if function_type == "function":
             # Simple lookup in custom objects
-            function = serialization.deserialize_keras_object(
+            function = serialization_lib.deserialize_keras_object(
                 config[func_attr_name],
                 custom_objects=custom_objects,
                 printable_module_name="function in Lambda layer",
             )
         elif function_type == "lambda":
-            # Unsafe deserialization from bytecode
+            if serialization_lib.in_safe_mode():
+                raise ValueError(
+                    "Requested the deserialization of a Lambda layer with a "
+                    "Python `lambda` inside it. "
+                    "This carries a potential risk of arbitrary code execution "
+                    "and thus it is disallowed by default. If you trust the "
+                    "source of the saved model, you can pass `safe_mode=False` "
+                    "to the loading function in order to allow "
+                    "Lambda layer loading."
+                )
+            # /!\ Unsafe deserialization from bytecode! Danger! /!\
             function = generic_utils.func_load(
                 config[func_attr_name], globs=globs
             )

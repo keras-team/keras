@@ -326,7 +326,6 @@ class RNNCell(base_layer.Layer):
             self._last_zero_state = (state_size, batch_size, dtype, output)
         return output
 
-    # TODO(b/134773139): Remove when contrib RNN cells implement `get_config`
     def get_config(self):
         return super().get_config()
 
@@ -386,8 +385,7 @@ class LayerRNNCell(RNNCell):
 class BasicRNNCell(LayerRNNCell):
     """The most basic RNN cell.
 
-    Note that this cell is not optimized for performance. Please use
-    `tf.contrib.cudnn_rnn.CudnnRNNTanh` for better performance on GPU.
+    Note that this cell is not optimized for performance.
 
     Args:
       num_units: int, The number of units in the RNN cell.
@@ -424,9 +422,7 @@ class BasicRNNCell(LayerRNNCell):
         _check_supported_dtypes(self.dtype)
         if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
             logging.warning(
-                "%s: Note that this cell is not optimized for performance. "
-                "Please use tf.contrib.cudnn_rnn.CudnnRNNTanh for better "
-                "performance on GPU.",
+                "%s: Note that this cell is not optimized for performance.",
                 self,
             )
 
@@ -494,8 +490,8 @@ class GRUCell(LayerRNNCell):
     """Gated Recurrent Unit cell.
 
     Note that this cell is not optimized for performance. Please use
-    `tf.contrib.cudnn_rnn.CudnnGRU` for better performance on GPU, or
-    `tf.contrib.rnn.GRUBlockCellV2` for better performance on CPU.
+    `tf.compat.v1.keras.layers.CuDNNGRU` for better performance on GPU, or
+    `tf.raw_ops.GRUBlockCell` for better performance on CPU.
 
     Args:
       num_units: int, The number of units in the GRU cell.
@@ -542,7 +538,7 @@ class GRUCell(LayerRNNCell):
         if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
             logging.warning(
                 "%s: Note that this cell is not optimized for performance. "
-                "Please use tf.contrib.cudnn_rnn.CudnnGRU for better "
+                "Please use tf.compat.v1.keras.layers.CuDNNGRU for better "
                 "performance on GPU.",
                 self,
             )
@@ -688,9 +684,8 @@ class BasicLSTMCell(LayerRNNCell):
     that follows.
 
     Note that this cell is not optimized for performance. Please use
-    `tf.contrib.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
-    `tf.contrib.rnn.LSTMBlockCell` and `tf.contrib.rnn.LSTMBlockFusedCell` for
-    better performance on CPU.
+    `tf.compat.v1.keras.layers.CuDNNLSTM` for better performance on GPU, or
+    `tf.raw_ops.LSTMBlockCell` for better performance on CPU.
     """
 
     def __init__(
@@ -749,7 +744,7 @@ class BasicLSTMCell(LayerRNNCell):
         if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
             logging.warning(
                 "%s: Note that this cell is not optimized for performance. "
-                "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
+                "Please use tf.compat.v1.keras.layers.CuDNNLSTM for better "
                 "performance on GPU.",
                 self,
             )
@@ -870,9 +865,8 @@ class LSTMCell(LayerRNNCell):
     an optional projection layer.
 
     Note that this cell is not optimized for performance. Please use
-    `tf.contrib.cudnn_rnn.CudnnLSTM` for better performance on GPU, or
-    `tf.contrib.rnn.LSTMBlockCell` and `tf.contrib.rnn.LSTMBlockFusedCell` for
-    better performance on CPU.
+    `tf.compat.v1.keras.layers.CuDNNLSTM` for better performance on GPU, or
+    `tf.raw_ops.LSTMBlockCell` for better performance on CPU.
     References:
       Long short-term memory recurrent neural network architectures for large
       scale acoustic modeling:
@@ -975,7 +969,7 @@ class LSTMCell(LayerRNNCell):
         if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
             logging.warning(
                 "%s: Note that this cell is not optimized for performance. "
-                "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
+                "Please use tf.compat.v1.keras.layers.CuDNNLSTM for better "
                 "performance on GPU.",
                 self,
             )

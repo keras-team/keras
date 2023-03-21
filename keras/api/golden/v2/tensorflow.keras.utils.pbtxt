@@ -40,6 +40,10 @@ tf_module {
     name: "experimental"
     mtype: "<type \'module\'>"
   }
+  member {
+    name: "legacy"
+    mtype: "<type \'module\'>"
+  }
   member_method {
     name: "array_to_img"
     argspec: "args=[\'x\', \'data_format\', \'scale\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'True\', \'None\'], "
@@ -50,7 +54,7 @@ tf_module {
   }
   member_method {
     name: "deserialize_keras_object"
-    argspec: "args=[\'identifier\', \'module_objects\', \'custom_objects\', \'printable_module_name\'], varargs=None, keywords=None, defaults=[\'None\', \'None\', \'object\'], "
+    argspec: "args=[\'config\', \'custom_objects\', \'safe_mode\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'True\'], "
   }
   member_method {
     name: "disable_interactive_logging"
@@ -98,7 +102,7 @@ tf_module {
   }
   member_method {
     name: "model_to_dot"
-    argspec: "args=[\'model\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'subgraph\', \'layer_range\', \'show_layer_activations\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'False\', \'None\', \'False\'], "
+    argspec: "args=[\'model\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'subgraph\', \'layer_range\', \'show_layer_activations\', \'show_trainable\'], varargs=None, keywords=None, defaults=[\'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'False\', \'None\', \'False\', \'False\'], "
   }
   member_method {
     name: "normalize"
@@ -114,7 +118,7 @@ tf_module {
   }
   member_method {
     name: "plot_model"
-    argspec: "args=[\'model\', \'to_file\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'layer_range\', \'show_layer_activations\'], varargs=None, keywords=None, defaults=[\'model.png\', \'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'None\', \'False\'], "
+    argspec: "args=[\'model\', \'to_file\', \'show_shapes\', \'show_dtype\', \'show_layer_names\', \'rankdir\', \'expand_nested\', \'dpi\', \'layer_range\', \'show_layer_activations\', \'show_trainable\'], varargs=None, keywords=None, defaults=[\'model.png\', \'False\', \'False\', \'True\', \'TB\', \'False\', \'96\', \'None\', \'False\', \'False\'], "
   }
   member_method {
     name: "register_keras_serializable"
@@ -126,7 +130,7 @@ tf_module {
   }
   member_method {
     name: "serialize_keras_object"
-    argspec: "args=[\'instance\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'obj\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "set_random_seed"
@@ -146,6 +150,10 @@ tf_module {
   }
   member_method {
     name: "to_categorical"
+    argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
+  }
+  member_method {
+    name: "to_ordinal"
     argspec: "args=[\'y\', \'num_classes\', \'dtype\'], varargs=None, keywords=None, defaults=[\'None\', \'float32\'], "
   }
   member_method {

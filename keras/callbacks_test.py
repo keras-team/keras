@@ -38,8 +38,8 @@ from keras.callbacks import Callback
 from keras.engine import sequential
 from keras.layers import Activation
 from keras.layers import Dense
-from keras.optimizers import sgd_experimental
-from keras.optimizers.optimizer_v2 import gradient_descent
+from keras.optimizers import sgd
+from keras.optimizers.legacy import gradient_descent
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -429,7 +429,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     raise RuntimeError("Interruption")
 
         model = keras.Sequential([keras.layers.Dense(10)])
-        optimizer = sgd_experimental.SGD()
+        optimizer = sgd.SGD()
         model.compile(optimizer, loss="mse")
 
         x = tf.random.uniform((24, 10))
@@ -506,7 +506,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     )
 
         model = keras.Sequential([keras.layers.Dense(10)])
-        optimizer = sgd_experimental.SGD()
+        optimizer = sgd.SGD()
         model.compile(optimizer, loss="mse")
 
         x = tf.random.uniform((24, 10))
@@ -913,7 +913,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         temp_dir = self.get_temp_dir()
         self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
 
-        filepath = os.path.join(temp_dir, "checkpoint.h5")
+        # Save model to a subdir inside the temp_dir so we can test
+        # automatic directory creation.
+        filepath = os.path.join(temp_dir, "subdir", "checkpoint.h5")
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
@@ -1784,6 +1786,24 @@ class KerasCallbacksTest(test_combinations.TestCase):
                     epochs=5,
                     verbose=0,
                 )
+
+    def test_EarlyStopping_patience(self):
+        cases = [0, 1, 2, 3]
+        losses = [10.0, 9.0, 8.0, 9.0, 8.9, 8.8, 8.7, 8.6, 8.5]
+
+        for patience in cases:
+            stopper = keras.callbacks.EarlyStopping(
+                monitor="loss", patience=patience
+            )
+            stopper.model = keras.models.Sequential()
+            stopper.on_train_begin()
+
+            for epoch, loss in enumerate(losses):
+                stopper.on_epoch_end(epoch=epoch, logs={"loss": loss})
+                if stopper.model.stop_training:
+                    break
+
+            self.assertEqual(stopper.stopped_epoch, max(patience, 1) + 2)
 
     def test_EarlyStopping_reuse(self):
         with self.cached_session():
