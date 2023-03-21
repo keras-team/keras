@@ -26,8 +26,9 @@ from keras import losses
 from keras import models
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map
-from keras.dtensor import optimizers
+from keras.dtensor import optimizers as dtensor_optimizers
 from keras.dtensor import test_util
+from keras.optimizers import adam
 
 
 class OptimizersTest(test_util.DTensorBaseTest):
@@ -46,8 +47,9 @@ class OptimizersTest(test_util.DTensorBaseTest):
         }
         self.mesh = self.configTestMesh(mesh_dict)
 
-    def test_add_variable_from_reference(self):
-        optimizer = optimizers.Adam(mesh=self.mesh)
+    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
+    def test_add_variable_from_reference(self, optimizer_cls):
+        optimizer = optimizer_cls(mesh=self.mesh)
         variable_init_value = tf.ones([4, 4], dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -64,8 +66,9 @@ class OptimizersTest(test_util.DTensorBaseTest):
         # Make sure the variable contains the correct layout info
         self.assertEqual(state_variable.layout, model_variable.layout)
 
-    def test_build_index_dict(self):
-        optimizer = optimizers.Adam(mesh=self.mesh)
+    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
+    def test_build_index_dict(self, optimizer_cls):
+        optimizer = optimizer_cls(mesh=self.mesh)
         variable_init_value = tf.ones(shape=(), dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -83,37 +86,59 @@ class OptimizersTest(test_util.DTensorBaseTest):
     @parameterized.named_parameters(
         (
             "Adadelta",
-            optimizers.Adadelta,
+            dtensor_optimizers.Adadelta,
             {},
             [
                 "Adadelta/accumulated_grad/Variable",
                 "Adadelta/accumulated_delta_var/Variable",
+                "iteration",
             ],
         ),
         (
             "Adam",
-            optimizers.Adam,
+            dtensor_optimizers.Adam,
             {"amsgrad": True},
-            ["Adam/m/Variable", "Adam/v/Variable", "Adam/vhat/Variable"],
+            [
+                "Adam/m/Variable",
+                "Adam/v/Variable",
+                "Adam/vhat/Variable",
+                "iteration",
+            ],
         ),
         (
             "AdamW",
-            optimizers.AdamW,
+            dtensor_optimizers.AdamW,
             {"amsgrad": True},
-            ["AdamW/m/Variable", "AdamW/v/Variable", "AdamW/vhat/Variable"],
+            [
+                "AdamW/m/Variable",
+                "AdamW/v/Variable",
+                "AdamW/vhat/Variable",
+                "iteration",
+            ],
         ),
-        ("Adagrad", optimizers.Adagrad, {}, ["Adagrad/accumulator/Variable"]),
+        (
+            "Adagrad",
+            dtensor_optimizers.Adagrad,
+            {},
+            ["Adagrad/accumulator/Variable", "iteration"],
+        ),
         (
             "RMSprop",
-            optimizers.RMSprop,
+            dtensor_optimizers.RMSprop,
             {"momentum": 0.1, "centered": True},
             [
                 "RMSprop/velocity/Variable",
                 "RMSprop/momentum/Variable",
                 "RMSprop/average_gradient/Variable",
+                "iteration",
             ],
         ),
-        ("SGD", optimizers.SGD, {"momentum": 0.1}, ["SGD/m/Variable"]),
+        (
+            "SGD",
+            dtensor_optimizers.SGD,
+            {"momentum": 0.1},
+            ["SGD/m/Variable", "iteration"],
+        ),
     )
     def test_apply_gradients(
         self, optimizer_cls, init_args, expect_variable_names
@@ -142,7 +167,8 @@ class OptimizersTest(test_util.DTensorBaseTest):
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertCountEqual(all_names, expect_variable_names)
 
-    def test_embedding_lookup_backward_path(self):
+    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
+    def test_embedding_lookup_backward_path(self, optimizer_cls):
         # See b/265441685 for more context.
         backend.enable_tf_random_generator()
         os.environ[
@@ -186,7 +212,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
             preds = layers.Dense(output_size, activation="softmax")(x)
             model = models.Model(inputs, preds)
 
-        optimizer = optimizers.AdamW(mesh=self.mesh)
+        optimizer = optimizer_cls(mesh=self.mesh)
 
         @tf.function
         def train_func(model, inputs, label, optimizer):
