@@ -697,7 +697,10 @@ class BatchNormalizationBase(Layer):
                 new_mean = tf.reduce_mean(mean, axis=1, keepdims=True)
                 new_variance = tf.reduce_mean(variance, axis=1, keepdims=True)
             else:
-                if _running_with_dtensor_strategy() and not self.synchronized:
+                if (
+                    utils.running_with_dtensor_strategy()
+                    and not self.synchronized
+                ):
                     new_mean = tf.math.reduce_mean(mean, axis=reduction_axes)
                     new_variance = tf.math.reduce_mean(
                         variance, axis=reduction_axes
@@ -1276,7 +1279,7 @@ class BatchNormalizationBase(Layer):
         )
 
     def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
-        if _running_with_dtensor_strategy():
+        if utils.running_with_dtensor_strategy():
             mean, variance = self._dtensor_calculate_mean_and_var(
                 inputs, reduction_axes, keep_dims, mask=mask
             )
@@ -1539,24 +1542,6 @@ class SyncBatchNormalization(BatchNormalizationBase):
         )
 
 
-def _running_with_dtensor_strategy():
-    """Check whether running with a `Strategy` that is backed by DTensor.
-
-    In the DTensor based training, all the tensors are in global context, which
-    means the existing way of calculating the mean/var will switch from local
-    context to global context, effectively changing from BN to sync BN.
-
-    To keep the status quo, a check of the DTensor context is needed, and
-    ops behavior need to be switched back.
-    """
-    if not tf.distribute.has_strategy():
-        return False
-    strategy = tf.distribute.get_strategy()
-    # TODO(scottzhu): Finalize the strategy API to check if a strategy is backed
-    # by DTensor.
-    return getattr(strategy, "_mesh", None) is not None
-
-
 def _expand_tensor_with_local_replica_group(inputs):
     """Reshape the input tensor to have an extra dimension of replica group.
 
@@ -1593,7 +1578,7 @@ def _raise_for_non_sync_bn_with_renorm_and_dtensor_strategy(
     synchronized, training, renorm
 ):
     if (
-        _running_with_dtensor_strategy()
+        utils.running_with_dtensor_strategy()
         and not synchronized
         and training == True
         and renorm

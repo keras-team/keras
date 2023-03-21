@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras.dtensor import test_util
+from keras.dtensor import utils
 from keras.layers.normalization import batch_normalization
 from keras.testing_infra import test_utils
 
@@ -51,20 +52,16 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
         strategy = dtensor_mirrored_strategy.MirroredStrategy(self.mesh)
 
         with strategy.scope():
-            self.assertTrue(
-                batch_normalization._running_with_dtensor_strategy()
-            )
+            self.assertTrue(utils.running_with_dtensor_strategy())
 
-        self.assertFalse(batch_normalization._running_with_dtensor_strategy())
+        self.assertFalse(utils.running_with_dtensor_strategy())
 
         normal_mirrored_strategy = tf.distribute.MirroredStrategy(
             ["CPU:0", "CPU:1"]
         )
-        self.assertFalse(batch_normalization._running_with_dtensor_strategy())
+        self.assertFalse(utils.running_with_dtensor_strategy())
         with normal_mirrored_strategy.scope():
-            self.assertFalse(
-                batch_normalization._running_with_dtensor_strategy()
-            )
+            self.assertFalse(utils.running_with_dtensor_strategy())
 
     @parameterized.product(
         training=[True, False],
