@@ -5585,8 +5585,8 @@ def categorical_focal_crossentropy(
     from_logits=False,
     axis=-1,
 ):
-    """Computes the alpha balanced focal crossentropy loss between
-    the labels and predictions.
+    """Computes the alpha balanced focal crossentropy loss.
+
     According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
     helps to apply a focal factor to down-weight easy examples and focus more on
     hard examples. By default, the focal tensor is computed as follows:

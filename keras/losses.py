@@ -924,8 +924,8 @@ class CategoricalCrossentropy(LossFunctionWrapper):
 
 @keras_export("keras.losses.CategoricalFocalCrossentropy")
 class CategoricalFocalCrossentropy(LossFunctionWrapper):
-    """Computes the alpha balanced focal crossentropy loss between
-    the labels and predictions.
+    """Computes the alpha balanced focal crossentropy loss.
+
     According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
     helps to apply a focal factor to down-weight easy examples and focus more on
     hard examples. By default, the focal tensor is computed as follows:
@@ -985,32 +985,32 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
                   loss=tf.keras.losses.CategoricalFocalCrossentropy())
     ```
     Args:
-      alpha: A weight balancing factor for all classes, default is `0.25` as
-        mentioned in the reference. It can be a list of floats or a scalar.
-        In the multi-class case, alpha may be set by inverse class
-        frequency by using `compute_class_weight` from `sklearn.utils`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-        reference. It helps to gradually reduce the importance given to
-        simple (easy) examples in a smooth manner.
-      from_logits: Whether `output` is expected to be a logits tensor. By
-        default, we consider that `output` encodes a probability distribution.
-      label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
-        meaning the confidence on label values are relaxed. For example, if
-        `0.1`, use `0.1 / num_classes` for non-target labels and
-        `0.9 + 0.1 / num_classes` for target labels.
-      axis: The axis along which to compute crossentropy (the features
-        axis). Defaults to -1.
-      reduction: Type of `tf.keras.losses.Reduction` to apply to
-        loss. Default value is `AUTO`. `AUTO` indicates that the reduction
-        option will be determined by the usage context. For almost all cases
-        this defaults to `SUM_OVER_BATCH_SIZE`. When used under a
-        `tf.distribute.Strategy`, except via `Model.compile()` and
-        `Model.fit()`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
-        will raise an error. Please see this custom training [tutorial](
-        https://www.tensorflow.org/tutorials/distribute/custom_training)
-        for more details.
-      name: Optional name for the instance.
-        Defaults to 'categorical_focal_crossentropy'.
+        alpha: A weight balancing factor for all classes, default is `0.25` as
+            mentioned in the reference. It can be a list of floats or a scalar.
+            In the multi-class case, alpha may be set by inverse class
+            frequency by using `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference. It helps to gradually reduce the importance given to
+            simple (easy) examples in a smooth manner.
+        from_logits: Whether `output` is expected to be a logits tensor. By
+            default, we consider that `output` encodes a probability distribution.
+        label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
+            meaning the confidence on label values are relaxed. For example, if
+            `0.1`, use `0.1 / num_classes` for non-target labels and
+            `0.9 + 0.1 / num_classes` for target labels.
+        axis: The axis along which to compute crossentropy (the features
+            axis). Defaults to -1.
+        reduction: Type of `tf.keras.losses.Reduction` to apply to
+            loss. Default value is `AUTO`. `AUTO` indicates that the reduction
+            option will be determined by the usage context. For almost all cases
+            this defaults to `SUM_OVER_BATCH_SIZE`. When used under a
+            `tf.distribute.Strategy`, except via `Model.compile()` and
+            `Model.fit()`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
+            will raise an error. Please see this custom training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training)
+            for more details.
+        name: Optional name for the instance.
+            Defaults to 'categorical_focal_crossentropy'.
     """
 
     def __init__(
@@ -2175,26 +2175,26 @@ def categorical_focal_crossentropy(
     array([2.63401289e-04, 6.75912094e-01], dtype=float32)
 
     Args:
-      y_true: Tensor of one-hot true targets.
-      y_pred: Tensor of predicted targets.
-      alpha: A weight balancing factor for all classes, default is `0.25` as
-        mentioned in the reference. It can be a list of floats or a scalar.
-        In the multi-class case, alpha may be set by inverse class frequency by
-        using `compute_class_weight` from `sklearn.utils`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-        reference. It helps to gradually reduce the importance given to
-        simple examples in a smooth manner. When `gamma` = 0, there is no focal
-        effect on the categorical crossentropy.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By
-        default, we assume that `y_pred` encodes a probability distribution.
-      label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
-        example, if `0.1`, use `0.1 / num_classes` for non-target labels
-        and `0.9 + 0.1 / num_classes` for target labels.
-      axis: Defaults to -1. The dimension along which the entropy is
-        computed.
+        y_true: Tensor of one-hot true targets.
+        y_pred: Tensor of predicted targets.
+        alpha: A weight balancing factor for all classes, default is `0.25` as
+            mentioned in the reference. It can be a list of floats or a scalar.
+            In the multi-class case, alpha may be set by inverse class frequency by
+            using `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference. It helps to gradually reduce the importance given to
+            simple examples in a smooth manner. When `gamma` = 0, there is no focal
+            effect on the categorical crossentropy.
+        from_logits: Whether `y_pred` is expected to be a logits tensor. By
+            default, we assume that `y_pred` encodes a probability distribution.
+        label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
+            example, if `0.1`, use `0.1 / num_classes` for non-target labels
+            and `0.9 + 0.1 / num_classes` for target labels.
+        axis: Defaults to -1. The dimension along which the entropy is
+            computed.
 
     Returns:
-      Categorical focal crossentropy loss value.
+        Categorical focal crossentropy loss value.
     """
     if isinstance(axis, bool):
         raise ValueError(
@@ -2246,6 +2246,7 @@ def _ragged_tensor_categorical_focal_crossentropy(
     axis=-1,
 ):
     """Implements support for handling RaggedTensors.
+
     Expected shape: (batch, sequence_len, n_classes) with sequence_len
     being variable per batch.
     Return shape: (batch, sequence_len).
@@ -2256,21 +2257,21 @@ def _ragged_tensor_categorical_focal_crossentropy(
     the sum of the individual loss values divided by 3.
 
     Args:
-      alpha: A weight balancing factor for all classes, default is `0.25` as
-        mentioned in the reference. It can be a list of floats or a scalar.
-        In the multi-class case, alpha may be set by inverse class frequency by
-        using `compute_class_weight` from `sklearn.utils`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-        reference. It helps to gradually reduce the importance given to
-        simple examples in a smooth manner. When `gamma` = 0, there is no focal
-        effect on the categorical crossentropy.
-      from_logits: Whether `y_pred` is expected to be a logits tensor. By
-        default, we assume that `y_pred` encodes a probability distribution.
-      label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
-        example, if `0.1`, use `0.1 / num_classes` for non-target labels
-        and `0.9 + 0.1 / num_classes` for target labels.
-      axis: Defaults to -1. The dimension along which the entropy is
-        computed.
+        alpha: A weight balancing factor for all classes, default is `0.25` as
+            mentioned in the reference. It can be a list of floats or a scalar.
+            In the multi-class case, alpha may be set by inverse class frequency by
+            using `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference. It helps to gradually reduce the importance given to
+            simple examples in a smooth manner. When `gamma` = 0, there is no focal
+            effect on the categorical crossentropy.
+        from_logits: Whether `y_pred` is expected to be a logits tensor. By
+            default, we assume that `y_pred` encodes a probability distribution.
+        label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
+            example, if `0.1`, use `0.1 / num_classes` for non-target labels
+            and `0.9 + 0.1 / num_classes` for target labels.
+        axis: Defaults to -1. The dimension along which the entropy is
+            computed.
 
     Returns:
       Categorical focal crossentropy loss value.
