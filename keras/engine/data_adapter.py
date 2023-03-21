@@ -367,7 +367,7 @@ class TensorLikeDataAdapter(DataAdapter):
         )
         dataset = dataset.with_options(options)
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def slice_inputs(self, indices_dataset, inputs):
         """Slice inputs into a Dataset of batches.
@@ -660,7 +660,7 @@ class CompositeTensorDataAdapter(DataAdapter):
                 num_samples - (self._size - 1) * self._batch_size
             )
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_dataset(self):
         return self._dataset
@@ -924,7 +924,7 @@ class GeneratorDataAdapter(DataAdapter):
         if workers == 1 and not use_multiprocessing:
             dataset = dataset.prefetch(1)
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def _standardize_batch(self, data):
         """Standardizes a batch output by a generator."""
