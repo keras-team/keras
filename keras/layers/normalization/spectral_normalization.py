@@ -29,7 +29,6 @@ class SpectralNormalization(Wrapper):
 
     This wrapper controls the Lipschitz constant of the layer by
     constraining its spectral norm, which can stabilize the training of GANs.
-    See [Spectral Normalization for GAN](https://arxiv.org/abs/1802.05957).
 
     Args:
       layer: a `tf.keras.layers.Layer` instance that
@@ -37,19 +36,23 @@ class SpectralNormalization(Wrapper):
       power_iterations: `int`, the number of iterations during normalization.
 
     Examples:
-      Wrap `tf.keras.layers.Conv2D`:
-      >>> x = np.random.rand(1, 10, 10, 1)
-      >>> conv2d = SpectralNormalization(tf.keras.layers.Conv2D(2, 2))
-      >>> y = conv2d(x)
-      >>> y.shape
-      TensorShape([1, 9, 9, 2])
 
-      Wrap `tf.keras.layers.Dense`:
-      >>> x = np.random.rand(1, 10, 10, 1)
-      >>> dense = SpectralNormalization(tf.keras.layers.Dense(10))
-      >>> y = dense(x)
-      >>> y.shape
-      TensorShape([1, 10, 10, 10])
+    Wrap `tf.keras.layers.Conv2D`:
+    >>> x = np.random.rand(1, 10, 10, 1)
+    >>> conv2d = SpectralNormalization(tf.keras.layers.Conv2D(2, 2))
+    >>> y = conv2d(x)
+    >>> y.shape
+    TensorShape([1, 9, 9, 2])
+
+    Wrap `tf.keras.layers.Dense`:
+    >>> x = np.random.rand(1, 10, 10, 1)
+    >>> dense = SpectralNormalization(tf.keras.layers.Dense(10))
+    >>> y = dense(x)
+    >>> y.shape
+    TensorShape([1, 10, 10, 10])
+
+    Reference:
+      - [Spectral Normalization for GAN](https://arxiv.org/abs/1802.05957).
     """
 
     def __init__(self, layer, power_iterations=1, **kwargs):
@@ -80,11 +83,11 @@ class SpectralNormalization(Wrapper):
 
         self.kernel_shape = self.kernel.shape.as_list()
 
-        self.sn_u = self.add_weight(
+        self.vector_u = self.add_weight(
             shape=(1, self.self.kernel_shape[-1]),
             initializer=TruncatedNormal(stddev=0.02),
             trainable=False,
-            name="sn_u",
+            name="vector_u",
             dtype=self.kernel.dtype,
         )
 
@@ -107,18 +110,22 @@ class SpectralNormalization(Wrapper):
         spectral normalized value, so that the layer is ready for `call()`.
         """
 
-        w = tf.reshape(self.kernel, [-1, self.self.kernel_shape[-1]])
-        u = self.sn_u
+        weights = tf.reshape(self.kernel, [-1, self.self.kernel_shape[-1]])
+        vector_u = self.vector_u
 
         # check for zeroes weights
-        if not tf.reduce_all(tf.equal(w, 0.0)):
+        if not tf.reduce_all(tf.equal(weights, 0.0)):
             for _ in range(self.power_iterations):
-                v = tf.math.l2_normalize(tf.matmul(u, w, transpose_b=True))
-                u = tf.math.l2_normalize(tf.matmul(v, w))
-            u = tf.stop_gradient(u)
-            v = tf.stop_gradient(v)
-            sigma = tf.matmul(tf.matmul(v, w), u, transpose_b=True)
-            self.sn_u.assign(tf.cast(u, self.sn_u.dtype))
+                vector_v = tf.math.l2_normalize(
+                    tf.matmul(vector_u, weights, transpose_b=True)
+                )
+                vector_u = tf.math.l2_normalize(tf.matmul(vector_v, weights))
+            vector_u = tf.stop_gradient(vector_u)
+            vector_v = tf.stop_gradient(vector_v)
+            sigma = tf.matmul(
+                tf.matmul(vector_v, weights), vector_u, transpose_b=True
+            )
+            self.vector_u.assign(tf.cast(vector_u, self.vector_u.dtype))
             self.kernel.assign(
                 tf.cast(
                     tf.reshape(self.kernel / sigma, self.self.kernel_shape),
