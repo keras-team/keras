@@ -106,6 +106,16 @@ class AccuracyTest(tf.test.TestCase):
         result = self.evaluate(result_t)
         self.assertAlmostEqual(result, 0.67, 2)  # 4.5/6.7
 
+    def test_binary_accuracy_sequences(self):
+        acc_obj = metrics.BinaryAccuracy()
+        y_true = [[1, 1, 0, 0], [1, 1, 0, 0]]
+        y_pred = [[1, 1, 0, 0], [1, 1, 0, 1]]
+        sample_weight = [[1, 1, 0, 0], [1, 1, 0, 0]]
+        acc_obj.reset_state()
+        acc_obj.update_state(y_true, y_pred, sample_weight)
+        result = self.evaluate(acc_obj.result().numpy())
+        self.assertEqual(result, 1.0)
+
     def test_binary_accuracy_ragged(self):
         acc_obj = metrics.BinaryAccuracy(name="my_acc")
         self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
@@ -372,6 +382,39 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
         sample_weight = tf.constant((1.0, 0.0, 1.0))
         result = a_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
+
+    # Check sample_weight with state update
+    def test_sample_state_update(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=1)
+        y_true = tf.constant([[1, 1, 2, 0, 0, 0], [1, 1, 2, 2, 0, 0]])
+        y_pred = tf.constant(
+            [
+                [
+                    [0, 1, 0],
+                    [0, 1, 0],
+                    [0, 0, 1],
+                    [0, 1, 0],
+                    [1, 0, 0],
+                    [1, 0, 0],
+                ],
+                [
+                    [0, 1, 0],
+                    [0, 1, 0],
+                    [0, 0, 1],
+                    [0, 0, 1],
+                    [0, 1, 0],
+                    [0, 1, 1],
+                ],
+            ],
+            dtype=tf.float32,
+        )
+
+        mask = tf.math.logical_not(tf.math.equal(y_true, 0))
+        sample_weight = tf.cast(mask, dtype=tf.int64)
+        a_obj.reset_state()
+        a_obj.update(y_true, y_pred, sample_weight=sample_weight)
+        result = self.evaluate(a_obj.result().numpy())
+        self.assertAllClose(1.0, result, atol=1e-5)
 
     def test_sparse_top_k_categorical_accuracy_mismatched_dims_dynamic(self):
 
