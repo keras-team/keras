@@ -3362,7 +3362,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 terminal window sizes).
             positions: Relative or absolute positions of log elements
                 in each line. If not provided,
-                defaults to `[.33, .55, .67, 1.]`.
+                defaults to `[0.3, 0.6, 0.70, 1.]`
             print_fn: Print function to use. By default, prints to `stdout`.
                 If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
