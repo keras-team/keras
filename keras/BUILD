@@ -42,7 +42,6 @@ py_library(
         "//keras/applications",
         "//keras/datasets",
         "//keras/distribute",
-        "//keras/dtensor:optimizers",
         "//keras/estimator",
         "//keras/feature_column",
         "//keras/layers",

@@ -26,9 +26,13 @@ from keras import losses
 from keras import models
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map
-from keras.dtensor import optimizers as dtensor_optimizers
 from keras.dtensor import test_util
+from keras.optimizers import adadelta
+from keras.optimizers import adagrad
 from keras.optimizers import adam
+from keras.optimizers import adamw
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd
 
 
 class OptimizersTest(test_util.DTensorBaseTest):
@@ -47,9 +51,8 @@ class OptimizersTest(test_util.DTensorBaseTest):
         }
         self.mesh = self.configTestMesh(mesh_dict)
 
-    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
-    def test_add_variable_from_reference(self, optimizer_cls):
-        optimizer = optimizer_cls(mesh=self.mesh)
+    def test_add_variable_from_reference(self):
+        optimizer = adam.Adam(mesh=self.mesh)
         variable_init_value = tf.ones([4, 4], dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -66,9 +69,8 @@ class OptimizersTest(test_util.DTensorBaseTest):
         # Make sure the variable contains the correct layout info
         self.assertEqual(state_variable.layout, model_variable.layout)
 
-    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
-    def test_build_index_dict(self, optimizer_cls):
-        optimizer = optimizer_cls(mesh=self.mesh)
+    def test_build_index_dict(self):
+        optimizer = adam.Adam(mesh=self.mesh)
         variable_init_value = tf.ones(shape=(), dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -86,7 +88,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
     @parameterized.named_parameters(
         (
             "Adadelta",
-            dtensor_optimizers.Adadelta,
+            adadelta.Adadelta,
             {},
             [
                 "Adadelta/accumulated_grad/Variable",
@@ -96,7 +98,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         ),
         (
             "Adam",
-            dtensor_optimizers.Adam,
+            adam.Adam,
             {"amsgrad": True},
             [
                 "Adam/m/Variable",
@@ -107,7 +109,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         ),
         (
             "AdamW",
-            dtensor_optimizers.AdamW,
+            adamw.AdamW,
             {"amsgrad": True},
             [
                 "AdamW/m/Variable",
@@ -118,13 +120,13 @@ class OptimizersTest(test_util.DTensorBaseTest):
         ),
         (
             "Adagrad",
-            dtensor_optimizers.Adagrad,
+            adagrad.Adagrad,
             {},
             ["Adagrad/accumulator/Variable", "iteration"],
         ),
         (
             "RMSprop",
-            dtensor_optimizers.RMSprop,
+            rmsprop.RMSprop,
             {"momentum": 0.1, "centered": True},
             [
                 "RMSprop/velocity/Variable",
@@ -135,7 +137,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         ),
         (
             "SGD",
-            dtensor_optimizers.SGD,
+            sgd.SGD,
             {"momentum": 0.1},
             ["SGD/m/Variable", "iteration"],
         ),
@@ -167,8 +169,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         all_names = [var._shared_name for var in optimizer_variables]
         self.assertCountEqual(all_names, expect_variable_names)
 
-    @parameterized.parameters([adam.Adam, dtensor_optimizers.Adam])
-    def test_embedding_lookup_backward_path(self, optimizer_cls):
+    def test_embedding_lookup_backward_path(self):
         # See b/265441685 for more context.
         backend.enable_tf_random_generator()
         os.environ[
@@ -212,7 +213,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
             preds = layers.Dense(output_size, activation="softmax")(x)
             model = models.Model(inputs, preds)
 
-        optimizer = optimizer_cls(mesh=self.mesh)
+        optimizer = adam.Adam(mesh=self.mesh)
 
         @tf.function
         def train_func(model, inputs, label, optimizer):

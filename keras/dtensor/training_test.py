@@ -20,8 +20,8 @@ from absl.testing import parameterized
 
 from keras import backend
 from keras.dtensor import integration_test_utils
-from keras.dtensor import optimizers
 from keras.dtensor import test_util
+from keras.optimizers import adam
 from keras.utils import tf_utils
 
 # isort: off
@@ -52,7 +52,7 @@ class TrainingTest(test_util.DTensorBaseTest):
     @parameterized.product(
         run_eagerly=[True, False],
         jit_compile=[True, False],
-        optimizer_creator=[lambda: optimizers.Adam(), lambda: "adam"],
+        optimizer_creator=[lambda: adam.Adam(), lambda: "adam"],
     )
     def test_model_fit(self, run_eagerly, jit_compile, optimizer_creator):
         if run_eagerly and jit_compile:
