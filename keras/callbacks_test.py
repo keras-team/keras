@@ -1744,6 +1744,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
         shutil.rmtree(savepath)
 
     @test_combinations.run_with_all_model_types
+    @test_utils.run_v2_only
     def test_fit_with_ModelCheckpoint_with_steps_per_execution(self):
         layers = [
             keras.layers.Dense(
