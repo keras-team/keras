@@ -2327,10 +2327,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     * Weight histograms
     * Sampled profiling
 
-    When used in `Model.evaluate`, in addition to epoch summaries, there will be
-    a summary that records evaluation metrics vs `Model.optimizer.iterations`
-    written. The metric names will be prepended with `evaluation`, with
-    `Model.optimizer.iterations` being the step in the visualized TensorBoard.
+    When used in `Model.evaluate` or regular validation
+    ([on_test_end](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback#on_test_end)),
+    in addition to epoch summaries, there will be a summary that records
+    evaluation metrics vs `Model.optimizer.iterations` written. The metric names
+    will be prepended with `evaluation`, with `Model.optimizer.iterations` being
+    the step in the visualized TensorBoard.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
