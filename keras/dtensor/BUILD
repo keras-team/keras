@@ -116,22 +116,11 @@ tf_py_test(
     ],
     deps = [
         ":integration_test_utils",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "optimizers",
-    srcs = ["optimizers.py"],
-    deps = [
-        ":dtensor",
-        "//:expect_tensorflow_installed",
         "//keras/optimizers",
-        "//keras/optimizers/schedules:learning_rate_schedule",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -141,13 +130,13 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":layout_map",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:losses",
         "//keras/layers",
         "//keras/models",
+        "//keras/optimizers",
     ],
 )
 
