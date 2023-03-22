@@ -23,6 +23,7 @@ from absl import logging
 
 from keras import backend
 from keras import initializers
+from keras.dtensor import utils as dtensor_utils
 from keras.optimizers import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import tf_utils
@@ -1104,6 +1105,7 @@ class Optimizer(_BaseOptimizer):
             **kwargs,
         )
         self._distribution_strategy = tf.distribute.get_strategy()
+        self._run_with_dtensor = dtensor_utils.running_with_dtensor_strategy()
 
     def add_variable_from_reference(
         self, model_variable, variable_name, shape=None, initial_value=None
@@ -1182,7 +1184,7 @@ class Optimizer(_BaseOptimizer):
         Returns:
           List of (gradient, variable) pairs.
         """
-        if self._mesh:
+        if self._mesh or self._run_with_dtensor:
             raise NotImplementedError(
                 "Dtensor doesn't need to manually aggregate gradients"
             )
@@ -1214,7 +1216,7 @@ class Optimizer(_BaseOptimizer):
           TypeError: If `grads_and_vars` is malformed.
           RuntimeError: If called in a cross-replica context.
         """
-        if self._mesh:
+        if self._mesh or self._run_with_dtensor:
             # Skip any usage of strategy logic for DTensor
             return super().apply_gradients(grads_and_vars, name=name)
 
@@ -1252,7 +1254,7 @@ class Optimizer(_BaseOptimizer):
         )
 
     def _internal_apply_gradients(self, grads_and_vars):
-        if self._mesh:
+        if self._mesh or self._run_with_dtensor:
             # Skip any usage of strategy logic for DTensor
             return super()._internal_apply_gradients(grads_and_vars)
 
@@ -1269,7 +1271,7 @@ class Optimizer(_BaseOptimizer):
         Args:
           var_list: list of model variables.
         """
-        if self._mesh:
+        if self._mesh or self._run_with_dtensor:
             # Skip any usage of strategy logic for DTensor
             super()._overwrite_model_variables_with_average_value_helper(
                 var_list

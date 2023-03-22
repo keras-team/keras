@@ -52,8 +52,9 @@ class TrainingTest(test_util.DTensorBaseTest):
     @parameterized.product(
         run_eagerly=[True, False],
         jit_compile=[True, False],
+        optimizer_creator=[lambda: optimizers.Adam(), lambda: "adam"],
     )
-    def test_model_fit(self, run_eagerly, jit_compile):
+    def test_model_fit(self, run_eagerly, jit_compile, optimizer_creator):
         if run_eagerly and jit_compile:
             self.skipTest("run_eagerly can't run with jit_compile")
         dtensor_strategy = dtensor_mirrored_strategy.MirroredStrategy(
@@ -73,7 +74,7 @@ class TrainingTest(test_util.DTensorBaseTest):
 
         with dtensor_strategy.scope():
             model = integration_test_utils.get_model()
-            optimizer = optimizers.Adam(mesh=self.mesh)
+            optimizer = optimizer_creator()
 
         model.compile(
             loss="SparseCategoricalCrossentropy",
