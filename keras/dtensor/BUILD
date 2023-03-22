@@ -197,8 +197,8 @@ tf_py_test(
 )
 
 tf_py_test(
-    name = "training_test",
-    srcs = ["training_test.py"],
+    name = "strategy_integration_test",
+    srcs = ["strategy_integration_test.py"],
     tags = ["no_oss"],
     deps = [
         ":integration_test_utils",
