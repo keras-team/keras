@@ -330,7 +330,7 @@ def print_summary(
             (e.g. set this to adapt the display to different
             terminal window sizes).
         positions: Relative or absolute positions of log elements in each line.
-            If not provided, defaults to `[.33, .55, .67, 1.]`.
+            If not provided, defaults to `[0.3, 0.6, 0.70, 1.]`.
         print_fn: Print function to use.
             It will be called on each line of the summary.
             You can set it to a custom function
@@ -395,7 +395,7 @@ def print_summary(
         to_display = ["Layer (type)", "Output Shape", "Param #"]
     else:
         line_length = line_length or 98
-        positions = positions or [0.33, 0.55, 0.67, 1.0]
+        positions = positions or [0.3, 0.6, 0.70, 1.0]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
