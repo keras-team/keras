@@ -107,6 +107,9 @@ from keras.layers.normalization.group_normalization import GroupNormalization
 from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.unit_normalization import UnitNormalization
 
+# Audio preprocessing layers.
+from keras.layers.preprocessing.audio_preprocessing import MelSpectrogram
+
 # Preprocessing layers.
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
@@ -134,9 +137,6 @@ from keras.layers.regularization.activity_regularization import (
     ActivityRegularization,
 )
 from keras.layers.regularization.alpha_dropout import AlphaDropout
-
-# Audio preprocessing layers.
-from keras.layers.preprocessing.audio_preprocessing import MelSpectrogram
 
 # Regularization layers.
 from keras.layers.regularization.dropout import Dropout
