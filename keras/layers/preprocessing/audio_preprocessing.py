@@ -82,10 +82,6 @@ class MelSpectrogram(base_layer.Layer):
         ref=1.0,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        base_preprocessing_layer.keras_kpl_gauge.get_cell("MelSpectrogram").set(
-            True
-        )
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.win_length = win_length or n_fft
@@ -99,6 +95,10 @@ class MelSpectrogram(base_layer.Layer):
         self.power = power
         self.amin = amin
         self.ref = ref
+        super().__init__(**kwargs)
+        base_preprocessing_layer.keras_kpl_gauge.get_cell("MelSpectrogram").set(
+            True
+        )
 
     def call(self, inputs):
         inputs = convert_inputs(inputs, self.compute_dtype)
