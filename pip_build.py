@@ -442,7 +442,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--nightly",
-        action=argparse.BooleanOptionalAction,
+        action="store_true",
         help="Whether this is for the `keras-nightly` package.",
     )
     args = parser.parse_args()
