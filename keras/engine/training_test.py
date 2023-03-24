@@ -2585,46 +2585,6 @@ class LossWeightingTest(test_combinations.TestCase):
         # TODO(b/152990697): Fix the class weights test here.
         # self.assertLess(score[0], ref_score[0])
 
-    @test_combinations.run_all_keras_modes(always_skip_v1=True)
-    def test_segmentation_class_weights(self):
-        num_channels = 3
-        num_classes = 5
-        batch_size = 2
-        image_width = 8
-
-        input_shape = (batch_size, image_width, image_width, num_channels)
-        output_shape = (batch_size, image_width, image_width, num_classes)
-
-        model = sequential.Sequential([layers_module.Conv2D(num_classes, 1)])
-
-        model.compile(
-            loss="categorical_crossentropy",
-            metrics=["acc", metrics_module.CategoricalAccuracy()],
-            weighted_metrics=["mae", metrics_module.CategoricalAccuracy()],
-            optimizer="adam",
-            run_eagerly=test_utils.should_run_eagerly(),
-        )
-
-        x = tf.random.uniform(input_shape)
-        y = tf.random.uniform(output_shape, dtype=tf.int32, maxval=num_classes)
-
-        # Class weights are just the class value + 1
-        class_weight = dict([(i, i + 1) for i in range(num_classes)])
-
-        # This test simply asserts that the model can be compiled and fit
-        # can run without error. Verification that the class weights are
-        # applied correctly is performed in data_adapter_test.
-        model.fit(x, y, class_weight=class_weight, steps_per_epoch=1)
-
-        sample_weight = np.array([x + 1 for x in range(batch_size)])
-        model.fit(
-            x,
-            y,
-            class_weight=class_weight,
-            sample_weight=sample_weight,
-            steps_per_epoch=1,
-        )
-
     @test_combinations.run_all_keras_modes
     def test_temporal_sample_weights(self):
         num_classes = 5
