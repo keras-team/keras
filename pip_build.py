@@ -441,7 +441,9 @@ def test_wheel(wheel_path, expected_version, requirements_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--nightly", default=False, help="Whether this is for keras-nightly"
+        "--nightly",
+        action=argparse.BooleanOptionalAction,
+        help="Whether this is for the `keras-nightly` package.",
     )
     args = parser.parse_args()
     is_nightly = args.nightly
