@@ -23,7 +23,7 @@ from keras.layers.pooling.base_pooling2d import Pooling2D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.MaxPool2D", "keras.layers.MaxPooling2D")
+@keras_export("keras.layers.MaxPooling2D", "keras.layers.MaxPool2D")
 class MaxPooling2D(Pooling2D):
     """Max pooling operation for 2D spatial data.
 
