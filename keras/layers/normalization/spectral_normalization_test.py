@@ -116,7 +116,6 @@ class SpectralNormalizationTest(test_combinations.TestCase):
                 keras.layers.MaxPooling2D(2, 2)
             ).build((2, 2))
 
-    @test_combinations.run_all_keras_modes
     @parameterized.parameters(
         [
             (lambda: keras.layers.Dense(2), [3, 2]),
@@ -127,15 +126,15 @@ class SpectralNormalizationTest(test_combinations.TestCase):
             (lambda: keras.layers.Embedding(2, 10), [2]),
         ],
     )
+    @test_combinations.run_all_keras_modes
     def test_model_build(self, base_layer_fn, input_shape):
         inputs = keras.layers.Input(shape=input_shape)
         base_layer = base_layer_fn()
         sn_layer = keras.layers.SpectralNormalization(base_layer)
         model = keras.models.Sequential(layers=[inputs, sn_layer])
         model.build()
-        self.assertTrue(hasattr(model.layers[0], "u"))
+        self.assertTrue(hasattr(model.layers[0], "vector_u"))
 
-    @test_combinations.run_all_keras_modes
     @parameterized.parameters(
         [
             (lambda: keras.layers.Dense(2), [3, 2], [3, 2]),
@@ -147,6 +146,7 @@ class SpectralNormalizationTest(test_combinations.TestCase):
             (lambda: keras.layers.Embedding(2, 10), [2], [2, 10]),
         ],
     )
+    @test_combinations.run_all_keras_modes
     def test_model_fit(self, base_layer_fn, input_shape, output_shape):
         inputs = keras.layers.Input(shape=input_shape)
         base_layer = base_layer_fn()
@@ -166,4 +166,4 @@ class SpectralNormalizationTest(test_combinations.TestCase):
             batch_size=10,
             verbose=0,
         )
-        self.assertTrue(hasattr(model.layers[0], "u"))
+        self.assertTrue(hasattr(model.layers[0], "vector_u"))
