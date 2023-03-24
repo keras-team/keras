@@ -167,7 +167,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
                         x.synchronization, x._variable.synchronization
                     )
                     self.assertEqual(x.aggregation, x._variable.aggregation)
-                    self.assertEqual(self.evaluate(x.initialized_value()), 7)
+                    self.assertEqual(self.evaluate(x.read_value()), 7)
                     if not tf.executing_eagerly():
                         if not tf.distribute.has_strategy():
                             # These functions are not supported for
