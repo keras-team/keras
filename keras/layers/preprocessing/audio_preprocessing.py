@@ -157,7 +157,7 @@ class MelSpectrogram(base_layer.Layer):
         if len(input_shape) == 1:
             output_shape = [
                 self.n_mels,
-                int(math.ceil(input_shape[1] / self.hop_length)),
+                int(math.ceil(input_shape[0] / self.hop_length)),
             ]
         else:
             output_shape = [
