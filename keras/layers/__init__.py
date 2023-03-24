@@ -135,6 +135,9 @@ from keras.layers.regularization.activity_regularization import (
 )
 from keras.layers.regularization.alpha_dropout import AlphaDropout
 
+# Audio preprocessing layers.
+from keras.layers.preprocessing.audio_preprocessing import MelSpectrogram
+
 # Regularization layers.
 from keras.layers.regularization.dropout import Dropout
 from keras.layers.regularization.gaussian_dropout import GaussianDropout
