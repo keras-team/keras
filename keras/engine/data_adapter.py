@@ -1715,21 +1715,24 @@ def _make_class_weight_map_fn(class_weight):
                 "output."
             )
 
-        if y.shape.rank > 2:
-            raise ValueError(
-                "`class_weight` not supported for 3+ dimensional targets."
+        if y.shape.rank >= 2:
+            y_classes = tf.__internal__.smart_cond.smart_cond(
+                backend.shape(y)[-1] > 1,
+                lambda: backend.argmax(y, axis=-1),
+                lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int64),
             )
-
-        y_classes = tf.__internal__.smart_cond.smart_cond(
-            y.shape.rank == 2 and backend.shape(y)[1] > 1,
-            lambda: backend.argmax(y, axis=1),
-            lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64),
-        )
+        else:
+            # Special casing for rank 1, where we can guarantee sparse encoding.
+            y_classes = tf.cast(tf.round(y), tf.int64)
 
         cw = tf.gather(class_weight_tensor, y_classes)
         if sw is not None:
             cw = tf.cast(cw, sw.dtype)
             # `class_weight` and `sample_weight` are multiplicative.
+            # If class_weight has more than 2 dimensions, we need to reshape
+            # sample_weight to make broadcasting possible for multiplication.
+            rank_delta = cw.shape.rank - sw.shape.rank
+            sw = tf.reshape(sw, sw.shape + [1] * rank_delta)
             sw = sw * cw
         else:
             sw = cw

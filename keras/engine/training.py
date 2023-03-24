@@ -1515,7 +1515,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 (during training only).
                 This can be useful to tell the model to
                 "pay more attention" to samples from
-                an under-represented class.
+                an under-represented class. When `class_weight` is specified
+                and targets have a rank of 2 or greater, either `y` must be
+                one-hot encoded, or an explicit final dimension of `1` must
+                be included for sparse class labels.
             sample_weight: Optional Numpy array of weights for
                 the training samples, used for weighting the loss function
                 (during training only). You can either pass a flat (1D)
@@ -2636,7 +2639,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               to a weight (float) to apply to the model's loss for the samples
               from this class during training. This can be useful to tell the
               model to "pay more attention" to samples from an under-represented
-              class.
+              class. When `class_weight` is specified and targets have a rank of
+              2 or greater, either `y` must be one-hot encoded, or an explicit
+              final dimension of `1` must be included for sparse class labels.
             reset_metrics: If `True`, the metrics returned will be only for this
               batch. If `False`, the metrics will be statefully accumulated
               across batches.
