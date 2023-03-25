@@ -108,7 +108,7 @@ class MelSpectrogram(base_layer.Layer):
         )
 
     def call(self, inputs):
-        inputs = convert_inputs(inputs, self.compute_dtype)
+        inputs = utils.ensure_tensor(inputs, dtype=self.compute_dtype)
         outputs = self.spectrogram(inputs)
         outputs = self.melscale(outputs)
         if self.power_to_db:
