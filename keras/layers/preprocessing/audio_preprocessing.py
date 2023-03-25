@@ -41,9 +41,70 @@ class MelSpectrogram(base_layer.Layer):
     which approximates how humans perceive sound. They are commonly used in
     speech and music processing tasks like speech recognition, speaker
     identification, and music genre classification.
+
     For more information on spectrograms, you may refer to this resources:
     [spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
     [mel scale](https://en.wikipedia.org/wiki/Mel_scale).
+
+    Examples:
+
+    **Unbatched audio signal**
+
+    >>> layer = tf.keras.layers.experimental.MelSpectrogram(n_mels=64,
+    ...                                                     sr=8000,
+    ...                                                     hop_length=256,
+    ...                                                     n_fft=2048)
+    >>> layer(tf.random.uniform(shape=(16000,)))
+    <tf.Tensor: shape=(64, 63), dtype=float32, numpy=
+    array([[ 27.002258 ,  25.82557  ,  24.530018 , ...,  29.447317 ,
+            22.576866 ,   4.1253514],
+        [ 28.87952  ,  27.97433  ,  26.31767  , ...,  26.986296 ,
+            19.680676 ,   1.4215486],
+        [ 27.325214 ,  27.779736 ,  27.688522 , ...,  24.389975 ,
+            17.259838 ,  -1.4919776],
+        ...,
+        [ 33.47647  ,  33.61223  ,  32.695736 , ...,  23.01299  ,
+            11.53509  , -14.854364 ],
+        [ 32.956306 ,  33.096653 ,  33.092117 , ...,  22.744698 ,
+            12.255739 , -13.4533825],
+        [ 32.777905 ,  33.19077  ,  34.070583 , ...,  22.417168 ,
+            12.26748  , -10.877618 ]], dtype=float32)>
+
+    **Batched audio signal**
+
+    >>> layer = tf.keras.layers.experimental.MelSpectrogram(n_mels=80,
+    ...                                                     sr=8000,
+    ...                                                     hop_length=128,
+    ...                                                     n_fft=2048)
+    >>> layer(tf.random.uniform(shape=(2, 16000)))
+    <tf.Tensor: shape=(2, 80, 125), dtype=float32, numpy=
+    array([[[ 23.235947  ,  22.86543   ,  22.391176  , ...,  21.741554  ,
+            15.451798  ,   2.4877253 ],
+            [ 20.351486  ,  20.715343  ,  21.380817  , ...,  18.518717  ,
+            11.968127  ,   0.46634886],
+            [ 20.032818  ,  21.016296  ,  22.054605  , ...,  16.514582  ,
+            9.840168  ,  -2.1056828 ],
+            ...,
+            [ 31.911928  ,  31.824018  ,  31.787327  , ...,  13.440712  ,
+            4.3596454 ,  -9.938191  ],
+            [ 32.92584   ,  33.671867  ,  34.169167  , ...,  10.817527  ,
+            2.873957  , -10.4782915 ],
+            [ 30.819023  ,  31.034756  ,  31.179695  , ...,   9.792138  ,
+            0.40263397, -14.491785  ]],
+
+        [[ 23.705862  ,  24.24318   ,  24.736097  , ...,  21.071415  ,
+            14.810348  ,   1.906768  ],
+            [ 23.744732  ,  23.76305   ,  23.666683  , ...,  17.193201  ,
+            10.598775  ,  -0.476082  ],
+            [ 23.355988  ,  23.098003  ,  22.922604  , ...,  13.369602  ,
+            7.3324995 ,  -3.4960124 ],
+            ...,
+            [ 31.444962  ,  31.662983  ,  31.764927  , ...,  12.580458  ,
+            4.8858614 ,  -8.833308  ],
+            [ 31.369892  ,  31.349333  ,  31.308098  , ...,  13.320463  ,
+            4.72253   , -10.279094  ],
+            [ 31.86178   ,  31.784441  ,  31.860874  , ...,   7.7960706 ,
+            -0.7777866 , -15.290524  ]]], dtype=float32)>
 
     Input shape:
         1D (unbatched) or 2D (batched) tensor with shape:`(..., samples)`.
