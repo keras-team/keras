@@ -194,8 +194,3 @@ class MelSpectrogram(base_layer.Layer):
             }
         )
         return config
-
-
-def convert_inputs(inputs, dtype=None):
-    inputs = utils.ensure_tensor(inputs, dtype=dtype)
-    return inputs
