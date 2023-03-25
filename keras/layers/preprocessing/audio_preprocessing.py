@@ -154,8 +154,7 @@ class MelSpectrogram(base_layer.Layer):
             / tf.math.log(10.0)
         )
         log_spec = tf.math.maximum(
-            log_spec,
-            tf.math.reduce_max(log_spec) - self.top_db
+            log_spec, tf.math.reduce_max(log_spec) - self.top_db
         )
         return log_spec
 
