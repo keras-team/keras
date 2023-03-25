@@ -24,21 +24,28 @@ from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
 
 
-@keras_export(
-    "keras.layers.MelSpectrogram",
-    "keras.layers.experimental.preprocessing.MelSpectrogram",
-)
+@keras_export("keras.layers.experimental.MelSpectrogram")
 class MelSpectrogram(base_layer.Layer):
     """A preprocessing layer to convert raw audio signals to Mel spectrograms.
 
-    This layer takes `float32/float64` single or batched audio signal as inputs
-    and computes the Mel spectrogram using Short-Time Fourier Transform (STFT)
+    This layer takes `float32`/`float64` single or batched audio signal as
+    inputs and computes the Mel spectrogram using Short-Time Fourier Transform
     and Mel scaling. The input should be a 1D (unbatched) or 2D (batched) tensor
     representing audio signals. The output will be a 2D or 3D tensor
     representing Mel spectrograms.
 
-    For an overview and full list of preprocessing layers, see the preprocessing
-    [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
+    A spectrogram is a visual representation of the spectrum of frequencies
+    of a signal as it varies with time. It is image-lke representation of signal
+    where the x-axis represents time, the y-axis represents frequency, and
+    each pixel represents intensity. Mel spectrograms are a type of
+    spectrogram that use the mel scale, which is a perceptual scale that
+    approximates human hearing. By converting the frequency axis to
+    the Mel scale, Mel spectrograms can reduce the dimensionality of audio data
+    while preserving important information for human perception. They are
+    commonly used in speech and music processing tasks, such as
+    speech recognition, speaker identification, and music genre classification.
+    For more information on spectrograms and the mel scale,
+    refer to the provided resources. For more in
 
     Input shape:
         1D (unbatched) or 2D (batched) tensor with shape:`(..., samples)`.
