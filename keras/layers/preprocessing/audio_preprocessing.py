@@ -34,18 +34,16 @@ class MelSpectrogram(base_layer.Layer):
     representing audio signals. The output will be a 2D or 3D tensor
     representing Mel spectrograms.
 
-    A spectrogram is a visual representation of the spectrum of frequencies
-    of a signal as it varies with time. It is image-lke representation of signal
-    where the x-axis represents time, the y-axis represents frequency, and
-    each pixel represents intensity. Mel spectrograms are a type of
-    spectrogram that use the mel scale, which is a perceptual scale that
-    approximates human hearing. By converting the frequency axis to
-    the Mel scale, Mel spectrograms can reduce the dimensionality of audio data
-    while preserving important information for human perception. They are
-    commonly used in speech and music processing tasks, such as
-    speech recognition, speaker identification, and music genre classification.
-    For more information on spectrograms and the mel scale,
-    refer to the provided resources. For more in
+    A spectrogram is an image-like representation that shows the frequency
+    spectrum of a signal over time. It uses x-axis to represent time, y-axis to
+    represent frequency, and each pixel to represent intensity.
+    Mel spectrograms are a special type of spectrogram that use the mel scale,
+    which approximates how humans perceive sound. They are commonly used in
+    speech and music processing tasks like speech recognition, speaker
+    identification, and music genre classification.
+    For more information on spectrograms, you may refer to this resources:
+    [spectrogram](https://en.wikipedia.org/wiki/Spectrogram),
+    [mel scale](https://en.wikipedia.org/wiki/Mel_scale).
 
     Input shape:
         1D (unbatched) or 2D (batched) tensor with shape:`(..., samples)`.
