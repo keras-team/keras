@@ -926,29 +926,41 @@ class CategoricalCrossentropy(LossFunctionWrapper):
 class CategoricalFocalCrossentropy(LossFunctionWrapper):
     """Computes the alpha balanced focal crossentropy loss.
 
-    According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
-    helps to apply a focal factor to down-weight easy examples and focus more on
-    hard examples. By default, the focal tensor is computed as follows:
-
-    It has pt defined as:
-    pt = p, if y = 1 else 1 - p
-
-    The authors use alpha-balanced variant of focal loss in the paper:
-    FL(pt) = −α_t * (1 − pt)^gamma * log(pt)
-
-    Extending this to multi-class case is straightforward:
-    FL(pt) = α_t * (1 − pt)^gamma * CE, where minus comes from
-    negative log-likelihood and included in CE.
-
-    `modulating_factor` is (1 − pt)^gamma, where `gamma` is a focusing
-    parameter. When `gamma` = 0, there is no focal effect on the categorical
-    crossentropy. And if alpha = 1, at the same time the loss is equivalent to
-    the categorical crossentropy.
-
     Use this crossentropy loss function when there are two or more label
     classes and if you want to handle class imbalance without using
-    `class_weights`.
-    We expect labels to be provided in a `one_hot` representation.
+    `class_weights`. We expect labels to be provided in a `one_hot`
+    representation.
+
+    According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
+    helps to apply a focal factor to down-weight easy examples and focus more on
+    hard examples. The general formula for the focal loss (FL)
+    is as follows:
+
+    `FL(p_t) = (1 − p_t)^gamma * log(p_t)`
+
+    where `p_t` is defined as follows:
+    `p_t = output if y_true == 1, else 1 - output`
+
+    `(1 − p_t)^gamma` is the `modulating_factor`, where `gamma` is a focusing
+    parameter. When `gamma` = 0, there is no focal effect on the cross entropy.
+    `gamma` reduces the importance given to simple examples in a smooth manner.
+
+    The authors use alpha-balanced variant of focal loss (FL) in the paper:
+    `FL(p_t) = −alpha * (1 − p_t)^gamma * log(p_t)`
+
+    where `alpha` is the weight factor for the classes. If `alpha` = 1, the
+    loss won't be able to handle class imbalance properly as all
+    classes will have the same weight. This can be a constant or a list of
+    constants. If alpha is a list, it must have the same length as the number
+    of classes.
+
+    The formula above can be generalized to:
+    `FL(p_t) = alpha * (1 − p_t)^gamma * CrossEntropy(y_true, y_pred)`
+
+    where minus comes from `CrossEntropy(y_true, y_pred)` (CE).
+
+    Extending this to multi-class case is straightforward:
+    `FL(p_t) = alpha * (1 − p_t)^gamma * CategoricalCE(y_true, y_pred)`
 
     In the snippet below, there is `# classes` floating pointing values per
     example. The shape of both `y_pred` and `y_true` are
@@ -981,7 +993,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
 
     Usage with the `compile()` API:
     ```python
-    model.compile(optimizer='sgd',
+    model.compile(optimizer='adam',
                   loss=tf.keras.losses.CategoricalFocalCrossentropy())
     ```
     Args:
