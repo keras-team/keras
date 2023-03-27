@@ -191,17 +191,26 @@ def generate_keras_api_files(package_directory, src_directory):
                         f"[!] Could not inspect symbol '{name}' from {module}."
                     )
                 continue
-            # If the symbol is a subclass of a non-registered symbol, skip it.
+            # If the symbol is a non-registered subclass of
+            # a registered symbol, skip it.
             skip = False
+
+            def has_same_metadata(a, b):
+                if (
+                    hasattr(a, "_keras_api_names")
+                    and hasattr(b, "_keras_api_names")
+                    and a._keras_api_names == b._keras_api_names
+                    and a._keras_api_names_v1 == b._keras_api_names_v1
+                ):
+                    return True
+                return False
+
             try:
                 classes = inspect.getmro(symbol)
                 if len(classes) >= 2:
                     parents = classes[1:]
                     for p in parents:
-                        if (
-                            hasattr(p, "_keras_api_names")
-                            and p._keras_api_names == symbol._keras_api_names
-                        ):
+                        if has_same_metadata(p, symbol):
                             skip = True
             except AttributeError:
                 # getmro will error out on a non-class
@@ -424,6 +433,7 @@ def test_wheel(wheel_path, expected_version, requirements_path):
         f"pip3 install -r {requirements_path}\n"
         f"pip3 install {wheel_path} --force-reinstall\n"
         f"python3 -c 'import keras;{checks};print(keras.__version__)'\n"
+        f"python3 -c 'import tensorflow as tf;tf.compat.v1.layers.Dense'\n"
     )
     try:
         # Check version is correct
