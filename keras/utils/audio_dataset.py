@@ -23,10 +23,7 @@ from keras.utils import dataset_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-try:
-    import tensorflow_io as tfio
-except ImportError:
-    tfio = None
+tfio = None  # Import as-needed.
 
 ALLOWED_FORMATS = (".wav",)
 
@@ -168,12 +165,16 @@ def audio_dataset_from_directory(
                 f"Received: sampling_rate={sampling_rate}"
             )
 
+        global tfio
         if tfio is None:
-            raise ImportError(
-                "To use the argument `sampling_rate`, you should install "
-                "tensorflow_io. You can install it via `pip install "
-                "tensorflow-io`."
-            )
+            try:
+                import tensorflow_io as tfio
+            except ImportError:
+                raise ImportError(
+                    "To use the argument `sampling_rate`, you should install "
+                    "tensorflow_io. You can install it via `pip install "
+                    "tensorflow-io`."
+                )
 
     if labels is None or label_mode is None:
         labels = None

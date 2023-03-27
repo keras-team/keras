@@ -367,7 +367,7 @@ class TensorLikeDataAdapter(DataAdapter):
         )
         dataset = dataset.with_options(options)
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def slice_inputs(self, indices_dataset, inputs):
         """Slice inputs into a Dataset of batches.
@@ -660,7 +660,7 @@ class CompositeTensorDataAdapter(DataAdapter):
                 num_samples - (self._size - 1) * self._batch_size
             )
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_dataset(self):
         return self._dataset
@@ -924,7 +924,7 @@ class GeneratorDataAdapter(DataAdapter):
         if workers == 1 and not use_multiprocessing:
             dataset = dataset.prefetch(1)
 
-        self._dataset = dataset
+        self._dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     def _standardize_batch(self, data):
         """Standardizes a batch output by a generator."""
@@ -1592,20 +1592,24 @@ class _ClusterCoordinatorExactEvalDataHandler(_ClusterCoordinatorDataHandler):
         self, strategy, x, steps_per_epoch, class_weight, distribute
     ):
         if isinstance(x, dataset_creator.DatasetCreator):
-            raise NotImplementedError(
-                "Using DatasetCreator with exact evaluation is not yet "
-                "supported. Please use a tf.data.Dataset type."
+
+            def per_worker_dataset_fn():
+                ddf = strategy.distribute_datasets_from_function(
+                    x, options=x.input_options
+                )
+                return ddf
+
+            coordinator = self._model._cluster_coordinator
+            self._dataset = coordinator.create_per_worker_dataset(
+                per_worker_dataset_fn
             )
+            logging.info("dataset element spec: %r", self._dataset.element_spec)
+            self._dataset = self._dataset.build()
         else:
             # TODO(b/268226218): Support DistributedDataset input
-            if _is_distributed_dataset(x):
-                assert strategy.extended._num_replicas_in_sync == 1, (
-                    "Multi-device workers not yet supported for exact "
-                    "evaluation.",
-                )
-                x = x._original_dataset
-
-            self._warn_if_not_file_shardable(x)
+            if not _is_distributed_dataset(x):
+                self._warn_if_not_file_shardable(x)
+                x = strategy.experimental_distribute_dataset(x)
 
             coordinator = self._model._cluster_coordinator
             self._dataset = coordinator.create_per_worker_dataset(x)
@@ -1980,4 +1984,10 @@ def _scipy_sparse_to_sparse_tensor(t):
 
 
 def _is_distributed_dataset(ds):
-    return isinstance(ds, tf.distribute.DistributedDataset)
+    return isinstance(
+        ds,
+        (
+            tf.distribute.DistributedDataset,
+            tf.experimental.dtensor.DTensorDataset,
+        ),
+    )

@@ -767,7 +767,7 @@ distribute_py_test(
     name = "parameter_server_exact_evaluation_test",
     srcs = ["parameter_server_exact_evaluation_test.py"],
     python_version = "PY3",
-    shard_count = 11,
+    shard_count = 28,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)

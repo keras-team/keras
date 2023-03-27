@@ -165,3 +165,22 @@ def call_with_layout(fn, layout, *args, **kwargs):
             result = fn(*args, **kwargs)
             return dtensor.relayout(result, layout)
     return fn(*args, **kwargs)
+
+
+def running_with_dtensor_strategy():
+    """Check whether running with a `Strategy` that is backed by DTensor.
+
+    In the DTensor based training, all the tensors are in global context, which
+    is different from the local context. Some keras components need to
+    behave differently, e.g. BatchNormalization and SyncBatchNormalization, as
+    well as optimizers.
+
+    This check will help those layer to branch the logic and keep the correct
+    behavior between different context.
+    """
+    if not tf.distribute.has_strategy():
+        return False
+    strategy = tf.distribute.get_strategy()
+    # TODO(scottzhu): Finalize the strategy API to check if a strategy is backed
+    # by DTensor.
+    return getattr(strategy, "_mesh", None) is not None

@@ -1,7 +1,5 @@
 path: "tensorflow.keras.dtensor.experimental.optimizers.RMSprop"
 tf_class {
-  is_instance: "<class \'keras.dtensor.optimizers.RMSprop\'>"
-  is_instance: "<class \'keras.dtensor.optimizers.Optimizer\'>"
   is_instance: "<class \'keras.optimizers.rmsprop.RMSprop\'>"
   is_instance: "<class \'keras.optimizers.optimizer.Optimizer\'>"
   is_instance: "<class \'keras.optimizers.optimizer._BaseOptimizer\'>"
@@ -26,7 +24,7 @@ tf_class {
   }
   member_method {
     name: "__init__"
-    argspec: "args=[\'self\', \'learning_rate\', \'rho\', \'momentum\', \'epsilon\', \'centered\', \'gradients_clip_option\', \'ema_option\', \'jit_compile\', \'name\', \'mesh\'], varargs=None, keywords=None, defaults=[\'0.001\', \'0.9\', \'0.0\', \'1e-07\', \'False\', \'None\', \'None\', \'False\', \'RMSprop\', \'None\'], "
+    argspec: "args=[\'self\', \'learning_rate\', \'rho\', \'momentum\', \'epsilon\', \'centered\', \'weight_decay\', \'clipnorm\', \'clipvalue\', \'global_clipnorm\', \'use_ema\', \'ema_momentum\', \'ema_overwrite_frequency\', \'jit_compile\', \'name\'], varargs=None, keywords=kwargs, defaults=[\'0.001\', \'0.9\', \'0.0\', \'1e-07\', \'False\', \'None\', \'None\', \'None\', \'None\', \'False\', \'0.99\', \'100\', \'True\', \'RMSprop\'], "
   }
   member_method {
     name: "add_variable"
@@ -34,7 +32,7 @@ tf_class {
   }
   member_method {
     name: "add_variable_from_reference"
-    argspec: "args=[\'self\', \'model_variable\', \'variable_name\', \'initial_value\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'self\', \'model_variable\', \'variable_name\', \'shape\', \'initial_value\'], varargs=None, keywords=None, defaults=[\'None\', \'None\'], "
   }
   member_method {
     name: "aggregate_gradients"
@@ -42,7 +40,7 @@ tf_class {
   }
   member_method {
     name: "apply_gradients"
-    argspec: "args=[\'self\', \'grads_and_vars\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'grads_and_vars\', \'name\', \'skip_gradients_aggregation\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'False\'], "
   }
   member_method {
     name: "build"

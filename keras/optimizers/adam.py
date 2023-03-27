@@ -25,7 +25,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.Adam", "keras.optimizers.experimental.Adam", v1=[]
+    "keras.optimizers.Adam",
+    "keras.optimizers.experimental.Adam",
+    "keras.dtensor.experimental.optimizers.Adam",
+    v1=[],
 )
 class Adam(optimizer.Optimizer):
     r"""Optimizer that implements the Adam algorithm.

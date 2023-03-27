@@ -330,7 +330,7 @@ def print_summary(
             (e.g. set this to adapt the display to different
             terminal window sizes).
         positions: Relative or absolute positions of log elements in each line.
-            If not provided, defaults to `[.33, .55, .67, 1.]`.
+            If not provided, defaults to `[0.3, 0.6, 0.70, 1.]`.
         print_fn: Print function to use.
             It will be called on each line of the summary.
             You can set it to a custom function
@@ -395,7 +395,7 @@ def print_summary(
         to_display = ["Layer (type)", "Output Shape", "Param #"]
     else:
         line_length = line_length or 98
-        positions = positions or [0.33, 0.55, 0.67, 1.0]
+        positions = positions or [0.3, 0.6, 0.70, 1.0]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
@@ -425,6 +425,11 @@ def print_summary(
                 # we don't need any if we are printing the last column
                 space = 2 if col != len(positions) - 1 else 0
                 cutoff = end_pos - start_pos - space
+                # Except for last col, offset by one to align the start of col
+                if col != len(positions) - 1:
+                    cutoff -= 1
+                if col == 0:
+                    cutoff -= nested_level
                 fit_into_line = left_to_print[col][:cutoff]
                 # For nicer formatting we line-break on seeing end of
                 # tuple/dict etc.
@@ -445,7 +450,8 @@ def print_summary(
                 left_to_print[col] = left_to_print[col][cutoff:]
 
                 # Pad out to the next position
-                if nested_level:
+                # Make space for nested_level for last column
+                if nested_level and col == len(positions) - 1:
                     line += " " * (positions[col] - len(line) - nested_level)
                 else:
                     line += " " * (positions[col] - len(line))

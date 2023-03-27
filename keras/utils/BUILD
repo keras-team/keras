@@ -641,6 +641,21 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "audio_dataset_with_tfio_test",
+    size = "small",
+    srcs = ["audio_dataset_with_tfio_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":audio_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//:expect_tensorflow_io_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
     name = "feature_space_test",
     size = "medium",
     srcs = ["feature_space_test.py"],

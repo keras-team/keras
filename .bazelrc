@@ -137,9 +137,6 @@ build:windows --experimental_strict_action_env=true
 # Verbose failure logs when something goes wrong
 build:windows --verbose_failures
 
-# On windows, we never cross compile
-build:windows --distinct_host_configuration=false
-
 # Suppress all warning messages.
 build:short_logs --output_filter=DONT_MATCH_ANYTHING
 build:verbose_logs --output_filter=
