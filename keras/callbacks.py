@@ -2327,10 +2327,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     * Weight histograms
     * Sampled profiling
 
-    When used in `Model.evaluate`, in addition to epoch summaries, there will be
-    a summary that records evaluation metrics vs `Model.optimizer.iterations`
-    written. The metric names will be prepended with `evaluation`, with
-    `Model.optimizer.iterations` being the step in the visualized TensorBoard.
+    When used in `Model.evaluate` or regular validation
+    ([on_test_end](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback#on_test_end)),
+    in addition to epoch summaries, there will be a summary that records
+    evaluation metrics vs `Model.optimizer.iterations` written. The metric names
+    will be prepended with `evaluation`, with `Model.optimizer.iterations` being
+    the step in the visualized TensorBoard.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
@@ -3165,12 +3167,15 @@ class CSVLogger(Callback):
 
         if self.keys is None:
             self.keys = sorted(logs.keys())
-
-        if self.model.stop_training:
-            # We set NA so that csv parsers do not fail for this last epoch.
-            logs = dict(
-                (k, logs[k]) if k in logs else (k, "NA") for k in self.keys
-            )
+            # When validation_freq > 1, `val_` keys are not in first epoch logs
+            # Add the `val_` keys so that its part of the fieldnames of writer.
+            val_keys_found = False
+            for key in self.keys:
+                if key.startswith("val_"):
+                    val_keys_found = True
+                    break
+            if not val_keys_found:
+                self.keys.extend(["val_" + k for k in self.keys])
 
         if not self.writer:
 
@@ -3186,7 +3191,9 @@ class CSVLogger(Callback):
                 self.writer.writeheader()
 
         row_dict = collections.OrderedDict({"epoch": epoch})
-        row_dict.update((key, handle_value(logs[key])) for key in self.keys)
+        row_dict.update(
+            (key, handle_value(logs.get(key, "NA"))) for key in self.keys
+        )
         self.writer.writerow(row_dict)
         self.csv_file.flush()
 

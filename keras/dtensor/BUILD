@@ -116,22 +116,11 @@ tf_py_test(
     ],
     deps = [
         ":integration_test_utils",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "optimizers",
-    srcs = ["optimizers.py"],
-    deps = [
-        ":dtensor",
-        "//:expect_tensorflow_installed",
         "//keras/optimizers",
-        "//keras/optimizers/schedules:learning_rate_schedule",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -141,13 +130,13 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":layout_map",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:losses",
         "//keras/layers",
         "//keras/models",
+        "//keras/optimizers",
     ],
 )
 
@@ -204,5 +193,19 @@ tf_py_test(
         "//keras/layers",
         "//keras/models",
         "//keras/utils:tf_utils",
+    ],
+)
+
+tf_py_test(
+    name = "strategy_integration_test",
+    srcs = ["strategy_integration_test.py"],
+    tags = ["no_oss"],
+    deps = [
+        ":integration_test_utils",
+        ":test_util",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
     ],
 )

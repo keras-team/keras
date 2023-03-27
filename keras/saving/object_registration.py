@@ -16,6 +16,7 @@
 
 import inspect
 import threading
+import warnings
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -151,15 +152,17 @@ def register_keras_serializable(package="Custom", name=None):
             )
 
         if registered_name in _GLOBAL_CUSTOM_OBJECTS:
-            raise ValueError(
+            warnings.warn(
                 f"{registered_name} has already been registered to "
-                f"{_GLOBAL_CUSTOM_OBJECTS[registered_name]}"
+                f"{_GLOBAL_CUSTOM_OBJECTS[registered_name]}. "
+                f"Overwriting registration with {arg}."
             )
 
         if arg in _GLOBAL_CUSTOM_NAMES:
-            raise ValueError(
+            warnings.warn(
                 f"{arg} has already been registered to "
-                f"{_GLOBAL_CUSTOM_NAMES[arg]}"
+                f"{_GLOBAL_CUSTOM_NAMES[arg]}. "
+                f"Overwriting registration with {registered_name}."
             )
         _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
         _GLOBAL_CUSTOM_NAMES[arg] = registered_name

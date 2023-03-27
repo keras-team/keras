@@ -1842,6 +1842,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return self.compute_metrics(x, y, y_pred, sample_weight)
 
     def _make_test_function_exact(self):
+        if getattr(self, "_shard_test_function", None):
+            return self._shard_test_function
+
         def step_function(batch):
             def run_step(data):
                 # TODO(b/272050910): Use sample_weight for weighted metrics.
@@ -1886,11 +1889,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 shard_test_function, reduce_retracing=True
             )
 
-        self.test_function = lambda *args: self._cluster_coordinator.schedule(
-            shard_test_function,
-            args=args,
+        self._shard_test_function = (
+            lambda *args: self._cluster_coordinator.schedule(
+                shard_test_function,
+                args=args,
+            )
         )
-        return self.test_function
+        return self._shard_test_function
 
     def make_test_function(self, force=False):
         """Creates a function that executes one step of evaluation.
@@ -3357,7 +3362,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 terminal window sizes).
             positions: Relative or absolute positions of log elements
                 in each line. If not provided,
-                defaults to `[.33, .55, .67, 1.]`.
+                defaults to `[0.3, 0.6, 0.70, 1.]`
             print_fn: Print function to use. By default, prints to `stdout`.
                 If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
@@ -4065,7 +4070,9 @@ def reduce_per_replica(values, strategy, reduction):
             elif reduction == "sum":
                 return strategy.reduce("SUM", v, axis=None)
 
-        if not _is_per_replica_instance(v):
+        if _is_dtensor_per_replica_instance(v):
+            return _reduce_dtensor_per_replica(v, strategy, reduction)
+        elif not _is_per_replica_instance(v):
             return v
         elif reduction == "first":
             return strategy.experimental_local_results(v)[0]
@@ -4138,6 +4145,28 @@ def potentially_ragged_concat(tensors):
     return tf.ragged.constant(
         [tensor.numpy() for tensor in tensors], inner_shape=constant_inner_shape
     ).merge_dims(0, 1)
+
+
+def _reduce_dtensor_per_replica(value, strategy, reduction):
+    # Note that this function could happen in graph, so we can't just access
+    # the per-replica.values(), which will trigger unpack in graph and result
+    # into error.
+    # For now we will perform ops on dtensor instance directly on a global
+    # context.
+    dtensor = value._dtensor
+    if reduction == "first":
+        num_replica = strategy.num_replicas_in_sync
+        return tf.split(dtensor, num_replica, axis=0)[0]
+    elif reduction == "concat":
+        # Since dtensor is already in global context, the concat is a no-op
+        return dtensor
+    elif reduction == "sum":
+        return tf.reduce_sum(dtensor)
+    else:
+        raise ValueError(
+            '`reduction` must be one of "first", "concat", "sum", or "auto". '
+            f"Received: reduction={reduction}."
+        )
 
 
 def _get_verbosity(verbose, distribute_strategy):
@@ -4264,6 +4293,16 @@ def flatten_metrics_in_order(logs, metrics_names):
 def _is_per_replica_instance(obj):
     return isinstance(obj, tf.distribute.DistributedValues) and isinstance(
         obj, tf.__internal__.CompositeTensor
+    )
+
+
+def _is_dtensor_per_replica_instance(obj):
+    # This is a temp check for DTensorDistributedValue, which is not public API
+    # yet.
+    # TODO(scottzhu): Move to more stable API when dtensor based strategy is
+    # ready.
+    return isinstance(obj, tf.distribute.DistributedValues) and hasattr(
+        obj, "_dtensor"
     )
 
 

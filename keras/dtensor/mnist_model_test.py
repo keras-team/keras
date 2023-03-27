@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import integration_test_utils
-from keras.dtensor import optimizers as optimizer_lib
 from keras.dtensor import test_util
+from keras.optimizers import adam
 from keras.utils import tf_utils
 
 
@@ -47,7 +47,7 @@ class MnistTest(test_util.DTensorBaseTest):
             integration_test_utils.get_all_replicated_layout_map(mesh)
         )
 
-        optimizer = optimizer_lib.Adam(learning_rate=0.001, mesh=mesh)
+        optimizer = adam.Adam(learning_rate=0.001, mesh=mesh)
         optimizer.build(model.trainable_variables)
 
         train_losses = integration_test_utils.train_mnist_model_batch_sharded(
@@ -76,7 +76,7 @@ class MnistTest(test_util.DTensorBaseTest):
             integration_test_utils.get_all_replicated_layout_map(mesh)
         )
 
-        optimizer = optimizer_lib.Adam(learning_rate=0.001, mesh=mesh)
+        optimizer = adam.Adam(learning_rate=0.001, mesh=mesh)
         optimizer.build(model.trainable_variables)
 
         train_losses = integration_test_utils.train_mnist_model_batch_sharded(
