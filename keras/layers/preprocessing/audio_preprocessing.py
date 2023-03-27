@@ -50,10 +50,10 @@ class MelSpectrogram(base_layer.Layer):
 
     **Unbatched audio signal**
 
-    >>> layer = tf.keras.layers.experimental.MelSpectrogram(n_mels=64,
-    ...                                                     sr=8000,
-    ...                                                     hop_length=256,
-    ...                                                     n_fft=2048)
+    >>> layer = tf.keras.layers.experimental.MelSpectrogram(num_mel_bins=64,
+    ...                                                     sampling_rate=8000,
+    ...                                                     fft_stride=256,
+    ...                                                     num_fft_bins=2048)
     >>> layer(tf.random.uniform(shape=(16000,)))
     <tf.Tensor: shape=(64, 63), dtype=float32, numpy=
     array([[ 27.002258 ,  25.82557  ,  24.530018 , ...,  29.447317 ,
@@ -72,10 +72,10 @@ class MelSpectrogram(base_layer.Layer):
 
     **Batched audio signal**
 
-    >>> layer = tf.keras.layers.experimental.MelSpectrogram(n_mels=80,
-    ...                                                     sr=8000,
-    ...                                                     hop_length=128,
-    ...                                                     n_fft=2048)
+    >>> layer = tf.keras.layers.experimental.MelSpectrogram(num_mel_bins=80,
+    ...                                                     sampling_rate=8000,
+    ...                                                     fft_stride=128,
+    ...                                                     num_fft_bins=2048)
     >>> layer(tf.random.uniform(shape=(2, 16000)))
     <tf.Tensor: shape=(2, 80, 125), dtype=float32, numpy=
     array([[[ 23.235947  ,  22.86543   ,  22.391176  , ...,  21.741554  ,
@@ -110,57 +110,59 @@ class MelSpectrogram(base_layer.Layer):
         1D (unbatched) or 2D (batched) tensor with shape:`(..., samples)`.
 
     Output shape:
-        2D (unbatched) or 3D (batched) tensor with shape:`(..., n_mels, time)`.
+        2D (unbatched) or 3D (batched) tensor with
+        shape:`(..., num_mel_bins, time)`.
 
     Args:
-        n_fft: Integer, size of the FFT window.
-        hop_length: Integer, number of samples between successive STFT columns.
-        win_length: Integer, size of the STFT window.
-            If `None`, defaults to `n_fft`.
+        num_fft_bins: Integer, size of the FFT window.
+        fft_stride: Integer, number of samples between successive STFT columns.
+        window_size: Integer, size of the window used for applying `window_fn`
+            to each audio frame. If `None`, defaults to `num_fft_bins`.
         window_fn: String, name of the window function to use.
-        sr: Integer, sample rate of the input signal.
-        n_mels: Integer, number of mel bins to generate.
-        fmin: Float, minimum frequency of the mel bins.
-        fmax: Float, maximum frequency of the mel bins.
-            If `None`, defaults to `sr / 2`.
+        sampling_rate: Integer, sample rate of the input signal.
+        num_mel_bins: Integer, number of mel bins to generate.
+        min_freq: Float, minimum frequency of the mel bins.
+        max_freq: Float, maximum frequency of the mel bins.
+            If `None`, defaults to `sampling_rate / 2`.
         power_to_db: If True, convert the power spectrogram to decibels.
         top_db: Float, minimum negative cut-off `max(10 * log10(S)) - top_db`.
-        power: Float, exponent for the magnitude spectrogram.
+        mag_exp: Float, exponent for the magnitude spectrogram.
             1 for magnitude, 2 for power, etc. Default is 2.
-        ref: Float, the power is scaled relative to it `10 * log10(S / ref)`.
-        amin: Float, minimum value for power and `ref`.
+        ref_power: Float, the power is scaled relative to it
+            `10 * log10(S / ref_power)`.
+        min_power: Float, minimum value for power and `ref_power`.
     """
 
     def __init__(
         self,
-        n_fft=2048,
-        hop_length=512,
-        win_length=None,
+        num_fft_bins=2048,
+        fft_stride=512,
+        window_size=None,
         window="hann_window",
-        sr=16000,
-        n_mels=128,
-        fmin=20.0,
-        fmax=None,
+        sampling_rate=16000,
+        num_mel_bins=128,
+        min_freq=20.0,
+        max_freq=None,
         power_to_db=True,
         top_db=80.0,
-        power=2.0,
-        amin=1e-10,
-        ref=1.0,
+        mag_exp=2.0,
+        min_power=1e-10,
+        ref_power=1.0,
         **kwargs,
     ):
-        self.n_fft = n_fft
-        self.hop_length = hop_length
-        self.win_length = win_length or n_fft
+        self.num_fft_bins = num_fft_bins
+        self.fft_stride = fft_stride
+        self.window_size = window_size or num_fft_bins
         self.window = window
-        self.sr = sr
-        self.n_mels = n_mels
-        self.fmin = fmin
-        self.fmax = fmax or int(sr / 2)
+        self.sampling_rate = sampling_rate
+        self.num_mel_bins = num_mel_bins
+        self.min_freq = min_freq
+        self.max_freq = max_freq or int(sampling_rate / 2)
         self.power_to_db = power_to_db
         self.top_db = top_db
-        self.power = power
-        self.amin = amin
-        self.ref = ref
+        self.mag_exp = mag_exp
+        self.min_power = min_power
+        self.ref_power = ref_power
         super().__init__(**kwargs)
         base_preprocessing_layer.keras_kpl_gauge.get_cell("MelSpectrogram").set(
             True
@@ -172,7 +174,7 @@ class MelSpectrogram(base_layer.Layer):
         outputs = self.melscale(outputs)
         if self.power_to_db:
             outputs = self.dbscale(outputs)
-        # swap time & freq axis to have shape of (..., n_mels, time)
+        # swap time & freq axis to have shape of (..., num_mel_bins, time)
         outputs = tf.linalg.matrix_transpose(outputs)
         outputs = tf.cast(outputs, self.compute_dtype)
         return outputs
@@ -180,36 +182,37 @@ class MelSpectrogram(base_layer.Layer):
     def spectrogram(self, inputs):
         spec = tf.signal.stft(
             inputs,
-            frame_length=self.win_length,
-            frame_step=self.hop_length,
-            fft_length=self.n_fft,
+            frame_length=self.window_size,
+            frame_step=self.fft_stride,
+            fft_length=self.num_fft_bins,
             window_fn=getattr(tf.signal, self.window),
             pad_end=True,
         )
-        spec = tf.math.pow(tf.math.abs(spec), self.power)
+        spec = tf.math.pow(tf.math.abs(spec), self.mag_exp)
         return spec
 
     def melscale(self, inputs):
         matrix = tf.signal.linear_to_mel_weight_matrix(
-            num_mel_bins=self.n_mels,
+            num_mel_bins=self.num_mel_bins,
             num_spectrogram_bins=tf.shape(inputs)[-1],
-            sample_rate=self.sr,
-            lower_edge_hertz=self.fmin,
-            upper_edge_hertz=self.fmax,
+            sample_rate=self.sampling_rate,
+            lower_edge_hertz=self.min_freq,
+            upper_edge_hertz=self.max_freq,
         )
         return tf.tensordot(inputs, matrix, axes=1)
 
     def dbscale(self, inputs):
         log_spec = 10.0 * (
-            tf.math.log(tf.math.maximum(inputs, self.amin)) / tf.math.log(10.0)
+            tf.math.log(tf.math.maximum(inputs, self.min_power))
+            / tf.math.log(10.0)
         )
-        if callable(self.ref):
-            ref_value = self.ref(log_spec)
+        if callable(self.ref_power):
+            ref_value = self.ref_power(log_spec)
         else:
-            ref_value = tf.math.abs(self.ref)
+            ref_value = tf.math.abs(self.ref_power)
         log_spec -= (
             10.0
-            * tf.math.log(tf.math.maximum(ref_value, self.amin))
+            * tf.math.log(tf.math.maximum(ref_value, self.min_power))
             / tf.math.log(10.0)
         )
         log_spec = tf.math.maximum(
@@ -221,14 +224,14 @@ class MelSpectrogram(base_layer.Layer):
         input_shape = tf.TensorShape(input_shape).as_list()
         if len(input_shape) == 1:
             output_shape = [
-                self.n_mels,
-                int(math.ceil(input_shape[0] / self.hop_length)),
+                self.num_mel_bins,
+                int(math.ceil(input_shape[0] / self.fft_stride)),
             ]
         else:
             output_shape = [
                 input_shape[0],
-                self.n_mels,
-                int(math.ceil(input_shape[1] / self.hop_length)),
+                self.num_mel_bins,
+                int(math.ceil(input_shape[1] / self.fft_stride)),
             ]
         return tf.TensorShape(output_shape)
 
@@ -236,19 +239,19 @@ class MelSpectrogram(base_layer.Layer):
         config = super().get_config()
         config.update(
             {
-                "n_fft": self.n_fft,
-                "hop_length": self.hop_length,
-                "win_length": self.win_length,
+                "num_fft_bins": self.num_fft_bins,
+                "fft_stride": self.fft_stride,
+                "window_size": self.window_size,
                 "window": self.window,
-                "sr": self.sr,
-                "n_mels": self.n_mels,
-                "fmin": self.fmin,
-                "fmax": self.fmax,
+                "sampling_rate": self.sampling_rate,
+                "num_mel_bins": self.num_mel_bins,
+                "min_freq": self.min_freq,
+                "max_freq": self.max_freq,
                 "power_to_db": self.power_to_db,
                 "top_db": self.top_db,
-                "power": self.power,
-                "amin": self.amin,
-                "ref": self.ref,
+                "mag_exp": self.mag_exp,
+                "min_power": self.min_power,
+                "ref_power": self.ref_power,
             }
         )
         return config
