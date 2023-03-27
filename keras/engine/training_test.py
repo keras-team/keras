@@ -2412,11 +2412,7 @@ class TrainingTest(test_combinations.TestCase):
 
         states = model.get_states()
         states_ = stateful.get_states()
-        assert len(states) == len(states_)
-        for a, b in zip(states, states_):
-            assert isinstance(a, np.ndarray)
-            assert isinstance(b, np.ndarray)
-            assert (a == b).all()
+        self.assertAllClose(states, states_)
 
     def test_reset_states(self):
         ref_states = [np.random.rand(1, 3).astype(np.float32)]

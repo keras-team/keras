@@ -2000,14 +2000,14 @@ class RNNTest(test_combinations.TestCase):
         _ = keras.Model(inp, [stateless(inp), stateful(inp)])
 
         states = stateless.get_states()
-        assert isinstance(states, list)
-        assert len(states) == 0
+        self.assertIsInstance(states, list)
+        self.assertLen(states, 0)
 
         states = stateful.get_states()
-        assert isinstance(states, list)
-        assert len(states)
+        self.assertIsInstance(states, list)
+        self.assertLen(states, 1)
         for state in states:
-            assert isinstance(state, np.ndarray)
+            self.assertIsInstance(state, np.ndarray)
 
 
 class RNNCellWithConstants(keras.layers.Layer):
