@@ -1431,17 +1431,12 @@ class LSTMLayerTest(test_combinations.TestCase):
         c = keras.layers.LSTM(units=3, stateful=True)
         _ = keras.Model(inp, [a(inp), b(inp), c(inp)])
 
-        names = set()
-
-        for l in [a, b, c]:
-            for s in l.states:
-                if s is not None:
-                    self.assertIn(
-                        s.name.rsplit("/", 1)[1],
-                        ["hidden_state:0", "output_state:0"],
-                    )
-                    self.assertNotIn(s.name, names)
-                    names.add(s.name)
+        self.assertEqual(a.states[0].name, f"{a.name}/hidden_state:0")
+        self.assertEqual(a.states[1].name, f"{a.name}/output_state:0")
+        self.assertEqual(b.states[0], None)
+        self.assertEqual(b.states[1], None)
+        self.assertEqual(c.states[0].name, f"{c.name}/hidden_state:0")
+        self.assertEqual(c.states[1].name, f"{c.name}/output_state:0")
 
 
 if __name__ == "__main__":

@@ -1110,6 +1110,54 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         test(fwd, None, trainable=True)
         test(fwd, None, trainable=False)
 
+    def test_unique_state_names(self):
+        inp = keras.Input(batch_shape=[3, None, 3])
+        a = keras.layers.Bidirectional(
+            keras.layers.LSTM(units=3, stateful=True)
+        )
+        b = keras.layers.Bidirectional(keras.layers.LSTM(units=3))  # no states
+        c = keras.layers.Bidirectional(
+            keras.layers.LSTM(units=3, stateful=True)
+        )
+        _ = keras.Model(inp, [a(inp), b(inp), c(inp)])
+
+        self.assertEqual(
+            a.forward_layer.states[0].name,
+            f"{a.name}/{a.forward_layer.name}/hidden_state:0",
+        )
+        self.assertEqual(
+            a.forward_layer.states[1].name,
+            f"{a.name}/{a.forward_layer.name}/output_state:0",
+        )
+        self.assertEqual(
+            a.backward_layer.states[0].name,
+            f"{a.name}/{a.backward_layer.name}/hidden_state:0",
+        )
+        self.assertEqual(
+            a.backward_layer.states[1].name,
+            f"{a.name}/{a.backward_layer.name}/output_state:0",
+        )
+        self.assertEqual(b.forward_layer.states[0], None)
+        self.assertEqual(b.forward_layer.states[1], None)
+        self.assertEqual(b.backward_layer.states[0], None)
+        self.assertEqual(b.backward_layer.states[1], None)
+        self.assertEqual(
+            c.forward_layer.states[0].name,
+            f"{c.name}/{c.forward_layer.name}/hidden_state:0",
+        )
+        self.assertEqual(
+            c.forward_layer.states[1].name,
+            f"{c.name}/{c.forward_layer.name}/output_state:0",
+        )
+        self.assertEqual(
+            c.backward_layer.states[0].name,
+            f"{c.name}/{c.backward_layer.name}/hidden_state:0",
+        )
+        self.assertEqual(
+            c.backward_layer.states[1].name,
+            f"{c.name}/{c.backward_layer.name}/output_state:0",
+        )
+
 
 def _to_list(ls):
     if isinstance(ls, list):

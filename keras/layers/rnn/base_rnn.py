@@ -625,6 +625,13 @@ class RNN(base_layer.Layer):
                 kwargs["constants"] = constants
             return super().__call__(inputs, **kwargs)
 
+    def _gen_state_names(self):
+        yield "state"
+        cnt = 1
+        while True:
+            yield f"state_{cnt}"
+            cnt += 1
+
     def call(
         self,
         inputs,
@@ -906,16 +913,7 @@ class RNN(base_layer.Layer):
                     )
                 )
 
-            def gen_state_names():
-                yield "state"
-                cnt = 1
-                while True:
-                    yield f"state_{cnt}"
-                    cnt += 1
-
-            unique_state_names = iter(
-                getattr(self.cell, "_gen_state_names", gen_state_names)()
-            )
+            unique_state_names = iter(self._gen_state_names())
 
             def assign_unique_var(x):
                 return backend.variable(x, name=next(unique_state_names))

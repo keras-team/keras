@@ -1000,13 +1000,9 @@ class GRULayerTest(test_combinations.TestCase):
         c = keras.layers.GRU(units=3, stateful=True)
         _ = keras.Model(inp, [a(inp), b(inp), c(inp)])
 
-        names = set()
-
-        for l in [a, b, c]:
-            for s in l.states:
-                if s is not None:
-                    self.assertNotIn(s.name, names)
-                    names.add(s.name)
+        self.assertEqual(a.states[0].name, f"{a.name}/state:0")
+        self.assertEqual(b.states[0], None)
+        self.assertEqual(c.states[0].name, f"{c.name}/state:0")
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))

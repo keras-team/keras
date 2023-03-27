@@ -183,10 +183,6 @@ class LSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         self.state_size = [self.units, self.units]
         self.output_size = self.units
 
-    def _gen_state_names(self):
-        yield "hidden_state"
-        yield "output_state"
-
     @tf_utils.shape_type_conversion
     def build(self, input_shape):
         super().build(input_shape)
@@ -600,6 +596,10 @@ class LSTM(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
             self._defun_wrapper = gru_lstm_utils.DefunWrapper(
                 time_major, go_backwards, "lstm"
             )
+
+    def _gen_state_names(self):
+        yield "hidden_state"
+        yield "output_state"
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
         # The input should be dense, padded with zeros. If a ragged input is fed
