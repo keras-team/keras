@@ -446,6 +446,10 @@ class Bidirectional(Wrapper):
             return [output] + states
         return output
 
+    @property
+    def states(self):
+        return self.forward_layer.states + self.backward_layer.states
+
     def reset_states(self, states=None):
         if not self.stateful:
             raise AttributeError("Layer must be stateful.")
