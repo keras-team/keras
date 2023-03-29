@@ -353,8 +353,10 @@ class LossesContainer(Container):
         loss = losses_mod.get(loss)
         if not isinstance(loss, losses_mod.Loss):
             loss_name = get_custom_object_name(loss)
-            if loss_name is None:
+            if not callable(loss):
                 raise ValueError(f"Loss should be a callable, received: {loss}")
+            if loss_name is None:
+                raise ValueError(f"Could not infer a loss name for {loss}")
             loss = losses_mod.LossFunctionWrapper(loss, name=loss_name)
         loss._allow_sum_over_batch_size = True
         return loss
