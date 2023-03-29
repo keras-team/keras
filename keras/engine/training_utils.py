@@ -73,7 +73,7 @@ def handle_partial_sample_weights(
       describing the raw sample weights.
     """
     if not isinstance(sample_weights, (list, tuple)):
-        any_sample_weight = (sample_weights,) is not None and sample_weights is not None
+        any_sample_weight = sample_weights is not None
         partial_sample_weight = any_sample_weight and sample_weights is None
     else:
         any_sample_weight = sample_weights is not None and any(
