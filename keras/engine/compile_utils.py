@@ -858,7 +858,7 @@ def get_custom_object_name(obj):
     Returns:
       Name to use, or `None` if the object was not recognized.
     """
-    if hasattr(obj, "name"):  # Accept `Loss` instance as `Metric`.
+    if hasattr(obj, "name") and obj.name is not None:  # Accept `Loss` instance as `Metric`.
         return obj.name
     elif hasattr(obj, "__name__"):  # Function.
         return obj.__name__
