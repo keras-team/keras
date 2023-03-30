@@ -133,7 +133,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         for k in kwargs:
             if k in legacy_kwargs:
                 raise ValueError(
-                    f"{k} is deprecated in the new Keras optimizer, please"
+                    f"{k} is deprecated in the new Keras optimizer, please "
                     "check the docstring for valid arguments, or use the "
                     "legacy optimizer, e.g., "
                     f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
