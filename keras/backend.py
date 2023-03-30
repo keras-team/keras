@@ -5857,7 +5857,8 @@ def binary_focal_crossentropy(
         gamma: A focusing parameter, default is `2.0` as mentioned in the
             reference.
         from_logits: Whether `output` is expected to be a logits tensor. By
-            default, we consider that `output` encodes a probability distribution.
+            default, we consider that `output` encodes a probability
+            distribution.
 
     Returns:
         A tensor.
@@ -5897,7 +5898,7 @@ def sigmoid(x):
     Returns:
         A tensor.
     """
-    return tf.sigmoid(x)
+    return tf.math.sigmoid(x)
 
 
 @keras_export("keras.backend.hard_sigmoid")
