@@ -637,7 +637,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
             towards 0.5.  Larger values of `label_smoothing` correspond to
             heavier smoothing.
           axis: The axis along which to compute crossentropy (the features
-            axis).  Defaults to -1.
+            axis).  Defaults to `-1`.
           reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
@@ -899,7 +899,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             `0.1`, use `0.1 / num_classes` for non-target labels and
             `0.9 + 0.1 / num_classes` for target labels.
           axis: The axis along which to compute crossentropy (the features
-            axis). Defaults to -1.
+            axis). Defaults to `-1`.
           reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
@@ -1012,7 +1012,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             `0.1`, use `0.1 / num_classes` for non-target labels and
             `0.9 + 0.1 / num_classes` for target labels.
         axis: The axis along which to compute crossentropy (the features
-            axis). Defaults to -1.
+            axis). Defaults to `-1`.
         reduction: Type of `tf.keras.losses.Reduction` to apply to
             loss. Default value is `AUTO`. `AUTO` indicates that the reduction
             option will be determined by the usage context. For almost all cases
@@ -2084,8 +2084,7 @@ def categorical_crossentropy(
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
-      axis: Defaults to -1. The dimension along which the entropy is
-        computed.
+      axis: The dimension along which the entropy is computed. Defaults to `-1`.
 
     Returns:
       Categorical crossentropy loss value.
@@ -2138,8 +2137,7 @@ def _ragged_tensor_categorical_crossentropy(
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
-      axis: The axis along which to compute crossentropy (the features axis).
-          Defaults to -1.
+      axis: The axis along which to compute crossentropy (the features axis). Defaults to `-1`.
 
     Returns:
       Categorical crossentropy loss value.
@@ -2204,8 +2202,7 @@ def categorical_focal_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: Defaults to -1. The dimension along which the entropy is
-            computed.
+        axis: The dimension along which the entropy is computed. Defaults to `-1`.
 
     Returns:
         Categorical focal crossentropy loss value.
@@ -2284,8 +2281,7 @@ def _ragged_tensor_categorical_focal_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: Defaults to -1. The dimension along which the entropy is
-            computed.
+        axis: The dimension along which the entropy is computed. Defaults to `-1`.
 
     Returns:
       Categorical focal crossentropy loss value.
@@ -2341,8 +2337,7 @@ def sparse_categorical_crossentropy(
       y_pred: The predicted values.
       from_logits: Whether `y_pred` is expected to be a logits tensor. By
         default, we assume that `y_pred` encodes a probability distribution.
-      axis: Defaults to -1. The dimension along which the entropy is
-        computed.
+      axis: The dimension along which the entropy is computed. Defaults to `-1`.
       ignore_class: Optional integer. The ID of a class to be ignored during
         loss computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
@@ -2412,7 +2407,7 @@ def binary_crossentropy(
         squeezing them towards 0.5 That is, using `1. - 0.5 * label_smoothing`
         for the target class and `0.5 * label_smoothing` for the non-target
         class.
-      axis: The axis along which the mean is computed. Defaults to -1.
+      axis: The axis along which the mean is computed. Defaults to `-1`.
 
     Returns:
       Binary crossentropy loss value. shape = `[batch_size, d0, .. dN-1]`.
@@ -2792,7 +2787,7 @@ class CosineSimilarity(LossFunctionWrapper):
 
     Args:
       axis: The axis along which the cosine similarity is computed
-        (the features axis). Defaults to -1.
+        (the features axis). Defaults to `-1`.
       reduction: Type of `tf.keras.losses.Reduction` to apply to loss.
         Default value is `AUTO`. `AUTO` indicates that the reduction option will
         be determined by the usage context. For almost all cases this defaults

@@ -114,9 +114,9 @@ def model_to_estimator(
         `tempfile.mkdtemp`
       config: `RunConfig` to config `Estimator`. Allows setting up things in
         `model_fn` based on configuration such as `num_ps_replicas`, or
-        `model_dir`. Defaults to `None`. If both `config.model_dir` and the
+        `model_dir`. If both `config.model_dir` and the
         `model_dir` argument (above) are specified the `model_dir` **argument**
-        takes precedence.
+        takes precedence. Defaults to `None`.
       checkpoint_format: Sets the format of the checkpoint saved by the
         estimator when training. May be `saver` or `checkpoint`, depending on
         whether to save checkpoints from `tf.train.Saver` or
@@ -312,9 +312,9 @@ def model_to_estimator_v2(
         `tempfile.mkdtemp`
       config: `RunConfig` to config `Estimator`. Allows setting up things in
         `model_fn` based on configuration such as `num_ps_replicas`, or
-        `model_dir`. Defaults to `None`. If both `config.model_dir` and the
+        `model_dir`. If both `config.model_dir` and the
         `model_dir` argument (above) are specified the `model_dir` **argument**
-        takes precedence.
+        takes precedence. Defaults to `None`.
       checkpoint_format: Sets the format of the checkpoint saved by the
         estimator when training. May be `saver` or `checkpoint`, depending on
         whether to save checkpoints from `tf.compat.v1.train.Saver` or

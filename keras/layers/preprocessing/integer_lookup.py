@@ -82,7 +82,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         vocabulary and instances of the mask token in the input will be dropped.
         If set to None, no mask term will be added. Defaults to None.
       oov_token: Only used when `invert` is True. The token to return for OOV
-        indices. Defaults to -1.
+        indices. Defaults to `-1`.
       vocabulary: Optional. Either an array of integers or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
         or 1D tensor containing the integer vocbulary terms. If passing a file

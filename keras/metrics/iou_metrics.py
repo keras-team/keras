@@ -67,7 +67,7 @@ class _IoUBase(base_metric.Metric):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) Defaults to `-1`. The dimension containing the logits.
     """
 
     def __init__(
@@ -197,7 +197,7 @@ class IoU(_IoUBase):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) Defaults to `-1`. The dimension containing the logits.
 
     Standalone usage:
 
@@ -465,7 +465,7 @@ class MeanIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) Defaults to `-1`. The dimension containing the logits.
 
     Standalone usage:
 
@@ -581,7 +581,7 @@ class OneHotIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) Defaults to `-1`. The dimension containing the logits.
 
     Standalone usage:
 
@@ -695,7 +695,7 @@ class OneHotMeanIoU(MeanIoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) Defaults to `-1`. The dimension containing the logits.
 
     Standalone usage:
 

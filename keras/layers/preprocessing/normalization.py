@@ -52,7 +52,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
           example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
           separate mean and variance values for the last axis. If `axis` is set
           to `None`, the layer will normalize all elements in the input by a
-          scalar mean and variance. Defaults to -1, where the last axis of the
+          scalar mean and variance. Defaults to `-1`., where the last axis of the
           input is assumed to be a feature dimension and is normalized per
           index. Note that in the specific case of batched scalar inputs where
           the only axis is the batch axis, the default will normalize each index

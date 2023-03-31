@@ -138,7 +138,7 @@ class CosineSimilarity(base_metric.MeanMetricWrapper):
     Args:
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      axis: (Optional) Defaults to -1. The dimension along which the cosine
+      axis: (Optional) Defaults to `-1`. The dimension along which the cosine
         similarity is computed.
 
     Standalone usage:
@@ -614,7 +614,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     Args:
       y_true: The ground truth values.
       y_pred: The prediction values.
-      axis: (Optional) Defaults to -1. The dimension along which the cosine
+      axis: (Optional) Defaults to `-1`. The dimension along which the cosine
         similarity is computed.
 
     Returns:

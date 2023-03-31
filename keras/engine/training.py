@@ -673,12 +673,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               coefficients.
             weighted_metrics: List of metrics to be evaluated and weighted by
               `sample_weight` or `class_weight` during training and testing.
-            run_eagerly: Bool. Defaults to `False`. If `True`, this `Model`'s
-              logic will not be wrapped in a `tf.function`. Recommended to leave
-              this as `None` unless your `Model` cannot be run inside a
-              `tf.function`. `run_eagerly=True` is not supported when using
-              `tf.distribute.experimental.ParameterServerStrategy`.
-            steps_per_execution: Int. Defaults to 1. The number of batches to
+            run_eagerly: Bool. If `True`, this `Model`'s logic will not be
+              wrapped in a `tf.function`. Recommended to leave this as `None`
+              unless your `Model` cannot be run inside a `tf.function`.
+              `run_eagerly=True` is not supported when using
+              `tf.distribute.experimental.ParameterServerStrategy`. Defaults to
+               `False`.
+            steps_per_execution: Int. The number of batches to
               run during each `tf.function` call. Running multiple batches
               inside a single `tf.function` call can greatly improve performance
               on TPUs or small models with a large Python overhead. At most, one
@@ -687,7 +688,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               the size of the epoch. Note that if `steps_per_execution` is set
               to `N`, `Callback.on_batch_begin` and `Callback.on_batch_end`
               methods will only be called every `N` batches (i.e. before/after
-              each `tf.function` execution).
+              each `tf.function` execution). Defaults to 1.
             jit_compile: If `True`, compile the model training step with XLA.
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.
@@ -708,9 +709,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               not process the same data. The number of shards should be at least
               the number of workers for good performance. A value of 'auto'
               turns on exact evaluation and uses a heuristic for the number of
-              shards based on the number of workers. Defaults to 0, meaning no
+              shards based on the number of workers. 0, meaning no
               visitation guarantee is provided. NOTE: Custom implementations of
               `Model.test_step` will be ignored when doing exact evaluation.
+              Defaults to 0
             **kwargs: Arguments supported for backwards compatibility only.
         """
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
@@ -3942,7 +3944,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         Args:
           user_metrics: Whether to return user-supplied metrics or `Metric`
-            objects. Defaults to returning the user-supplied metrics.
+            objects. If True, returns the user-supplied metrics.
+            Defaults to True.
 
         Returns:
           Dictionary of arguments that were used when compiling the model.
