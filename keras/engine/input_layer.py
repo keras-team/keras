@@ -401,6 +401,13 @@ def Input(
             "Keras `Input`."
         )
 
+    has_spec_name = (
+        name is None and type_spec is not None and hasattr(type_spec, "name")
+    )
+
+    if has_spec_name:
+        name = type_spec.name
+
     input_layer_config = {
         "name": name,
         "dtype": dtype,
@@ -448,6 +455,9 @@ def Input(
     # Note that in this case train_output and test_output are the same pointer.
     outputs = input_layer._inbound_nodes[0].outputs
     if isinstance(outputs, list) and len(outputs) == 1:
-        return outputs[0]
+        output = outputs[0]
     else:
-        return outputs
+        output = outputs
+    if has_spec_name and hasattr(output, "_name"):
+        output._name = input_layer.name
+    return output
