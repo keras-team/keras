@@ -537,7 +537,7 @@ class ReloadedLayer(base_layer.Layer):
 
 
 def _make_tensor_spec(x):
-    return tf.TensorSpec(x.shape, dtype=x.dtype)
+    return tf.TensorSpec(x.shape, dtype=x.dtype, name=x.name)
 
 
 def _print_signature(fn, name):
