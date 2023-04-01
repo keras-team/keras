@@ -38,7 +38,6 @@ from keras.engine import input_spec
 from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
-from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
@@ -2705,37 +2704,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     def _set_dtype_policy(self, dtype):
         """Sets self._dtype_policy."""
-        if isinstance(dtype, policy.Policy):
-            self._dtype_policy = dtype
-        elif isinstance(dtype, dict):
-            self._dtype_policy = policy.deserialize(dtype)
-        elif isinstance(dtype, str) and dtype in (
-            "mixed_float16",
-            "mixed_bfloat16",
-        ):
-            # The isinstance check is required since np.dtype raises an error if
-            # compared to a non-dtype string.
-            self._dtype_policy = policy.Policy(dtype)
-        elif dtype:
-            self._dtype_policy = policy.Policy(tf.as_dtype(dtype).name)
-        else:
-            self._dtype_policy = policy.global_policy()
-        if (
-            self._dtype_policy.name == "mixed_float16"
-            and not loss_scale_optimizer.strategy_supports_loss_scaling()
-        ):
-            # Although only loss scaling doesn't support certain strategies, to
-            # avoid confusion, we disallow the 'mixed_float16' policy with
-            # unsupported strategies. This is because 'mixed_float16' requires
-            # loss scaling for numeric stability.
-            strategy = tf.distribute.get_strategy()
-            raise ValueError(
-                "Mixed precision is not supported with the "
-                "tf.distribute.Strategy: %s. Either stop using mixed "
-                'precision by removing the use of the "%s" policy or '
-                "use a different Strategy, e.g. a MirroredStrategy."
-                % (strategy.__class__.__name__, self._dtype_policy.name)
-            )
+        self._dtype_policy = policy.get_policy(dtype)
 
         # Performance optimization: cache the compute dtype as a Dtype object or
         # None, so that str to Dtype conversion doesn't happen in
