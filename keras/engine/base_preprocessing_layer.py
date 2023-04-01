@@ -147,7 +147,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
           steps_per_execution: Int. The number of batches to run
             during each `tf.function` call. Running multiple batches inside a
             single `tf.function` call can greatly improve performance on TPUs or
-            small models with a large Python overhead. Defaults to 1.
+            small models with a large Python overhead. Defaults to `1`.
         """
         if steps_per_execution is None:
             steps_per_execution = 1

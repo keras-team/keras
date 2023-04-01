@@ -135,9 +135,9 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       invert: Only valid when `output_mode` is `"int"`. If True, this layer will
         map indices to vocabulary items instead of mapping vocabulary items to
         indices. Default to False.
-      output_mode: Specification for the output of the layer. Defaults to
-        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`,
-        or `"tf_idf"` configuring the layer as follows:
+      output_mode: Specification for the output of the layer. Values can be
+        `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`, or `"tf_idf"` configuring
+        the layer as follows:
           - `"int"`: Return the raw integer indices of the input tokens.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as the vocabulary, containing a 1 at the element
@@ -153,6 +153,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
             the number of times the token at that index appeared in the sample.
           - `"tf_idf"`: As `"multi_hot"`, but the TF-IDF algorithm is applied to
             find the value in each token slot.
+        Defaults to `"int"`.
       pad_to_max_tokens: Only valid when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, the output will have its feature axis
         padded to `max_tokens` even if the number of unique tokens in the

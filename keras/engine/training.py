@@ -688,7 +688,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               the size of the epoch. Note that if `steps_per_execution` is set
               to `N`, `Callback.on_batch_begin` and `Callback.on_batch_end`
               methods will only be called every `N` batches (i.e. before/after
-              each `tf.function` execution). Defaults to 1.
+              each `tf.function` execution). Defaults to `1`.
             jit_compile: If `True`, compile the model training step with XLA.
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.

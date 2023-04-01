@@ -50,7 +50,7 @@ class GroupNormalization(Layer):
     Args:
       groups: Integer, the number of groups for Group Normalization. Can be in
         the range [1, N] where N is the input dimension. The input dimension
-        must be divisible by the number of groups. Defaults to 32.
+        must be divisible by the number of groups. Defaults to `32`.
       axis: Integer or List/Tuple. The axis or axes to normalize across.
         Typically this is the features axis/axes. The left-out axes are
         typically the batch axis/axes. This argument defaults to `-1`, the last
