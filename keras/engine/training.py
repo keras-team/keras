@@ -51,6 +51,7 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
+from keras.utils.losses_utils import get_keras_losses
 from keras.utils.mode_keys import ModeKeys
 
 # isort: off
@@ -754,6 +755,26 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 self.compiled_loss = compile_utils.LossesContainer(
                     loss, loss_weights, output_names=self.output_names
                 )
+
+            experimental_check_loss_differentiability = kwargs.pop(
+                "experimental_check_loss_differentiability", True
+            )
+
+            user_loss = self.compiled_loss._user_losses
+            builtin_losses = set(get_keras_losses().keys())
+
+            if experimental_check_loss_differentiability:
+                if not isinstance(user_loss,
+                                  str) and user_loss not in builtin_losses:
+                    # users may pass "mse" for MeanSquaredError, which is an alias
+                    # for a built-in loss.
+
+                    input_shape_arg = self.input_shape if hasattr(self,
+                                                      'input_shape') else None
+                    compile_utils.verify_loss_differentiability(
+                        loss=user_loss,
+                        expected_shapes=input_shape_arg)
+
             self.compiled_metrics = compile_utils.MetricsContainer(
                 metrics,
                 weighted_metrics,
@@ -3759,6 +3780,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         kwargs.pop("cloning", None)  # Legacy DistStrat argument, never used.
         kwargs.pop("experimental_run_tf_function", None)  # Always `True`.
+        kwargs.pop("experimental_check_loss_differentiability", None)
         distribute_arg = kwargs.pop("distribute", None)
         if distribute_arg is not None:
             raise ValueError(

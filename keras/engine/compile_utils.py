@@ -864,3 +864,67 @@ def get_custom_object_name(obj):
         return generic_utils.to_snake_case(obj.__class__.__name__)
     else:  # Unrecognized object.
         return None
+
+
+def verify_loss_differentiability(loss, expected_shapes):
+    if not _verify_loss_differentiability(loss, expected_shapes):
+        raise ValueError(
+            f"Provided loss function is not differentiable. If you think " 
+            "this error is raised due to a bug in Keras, please pass "
+            f"experimental_loss=False in model.compile().\nLoss: {loss}")
+
+
+def _verify_loss_differentiability(loss, expected_shapes=None):
+    """Verifies if the loss is differentiable.
+
+    Args:
+        loss: Can be a plain function or a class instance.
+        expected_shapes: A tuple containing the shapes for the inputs to the
+            loss.
+    Returns:
+        A boolean indicating whether the loss is differentiable.
+    """
+    def generate_shape_tuples(dim, num_dims):
+        for i in range(num_dims - 1):
+            yield (1,) * (i + 1) + (dim,)
+    if expected_shapes is None:
+        continue_checking = True
+        for num_dims in range(1, 8):
+            if not continue_checking:
+                break
+            shape_generator = generate_shape_tuples(1, num_dims)
+            for shapes in shape_generator:
+                try:
+                    differentiable = _check_loss_with_shapes(loss, shapes)
+                    if differentiable:
+                        return True
+                    else:
+                        continue_checking = False
+                        break  # Stop the inner loop when diff is False
+                except Exception as e:
+                    print(e)
+                    continue
+        return False
+    else:
+        return _check_loss_with_shapes(loss, expected_shapes)
+
+
+def _check_loss_with_shapes(loss, expected_shape):
+    expected_shape = tuple(1 if dim is None else dim for dim in expected_shape)
+
+    predictions = tf.random.uniform(expected_shape,
+                                    minval=0,
+                                    maxval=1,
+                                    dtype=tf.float32)
+    targets = tf.random.uniform(expected_shape,
+                                minval=0,
+                                maxval=1,
+                                dtype=tf.float32)
+    with tf.GradientTape() as tape:
+        tape.watch(predictions)
+        loss_value = loss(targets, predictions)
+    gradients = tape.gradient(loss_value, predictions)
+    if gradients is None:
+        return False
+
+    return True
