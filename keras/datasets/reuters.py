@@ -78,7 +78,7 @@ def load_data(
         test data. Defaults to 0.2
       seed: int. Seed for reproducible data shuffling.
       start_char: int. The start of a sequence will be marked with this
-          character. 0 is usually the padding character. Defaults to 1
+          character. 0 is usually the padding character. Defaults to `1`.
       oov_char: int. The out-of-vocabulary character.
           Words that were cut out because of the `num_words` or
           `skip_top` limits will be replaced with this character.

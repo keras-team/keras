@@ -103,7 +103,7 @@ def audio_dataset_from_directory(
       subset: Subset of the data to return. One of "training", "validation" or
         "both". Only used if `validation_split` is set.
       follow_links: Whether to visits subdirectories pointed to by symlinks.
-        Defaults to False.
+        Defaults to `False`.
 
     Returns:
       A `tf.data.Dataset` object.

@@ -72,8 +72,8 @@ class Softmax(Layer):
         normalization is applied.
     Call arguments:
       inputs: The inputs, or logits to the softmax layer.
-      mask: A boolean mask of the same shape as `inputs`. The mask specifies 1 to keep and 0 to mask.
-        Defaults to `None`.
+      mask: A boolean mask of the same shape as `inputs`. The mask
+        specifies 1 to keep and 0 to mask. Defaults to `None`.
 
 
     Returns:

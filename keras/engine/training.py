@@ -712,7 +712,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               shards based on the number of workers. 0, meaning no
               visitation guarantee is provided. NOTE: Custom implementations of
               `Model.test_step` will be ignored when doing exact evaluation.
-              Defaults to 0
+              Defaults to `0`.
             **kwargs: Arguments supported for backwards compatibility only.
         """
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
@@ -2960,7 +2960,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         SavedModel format arguments:
             include_optimizer: Only applied to SavedModel and legacy HDF5
                 formats. If False, do not save the optimizer state.
-                Defaults to True.
+                Defaults to `True`.
             signatures: Only applies to SavedModel format. Signatures to save
                 with the SavedModel. See the `signatures` argument in
                 `tf.saved_model.save` for details.
@@ -3945,7 +3945,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         Args:
           user_metrics: Whether to return user-supplied metrics or `Metric`
             objects. If True, returns the user-supplied metrics.
-            Defaults to True.
+            Defaults to `True`.
 
         Returns:
           Dictionary of arguments that were used when compiling the model.
@@ -4189,11 +4189,11 @@ def _get_verbosity(verbose, distribute_strategy):
             distribute_strategy._should_use_with_coordinator
             or not io_utils.is_interactive_logging_enabled()
         ):
-            # Default to epoch-level logging for PSStrategy or using absl
+            # Defaults to epoch-level logging for PSStrategy or using absl
             # logging.
             return 2
         else:
-            return 1  # Default to batch-level logging otherwise.
+            return 1  # Defaults to batch-level logging otherwise.
     return verbose
 
 

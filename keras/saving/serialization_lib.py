@@ -485,7 +485,7 @@ def deserialize_keras_object(
         safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
             When `safe_mode=False`, loading an object has the potential to
             trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to True.
+            applicable to the Keras v3 model format. Defaults to `True`.
 
     Returns:
       The object described by the `config` dictionary.

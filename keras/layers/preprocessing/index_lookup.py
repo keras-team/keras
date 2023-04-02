@@ -134,10 +134,10 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         `"tf_idf"`, this argument must be supplied.
       invert: Only valid when `output_mode` is `"int"`. If True, this layer will
         map indices to vocabulary items instead of mapping vocabulary items to
-        indices. Default to False.
+        indices. Defaults to `False`.
       output_mode: Specification for the output of the layer. Values can be
-        `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`, or `"tf_idf"` configuring
-        the layer as follows:
+        `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`, or `"tf_idf"`
+        configuring the layer as follows:
           - `"int"`: Return the raw integer indices of the input tokens.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as the vocabulary, containing a 1 at the element
@@ -162,7 +162,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
         False.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`, `"count"`
         and `"tf-idf"` output modes. If True, returns a `SparseTensor` instead
-        of a dense `Tensor`. Defaults to False.
+        of a dense `Tensor`. Defaults to `False`.
     """
 
     def __init__(

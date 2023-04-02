@@ -130,10 +130,10 @@ def _convert_dataset_to_list(
         dataset_type_spec : the type of the dataset
         data_size_warning_flag (bool, optional): If set to True, a warning will
           be issued if the dataset takes longer than 10 seconds to iterate.
-          Defaults to True.
+          Defaults to `True`.
         ensure_shape_similarity (bool, optional): If set to True, the shape of
           the first sample will be used to validate the shape of rest of the
-          samples. Defaults to True.
+          samples. Defaults to `True`.
 
     Returns:
         List: A list of tuples/NumPy arrays.
@@ -254,10 +254,10 @@ def _get_next_sample(
         dataset_iterator : An `iterator` object.
         ensure_shape_similarity (bool, optional): If set to True, the shape of
           the first sample will be used to validate the shape of rest of the
-          samples. Defaults to True.
+          samples. Defaults to `True`.
         data_size_warning_flag (bool, optional): If set to True, a warning will
           be issued if the dataset takes longer than 10 seconds to iterate.
-          Defaults to True.
+          Defaults to `True`.
         start_time (float): the start time of the dataset iteration. this is
           used only if `data_size_warning_flag` is set to true.
 

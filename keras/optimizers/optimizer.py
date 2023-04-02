@@ -448,8 +448,8 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         Args:
           shape: A list of integers, a tuple of integers, or a 1-D Tensor of
             type int32. Defaults to scalar if unspecified.
-          dtype: The DType of the optimizer variable to be created. Defaults to
-            `tf.keras.backend.floatx` if unspecified.
+          dtype: The DType of the optimizer variable to be created. None
+            means `tf.keras.backend.floatx`. Defaults to `None`.
           initializer: string or callable. Initializer instance.
           name: The name of the optimizer variable to be created.
 

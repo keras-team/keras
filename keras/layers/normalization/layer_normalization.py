@@ -126,11 +126,11 @@ class LayerNormalization(Layer):
       epsilon: Small float added to variance to avoid dividing by zero. Defaults
         to 1e-3
       center: If True, add offset of `beta` to normalized tensor. If False,
-        `beta` is ignored. Defaults to True.
+        `beta` is ignored. Defaults to `True`.
       scale: If True, multiply by `gamma`. If False, `gamma` is not used.
         When the next layer is linear (also e.g. `nn.relu`), this can be
         disabled since the scaling will be done by the next layer.
-        Defaults to True.
+        Defaults to `True`.
       beta_initializer: Initializer for the beta weight. Defaults to zeros.
       gamma_initializer: Initializer for the gamma weight. Defaults to ones.
       beta_regularizer: Optional regularizer for the beta weight. None by

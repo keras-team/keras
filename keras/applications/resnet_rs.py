@@ -196,9 +196,9 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             `classifier_activation=None` to return the logits of the "top"
             layer.
         include_preprocessing: Boolean, whether to include the preprocessing
-            layer (`Rescaling`) at the bottom of the network. Defaults to
-            `True`.  Note: Input image is normalized by ImageNet mean and
-            standard deviation.
+            layer (`Rescaling`) at the bottom of the network. Note: Input image
+            is normalized by ImageNet mean and standard deviation.
+            Defaults to `True`.
 
     Returns:
         A `keras.Model` instance.
@@ -582,8 +582,9 @@ def ResNetRS(
           use on the "top" layer. Ignored unless `include_top=True`. Set
           `classifier_activation=None` to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing
-          layer (`Rescaling`) at the bottom of the network. Note- Input image
-          is normalized by ImageNet mean and standard deviation. Defaults to `True`
+          layer (`Rescaling`) at the bottom of the network. Note - Input image
+          is normalized by ImageNet mean and standard deviation.
+          Defaults to `True`.
 
 
     Returns:

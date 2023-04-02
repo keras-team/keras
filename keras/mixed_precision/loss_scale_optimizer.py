@@ -409,11 +409,11 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
       dynamic: Bool indicating whether dynamic loss scaling is used.  If True,
         the loss scale will be dynamically updated over time using an algorithm
         that keeps the loss scale at approximately its optimal value. If False,
-        a single fixed loss scale is used and  `initial_scale` must be specified,
-        which is used as the loss scale.
+        a single fixed loss scale is used and  `initial_scale` must be
+        specified, which is used as the loss scale.
         Recommended to keep as True, as choosing a fixed loss scale can be
         tricky. Currently, there is a small performance overhead to dynamic loss
-        scaling compared to fixed loss scaling. Defaults to True.
+        scaling compared to fixed loss scaling. Defaults to `True`.
       initial_scale: The initial loss scale. If `dynamic` is True, this defaults
         to `2 ** 15`. If `dynamic` is False, this must be specified and acts as
         the sole loss scale, as the loss scale does not change over time. When

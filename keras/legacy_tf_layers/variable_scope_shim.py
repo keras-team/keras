@@ -247,7 +247,7 @@ class _EagerVariableStore(tf.Module):
             instead an experimental ResourceVariable which has well-defined
             semantics. When starting off as False it will later change to True.
             When eager execution is enabled this argument always True.
-            Defaults to False.
+            Defaults to `False`.
           custom_getter: Callable that takes as a first argument the true
             getter, and allows overwriting the internal get_variable method. The
             signature of `custom_getter` should match that of this method, but

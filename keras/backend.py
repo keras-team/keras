@@ -6898,11 +6898,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     Args:
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, the mean value of the normal distribution to draw
-          samples. Default to 0.0.
+          samples. Defaults to `0.0`.
         stddev: A float, the standard deviation of the normal distribution
-          to draw samples. Default to 1.0.
-        dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
-          backend dtype which is float32.
+          to draw samples. Defaults to `1.0`.
+        dtype: `tf.dtypes.DType`, dtype of returned tensor. None uses Keras
+          backend dtype which is float32. Defaults to `None`.
         seed: Integer, random seed. Will use a random numpy integer when not
           specified.
 

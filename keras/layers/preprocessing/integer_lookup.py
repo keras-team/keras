@@ -71,7 +71,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         only be specified when adapting the vocabulary or when setting
         `pad_to_max_tokens=True`. If None, there is no cap on the size of the
         vocabulary. Note that this size includes the OOV and mask tokens.
-        Defaults to None.
+        Defaults to `None`.
       num_oov_indices: The number of out-of-vocabulary tokens to use. If this
         value is more than 1, OOV inputs are modulated to determine their OOV
         value. If this value is 0, OOV inputs will cause an error when calling
@@ -80,7 +80,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         `output_mode` is `"int"`, the token is included in vocabulary and mapped
         to index 0. In other output modes, the token will not appear in the
         vocabulary and instances of the mask token in the input will be dropped.
-        If set to None, no mask term will be added. Defaults to None.
+        If set to None, no mask term will be added. Defaults to `None`.
       oov_token: Only used when `invert` is True. The token to return for OOV
         indices. Defaults to `-1`.
       vocabulary: Optional. Either an array of integers or a string path to a
@@ -98,7 +98,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         `"tf_idf"`, this argument must be supplied.
       invert: Only valid when `output_mode` is `"int"`. If True, this layer will
         map indices to vocabulary items instead of mapping vocabulary items to
-        indices. Default to False.
+        indices. Defaults to `False`.
       output_mode: Specification for the output of the layer. Values can be
         `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`, or `"tf_idf"`
         configuring the layer as follows:
@@ -128,7 +128,7 @@ class IntegerLookup(index_lookup.IndexLookup):
         False.
       sparse: Boolean. Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, returns a `SparseTensor` instead of a
-        dense `Tensor`. Defaults to False.
+        dense `Tensor`. Defaults to `False`.
 
     Examples:
 

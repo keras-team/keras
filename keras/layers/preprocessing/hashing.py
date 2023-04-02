@@ -110,7 +110,7 @@ class Hashing(base_layer.Layer):
         is set.
       mask_value: A value that represents masked inputs, which are mapped to
         index 0. None means no mask term will be added and the
-        hashing will start at index 0. Defaults to None.
+        hashing will start at index 0. Defaults to `None`.
       salt: A single unsigned integer or None.
         If passed, the hash function used will be SipHash64, with these values
         used as an additional input (known as a "salt" in cryptography).
@@ -136,7 +136,7 @@ class Hashing(base_layer.Layer):
         Defaults to `"int"`.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
-        a dense `Tensor`. Defaults to False.
+        a dense `Tensor`. Defaults to `False`.
       **kwargs: Keyword arguments to construct a layer.
 
     Input shape:

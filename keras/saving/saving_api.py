@@ -52,7 +52,7 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
 
     SavedModel format arguments:
         include_optimizer: Only applied to SavedModel and legacy HDF5 formats.
-            If False, do not save the optimizer state. Defaults to True.
+            If False, do not save the optimizer state. Defaults to `True`.
         signatures: Only applies to SavedModel format. Signatures to save
             with the SavedModel. See the `signatures` argument in
             `tf.saved_model.save` for details.
@@ -62,9 +62,9 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
         save_traces: Only applies to SavedModel format. When enabled, the
             SavedModel will store the function traces for each layer. This
             can be disabled, so that only the configs of each layer are stored.
-            Defaults to `True`. Disabling this will decrease serialization time
-            and reduce file size, but it requires that all custom layers/models
-            implement a `get_config()` method.
+            Disabling this will decrease serialization time and filesize, but
+            it requires that all custom layers/models implement a
+            `get_config()` method. Defaults to `True`.
 
     Example:
 
@@ -184,7 +184,7 @@ def load_model(
         safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
             When `safe_mode=False`, loading an object has the potential to
             trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to True.
+            applicable to the Keras v3 model format. Defaults to `True`.
 
     SavedModel format arguments:
         options: Only applies to SavedModel format.

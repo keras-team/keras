@@ -1042,9 +1042,9 @@ def warmstart_embedding_matrix(
           embedding matrix.
         new_embeddings_initializer: Initializer for embedding vectors for
           previously unseen terms to be added to the new embedding matrix (see
-          `keras.initializers`). Defaults to "uniform". new_embedding matrix
+          `keras.initializers`). new_embedding matrix
           needs to be specified with "constant" initializer.
-          matrix. Default value is None.
+          matrix. None means "uniform". Default value is None.
 
     Returns:
       tf.tensor of remapped embedding layer matrix

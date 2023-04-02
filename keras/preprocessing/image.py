@@ -1225,9 +1225,9 @@ class ImageDataGenerator:
           `fill_mode = "constant"`.
         horizontal_flip: Boolean. Randomly flip inputs horizontally.
         vertical_flip: Boolean. Randomly flip inputs vertically.
-        rescale: rescaling factor. Defaults to None. If None or 0, no rescaling
+        rescale: rescaling factor. If None or 0, no rescaling
           is applied, otherwise we multiply the data by the value provided
-          (after applying all other transformations).
+          (after applying all other transformations). Defaults to None.
         preprocessing_function: function that will be applied on each input. The
           function will run after the image is resized and augmented.
             The function should take one argument: one image (Numpy tensor with

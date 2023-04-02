@@ -183,7 +183,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         Defaults to `"int"`.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
-        a dense `Tensor`. Defaults to False.
+        a dense `Tensor`. Defaults to `False`.
 
     Examples:
 

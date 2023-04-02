@@ -458,7 +458,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         # Whether the layer will track any layers that is set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
-        # in the parent layer's variables() as well.  Default to True, which
+        # in the parent layer's variables() as well.  Defaults to `True`, which
         # means auto tracking is turned on. Certain subclass might want to turn
         # it off, like Sequential model.
         self._auto_track_sub_layers = True
@@ -3830,9 +3830,9 @@ class BaseRandomLayer(Layer):
           force_generator: boolean, default to False, whether to force the
             RandomGenerator to use the code branch of tf.random.Generator.
           rng_type: string, the rng type that will be passed to backend
-            RandomGenerator. Default to `None`, which will allow RandomGenerator
+            RandomGenerator. `None`, will allow RandomGenerator
             to choose types by itself. Valid values are "stateful", "stateless",
-            "legacy_stateful".
+            "legacy_stateful". Defaults to `None`.
           **kwargs: other keyword arguments that will be passed to the parent
             *class
         """

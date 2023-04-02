@@ -2137,7 +2137,8 @@ def _ragged_tensor_categorical_crossentropy(
       label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
         example, if `0.1`, use `0.1 / num_classes` for non-target labels
         and `0.9 + 0.1 / num_classes` for target labels.
-      axis: The axis along which to compute crossentropy (the features axis). Defaults to `-1`.
+      axis: The axis along which to compute crossentropy (the features axis).
+        Defaults to `-1`.
 
     Returns:
       Categorical crossentropy loss value.
@@ -2202,7 +2203,8 @@ def categorical_focal_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: The dimension along which the entropy is computed. Defaults to `-1`.
+        axis: The dimension along which the entropy is computed.
+            Defaults to `-1`.
 
     Returns:
         Categorical focal crossentropy loss value.
@@ -2281,7 +2283,8 @@ def _ragged_tensor_categorical_focal_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: The dimension along which the entropy is computed. Defaults to `-1`.
+        axis: The dimension along which the entropy is computed.
+            Defaults to `-1`.
 
     Returns:
       Categorical focal crossentropy loss value.
