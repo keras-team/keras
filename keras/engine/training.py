@@ -766,11 +766,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             if experimental_check_loss_differentiability:
                 if not isinstance(user_loss,
                                   str) and user_loss not in builtin_losses:
-                    # users may pass "mse" for MeanSquaredError, which is an alias
-                    # for a built-in loss.
+                    # users may pass "mse" for MeanSquaredError,
+                    # which is an alias for a built-in loss.
 
-                    input_shape_arg = self.input_shape if hasattr(self,
-                                                      'input_shape') else None
+                    input_shape_arg = self.input_shape if \
+                        hasattr(self, 'input_shape') else None
+
                     compile_utils.verify_loss_differentiability(
                         loss=user_loss,
                         expected_shapes=input_shape_arg)
