@@ -895,10 +895,12 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
 
         expected_shapes = (None, 1)
         compile_utils.verify_loss_differentiability(
-            differentiable_loss, expected_shapes)
+            differentiable_loss, expected_shapes
+        )
 
         compile_utils.verify_loss_differentiability(
-            DifferentiableLossClass(), expected_shapes)
+            DifferentiableLossClass(), expected_shapes
+        )
 
         # Test case 2: Non-differentiable loss function
         def non_differentiable_loss(y_true, y_pred):
@@ -910,11 +912,13 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
 
         with self.assertRaises(ValueError):
             compile_utils.verify_loss_differentiability(
-                non_differentiable_loss, expected_shapes)
+                non_differentiable_loss, expected_shapes
+            )
 
         with self.assertRaises(ValueError):
             compile_utils.verify_loss_differentiability(
-                NonDifferentiableLossClass(), expected_shapes)
+                NonDifferentiableLossClass(), expected_shapes
+            )
 
     def test__verify_loss_differentiability(self):
         # Test case 1: Differentiable loss function
@@ -926,11 +930,17 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
                 return tf.abs(tf.square(y_true - y_pred))
 
         expected_shapes = (1, 1)
-        self.assertTrue(compile_utils._verify_loss_differentiability(
-            differentiable_loss, expected_shapes))
+        self.assertTrue(
+            compile_utils._verify_loss_differentiability(
+                differentiable_loss, expected_shapes
+            )
+        )
 
-        self.assertTrue(compile_utils._verify_loss_differentiability(
-            DifferentiableLossClass(), expected_shapes))
+        self.assertTrue(
+            compile_utils._verify_loss_differentiability(
+                DifferentiableLossClass(), expected_shapes
+            )
+        )
 
         # Test case 2: Non-differentiable loss function
         def non_differentiable_loss(y_true, y_pred):
@@ -940,11 +950,17 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
             def call(self, y_true, y_pred):
                 return tf.argmax(tf.square(y_true - y_pred))
 
-        self.assertFalse(compile_utils._verify_loss_differentiability(
-            non_differentiable_loss, expected_shapes))
+        self.assertFalse(
+            compile_utils._verify_loss_differentiability(
+                non_differentiable_loss, expected_shapes
+            )
+        )
 
-        self.assertFalse(compile_utils._verify_loss_differentiability(
-            NonDifferentiableLossClass(), expected_shapes))
+        self.assertFalse(
+            compile_utils._verify_loss_differentiability(
+                NonDifferentiableLossClass(), expected_shapes
+            )
+        )
 
     def test__check_loss_with_shapes(self):
         # Test case 1: Differentiable loss function
@@ -958,11 +974,15 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
         expected_shape = (1, 1)
         self.assertTrue(
             compile_utils._check_loss_with_shapes(
-                differentiable_loss, expected_shape))
+                differentiable_loss, expected_shape
+            )
+        )
 
         self.assertTrue(
             compile_utils._check_loss_with_shapes(
-                DifferentiableLossClass(), expected_shape))
+                DifferentiableLossClass(), expected_shape
+            )
+        )
 
         # Test case 2: Non-differentiable loss function
         def non_differentiable_loss(y_true, y_pred):
@@ -974,11 +994,16 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
 
         self.assertFalse(
             compile_utils._check_loss_with_shapes(
-                non_differentiable_loss, expected_shape))
+                non_differentiable_loss, expected_shape
+            )
+        )
 
         self.assertFalse(
             compile_utils._check_loss_with_shapes(
-                NonDifferentiableLossClass(), expected_shape))
+                NonDifferentiableLossClass(), expected_shape
+            )
+        )
+
 
 if __name__ == "__main__":
     tf.compat.v1.enable_eager_execution()

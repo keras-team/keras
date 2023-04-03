@@ -18,8 +18,8 @@ import inspect
 import re
 
 import tensorflow.compat.v2 as tf
-import keras.losses as losses_module
 
+import keras.losses as losses_module
 from keras import backend
 from keras.engine import keras_tensor
 from keras.utils import tf_utils
@@ -447,7 +447,7 @@ def get_keras_losses():
 
             # Create alias using string operations
             # Eg. CategoricalCrossentropy -> categorical_crossentropy
-            alias = re.sub(r'(?<=[a-z])([A-Z])', r'_\1', name).lower()
+            alias = re.sub(r"(?<=[a-z])([A-Z])", r"_\1", name).lower()
 
             # Specific condition for KLDivergence
             if name == "KLDivergence":

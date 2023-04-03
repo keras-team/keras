@@ -868,21 +868,22 @@ def get_custom_object_name(obj):
 
 def verify_loss_differentiability(loss, expected_shapes):
     """Verifies if the loss is differentiable.
-    
-        Args:
-            loss: Can be a plain function or a class instance.
-            expected_shapes: A tuple containing the shapes for the inputs to the
-                loss.
-        Raises:
-            ValueError: If the loss is not differentiable.
-        """
+
+    Args:
+        loss: Can be a plain function or a class instance.
+        expected_shapes: A tuple containing the shapes for the inputs to the
+            loss.
+    Raises:
+        ValueError: If the loss is not differentiable.
+    """
 
     if not _verify_loss_differentiability(loss, expected_shapes):
         raise ValueError(
-            f"Provided loss function is not differentiable. If you think " 
+            f"Provided loss function is not differentiable. If you think "
             "this error is raised due to a bug in Keras, please pass "
             f"experimental_check_loss_differentiability=False in "
-            f"model.compile().\nReceived Loss: {loss}")
+            f"model.compile().\nReceived Loss: {loss}"
+        )
 
 
 def _verify_loss_differentiability(loss, expected_shapes=None):
@@ -895,6 +896,7 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
     Returns:
         A boolean indicating whether the loss is differentiable.
     """
+
     def generate_shape_tuples(dim, num_dims):
         for i in range(num_dims - 1):
             yield (1,) * (i + 1) + (dim,)
@@ -917,7 +919,7 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
                     else:
                         continue_checking = False
                         break  # Stop the inner loop when diff is False
-                except Exception as e:
+                except Exception:
                     # if there is an issue with the loss, we
                     # continue to the next shape.
                     continue
@@ -932,14 +934,12 @@ def _check_loss_with_shapes(loss, expected_shape):
     # Replace None batch dimension with 1.
     expected_shape = tuple(1 if dim is None else dim for dim in expected_shape)
 
-    predictions = tf.random.uniform(expected_shape,
-                                    minval=0,
-                                    maxval=1,
-                                    dtype=tf.float32)
-    targets = tf.random.uniform(expected_shape,
-                                minval=0,
-                                maxval=1,
-                                dtype=tf.float32)
+    predictions = tf.random.uniform(
+        expected_shape, minval=0, maxval=1, dtype=tf.float32
+    )
+    targets = tf.random.uniform(
+        expected_shape, minval=0, maxval=1, dtype=tf.float32
+    )
 
     with tf.GradientTape() as tape:
         tape.watch(predictions)
