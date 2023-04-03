@@ -879,10 +879,12 @@ def verify_loss_differentiability(loss, expected_shapes):
 
     if not _verify_loss_differentiability(loss, expected_shapes):
         raise ValueError(
-            f"Provided loss function is not differentiable. If you think "
-            "this error is raised due to a bug in Keras, please pass "
-            f"experimental_check_loss_differentiability=False in "
-            f"model.compile().\nReceived Loss: {loss}"
+            f"The provided loss function ({loss}) is not differentiable. "
+            "Training requires a differentiable loss function. Please review "
+            "your loss function or consider using a standard differentiable "
+            "loss function. You can disable the differentiability check by "
+            "setting 'experimental_check_loss_differentiability=False' in "
+            "'model.compile()'."
         )
 
 
