@@ -419,6 +419,61 @@ class MeanAbsoluteError(LossFunctionWrapper):
         super().__init__(mean_absolute_error, name=name, reduction=reduction)
 
 
+@keras_export("keras.losses.ScaleInvariantError")
+class ScaleInvariantError(LossFunctionWrapper):
+    """Computes the Scale Invariant Error between labels and predictions.
+
+    Formulas:
+
+    ```
+    g = log(y_pred) - log(y_true)
+    loss = alpha * sqrt(mean(g ** 2) - lamda * mean(g) ** 2)
+    ```
+
+    Standalone usage:
+
+    >>> y_true = [[1., 2.], [3., 4.]]
+    >>> y_pred = [[2., 4.], [6., 8.]]
+    >>> scale_inv_error = tf.keras.losses.ScaleInvariantError()
+    >>> loss = scale_inv_error(y_true, y_pred)
+    >>> loss.numpy()
+    2.6845474
+    """
+
+    def __init__(
+        self,
+        reduction=losses_utils.ReductionV2.AUTO,
+        alpha=10.0,
+        lamda=0.85,
+        name="scale_invariant_error",
+    ):
+        """Initializes `ScaleInvariantError` instance.
+
+        Args:
+          reduction: Type of `tf.keras.losses.Reduction` to apply to
+            loss. Default value is `AUTO`. `AUTO` indicates that the reduction
+            option will be determined by the usage context. For almost all cases
+            this defaults to `SUM_OVER_BATCH_SIZE`. When used under a
+            `tf.distribute.Strategy`, except via `Model.compile()` and
+            `Model.fit()`, using `AUTO` or `SUM_OVER_BATCH_SIZE`
+            will raise an error. Please see this custom training [tutorial](
+            https://www.tensorflow.org/tutorials/distribute/custom_training)
+            for more details.
+          alpha: Scaling factor for the loss. Defaults to 10.0.
+          lamda: Parameter for the loss. Defaults to 0.85.
+          name: Optional name for the instance. Defaults to
+            'scale_invariant_error'.
+        """
+
+        super().__init__(
+            scale_invariant_error,
+            name=name,
+            reduction=reduction,
+            alpha=alpha,
+            lamda=lamda,
+        )
+
+
 @keras_export("keras.losses.MeanAbsolutePercentageError")
 class MeanAbsolutePercentageError(LossFunctionWrapper):
     """Computes the mean absolute percentage error between `y_true` & `y_pred`.
@@ -1753,6 +1808,60 @@ def mean_absolute_error(y_true, y_pred):
 def _ragged_tensor_mae(y_true, y_pred):
     """RaggedTensor adapter for mean_absolute_error."""
     return _ragged_tensor_apply_loss(mean_absolute_error, y_true, y_pred)
+
+
+@keras_export(
+    "keras.metrics.scale_invariant_error",
+    "keras.metrics.sie",
+    "keras.metrics.SIE",
+    "keras.losses.scale_invariant_error",
+    "keras.losses.sie",
+    "keras.losses.SIE",
+)
+@tf.__internal__.dispatch.add_dispatch_support
+def scale_invariant_error(y_true, y_pred, alpha=10.0, lamda=0.85):
+    """Computes the Scale Invariant Error between labels and predictions.
+
+    According to [Eigen et al., 2014](https://arxiv.org/pdf/1406.2283), it
+    measures the error by comparing relationships between pairs of pixels
+    between points in the scene, irrespective of the absolute global scale.
+
+    Standalone usage:
+
+    >>> y_true = [[1, 2], [3, 4]]
+    >>> y_pred = [[2, 4], [6, 8]]
+    >>> loss = tf.keras.losses.scale_invariant_error(y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    >>> loss.numpy()
+    array([1.6659865, 1.6659865], dtype=float32)
+
+    Args:
+      y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+      y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+      alpha: Scaling factor for the loss. Defaults to 10.0.
+      lamda: Parameter for the loss. Defaults to 0.85.
+
+    Returns:
+      Scale Invariant Error loss value. shape = `[batch_size, d0, .. dN-1]`.
+    """
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.cast(y_true, y_pred.dtype)
+    # Create mask for valid depth
+    mask = tf.math.greater(y_true, 0)
+    g = tf.math.log(tf.boolean_mask(y_pred, mask)) - tf.math.log(
+        tf.boolean_mask(y_true, mask)
+    )
+    loss = (
+        tf.math.sqrt(backend.mean(g**2) - lamda * (backend.mean(g) ** 2))
+        * alpha
+    )
+    return loss
+
+
+@dispatch.dispatch_for_types(scale_invariant_error, tf.RaggedTensor)
+def _ragged_tensor_sie(y_true, y_pred):
+    """Support RaggedTensors."""
+    return _ragged_tensor_apply_loss(scale_invariant_error, y_true, y_pred)
 
 
 @keras_export(
