@@ -28,6 +28,7 @@ from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
 from keras.engine import sequential
 from keras.engine import training as training_lib
+from keras.saving import object_registration
 from keras.saving.legacy import save
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -1875,7 +1876,7 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         test_combinations.combine(mode=["graph", "eager"])
     )
     @test_utils.run_v2_only
-    def test_save_load_with_single_elem_list_inputs(self):
+    def test_save_load_with_single_elem_list_inputs_saved_model(self):
         class MyLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
@@ -1892,6 +1893,26 @@ class DefaultShapeInferenceBehaviorTest(test_combinations.TestCase):
         model.save("/tmp/km2")
 
         save.load_model("/tmp/km2")
+
+    @test_utils.run_v2_only
+    def test_save_load_with_single_elem_list_inputs_keras_v3(self):
+        @object_registration.register_keras_serializable()
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._preserve_input_structure_in_config = True
+
+            def call(self, inputs):
+                return inputs[0]
+
+        inputs = input_layer_lib.Input(shape=(3,))
+        layer = MyLayer()
+        outputs = layer([inputs])
+
+        model = training_lib.Model(inputs=inputs, outputs=outputs)
+        model.save("/tmp/model.keras")
+
+        models.load_model("/tmp/model.keras")
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
