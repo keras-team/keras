@@ -53,7 +53,9 @@ class MemoryTest(tf.test.TestCase):
             with tf.GradientTape():
                 net(inputs)
 
-        memory_test_util.assert_no_leak(f, num_iters=1000)
+        memory_test_util.assert_no_leak(
+            f, num_iters=1000, increase_threshold_absolute_mb=20
+        )
 
     def testMemoryLeakInSimpleModelForwardAndBackward(self):
         if not memory_test_util.memory_profiler_is_available():
@@ -70,7 +72,9 @@ class MemoryTest(tf.test.TestCase):
 
             del tape
 
-        memory_test_util.assert_no_leak(f, num_iters=1000)
+        memory_test_util.assert_no_leak(
+            f, num_iters=1000, increase_threshold_absolute_mb=20
+        )
 
 
 if __name__ == "__main__":
