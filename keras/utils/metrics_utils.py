@@ -979,7 +979,7 @@ def sparse_top_k_categorical_matches(y_true, y_pred, k=5):
       y_true: tensor of true targets.
       y_pred: tensor of predicted targets.
       k: (Optional) Number of top elements to look at for computing accuracy.
-        Defaults to 5.
+        Defaults to `5`.
 
     Returns:
       Match tensor: 1.0 for label-prediction match, 0.0 for mismatch.
