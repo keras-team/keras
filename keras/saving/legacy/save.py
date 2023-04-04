@@ -120,9 +120,9 @@ def save_model(
         save_traces: (only applies to SavedModel format) When enabled, the
           SavedModel will store the function traces for each layer. This
           can be disabled, so that only the configs of each layer are stored.
-          Defaults to `True`. Disabling this will decrease serialization time
-          and reduce file size, but it requires that all custom layers/models
-          implement a `get_config()` method.
+          Disabling this will decrease serialization time and filesize, but
+          it requires that all custom layers/models implement a
+          `get_config()` method. Defaults to `True`.
 
     Raises:
         ImportError: If save format is hdf5, and h5py is not available.
@@ -317,7 +317,7 @@ def save_weights(
             target location, or provide the user with a manual prompt.
         save_format: Either 'tf' or 'h5'. A `filepath` ending in '.h5' or
             '.keras' will default to HDF5 if `save_format` is `None`.
-            Otherwise `None` defaults to 'tf'.
+            Otherwise, `None` becomes 'tf'. Defaults to `None`.
         options: Optional `tf.train.CheckpointOptions` object that specifies
             options for saving weights.
 
