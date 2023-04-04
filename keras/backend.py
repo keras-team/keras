@@ -5651,7 +5651,7 @@ def categorical_focal_crossentropy(
     )
 
     if from_logits:
-        output = softmax(output, axis=axis)
+        output = tf.nn.softmax(output, axis=axis)
 
     # Adjust the predictions so that the probability of
     # each class for every sample adds up to 1
