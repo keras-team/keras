@@ -104,7 +104,7 @@ def text_dataset_from_directory(
             When `subset="both"`, the utility returns a tuple of two datasets
             (the training and validation datasets respectively).
         follow_links: Whether to visits subdirectories pointed to by symlinks.
-            Defaults to False.
+            Defaults to `False`.
 
     Returns:
         A `tf.data.Dataset` object.
