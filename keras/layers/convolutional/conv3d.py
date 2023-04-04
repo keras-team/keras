@@ -83,8 +83,8 @@ class Conv3D(Conv):
         `channels_last` corresponds to inputs with shape `batch_shape +
         (spatial_dim1, spatial_dim2, spatial_dim3, channels)` while
         `channels_first` corresponds to inputs with shape `batch_shape +
-        (channels, spatial_dim1, spatial_dim2, spatial_dim3)`. When unspecified, uses
-        `image_data_format` value found in your Keras config file at
+        (channels, spatial_dim1, spatial_dim2, spatial_dim3)`. When unspecified,
+        uses `image_data_format` value found in your Keras config file at
         `~/.keras/keras.json` (if exists) else 'channels_last'. Note that the
         `channels_first` format is currently not supported by TensorFlow on CPU.
         Defaults to 'channels_first'.
