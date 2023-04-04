@@ -1354,6 +1354,9 @@ class Optimizer(_BaseOptimizer):
                 var, apply_grad_to_update_var, args=(grad,), group=False
             )
 
+        # Update the iteration count atomically and cache the updated value.
+        updated_iterations = self.iterations.assign_add(1, read_value=True)
+
         if self.use_ema:
             _, var_list = zip(*grads_and_vars)
             self._update_model_variables_moving_average(var_list)
@@ -1361,8 +1364,7 @@ class Optimizer(_BaseOptimizer):
                 # Only when self.ema_overwrite_frequency is not None, we
                 # overwrite the model variables.
                 should_overwrite_model_vars = (
-                    self.iterations + 1
-                ) % self.ema_overwrite_frequency == 0
+                    updated_iterations % self.ema_overwrite_frequency == 0)
                 tf.cond(
                     tf.cast(should_overwrite_model_vars, tf.bool),
                     true_fn=lambda: self._overwrite_model_variables_with_average_value(  # noqa: E501
@@ -1370,7 +1372,9 @@ class Optimizer(_BaseOptimizer):
                     ),
                     false_fn=lambda: None,
                 )
-        return self.iterations.assign_add(1)
+
+        # Return the previously updated iteration count.
+        return updated_iterations
 
 
 class RestoredOptimizer(Optimizer):
