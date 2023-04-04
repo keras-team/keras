@@ -152,12 +152,12 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         have its time dimension padded or truncated to exactly
         `output_sequence_length` values, resulting in a tensor of shape
         `(batch_size, output_sequence_length)` regardless of how many tokens
-        resulted from the splitting step. Defaults to None.
+        resulted from the splitting step. Defaults to `None`.
       pad_to_max_tokens: Only valid in  `"multi_hot"`, `"count"`, and `"tf_idf"`
         modes. If True, the output will have its feature axis padded to
         `max_tokens` even if the number of unique tokens in the vocabulary is
         less than max_tokens, resulting in a tensor of shape `(batch_size,
-        max_tokens)` regardless of vocabulary size. Defaults to False.
+        max_tokens)` regardless of vocabulary size. Defaults to `False`.
       vocabulary: Optional. Either an array of strings or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
         or 1D tensor containing the string vocabulary terms. If passing a file
@@ -171,10 +171,10 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         `"tf_idf"`, this argument must be supplied.
       ragged: Boolean. Only applicable to `"int"` output mode. If True, returns
         a `RaggedTensor` instead of a dense `Tensor`, where each sequence may
-        have a different length after string splitting. Defaults to False.
+        have a different length after string splitting. Defaults to `False`.
       sparse: Boolean. Only applicable to `"multi_hot"`, `"count"`, and
         `"tf_idf"` output modes. If True, returns a `SparseTensor` instead of a
-        dense `Tensor`. Defaults to False.
+        dense `Tensor`. Defaults to `False`.
       encoding: Optional. The text encoding to use to interpret the input
         strings. Defaults to `"utf-8"`.
 
