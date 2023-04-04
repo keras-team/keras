@@ -4352,10 +4352,13 @@ def inject_functional_model_class(cls):
 
 
 def is_functional_model_init_params(args, kwargs):
-    return (
-        len(args) == 2
-        or len(args) == 1
-        and "outputs" in kwargs
-        or "inputs" in kwargs
-        and "outputs" in kwargs
-    )
+    # Both inputs and outputs in args
+    if len(args) == 2:
+        return True
+    # Both inputs in args, outputs in kwargs
+    if len(args) == 1 and "outputs" in kwargs:
+        return True
+    # Both in kwargs
+    if "inputs" in kwargs and "outputs" in kwargs:
+        return True
+    return False
