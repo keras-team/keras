@@ -70,9 +70,10 @@ class SeparableConv2D(SeparableConv):
         `(batch_size, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
         `(batch_size, channels, height, width)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       dilation_rate: An integer or tuple/list of 2 integers, specifying
         the dilation rate to use for dilated convolution.
       depth_multiplier: The number of depthwise convolution output channels
