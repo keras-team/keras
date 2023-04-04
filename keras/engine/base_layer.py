@@ -3830,8 +3830,8 @@ class BaseRandomLayer(Layer):
           force_generator: boolean, default to False, whether to force the
             RandomGenerator to use the code branch of tf.random.Generator.
           rng_type: string, the rng type that will be passed to backend
-            RandomGenerator. `None`, will allow RandomGenerator
-            to choose types by itself. Valid values are "stateful", "stateless",
+            RandomGenerator. `None` will allow RandomGenerator to choose
+            types by itself. Valid values are "stateful", "stateless",
             "legacy_stateful". Defaults to `None`.
           **kwargs: other keyword arguments that will be passed to the parent
             *class
