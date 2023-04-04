@@ -213,7 +213,29 @@ def load_model(
     It is recommended that you use layer attributes to
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
-    if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
+    is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
+        filepath
+    )
+
+    # Support for remote zip files
+    if (
+        saving_lib.is_remote_path(filepath)
+        and not tf.io.gfile.isdir(filepath)
+        and not is_keras_zip
+    ):
+        local_path = os.path.join(
+            saving_lib.get_temp_dir(), os.path.basename(filepath)
+        )
+
+        # Copy from remote to temporary local directory
+        tf.io.gfile.copy(filepath, local_path, overwrite=True)
+
+        # Switch filepath to local zipfile for loading model
+        if zipfile.is_zipfile(local_path):
+            filepath = local_path
+            is_keras_zip = True
+
+    if is_keras_zip:
         if kwargs:
             raise ValueError(
                 "The following argument(s) are not supported "
