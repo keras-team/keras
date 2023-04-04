@@ -335,11 +335,12 @@ def print_summary(
             It will be called on each line of the summary.
             You can set it to a custom function
             in order to capture the string summary.
-            It defaults to `print` (prints to stdout).
+            When `None`, uses `print` (prints to stdout).
+            Defaults to `None`.
         expand_nested: Whether to expand the nested models.
-            If not provided, defaults to `False`.
+            Defaults to `False`.
         show_trainable: Whether to show if a layer is trainable.
-            If not provided, defaults to `False`.
+            Defaults to `False`.
         layer_range: List or tuple containing two strings,
             the starting layer name and ending layer name (both inclusive),
             indicating the range of layers to be printed in the summary. The

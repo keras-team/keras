@@ -88,7 +88,7 @@ def InceptionV3(
         or the path to the weights file to be loaded. Defaults to `imagenet`.
       input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
         to use as image input for the model. `input_tensor` is useful for
-        sharing inputs between multiple different networks. Defaults to None.
+        sharing inputs between multiple different networks. Defaults to `None`.
       input_shape: Optional shape tuple, only to be specified
         if `include_top` is False (otherwise the input shape
         has to be `(299, 299, 3)` (with `channels_last` data format)

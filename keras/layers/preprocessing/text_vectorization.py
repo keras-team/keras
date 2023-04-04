@@ -152,7 +152,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
         have its time dimension padded or truncated to exactly
         `output_sequence_length` values, resulting in a tensor of shape
         `(batch_size, output_sequence_length)` regardless of how many tokens
-        resulted from the splitting step. Defaults to None.
+        resulted from the splitting step. Defaults to `None`.
       pad_to_max_tokens: Only valid in  `"multi_hot"`, `"count"`, and `"tf_idf"`
         modes. If True, the output will have its feature axis padded to
         `max_tokens` even if the number of unique tokens in the vocabulary is

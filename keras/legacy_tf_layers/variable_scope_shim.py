@@ -215,7 +215,7 @@ class _EagerVariableStore(tf.Module):
         Args:
           name: The name of the new or existing variable.
           shape: Shape of the new or existing variable.
-          dtype: Type of the new or existing variable (defaults to `DT_FLOAT`).
+          dtype: Type of the new or existing variable. Defaults to `DT_FLOAT`.
           initializer: Initializer for the variable.
           regularizer: A (Tensor -> Tensor or None) function; the result of
             applying it on a newly created variable will be added to the
@@ -226,8 +226,8 @@ class _EagerVariableStore(tf.Module):
             always forced to be False.
           trainable: If `True` also add the variable to the graph collection
             `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`). `trainable`
-            defaults to `True`, unless `synchronization` is set to `ON_READ`, in
-            which case it defaults to `False`.
+            becomes `True`, unless `synchronization` is set to `ON_READ`, in
+            which case it becomes `False`. Defaults to `True`.
           collections: List of graph collections keys to add the `Variable` to.
             Defaults to `[GraphKeys.GLOBAL_VARIABLES]` (see `tf.Variable`).
           caching_device: Optional device string or function describing where
@@ -235,7 +235,7 @@ class _EagerVariableStore(tf.Module):
             Variable's device.  If not `None`, caches on another device.
             Typical use is to cache on the device where the Ops using the
             `Variable` reside, to deduplicate copying through `Switch` and other
-            conditional statements. Defaults to None.
+            conditional statements. Defaults to `None`.
           partitioner: Optional callable that accepts a fully defined
             `TensorShape` and dtype of the `Variable` to be created, and returns
             a list of partitions for each axis (currently only one axis can be

@@ -756,8 +756,8 @@ def preprocess_input(x, data_format=None):
       x: A floating point `numpy.array` or a `tf.Tensor`.
       data_format: Optional data format of the image tensor/array. `None` means
         the global setting `tf.keras.backend.image_data_format()` is used
-        (unless you changed it, it defaults to "channels_last").{mode}.
-        Defaults to None
+        (unless you changed it, it uses "channels_last").{mode}.
+        Defaults to `None`.
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.

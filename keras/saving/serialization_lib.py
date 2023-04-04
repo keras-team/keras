@@ -412,7 +412,7 @@ def deserialize_keras_object(
       `keras.utils.register_keras_serializable(package, name)` API. The key has
       the format of '{package}>{name}', where `package` and `name` are the
       arguments passed to `register_keras_serializable()`. If `name` is not
-      provided, it defaults to the class name. If `registered_name` successfully
+      provided, it uses the class name. If `registered_name` successfully
       resolves to a class (that was registered), the `class_name` and `config`
       values in the dict will not be used. `registered_name` is only used for
       non-built-in classes.

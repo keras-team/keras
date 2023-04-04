@@ -41,11 +41,11 @@ class SharpnessAwareMinimization(Model):
     Args:
       model: `tf.keras.Model` instance. The inner model that does the
         forward-backward pass.
-      rho: float, defaults to 0.05. The gradients scaling factor.
-      num_batch_splits: int, defaults to None. The number of mini batches to
+      rho: float. The gradients scaling factor. Defaults to `0.05`.
+      num_batch_splits: int. The number of mini batches to
         split into from each data batch. If None, batches are not split into
-        sub-batches.
-      name: string, defaults to None. The name of the SAM model.
+        sub-batches. Defaults to None.
+      name: string. The name of the SAM model. Defaults to None.
 
     Reference:
       [Pierre Foret et al., 2020](https://arxiv.org/abs/2010.01412)

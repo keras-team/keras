@@ -1015,7 +1015,7 @@ class ProgbarLogger(Callback):
             should *not* be averaged over an epoch.
             Metrics in this list will be logged as-is.
             All others will be averaged over time (e.g. loss, etc).
-            If not provided, defaults to the `Model`'s metrics.
+            When None, uses the `Model`'s metrics. Defaults to `None`.
 
     Raises:
         ValueError: In case of invalid `count_mode`.
@@ -2276,8 +2276,8 @@ def keras_model_summary(name, data, step=None):
         be this name prefixed by any active name scopes.
       data: A Keras Model to write.
       step: Explicit `int64`-castable monotonic step value for this summary. If
-        omitted, this defaults to `tf.summary.experimental.get_step()`, which
-        must not be None.
+        None, this uses `tf.summary.experimental.get_step()`, which
+        must not be None. Defaults to `None`.
 
     Returns:
       True on success, or False if no summary was written because no default

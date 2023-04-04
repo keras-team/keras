@@ -1901,8 +1901,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         When `rng_type` is "legacy_stateful", the seed will be passed down to
         stateful random ops.
       rng_type: Type of RNG to use, one of "stateful", "stateless",
-        "legacy_stateful". It defaults to "stateful" if
-        `enable_tf_random_generator` has been activated, or to
+        "legacy_stateful". When `None` it uses "stateful" if
+        `enable_tf_random_generator` has been activated, or
         "legacy_stateful" otherwise.
         - When using "stateless", the random ops outputs are constant (the same
           inputs result in the same outputs).
@@ -1913,6 +1913,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         - "legacy_stateful" is backed by TF1 stateful RNG ops
           (e.g. `tf.random.uniform`), while "stateful"
           is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+        Defaults to `None`.
     """
 
     RNG_STATELESS = "stateless"

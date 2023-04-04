@@ -317,7 +317,7 @@ def save_weights(
             target location, or provide the user with a manual prompt.
         save_format: Either 'tf' or 'h5'. A `filepath` ending in '.h5' or
             '.keras' will default to HDF5 if `save_format` is `None`.
-            Otherwise `None` defaults to 'tf'.
+            Otherwise, `None` becomes 'tf'. Defaults to `None`.
         options: Optional `tf.train.CheckpointOptions` object that specifies
             options for saving weights.
 

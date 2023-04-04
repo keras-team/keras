@@ -507,17 +507,17 @@ class GRU(DropoutRNNCellMixin, RNN, base_layer.BaseRandomLayer):
     Call arguments:
       inputs: A 3D tensor, with shape `[batch, timesteps, feature]`.
       mask: Binary tensor of shape `[samples, timesteps]` indicating whether
-        a given timestep should be masked  (optional, defaults to `None`).
+        a given timestep should be masked  (optional).
         An individual `True` entry indicates that the corresponding timestep
         should be utilized, while a `False` entry indicates that the
-        corresponding timestep should be ignored.
+        corresponding timestep should be ignored. Defaults to `None`.
       training: Python boolean indicating whether the layer should behave in
         training mode or in inference mode. This argument is passed to the cell
         when calling it. This is only relevant if `dropout` or
-        `recurrent_dropout` is used  (optional, defaults to `None`).
+        `recurrent_dropout` is used  (optional). Defaults to `None`.
       initial_state: List of initial state tensors to be passed to the first
-        call of the cell  (optional, defaults to `None` which causes creation
-        of zero-filled initial state tensors).
+        call of the cell  (optional, `None` causes creation
+        of zero-filled initial state tensors). Defaults to `None`.
     """
 
     def __init__(

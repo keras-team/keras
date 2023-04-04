@@ -484,12 +484,12 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
           variable_name: String. The name prefix of the optimizer variable to be
             created. The create variables name will follow the pattern
             `{variable_name}/{model_variable.name}`, e.g., `momemtum/dense_1`.
-          shape: List or Tuple, defaults to None. The shape of the optimizer
+          shape: List or Tuple. The shape of the optimizer
             variable to be created. If None, the created variable will have the
-            same shape as `model_variable`.
-          initial_value: A Tensor, or Python object convertible to a Tensor,
-            defaults to None. The initial value of the optimizer variable, if
-            None, the initial value will be default to 0.
+            same shape as `model_variable`. Defaults to `None`.
+          initial_value: A Tensor, or Python object convertible to a Tensor.
+            The initial value of the optimizer variable, if None, the
+            initial value will be default to 0. Defaults to `None`.
 
         Returns:
           An optimizer variable.
@@ -614,8 +614,9 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 
         Args:
           grads_and_vars: List of `(gradient, variable)` pairs.
-          name: string, defaults to None. The name of the namescope to
+          name: string. The name of the namescope to
             use when creating variables. If None, `self.name` will be used.
+            Defaults to `None`.
 
         Returns:
           A `tf.Variable`, representing the current iteration.
@@ -846,24 +847,24 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
 base_optimizer_keyword_args = """name: String. The name to use
           for momentum accumulator weights created by
           the optimizer.
-      weight_decay: Float, defaults to None. If set, weight decay is applied.
+      weight_decay: Float. If set, weight decay is applied. Defaults to `None`.
       clipnorm: Float. If set, the gradient of each weight is individually
           clipped so that its norm is no higher than this value.
       clipvalue: Float. If set, the gradient of each weight is clipped to be no
           higher than this value.
       global_clipnorm: Float. If set, the gradient of all weights is clipped so
           that their global norm is no higher than this value.
-      use_ema: Boolean, defaults to False. If True, exponential moving average
+      use_ema: Boolean. If True, exponential moving average
           (EMA) is applied. EMA consists of computing an exponential moving
           average of the weights of the model (as the weight values change after
           each training batch), and periodically overwriting the weights with
-          their moving average.
-      ema_momentum: Float, defaults to 0.99. Only used if `use_ema=True`.
+          their moving average. Defaults to `False`.
+      ema_momentum: Float. Only used if `use_ema=True`.
           This is the momentum to use when computing
           the EMA of the model's weights:
           `new_average = ema_momentum * old_average + (1 - ema_momentum) *
-          current_variable_value`.
-      ema_overwrite_frequency: Int or None, defaults to None. Only used if
+          current_variable_value`. Defaults to `0.99`.
+      ema_overwrite_frequency: Int or None. Only used if
           `use_ema=True`. Every `ema_overwrite_frequency` steps of iterations,
           we overwrite the model variable by its moving average.
           If None, the optimizer
@@ -873,10 +874,11 @@ base_optimizer_keyword_args = """name: String. The name to use
           (which updates the model
           variables in-place). When using the built-in `fit()` training loop,
           this happens automatically after the last epoch,
-          and you don't need to do anything.
-      jit_compile: Boolean, defaults to True.
+          and you don't need to do anything. Defaults to `None`.
+      jit_compile: Boolean.
           If True, the optimizer will use XLA
           compilation. If no GPU device is found, this flag will be ignored.
+          Defaults to `True`.
       mesh: optional `tf.experimental.dtensor.Mesh` instance. When provided,
           the optimizer will be run in DTensor mode, e.g. state
           tracking variable will be a DVariable, and aggregation/reduction will
@@ -1202,8 +1204,9 @@ class Optimizer(_BaseOptimizer):
 
         Args:
           grads_and_vars: List of `(gradient, variable)` pairs.
-          name: string, defaults to None. The name of the namescope to
+          name: string. The name of the namescope to
             use when creating variables. If None, `self.name` will be used.
+            Defaults to `None`.
           skip_gradients_aggregation: If true, gradients aggregation will not be
             performed inside optimizer. Usually this arg is set to True when you
             write custom code aggregating gradients outside the optimizer.

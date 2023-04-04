@@ -218,12 +218,12 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
         data_format: Image data format, can be either `"channels_first"` or
           `"channels_last"`. None means the global
           setting `tf.keras.backend.image_data_format()` is used (unless you
-          changed it, it defaults to `"channels_last"`). Defaults to `None`.
+          changed it, it uses `"channels_last"`). Defaults to `None`.
         scale: Whether to rescale the image such that minimum and maximum values
           are 0 and 255 respectively. Defaults to `True`.
         dtype: Dtype to use. None makes the global setting
           `tf.keras.backend.floatx()` to be used (unless you changed it, it
-          defaults to `"float32"`). Defaults to `None`.
+          uses `"float32"`). Defaults to `None`.
 
     Returns:
         A PIL Image instance.
@@ -300,10 +300,10 @@ def img_to_array(img, data_format=None, dtype=None):
         data_format: Image data format, can be either `"channels_first"` or
           `"channels_last"`. None means the global
           setting `tf.keras.backend.image_data_format()` is used (unless you
-          changed it, it defaults to `"channels_last"`). Defaults to `None`.
+          changed it, it uses `"channels_last"`). Defaults to `None`.
         dtype: Dtype to use. None makes the global setting
           `tf.keras.backend.floatx()` to be used (unless you changed it, it
-          defaults to `"float32"`). Defaults to `None`.
+          uses `"float32"`). Defaults to `None`.
 
     Returns:
         A 3D Numpy array.

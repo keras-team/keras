@@ -120,9 +120,9 @@ class LayerNormalization(Layer):
 
     Args:
       axis: Integer or List/Tuple. The axis or axes to normalize across.
-        Typically this is the features axis/axes. The left-out axes are
-        typically the batch axis/axes. This argument defaults to `-1`, the last
-        dimension in the input.
+        Typically, this is the features axis/axes. The left-out axes are
+        typically the batch axis/axes. `-1` is the last dimension in the
+        input. Defaults to `-1`.
       epsilon: Small float added to variance to avoid dividing by zero. Defaults
         to 1e-3
       center: If True, add offset of `beta` to normalized tensor. If False,

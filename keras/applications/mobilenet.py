@@ -143,7 +143,7 @@ def MobileNet(
         `imagenet`.
       input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`) to
         use as image input for the model. `input_tensor` is useful for sharing
-        inputs between multiple different networks. Defaults to None.
+        inputs between multiple different networks. Defaults to `None`.
       pooling: Optional pooling mode for feature extraction when `include_top`
         is `False`.
         - `None` (default) means that the output of the model will be

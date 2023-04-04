@@ -49,8 +49,9 @@ class RMSprop(optimizer.Optimizer):
         or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
         Defaults to `0.001`.
       rho: float. Discounting factor for the old gradients. Defaults to `0.9`.
-      momentum: float, defaults to 0.0. If not 0.0., the optimizer tracks the
+      momentum: float. If not `0.0`, the optimizer tracks the
         momentum value, with a decay rate equals to `1 - momentum`.
+        Defaults to `0.0`.
       epsilon: A small constant for numerical stability. This epsilon is
         "epsilon hat" in the Kingma and Ba paper (in the formula just before
         Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults to

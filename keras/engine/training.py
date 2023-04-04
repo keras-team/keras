@@ -1459,11 +1459,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 of index `epochs` is reached.
             verbose: 'auto', 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
-                'auto' defaults to 1 for most cases, but 2 when used with
+                'auto' becomes 1 for most cases, but 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so verbose=2 is
                 recommended when not running interactively (eg, in a production
-                environment).
+                environment). Defaults to 'auto'.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See `tf.keras.callbacks`. Note
@@ -2061,11 +2061,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               they generate batches).
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
-                `"auto"` defaults to 1 for most cases, and to 2 when used with
+                `"auto"` becomes 1 for most cases, and to 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so `verbose=2` is
                 recommended when not running interactively (e.g. in a production
-                environment).
+                environment). Defaults to 'auto'.
             sample_weight: Optional Numpy array of weights for the test samples,
               used for weighting the loss function. You can either pass a flat
               (1D) Numpy array with the same length as the input samples
@@ -2421,11 +2421,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 (since they generate batches).
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
-                `"auto"` defaults to 1 for most cases, and to 2 when used with
+                `"auto"` becomes 1 for most cases, and to 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so `verbose=2` is
                 recommended when not running interactively (e.g. in a production
-                environment).
+                environment). Defaults to 'auto'.
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
                 Ignored with the default value of `None`. If x is a `tf.data`
@@ -3053,7 +3053,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 target location, or provide the user with a manual prompt.
             save_format: Either 'tf' or 'h5'. A `filepath` ending in '.h5' or
                 '.keras' will default to HDF5 if `save_format` is `None`.
-                Otherwise `None` defaults to 'tf'.
+                Otherwise, `None` becomes 'tf'. Defaults to `None`.
             options: Optional `tf.train.CheckpointOptions` object that specifies
                 options for saving weights.
 
@@ -3368,17 +3368,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 (e.g. set this to adapt the display to different
                 terminal window sizes).
             positions: Relative or absolute positions of log elements
-                in each line. If not provided,
-                defaults to `[0.3, 0.6, 0.70, 1.]`
+                in each line. If not provided, becomes
+                `[0.3, 0.6, 0.70, 1.]`. Defaults to `None`.
             print_fn: Print function to use. By default, prints to `stdout`.
                 If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
                 You can set it to a custom function
                 in order to capture the string summary.
             expand_nested: Whether to expand the nested models.
-                If not provided, defaults to `False`.
+                Defaults to `False`.
             show_trainable: Whether to show if a layer is trainable.
-                If not provided, defaults to `False`.
+                Defaults to `False`.
             layer_range: a list or tuple of 2 strings,
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed

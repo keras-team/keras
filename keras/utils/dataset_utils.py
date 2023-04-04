@@ -41,11 +41,11 @@ def split_dataset(
         left_size: If float (in the range `[0, 1]`), it signifies
           the fraction of the data to pack in the left dataset. If integer, it
           signifies the number of samples to pack in the left dataset. If
-          `None`, it defaults to the complement to `right_size`.
+          `None`, it uses the complement to `right_size`. Defaults to `None`.
         right_size: If float (in the range `[0, 1]`), it signifies
           the fraction of the data to pack in the right dataset. If integer, it
           signifies the number of samples to pack in the right dataset. If
-          `None`, it defaults to the complement to `left_size`.
+          `None`, it uses the complement to `left_size`. Defaults to `None`.
         shuffle: Boolean, whether to shuffle the data before splitting it.
         seed: A random seed for shuffling.
 

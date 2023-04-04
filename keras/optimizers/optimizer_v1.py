@@ -248,7 +248,7 @@ class RMSprop(Optimizer):
       lr: float >= 0. Learning rate.
       rho: float >= 0.
       epsilon: float >= 0. Fuzz factor.
-        If `None`, defaults to `backend.epsilon()`.
+        If `None`, becomes `backend.epsilon()`. Defaults to `None`.
       decay: float >= 0. Learning rate decay over each update.
     """
 
@@ -408,12 +408,14 @@ class Adadelta(Optimizer):
     at their default values.
 
     Arguments:
-      lr: float >= 0. Initial learning rate, defaults to 1.
+      lr: float >= 0. Initial learning rate.
           It is recommended to leave it at the default value.
+          Defaults to `1`.
       rho: float >= 0. Adadelta decay factor, corresponding to fraction of
           gradient to keep at each time step.
       epsilon: float >= 0. Fuzz factor.
         If `None`, defaults to `backend.epsilon()`.
+        Defaults to `None`.
       decay: float >= 0. Initial learning rate decay.
 
     References:
@@ -505,7 +507,8 @@ class Adam(Optimizer):
       beta_1: float, 0 < beta < 1. Generally close to 1.
       beta_2: float, 0 < beta < 1. Generally close to 1.
       epsilon: float >= 0. Fuzz factor.
-        If `None`, defaults to `backend.epsilon()`.
+        If `None`, becomes `backend.epsilon()`.
+        Defaults to `None`.
       decay: float >= 0. Learning rate decay over each update.
       amsgrad: boolean. Whether to apply the AMSGrad variant of this algorithm
         from the paper "On the Convergence of Adam and Beyond".
@@ -624,7 +627,8 @@ class Adamax(Optimizer):
       lr: float >= 0. Learning rate.
       beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
       epsilon: float >= 0. Fuzz factor.
-        If `None`, defaults to `backend.epsilon()`.
+        If `None`, becomes `backend.epsilon()`.
+        Defaults to `None`.
       decay: float >= 0. Learning rate decay over each update.
     """
 
@@ -727,7 +731,8 @@ class Nadam(Optimizer):
       lr: float >= 0. Learning rate.
       beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
       epsilon: float >= 0. Fuzz factor.
-        If `None`, defaults to `backend.epsilon()`.
+        If `None`, becomes `backend.epsilon()`.
+        Defaults to `None`.
     """
 
     def __init__(
