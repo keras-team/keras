@@ -49,13 +49,14 @@ class Adadelta(optimizer.Optimizer):
     Args:
       learning_rate: Initial value for the learning rate: either a floating
         point value, or a `tf.keras.optimizers.schedules.LearningRateSchedule`
-        instance. Defaults to 0.001. Note that `Adadelta` tends to benefit from
+        instance. Note that `Adadelta` tends to benefit from
         higher initial learning rate values compared to other optimizers. To
         match the exact form in the original paper, use 1.0.
+        Defaults to `0.001`.
       rho: A `Tensor` or a floating point value. The decay rate. Defaults to
-        0.95.
+        `0.95`.
       epsilon: Small floating point value used to maintain numerical stability.
-        Defaults to 1e-7.
+        Defaults to `1e-7`.
       {{base_optimizer_keyword_args}}
 
     Reference:
