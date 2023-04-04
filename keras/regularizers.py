@@ -342,11 +342,11 @@ class OrthogonalRegularizer(Regularizer):
         be proportional to `factor` times the mean of the dot products between
         the L2-normalized rows (if `mode="rows"`, or columns if
         `mode="columns"`) of the inputs, excluding the product of each
-        row/column with itself.  Defaults to 0.01.
-      mode: String, one of `{"rows", "columns"}`. Defaults to `"rows"`. In rows
+        row/column with itself. Defaults to `0.01`.
+      mode: String, one of `{"rows", "columns"}`. In rows
         mode, the regularization effect seeks to make the rows of the input
         orthogonal to each other. In columns mode, it seeks to make the columns
-        of the input orthogonal to each other.
+        of the input orthogonal to each other. Defaults to `"rows"`
 
     Example:
 
