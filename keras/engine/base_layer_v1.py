@@ -237,7 +237,7 @@ class Layer(base_layer.Layer):
 
         # Whether the layer will track any layers that are set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
-        # in the parent layer's variables() as well.  Default to True, which
+        # in the parent layer's variables() as well.  Defaults to `True`, which
         # means auto tracking is turned on. Certain subclass might want to turn
         # it off, like the Sequential model.
         self._auto_track_sub_layers = True
