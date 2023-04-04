@@ -101,8 +101,8 @@ class Conv2D(Conv):
         `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape `(batch_size, height,
         width, channels)` while `channels_first` corresponds to inputs with
-        shape `(batch_size, channels, height, width)`. When unspecified, uses
-        `image_data_format` value found in your Keras config file at
+        shape `(batch_size, channels, height, width)`. If left unspecified, it
+        uses the `image_data_format` value found in your Keras config file at
         `~/.keras/keras.json` (if exists) else 'channels_last'.
         Note that the `channels_first` format is currently not
         supported by TensorFlow on CPU. Defaults to 'channels_last'.
