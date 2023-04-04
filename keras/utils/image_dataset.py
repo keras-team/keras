@@ -118,10 +118,10 @@ def image_dataset_from_directory(
           When `subset="both"`, the utility returns a tuple of two datasets
           (the training and validation datasets respectively).
       interpolation: String, the interpolation method used when resizing images.
-        Defaults to `bilinear`. Supports `bilinear`, `nearest`, `bicubic`,
-        `area`, `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
+        Supports `bilinear`, `nearest`, `bicubic`, `area`, `lanczos3`,
+        `lanczos5`, `gaussian`, `mitchellcubic`. Defaults to `bilinear`.
       follow_links: Whether to visit subdirectories pointed to by symlinks.
-          Defaults to False.
+          Defaults to `False`.
       crop_to_aspect_ratio: If True, resize the images without aspect
         ratio distortion. When the original aspect ratio differs from the target
         aspect ratio, the output image will be cropped so as to return the
