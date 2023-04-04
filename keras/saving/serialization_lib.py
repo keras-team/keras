@@ -412,7 +412,7 @@ def deserialize_keras_object(
       `keras.utils.register_keras_serializable(package, name)` API. The key has
       the format of '{package}>{name}', where `package` and `name` are the
       arguments passed to `register_keras_serializable()`. If `name` is not
-      provided, it defaults to the class name. If `registered_name` successfully
+      provided, it uses the class name. If `registered_name` successfully
       resolves to a class (that was registered), the `class_name` and `config`
       values in the dict will not be used. `registered_name` is only used for
       non-built-in classes.
@@ -485,7 +485,7 @@ def deserialize_keras_object(
         safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
             When `safe_mode=False`, loading an object has the potential to
             trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to True.
+            applicable to the Keras v3 model format. Defaults to `True`.
 
     Returns:
       The object described by the `config` dictionary.
