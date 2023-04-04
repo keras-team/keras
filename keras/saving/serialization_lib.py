@@ -220,12 +220,21 @@ def serialize_keras_object(obj):
                 ts_config,
             )
         )
+        spec_name = obj.__class__.__name__
+        registered_name = None
+        if hasattr(obj, "_tf_extension_type_fields"):
+            # Special casing for ExtensionType
+            ts_config = tf.experimental.extension_type.as_dict(obj)
+            ts_config = serialize_dict(ts_config)
+            registered_name = object_registration.get_registered_name(
+                obj.__class__
+            )
         return {
             "class_name": "__typespec__",
-            "spec_name": obj.__class__.__name__,
+            "spec_name": spec_name,
             "module": obj.__class__.__module__,
             "config": ts_config,
-            "registered_name": None,
+            "registered_name": registered_name,
         }
 
     inner_config = _get_class_or_fn_config(obj)
@@ -638,8 +647,9 @@ def deserialize_keras_object(
                 "the loading function in order to allow `lambda` loading."
             )
         return generic_utils.func_load(inner_config["value"])
+
     if config["class_name"] == "__typespec__":
-        obj = _retrieve_class_or_fn(
+        cls = _retrieve_class_or_fn(
             config["spec_name"],
             config["registered_name"],
             config["module"],
@@ -647,6 +657,20 @@ def deserialize_keras_object(
             full_config=config,
             custom_objects=custom_objects,
         )
+
+        # Special casing for ExtensionType.Spec
+        if hasattr(cls, "_tf_extension_type_fields"):
+            inner_config = {
+                key: deserialize_keras_object(
+                    value, custom_objects=custom_objects, safe_mode=safe_mode
+                )
+                for key, value in inner_config.items()
+            }  # Deserialization of dict created by ExtensionType.as_dict()
+            return cls(**inner_config)  # Instantiate ExtensionType.Spec
+
+        if config["registered_name"] is not None:
+            return cls.from_config(inner_config)
+
         # Conversion to TensorShape and tf.DType
         inner_config = map(
             lambda x: tf.TensorShape(x)
@@ -654,7 +678,7 @@ def deserialize_keras_object(
             else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x),
             inner_config,
         )
-        return obj._deserialize(tuple(inner_config))
+        return cls._deserialize(tuple(inner_config))
 
     # Below: classes and functions.
     module = config.get("module", None)
@@ -782,9 +806,20 @@ def _retrieve_class_or_fn(
             )
         obj = vars(mod).get(name, None)
 
-        # Special case for keras.metrics.metrics
-        if obj is None and registered_name is not None:
-            obj = vars(mod).get(registered_name, None)
+        if obj is None:
+            # Special case for keras.metrics.metrics
+            if registered_name is not None:
+                obj = vars(mod).get(registered_name, None)
+
+            # Support for `__qualname__`
+            if name.count(".") == 1:
+                outer_name, inner_name = name.split(".")
+                outer_obj = vars(mod).get(outer_name, None)
+                obj = (
+                    getattr(outer_obj, inner_name, None)
+                    if outer_obj is not None
+                    else None
+                )
 
         if obj is not None:
             return obj
