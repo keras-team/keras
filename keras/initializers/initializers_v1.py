@@ -189,9 +189,9 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
 
     Args:
       minval: A python scalar or a scalar tensor. Lower bound of the range of
-        random values to generate.
+        random values to generate. Defaults to `-0.05`.
       maxval: A python scalar or a scalar tensor. Upper bound of the range of
-        random values to generate. Float default is 1. Defaults to `1.`.
+        random values to generate. Defaults to `0.05`.
       seed: A Python integer. Used to create random seeds. See
         `tf.compat.v1.set_random_seed` for behavior.
       dtype: Default data type, used if no `dtype` argument is provided when
