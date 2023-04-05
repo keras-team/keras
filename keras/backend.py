@@ -1901,8 +1901,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         When `rng_type` is "legacy_stateful", the seed will be passed down to
         stateful random ops.
       rng_type: Type of RNG to use, one of "stateful", "stateless",
-        "legacy_stateful". It defaults to "stateful" if
-        `enable_tf_random_generator` has been activated, or to
+        "legacy_stateful". When `None` it uses "stateful" if
+        `enable_tf_random_generator` has been activated, or
         "legacy_stateful" otherwise.
         - When using "stateless", the random ops outputs are constant (the same
           inputs result in the same outputs).
@@ -1913,6 +1913,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         - "legacy_stateful" is backed by TF1 stateful RNG ops
           (e.g. `tf.random.uniform`), while "stateful"
           is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+        Defaults to `None`.
     """
 
     RNG_STATELESS = "stateless"
@@ -6898,11 +6899,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     Args:
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, the mean value of the normal distribution to draw
-          samples. Default to 0.0.
+          samples. Defaults to `0.0`.
         stddev: A float, the standard deviation of the normal distribution
-          to draw samples. Default to 1.0.
-        dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
-          backend dtype which is float32.
+          to draw samples. Defaults to `1.0`.
+        dtype: `tf.dtypes.DType`, dtype of returned tensor. None uses Keras
+          backend dtype which is float32. Defaults to `None`.
         seed: Integer, random seed. Will use a random numpy integer when not
           specified.
 

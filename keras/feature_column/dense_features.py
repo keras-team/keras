@@ -90,7 +90,7 @@ class DenseFeatures(kfc._BaseFeaturesLayer):
           trainable:  Boolean, whether the layer's variables will be updated via
             gradient descent during training.
           name: Name to give to the DenseFeatures.
-          partitioner: Partitioner for input layer. Defaults to None.
+          partitioner: Partitioner for input layer. Defaults to `None`.
           **kwargs: Keyword arguments to construct a layer.
 
         Raises:
@@ -150,8 +150,8 @@ class DenseFeatures(kfc._BaseFeaturesLayer):
             method of any `FeatureColumn` that takes a `training` argument. For
             example, if a `FeatureColumn` performed dropout, the column could
             expose a `training` argument to control whether the dropout should
-            be applied. If `None`, defaults to
-            `tf.keras.backend.learning_phase()`.
+            be applied. If `None`, becomes `tf.keras.backend.learning_phase()`.
+            Defaults to `None`.
 
 
         Returns:
