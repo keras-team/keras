@@ -122,8 +122,8 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
             method of any `FeatureColumn` that takes a `training` argument. For
             example, if a `FeatureColumn` performed dropout, the column could
             expose a `training` argument to control whether the dropout should
-            be applied. If `None`, defaults to
-            `tf.keras.backend.learning_phase()`.
+            be applied. If `None`, becomes `tf.keras.backend.learning_phase()`.
+            Defaults to `None`.
 
 
         Returns:
