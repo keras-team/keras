@@ -401,6 +401,7 @@ def is_extension_type(tensor):
     return isinstance(tensor, tf.__internal__.CompositeTensor)
 
 
+@keras_export("keras.utils.is_symbolic_tensor", v1=[])
 def is_symbolic_tensor(tensor):
     """Returns whether a tensor is symbolic (from a TF graph) or an eager
     tensor.
