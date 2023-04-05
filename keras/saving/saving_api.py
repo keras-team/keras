@@ -119,20 +119,6 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     save_format = get_save_format(filepath, save_format)
 
     # Deprecation warnings
-    if save_format == "tf":
-        warnings.warn(
-            "You are saving your model as a TensorFlow SavedModel via "
-            "`model.save()`. This is no longer a recommended workflow.\n\n"
-            "* If you intend to be able to reload the exact same model in a "
-            "Python runtime, we recommend using the native Keras format, "
-            "e.g. `model.save('my_model.keras')`.\n\n"
-            "* If you intend to export a SavedModel artifact for inference "
-            "(e.g. via TF-Serving), we recommend using "
-            "`model.export('my_export_artifact')`. If you want to further "
-            "customize SavedModel serving endpoints you can also use the "
-            "low-level `keras.export.ExportArchive` class.",
-            stacklevel=2,
-        )
     if save_format == "h5":
         warnings.warn(
             "You are saving your model as an HDF5 file via `model.save()`. "
