@@ -269,10 +269,10 @@ class Model(training_lib.Model):
                 output names (strings) to scalar coefficients.
             sample_weight_mode: If you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
-                `None` defaults to sample-wise weights (1D).
+                `None` becomes sample-wise weights (1D).
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
-                dictionary or a list of modes.
+                dictionary or a list of modes. Defaults to `None`.
             weighted_metrics: List of metrics to be evaluated and weighted
                 by sample_weight or class_weight during training and testing.
             target_tensors: By default, Keras will create placeholders for the
