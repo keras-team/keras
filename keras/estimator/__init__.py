@@ -120,12 +120,11 @@ def model_to_estimator(
       checkpoint_format: Sets the format of the checkpoint saved by the
         estimator when training. May be `saver` or `checkpoint`, depending on
         whether to save checkpoints from `tf.train.Saver` or
-        `tf.train.Checkpoint`. Before 2.0 the argument is `saver`. When
-        2.0 is released, this will be `checkpoint`. Estimators use
-        name-based `tf.train.Saver` checkpoints, while Keras models use
-        object-based checkpoints from `tf.train.Checkpoint`. Currently, saving
-        object-based checkpoints from `model_to_estimator` is only supported by
-        Functional and Sequential models. Defaults to 'saver'.
+        `tf.train.Checkpoint`. Estimators use name-based `tf.train.Saver`
+        checkpoints, while Keras models use object-based checkpoints from
+        `tf.train.Checkpoint`. Currently, saving object-based checkpoints
+        from `model_to_estimator` is only supported by Functional and
+        Sequential models. Defaults to 'saver'.
       metric_names_map: Optional dictionary mapping Keras model output metric
         names to custom names. This can be used to override the default Keras
         model output metrics names in a multi IO model use case and provide
