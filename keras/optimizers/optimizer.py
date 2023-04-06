@@ -636,7 +636,6 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-            grads_and_vars = list(zip(grads, trainable_variables))
             grads_and_vars = optimizer_utils.filter_empty_gradients(
                 grads_and_vars
             )
