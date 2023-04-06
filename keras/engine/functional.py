@@ -1647,8 +1647,8 @@ class ModuleWrapper(base_layer.Layer):
         Args:
           module: The `tf.Module` instance to be wrapped.
           method_name: (Optional) str. The name of the method to use as the
-            forward pass of the module. If not set, defaults to '__call__' if
-            defined, or 'call'.
+            forward pass of the module. If not set, becomes '__call__' if
+            defined, or 'call'. Defaults to `None`.
           **kwargs: Additional keywrod arguments. See `tf.keras.layers.Layer`.
 
         Raises:
