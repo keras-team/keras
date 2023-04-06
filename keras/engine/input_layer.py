@@ -88,12 +88,12 @@ class InputLayer(base_layer.Layer):
             will use the `tf.TypeSpec` of this tensor rather
             than creating a new placeholder tensor.
         sparse: Boolean, whether the placeholder created is meant to be sparse.
-            Default to `False`.
+            Defaults to `False`.
         ragged: Boolean, whether the placeholder created is meant to be ragged.
             In this case, values of `None` in the `shape` argument represent
             ragged dimensions. For more information about `tf.RaggedTensor`, see
             [this guide](https://www.tensorflow.org/guide/ragged_tensor).
-            Default to `False`.
+            Defaults to `False`.
         type_spec: A `tf.TypeSpec` object to create Input from. This
             `tf.TypeSpec` represents the entire batch. When provided, all other
             args except name must be `None`.
