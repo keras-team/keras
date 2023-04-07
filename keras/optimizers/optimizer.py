@@ -901,7 +901,7 @@ class Optimizer(_BaseOptimizer):
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
+    opt = keras.optimizers.SGD(learning_rate=0.1)
     var1, var2 = tf.Variable(1.0), tf.Variable(2.0)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
