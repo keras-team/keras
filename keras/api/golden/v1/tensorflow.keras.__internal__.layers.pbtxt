@@ -1,7 +1,0 @@
-path: "tensorflow.keras.__internal__.layers"
-tf_module {
-  member {
-    name: "BaseRandomLayer"
-    mtype: "<type \'type\'>"
-  }
-}
