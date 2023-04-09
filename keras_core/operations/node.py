@@ -1,7 +1,7 @@
 import collections
 from tensorflow import nest
 from keras_core.backend import KerasTensor
-from keras_core.engine.symbolic_arguments import SymbolicArguments
+from keras_core.operations.symbolic_arguments import SymbolicArguments
 
 
 class Node:

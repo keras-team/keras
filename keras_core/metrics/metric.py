@@ -1,6 +1,6 @@
 from keras_core import backend
-from keras_core.engine.tracking import Tracker
-from keras_core.engine.naming import auto_name
+from keras_core.utils.tracking import Tracker
+from keras_core.utils.naming import auto_name
 
 
 class Metric:

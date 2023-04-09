@@ -1,9 +1,9 @@
 from keras_core import backend
 from keras_core import operations as ops
-from keras_core.engine.tracking import Tracker
+from keras_core.utils.tracking import Tracker
 from keras_core import initializers
 from keras_core.optimizers.schedules import learning_rate_schedule
-from keras_core.engine.naming import auto_name
+from keras_core.utils.naming import auto_name
 import re
 import warnings
 

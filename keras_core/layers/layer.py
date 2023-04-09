@@ -14,10 +14,10 @@ And some more magic:
 - metric tracking
 - RNG seed tracking
 """
-from keras_core.engine.operation import Operation
+from keras_core.operations.operation import Operation
 from keras_core.backend import KerasTensor
 from keras_core import backend
-from keras_core.engine.tracking import Tracker
+from keras_core.utils.tracking import Tracker
 from keras_core.metrics.metric import Metric
 from keras_core import utils
 from keras_core.layers import input_spec

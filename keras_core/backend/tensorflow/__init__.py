@@ -3,7 +3,7 @@ from tensorflow.experimental import numpy as tfnp
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.keras_tensor import KerasTensor
-from keras_core.engine.naming import auto_name
+from keras_core.utils.naming import auto_name
 from keras_core.backend.tensorflow.trainer import Trainer
 from keras_core.backend.common import in_stateless_scope
 from keras_core.backend.common import get_stateless_scope

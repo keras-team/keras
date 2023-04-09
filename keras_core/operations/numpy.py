@@ -20,8 +20,8 @@ ones
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
 from keras_core.backend import convert_to_tensor
-from keras_core.engine.symbolic_arguments import SymbolicArguments
-from keras_core.engine.operation import Operation
+from keras_core.operations.symbolic_arguments import SymbolicArguments
+from keras_core.operations.operation import Operation
 from keras_core import backend
 
 from tensorflow import nest

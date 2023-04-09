@@ -1,4 +1,4 @@
-from keras_core.engine import trainer
+from keras_core.trainers import trainer
 import tensorflow as tf
 
 

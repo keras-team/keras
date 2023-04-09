@@ -1,4 +1,4 @@
-from keras_core.engine.naming import auto_name
+from keras_core.utils.naming import auto_name
 from tensorflow import nest
 
 

@@ -1,4 +1,4 @@
-from keras_core.engine import operation
+from keras_core.operations import operation
 from keras_core.engine import keras_tensor
 from keras_core.operations import numpy as knp
 from keras_core import backend

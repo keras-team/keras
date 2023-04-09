@@ -1,6 +1,6 @@
 from keras_core.backend.keras_tensor import any_symbolic_tensors
-from keras_core.engine.node import Node
-from keras_core.engine.naming import auto_name
+from keras_core.operations.node import Node
+from keras_core.utils.naming import auto_name
 from keras_core import backend
 
 
