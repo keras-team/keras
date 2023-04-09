@@ -21,6 +21,7 @@ from keras_core.utils.tracking import Tracker
 from keras_core.metrics.metric import Metric
 from keras_core import utils
 from keras_core.layers import input_spec
+from keras_core.api_export import keras_core_export
 from tensorflow import nest
 from tensorflow import keras as tf_keras
 import numpy as np
@@ -29,6 +30,7 @@ import threading
 import collections
 
 
+@keras_core_export(["keras_core.Layer", "keras_core.layers.Layer"])
 class Layer(Operation):
     def __init__(self, trainable=True, dtype=None, name=None):
         super().__init__(name=name)

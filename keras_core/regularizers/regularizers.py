@@ -3,7 +3,7 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 
-@keras_core_export("keras_core.regularizers.Regularizer")
+@keras_core_export(["keras_core.Regularizer", "keras_core.regularizers.Regularizer"])
 class Regularizer:
     """Regularizer base class.
 

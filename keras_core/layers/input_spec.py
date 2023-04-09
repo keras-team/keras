@@ -1,7 +1,9 @@
 from keras_core import backend
 from tensorflow import nest
+from keras_core.api_export import keras_core_export
 
 
+@keras_core_export(["keras_core.InputSpec", "keras_core.layers.InputSpec"])
 class InputSpec:
     """Specifies the rank, dtype and shape of every input to a layer.
 

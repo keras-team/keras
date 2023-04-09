@@ -1,8 +1,10 @@
 from keras_core import operations as ops
 from keras_core import backend
 from keras_core.utils.naming import auto_name
+from keras_core.api_export import keras_core_export
 
 
+@keras_core_export(["keras_core.Loss", "keras_core.losses.Loss"])
 class Loss:
     def __init__(self, name=None, reduction="sum_over_batch_size"):
         self.name = name or auto_name(self.__class__.__name__)

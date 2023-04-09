@@ -1,8 +1,10 @@
 from keras_core import backend
 from keras_core.utils.tracking import Tracker
 from keras_core.utils.naming import auto_name
+from keras_core.api_export import keras_core_export
 
 
+@keras_core_export(["keras_core.Metric", "keras_core.metrics.Metric"])
 class Metric:
     def __init__(self, dtype=None, name=None):
         self.name = name or auto_name(self.__class__.__name__)

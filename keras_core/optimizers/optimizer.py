@@ -4,10 +4,12 @@ from keras_core.utils.tracking import Tracker
 from keras_core import initializers
 from keras_core.optimizers.schedules import learning_rate_schedule
 from keras_core.utils.naming import auto_name
+from keras_core.api_export import keras_core_export
 import re
 import warnings
 
 
+@keras_core_export(["keras_core.Optimizer", "keras_core.optimizers.Optimizer"])
 class Optimizer:
     # TODO: support jit_compile
     def __init__(
