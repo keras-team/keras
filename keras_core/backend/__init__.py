@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+from keras_core.utils.io_utils import print_msg
 
 from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.backend.keras_tensor import is_keras_tensor
@@ -81,10 +82,10 @@ if "KERAS_BACKEND" in os.environ:
 
 # Import backend functions.
 if _BACKEND == "tensorflow":
-    sys.stderr.write("Using TensorFlow backend\n")
+    print_msg("Using TensorFlow backend")
     from keras_core.backend.tensorflow import *
 elif _BACKEND == "jax":
-    sys.stderr.write("Using JAX backend.\n")
+    print_msg("Using JAX backend.")
     from keras_core.backend.jax import *
 else:
     raise ValueError(f"Unable to import backend : {_BACKEND}")

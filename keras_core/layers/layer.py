@@ -20,6 +20,7 @@ from keras_core import backend
 from keras_core.utils.tracking import Tracker
 from keras_core.metrics.metric import Metric
 from keras_core import utils
+from keras_core.utils import summary_utils
 from keras_core.layers import input_spec
 from keras_core.api_export import keras_core_export
 from tensorflow import nest
@@ -28,6 +29,8 @@ import numpy as np
 import inspect
 import threading
 import collections
+
+# TODO: cache all call signature processing. See layer_utils.CallFunctionSpec() in Keras.
 
 
 @keras_core_export(["keras_core.Layer", "keras_core.layers.Layer"])
@@ -430,6 +433,22 @@ class Layer(Operation):
     def add_metric(self):
         # Permanently disabled
         raise NotImplementedError
+    
+    def count_params(self):
+        """Count the total number of scalars composing the weights.
+
+        Returns:
+            An integer count.
+        """
+        if not self.built:
+            raise ValueError(
+                "You tried to call `count_params` "
+                f"on layer '{self.name}'"
+                ", but the layer isn't built. "
+                "You can build it manually via: "
+                f"`layer.build(input_shape)`."
+            )
+        return summary_utils.count_params(self.weights)
 
     def _maybe_build(self, *args, **kwargs):
         arguments_dict = get_arguments_dict(self.call, *args, **kwargs)

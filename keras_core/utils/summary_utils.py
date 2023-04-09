@@ -1,4 +1,11 @@
+from tensorflow import nest
+from keras_core.backend import Variable
+import math
 
+
+def count_params(weights):
+    shapes = [v.shape for v in weights if isinstance(v, Variable)]
+    return int(sum(math.prod(p) for p in shapes))
 
 
 def print_summary(
@@ -37,12 +44,14 @@ def print_summary(
             matches `layer_range[1]`. By default (`None`) all
             layers in the model are included in the summary.
     """
+    from keras_core.models import Sequential, Functional
+
     if print_fn is None:
         print_fn = io_utils.print_msg
 
-    if model.__class__.__name__ == "Sequential":
+    if isinstance(model, Sequential):
         sequential_like = True
-    elif not model._is_graph_network:
+    elif not isinstance(model, Functional):
         # We treat subclassed models as a simple sequence of layers, for logging
         # purposes.
         sequential_like = True
@@ -52,7 +61,7 @@ def print_summary(
         nodes = []
         for v in nodes_by_depth:
             if (len(v) > 1) or (
-                len(v) == 1 and len(tf.nest.flatten(v[0].keras_inputs)) > 1
+                len(v) == 1 and len(nest.flatten(v[0].keras_inputs)) > 1
             ):
                 # if the model has multiple nodes
                 # or if the nodes have multiple inbound_layers
