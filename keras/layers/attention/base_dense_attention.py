@@ -50,11 +50,12 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
                 not given, will use `value` for both `key` and `value`, which is
                 the most common case.
         mask: List of the following tensors:
-            * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`. If
-                given, the output will be zero at the positions where `mask==False`.
-            * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`. If
-                given, will apply the mask such that values at positions where
-                `mask==False` do not contribute to the result.
+            * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`.
+                If given, the output will be zero at the positions where
+                `mask==False`.
+            * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`.
+                If given, will apply the mask such that values at positions
+                 where `mask==False` do not contribute to the result.
         training: Python boolean indicating whether the layer should behave in
             training mode (adding dropout) or in inference mode (no dropout).
         return_attention_scores: bool, if `True`, returns the attention scores
@@ -115,13 +116,14 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         Args:
             scores: Scores float tensor of shape `[batch_size, Tq, Tv]`.
             value: Value tensor of shape `[batch_size, Tv, dim]`.
-            scores_mask: A boolean mask `Tensor` of shape `[batch_size, 1, Tv]` or
-                `[batch_size, Tq, Tv]`. If given, scores at positions where
+            scores_mask: A boolean mask `Tensor` of shape `[batch_size, 1, Tv]`
+                or `[batch_size, Tq, Tv]`. If given, scores at positions where
                 `scores_mask==False` do not contribute to the result. It must
                 contain at least one `True` value in each line along the last
                 dimension.
-            training: Python boolean indicating whether the layer should behave in
-                training mode (adding dropout) or in inference mode (no dropout).
+            training: Python boolean indicating whether the layer should behave
+                in training mode (adding dropout) or in inference mode
+                (no dropout).
 
         Returns:
             Tensor of shape `[batch_size, Tq, dim]`.
