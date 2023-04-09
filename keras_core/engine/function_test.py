@@ -1,5 +1,5 @@
 from keras_core.backend import keras_tensor
-from keras_core.engine import function
+from keras_core.operations import function
 from keras_core.operations import numpy as knp
 from keras_core import testing
 from keras_core import backend

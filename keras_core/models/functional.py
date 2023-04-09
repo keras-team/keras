@@ -1,4 +1,4 @@
-from keras_core.engine.function import Function
+from keras_core.operations.function import Function
 from keras_core.engine.model import Model
 from keras_core.engine.layer import Layer
 
