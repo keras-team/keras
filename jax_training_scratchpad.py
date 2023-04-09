@@ -83,22 +83,6 @@ class MyModel(Layer):
         return self.dense2(x)
 
 
-# class Optimizer:
-#     @property
-#     def variables(self):
-#         return []
-
-#     def build(self, variables):
-#         pass
-
-#     def stateless_apply_gradients(self, vars_and_grads, optimizer_variables):
-#         new_values = []
-#         for v, g in vars_and_grads:
-#             new_v = v - g * 0.001
-#             new_values.append(new_v)
-#         return new_values, optimizer_variables
-
-
 def Dataset():
     for _ in range(10):
         yield (np.random.random((8, 4)), np.random.random((8, 2)))
@@ -120,7 +104,7 @@ optimizer.build(model.trainable_variables)
 
 
 ################################
-## Currently achievable workflow
+## Currently operational workflow
 
 
 def compute_loss_and_updates(trainable_variables, non_trainable_variables, x, y):
@@ -160,36 +144,4 @@ for variable, value in zip(model.trainable_variables, trainable_variables):
 for variable, value in zip(model.non_trainable_variables, non_trainable_variables):
     variable.assign(value)
 
-
 print("Updated values")
-
-
-# ####################
-# ## Alternative workflow
-
-
-# def compute_loss_and_updates(trainable_variables, non_trainable_variables, x, y):
-#     y_pred, updates = model.stateless_call(
-#         trainable_variables, non_trainable_variables, x
-#     )
-#     loss = loss_fn(y, y_pred)
-#     return loss, updates
-
-
-# grad_fn = jax.value_and_grad(compute_loss_and_updates, has_aux=True)
-
-
-# @jax.jit
-# def train_step(trainable_variables, non_trainable_variables, x, y):
-#     (loss, updates), grads = grad_fn(trainable_variables, non_trainable_variables, x, y)
-#     updates += optimizer.get_updates(zip(trainable_variables, grads))
-#     return updates
-
-
-# trainable_variables = model.trainable_variables
-# non_trainable_variables = model.non_trainable_variables
-
-# for x, y in dataset:
-#     updates = train_step(trainable_variables, non_trainable_variables, x, y)
-#     for variable, value in updates:
-#         variable.assign(value)
