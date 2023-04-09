@@ -1,5 +1,5 @@
 from keras_core import backend
-from keras_core.engine.layer import Layer
+from keras_core.layers.layer import Layer
 from keras_core.backend import KerasTensor
 from keras_core.operations.function import Function
 from keras_core import initializers

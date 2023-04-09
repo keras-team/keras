@@ -1,6 +1,6 @@
 from keras_core.operations.function import Function
 from keras_core.engine.model import Model
-from keras_core.engine.layer import Layer
+from keras_core.layers.layer import Layer
 
 
 class Functional(Function, Model):

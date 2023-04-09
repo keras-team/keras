@@ -1,7 +1,7 @@
 from keras_core import operations as ops
 from keras_core import backend
 from keras_core.optimizers import SGD
-from keras_core.engine.layer import Layer
+from keras_core.layers.layer import Layer
 from keras_core import initializers
 import jax
 from jax import numpy as jnp

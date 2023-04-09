@@ -20,7 +20,7 @@ from keras_core import backend
 from keras_core.engine.tracking import Tracker
 from keras_core.metrics.metric import Metric
 from keras_core import utils
-from keras_core.engine import input_spec
+from keras_core.layers import input_spec
 from tensorflow import nest
 from tensorflow import keras as tf_keras
 import numpy as np
