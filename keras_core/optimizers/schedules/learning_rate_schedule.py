@@ -1,0 +1,3 @@
+class LearningRateSchedule:
+    # TODO
+    pass
