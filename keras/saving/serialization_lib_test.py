@@ -369,7 +369,7 @@ class MyDense(keras.layers.Layer):
         )
 
     def build(self, input_shape):
-        unused_batch_size, input_units = input_shape.as_list()
+        unused_batch_size, input_units = input_shape
         self._kernel = self.add_weight(
             "kernel",
             [input_units, self._units],
