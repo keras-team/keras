@@ -93,7 +93,7 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
             writer.close()
             with open(fpath, "r") as reader:
                 lines = reader.readlines()
-            self.assertEqual(len(lines), 15)
+            self.assertEqual(len(lines), 13)
         except ImportError:
             pass
 
@@ -112,10 +112,16 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         model = keras.Sequential(
             [
                 keras.Input(shape),
-                keras.layers.Conv2D(4, 3, name="Really-Long-name-test"),
-                keras.layers.Conv2D(4, 3, name="Another-long-name-test"),
+                keras.layers.Conv2D(
+                    4, 3, name="Really-really-really-really-Long-name-test"
+                ),
+                keras.layers.Conv2D(
+                    4, 3, name="Another-really-really-really-long-name-test"
+                ),
                 keras.layers.Flatten(),
-                keras.layers.Dense(2, name="long-name-test-output"),
+                keras.layers.Dense(
+                    2, name="Really-really-really-long-name-test-output"
+                ),
             ]
         )
         file_name = "sequential.txt"
@@ -130,34 +136,33 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         layer_utils.print_summary(model, print_fn=print_to_file)
         self.assertTrue(tf.io.gfile.exists(fpath))
         writer.close()
+        ref_str = """ Model: "sequential"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃           Layer (type)           ┃         Output Shape         ┃  Param #   ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ Really-really-really-really-Lon  │       (None, 6, 6, 4)        │    112     │
+│ g-name-test (Conv2D)             │                              │            │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│ Another-really-really-really-lo  │       (None, 4, 4, 4)        │    148     │
+│ ng-name-test (Conv2D)            │                              │            │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│ flatten (Flatten)                │          (None, 64)          │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│ Really-really-really-long-name-  │          (None, 2)           │    130     │
+│ test-output (Dense)              │                              │            │
+└──────────────────────────────────┴──────────────────────────────┴────────────┘
+ Total params: 390 (1.52 KB)
+ Trainable params: 390 (1.52 KB)
+ Non-trainable params: 0 (0.00 B)\n"""
+        self._check_summary_string(ref_str, fpath)
+
+    def _check_summary_string(self, ref_str, fpath):
         reader = open(fpath, "r")
-        lines = reader.readlines()
+        seen_str = reader.read()
+        seen_str = seen_str.replace("\x1b[1m", "")
+        seen_str = seen_str.replace("\x1b[0m", "")
         reader.close()
-        check_str = (
-            'Model: "sequential"\n'
-            "_________________________________________________________________\n"  # noqa: E501
-            " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
-            "=================================================================\n"  # noqa: E501
-            " Really-Long-name-test (Con  (None, 6, 6, 4)           112       \n"  # noqa: E501
-            " v2D)                                                            \n"  # noqa: E501
-            "                                                                 \n"  # noqa: E501
-            " Another-long-name-test (Co  (None, 4, 4, 4)           148       \n"  # noqa: E501
-            " nv2D)                                                           \n"  # noqa: E501
-            "                                                                 \n"  # noqa: E501
-            " flatten (Flatten)           (None, 64)                0         \n"  # noqa: E501
-            "                                                                 \n"  # noqa: E501
-            " long-name-test-output (Den  (None, 2)                 130       \n"  # noqa: E501
-            " se)                                                             \n"  # noqa: E501
-            "                                                                 \n"  # noqa: E501
-            "=================================================================\n"  # noqa: E501
-            "Total params: 390 (1.52 KB)\n"
-            "Trainable params: 390 (1.52 KB)\n"
-            "Non-trainable params: 0 (0.00 Byte)\n"
-            "_________________________________________________________________\n"  # noqa: E501
-        )
-        fin_str = "".join(lines)
-        self.assertIn(fin_str, check_str)
-        self.assertEqual(len(lines), 20)
+        self.assertEqual(ref_str, seen_str)
 
     def test_print_summary_expand_nested(self):
         shape = (None, None, 3)
@@ -184,49 +189,34 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         def print_to_file(text):
             print(text, file=writer)
 
-        try:
-            layer_utils.print_summary(
-                model, print_fn=print_to_file, expand_nested=True
-            )
-            self.assertTrue(tf.io.gfile.exists(fpath))
-            writer.close()
-            reader = open(fpath, "r")
-            lines = reader.readlines()
-            reader.close()
-            check_str = (
-                'Model: "model_2"\n'
-                "_________________________________________________________________\n"  # noqa: E501
-                " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
-                "=================================================================\n"  # noqa: E501
-                " input_3 (InputLayer)        [(None, None, None, 3)]   0         \n"  # noqa: E501
-                "                                                                 \n"  # noqa: E501
-                " model_1 (Functional)        (None, None, None, 3)     24        \n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
-                "|                                                               |\n"  # noqa: E501
-                "| model (Functional)         (None, None, None, 3)     24       |\n"  # noqa: E501
-                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
-                "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
-                "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
-                "|| chNormalization)                                            ||\n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
-                "=================================================================\n"  # noqa: E501
-                "Total params: 24 (96.00 Byte)\n"
-                "Trainable params: 18 (72.00 Byte)\n"
-                "Non-trainable params: 6 (24.00 Byte)\n"
-                "_________________________________________________________________\n"  # noqa: E501
-            )
-
-            fin_str = "".join(lines)
-
-            self.assertIn(fin_str, check_str)
-            self.assertEqual(len(lines), 25)
-        except ImportError:
-            pass
+        layer_utils.print_summary(
+            model, print_fn=print_to_file, expand_nested=True
+        )
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        ref_str = """ Model: "model_2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃           Layer (type)           ┃         Output Shape         ┃  Param #   ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ input_3 (InputLayer)             │    (None, None, None, 3)     │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│ model_1 (Functional)             │    (None, None, None, 3)     │     24     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│    └ input_1 (InputLayer)        │    (None, None, None, 3)     │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│    └ model (Functional)          │    (None, None, None, 3)     │     24     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ input_2 (InputLayer)     │    (None, None, None, 3)     │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ conv2d (Conv2D)          │    (None, None, None, 3)     │     12     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ batch_normalization      │    (None, None, None, 3)     │     12     │
+│ (BatchNormalization)             │                              │            │
+└──────────────────────────────────┴──────────────────────────────┴────────────┘
+ Total params: 24 (96.00 B)
+ Trainable params: 18 (72.00 B)
+ Non-trainable params: 6 (24.00 B)\n"""
+        self._check_summary_string(ref_str, fpath)
 
     def test_summary_subclass_model_expand_nested(self):
         class Sequential(keras.Model):
@@ -294,12 +284,7 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
             writer.close()
             with open(fpath, "r") as reader:
                 lines = reader.readlines()
-            # The output content are slightly different for the input shapes
-            # between v1 and v2.
-            if tf.__internal__.tf2.enabled():
-                self.assertEqual(len(lines), 39)
-            else:
-                self.assertEqual(len(lines), 40)
+            self.assertEqual(len(lines), 37)
         except ImportError:
             pass
 
@@ -323,39 +308,25 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         def print_to_file(text):
             print(text, file=writer)
 
-        try:
-            layer_utils.print_summary(
-                model, print_fn=print_to_file, show_trainable=True
-            )
-            self.assertTrue(tf.io.gfile.exists(fpath))
-            writer.close()
-            with open(fpath, "r") as reader:
-                lines = reader.readlines()
-            check_str = (
-                'Model: "trainable"\n'
-                "____________________________________________________________________________\n"  # noqa: E501
-                " Layer (type)                Output Shape              Param #   Trainable  \n"  # noqa: E501
-                "============================================================================\n"  # noqa: E501
-                " conv (Conv2D)               (None, 2, 3, 2)           62        N          \n"  # noqa: E501
-                "                                                                            \n"  # noqa: E501
-                " flat (Flatten)              (None, 12)                0         Y          \n"  # noqa: E501
-                "                                                                            \n"  # noqa: E501
-                " dense (Dense)               (None, 5)                 65        Y          \n"  # noqa: E501
-                "                                                                            \n"  # noqa: E501
-                "============================================================================\n"  # noqa: E501
-                "Total params: 127 (508.00 Byte)\n"
-                "Trainable params: 65 (260.00 Byte)\n"
-                "Non-trainable params: 62 (248.00 Byte)\n"
-                "____________________________________________________________________________\n"  # noqa: E501
-                "____________________________________________________________________________\n"  # noqa: E501
-            )
-
-            fin_str = "".join(lines)
-
-            self.assertIn(fin_str, check_str)
-            self.assertEqual(len(lines), 15)
-        except ImportError:
-            pass
+        layer_utils.print_summary(
+            model, print_fn=print_to_file, show_trainable=True
+        )
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        ref_str = """ Model: "trainable"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃         Layer (type)        ┃       Output Shape       ┃ Param #  ┃ Trainable ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ conv (Conv2D)               │     (None, 2, 3, 2)      │    62    │     N     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│ flat (Flatten)              │        (None, 12)        │    0     │     Y     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│ dense (Dense)               │        (None, 5)         │    65    │     Y     │
+└─────────────────────────────┴──────────────────────────┴──────────┴───────────┘
+ Total params: 127 (508.00 B)
+ Trainable params: 65 (260.00 B)
+ Non-trainable params: 62 (248.00 B)\n"""  # noqa: E501
+        self._check_summary_string(ref_str, fpath)
 
     def test_print_summary_expand_nested_show_trainable(self):
         shape = (None, None, 3)
@@ -384,51 +355,38 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         def print_to_file(text):
             print(text, file=writer)
 
-        try:
-            layer_utils.print_summary(
-                model,
-                print_fn=print_to_file,
-                expand_nested=True,
-                show_trainable=True,
-            )
-            self.assertTrue(tf.io.gfile.exists(fpath))
-            writer.close()
-            with open(fpath, "r") as reader:
-                lines = reader.readlines()
-            check_str = (
-                'Model: "model_2"\n'
-                "____________________________________________________________________________\n"  # noqa: E501
-                " Layer (type)                Output Shape              Param #   Trainable  \n"  # noqa: E501
-                "============================================================================\n"  # noqa: E501
-                " input3 (InputLayer)         [(None, None, None, 3)]   0         Y          \n"  # noqa: E501
-                "                                                                            \n"  # noqa: E501
-                " model_1 (Functional)        (None, None, None, 3)     24        Y          \n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input1 (InputLayer)        [(None, None, None, 3)]   0         Y         |\n"  # noqa: E501
-                "|                                                                          |\n"  # noqa: E501
-                "| model (Functional)         (None, None, None, 3)     24        Y         |\n"  # noqa: E501
-                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input2 (InputLayer)       [(None, None, None, 3)]   0         Y        ||\n"  # noqa: E501
-                "||                                                                        ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)           (None, None, None, 3)     12        N        ||\n"  # noqa: E501
-                "||                                                                        ||\n"  # noqa: E501
-                "|| batch_normalization (Bat  (None, None, None, 3)     12        Y        ||\n"  # noqa: E501
-                "|| chNormalization)                                                       ||\n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
-                "============================================================================\n"  # noqa: E501
-                "Total params: 24 (96.00 Byte)\n"
-                "Trainable params: 6 (24.00 Byte)\n"
-                "Non-trainable params: 18 (72.00 Byte)\n"
-                "____________________________________________________________________________\n"  # noqa: E501
-            )
-
-            fin_str = "".join(lines)
-
-            self.assertIn(fin_str, check_str)
-            self.assertEqual(len(lines), 25)
-        except ImportError:
-            pass
+        layer_utils.print_summary(
+            model,
+            print_fn=print_to_file,
+            expand_nested=True,
+            show_trainable=True,
+        )
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        ref_str = """ Model: "model_2"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃         Layer (type)        ┃       Output Shape       ┃ Param #  ┃ Trainable ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ input3 (InputLayer)         │  (None, None, None, 3)   │    0     │     Y     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│ model_1 (Functional)        │  (None, None, None, 3)   │    24    │     Y     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│    └ input1 (InputLayer)    │  (None, None, None, 3)   │    0     │     Y     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│    └ model (Functional)     │  (None, None, None, 3)   │    24    │     Y     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│       └ input2              │  (None, None, None, 3)   │    0     │     Y     │
+│ (InputLayer)                │                          │          │           │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│       └ conv2d (Conv2D)     │  (None, None, None, 3)   │    12    │     N     │
+├─────────────────────────────┼──────────────────────────┼──────────┼───────────┤
+│       └ batch_normalizatio  │  (None, None, None, 3)   │    12    │     Y     │
+│ n (BatchNormalization)      │                          │          │           │
+└─────────────────────────────┴──────────────────────────┴──────────┴───────────┘
+ Total params: 24 (96.00 B)
+ Trainable params: 6 (24.00 B)
+ Non-trainable params: 18 (72.00 B)\n"""  # noqa: E501
+        self._check_summary_string(ref_str, fpath)
 
     def test_print_summary_layer_range(self):
         model = keras.Sequential()
@@ -460,9 +418,7 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
             writer.close()
             with open(fpath, "r") as reader:
                 lines = reader.readlines()
-            # The expected lenght with no layer filter is 15
-            # we filtered out 2 lines by excluding the layer 'dense'
-            self.assertEqual(len(lines), 15 - 2)
+            self.assertEqual(len(lines), 11)
         except ImportError:
             pass
 
@@ -491,57 +447,35 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         def print_to_file(text):
             print(text, file=writer)
 
-        try:
-            layer_utils.print_summary(
-                model,
-                print_fn=print_to_file,
-                expand_nested=True,
-                layer_range=["1st_inner", "1st_inner"],
-            )
-            layer_utils.print_summary(
-                model,
-                expand_nested=True,
-                layer_range=["1st_inner", "1st_inner"],
-            )
-            self.assertTrue(tf.io.gfile.exists(fpath))
-            writer.close()
-            with open(fpath, "r") as reader:
-                lines = reader.readlines()
-            check_str = (
-                'Model: "model"\n'
-                "_________________________________________________________________\n"  # noqa: E501
-                " Layer (type)                Output Shape              Param #   \n"  # noqa: E501
-                "=================================================================\n"  # noqa: E501
-                " 1st_inner (Functional)      (None, None, None, 3)     24        \n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "| input_1 (InputLayer)       [(None, None, None, 3)]   0        |\n"  # noqa: E501
-                "|                                                               |\n"  # noqa: E501
-                "| 2nd_inner (Functional)     (None, None, None, 3)     24       |\n"  # noqa: E501
-                "||¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯||\n"  # noqa: E501
-                "|| input_2 (InputLayer)      [(None, None, None, 3)]   0       ||\n"  # noqa: E501
-                "||                                                             ||\n"  # noqa: E501
-                "|| conv2d (Conv2D)           (None, None, None, 3)     12      ||\n"  # noqa: E501
-                "||                                                             ||\n"  # noqa: E501
-                "|| batch_normalization (Bat  (None, None, None, 3)     12      ||\n"  # noqa: E501
-                "|| chNormalization)                                            ||\n"  # noqa: E501
-                "|¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯|\n"  # noqa: E501
-                "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n"  # noqa: E501
-                "=================================================================\n"  # noqa: E501
-                "Total params: 24 (96.00 Byte)\n"
-                "Trainable params: 18 (72.00 Byte)\n"
-                "Non-trainable params: 6 (24.00 Byte)\n"
-                "_________________________________________________________________\n"  # noqa: E501
-            )
-
-            check_lines = check_str.split("\n")[
-                :-1
-            ]  # Removing final empty string which is not a line
-
-            fin_str = "".join(lines)
-            self.assertIn(fin_str, check_str)
-            self.assertEqual(len(lines), len(check_lines))
-        except ImportError:
-            pass
+        layer_utils.print_summary(
+            model,
+            print_fn=print_to_file,
+            expand_nested=True,
+            layer_range=["1st_inner", "1st_inner"],
+        )
+        self.assertTrue(tf.io.gfile.exists(fpath))
+        writer.close()
+        ref_str = """ Model: "model"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃           Layer (type)           ┃         Output Shape         ┃  Param #   ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ 1st_inner (Functional)           │    (None, None, None, 3)     │     24     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│    └ input_1 (InputLayer)        │    (None, None, None, 3)     │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│    └ 2nd_inner (Functional)      │    (None, None, None, 3)     │     24     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ input_2 (InputLayer)     │    (None, None, None, 3)     │     0      │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ conv2d (Conv2D)          │    (None, None, None, 3)     │     12     │
+├──────────────────────────────────┼──────────────────────────────┼────────────┤
+│       └ batch_normalization      │    (None, None, None, 3)     │     12     │
+│ (BatchNormalization)             │                              │            │
+└──────────────────────────────────┴──────────────────────────────┴────────────┘
+ Total params: 24 (96.00 B)
+ Trainable params: 18 (72.00 B)
+ Non-trainable params: 6 (24.00 B)\n"""
+        self._check_summary_string(ref_str, fpath)
 
     def test_weight_memory_size(self):
         v1 = tf.Variable(tf.zeros(shape=(1, 2), dtype=tf.float32))
@@ -555,8 +489,8 @@ class LayerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(weight_memory_size, expected_memory_size)
 
     @parameterized.parameters(
-        (0, "0.00 Byte"),
-        (1000, "1000.00 Byte"),
+        (0, "0.00 B"),
+        (1000, "1000.00 B"),
         (1024, "1.00 KB"),
         (1024 * 2 - 1, "2.00 KB"),
         (1024 * 2 + 1, "2.00 KB"),
