@@ -334,10 +334,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def _init_batch_counters(self):
         # Untracked Variables, used to keep track of mini-batches seen in `fit`,
         # `evaluate`, and `predict`.
-        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-        self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-        self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-        self._predict_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+        if not tf.inside_function():
+            # Creating variables inside tf.function is not allowed, hence
+            # these would otherwise prevent users from creating Keras layers
+            # inside tf.function.
+            # These variables are not connected to outputs so they have no
+            # effect on graph generation anyway.
+            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+            self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+            self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+            self._predict_counter = tf.Variable(
+                0, dtype="int64", aggregation=agg
+            )
 
     def __setattr__(self, name, value):
         if not getattr(self, "_self_setattr_tracking", True):
