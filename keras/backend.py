@@ -6324,13 +6324,13 @@ def separable_conv1d(
     pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
     dilation_rate = (1,) + dilation_rate
 
-    x = tf.compat.v1.nn.separable_conv2d(
+    x = tf.nn.separable_conv2d(
         x,
         depthwise_kernel,
         pointwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
 
@@ -6390,13 +6390,13 @@ def separable_conv2d(
     else:
         strides = (1, 1) + strides
 
-    x = tf.compat.v1.nn.separable_conv2d(
+    x = tf.nn.separable_conv2d(
         x,
         depthwise_kernel,
         pointwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
     if data_format == "channels_first" and tf_data_format == "NHWC":
@@ -6445,12 +6445,12 @@ def depthwise_conv2d(
     else:
         strides = (1, 1) + strides
 
-    x = tf.compat.v1.nn.depthwise_conv2d(
+    x = tf.nn.depthwise_conv2d(
         x,
         depthwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
     if data_format == "channels_first" and tf_data_format == "NHWC":
