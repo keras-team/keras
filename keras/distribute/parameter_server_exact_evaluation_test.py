@@ -339,7 +339,7 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
         metric_name = "custom_acc" if custom_metric else "accuracy"
         expected_results = {metric_name: expected_acc}
 
-        def kill_and_revive_in_thread(wait_secs=2):
+        def kill_and_revive_in_thread(wait_secs=0.1):
             def _kill_and_revive_fn():
                 time.sleep(wait_secs)
                 logging.info("Killing 2 workers")
