@@ -145,7 +145,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":engine_utils",
-        ":text_rendering",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -186,14 +185,6 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
-)
-
-py_library(
-    name = "text_rendering",
-    srcs = [
-        "text_rendering.py",
-    ],
-    srcs_version = "PY3",
 )
 
 py_library(
