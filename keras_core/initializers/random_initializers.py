@@ -450,11 +450,11 @@ class RandomUniform(Initializer):
     Examples:
 
     >>> # Standalone usage:
-    >>> initializer = RandomNormal(mean=0.0, stddev=1.0)
+    >>> initializer = RandomUniform(minval=0.0, maxval=1.0)
     >>> values = initializer(shape=(2, 2))
 
     >>> # Usage in a Keras layer:
-    >>> initializer = RandomNormal(mean=0.0, stddev=1.0)
+    >>> initializer = RandomUniform(minval=0.0, maxval=1.0)
     >>> layer = Dense(3, kernel_initializer=initializer)
 
     Args:
