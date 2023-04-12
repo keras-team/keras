@@ -1,7 +1,7 @@
 import shutil
 
 
-class Table:
+class TextTable:
     def __init__(
         self, header, rows, positions, alignments=None, max_line_length=80
     ):
@@ -40,44 +40,63 @@ class Table:
         line = mid.join(horizontal * width for width in self.column_widths)
         return f"{left}{line}{right}"
 
+    @staticmethod
+    def format_field(field):
+        field = str(field)
+        field = field.replace("\n", " ")
+        return field
+    
+    @staticmethod
+    def maybe_pad(field, alignment):
+        if alignment == "left":
+            return " " + field
+        if alignment == "right":
+            return field + " "
+        return field
+
     def print_row(
         self,
         fields,
         vertical_separator="│",
         alignments=None,
+        highlight=False,
     ):
         alignments = alignments or ["center" for _ in fields]
         lines = []
-        line_break_conditions = ("),", "},", "],", "',", ") ")
-        for field, width in zip(fields, self.column_widths):
+        line_break_chars_post = (")", "}", "]")
+        line_break_chars_pre = ("(", "{", "[")
+        for field, width, alignment in zip(
+            fields, self.column_widths, alignments
+        ):
+            field = self.format_field(field)
             buffered_width = width - 1
-            if len(field) < buffered_width and not "\n" in field:
-                lines.append([field])
+            if len(field) < buffered_width:
+                lines.append([self.maybe_pad(field, alignment)])
                 continue
             subfields = []
-            while len(field) >= buffered_width or "\n" in field:
-                if "\n" in field[:buffered_width]:
-                    # priority: break on line break
-                    cutoff = field.find("\n")
-                    subfield = field[:cutoff]
-                    field = field[cutoff + 1 :]
-                    subfields.append(subfield)
-                    continue
-                # secondary: break on certain characters
-                candidate_cutoffs = [
-                    field.find(x) + len(x)
-                    for x in line_break_conditions
+            while len(field) >= buffered_width:
+                # Break on certain characters
+                candidate_cutoffs_pre = [
+                    field.find(x)
+                    for x in line_break_chars_pre
                     if 0 < field.find(x) < buffered_width
                 ]
-                if candidate_cutoffs:
-                    cutoff = min(buffered_width - 1, *candidate_cutoffs)
+                candidate_cutoffs_post = [
+                    field.find(x) + len(x)
+                    for x in line_break_chars_post
+                    if 0 < field.find(x) + len(x) < buffered_width
+                ]
+                cutoffs = candidate_cutoffs_pre + candidate_cutoffs_post
+                if cutoffs:
+                    cutoff = max(cutoffs)
                 else:
                     cutoff = buffered_width - 1
                 subfield = field[:cutoff]
                 field = field[cutoff:]
-                subfields.append(subfield)
+                
+                subfields.append(self.maybe_pad(subfield, alignment))
             if field:
-                subfields.append(field)
+                subfields.append(self.maybe_pad(field, alignment))
             lines.append(subfields)
 
         max_subfield_count = max(len(subs) for subs in lines)
@@ -90,12 +109,17 @@ class Table:
                 else:
                     field = subfields[i]
                 fields.append(field)
-            line = vertical_separator.join(
+            aligned_fields = [
                 self.align_field(field, width, alignment)
                 for field, width, alignment in zip(
                     fields, self.column_widths, alignments
                 )
-            )
+            ]
+            if highlight:
+                aligned_fields = [
+                    highlight_msg(field) for field in aligned_fields
+                ]
+            line = vertical_separator.join(aligned_fields)
             line = f"{vertical_separator}{line}{vertical_separator}"
             rendered_lines.append(line)
         return "\n".join(rendered_lines)
@@ -113,7 +137,9 @@ class Table:
         lines = []
         # Print header
         lines.append(self.make_separator(*"┏┳┓━"))
-        lines.append(self.print_row(self.header, vertical_separator="┃"))
+        lines.append(
+            self.print_row(self.header, vertical_separator="┃", highlight=True)
+        )
         lines.append(self.make_separator(*"┡╇┩━"))
 
         # Print rows
@@ -124,3 +150,7 @@ class Table:
 
         lines.append(self.make_separator(*"└┴┘─"))
         return "\n".join(lines)
+
+
+def highlight_msg(msg):
+    return f"\x1b[1m{msg}\x1b[0m"

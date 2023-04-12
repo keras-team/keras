@@ -5,6 +5,7 @@ from keras_core.utils import dtype_utils
 from keras_core.utils import text_rendering
 import math
 import re
+import string
 
 
 def count_params(weights):
@@ -120,12 +121,12 @@ def print_summary(
                     break
 
     if sequential_like:
-        line_length = line_length or 65
+        line_length = line_length or 84
         positions = positions or [0.45, 0.85, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #"]
     else:
-        line_length = line_length or 98
+        line_length = line_length or 100
         positions = positions or [0.3, 0.6, 0.70, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #", "Connected to"]
@@ -134,16 +135,22 @@ def print_summary(
             relevant_nodes += v
 
     if show_trainable:
-        line_length += 11
-        positions.append(line_length)
+        line_length += 8
+        positions = [p * 0.86 for p in positions] + [1.0]
         header.append("Trainable")
 
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
 
-    print_fn(f'Model: "{model.name}"')
+    print_fn(text_rendering.highlight_msg(f' Model: "{model.name}"'))
     rows = []
 
-    def print_layer_summary(layer, prefix=" "):
+    def format_shape(shape):
+        shape = tuple(shape)
+        if len(shape) == 1 and isinstance(shape[0], tuple):
+            shape = shape[0]
+        return str(shape)
+
+    def print_layer_summary(layer, prefix=""):
         """Prints a summary for a single layer.
 
         Args:
@@ -152,7 +159,7 @@ def print_summary(
               (e.g. 0 for a top-level layer, 1 for a nested layer).
         """
         try:
-            output_shape = layer.output_shape
+            output_shape = format_shape(layer.output_shape)
         except AttributeError:
             output_shape = "multiple"
         except RuntimeError:  # output_shape unknown in Eager mode.
@@ -166,7 +173,7 @@ def print_summary(
             params = "0 (unused)"
         else:
             params = layer.count_params()
-        fields = [name + " (" + cls_name + ")", output_shape, params]
+        fields = [name + " (" + cls_name + ")", output_shape, str(params)]
 
         if show_trainable:
             fields.append("Y" if layer.trainable else "N")
@@ -181,7 +188,7 @@ def print_summary(
               (e.g. 0 for a top-level layer, 1 for a nested layer).
         """
         try:
-            output_shape = layer.output_shape
+            output_shape = format_shape(layer.output_shape)
         except AttributeError:
             output_shape = "multiple"
         connections = []
@@ -202,7 +209,7 @@ def print_summary(
         fields = [
             name + " (" + cls_name + ")",
             output_shape,
-            layer.count_params(),
+            str(layer.count_params()),
             connections,
         ]
         if show_trainable:
@@ -210,12 +217,14 @@ def print_summary(
         rows.append(fields)
 
     def print_layer(layer, nested_level=0):
-        if sequential_like:
-            print_layer_summary(layer, prefix=">>>" * nested_level + " ")
+        if nested_level:
+            prefix = "   " * nested_level + "└" + " "
         else:
-            print_layer_summary_with_connections(
-                layer, prefix=">>>" * nested_level + " "
-            )
+            prefix = ""
+        if sequential_like:
+            print_layer_summary(layer, prefix=prefix)
+        else:
+            print_layer_summary_with_connections(layer, prefix=prefix)
 
         if expand_nested and hasattr(layer, "layers") and layer.layers:
             nested_layers = layer.layers
@@ -227,16 +236,23 @@ def print_summary(
         print_layer(layer)
 
     # Render summary as a table.
-    table = text_rendering.Table(
+    table = text_rendering.TextTable(
         header=header,
         rows=rows,
         positions=positions,
         # Left align layer name, center-align everything else
         alignments=["left"] + ["center" for _ in range(len(header) - 1)],
+        max_line_length=line_length,
     )
-    print_fn(table.make())
+    try:
+        table_str = table.make()
+        print_fn(table_str)
+    except UnicodeEncodeError:
+        printable = set(string.printable)
+        table_str = filter(lambda x: x in printable, table_str)
+        print_fn(table_str)
 
-    # After the table, append information about parameter count and  size.
+    # After the table, append information about parameter count and size.
     if hasattr(model, "_collected_trainable_weights"):
         trainable_count = count_params(model._collected_trainable_weights)
         trainable_memory_size = weight_memory_size(
@@ -252,16 +268,22 @@ def print_summary(
     total_memory_size = trainable_memory_size + non_trainable_memory_size
 
     print_fn(
-        f"Total params: {trainable_count + non_trainable_count} "
-        f"({readable_memory_size(total_memory_size)})"
+        text_rendering.highlight_msg(
+            f" Total params: {trainable_count + non_trainable_count} "
+            f"({readable_memory_size(total_memory_size)})"
+        )
     )
     print_fn(
-        f"Trainable params: {trainable_count} "
-        f"({readable_memory_size(trainable_memory_size)})"
+        text_rendering.highlight_msg(
+            f" Trainable params: {trainable_count} "
+            f"({readable_memory_size(trainable_memory_size)})"
+        )
     )
     print_fn(
-        f"Non-trainable params: {non_trainable_count} "
-        f"({readable_memory_size(non_trainable_memory_size)})"
+        text_rendering.highlight_msg(
+            f" Non-trainable params: {non_trainable_count} "
+            f"({readable_memory_size(non_trainable_memory_size)})"
+        )
     )
 
 
