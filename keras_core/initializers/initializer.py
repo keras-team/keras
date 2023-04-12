@@ -2,7 +2,9 @@ import warnings
 from keras_core.api_export import keras_core_export
 
 
-@keras_core_export(["keras_core.Initializer", "keras_core.initializers.Initializer"])
+@keras_core_export(
+    ["keras_core.Initializer", "keras_core.initializers.Initializer"]
+)
 class Initializer:
     """Initializer base class: all Keras initializers inherit from this class.
 

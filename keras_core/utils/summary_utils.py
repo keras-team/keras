@@ -1,11 +1,46 @@
 from tensorflow import nest
-from keras_core.backend import Variable
+from keras_core import backend
+from keras_core.utils import io_utils
+from keras_core.utils import dtype_utils
+from keras_core.utils import text_rendering
 import math
+import re
 
 
 def count_params(weights):
-    shapes = [v.shape for v in weights if isinstance(v, Variable)]
+    shapes = [v.shape for v in weights]
     return int(sum(math.prod(p) for p in shapes))
+
+
+def weight_memory_size(weights):
+    """Compute the memory footprint for weights based on their dtypes.
+
+    Args:
+        weights: An iterable contains the weights to compute weight size.
+
+    Returns:
+        The total memory size (in Bytes) of the weights.
+    """
+    unique_weights = set(weights)
+    total_memory_size = 0
+    for w in unique_weights:
+        weight_shape = math.prod(w.shape)
+        dtype = backend.standardize_dtype(w.dtype)
+        per_param_size = dtype_utils.float_dtype_size(dtype)
+        total_memory_size += weight_shape * per_param_size
+    return total_memory_size
+
+
+def readable_memory_size(weight_memory_size):
+    """Convert the weight memory size (Bytes) to a readable string."""
+    units = ["Byte", "KB", "MB", "GB", "TB", "PB"]
+    scale = 1024
+    for unit in units:
+        if weight_memory_size / scale < 1:
+            return "{:.2f} {}".format(weight_memory_size, unit)
+        else:
+            weight_memory_size /= scale
+    return "{:.2f} {}".format(weight_memory_size, units[-1])
 
 
 def print_summary(
@@ -86,17 +121,13 @@ def print_summary(
     if sequential_like:
         line_length = line_length or 65
         positions = positions or [0.45, 0.85, 1.0]
-        if positions[-1] <= 1:
-            positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ["Layer (type)", "Output Shape", "Param #"]
+        header = ["Layer (type)", "Output Shape", "Param #"]
     else:
         line_length = line_length or 98
         positions = positions or [0.3, 0.6, 0.70, 1.0]
-        if positions[-1] <= 1:
-            positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ["Layer (type)", "Output Shape", "Param #", "Connected to"]
+        header = ["Layer (type)", "Output Shape", "Param #", "Connected to"]
         relevant_nodes = []
         for v in model._nodes_by_depth.values():
             relevant_nodes += v
@@ -104,63 +135,14 @@ def print_summary(
     if show_trainable:
         line_length += 11
         positions.append(line_length)
-        to_display.append("Trainable")
+        header.append("Trainable")
 
     layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
 
-    def print_row(fields, positions, nested_level=0):
-        left_to_print = [str(x) for x in fields]
-        while any(left_to_print):
-            line = ""
-            for col in range(len(left_to_print)):
-                if col > 0:
-                    start_pos = positions[col - 1]
-                else:
-                    start_pos = 0
-                end_pos = positions[col]
-                # Leave room for 2 spaces to delineate columns
-                # we don't need any if we are printing the last column
-                space = 2 if col != len(positions) - 1 else 0
-                cutoff = end_pos - start_pos - space
-                # Except for last col, offset by one to align the start of col
-                if col != len(positions) - 1:
-                    cutoff -= 1
-                if col == 0:
-                    cutoff -= nested_level
-                fit_into_line = left_to_print[col][:cutoff]
-                # For nicer formatting we line-break on seeing end of
-                # tuple/dict etc.
-                line_break_conditions = ("),", "},", "],", "',")
-                candidate_cutoffs = [
-                    fit_into_line.find(x) + len(x)
-                    for x in line_break_conditions
-                    if fit_into_line.find(x) >= 0
-                ]
-                if candidate_cutoffs:
-                    cutoff = min(candidate_cutoffs)
-                    fit_into_line = fit_into_line[:cutoff]
-
-                if col == 0:
-                    line += "|" * nested_level + " "
-                line += fit_into_line
-                line += " " * space if space else ""
-                left_to_print[col] = left_to_print[col][cutoff:]
-
-                # Pad out to the next position
-                # Make space for nested_level for last column
-                if nested_level and col == len(positions) - 1:
-                    line += " " * (positions[col] - len(line) - nested_level)
-                else:
-                    line += " " * (positions[col] - len(line))
-            line += "|" * nested_level
-            print_fn(line)
-
     print_fn(f'Model: "{model.name}"')
-    print_fn("_" * line_length)
-    print_row(to_display, positions)
-    print_fn("=" * line_length)
+    rows = []
 
-    def print_layer_summary(layer, nested_level=0):
+    def print_layer_summary(layer, prefix=" "):
         """Prints a summary for a single layer.
 
         Args:
@@ -174,9 +156,9 @@ def print_summary(
             output_shape = "multiple"
         except RuntimeError:  # output_shape unknown in Eager mode.
             output_shape = "?"
-        name = layer.name
+        name = prefix + layer.name
         cls_name = layer.__class__.__name__
-        if not layer.built and not getattr(layer, "_is_graph_network", False):
+        if not layer.built:
             # If a subclassed model has a layer that is not called in
             # Model.call, the layer will not be built and we cannot call
             # layer.count_params().
@@ -187,10 +169,9 @@ def print_summary(
 
         if show_trainable:
             fields.append("Y" if layer.trainable else "N")
+        rows.append(fields)
 
-        print_row(fields, positions, nested_level)
-
-    def print_layer_summary_with_connections(layer, nested_level=0):
+    def print_layer_summary_with_connections(layer, prefix=""):
         """Prints a summary for a single layer (including its connections).
 
         Args:
@@ -207,18 +188,15 @@ def print_summary(
             if relevant_nodes and node not in relevant_nodes:
                 # node is not part of the current network
                 continue
-
-            for (
-                inbound_layer,
-                node_index,
-                tensor_index,
-                _,
-            ) in node.iterate_inbound():
+            for kt in node.keras_inputs:
+                keras_history = kt._keras_history
+                inbound_layer = keras_history.layer
+                node_index = keras_history.node_index
+                tensor_index = keras_history.tensor_index
                 connections.append(
                     f"{inbound_layer.name}[{node_index}][{tensor_index}]"
                 )
-
-        name = layer.name
+        name = prefix + layer.name
         cls_name = layer.__class__.__name__
         fields = [
             name + " (" + cls_name + ")",
@@ -226,49 +204,38 @@ def print_summary(
             layer.count_params(),
             connections,
         ]
-
         if show_trainable:
             fields.append("Y" if layer.trainable else "N")
+        rows.append(fields)
 
-        print_row(fields, positions, nested_level)
-
-    def print_layer(layer, nested_level=0, is_nested_last=False):
+    def print_layer(layer, nested_level=0):
         if sequential_like:
-            print_layer_summary(layer, nested_level)
+            print_layer_summary(layer, prefix=">>>" * nested_level + " ")
         else:
-            print_layer_summary_with_connections(layer, nested_level)
+            print_layer_summary_with_connections(
+                layer, prefix=">>>" * nested_level + " "
+            )
 
         if expand_nested and hasattr(layer, "layers") and layer.layers:
-            print_fn(
-                "|" * (nested_level + 1)
-                + "¯" * (line_length - 2 * nested_level - 2)
-                + "|" * (nested_level + 1)
-            )
-
-            nested_layer = layer.layers
-            is_nested_last = False
-            for i in range(len(nested_layer)):
-                if i == len(nested_layer) - 1:
-                    is_nested_last = True
-                print_layer(nested_layer[i], nested_level + 1, is_nested_last)
-
-            print_fn(
-                "|" * nested_level
-                + "¯" * (line_length - 2 * nested_level)
-                + "|" * nested_level
-            )
-
-        if not is_nested_last:
-            print_fn(
-                "|" * nested_level
-                + " " * (line_length - 2 * nested_level)
-                + "|" * nested_level
-            )
+            nested_layers = layer.layers
+            nested_level += 1
+            for i in range(len(nested_layers)):
+                print_layer(nested_layers[i], nested_level=nested_level)
 
     for layer in model.layers[layer_range[0] : layer_range[1]]:
         print_layer(layer)
-    print_fn("=" * line_length)
 
+    # Render summary as a table.
+    table = text_rendering.Table(
+        header=header,
+        rows=rows,
+        positions=positions,
+        # Left align layer name, center-align everything else
+        alignments=["left"] + ["center" for _ in range(len(header) - 1)],
+    )
+    print_fn(table.make())
+
+    # After the table, append information about parameter count and  size.
     if hasattr(model, "_collected_trainable_weights"):
         trainable_count = count_params(model._collected_trainable_weights)
         trainable_memory_size = weight_memory_size(
@@ -295,6 +262,57 @@ def print_summary(
         f"Non-trainable params: {non_trainable_count} "
         f"({readable_memory_size(non_trainable_memory_size)})"
     )
-    print_fn("_" * line_length)
 
-    print_dtensor_variable_summary(model, print_fn, line_length)
+
+def get_layer_index_bound_by_layer_name(model, layer_range=None):
+    """Get the layer indexes from the model based on layer names.
+
+    The layer indexes can be used to slice the model into sub models for
+    display.
+
+    Args:
+        model: `Model` instance.
+        layer_names: a list or tuple of 2 strings, the starting layer name and
+            ending layer name (both inclusive) for the result. All layers will
+            be included when `None` is provided.
+
+    Returns:
+        The index value of layer based on its unique name (layer_names).
+        Output will be [first_layer_index, last_layer_index + 1].
+    """
+    if layer_range is not None:
+        if len(layer_range) != 2:
+            raise ValueError(
+                "layer_range must be a list or tuple of length 2. Received: "
+                f"layer_range = {layer_range} of length {len(layer_range)}"
+            )
+        if not isinstance(layer_range[0], str) or not isinstance(
+            layer_range[1], str
+        ):
+            raise ValueError(
+                "layer_range should contain string type only. "
+                f"Received: {layer_range}"
+            )
+    else:
+        return [0, len(model.layers)]
+
+    lower_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[0], layer.name)
+    ]
+    upper_index = [
+        idx
+        for idx, layer in enumerate(model.layers)
+        if re.match(layer_range[1], layer.name)
+    ]
+
+    if not lower_index or not upper_index:
+        raise ValueError(
+            "Passed layer_names do not match the layer names in the model. "
+            f"Received: {layer_range}"
+        )
+
+    if min(lower_index) > max(upper_index):
+        return [min(upper_index), max(lower_index) + 1]
+    return [min(lower_index), max(upper_index) + 1]

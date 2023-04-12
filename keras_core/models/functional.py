@@ -27,6 +27,7 @@ class Functional(Function, Model):
             return
         super().__init__(inputs, outputs, name=name)
         self._layers = self.layers
+        self.built = True
 
     @property
     def layers(self):
@@ -59,7 +60,7 @@ class Functional(Function, Model):
         pass
 
     def add_loss(self, loss):
-        # Symbolic only.
+        # Symbolic only. TODO
         raise NotImplementedError
 
 

@@ -32,7 +32,9 @@ class MiniDropout(Layer):
         self.seed_generator = backend.random.RandomSeedGenerator(1337)
 
     def call(self, inputs):
-        return backend.random.dropout(inputs, self.rate, seed=self.seed_generator)
+        return backend.random.dropout(
+            inputs, self.rate, seed=self.seed_generator
+        )
 
 
 class MiniBatchNorm(Layer):
@@ -43,7 +45,9 @@ class MiniBatchNorm(Layer):
 
     def build(self, input_shape):
         shape = (input_shape[-1],)
-        self.mean = backend.Variable(initializers.Zeros()(shape), trainable=False)
+        self.mean = backend.Variable(
+            initializers.Zeros()(shape), trainable=False
+        )
         self.variance = backend.Variable(
             initializers.GlorotUniform()(shape), trainable=False
         )
@@ -58,7 +62,9 @@ class MiniBatchNorm(Layer):
             self.variance.assign(
                 self.variance * self.momentum + variance * (1.0 - self.momentum)
             )
-            self.mean.assign(self.mean * self.momentum + mean * (1.0 - self.momentum))
+            self.mean.assign(
+                self.mean * self.momentum + mean * (1.0 - self.momentum)
+            )
         else:
             outputs = (inputs - self.mean) / (self.variance + self.epsilon)
         outputs *= self.gamma

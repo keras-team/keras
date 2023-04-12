@@ -82,7 +82,8 @@ def set_floatx(value):
     accepted_dtypes = {"float16", "float32", "float64"}
     if value not in accepted_dtypes:
         raise ValueError(
-            f"Unknown `floatx` value: {value}. " f"Expected one of {accepted_dtypes}"
+            f"Unknown `floatx` value: {value}. "
+            f"Expected one of {accepted_dtypes}"
         )
     _FLOATX = str(value)
 

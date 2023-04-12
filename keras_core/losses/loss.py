@@ -1,6 +1,7 @@
 from keras_core import operations as ops
 from keras_core import backend
 from keras_core.utils.naming import auto_name
+from keras_core.utils import dtype_utils
 from keras_core.api_export import keras_core_export
 
 
@@ -30,7 +31,10 @@ class Loss:
                 mask = None
 
             return reduce_weighted_loss(
-                losses, sample_weight=sample_weight, mask=mask, reduction=self.reduction
+                losses,
+                sample_weight=sample_weight,
+                mask=mask,
+                reduction=self.reduction,
             )
 
     def call(self, y_true, y_pred):
@@ -71,7 +75,11 @@ def squeeze_to_same_rank(x1, x2):
 
 
 def reduce_loss(losses, reduction="sum_over_batch_size"):
-    if reduction is None or tuple(losses.shape) == () or tuple(losses.shape) == (0,):
+    if (
+        reduction is None
+        or tuple(losses.shape) == ()
+        or tuple(losses.shape) == (0,)
+    ):
         return losses
     loss = ops.sum(losses)
     if reduction == "sum_over_batch_size":
@@ -101,7 +109,7 @@ def reduce_weighted_loss(
     # Convert any non float dtypes to floats, to avoid loss of precision
     # for dtype like int or bool.
     dtype = backend.standardize_dtype(losses.dtype)
-    if not is_float(dtype):
+    if not dtype_utils.is_float(dtype):
         input_dtype = losses.dtype
         losses = ops.cast(losses, "float32")
         input_casted = True
@@ -121,45 +129,6 @@ def reduce_weighted_loss(
         # Convert the result back to the input type.
         loss = ops.cast(loss, input_dtype)
     return loss
-
-
-def float_dtype_size(dtype):
-    if dtype in ("bfloat16", "float16"):
-        return 16
-    if dtype == "float32":
-        return 32
-    if dtype == "float64":
-        return 64
-    raise ValueError(f"Invalid dtype: {dtype}")
-
-
-def is_float(dtype):
-    return "float" in dtype
-
-
-def cast_to_common_dtype(tensors):
-    """Cast a list of tensors to a common dtype.
-
-    If any tensor is floating-point, they will all be casted to the most-precise
-    floating-point dtype. Otherwise the tensors are not casted.
-
-    Args:
-        tensors: A list of tensors.
-
-    Returns:
-        Same list, casted to a common dtype.
-    """
-    highest_float = None
-    for x in tensors:
-        dtype = backend.standardize_dtype(x.dtype)
-        if is_float(dtype):
-            if highest_float is None or float_dtype_size(dtype) > highest_float:
-                highest_float = dtype
-            elif dtype == "float16" and highest_float == "bfloat16":
-                highest_float = "float32"
-    if highest_float:
-        tensors = [ops.cast(x, highest_float) for x in tensors]
-    return tensors
 
 
 def apply_mask(sample_weight, mask, dtype, reduction):

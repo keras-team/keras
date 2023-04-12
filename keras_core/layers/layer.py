@@ -62,7 +62,8 @@ class Layer(Operation):
                 ),
                 "metrics": (lambda x: isinstance(x, Metric), self._metrics),
                 "layers": (
-                    lambda x: isinstance(x, Layer) and not isinstance(x, Metric),
+                    lambda x: isinstance(x, Layer)
+                    and not isinstance(x, Metric),
                     self._layers,
                 ),
                 # TODO: RandomSeedGenerator tracking
@@ -251,7 +252,9 @@ class Layer(Operation):
         # Argument validation and conversion. #
         # 1. Convert first positional argument to tensor of correct dtype.
         if args and not isinstance(args[0], KerasTensor):
-            args = (nest.map_structure(backend.convert_to_tensor, args[0]),) + args[1:]
+            args = (
+                nest.map_structure(backend.convert_to_tensor, args[0]),
+            ) + args[1:]
 
         # 2. Convert any other array arguments to tensors of correct dtype.
         def maybe_convert(x):
@@ -433,7 +436,7 @@ class Layer(Operation):
     def add_metric(self):
         # Permanently disabled
         raise NotImplementedError
-    
+
     def count_params(self):
         """Count the total number of scalars composing the weights.
 
@@ -535,7 +538,7 @@ class Layer(Operation):
         values = self.call.__defaults__
         mapping = dict(zip(kwargs, values))
         return mapping.get("training", None)
-    
+
     def _flatten_layers(self, include_self=True, recursive=True):
         layers = []
         if include_self:
@@ -578,9 +581,12 @@ def get_shapes_dict(arguments_dict):
             shapes_dict[f"{k}_shape"] = backend.standardize_shape(v.shape)
         elif nest.is_nested(v):
             flat = nest.flatten(v)
-            if any(isinstance(x, KerasTensor) or backend.is_tensor(x) for x in flat):
+            if any(
+                isinstance(x, KerasTensor) or backend.is_tensor(x) for x in flat
+            ):
                 if not all(
-                    isinstance(x, KerasTensor) or backend.is_tensor(x) for x in flat
+                    isinstance(x, KerasTensor) or backend.is_tensor(x)
+                    for x in flat
                 ):
                     raise ValueError(
                         "You cannot mix tensors and non-tensors in a nested argument. "

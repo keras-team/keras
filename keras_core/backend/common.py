@@ -30,9 +30,7 @@ class KerasVariable:
         raise NotImplementedError
 
     def __repr__(self):
-        return (
-            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, name={self.name}>"
-        )
+        return f"<KerasVariable shape={self.shape}, dtype={self.dtype}, name={self.name}>"
 
 
 ALLOWED_DTYPES = {
