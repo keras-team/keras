@@ -2,7 +2,6 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import layers
-from keras_core import operations as ops
 from keras_core import testing
 from keras_core.layers.core.input_layer import Input
 from keras_core.models.functional import Functional
@@ -51,6 +50,33 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(out_val[0].shape, (2, 4))
         self.assertEqual(out_val[1].shape, (2, 5))
 
+    def test_basic_flow_dict_io(self):
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        x = input_a + input_b
+        x = layers.Dense(5)(x)
+        outputs = layers.Dense(4)(x)
+
+        with self.assertRaisesRegex(ValueError, "all values in the dict must be KerasTensors"):
+            model = Functional({"aa": [input_a], "bb": input_b}, outputs)
+
+        with self.assertRaisesRegex(ValueError, "all keys in the dict must match the names"):
+            model = Functional({"aa": input_a, "bb": input_b}, outputs)
+
+        model = Functional({"a": input_a, "b": input_b}, outputs)
+
+        # Eager call
+        in_val = {"a": np.random.random((2, 3)), "b": np.random.random((2, 3))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        input_b_2 = Input(shape=(3,), batch_size=2)
+        in_val = {"a": input_a_2, "b": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
     def test_layer_getters(self):
         # Test mixing ops and layers
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
@@ -87,10 +113,39 @@ class FunctionalTest(testing.TestCase):
         pass
 
     def test_passing_inputs_by_name(self):
-        pass
+        input_a = Input(shape=(3,), batch_size=2, name="input_a")
+        input_b = Input(shape=(3,), batch_size=2, name="input_b")
+        x = input_a + input_b
+        x = layers.Dense(5)(x)
+        outputs = layers.Dense(4)(x)
+        model = Functional([input_a, input_b], outputs)
+
+        # Eager call
+        in_val = {"input_a": np.random.random((2, 3)), "input_b": np.random.random((2, 3))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2, name="input_a_2")
+        input_b_2 = Input(shape=(3,), batch_size=2, name="input_b_2")
+        in_val = {"input_a": input_a_2, "input_b": input_b_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
 
     def test_rank_standardization(self):
-        pass
+        # Downranking
+        inputs = Input(shape=(3,), batch_size=2)
+        outputs = layers.Dense(3)(inputs)
+        model = Functional(inputs, outputs)
+        out_val = model(np.random.random((2, 3, 1)))
+        self.assertEqual(out_val.shape, (2, 3))
+
+        # Upranking
+        inputs = Input(shape=(3, 1), batch_size=2)
+        outputs = layers.Dense(3)(inputs)
+        model = Functional(inputs, outputs)
+        out_val = model(np.random.random((2, 3)))
+        self.assertEqual(out_val.shape, (2, 3, 3))
 
     def test_serialization(self):
         # TODO
