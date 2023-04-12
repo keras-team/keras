@@ -34,6 +34,7 @@ from tensorflow.python.autograph.impl import (
 ALL_LOSSES = [
     losses.mean_squared_error,
     losses.mean_absolute_error,
+    losses.scale_invariant_error,
     losses.mean_absolute_percentage_error,
     losses.mean_squared_logarithmic_error,
     losses.squared_hinge,
@@ -660,6 +661,122 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
         # loss = [14/3, 16/2]
         sample_weight = tf.constant([1.2, 1.0], shape=(2, 1))
         loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 6.8, 5)
+
+
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class ScaleInvariantErrorTest(tf.test.TestCase):
+    def test_config(self):
+        sie_obj = losses.ScaleInvariantError(
+            reduction=losses_utils.ReductionV2.SUM, name="sie_1"
+        )
+        self.assertEqual(sie_obj.name, "sie_1")
+        self.assertEqual(sie_obj.reduction, losses_utils.ReductionV2.SUM)
+
+    def test_all_correct_unweighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_true)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+    def test_unweighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_pred)
+        self.assertAlmostEqual(self.evaluate(loss), 10.5307, 3)
+
+    def test_scalar_weighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(self.evaluate(loss), 24.2206, 3)
+
+    def test_sample_weighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        sample_weight = tf.constant([1.5, 3.6], shape=(2, 1))
+        loss = sie_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 26.8533, 3)
+
+    def test_timestep_weighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3, 1), dtype=tf.float32
+        )
+        sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+        loss = sie_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 35.1024, 3)
+
+    def test_zero_weighted(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_pred, sample_weight=0)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+    def test_invalid_sample_weight(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.constant(
+            [1, 9, 2, -5, -2, 6], shape=(2, 3, 1), dtype=tf.float32
+        )
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3, 1), dtype=tf.float32
+        )
+        sample_weight = tf.constant([3, 6, 5, 0], shape=(2, 2))
+        with self.assertRaisesRegex(
+            (ValueError, tf.errors.InvalidArgumentError),
+            (
+                r"Incompatible shapes: \[2,3\] vs. \[2,2\]|"
+                "Dimensions must be equal"
+            ),
+        ):
+            sie_obj(y_true, y_pred, sample_weight=sample_weight)
+
+    def test_no_reduction(self):
+        sie_obj = losses.ScaleInvariantError(
+            reduction=losses_utils.ReductionV2.NONE
+        )
+        y_true = tf.constant(
+            [1, 9, 2, -5, -2, 6], shape=(2, 3), dtype=tf.float32
+        )
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_pred, sample_weight=2.3)
+        loss = self.evaluate(loss)
+        self.assertArrayNear(loss, [20.96492, 6.174459], 1e-3)
+
+    def test_sum_reduction(self):
+        sie_obj = losses.ScaleInvariantError(
+            reduction=losses_utils.ReductionV2.SUM
+        )
+        y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = tf.constant(
+            [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
+        )
+        loss = sie_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(self.evaluate(loss), 2*24.2206, 3)
+
+    def test_ragged_tensor(self):
+        sie_obj = losses.ScaleInvariantError()
+        y_true = tf.ragged.constant([[1, 9, 2], [-5, 2]], dtype=tf.float32)
+        y_pred = tf.ragged.constant([[4, 8, 12], [8, 1]], dtype=tf.float32)
+        sample_weight = tf.constant([1.2, 1.0], shape=(2, 1))
+        loss = sie_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertAlmostEqual(self.evaluate(loss), 6.8, 5)
 
 
