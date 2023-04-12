@@ -1859,9 +1859,10 @@ def scale_invariant_error(y_true, y_pred, alpha=10.0, lamda=0.85):
 
 
 @dispatch.dispatch_for_types(scale_invariant_error, tf.RaggedTensor)
-def _ragged_tensor_sie(y_true, y_pred):
+def _ragged_tensor_sie(y_true, y_pred, alpha, lamda):
     """Support RaggedTensors."""
-    return _ragged_tensor_apply_loss(scale_invariant_error, y_true, y_pred)
+    fn = functools.partial(scale_invariant_error, alpha=alpha, lamda=lamda)
+    return _ragged_tensor_apply_loss(fn, y_true, y_pred)
 
 
 @keras_export(
