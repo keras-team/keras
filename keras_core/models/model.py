@@ -36,7 +36,7 @@ class Model(Layer, Trainer):
     @property
     def layers(self):
         return list(self._flatten_layers(include_self=False, recursive=False))
-    
+
     @layers.setter
     def layers(self, _):
         raise AttributeError(
@@ -80,9 +80,7 @@ class Model(Layer, Trainer):
                 f"No such layer: {name}. Existing layers are: "
                 f"{list(layer.name for layer in self.layers)}."
             )
-        raise ValueError(
-            "Provide either a layer name or layer index at `get_layer`."
-        )
+        raise ValueError("Provide either a layer name or layer index at `get_layer`.")
 
     def summary(
         self,

@@ -433,7 +433,7 @@ class Layer(Operation):
     def add_metric(self):
         # Permanently disabled
         raise NotImplementedError
-    
+
     def count_params(self):
         """Count the total number of scalars composing the weights.
 
@@ -535,7 +535,7 @@ class Layer(Operation):
         values = self.call.__defaults__
         mapping = dict(zip(kwargs, values))
         return mapping.get("training", None)
-    
+
     def _flatten_layers(self, include_self=True, recursive=True):
         layers = []
         if include_self:
