@@ -1,6 +1,7 @@
 import math
-from keras_core.initializers.initializer import Initializer
+
 from keras_core.backend import random
+from keras_core.initializers.initializer import Initializer
 
 
 class VarianceScaling(Initializer):

@@ -1,6 +1,8 @@
-from keras_core.backend.config import floatx
-from tensorflow import nest
 import threading
+
+from tensorflow import nest
+
+from keras_core.backend.config import floatx
 
 
 class KerasVariable:

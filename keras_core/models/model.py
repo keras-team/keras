@@ -1,6 +1,6 @@
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
 from keras_core.backend import Trainer
+from keras_core.layers.layer import Layer
 
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])

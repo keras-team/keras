@@ -1,6 +1,6 @@
+from keras_core.backend import standardize_dtype
 from keras_core.initializers.initializer import Initializer
 from keras_core.operations import numpy as knp
-from keras_core.backend import standardize_dtype
 
 
 class Zeros(Initializer):

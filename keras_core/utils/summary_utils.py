@@ -79,7 +79,8 @@ def print_summary(
             matches `layer_range[1]`. By default (`None`) all
             layers in the model are included in the summary.
     """
-    from keras_core.models import Sequential, Functional
+    from keras_core.models import Functional
+    from keras_core.models import Sequential
 
     if print_fn is None:
         print_fn = io_utils.print_msg

@@ -1,9 +1,10 @@
-from keras_core.operations import operation
-from keras_core.engine import keras_tensor
-from keras_core.operations import numpy as knp
+import numpy as np
+
 from keras_core import backend
 from keras_core import testing
-import numpy as np
+from keras_core.engine import keras_tensor
+from keras_core.operations import numpy as knp
+from keras_core.operations import operation
 
 
 class OpWithMultipleInputs(operation.Operation):

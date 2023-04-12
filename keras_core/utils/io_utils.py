@@ -1,7 +1,9 @@
-from keras_core.api_export import keras_core_export
-import threading
 import sys
+import threading
+
 from absl import logging
+
+from keras_core.api_export import keras_core_export
 
 INTERACTIVE_LOGGING = threading.local()
 INTERACTIVE_LOGGING.enable = True

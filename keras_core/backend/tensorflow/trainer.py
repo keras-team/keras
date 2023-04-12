@@ -1,5 +1,6 @@
-from keras_core.trainers import trainer
 import tensorflow as tf
+
+from keras_core.trainers import trainer
 
 
 class Trainer(trainer.Trainer):

@@ -1,5 +1,5 @@
-from keras_core.optimizers import optimizer
 from keras_core import operations as ops
+from keras_core.optimizers import optimizer
 
 
 class SGD(optimizer.Optimizer):

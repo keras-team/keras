@@ -1,9 +1,10 @@
-from keras_core import testing
+import numpy as np
+
+from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
-from keras_core import backend
 from keras_core import regularizers
-import numpy as np
+from keras_core import testing
 
 
 # TODO: serialization tests

@@ -1,6 +1,7 @@
-from keras_core.backend.random import draw_seed
 import tensorflow as tf
+
 from keras_core.backend import floatx
+from keras_core.backend.random import draw_seed
 
 
 def tf_draw_seed(seed):

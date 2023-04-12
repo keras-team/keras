@@ -1,9 +1,9 @@
 from keras_core import backend
-from keras_core.layers.layer import Layer
-from keras_core.backend import KerasTensor
-from keras_core.operations.function import Function
 from keras_core import initializers
+from keras_core.backend import KerasTensor
+from keras_core.layers.layer import Layer
 from keras_core.operations import numpy as knp
+from keras_core.operations.function import Function
 
 
 class MiniDense(Layer):

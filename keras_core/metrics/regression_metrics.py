@@ -1,6 +1,6 @@
-from keras_core.metrics.metric import Metric
 from keras_core import backend
 from keras_core import initializers
+from keras_core.metrics.metric import Metric
 
 
 class MeanSquareError(Metric):

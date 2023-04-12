@@ -14,21 +14,23 @@ And some more magic:
 - metric tracking
 - RNG seed tracking
 """
-from keras_core.operations.operation import Operation
-from keras_core.backend import KerasTensor
-from keras_core import backend
-from keras_core.utils.tracking import Tracker
-from keras_core.metrics.metric import Metric
-from keras_core import utils
-from keras_core.utils import summary_utils
-from keras_core.layers import input_spec
-from keras_core.api_export import keras_core_export
-from tensorflow import nest
-from tensorflow import keras as tf_keras
-import numpy as np
+import collections
 import inspect
 import threading
-import collections
+
+import numpy as np
+from tensorflow import keras as tf_keras
+from tensorflow import nest
+
+from keras_core import backend
+from keras_core import utils
+from keras_core.api_export import keras_core_export
+from keras_core.backend import KerasTensor
+from keras_core.layers import input_spec
+from keras_core.metrics.metric import Metric
+from keras_core.operations.operation import Operation
+from keras_core.utils import summary_utils
+from keras_core.utils.tracking import Tracker
 
 # TODO: cache all call signature processing. See layer_utils.CallFunctionSpec() in Keras.
 

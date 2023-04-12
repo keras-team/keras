@@ -1,7 +1,7 @@
 from keras_core import backend
-from keras_core.utils.tracking import Tracker
-from keras_core.utils.naming import auto_name
 from keras_core.api_export import keras_core_export
+from keras_core.utils.naming import auto_name
+from keras_core.utils.tracking import Tracker
 
 
 @keras_core_export(["keras_core.Metric", "keras_core.metrics.Metric"])

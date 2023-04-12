@@ -1,7 +1,8 @@
+import numpy as np
+
+from keras_core import operations as ops
 from keras_core import testing
 from keras_core.losses.loss import Loss
-from keras_core import operations as ops
-import numpy as np
 
 
 class ExampleLoss(Loss):

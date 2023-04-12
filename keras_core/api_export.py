@@ -1,4 +1,5 @@
 import types
+
 from keras_core.saving import register_keras_core_serializable
 
 try:

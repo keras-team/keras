@@ -1,5 +1,6 @@
-from keras_core.utils.naming import auto_name
 from tensorflow import nest
+
+from keras_core.utils.naming import auto_name
 
 
 class KerasTensor:

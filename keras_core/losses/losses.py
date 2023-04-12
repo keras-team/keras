@@ -1,5 +1,5 @@
-from keras_core.losses.loss import Loss
 from keras_core import operations as ops
+from keras_core.losses.loss import Loss
 from keras_core.losses.loss import squeeze_to_same_rank
 
 

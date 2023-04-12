@@ -1,8 +1,10 @@
+import collections
+
+from tensorflow import nest
+
 from keras_core.backend import KerasTensor
 from keras_core.operations.operation import Operation
 from keras_core.utils.naming import auto_name
-from tensorflow import nest
-import collections
 
 
 class Function(Operation):
