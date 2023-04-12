@@ -56,7 +56,9 @@ class InputSpec:
         allow_last_axis_squeeze=False,
         name=None,
     ):
-        self.dtype = backend.standardize_dtype(dtype) if dtype is not None else None
+        self.dtype = (
+            backend.standardize_dtype(dtype) if dtype is not None else None
+        )
         if shape is not None:
             self.shape = backend.standardize_shape(shape)
             self.ndim = len(shape)

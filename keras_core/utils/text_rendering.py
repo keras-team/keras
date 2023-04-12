@@ -2,7 +2,9 @@ import shutil
 
 
 class Table:
-    def __init__(self, header, rows, positions, alignments=None, max_line_length=80):
+    def __init__(
+        self, header, rows, positions, alignments=None, max_line_length=80
+    ):
         if len(header) != len(positions):
             raise ValueError("header and positions should be the same length.")
         if not all(p <= 1.0 for p in positions):
@@ -21,7 +23,9 @@ class Table:
         self.rows = rows
 
         # Compute columns widths
-        line_length = min(max_line_length, shutil.get_terminal_size().columns - 4)
+        line_length = min(
+            max_line_length, shutil.get_terminal_size().columns - 4
+        )
         column_widths = []
         current = 0
         for pos in positions:
@@ -56,7 +60,7 @@ class Table:
                     # priority: break on line break
                     cutoff = field.find("\n")
                     subfield = field[:cutoff]
-                    field = field[cutoff + 1:]
+                    field = field[cutoff + 1 :]
                     subfields.append(subfield)
                     continue
                 # secondary: break on certain characters
@@ -86,11 +90,16 @@ class Table:
                 else:
                     field = subfields[i]
                 fields.append(field)
-            line = vertical_separator.join(self.align_field(field, width, alignment) for field, width, alignment in zip(fields, self.column_widths, alignments))
+            line = vertical_separator.join(
+                self.align_field(field, width, alignment)
+                for field, width, alignment in zip(
+                    fields, self.column_widths, alignments
+                )
+            )
             line = f"{vertical_separator}{line}{vertical_separator}"
             rendered_lines.append(line)
         return "\n".join(rendered_lines)
-    
+
     @staticmethod
     def align_field(field, width, alignment):
         if alignment == "center":

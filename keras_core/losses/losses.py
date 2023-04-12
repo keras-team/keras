@@ -4,7 +4,9 @@ from keras_core.losses.loss import squeeze_to_same_rank
 
 
 class LossFunctionWrapper(Loss):
-    def __init__(self, fn, reduction="sum_over_batch_size", name=None, **kwargs):
+    def __init__(
+        self, fn, reduction="sum_over_batch_size", name=None, **kwargs
+    ):
         super().__init__(reduction=reduction, name=name)
         self.fn = fn
         self._fn_kwargs = kwargs
@@ -29,5 +31,7 @@ def mean_squared_error(y_true, y_pred):
 
 
 class MeanSquaredError(LossFunctionWrapper):
-    def __init__(self, reduction="sum_over_batch_size", name="mean_squared_error"):
+    def __init__(
+        self, reduction="sum_over_batch_size", name="mean_squared_error"
+    ):
         super().__init__(mean_squared_error, reduction=reduction, name=name)

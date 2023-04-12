@@ -285,10 +285,14 @@ class Mean(Operation):
         self.keepdims = keepdims
 
     def call(self, x):
-        return backend.execute("mean", x, axis=self.axis, keepdims=self.keepdims)
+        return backend.execute(
+            "mean", x, axis=self.axis, keepdims=self.keepdims
+        )
 
     def compute_output_spec(self, x):
-        return compute_np_output_spec("mean", x, axis=self.axis, keepdims=self.keepdims)
+        return compute_np_output_spec(
+            "mean", x, axis=self.axis, keepdims=self.keepdims
+        )
 
 
 def mean(x, axis=None, keepdims=False):
@@ -306,7 +310,9 @@ class Var(Operation):
         return backend.execute("var", x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        return compute_np_output_spec("var", x, axis=self.axis, keepdims=self.keepdims)
+        return compute_np_output_spec(
+            "var", x, axis=self.axis, keepdims=self.keepdims
+        )
 
 
 def var(x, axis=None, keepdims=False):
@@ -324,7 +330,9 @@ class Sum(Operation):
         return backend.execute("sum", x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        return compute_np_output_spec("sum", x, axis=self.axis, keepdims=self.keepdims)
+        return compute_np_output_spec(
+            "sum", x, axis=self.axis, keepdims=self.keepdims
+        )
 
 
 def sum(x, axis=None, keepdims=False):

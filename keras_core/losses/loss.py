@@ -31,7 +31,10 @@ class Loss:
                 mask = None
 
             return reduce_weighted_loss(
-                losses, sample_weight=sample_weight, mask=mask, reduction=self.reduction
+                losses,
+                sample_weight=sample_weight,
+                mask=mask,
+                reduction=self.reduction,
             )
 
     def call(self, y_true, y_pred):
@@ -72,7 +75,11 @@ def squeeze_to_same_rank(x1, x2):
 
 
 def reduce_loss(losses, reduction="sum_over_batch_size"):
-    if reduction is None or tuple(losses.shape) == () or tuple(losses.shape) == (0,):
+    if (
+        reduction is None
+        or tuple(losses.shape) == ()
+        or tuple(losses.shape) == (0,)
+    ):
         return losses
     loss = ops.sum(losses)
     if reduction == "sum_over_batch_size":

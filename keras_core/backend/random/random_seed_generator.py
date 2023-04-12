@@ -22,7 +22,9 @@ def draw_seed(seed):
 
     if isinstance(seed, RandomSeedGenerator):
         new_seed_value = seed.state.value
-        seed.state.assign(seed.state + convert_to_tensor([0, 1], dtype="uint32"))
+        seed.state.assign(
+            seed.state + convert_to_tensor([0, 1], dtype="uint32")
+        )
         return new_seed_value
     elif isinstance(seed, int):
         return convert_to_tensor([seed, 0], dtype="uint32")

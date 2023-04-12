@@ -264,7 +264,8 @@ def compute_output_spec(fn, *args, **kwargs):
             return fn(*args, *static_args, **kwargs, **static_kwargs)
 
         maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
-            convert_keras_tensor_to_jax, (maybe_symbolic_args, maybe_symbolic_kwargs)
+            convert_keras_tensor_to_jax,
+            (maybe_symbolic_args, maybe_symbolic_kwargs),
         )
         _, jax_out = jax.make_jaxpr(wrapped_fn, return_shape=True)(
             *maybe_symbolic_args, **maybe_symbolic_kwargs

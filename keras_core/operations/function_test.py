@@ -14,7 +14,9 @@ class FunctionTest(testing.TestCase):
         x = knp.add(x1, x2)
         y1 = x * 3
         y2 = x**2
-        fn = function.Function(inputs=[x1, x2], outputs=[y1, y2], name="test_function")
+        fn = function.Function(
+            inputs=[x1, x2], outputs=[y1, y2], name="test_function"
+        )
         self.assertEqual(fn.name, "test_function")
 
         # Eager call
@@ -88,7 +90,9 @@ class FunctionTest(testing.TestCase):
         x = knp.add(x1, x2)
         y1 = x * 3
         y2 = x**2
-        fn = function.Function(inputs=[x1, x2], outputs=[y1, y2], name="test_function")
+        fn = function.Function(
+            inputs=[x1, x2], outputs=[y1, y2], name="test_function"
+        )
         self.assertEqual(fn.name, "test_function")
 
         # Bad structure

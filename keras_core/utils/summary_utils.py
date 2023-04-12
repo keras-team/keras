@@ -212,7 +212,9 @@ def print_summary(
         if sequential_like:
             print_layer_summary(layer, prefix=">>>" * nested_level + " ")
         else:
-            print_layer_summary_with_connections(layer, prefix=">>>" * nested_level + " ")
+            print_layer_summary_with_connections(
+                layer, prefix=">>>" * nested_level + " "
+            )
 
         if expand_nested and hasattr(layer, "layers") and layer.layers:
             nested_layers = layer.layers
@@ -229,14 +231,16 @@ def print_summary(
         rows=rows,
         positions=positions,
         # Left align layer name, center-align everything else
-        alignments=["left"] + ["center" for _ in range(len(header) - 1)]
+        alignments=["left"] + ["center" for _ in range(len(header) - 1)],
     )
     print_fn(table.make())
 
     # After the table, append information about parameter count and  size.
     if hasattr(model, "_collected_trainable_weights"):
         trainable_count = count_params(model._collected_trainable_weights)
-        trainable_memory_size = weight_memory_size(model._collected_trainable_weights)
+        trainable_memory_size = weight_memory_size(
+            model._collected_trainable_weights
+        )
     else:
         trainable_count = count_params(model.trainable_weights)
         trainable_memory_size = weight_memory_size(model.trainable_weights)
@@ -282,7 +286,9 @@ def get_layer_index_bound_by_layer_name(model, layer_range=None):
                 "layer_range must be a list or tuple of length 2. Received: "
                 f"layer_range = {layer_range} of length {len(layer_range)}"
             )
-        if not isinstance(layer_range[0], str) or not isinstance(layer_range[1], str):
+        if not isinstance(layer_range[0], str) or not isinstance(
+            layer_range[1], str
+        ):
             raise ValueError(
                 "layer_range should contain string type only. "
                 f"Received: {layer_range}"
