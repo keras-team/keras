@@ -769,7 +769,7 @@ class ScaleInvariantErrorTest(tf.test.TestCase):
             [4, 8, 12, 8, 1, 3], shape=(2, 3), dtype=tf.float32
         )
         loss = sie_obj(y_true, y_pred, sample_weight=2.3)
-        self.assertAlmostEqual(self.evaluate(loss), 2*24.2206, 3)
+        self.assertAlmostEqual(self.evaluate(loss), 2 * 24.2206, 3)
 
     def test_ragged_tensor(self):
         sie_obj = losses.ScaleInvariantError()
