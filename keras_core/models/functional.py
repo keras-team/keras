@@ -39,13 +39,15 @@ class Functional(Function, Model):
                     raise ValueError(
                         "When providing an input dict, all values in the dict "
                         f"must be KerasTensors. Received: inputs={inputs} including "
-                        f"invalid value {v} of type {type(v)}")
+                        f"invalid value {v} of type {type(v)}"
+                    )
                 if k != v.name:
                     raise ValueError(
                         "When providing an input dict, all keys in the dict "
                         "must match the names of the corresponding tensors. "
                         f"Received key '{k}' mapping to value {v} which has name '{v.name}'. "
-                        f"Change the tensor name to '{k}' (via `Input(..., name='{k}')`)")
+                        f"Change the tensor name to '{k}' (via `Input(..., name='{k}')`)"
+                    )
         super().__init__(inputs, outputs, name=name, **kwargs)
         self._layers = self.layers
         self.built = True
@@ -66,14 +68,14 @@ class Functional(Function, Model):
         else:
             masks = self._flatten_to_reference_inputs(mask)
             for x, mask in zip(inputs, masks):
-                x._keras_mask = mask        
+                x._keras_mask = mask
         return self._run_through_graph(
             inputs, operation_fn=lambda op: operation_fn(op, training=training)
         )
 
     def compute_output_spec(self, inputs, training=False, mask=None):
         return super().compute_output_spec(inputs)
-    
+
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 

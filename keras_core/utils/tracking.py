@@ -7,7 +7,7 @@ class DotNotTrackScope:
     def __enter__(self):
         self.original_value = is_tracking_enabled()
         GLOBAL_SCOPE_TRACKER.tracking_on = False
-    
+
     def __exit__(self, *args, **kwargs):
         GLOBAL_SCOPE_TRACKER.tracking_on = self.original_value
 
@@ -20,6 +20,7 @@ def no_automatic_dependency_tracking(fn):
     def wrapper(*args, **kwargs):
         with DotNotTrackScope():
             return fn(*args, **kwargs)
+
     return wrapper
 
 

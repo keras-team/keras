@@ -57,10 +57,14 @@ class FunctionalTest(testing.TestCase):
         x = layers.Dense(5)(x)
         outputs = layers.Dense(4)(x)
 
-        with self.assertRaisesRegex(ValueError, "all values in the dict must be KerasTensors"):
+        with self.assertRaisesRegex(
+            ValueError, "all values in the dict must be KerasTensors"
+        ):
             model = Functional({"aa": [input_a], "bb": input_b}, outputs)
 
-        with self.assertRaisesRegex(ValueError, "all keys in the dict must match the names"):
+        with self.assertRaisesRegex(
+            ValueError, "all keys in the dict must match the names"
+        ):
             model = Functional({"aa": input_a, "bb": input_b}, outputs)
 
         model = Functional({"a": input_a, "b": input_b}, outputs)
@@ -99,7 +103,7 @@ class FunctionalTest(testing.TestCase):
             def call(self, x, training=False):
                 assert training
                 return x
-            
+
             def compute_output_spec(self, x, training=False):
                 return backend.KerasTensor(x.shape, dtype=x.dtype)
 
@@ -121,7 +125,10 @@ class FunctionalTest(testing.TestCase):
         model = Functional([input_a, input_b], outputs)
 
         # Eager call
-        in_val = {"input_a": np.random.random((2, 3)), "input_b": np.random.random((2, 3))}
+        in_val = {
+            "input_a": np.random.random((2, 3)),
+            "input_b": np.random.random((2, 3)),
+        }
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 

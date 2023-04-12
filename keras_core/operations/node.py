@@ -37,6 +37,7 @@ class Node:
         call_kwargs: The keyword arguments the operation was called with.
         outputs: The output tensors of the `op.__call__()` call.
     """
+
     def __init__(
         self, operation, call_args=None, call_kwargs=None, outputs=None
     ):
