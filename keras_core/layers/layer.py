@@ -136,7 +136,6 @@ class Layer(Operation):
             raise ValueError(f"Invalid initializer: {initializer}")
         variable = backend.Variable(
             value=value,
-            shape=shape,
             dtype=dtype,
             trainable=trainable,
             name=name,
@@ -148,6 +147,9 @@ class Layer(Operation):
         # Prevent double-tracking
         self._tracker.stored_ids["variables"].add(id(variable))
         return variable
+
+    def add_weight(self, *args, **kwargs):
+        return self.add_variable(*args, **kwargs)
 
     @property
     def trainable(self):
@@ -252,13 +254,7 @@ class Layer(Operation):
 
         ######################################
         # Argument validation and conversion. #
-        # 1. Convert first positional argument to tensor of correct dtype.
-        if args and not isinstance(args[0], KerasTensor):
-            args = (
-                nest.map_structure(backend.convert_to_tensor, args[0]),
-            ) + args[1:]
-
-        # 2. Convert any other array arguments to tensors of correct dtype.
+        # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             if isinstance(x, np.ndarray) or backend.is_tensor(x):
                 return backend.convert_to_tensor(x, dtype=self.compute_dtype)
@@ -483,8 +479,7 @@ class Layer(Operation):
 
     def __str__(self):
         # TODO: improve
-        args = ",".join(f"{k}={v}" for k, v in self.get_config().items())
-        return f"{self.__class__.__name__}({args})"
+        return f"<{self.__class__.__name__} name={self.name}>"
 
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics

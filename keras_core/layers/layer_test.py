@@ -1,7 +1,7 @@
 import numpy as np
 
 from keras_core import testing
-from keras_core.engine import keras_tensor
+from keras_core.backend import keras_tensor
 from keras_core.layers.layer import Layer
 
 

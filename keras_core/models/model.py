@@ -1,6 +1,6 @@
 from keras_core.api_export import keras_core_export
-from keras_core.backend import Trainer
 from keras_core.layers.layer import Layer
+from keras_core.trainers.trainer import Trainer
 
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])
@@ -20,15 +20,15 @@ class Model(Layer, Trainer):
     - no masking support
     """
 
-    def __new__(cls, *args, **kwargs):
-        # Signature detection
-        if functional_init_arguments(args, kwargs) and cls == Model:
-            # Functional model
-            from keras_core.models import functional
+    # def __new__(cls, *args, **kwargs):
+    #     # Signature detection
+    #     if functional_init_arguments(args, kwargs) and cls == Model:
+    #         # Functional model
+    #         from keras_core.models import functional
 
-            return functional.Functional(*args, **kwargs, skip_init=True)
-        else:
-            return super(Model, cls).__new__(cls, *args, **kwargs)
+    #         return functional.Functional(*args, **kwargs, skip_init=True)
+    #     else:
+    #         return super(Model, cls).__new__(cls, *args, **kwargs)
 
     def call(self, inputs, training=False):
         raise NotImplementedError
