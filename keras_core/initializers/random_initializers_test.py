@@ -11,9 +11,7 @@ class InitializersTest(testing.TestCase):
         seed = 1234
         external_config = {"mean": 1.0, "stddev": 0.5, "seed": 42}
         initializer = initializers.RandomNormal(
-            mean=mean,
-            stddev=stddev,
-            seed=seed
+            mean=mean, stddev=stddev, seed=seed
         )
         values = initializer(shape=shape)
         self.assertEqual(initializer.mean, mean)
@@ -29,9 +27,7 @@ class InitializersTest(testing.TestCase):
         seed = 1234
         external_config = {"minval": 0.0, "maxval": 1.0, "seed": 42}
         initializer = initializers.RandomUniform(
-            minval=minval,
-            maxval=maxval,
-            seed=seed
+            minval=minval, maxval=maxval, seed=seed
         )
         values = initializer(shape=shape)
         self.assertEqual(initializer.minval, minval)
@@ -46,4 +42,3 @@ class InitializersTest(testing.TestCase):
     def test_load_external_config(self, initializer, config):
         initializer = initializer.from_config(config)
         self.assertEqual(initializer.get_config(), config)
-

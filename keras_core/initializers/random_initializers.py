@@ -442,11 +442,11 @@ class RandomNormal(Initializer):
             mean=self.mean,
             stddev=self.stddev,
             seed=self.seed,
-            dtype=dtype
+            dtype=dtype,
         )
 
     def get_config(self):
-        return {"mean": self.mean, "stddev":self.stddev, "seed":self.seed}
+        return {"mean": self.mean, "stddev": self.stddev, "seed": self.seed}
 
 
 class RandomUniform(Initializer):
@@ -491,8 +491,8 @@ class RandomUniform(Initializer):
             minval=self.minval,
             maxval=self.maxval,
             seed=self.seed,
-            dtype=dtype
+            dtype=dtype,
         )
 
     def get_config(self):
-        return {"minval": self.minval, "maxval":self.maxval, "seed":self.seed}
+        return {"minval": self.minval, "maxval": self.maxval, "seed": self.seed}
