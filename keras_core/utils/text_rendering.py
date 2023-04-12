@@ -45,7 +45,7 @@ class TextTable:
         field = str(field)
         field = field.replace("\n", " ")
         return field
-    
+
     @staticmethod
     def maybe_pad(field, alignment):
         if alignment == "left":
@@ -93,7 +93,7 @@ class TextTable:
                     cutoff = buffered_width - 1
                 subfield = field[:cutoff]
                 field = field[cutoff:]
-                
+
                 subfields.append(self.maybe_pad(subfield, alignment))
             if field:
                 subfields.append(self.maybe_pad(field, alignment))

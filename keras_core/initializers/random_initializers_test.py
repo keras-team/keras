@@ -1,6 +1,7 @@
-from keras_core import testing
-from keras_core import initializers
 import numpy as np
+
+from keras_core import initializers
+from keras_core import testing
 
 
 class InitializersTest(testing.TestCase):
