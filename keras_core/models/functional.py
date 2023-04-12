@@ -6,6 +6,7 @@ from keras_core import operations as ops
 from keras_core.layers.layer import Layer
 from keras_core.models.model import Model
 from keras_core.operations.function import Function
+from keras_core.utils import tracking
 
 
 class Functional(Function, Model):
@@ -22,6 +23,7 @@ class Functional(Function, Model):
     Symbolic add_loss
     """
 
+    @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
         # This is used by the Model class, since we have some logic to swap the
         # class in the __new__ method, which will lead to __init__ get invoked
@@ -50,7 +52,7 @@ class Functional(Function, Model):
         else:
             masks = self._flatten_to_reference_inputs(mask)
             for x, mask in zip(inputs, masks):
-                x._keras_mask = mask
+                x._keras_mask = mask        
         return self._run_through_graph(
             inputs, operation_fn=lambda op: operation_fn(op, training=training)
         )
@@ -130,13 +132,12 @@ class Functional(Function, Model):
 
 
 def operation_fn(operation, training):
-    def call(*arg, **kwargs):
+    def call(*args, **kwargs):
         if (
             hasattr(operation, "_call_has_training_arg")
             and operation._call_has_training_arg()
-            and "training" not in kwargs
         ):
             kwargs["training"] = training
-        return operation(*arg, **kwargs)
+        return operation(*args, **kwargs)
 
     return call

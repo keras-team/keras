@@ -273,8 +273,9 @@ class Layer(Operation):
                     f"should be passed as a keyword argument: {arg}"
                 )
 
-        # 4. Check input spec.
-        self._assert_input_compatibility(*args, **kwargs)
+        # 4. Check input spec for 1st positional arg.
+        # TODO: consider extending this to all args and kwargs.
+        self._assert_input_compatibility(*args)
         ######################################
 
         ###############
@@ -471,7 +472,7 @@ class Layer(Operation):
 
             # Check input spec again (after build, since self.input_spec
             # may have been updated
-            self._assert_input_compatibility(*args, **kwargs)
+            self._assert_input_compatibility(*args)
 
     def __repr__(self):
         # TODO: improve
@@ -495,7 +496,7 @@ class Layer(Operation):
                 "Go add it!"
             )
 
-    def _assert_input_compatibility(self, *args, **kwargs):
+    def _assert_input_compatibility(self, *args):
         if args and self.input_spec:
             input_spec.assert_input_compatibility(
                 self.input_spec, args[0], layer_name=self.name

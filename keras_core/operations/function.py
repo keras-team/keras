@@ -79,7 +79,7 @@ class Function(Operation):
         for depth in depth_keys:
             nodes = nodes_by_depth[depth]
             for node in nodes:
-                if not node.operation:
+                if not node.operation or node.is_input:
                     continue  # Input tensors already exist.
 
                 if any(x not in tensor_dict for x in node.input_tensors):

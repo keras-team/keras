@@ -37,7 +37,6 @@ class Node:
         call_kwargs: The keyword arguments the operation was called with.
         outputs: The output tensors of the `op.__call__()` call.
     """
-
     def __init__(
         self, operation, call_args=None, call_kwargs=None, outputs=None
     ):
@@ -77,7 +76,7 @@ class Node:
             )
 
         # Whether this is a root node.
-        self.is_input = not any_input_has_history
+        self.is_input = not self.arguments.keras_tensors
 
     def __repr__(self):
         return f"<Node operation={self.operation}, id={id(self)}>"

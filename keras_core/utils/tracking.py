@@ -1,3 +1,28 @@
+import threading
+
+GLOBAL_SCOPE_TRACKER = threading.local()
+
+
+class DotNotTrackScope:
+    def __enter__(self):
+        self.original_value = is_tracking_enabled()
+        GLOBAL_SCOPE_TRACKER.tracking_on = False
+    
+    def __exit__(self, *args, **kwargs):
+        GLOBAL_SCOPE_TRACKER.tracking_on = self.original_value
+
+
+def is_tracking_enabled():
+    return getattr(GLOBAL_SCOPE_TRACKER, "tracking_on", True)
+
+
+def no_automatic_dependency_tracking(fn):
+    def wrapper(*args, **kwargs):
+        with DotNotTrackScope():
+            return fn(*args, **kwargs)
+    return wrapper
+
+
 class Tracker:
     """Attribute tracker, used for e.g. Variable tracking.
 
@@ -34,6 +59,9 @@ class Tracker:
         self.stored_ids = {name: set() for name in self.config.keys()}
 
     def track(self, attr):
+        if not is_tracking_enabled():
+            return attr
+
         for name, (is_attr_type, store) in self.config.items():
             if is_attr_type(attr):
                 if id(attr) not in self.stored_ids[name]:
