@@ -72,6 +72,4 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     keep_prob = 1.0 - rate
     mask = jax.random.bernoulli(seed, p=keep_prob, shape=noise_shape)
     mask = jax.numpy.broadcast_to(mask, inputs.shape)
-    return jax.lax.select(
-        mask, inputs / keep_prob, jax.numpy.zeros_like(inputs)
-    )
+    return jax.lax.select(mask, inputs / keep_prob, jax.numpy.zeros_like(inputs))

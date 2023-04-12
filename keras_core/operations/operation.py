@@ -24,9 +24,7 @@ class Operation:
         # sets _keras_history on the outputs, and adds itself to the
         # `_outbound_nodes` of the ops that produced the inputs to this
         # call.
-        Node(
-            operation=self, call_args=args, call_kwargs=kwargs, outputs=outputs
-        )
+        Node(operation=self, call_args=args, call_kwargs=kwargs, outputs=outputs)
         return outputs
 
     def call(self, *args, **kwargs):

@@ -61,9 +61,7 @@ class Optimizer:
         self.iterations = backend.Variable(
             0, name="iteration", dtype="int64", trainable=False
         )
-        if isinstance(
-            learning_rate, learning_rate_schedule.LearningRateSchedule
-        ):
+        if isinstance(learning_rate, learning_rate_schedule.LearningRateSchedule):
             self._learning_rate = learning_rate
         elif callable(learning_rate):
             self._learning_rate = learning_rate
@@ -264,9 +262,7 @@ class Optimizer:
         return self._get_current_learning_rate()
 
     def _get_current_learning_rate(self):
-        if isinstance(
-            self._learning_rate, learning_rate_schedule.LearningRateSchedule
-        ):
+        if isinstance(self._learning_rate, learning_rate_schedule.LearningRateSchedule):
             return self._learning_rate(self.iterations)
         elif callable(self._learning_rate):
             return self._learning_rate(self.iterations)
@@ -340,17 +336,13 @@ class Optimizer:
             )
 
         if var_list:
-            self._exclude_from_weight_decay = [
-                id(variable) for variable in var_list
-            ]
+            self._exclude_from_weight_decay = [id(variable) for variable in var_list]
         else:
             self._exclude_from_weight_decay = []
         self._exclude_from_weight_decay_names = var_names or []
 
     def _use_weight_decay(self, variable):
-        exclude_from_weight_decay = getattr(
-            self, "_exclude_from_weight_decay", []
-        )
+        exclude_from_weight_decay = getattr(self, "_exclude_from_weight_decay", [])
         exclude_from_weight_decay_names = getattr(
             self, "_exclude_from_weight_decay_names", []
         )
@@ -383,9 +375,7 @@ class Optimizer:
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
-            for var, average in zip(
-                var_list, self._model_variables_moving_average
-            ):
+            for var, average in zip(var_list, self._model_variables_moving_average):
                 average.assign(
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
@@ -404,9 +394,7 @@ class Optimizer:
 
     def _overwrite_model_variables_with_average_value_helper(self, var_list):
         """Helper function that overwrites model variables."""
-        for var, average_var in zip(
-            var_list, self._model_variables_moving_average
-        ):
+        for var, average_var in zip(var_list, self._model_variables_moving_average):
             var.assign(average_var)
 
     def finalize_variable_values(self, var_list):
@@ -439,12 +427,8 @@ class Optimizer:
             Python dictionary.
         """
 
-        if isinstance(
-            self._learning_rate, learning_rate_schedule.LearningRateSchedule
-        ):
-            learning_rate = learning_rate_schedule.serialize(
-                self._learning_rate
-            )
+        if isinstance(self._learning_rate, learning_rate_schedule.LearningRateSchedule):
+            learning_rate = learning_rate_schedule.serialize(self._learning_rate)
         elif isinstance(self._learning_rate, backend.Variable):
             learning_rate = float(self._learning_rate.numpy())
         elif ops.is_tensor(self._learning_rate):

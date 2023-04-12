@@ -6,12 +6,8 @@ from keras_core import initializers
 class MeanSquareError(Metric):
     def __init__(self, name="mean_square_error", dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.sum = self.add_variable(
-            name="sum", initializer=initializers.Zeros()
-        )
-        self.total = self.add_variable(
-            name="total", initializer=initializers.Zeros()
-        )
+        self.sum = self.add_variable(name="sum", initializer=initializers.Zeros())
+        self.total = self.add_variable(name="total", initializer=initializers.Zeros())
 
     def update_state(self, y_true, y_pred):
         # TODO: add support for sample_weight

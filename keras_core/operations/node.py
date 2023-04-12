@@ -36,9 +36,7 @@ class Node:
         outputs: The output tensors of the `op.__call__()` call.
     """
 
-    def __init__(
-        self, operation, call_args=None, call_kwargs=None, outputs=None
-    ):
+    def __init__(self, operation, call_args=None, call_kwargs=None, outputs=None):
         self.operation = operation
         self.arguments = SymbolicArguments(*call_args, **call_kwargs)
         self.outputs = [] if outputs is None else nest.flatten(outputs)
@@ -101,9 +99,7 @@ class Node:
 
 
 class KerasHistory(
-    collections.namedtuple(
-        "KerasHistory", ["operation", "node_index", "tensor_index"]
-    )
+    collections.namedtuple("KerasHistory", ["operation", "node_index", "tensor_index"])
 ):
     """Tracks the Operation call that created a Tensor.
 

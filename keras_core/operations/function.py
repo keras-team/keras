@@ -107,9 +107,7 @@ class Function(Operation):
 
     def _assert_input_compatibility(self, inputs):
         try:
-            nest.assert_same_structure(
-                inputs, self._inputs_struct, check_types=False
-            )
+            nest.assert_same_structure(inputs, self._inputs_struct, check_types=False)
         except ValueError:
             raise ValueError(
                 "Function was called with an invalid input structure. "

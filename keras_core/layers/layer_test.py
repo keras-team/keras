@@ -13,9 +13,7 @@ class FunctionTest(testing.TestCase):
                 return x + 1
 
         x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
-        with self.assertRaisesRegex(
-            ValueError, "Only input tensors may be passed as"
-        ):
+        with self.assertRaisesRegex(ValueError, "Only input tensors may be passed as"):
             SomeLayer()(x, True)
 
         # This works

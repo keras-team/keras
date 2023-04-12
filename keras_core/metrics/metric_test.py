@@ -9,9 +9,7 @@ import numpy as np
 class ExampleMetric(Metric):
     def __init__(self, name="mean_square_error", dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.sum = self.add_variable(
-            name="sum", initializer=initializers.Zeros()
-        )
+        self.sum = self.add_variable(name="sum", initializer=initializers.Zeros())
         self.total = self.add_variable(
             name="total", initializer=initializers.Zeros(), dtype="int32"
         )
@@ -50,9 +48,7 @@ class MetricTest(testing.TestCase):
 
         self.assertAllClose(metric.total, 20)
         result = metric.result()
-        self.assertAllClose(
-            result, np.sum((y_true - y_pred) ** 2) / num_samples
-        )
+        self.assertAllClose(result, np.sum((y_true - y_pred) ** 2) / num_samples)
         metric.reset_state()
         self.assertEqual(metric.result(), 0.0)
 
@@ -64,10 +60,7 @@ class MetricTest(testing.TestCase):
 
         # In dict
         metric = ExampleMetric(name="mse")
-        metric.more_vars = {
-            "a": backend.Variable(0.0),
-            "b": backend.Variable(1.0),
-        }
+        metric.more_vars = {"a": backend.Variable(0.0), "b": backend.Variable(1.0)}
         self.assertEqual(len(metric.variables), 4)
 
         # In nested structured

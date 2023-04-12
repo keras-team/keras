@@ -3,9 +3,7 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 
-@keras_core_export(
-    ["keras_core.Regularizer", "keras_core.regularizers.Regularizer"]
-)
+@keras_core_export(["keras_core.Regularizer", "keras_core.regularizers.Regularizer"])
 class Regularizer:
     """Regularizer base class.
 
@@ -317,15 +315,10 @@ class OrthogonalRegularizer(Regularizer):
             inputs = l2_normalize(inputs, axis=0)
             product = ops.matmul(ops.transpose(inputs), inputs)
             size = inputs.shape[1]
-        product_no_diagonal = product * (
-            1.0 - ops.eye(size, dtype=inputs.dtype)
-        )
+        product_no_diagonal = product * (1.0 - ops.eye(size, dtype=inputs.dtype))
         num_pairs = size * (size - 1.0) / 2.0
         return (
-            self.factor
-            * 0.5
-            * ops.sum(ops.absolute(product_no_diagonal))
-            / num_pairs
+            self.factor * 0.5 * ops.sum(ops.absolute(product_no_diagonal)) / num_pairs
         )
 
     def get_config(self):
@@ -334,9 +327,7 @@ class OrthogonalRegularizer(Regularizer):
 
 def validate_float_arg(value, name):
     """check penalty number availability, raise ValueError if failed."""
-    if not isinstance(value, (float, int)) or (
-        math.isinf(value) or math.isnan(value)
-    ):
+    if not isinstance(value, (float, int)) or (math.isinf(value) or math.isnan(value)):
         raise ValueError(
             f"Invalid value for argument {name}: expected a float. "
             f"Received: {name}={value}"

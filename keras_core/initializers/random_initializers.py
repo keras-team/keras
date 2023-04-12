@@ -52,8 +52,7 @@ class VarianceScaling(Initializer):
     ):
         if scale <= 0.0:
             raise ValueError(
-                "Argument `scale` must be positive float. "
-                f"Received: scale={scale}"
+                "Argument `scale` must be positive float. " f"Received: scale={scale}"
             )
         allowed_modes = {"fan_in", "fan_out", "fan_avg"}
         if mode not in allowed_modes:
@@ -156,9 +155,7 @@ class GlorotUniform(VarianceScaling):
     """
 
     def __init__(self, seed=None):
-        super().__init__(
-            scale=1.0, mode="fan_avg", distribution="uniform", seed=seed
-        )
+        super().__init__(scale=1.0, mode="fan_avg", distribution="uniform", seed=seed)
 
     def get_config(self):
         return {"seed": self.seed}
@@ -284,9 +281,7 @@ class LecunUniform(VarianceScaling):
     """
 
     def __init__(self, seed=None):
-        super().__init__(
-            scale=1.0, mode="fan_in", distribution="uniform", seed=seed
-        )
+        super().__init__(scale=1.0, mode="fan_in", distribution="uniform", seed=seed)
 
     def get_config(self):
         return {"seed": self.seed}
@@ -364,9 +359,7 @@ class HeUniform(VarianceScaling):
     """
 
     def __init__(self, seed=None):
-        super().__init__(
-            scale=2.0, mode="fan_in", distribution="uniform", seed=seed
-        )
+        super().__init__(scale=2.0, mode="fan_in", distribution="uniform", seed=seed)
 
     def get_config(self):
         return {"seed": self.seed}
@@ -398,3 +391,101 @@ def compute_fans(shape):
         fan_in = shape[-2] * receptive_field_size
         fan_out = shape[-1] * receptive_field_size
     return int(fan_in), int(fan_out)
+
+
+class RandomNormal(Initializer):
+    """Random normal initializer.
+
+    Draws samples from a normal distribution for given parameters.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = RandomNormal(mean=0.0, stddev=1.0)
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = RandomNormal(mean=0.0, stddev=1.0)
+    >>> layer = Dense(3, kernel_initializer=initializer)
+
+    Args:
+        mean: A python scalar or a scalar keras tensor. Mean of the random values to
+            generate.
+        stddev: A python scalar or a scalar keras tensor. Standard deviation of the
+           random values to generate.
+        seed: A Python integer or instance of
+            `keras_core.backend.RandomSeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.RandomSeedGenerator`.
+    """
+
+    def __init__(self, mean=0.0, stddev=1.0, seed=None):
+        self.mean = mean
+        self.stddev = stddev
+        self.seed = seed or random.make_default_seed()
+        super().__init__()
+
+    def __call__(self, shape, dtype=None, **kwargs):
+        return random.normal(
+            shape=shape,
+            mean=self.mean,
+            stddev=self.stddev,
+            seed=self.seed,
+            dtype=dtype
+        )
+
+    def get_config(self):
+        return {"mean": self.mean, "stddev":self.stddev, "seed":self.seed}
+
+
+class RandomUniform(Initializer):
+    """Random uniform initializer.
+
+    Draws samples from a uniform distribution for given parameters.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = RandomUniform(minval=0.0, maxval=1.0)
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = RandomUniform(minval=0.0, maxval=1.0)
+    >>> layer = Dense(3, kernel_initializer=initializer)
+
+    Args:
+        minval: A python scalar or a scalar keras tensor. Lower bound of the range of
+            random values to generate (inclusive).
+        maxval: A python scalar or a scalar keras tensor. Upper bound of the range of
+            random values to generate (exclusive).
+        seed: A Python integer or instance of
+            `keras_core.backend.RandomSeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.RandomSeedGenerator`.
+    """
+
+    def __init__(self, minval=0.0, maxval=1.0, seed=None):
+        self.minval = minval
+        self.maxval = maxval
+        self.seed = seed or random.make_default_seed()
+        super().__init__()
+
+    def __call__(self, shape, dtype=None, **kwargs):
+        return random.uniform(
+            shape=shape,
+            minval=self.minval,
+            maxval=self.maxval,
+            seed=self.seed,
+            dtype=dtype
+        )
+
+    def get_config(self):
+        return {"minval": self.minval, "maxval":self.maxval, "seed":self.seed}

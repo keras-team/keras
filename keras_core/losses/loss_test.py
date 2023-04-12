@@ -52,9 +52,7 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(loss.dtype.name, "float32")
-        self.assertAllClose(
-            np.sum((masked_y_true - masked_y_pred) ** 2) / 3, loss
-        )
+        self.assertAllClose(np.sum((masked_y_true - masked_y_pred) ** 2) / 3, loss)
 
         # Test edge case where everything is masked.
         mask = np.array([False, False, False, False])
@@ -71,9 +69,7 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss.dtype.name, "float32")
-        self.assertAllClose(
-            np.sum(sample_weight * (y_true - y_pred) ** 2) / 4, loss
-        )
+        self.assertAllClose(np.sum(sample_weight * (y_true - y_pred) ** 2) / 4, loss)
 
         # Test edge case where every weight is 0.
         sample_weight = np.array([0.0, 0.0, 0.0, 0.0])
@@ -100,8 +96,7 @@ class LossTest(testing.TestCase):
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss.dtype.name, "float32")
         self.assertAllClose(
-            np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2)
-            / 3,
+            np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2) / 3,
             loss,
         )
 
@@ -135,10 +130,7 @@ class LossTest(testing.TestCase):
             loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
             self.assertEqual(loss.dtype.name, "float32")
             self.assertAllClose(
-                np.sum(
-                    masked_sample_weight * (masked_y_true - masked_y_pred) ** 2
-                )
-                / 3,
+                np.sum(masked_sample_weight * (masked_y_true - masked_y_pred) ** 2) / 3,
                 loss,
             )
 

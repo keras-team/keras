@@ -36,7 +36,7 @@ class Model(Layer, Trainer):
     @property
     def layers(self):
         return list(self._flatten_layers(include_self=False, recursive=False))
-
+    
     @layers.setter
     def layers(self, _):
         raise AttributeError(

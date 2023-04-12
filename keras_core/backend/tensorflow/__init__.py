@@ -128,32 +128,22 @@ class Variable(KerasVariable):
         return self.value.__rdiv__(convert_to_tensor(other, dtype=self.dtype))
 
     def __truediv__(self, other):
-        return self.value.__truediv__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__truediv__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rtruediv__(self, other):
-        return self.value.__rtruediv__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rtruediv__(convert_to_tensor(other, dtype=self.dtype))
 
     def __floordiv__(self, other):
-        return self.value.__floordiv__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__floordiv__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rfloordiv__(self, other):
-        return self.value.__rfloordiv__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rfloordiv__(convert_to_tensor(other, dtype=self.dtype))
 
     def __divmod__(self, other):
         return self.value.__divmod__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rdivmod__(self, other):
-        return self.value.__rdivmod__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rdivmod__(convert_to_tensor(other, dtype=self.dtype))
 
     def __mod__(self, other):
         return self.value.__mod__(convert_to_tensor(other, dtype=self.dtype))
@@ -171,9 +161,7 @@ class Variable(KerasVariable):
         return self.value.__matmul__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rmatmul__(self, other):
-        return self.value.__rmatmul__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rmatmul__(convert_to_tensor(other, dtype=self.dtype))
 
     def __and__(self, other):
         return self.value.__and__(convert_to_tensor(other, dtype=self.dtype))
@@ -197,17 +185,13 @@ class Variable(KerasVariable):
         return self.value.__lshift__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rlshift__(self, other):
-        return self.value.__rlshift__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rlshift__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rshift__(self, other):
         return self.value.__rshift__(convert_to_tensor(other, dtype=self.dtype))
 
     def __rrshift__(self, other):
-        return self.value.__rrshift__(
-            convert_to_tensor(other, dtype=self.dtype)
-        )
+        return self.value.__rrshift__(convert_to_tensor(other, dtype=self.dtype))
 
     def __round__(self, ndigits=None):
         return self.value.__round__(ndigits)
@@ -248,9 +232,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 return tf.compat.v1.placeholder(shape=x.shape, dtype=x.dtype)
             return x
 
-        args, kwargs = tf.nest.map_structure(
-            convert_keras_tensor_to_tf, (args, kwargs)
-        )
+        args, kwargs = tf.nest.map_structure(convert_keras_tensor_to_tf, (args, kwargs))
         tf_out = fn(*args, **kwargs)
 
         def convert_tf_to_keras_tensor(x):
@@ -265,6 +247,4 @@ def execute(op_name, *args, **kwargs):
     if hasattr(tfnp, op_name):
         op = getattr(tfnp, op_name)
         return op(*args, **kwargs)
-    raise AttributeError(
-        f"The TensorFlow backend does not support op '{op_name}'"
-    )
+    raise AttributeError(f"The TensorFlow backend does not support op '{op_name}'")

@@ -42,7 +42,9 @@ def is_interactive_logging_enabled():
     """
     # Use `getattr` in case `INTERACTIVE_LOGGING`
     # does not have the `enable` attribute.
-    return getattr(INTERACTIVE_LOGGING, "enable", True)
+    return getattr(
+        INTERACTIVE_LOGGING, "enable", True
+    )
 
 
 def print_msg(message, line_break=True):
