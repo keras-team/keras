@@ -1125,11 +1125,12 @@ def is_not_from_keras_layers(layer):
     # it can be keras.layers, tensorflow.keras.layers, or
     # tensorflow.python.keras.layers
     is_custom_layer = True
-    for prefix in ["keras.layers",
-                   "tensorflow.keras.layers",
-                   "tensorflow.python.keras.layers"]:
+    for prefix in [
+        "keras.layers",
+        "tensorflow.keras.layers",
+        "tensorflow.python.keras.layers",
+    ]:
         if _module.startswith(prefix):
             is_custom_layer = False
             break
     return is_custom_layer
-

@@ -17,8 +17,8 @@
 import tensorflow.compat.v2 as tf
 
 from keras import backend
-from keras import losses as losses_mod
 from keras import layers as layers_mod
+from keras import losses as losses_mod
 from keras import metrics as metrics_mod
 from keras.engine import compile_utils
 from keras.testing_infra import test_combinations
