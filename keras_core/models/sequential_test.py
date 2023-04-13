@@ -94,5 +94,35 @@ class SequentialTest(testing.TestCase):
     def test_dict_inputs(self):
         pass
 
+    def test_errors(self):
+        # Trying to pass 2 Inputs
+        model = Sequential()
+        model.add(Input(shape=(2,), batch_size=3))
+        with self.assertRaisesRegex(ValueError, "already been configured"):
+            model.add(Input(shape=(2,), batch_size=3))
+        with self.assertRaisesRegex(ValueError, "already been configured"):
+            model.add(layers.InputLayer(shape=(2,), batch_size=3))
+
+        # Same name 2x
+        model = Sequential()
+        model.add(layers.Dense(2, name="dense"))
+        with self.assertRaisesRegex(ValueError, "should have unique names"):
+            model.add(layers.Dense(2, name="dense"))
+
+        # No layers
+        model = Sequential()
+        x = np.random.random((3, 2))
+        with self.assertRaisesRegex(ValueError, "no layers"):
+            model(x)
+
+        # Build conflict
+        model = Sequential()
+        model.add(Input(shape=(2,), batch_size=3))
+        model.add(layers.Dense(2))
+        with self.assertRaisesRegex(ValueError, "already been configured"):
+            model.build((3, 4))
+        # But this works
+        model.build((3, 2))
+
     def test_serialization(self):
         pass

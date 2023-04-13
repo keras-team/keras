@@ -40,7 +40,7 @@ class Sequential(Model):
         ):
             raise ValueError(
                 f"Sequential model '{self.name}' has already been configured to "
-                f"use input shape {self._layers[0].batch_input_shape}. You cannot add "
+                f"use input shape {self._layers[0].batch_shape}. You cannot add "
                 f"a different Input layer to it."
             )
 
