@@ -866,29 +866,29 @@ def get_custom_object_name(obj):
         return None
 
 
-def verify_loss_differentiability(loss, expected_shapes):
-    """Verifies if the loss is differentiable.
+def verify_object_differentiability(custom_obj, expected_shapes):
+    """Verifies if a given object is differentiable.
 
     Args:
-        loss: Can be a plain function or a class instance.
+        custom_obj: Can be a plain function or a class instance.
         expected_shapes: A tuple containing the shapes for the inputs to the
-            loss.
+            instance or function.
     Raises:
-        ValueError: If the loss is not differentiable.
+        ValueError: If the custom object is not differentiable.
     """
 
-    if not _verify_loss_differentiability(loss, expected_shapes):
+    if not _verify_object_differentiability(custom_obj, expected_shapes):
         raise ValueError(
-            f"The provided loss function ({loss}) is not differentiable. "
-            "Training requires a differentiable loss function. Please review "
-            "your loss function or consider using a standard differentiable "
-            "loss function. You can disable the differentiability check by "
-            "setting 'experimental_check_loss_differentiability=False' in "
+            f"The provided loss or layer ({custom_obj}) is not differentiable. "
+            "Training requires differentiable objects. Please review your "
+            "custom object or consider using standard differentiable objects. "
+            "You can disable the differentiability check by setting "
+            "'experimental_check_loss_differentiability=False' in "
             "'model.compile()'."
         )
 
 
-def _verify_loss_differentiability(loss, expected_shapes=None):
+def _verify_object_differentiability(custom_obj, expected_shapes=None):
     """Verifies if the loss is differentiable.
 
     Args:
@@ -896,7 +896,7 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
         expected_shapes: A tuple containing the shapes for the inputs to the
             loss.
     Returns:
-        A boolean indicating whether the loss is differentiable.
+        A boolean indicating whether the custom object is differentiable.
     """
 
     def generate_shape_tuples(dim, num_dims):
@@ -906,8 +906,8 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
     if expected_shapes is None:
         continue_checking = True
         for num_dims in range(1, 8):
-            # Some losses use indexing, so if we are not provided expected
-            # shapes, we check for differentiability for a few shapes.
+            # Some losses/layers use indexing, so if we are not provided
+            # expected shapes, we check for differentiability for a few shapes.
             # Start with 1D, then 2D, then 3D, etc.
             # (1,1) -- (1,1,1) -- (1,1,1,1) -- (1,1,1,1,1) -- (1,1,1,1,1,1)
             if not continue_checking:
@@ -915,7 +915,8 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
             shape_generator = generate_shape_tuples(1, num_dims)
             for shapes in shape_generator:
                 try:
-                    differentiable = _check_loss_with_shapes(loss, shapes)
+                    differentiable = _check_object_with_shapes(custom_obj,
+                                                               shapes)
                     if differentiable:
                         return True
                     else:
@@ -927,11 +928,11 @@ def _verify_loss_differentiability(loss, expected_shapes=None):
                     continue
         return False
     else:
-        return _check_loss_with_shapes(loss, expected_shapes)
+        return _check_object_with_shapes(custom_obj, expected_shapes)
 
 
-def _check_loss_with_shapes(loss, expected_shape):
-    """Evaluates the loss for the given shapes using `tf.GradientTape`."""
+def _check_object_with_shapes(custom_obj, expected_shape):
+    """Evaluates the custom_obj for the given shapes using `tf.GradientTape`."""
 
     # Replace None batch dimension with 1.
     expected_shape = tuple(1 if dim is None else dim for dim in expected_shape)
@@ -945,7 +946,7 @@ def _check_loss_with_shapes(loss, expected_shape):
 
     with tf.GradientTape() as tape:
         tape.watch(predictions)
-        loss_value = loss(targets, predictions)
+        loss_value = custom_obj(targets, predictions)
 
     gradients = tape.gradient(loss_value, predictions)
 

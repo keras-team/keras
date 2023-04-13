@@ -1109,3 +1109,27 @@ def convert_vocab_to_list(vocab):
             " Received 0 instead."
         )
     return vocab_list
+
+
+def is_not_from_keras_layers(layer):
+    """Check if layer is not from keras.layers.
+
+    This utility will fail if users edit the keras source code and add their own
+    layers in the keras.layers namespace.
+
+    Args: layer: A keras.layer instance.
+
+    Returns: True if the layer is not from keras.layers, False otherwise.
+    """
+    _module = layer.__class__.__module__
+    # it can be keras.layers, tensorflow.keras.layers, or
+    # tensorflow.python.keras.layers
+    is_custom_layer = True
+    for prefix in ["keras.layers",
+                   "tensorflow.keras.layers",
+                   "tensorflow.python.keras.layers"]:
+        if _module.startswith(prefix):
+            is_custom_layer = False
+            break
+    return is_custom_layer
+

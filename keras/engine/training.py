@@ -33,6 +33,7 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
+from keras.layers import Layer
 from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer
@@ -777,9 +778,24 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         else None
                     )
 
-                    compile_utils.verify_loss_differentiability(
-                        loss=user_loss, expected_shapes=input_shape_arg
+                    compile_utils.verify_object_differentiability(
+                        custom_obj=user_loss, expected_shapes=input_shape_arg
                     )
+
+                # Check if user has custom layers.
+                for layer in self.layers:
+                    if isinstance(layer, Layer):
+                        if layer_utils.is_not_from_keras_layers(layer):
+                            compile_utils.verify_object_differentiability(
+                                custom_obj=layer, expected_shapes=None
+                            )
+                    # Check if it is a model instance.
+                    elif isinstance(layer, Model):
+                        for sublayer in layer.layers:
+                            if layer_utils.is_not_from_keras_layers(sublayer):
+                                compile_utils.verify_object_differentiability(
+                                    custom_obj=sublayer, expected_shapes=None
+                                )
 
             self.compiled_metrics = compile_utils.MetricsContainer(
                 metrics,
