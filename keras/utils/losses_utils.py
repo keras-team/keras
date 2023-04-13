@@ -32,11 +32,11 @@ class ReductionV2:
     Contains the following values:
 
     * `AUTO`: Indicates that the reduction option will be determined by the
-      usage context. For almost all cases this defaults to
-      `SUM_OVER_BATCH_SIZE`. When used with `tf.distribute.Strategy`, outside of
-      built-in training loops such as `tf.keras` `compile` and `fit`, we expect
-      reduction value to be `SUM` or `NONE`. Using `AUTO` in that case will
-      raise an error.
+      usage context. For almost all cases this uses `SUM_OVER_BATCH_SIZE`.
+      When used with `tf.distribute.Strategy`, outside of built-in training
+      loops such as `tf.keras` `compile` and `fit`, we expect reduction
+      value to be `SUM` or `NONE`. Using `AUTO` in that case will raise an
+      error.
     * `NONE`: No **additional** reduction is applied to the output of the
       wrapped loss function. When non-scalar losses are returned to Keras
       functions like `fit`/`evaluate`, the unreduced vector loss is passed to

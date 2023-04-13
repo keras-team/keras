@@ -63,8 +63,8 @@ def normalize_tuple(value, n, name, allow_zero=False):
       n: The size of the tuple to be returned.
       name: The name of the argument being validated, e.g. "strides" or
         "kernel_size". This is only used to format error messages.
-      allow_zero: Default to False. A ValueError will raised if zero is received
-        and this param is False.
+      allow_zero: A ValueError will be raised if zero is received
+        and this param is False. Defaults to `False`.
 
     Returns:
       A tuple of n integers.
