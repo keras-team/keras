@@ -1225,9 +1225,9 @@ class ImageDataGenerator:
           `fill_mode = "constant"`.
         horizontal_flip: Boolean. Randomly flip inputs horizontally.
         vertical_flip: Boolean. Randomly flip inputs vertically.
-        rescale: rescaling factor. Defaults to None. If None or 0, no rescaling
+        rescale: rescaling factor. If None or 0, no rescaling
           is applied, otherwise we multiply the data by the value provided
-          (after applying all other transformations).
+          (after applying all other transformations). Defaults to `None`.
         preprocessing_function: function that will be applied on each input. The
           function will run after the image is resized and augmented.
             The function should take one argument: one image (Numpy tensor with
@@ -1236,9 +1236,9 @@ class ImageDataGenerator:
           "channels_last". "channels_last" mode means that the images should
           have shape `(samples, height, width, channels)`, "channels_first" mode
           means that the images should have shape `(samples, channels, height,
-          width)`.  It defaults to the `image_data_format` value found in your
-          Keras config file at `~/.keras/keras.json`. If you never set it, then
-          it will be "channels_last".
+          width)`. When unspecified, uses `image_data_format` value found in
+          your Keras config file at `~/.keras/keras.json` (if exists) else
+          'channels_last'. Defaults to "channels_last".
         validation_split: Float. Fraction of images reserved for validation
           (strictly between 0 and 1).
         dtype: Dtype to use for the generated arrays.
@@ -1586,8 +1586,8 @@ class ImageDataGenerator:
               in the generator. See [this script](
               https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d)
               for more details.
-            target_size: Tuple of integers `(height, width)`, defaults to `(256,
-              256)`. The dimensions to which all images found will be resized.
+            target_size: Tuple of integers `(height, width)`. The dimensions to
+             which all images found will be resized. Defaults to `(256,256)`.
             color_mode: One of "grayscale", "rgb", "rgba". Default: "rgb".
               Whether the images will be converted to have 1, 3, or 4 channels.
             classes: Optional list of class subdirectories (e.g. `['dogs',
