@@ -915,8 +915,9 @@ def _verify_object_differentiability(custom_obj, expected_shapes=None):
             shape_generator = generate_shape_tuples(1, num_dims)
             for shapes in shape_generator:
                 try:
-                    differentiable = _check_object_with_shapes(custom_obj,
-                                                               shapes)
+                    differentiable = _check_object_with_shapes(
+                        custom_obj, shapes
+                    )
                     if differentiable:
                         return True
                     else:
