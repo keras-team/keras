@@ -9,6 +9,13 @@ from keras_core.utils import dtype_utils
 from keras_core.utils import io_utils
 from keras_core.utils import text_rendering
 
+from tensorflow import nest
+
+from keras_core import backend
+from keras_core.utils import dtype_utils
+from keras_core.utils import io_utils
+from keras_core.utils import text_rendering
+
 
 def count_params(weights):
     shapes = [v.shape for v in weights]
