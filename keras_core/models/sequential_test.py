@@ -17,12 +17,12 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
         self.assertEqual(len(model.layers), 2)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 4)
 
         # Test eager call
         x = np.random.random((3, 2))
         y = model(x)
-        self.assertTrue(model.built)
-        model.summary()
 
         self.assertEqual(type(model._functional), Functional)
         self.assertEqual(y.shape, (3, 5))
@@ -40,18 +40,22 @@ class SequentialTest(testing.TestCase):
                 layers.Dense(5),
             ]
         )
+        self.assertEqual(len(model.layers), 2)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 4)
+
         x = np.random.random((3, 2))
         y = model(x)
         self.assertEqual(y.shape, (3, 5))
 
         # Test pop
         model.pop()
-        self.assertFalse(model.built)
-        self.assertEqual(model._functional, None)
+        self.assertEqual(len(model.layers), 1)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 2)
+
         x = np.random.random((3, 2))
         y = model(x)
-        self.assertTrue(model.built)
-        self.assertEqual(type(model._functional), Functional)
         self.assertEqual(y.shape, (3, 4))
 
     def test_basic_flow_deferred(self):
@@ -89,12 +93,12 @@ class SequentialTest(testing.TestCase):
 
         # Test pop
         model.pop()
-        self.assertFalse(model.built)
-        self.assertEqual(model._functional, None)
+        self.assertEqual(len(model.layers), 1)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 2)
+
         x = np.random.random((3, 2))
         y = model(x)
-        self.assertTrue(model.built)
-        self.assertEqual(type(model._functional), Functional)
         self.assertEqual(y.shape, (3, 4))
 
     def test_dict_inputs(self):

@@ -17,9 +17,10 @@ class Sequential(Model):
         self._layers = []
         if layers:
             for layer in layers:
-                self.add(layer)
+                self.add(layer, rebuild=False)
+            self._maybe_rebuild()
 
-    def add(self, layer):
+    def add(self, layer, rebuild=True):
         # If we are passed a Keras tensor created by keras.Input(), we
         # extract the input layer from its keras history and use that.
         if hasattr(layer, "_keras_history"):
@@ -45,14 +46,28 @@ class Sequential(Model):
             )
 
         self._layers.append(layer)
-        self.built = False
-        self._functional = None
+        if rebuild:
+            self._maybe_rebuild()
+        else:
+            self.built = False
+            self._functional = None
 
-    def pop(self):
+    def pop(self, rebuild=True):
         layer = self._layers.pop()
-        self.built = False
-        self._functional = None
+        if rebuild:
+            self._maybe_rebuild()
+        else:
+            self.built = False
+            self._functional = None
         return layer
+
+    def _maybe_rebuild(self):
+        if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
+            input_shape = self._layers[0].batch_shape
+            self.build(input_shape)
+        else:
+            self.built = False
+            self._functional = None
 
     def build(self, input_shape=None):
         if not isinstance(input_shape, (tuple, list)):
