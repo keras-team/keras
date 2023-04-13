@@ -65,20 +65,20 @@ def load_data(
           ranked by how often they occur (in the training set) and only
           the `num_words` most frequent words are kept. Any less frequent word
           will appear as `oov_char` value in the sequence data. If None,
-          all words are kept. Defaults to None, so all words are kept.
+          all words are kept. Defaults to `None`.
       skip_top: skip the top N most frequently occurring words
           (which may not be informative). These words will appear as
-          `oov_char` value in the dataset. Defaults to 0, so no words are
-          skipped.
+          `oov_char` value in the dataset. 0 means no words are
+          skipped. Defaults to 0
       maxlen: int or None. Maximum sequence length.
-          Any longer sequence will be truncated. Defaults to None, which
-          means no truncation.
+          Any longer sequence will be truncated. None means no truncation.
+          Defaults to `None`.
       test_split: Float between 0 and 1. Fraction of the dataset to be used
-        as test data. Defaults to 0.2, meaning 20% of the dataset is used as
-        test data.
+        as test data. 0.2 means that 20% of the dataset is used as
+        test data. Defaults to 0.2
       seed: int. Seed for reproducible data shuffling.
       start_char: int. The start of a sequence will be marked with this
-          character. Defaults to 1 because 0 is usually the padding character.
+          character. 0 is usually the padding character. Defaults to `1`.
       oov_char: int. The out-of-vocabulary character.
           Words that were cut out because of the `num_words` or
           `skip_top` limits will be replaced with this character.
@@ -165,6 +165,13 @@ def load_data(
 def get_word_index(path="reuters_word_index.json"):
     """Retrieves a dict mapping words to their index in the Reuters dataset.
 
+    Actual word indices starts from 3, with 3 indices reserved for:
+    0 (padding), 1 (start), 2 (oov).
+
+    E.g. word index of 'the' is 1, but the in the actual training data, the
+    index of 'the' will be 1 + 3 = 4. Vice versa, to translate word indices in
+    training data back to words using this mapping, indices need to substract 3.
+
     Args:
         path: where to cache the data (relative to `~/.keras/dataset`).
 
@@ -182,3 +189,61 @@ def get_word_index(path="reuters_word_index.json"):
     )
     with open(path) as f:
         return json.load(f)
+
+
+@keras_export("keras.datasets.reuters.get_label_names")
+def get_label_names():
+    """Returns labels as a list of strings with indices matching training data.
+
+    Reference:
+
+    - [Reuters Dataset](https://martin-thoma.com/nlp-reuters/)
+    """
+    return (
+        "cocoa",
+        "grain",
+        "veg-oil",
+        "earn",
+        "acq",
+        "wheat",
+        "copper",
+        "housing",
+        "money-supply",
+        "coffee",
+        "sugar",
+        "trade",
+        "reserves",
+        "ship",
+        "cotton",
+        "carcass",
+        "crude",
+        "nat-gas",
+        "cpi",
+        "money-fx",
+        "interest",
+        "gnp",
+        "meal-feed",
+        "alum",
+        "oilseed",
+        "gold",
+        "tin",
+        "strategic-metal",
+        "livestock",
+        "retail",
+        "ipi",
+        "iron-steel",
+        "rubber",
+        "heat",
+        "jobs",
+        "lei",
+        "bop",
+        "zinc",
+        "orange",
+        "pet-chem",
+        "dlr",
+        "gas",
+        "silver",
+        "wpi",
+        "hog",
+        "lead",
+    )

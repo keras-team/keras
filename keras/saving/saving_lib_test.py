@@ -543,8 +543,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             # Mock Remote Path check to true to test gfile copy logic
             mock_re_match.return_value = True
             model._save_experimental(temp_filepath)
-            mock_re_match.assert_called_once()
-            mock_copy.assert_called_once()
+            mock_re_match.assert_called()
+            mock_copy.assert_called()
             self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
             self.assertIn(str(temp_filepath), mock_copy.call_args.args)
 

@@ -150,17 +150,6 @@ def register_keras_serializable(package="Custom", name=None):
                 "get_config() method."
             )
 
-        if registered_name in _GLOBAL_CUSTOM_OBJECTS:
-            raise ValueError(
-                f"{registered_name} has already been registered to "
-                f"{_GLOBAL_CUSTOM_OBJECTS[registered_name]}"
-            )
-
-        if arg in _GLOBAL_CUSTOM_NAMES:
-            raise ValueError(
-                f"{arg} has already been registered to "
-                f"{_GLOBAL_CUSTOM_NAMES[arg]}"
-            )
         _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
         _GLOBAL_CUSTOM_NAMES[arg] = registered_name
 

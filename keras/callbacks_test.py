@@ -1415,7 +1415,6 @@ class KerasCallbacksTest(test_combinations.TestCase):
         return model, train_ds, callback, filepath
 
     def _run_load_weights_on_restart_test_common_iterations(self):
-
         (
             model,
             train_ds,
@@ -2284,6 +2283,32 @@ class KerasCallbacksTest(test_combinations.TestCase):
                 assert len(re.findall("epoch", output)) == 1
 
             os.remove(filepath)
+
+            # case 3, Verify Val. loss also registered when Validation Freq > 1
+            model = make_model()
+            cbks = [keras.callbacks.CSVLogger(filepath, separator=sep)]
+            hist = model.fit(
+                x_train,
+                y_train,
+                batch_size=BATCH_SIZE,
+                validation_data=(x_test, y_test),
+                validation_freq=3,
+                callbacks=cbks,
+                epochs=5,
+                verbose=0,
+            )
+            assert os.path.exists(filepath)
+            # Verify that validation loss is registered at val. freq
+            with open(filepath) as csvfile:
+                rows = csv.DictReader(csvfile, delimiter=sep)
+                for idx, row in enumerate(rows, 1):
+                    self.assertIn("val_loss", row)
+                    if idx == 3:
+                        self.assertEqual(
+                            row["val_loss"], str(hist.history["val_loss"][0])
+                        )
+                    else:
+                        self.assertEqual(row["val_loss"], "NA")
 
     def test_stop_training_csv(self):
         # Test that using the CSVLogger callback with the TerminateOnNaN

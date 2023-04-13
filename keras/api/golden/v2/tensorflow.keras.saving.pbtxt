@@ -5,6 +5,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member_method {
+    name: "deserialize_keras_object"
+    argspec: "args=[\'config\', \'custom_objects\', \'safe_mode\'], varargs=None, keywords=kwargs, defaults=[\'None\', \'True\'], "
+  }
+  member_method {
     name: "get_custom_objects"
     argspec: "args=[], varargs=None, keywords=None, defaults=None"
   }
@@ -27,5 +31,9 @@ tf_module {
   member_method {
     name: "save_model"
     argspec: "args=[\'model\', \'filepath\', \'overwrite\', \'save_format\'], varargs=None, keywords=kwargs, defaults=[\'True\', \'None\'], "
+  }
+  member_method {
+    name: "serialize_keras_object"
+    argspec: "args=[\'obj\'], varargs=None, keywords=None, defaults=None"
   }
 }

@@ -42,7 +42,6 @@ py_library(
         "//keras/applications",
         "//keras/datasets",
         "//keras/distribute",
-        "//keras/dtensor:optimizers",
         "//keras/estimator",
         "//keras/feature_column",
         "//keras/layers",
@@ -292,6 +291,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 6,
     tags = [
+        "no_pip",  # TODO(b/276923757)
         "no_tfrt",  # TODO(b/179690526)
         "notsan",
     ],

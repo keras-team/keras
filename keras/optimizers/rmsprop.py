@@ -25,7 +25,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.experimental.RMSprop", "keras.optimizers.RMSprop", v1=[]
+    "keras.optimizers.experimental.RMSprop",
+    "keras.optimizers.RMSprop",
+    "keras.dtensor.experimental.optimizers.RMSprop",
+    v1=[],
 )
 class RMSprop(optimizer.Optimizer):
     r"""Optimizer that implements the RMSprop algorithm.
@@ -60,7 +63,7 @@ class RMSprop(optimizer.Optimizer):
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.experimental.RMSprop(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.RMSprop(learning_rate=0.1)
     >>> var1 = tf.Variable(10.0)
     >>> loss = lambda: (var1 ** 2) / 2.0  # d(loss) / d(var1) = var1
     >>> opt.minimize(loss, [var1])

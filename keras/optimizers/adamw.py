@@ -26,7 +26,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.AdamW", "keras.optimizers.experimental.AdamW", v1=[]
+    "keras.optimizers.AdamW",
+    "keras.optimizers.experimental.AdamW",
+    "keras.dtensor.experimental.optimizers.AdamW",
+    v1=[],
 )
 class AdamW(optimizer.Optimizer):
     r"""Optimizer that implements the AdamW algorithm.

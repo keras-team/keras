@@ -23,6 +23,7 @@ from absl import logging
 
 from keras import backend
 from keras import initializers
+from keras.dtensor import utils as dtensor_utils
 from keras.optimizers import utils as optimizer_utils
 from keras.optimizers.schedules import learning_rate_schedule
 from keras.utils import tf_utils
@@ -132,7 +133,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         for k in kwargs:
             if k in legacy_kwargs:
                 raise ValueError(
-                    f"{k} is deprecated in the new Keras optimizer, please"
+                    f"{k} is deprecated in the new Keras optimizer, please "
                     "check the docstring for valid arguments, or use the "
                     "legacy optimizer, e.g., "
                     f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
@@ -635,7 +636,6 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-            grads_and_vars = list(zip(grads, trainable_variables))
             grads_and_vars = optimizer_utils.filter_empty_gradients(
                 grads_and_vars
             )
@@ -876,6 +876,10 @@ base_optimizer_keyword_args = """name: String. The name to use
       jit_compile: Boolean, defaults to True.
           If True, the optimizer will use XLA
           compilation. If no GPU device is found, this flag will be ignored.
+      mesh: optional `tf.experimental.dtensor.Mesh` instance. When provided,
+          the optimizer will be run in DTensor mode, e.g. state
+          tracking variable will be a DVariable, and aggregation/reduction will
+          happen in the global DTensor context.
       **kwargs: keyword arguments only used for backward compatibility."""
 
 
@@ -897,7 +901,7 @@ class Optimizer(_BaseOptimizer):
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
+    opt = keras.optimizers.SGD(learning_rate=0.1)
     var1, var2 = tf.Variable(1.0), tf.Variable(2.0)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
@@ -1085,7 +1089,8 @@ class Optimizer(_BaseOptimizer):
         **kwargs,
     ):
         """Create a new Optimizer."""
-
+        mesh = kwargs.pop("mesh", None)
+        self._mesh = mesh
         super().__init__(
             name,
             weight_decay,
@@ -1099,15 +1104,54 @@ class Optimizer(_BaseOptimizer):
             **kwargs,
         )
         self._distribution_strategy = tf.distribute.get_strategy()
+        self._run_with_dtensor = dtensor_utils.running_with_dtensor_strategy()
 
     def add_variable_from_reference(
         self, model_variable, variable_name, shape=None, initial_value=None
     ):
-        strategy = tf.distribute.get_strategy()
-        with strategy.extended.colocate_vars_with(model_variable):
-            return super().add_variable_from_reference(
-                model_variable, variable_name, shape, initial_value
+        if self._mesh:
+            if initial_value is None:
+                # Use tf.zeros_like which will propagate the layout information
+                # from the model weights if any.
+                initial_value = tf.zeros_like(model_variable)
+            elif isinstance(initial_value, tf.Tensor):
+                initial_value = tf.experimental.dtensor.copy_to_mesh(
+                    initial_value,
+                    tf.experimental.dtensor.Layout.replicated(
+                        self._mesh, rank=initial_value.shape.rank
+                    ),
+                )
+            variable = tf.experimental.dtensor.DVariable(
+                initial_value=initial_value,
+                name=f"{variable_name}/{model_variable._shared_name}",
+                dtype=model_variable.dtype,
+                trainable=False,
             )
+            self._variables.append(variable)
+            return variable
+        else:
+            strategy = tf.distribute.get_strategy()
+            with strategy.extended.colocate_vars_with(model_variable):
+                return super().add_variable_from_reference(
+                    model_variable, variable_name, shape, initial_value
+                )
+
+    def _create_iteration_variable(self):
+        if self._mesh:
+            init_val = tf.constant(0, dtype=tf.int64)
+            init_val = tf.experimental.dtensor.copy_to_mesh(
+                init_val,
+                tf.experimental.dtensor.Layout.replicated(self._mesh, rank=0),
+            )
+            with tf.init_scope():
+                # Lift the variable creation to init scope to avoid environment
+                # issue.
+                self._iterations = tf.experimental.dtensor.DVariable(
+                    init_val, name="iteration"
+                )
+            self._variables.append(self._iterations)
+        else:
+            super()._create_iteration_variable()
 
     def _var_key(self, variable):
         """Get a unique identifier of the given variable."""
@@ -1129,8 +1173,9 @@ class Optimizer(_BaseOptimizer):
     def aggregate_gradients(self, grads_and_vars):
         """Aggregate gradients on all devices.
 
-        By default we will perform reduce_sum of gradients across devices. Users
-        can implement their own aggregation logic by overriding this method.
+        By default, we will perform reduce_sum of gradients across devices.
+        Users can implement their own aggregation logic by overriding this
+        method.
 
         Args:
           grads_and_vars: List of (gradient, variable) pairs.
@@ -1138,7 +1183,12 @@ class Optimizer(_BaseOptimizer):
         Returns:
           List of (gradient, variable) pairs.
         """
-        return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
+        if self._mesh or self._run_with_dtensor:
+            raise NotImplementedError(
+                "Dtensor doesn't need to manually aggregate gradients"
+            )
+        else:
+            return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
     def apply_gradients(
         self,
@@ -1165,6 +1215,10 @@ class Optimizer(_BaseOptimizer):
           TypeError: If `grads_and_vars` is malformed.
           RuntimeError: If called in a cross-replica context.
         """
+        if self._mesh or self._run_with_dtensor:
+            # Skip any usage of strategy logic for DTensor
+            return super().apply_gradients(grads_and_vars, name=name)
+
         # `experimental_aggregate_gradients` is an arg in `apply_gradients` of
         # v2 optimizer -- the reverse of `skip_gradients_aggregation`.
         # We read it from kwargs for backward compatibility.
@@ -1199,6 +1253,10 @@ class Optimizer(_BaseOptimizer):
         )
 
     def _internal_apply_gradients(self, grads_and_vars):
+        if self._mesh or self._run_with_dtensor:
+            # Skip any usage of strategy logic for DTensor
+            return super()._internal_apply_gradients(grads_and_vars)
+
         return tf.__internal__.distribute.interim.maybe_merge_call(
             self._distributed_apply_gradients_fn,
             self._distribution_strategy,
@@ -1212,6 +1270,12 @@ class Optimizer(_BaseOptimizer):
         Args:
           var_list: list of model variables.
         """
+        if self._mesh or self._run_with_dtensor:
+            # Skip any usage of strategy logic for DTensor
+            super()._overwrite_model_variables_with_average_value_helper(
+                var_list
+            )
+
         strategy = self._distribution_strategy
         # Override model variable by the stored average value on all devices.
         for var, average_var in zip(
@@ -1220,6 +1284,42 @@ class Optimizer(_BaseOptimizer):
             strategy.extended.update(
                 var, lambda a, b: a.assign(b), args=(average_var,)
             )
+
+    def _build_learning_rate(self, learning_rate):
+        if not self._mesh:
+            return super()._build_learning_rate(learning_rate)
+
+        # For DTensor
+        variable_creation = tf.experimental.dtensor.DVariable
+        init_value_convert_fn = lambda x: tf.experimental.dtensor.copy_to_mesh(
+            x, tf.experimental.dtensor.Layout.replicated(self._mesh, rank=0)
+        )
+        if isinstance(
+            learning_rate, learning_rate_schedule.LearningRateSchedule
+        ):
+            current_learning_rate = tf.convert_to_tensor(
+                learning_rate(self.iterations)
+            )
+            current_learning_rate = init_value_convert_fn(current_learning_rate)
+            # Create a variable to hold the current learning rate.
+            # Note that the init value `learning_rate(self.iterations)` should
+            # have the correct layout information from self.iterations.
+            self._current_learning_rate = variable_creation(
+                current_learning_rate,
+                name="learning_rate",
+                dtype=tf.float32,
+            )
+            return learning_rate
+
+        init_val = init_value_convert_fn(
+            tf.constant(learning_rate, dtype=tf.float32)
+        )
+        return variable_creation(
+            init_val,
+            name="learning_rate",
+            dtype=backend.floatx(),
+            trainable=False,
+        )
 
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""

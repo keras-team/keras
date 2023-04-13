@@ -27,6 +27,7 @@ py_library(
         ":np_utils",
         ":sidecar_evaluator",
         ":text_dataset",
+        ":timed_threads",
         ":timeseries_dataset",
         ":vis_utils",
     ],
@@ -319,6 +320,12 @@ py_library(
     ],
 )
 
+py_library(
+    name = "timed_threads",
+    srcs = ["timed_threads.py"],
+    srcs_version = "PY3",
+)
+
 tf_py_test(
     name = "sidecar_evaluator_test",
     size = "medium",
@@ -466,9 +473,14 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":layer_utils",
+        ":tf_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:backend",
+        "//keras/dtensor",
+        "//keras/dtensor:layout_map",
+        "//keras/dtensor:test_util",
     ],
 )
 
@@ -636,6 +648,21 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "audio_dataset_with_tfio_test",
+    size = "small",
+    srcs = ["audio_dataset_with_tfio_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":audio_dataset",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//:expect_tensorflow_io_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
     name = "feature_space_test",
     size = "medium",
     srcs = ["feature_space_test.py"],
@@ -644,6 +671,19 @@ tf_py_test(
         ":feature_space",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "timed_threads_test",
+    size = "small",
+    srcs = ["timed_threads_test.py"],
+    deps = [
+        ":timed_threads",
+        "//:expect_tensorflow_installed",
+        "//keras",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],

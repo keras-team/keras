@@ -15,9 +15,11 @@
 """TensorFlow-related utilities."""
 
 import collections
+import contextlib
 import copy
 import platform
 import random
+import threading
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -572,9 +574,17 @@ def maybe_init_scope(layer):
     Yields:
       None
     """
-    # Don't open an init_scope in V1 mode or when using legacy tf.layers.
-    if tf.compat.v1.executing_eagerly_outside_functions() and getattr(
-        layer, "_keras_style", True
+    # Don't open an init_scope in V1 mode, when using legacy tf.layers, or in a
+    # local-variable scope.
+    # The local-variable scope should ensure that created variables are local to
+    # the function being executed, rather than lifted out of the graph by
+    # `init_scope`. This way the variables are freely usable and mutable within
+    # the function, which enables a visitation guarantee for model evaluation,
+    # when the scope is applied to metric variable creation.
+    if (
+        tf.compat.v1.executing_eagerly_outside_functions()
+        and getattr(layer, "_keras_style", True)
+        and not in_local_vars_context()
     ):
         with tf.init_scope():
             yield
@@ -666,6 +676,10 @@ def sync_to_numpy_or_python_type(tensors):
     """
     if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
         tensors = tensors.fetch()
+    if isinstance(tensors, list) and isinstance(
+        tensors[0], tf.distribute.experimental.coordinator.RemoteValue
+    ):
+        tensors = tf.nest.map_structure(lambda t: t.fetch(), tensors)
 
     def _to_single_numpy_or_python_type(t):
         # Don't turn ragged or sparse tensors to NumPy.
@@ -709,3 +723,33 @@ def can_jit_compile(warn=False):
             )
         return False
     return True
+
+
+_metric_local_vars_scope = threading.local()
+
+
+def get_metric_local_vars_scope():
+    try:
+        return _metric_local_vars_scope.current
+    except AttributeError:
+        return None
+
+
+def in_local_vars_context():
+    ctx = get_metric_local_vars_scope()
+    return ctx is not None
+
+
+@contextlib.contextmanager
+def with_metric_local_vars_scope():
+    previous_scope = getattr(_metric_local_vars_scope, "current", None)
+    _metric_local_vars_scope.current = MetricLocalVarsScope()
+    yield
+    _metric_local_vars_scope.current = previous_scope
+
+
+class MetricLocalVarsScope:
+    """Turn on local variable creation for Metrics.
+
+    No functionality is needed here, it just exists to modulate Metric's
+    variable creation."""

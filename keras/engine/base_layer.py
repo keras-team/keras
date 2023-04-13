@@ -38,7 +38,6 @@ from keras.engine import input_spec
 from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
-from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
@@ -458,7 +457,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         # Whether the layer will track any layers that is set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
-        # in the parent layer's variables() as well.  Default to True, which
+        # in the parent layer's variables() as well.  Defaults to `True`, which
         # means auto tracking is turned on. Certain subclass might want to turn
         # it off, like Sequential model.
         self._auto_track_sub_layers = True
@@ -613,6 +612,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 "caching_device",
                 "getter",
                 "layout",
+                "experimental_enable_variable_lifting",
             ]:
                 raise TypeError("Unknown keyword argument:", kwarg)
         collections_arg = kwargs.pop("collections", None)
@@ -963,7 +963,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             check_type_return_shape, input_signature
         )
         output_shape = self.compute_output_shape(input_shape)
-        dtype = self._compute_dtype
+
+        try:
+            dtype = self.output.dtype
+        except AttributeError:
+            dtype = self._compute_dtype
+
         if dtype is None:
             input_dtypes = [s.dtype for s in tf.nest.flatten(input_signature)]
             # Default behavior when self.dtype is None, is to use the first
@@ -2292,6 +2297,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         return self.add_weight(*args, **kwargs)
 
     def get_build_config(self):
+        """Returns a dictionary with the layer's input shape.
+
+        This method returns a config dict that can be used by
+        `build_from_config(config)` to create all states (e.g. Variables and
+        Lookup tables) needed by the layer.
+
+        By default, the config only contains the input shape that the layer
+        was built with. If you're writing a custom layer that creates state in
+        an unusual way, you should override this method to make sure this state
+        is already created when Keras attempts to load its value upon model
+        loading.
+
+        Returns:
+            A dict containing the input shape associated with the layer.
+        """
         if self._build_input_shape is not None:
 
             def convert_tensorshapes(x):
@@ -2306,6 +2326,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             }
 
     def build_from_config(self, config):
+        """Builds the layer's states with the supplied config dict.
+
+        By default, this method calls the `build(config["input_shape"])` method,
+        which creates weights based on the layer's input shape in the supplied
+        config. If your config contains other information needed to load the
+        layer's state, you should override this method.
+
+        Args:
+            config: Dict containing the input shape associated with this layer.
+        """
         input_shape = config["input_shape"]
         if input_shape is not None:
             self.build(input_shape)
@@ -2674,37 +2704,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     def _set_dtype_policy(self, dtype):
         """Sets self._dtype_policy."""
-        if isinstance(dtype, policy.Policy):
-            self._dtype_policy = dtype
-        elif isinstance(dtype, dict):
-            self._dtype_policy = policy.deserialize(dtype)
-        elif isinstance(dtype, str) and dtype in (
-            "mixed_float16",
-            "mixed_bfloat16",
-        ):
-            # The isinstance check is required since np.dtype raises an error if
-            # compared to a non-dtype string.
-            self._dtype_policy = policy.Policy(dtype)
-        elif dtype:
-            self._dtype_policy = policy.Policy(tf.as_dtype(dtype).name)
-        else:
-            self._dtype_policy = policy.global_policy()
-        if (
-            self._dtype_policy.name == "mixed_float16"
-            and not loss_scale_optimizer.strategy_supports_loss_scaling()
-        ):
-            # Although only loss scaling doesn't support certain strategies, to
-            # avoid confusion, we disallow the 'mixed_float16' policy with
-            # unsupported strategies. This is because 'mixed_float16' requires
-            # loss scaling for numeric stability.
-            strategy = tf.distribute.get_strategy()
-            raise ValueError(
-                "Mixed precision is not supported with the "
-                "tf.distribute.Strategy: %s. Either stop using mixed "
-                'precision by removing the use of the "%s" policy or '
-                "use a different Strategy, e.g. a MirroredStrategy."
-                % (strategy.__class__.__name__, self._dtype_policy.name)
-            )
+        self._dtype_policy = policy.get_policy(dtype)
 
         # Performance optimization: cache the compute dtype as a Dtype object or
         # None, so that str to Dtype conversion doesn't happen in
@@ -3500,13 +3500,27 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         object.__setattr__(self, "__dict__", state)
 
     def save_own_variables(self, store):
-        """Experimental method for saving the state of this layer object."""
+        """Saves the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is saved upon calling `model.save()`.
+
+        Args:
+            store: Dict where the state of the model will be saved.
+        """
         all_vars = self._trainable_weights + self._non_trainable_weights
         for i, v in enumerate(all_vars):
             store[f"{i}"] = v.numpy()
 
     def load_own_variables(self, store):
-        """Experimental method for loading the state of this layer object."""
+        """Loads the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is loaded upon calling `keras.models.load_model()`.
+
+        Args:
+            store: Dict from which the state of the model will be loaded.
+        """
         self._update_trackables()
         all_vars = self._trainable_weights + self._non_trainable_weights
         if len(store.keys()) != len(all_vars):
@@ -3785,9 +3799,9 @@ class BaseRandomLayer(Layer):
           force_generator: boolean, default to False, whether to force the
             RandomGenerator to use the code branch of tf.random.Generator.
           rng_type: string, the rng type that will be passed to backend
-            RandomGenerator. Default to `None`, which will allow RandomGenerator
-            to choose types by itself. Valid values are "stateful", "stateless",
-            "legacy_stateful".
+            RandomGenerator. `None` will allow RandomGenerator to choose
+            types by itself. Valid values are "stateful", "stateless",
+            "legacy_stateful". Defaults to `None`.
           **kwargs: other keyword arguments that will be passed to the parent
             *class
         """

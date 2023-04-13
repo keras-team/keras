@@ -4,6 +4,13 @@
 
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
+# copybara:uncomment_begin(google-only)
+# load(
+#     "//third_party/tensorflow/dtensor:build_defs.bzl",
+#     "dtensor_test",
+# )
+# copybara:uncomment_end
+
 package(
     default_visibility = [
         "//keras:friends",
@@ -116,22 +123,11 @@ tf_py_test(
     ],
     deps = [
         ":integration_test_utils",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "optimizers",
-    srcs = ["optimizers.py"],
-    deps = [
-        ":dtensor",
-        "//:expect_tensorflow_installed",
         "//keras/optimizers",
-        "//keras/optimizers/schedules:learning_rate_schedule",
+        "//keras/utils:tf_utils",
     ],
 )
 
@@ -141,13 +137,13 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":layout_map",
-        ":optimizers",
         ":test_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:losses",
         "//keras/layers",
         "//keras/models",
+        "//keras/optimizers",
     ],
 )
 
@@ -206,3 +202,29 @@ tf_py_test(
         "//keras/utils:tf_utils",
     ],
 )
+
+# copybara:uncomment_begin(google-only)
+# dtensor_test(
+#     name = "strategy_integration_test",
+#     srcs = ["strategy_integration_test.py"],
+#     shard_count = {
+#         "CPU": 2,
+#         "GPU": 4,
+#         "TPU": 2,
+#     },
+#     tags = ["no_oss"],
+#     deps = [
+#         ":integration_test_utils",
+#         ":test_util",
+#         "//:expect_absl_installed",
+#         "//keras:backend",
+#         "//keras/mixed_precision:mixed_precision_experimental",
+#         "//keras/optimizers",
+#         "//keras/utils:tf_utils",
+#         "//:expect_numpy_installed",
+#         "//:expect_tensorflow_installed",
+#         "//third_party/tensorflow/dtensor/python/tests:test_util",
+#         "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
+#     ],
+# )
+# copybara:uncomment_end

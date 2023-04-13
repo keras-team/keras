@@ -21,6 +21,7 @@ from keras import backend
 from keras.engine.base_layer import Layer
 from keras.engine.input_spec import InputSpec
 from keras.utils import conv_utils
+from keras.utils import image_utils
 
 # isort: off
 from tensorflow.python.util.tf_export import keras_export
@@ -92,23 +93,7 @@ class UpSampling2D(Layer):
         super().__init__(**kwargs)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 2, "size")
-        interpolations = {
-            "area": tf.image.ResizeMethod.AREA,
-            "bicubic": tf.image.ResizeMethod.BICUBIC,
-            "bilinear": tf.image.ResizeMethod.BILINEAR,
-            "gaussian": tf.image.ResizeMethod.GAUSSIAN,
-            "lanczos3": tf.image.ResizeMethod.LANCZOS3,
-            "lanczos5": tf.image.ResizeMethod.LANCZOS5,
-            "mitchellcubic": tf.image.ResizeMethod.MITCHELLCUBIC,
-            "nearest": tf.image.ResizeMethod.NEAREST_NEIGHBOR,
-        }
-        interploations_list = '"' + '", "'.join(interpolations.keys()) + '"'
-        if interpolation not in interpolations:
-            raise ValueError(
-                "`interpolation` argument should be one of: "
-                f'{interploations_list}. Received: "{interpolation}".'
-            )
-        self.interpolation = interpolation
+        self.interpolation = image_utils.get_interpolation(interpolation)
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):

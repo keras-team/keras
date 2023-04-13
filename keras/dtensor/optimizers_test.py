@@ -26,8 +26,13 @@ from keras import losses
 from keras import models
 from keras.dtensor import dtensor_api as dtensor
 from keras.dtensor import layout_map
-from keras.dtensor import optimizers
 from keras.dtensor import test_util
+from keras.optimizers import adadelta
+from keras.optimizers import adagrad
+from keras.optimizers import adam
+from keras.optimizers import adamw
+from keras.optimizers import rmsprop
+from keras.optimizers import sgd
 
 
 class OptimizersTest(test_util.DTensorBaseTest):
@@ -47,7 +52,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         self.mesh = self.configTestMesh(mesh_dict)
 
     def test_add_variable_from_reference(self):
-        optimizer = optimizers.Adam(mesh=self.mesh)
+        optimizer = adam.Adam(mesh=self.mesh)
         variable_init_value = tf.ones([4, 4], dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -65,7 +70,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
         self.assertEqual(state_variable.layout, model_variable.layout)
 
     def test_build_index_dict(self):
-        optimizer = optimizers.Adam(mesh=self.mesh)
+        optimizer = adam.Adam(mesh=self.mesh)
         variable_init_value = tf.ones(shape=(), dtype=tf.float32)
         variable_init_value = dtensor.copy_to_mesh(
             variable_init_value,
@@ -83,37 +88,59 @@ class OptimizersTest(test_util.DTensorBaseTest):
     @parameterized.named_parameters(
         (
             "Adadelta",
-            optimizers.Adadelta,
+            adadelta.Adadelta,
             {},
             [
                 "Adadelta/accumulated_grad/Variable",
                 "Adadelta/accumulated_delta_var/Variable",
+                "iteration",
             ],
         ),
         (
             "Adam",
-            optimizers.Adam,
+            adam.Adam,
             {"amsgrad": True},
-            ["Adam/m/Variable", "Adam/v/Variable", "Adam/vhat/Variable"],
+            [
+                "Adam/m/Variable",
+                "Adam/v/Variable",
+                "Adam/vhat/Variable",
+                "iteration",
+            ],
         ),
         (
             "AdamW",
-            optimizers.AdamW,
+            adamw.AdamW,
             {"amsgrad": True},
-            ["AdamW/m/Variable", "AdamW/v/Variable", "AdamW/vhat/Variable"],
+            [
+                "AdamW/m/Variable",
+                "AdamW/v/Variable",
+                "AdamW/vhat/Variable",
+                "iteration",
+            ],
         ),
-        ("Adagrad", optimizers.Adagrad, {}, ["Adagrad/accumulator/Variable"]),
+        (
+            "Adagrad",
+            adagrad.Adagrad,
+            {},
+            ["Adagrad/accumulator/Variable", "iteration"],
+        ),
         (
             "RMSprop",
-            optimizers.RMSprop,
+            rmsprop.RMSprop,
             {"momentum": 0.1, "centered": True},
             [
                 "RMSprop/velocity/Variable",
                 "RMSprop/momentum/Variable",
                 "RMSprop/average_gradient/Variable",
+                "iteration",
             ],
         ),
-        ("SGD", optimizers.SGD, {"momentum": 0.1}, ["SGD/m/Variable"]),
+        (
+            "SGD",
+            sgd.SGD,
+            {"momentum": 0.1},
+            ["SGD/m/Variable", "iteration"],
+        ),
     )
     def test_apply_gradients(
         self, optimizer_cls, init_args, expect_variable_names
@@ -186,7 +213,7 @@ class OptimizersTest(test_util.DTensorBaseTest):
             preds = layers.Dense(output_size, activation="softmax")(x)
             model = models.Model(inputs, preds)
 
-        optimizer = optimizers.AdamW(mesh=self.mesh)
+        optimizer = adam.Adam(mesh=self.mesh)
 
         @tf.function
         def train_func(model, inputs, label, optimizer):

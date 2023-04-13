@@ -22,7 +22,7 @@ from keras.layers.pooling.base_global_pooling3d import GlobalPooling3D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.GlobalMaxPool3D", "keras.layers.GlobalMaxPooling3D")
+@keras_export("keras.layers.GlobalMaxPooling3D", "keras.layers.GlobalMaxPool3D")
 class GlobalMaxPooling3D(GlobalPooling3D):
     """Global Max pooling operation for 3D data.
 

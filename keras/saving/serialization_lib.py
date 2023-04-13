@@ -35,13 +35,9 @@ from tensorflow.python.util.tf_export import keras_export
 PLAIN_TYPES = (str, int, float, bool)
 SHARED_OBJECTS = threading.local()
 SAFE_MODE = threading.local()
-# TODO(nkovela): Create custom `__internal__` namespace serialization support.
 # TODO(nkovela): Debug serialization of decorated functions inside lambdas
 # to allow for serialization of custom_gradient.
-NON_SERIALIZABLE_CLASS_MODULES = (
-    "tensorflow.python.ops.custom_gradient",
-    "keras.__internal__",
-)
+NON_SERIALIZABLE_CLASS_MODULES = ("tensorflow.python.ops.custom_gradient",)
 BUILTIN_MODULES = (
     "activations",
     "constraints",
@@ -127,7 +123,9 @@ def record_object_after_deserialization(obj, obj_id):
     SHARED_OBJECTS.id_to_obj_map[obj_id] = obj
 
 
-@keras_export("keras.utils.serialize_keras_object")
+@keras_export(
+    "keras.saving.serialize_keras_object", "keras.utils.serialize_keras_object"
+)
 def serialize_keras_object(obj):
     """Retrieve the config dict by serializing the Keras object.
 
@@ -388,7 +386,10 @@ def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
 
 
-@keras_export("keras.utils.deserialize_keras_object")
+@keras_export(
+    "keras.saving.deserialize_keras_object",
+    "keras.utils.deserialize_keras_object",
+)
 def deserialize_keras_object(
     config, custom_objects=None, safe_mode=True, **kwargs
 ):
@@ -712,7 +713,14 @@ def _retrieve_class_or_fn(
         # module name might not match the package structure
         # (e.g. experimental symbols).
         if module == "keras" or module.startswith("keras."):
-            obj = tf_export.get_symbol_from_name(module + "." + name)
+            api_name = module + "." + name
+
+            # Legacy internal APIs are stored in TF API naming dict
+            # with `compat.v1` prefix
+            if "__internal__.legacy" in api_name:
+                api_name = "compat.v1." + api_name
+
+            obj = tf_export.get_symbol_from_name(api_name)
             if obj is not None:
                 return obj
 

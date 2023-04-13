@@ -32,6 +32,7 @@ from keras.optimizers import adam
 from keras.optimizers import adamax
 from keras.optimizers import adamw
 from keras.optimizers import ftrl
+from keras.optimizers import lion
 from keras.optimizers import nadam
 from keras.optimizers import optimizer as base_optimizer
 from keras.optimizers import rmsprop
@@ -196,14 +197,14 @@ def deserialize(config, custom_objects=None, use_legacy_format=False, **kwargs):
 def convert_to_legacy_optimizer(optimizer):
     """Convert experimental optimizer to legacy optimizer.
 
-    This function takes in a `tf.keras.optimizers.experimental.Optimizer`
+    This function takes in a `keras.optimizers.Optimizer`
     instance and converts it to the corresponding
-    `tf.keras.optimizers.legacy.Optimizer` instance.
-    For example, `tf.keras.optimizers.experimental.Adam(...)` to
-    `tf.keras.optimizers.legacy.Adam(...)`.
+    `keras.optimizers.legacy.Optimizer` instance.
+    For example, `keras.optimizers.Adam(...)` to
+    `keras.optimizers.legacy.Adam(...)`.
 
     Args:
-        optimizer: An instance of `tf.keras.optimizers.experimental.Optimizer`.
+        optimizer: An instance of `keras.optimizers.Optimizer`.
     """
     # loss_scale_optimizer has a direct dependency of optimizer, import here
     # rather than top to avoid the cyclic dependency.

@@ -1901,8 +1901,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         When `rng_type` is "legacy_stateful", the seed will be passed down to
         stateful random ops.
       rng_type: Type of RNG to use, one of "stateful", "stateless",
-        "legacy_stateful". It defaults to "stateful" if
-        `enable_tf_random_generator` has been activated, or to
+        "legacy_stateful". When `None` it uses "stateful" if
+        `enable_tf_random_generator` has been activated, or
         "legacy_stateful" otherwise.
         - When using "stateless", the random ops outputs are constant (the same
           inputs result in the same outputs).
@@ -1913,6 +1913,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         - "legacy_stateful" is backed by TF1 stateful RNG ops
           (e.g. `tf.random.uniform`), while "stateful"
           is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+        Defaults to `None`.
     """
 
     RNG_STATELESS = "stateless"
@@ -5566,12 +5567,113 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             labels=target, logits=output, axis=axis
         )
 
-    # scale preds so that the class probas of each sample sum to 1
+    # Adjust the predictions so that the probability of
+    # each class for every sample adds up to 1
+    # This is needed to ensure that the cross entropy is
+    # computed correctly.
     output = output / tf.reduce_sum(output, axis, True)
+
     # Compute cross entropy from probabilities.
     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
     return -tf.reduce_sum(target * tf.math.log(output), axis)
+
+
+@keras_export("keras.backend.categorical_focal_crossentropy")
+@tf.__internal__.dispatch.add_dispatch_support
+@doc_controls.do_not_generate_docs
+def categorical_focal_crossentropy(
+    target,
+    output,
+    alpha=0.25,
+    gamma=2.0,
+    from_logits=False,
+    axis=-1,
+):
+    """Computes the alpha balanced focal crossentropy loss.
+
+    According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
+    helps to apply a focal factor to down-weight easy examples and focus more on
+    hard examples. The general formula for the focal loss (FL)
+    is as follows:
+
+    `FL(p_t) = (1 − p_t)^gamma * log(p_t)`
+
+    where `p_t` is defined as follows:
+    `p_t = output if y_true == 1, else 1 - output`
+
+    `(1 − p_t)^gamma` is the `modulating_factor`, where `gamma` is a focusing
+    parameter. When `gamma` = 0, there is no focal effect on the cross entropy.
+    `gamma` reduces the importance given to simple examples in a smooth manner.
+
+    The authors use alpha-balanced variant of focal loss (FL) in the paper:
+    `FL(p_t) = −alpha * (1 − p_t)^gamma * log(p_t)`
+
+    where `alpha` is the weight factor for the classes. If `alpha` = 1, the
+    loss won't be able to handle class imbalance properly as all
+    classes will have the same weight. This can be a constant or a list of
+    constants. If alpha is a list, it must have the same length as the number
+    of classes.
+
+    The formula above can be generalized to:
+    `FL(p_t) = alpha * (1 − p_t)^gamma * CrossEntropy(target, output)`
+
+    where minus comes from `CrossEntropy(target, output)` (CE).
+
+    Extending this to multi-class case is straightforward:
+    `FL(p_t) = alpha * (1 − p_t)^gamma * CategoricalCE(target, output)`
+
+    Args:
+        target: Ground truth values from the dataset.
+        output: Predictions of the model.
+        alpha: A weight balancing factor for all classes, default is `0.25` as
+            mentioned in the reference. It can be a list of floats or a scalar.
+            In the multi-class case, alpha may be set by inverse class
+            frequency by using `compute_class_weight` from `sklearn.utils`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference. It helps to gradually reduce the importance given to
+            simple examples in a smooth manner.
+        from_logits: Whether `output` is expected to be a logits tensor. By
+            default, we consider that `output` encodes a probability
+            distribution.
+        axis: Int specifying the channels axis. `axis=-1` corresponds to data
+             format `channels_last`, and `axis=1` corresponds to data format
+             `channels_first`.
+
+    Returns:
+        A tensor.
+    """
+    target = tf.convert_to_tensor(target)
+    output = tf.convert_to_tensor(output)
+    target.shape.assert_is_compatible_with(output.shape)
+
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "categorical_focal_crossentropy"
+    )
+
+    if from_logits:
+        output = tf.nn.softmax(output, axis=axis)
+
+    # Adjust the predictions so that the probability of
+    # each class for every sample adds up to 1
+    # This is needed to ensure that the cross entropy is
+    # computed correctly.
+    output = output / tf.reduce_sum(output, axis=axis, keepdims=True)
+
+    epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
+    output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
+
+    # Calculate cross entropy
+    cce = -target * tf.math.log(output)
+
+    # Calculate factors
+    modulating_factor = tf.pow(1.0 - output, gamma)
+    weighting_factor = tf.multiply(modulating_factor, alpha)
+
+    # Apply weighting factor
+    focal_cce = tf.multiply(weighting_factor, cce)
+    focal_cce = tf.reduce_sum(focal_cce, axis=axis)
+    return focal_cce
 
 
 @keras_export("keras.backend.sparse_categorical_crossentropy")
@@ -5747,28 +5849,29 @@ def binary_focal_crossentropy(
     where `alpha` is a float in the range of `[0, 1]`.
 
     Args:
-      target: A tensor with the same shape as `output`.
-      output: A tensor.
-      apply_class_balancing: A bool, whether to apply weight balancing on the
-        binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as
-        mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-        reference.
-      from_logits: Whether `output` is expected to be a logits tensor. By
-        default, we consider that `output` encodes a probability distribution.
+        target: A tensor with the same shape as `output`.
+        output: A tensor.
+        apply_class_balancing: A bool, whether to apply weight balancing on the
+            binary classes 0 and 1.
+        alpha: A weight balancing factor for class 1, default is `0.25` as
+            mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference.
+        from_logits: Whether `output` is expected to be a logits tensor. By
+            default, we consider that `output` encodes a probability
+            distribution.
 
     Returns:
-      A tensor.
+        A tensor.
     """
-    sigmoidal = tf.__internal__.smart_cond.smart_cond(
-        from_logits,
-        lambda: sigmoid(output),
-        lambda: output,
-    )
+
+    sigmoidal = sigmoid(output) if from_logits else output
+
     p_t = target * sigmoidal + (1 - target) * (1 - sigmoidal)
+
     # Calculate focal factor
     focal_factor = tf.pow(1.0 - p_t, gamma)
+
     # Binary crossentropy
     bce = binary_crossentropy(
         target=target,
@@ -5796,7 +5899,7 @@ def sigmoid(x):
     Returns:
         A tensor.
     """
-    return tf.sigmoid(x)
+    return tf.math.sigmoid(x)
 
 
 @keras_export("keras.backend.hard_sigmoid")
@@ -6801,11 +6904,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     Args:
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, the mean value of the normal distribution to draw
-          samples. Default to 0.0.
+          samples. Defaults to `0.0`.
         stddev: A float, the standard deviation of the normal distribution
-          to draw samples. Default to 1.0.
-        dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
-          backend dtype which is float32.
+          to draw samples. Defaults to `1.0`.
+        dtype: `tf.dtypes.DType`, dtype of returned tensor. None uses Keras
+          backend dtype which is float32. Defaults to `None`.
         seed: Integer, random seed. Will use a random numpy integer when not
           specified.
 
