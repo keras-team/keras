@@ -14,7 +14,10 @@ class ExampleMetric(Metric):
             name="sum", shape=(), initializer=initializers.Zeros()
         )
         self.total = self.add_variable(
-            name="total", shape=(), initializer=initializers.Zeros(), dtype="int32"
+            name="total",
+            shape=(),
+            initializer=initializers.Zeros(),
+            dtype="int32",
         )
 
     def update_state(self, y_true, y_pred):

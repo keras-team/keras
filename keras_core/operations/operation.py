@@ -94,7 +94,7 @@ class Operation:
             The operation's attribute `attr` at the node of index `node_index`.
         """
         if not self._inbound_nodes:
-            raise RuntimeError(
+            raise ValueError(
                 f"The layer {self.name} has never been called "
                 f"and thus has no defined {attr_name}."
             )

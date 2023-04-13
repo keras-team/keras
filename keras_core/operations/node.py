@@ -53,14 +53,11 @@ class Node:
                 )
 
         # If inputs don't have metadata yet, add it.
-        any_input_has_history = False
         for tensor in self.arguments.keras_tensors:
             if not hasattr(tensor, "_keras_history"):
                 tensor._keras_history = KerasHistory(
                     operation=None, node_index=0, tensor_index=0
                 )
-            else:
-                any_input_has_history = True
 
         # Wire up Node to Operations.
         self.operation._inbound_nodes.append(self)

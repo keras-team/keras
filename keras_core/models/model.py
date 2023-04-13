@@ -1,6 +1,7 @@
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.trainers.trainer import Trainer
+from keras_core.utils import summary_utils
 
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])
@@ -123,13 +124,7 @@ class Model(Layer, Trainer):
         Raises:
             ValueError: if `summary()` is called before the model is built.
         """
-        if not self.built:
-            raise ValueError(
-                "This model has not yet been built. "
-                "Build the model first by calling `build()` or by calling "
-                "the model on a batch of data."
-            )
-        layer_utils.print_summary(
+        summary_utils.print_summary(
             self,
             line_length=line_length,
             positions=positions,
@@ -148,9 +143,7 @@ class Model(Layer, Trainer):
 
 def functional_init_arguments(args, kwargs):
     return (
-        len(args) == 2
-        or len(args) == 1
-        and "outputs" in kwargs
-        or "inputs" in kwargs
-        and "outputs" in kwargs
+        (len(args) == 2)
+        or (len(args) == 1 and "outputs" in kwargs)
+        or ("inputs" in kwargs and "outputs" in kwargs)
     )

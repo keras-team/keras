@@ -15,6 +15,7 @@ class FunctionalTest(testing.TestCase):
         x = layers.Dense(5)(x)
         outputs = layers.Dense(4)(x)
         model = Functional([input_a, input_b], outputs)
+        model.summary()
 
         # Eager call
         in_val = [np.random.random((2, 3)), np.random.random((2, 3))]

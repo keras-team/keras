@@ -14,6 +14,7 @@ class SequentialTest(testing.TestCase):
         model.add(Input(shape=(2,), batch_size=3))
         model.add(layers.Dense(4))
         model.add(layers.Dense(5))
+        model.summary()
 
         self.assertEqual(len(model.layers), 2)
 
@@ -21,6 +22,8 @@ class SequentialTest(testing.TestCase):
         x = np.random.random((3, 2))
         y = model(x)
         self.assertTrue(model.built)
+        model.summary()
+
         self.assertEqual(type(model._functional), Functional)
         self.assertEqual(y.shape, (3, 5))
 
@@ -55,6 +58,7 @@ class SequentialTest(testing.TestCase):
         model = Sequential(name="seq")
         model.add(layers.Dense(4))
         model.add(layers.Dense(5))
+        model.summary()
 
         self.assertEqual(len(model.layers), 2)
 
@@ -62,6 +66,8 @@ class SequentialTest(testing.TestCase):
         x = np.random.random((3, 2))
         y = model(x)
         self.assertTrue(model.built)
+        model.summary()
+
         self.assertEqual(type(model._functional), Functional)
         self.assertEqual(y.shape, (3, 5))
 
@@ -101,6 +107,7 @@ class SequentialTest(testing.TestCase):
         x = {"a": np.random.random((3, 2)), "b": np.random.random((3, 2))}
         y = model(x)
         self.assertEqual(type(y), dict)
+        model.summary()
 
     def test_errors(self):
         # Trying to pass 2 Inputs
