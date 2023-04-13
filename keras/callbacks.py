@@ -935,8 +935,7 @@ class Callback:
         ) or not generic_utils.is_default(self.on_predict_batch_end)
 
     def _should_trigger_on_batch(self, trigger_freq, batch):
-        """Determines if the callback should be called for a given batch,
-        supports steps_per_execution."""
+        """Determines if the callback should be called for a given batch."""
         if trigger_freq == "epoch":
             return False
 
