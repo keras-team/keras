@@ -92,7 +92,15 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (3, 4))
 
     def test_dict_inputs(self):
-        pass
+        class DictLayer(layers.Layer):
+            def call(self, inputs):
+                assert isinstance(inputs, dict)
+                return inputs
+
+        model = Sequential([DictLayer()])
+        x = {"a": np.random.random((3, 2)), "b": np.random.random((3, 2))}
+        y = model(x)
+        self.assertEqual(type(y), dict)
 
     def test_errors(self):
         # Trying to pass 2 Inputs
@@ -125,4 +133,5 @@ class SequentialTest(testing.TestCase):
         model.build((3, 2))
 
     def test_serialization(self):
+        # TODO
         pass

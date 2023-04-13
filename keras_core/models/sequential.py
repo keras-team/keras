@@ -55,6 +55,9 @@ class Sequential(Model):
         return layer
 
     def build(self, input_shape=None):
+        if not isinstance(input_shape, (tuple, list)):
+            # Do not attempt to build if the model does not have a single input tensor.
+            return
         if not self._layers:
             raise ValueError(
                 f"Sequential model {self.name} cannot be built because it has no layers. "
@@ -95,9 +98,9 @@ class Sequential(Model):
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
             kwargs = {}
-            if layer._call_has_mask_arg:
+            if layer._call_has_mask_arg():
                 kwargs["mask"] = mask
-            if layer._call_has_training_arg:
+            if layer._call_has_training_arg():
                 kwargs["training"] = training
             outputs = layer(inputs, **kwargs)
             inputs = outputs
