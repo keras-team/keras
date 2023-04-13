@@ -295,7 +295,7 @@ def serialize_with_public_class(cls, inner_config=None):
 
     Called to check and retrieve the config of any class that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable`.
+    `keras.utils.register_keras_serializable()`.
     """
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
@@ -325,7 +325,7 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
 
     Called to check and retrieve the config of any function that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable`. If function's module name is
+    `keras.utils.register_keras_serializable()`. If function's module name is
     already known, returns corresponding config.
     """
     if fn_module_name:
@@ -695,7 +695,7 @@ def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
     # If there is a custom object registered via
-    # `register_keras_serializable`, that takes precedence.
+    # `register_keras_serializable()`, that takes precedence.
     if obj_type == "function":
         custom_obj = object_registration.get_registered_object(
             name, custom_objects=custom_objects
@@ -767,6 +767,6 @@ def _retrieve_class_or_fn(
     raise TypeError(
         f"Could not locate {obj_type} '{name}'. "
         "Make sure custom classes are decorated with "
-        "`@keras.utils.register_keras_serializable`. "
+        "`@keras.utils.register_keras_serializable()`. "
         f"Full object config: {full_config}"
     )
