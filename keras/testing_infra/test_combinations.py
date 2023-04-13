@@ -112,7 +112,7 @@ def run_with_all_saved_model_formats(test_or_class=None, exclude_formats=None):
         test or class.
       exclude_formats: A collection of Keras saved model formats to not run.
         (May also be a single format not wrapped in a collection).
-        Defaults to None.
+        Defaults to `None`.
 
     Returns:
       Returns a decorator that will run the decorated test method multiple
@@ -258,7 +258,7 @@ def run_with_all_model_types(test_or_class=None, exclude_models=None):
         test or class.
       exclude_models: A collection of Keras model types to not run.
         (May also be a single model type not wrapped in a collection).
-        Defaults to None.
+        Defaults to `None`.
 
     Returns:
       Returns a decorator that will run the decorated test method multiple
@@ -497,12 +497,13 @@ def keras_mode_combinations(mode=None, run_eagerly=None):
 
     Args:
       mode: List of modes to run the tests. The valid options are 'graph' and
-        'eager'. Default to ['graph', 'eager'] if not specified. If a empty list
-        is provide, then the test will run under the context based on tf's
-        version, eg graph for v1 and eager for v2.
+        'eager'. If None, uses ['graph', 'eager']. If an empty
+        list is provided, then the test will run under the context based on
+        tensorflow's version, e.g., graph for v1 and eager for v2. Defaults to
+        `None`.
       run_eagerly: List of `run_eagerly` value to be run with the tests.
-        Default to [True, False] if not specified. Note that for `graph` mode,
-        run_eagerly value will only be False.
+        When None, uses [True, False]. Note that for `graph` mode,
+        run_eagerly value will only be False. Defaults to `None`.
 
     Returns:
       A list contains all the combinations to be used to generate test cases.
