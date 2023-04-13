@@ -365,8 +365,8 @@ class Layer(base_layer.Layer):
             or "non_trainable_variables" (e.g. BatchNorm mean, stddev).
             Note, if the current variable scope is marked as non-trainable
             then this parameter is ignored and any added variables are also
-            marked as non-trainable. `trainable` defaults to `True` unless
-            `synchronization` is set to `ON_READ`.
+            marked as non-trainable. `trainable` becomes `True` unless
+            `synchronization` is set to `ON_READ`. Defaults to `True`.
           constraint: constraint instance (callable).
           use_resource: Whether to use `ResourceVariable`.
           synchronization: Indicates when a distributed a variable will be

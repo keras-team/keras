@@ -46,8 +46,11 @@ class DeterministicRandomTestTool(object):
     """
 
     def __init__(self, seed: int = 42, mode="constant"):
-        """Set mode to 'constant' or 'num_random_ops'. Defaults to
-        'constant'."""
+        """
+        Args:
+          mode: Set mode to 'constant' or 'num_random_ops'. Defaults to
+        'constant'.
+        """
         if mode not in {"constant", "num_random_ops"}:
             raise ValueError(
                 "Mode arg must be 'constant' or 'num_random_ops'. "
