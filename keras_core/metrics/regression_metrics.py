@@ -7,10 +7,10 @@ class MeanSquareError(Metric):
     def __init__(self, name="mean_square_error", dtype=None):
         super().__init__(name=name, dtype=dtype)
         self.sum = self.add_variable(
-            name="sum", initializer=initializers.Zeros()
+            name="sum", shape=(), initializer=initializers.Zeros()
         )
         self.total = self.add_variable(
-            name="total", initializer=initializers.Zeros()
+            name="total", shape=(), initializer=initializers.Zeros()
         )
 
     def update_state(self, y_true, y_pred):

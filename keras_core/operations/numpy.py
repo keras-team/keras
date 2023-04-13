@@ -996,6 +996,20 @@ def square(x):
     return backend.execute("square", x)
 
 
+class Sqrt(Operation):
+    def call(self, x):
+        return backend.execute("sqrt", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def sqrt(x):
+    if any_symbolic_tensors((x,)):
+        return Sqrt().symbolic_call(x)
+    return backend.execute("sqrt", x)
+
+
 class Squeeze(Operation):
     def __init__(self, axis=None):
         super().__init__()

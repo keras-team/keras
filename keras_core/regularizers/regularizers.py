@@ -345,6 +345,6 @@ def validate_float_arg(value, name):
     return float(value)
 
 
-def l2_normalize(x):
-    l2_norm = ops.sqrt(ops.sum(ops.square(x)))
+def l2_normalize(x, axis=0):
+    l2_norm = ops.sqrt(ops.sum(ops.square(x), axis=axis))
     return x / l2_norm

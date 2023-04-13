@@ -19,7 +19,7 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.stddev, stddev)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        self.test_load_external_config(initializer, external_config)
+        self.assert_idempotent_config(initializer, external_config)
 
     def test_random_uniform(self):
         shape = (5, 5)
@@ -35,11 +35,11 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.maxval, maxval)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        self.test_load_external_config(initializer, external_config)
+        self.assert_idempotent_config(initializer, external_config)
         values = values.numpy()
         self.assertGreaterEqual(np.min(values), minval)
         self.assertLess(np.max(values), maxval)
 
-    def test_load_external_config(self, initializer, config):
+    def assert_idempotent_config(self, initializer, config):
         initializer = initializer.from_config(config)
         self.assertEqual(initializer.get_config(), config)
