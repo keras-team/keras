@@ -63,8 +63,8 @@ class TextTable:
     ):
         alignments = alignments or ["center" for _ in fields]
         lines = []
-        line_break_chars_post = (")", "}", "]")
-        line_break_chars_pre = ("(", "{", "[")
+        line_break_chars_post = ("),", "],")
+        line_break_chars_pre = ("(", "[")
         for field, width, alignment in zip(
             fields, self.column_widths, alignments
         ):
