@@ -60,7 +60,7 @@ class Functional(Function, Model):
                 layers.append(operation)
         return layers
 
-    def call(self, inputs, training=False, mask=None):
+    def call(self, inputs, training=None, mask=None):
         # Add support for traning, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -73,7 +73,8 @@ class Functional(Function, Model):
             inputs, operation_fn=lambda op: operation_fn(op, training=training)
         )
 
-    def compute_output_spec(self, inputs, training=False, mask=None):
+    def compute_output_spec(self, inputs, training=None, mask=None):
+        # From Function
         return super().compute_output_spec(inputs)
 
     def _assert_input_compatibility(self, *args):

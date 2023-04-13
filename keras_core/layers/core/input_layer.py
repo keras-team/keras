@@ -5,13 +5,33 @@ from keras_core.operations.node import Node
 
 class InputLayer(Layer):
     def __init__(
-        self, shape, batch_size=None, dtype=None, input_tensor=None, name=None
+        self,
+        shape=None,
+        batch_size=None,
+        dtype=None,
+        batch_shape=None,
+        input_tensor=None,
+        name=None,
     ):
         # TODO: support for sparse, ragged.
         super().__init__(name=name)
-        self.shape = backend.standardize_shape(shape)
+        if shape is not None and batch_shape is not None:
+            raise ValueError(
+                "You cannot pass both `shape` and `batch_shape` at the same time."
+            )
+        if batch_size is not None and batch_shape is not None:
+            raise ValueError(
+                "You cannot pass both `batch_size` and `batch_shape` at the same time."
+            )
+        if shape is None and batch_shape is None:
+            raise ValueError("You must pass a `shape` argument.")
+
+        if shape:
+            shape = backend.standardize_shape(shape)
+            batch_shape = (batch_size,) + shape
+        self.batch_shape = batch_shape
         self._dtype = backend.standardize_dtype(dtype)
-        self.batch_size = batch_size
+
         if input_tensor is not None:
             if not isinstance(input_tensor, backend.KerasTensor):
                 raise ValueError(
@@ -20,7 +40,7 @@ class InputLayer(Layer):
                 )
         else:
             input_tensor = backend.KerasTensor(
-                shape=(batch_size,) + shape, dtype=dtype, name=name
+                shape=batch_shape, dtype=dtype, name=name
             )
         self._input_tensor = input_tensor
         Node(operation=self, call_args=(), call_kwargs={}, outputs=input_tensor)
@@ -35,15 +55,18 @@ class InputLayer(Layer):
 
     def get_config(self):
         return {
-            "shape": self.shape,
-            "batch_size": self.batch_size,
+            "batch_shape": self.batch_shape,
             "dtype": self.dtype,
             "name": self.name,
         }
 
 
-def Input(shape=None, batch_size=None, dtype=None, name=None):
+def Input(shape=None, batch_size=None, dtype=None, batch_shape=None, name=None):
     layer = InputLayer(
-        shape=shape, batch_size=batch_size, dtype=dtype, name=name
+        shape=shape,
+        batch_size=batch_size,
+        dtype=dtype,
+        batch_shape=batch_shape,
+        name=name,
     )
     return layer.output

@@ -55,6 +55,9 @@ class Layer(Operation):
         self._non_trainable_variables = []
         self._supports_masking = not utils.is_default(self.compute_mask)
         self._build_shapes_dict = None
+        self._call_signature_parameters = [
+            p.name for p in inspect.signature(self.call).parameters.values()
+        ]
 
         self._tracker = Tracker(
             {
@@ -503,9 +506,10 @@ class Layer(Operation):
             )
 
     def _call_has_training_arg(self):
-        return "training" in [
-            p.name for p in inspect.signature(self.call).parameters.values()
-        ]
+        return "training" in self._call_signature_parameters
+
+    def _call_has_mask_arg(self):
+        return "mask" in self._call_signature_parameters
 
     def _get_call_context(self):
         """Returns currently active `CallContext`."""
