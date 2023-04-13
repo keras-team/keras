@@ -71,7 +71,7 @@ class Layer(Operation):
                     and not isinstance(x, Metric),
                     self._layers,
                 ),
-                # TODO: RandomSeedGenerator tracking
+                # TODO: SeedGenerator tracking
             }
         )
 
@@ -176,7 +176,7 @@ class Layer(Operation):
 
     @property
     def variables(self):
-        # TODO: include not just weights by any variables (also from metrics, optimizers, RandomSeedGenerators)
+        # TODO: include not just weights by any variables (also from metrics, optimizers, SeedGenerators)
         variables = self.weights[:]
         return variables
 

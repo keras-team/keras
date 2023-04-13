@@ -29,7 +29,7 @@ class MiniDropout(Layer):
     def __init__(self, rate, name=None):
         super().__init__(name=name)
         self.rate = rate
-        self.seed_generator = backend.random.RandomSeedGenerator(1337)
+        self.seed_generator = backend.random.SeedGenerator(1337)
 
     def call(self, inputs):
         return backend.random.dropout(

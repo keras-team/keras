@@ -35,13 +35,13 @@ class VarianceScaling(Initializer):
         distribution: Random distribution to use.
             One of `"truncated_normal"`, `"untruncated_normal"`, or `"uniform"`.
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
     """
 
     def __init__(
@@ -143,13 +143,13 @@ class GlorotUniform(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     References:
 
@@ -185,13 +185,13 @@ class GlorotNormal(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     References:
     - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
@@ -232,13 +232,13 @@ class LecunNormal(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     References:
     - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
@@ -272,13 +272,13 @@ class LecunUniform(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     References:
     - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
@@ -312,13 +312,13 @@ class HeNormal(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     Reference:
     - [He et al., 2015](https://arxiv.org/abs/1502.01852)
@@ -352,13 +352,13 @@ class HeUniform(VarianceScaling):
 
     Args:
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
 
     Reference:
     - [He et al., 2015](https://arxiv.org/abs/1502.01852)
@@ -422,13 +422,13 @@ class RandomNormal(Initializer):
         stddev: A python scalar or a scalar keras tensor. Standard deviation of the
            random values to generate.
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
     """
 
     def __init__(self, mean=0.0, stddev=1.0, seed=None):
@@ -471,13 +471,13 @@ class RandomUniform(Initializer):
         maxval: A python scalar or a scalar keras tensor. Upper bound of the range of
             random values to generate (exclusive).
         seed: A Python integer or instance of
-            `keras_core.backend.RandomSeedGenerator`.
+            `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
             or None (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
-            of `keras_core.backend.RandomSeedGenerator`.
+            of `keras_core.backend.SeedGenerator`.
     """
 
     def __init__(self, minval=0.0, maxval=1.0, seed=None):
