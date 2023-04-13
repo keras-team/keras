@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import losses as losses_mod
+from keras import layers as layers_mod
 from keras import metrics as metrics_mod
 from keras.engine import compile_utils
 from keras.testing_infra import test_combinations
@@ -883,7 +884,7 @@ class MetricsContainerTest(test_combinations.TestCase):
             )
 
 
-class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
+class TestObjectDifferentiabilityFunctions(test_combinations.TestCase):
     def test_verify_loss_differentiability(self):
         # Test case 1: Differentiable loss function
         def differentiable_loss(y_true, y_pred):
@@ -894,11 +895,11 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
                 return tf.reduce_mean(tf.square(y_true - y_pred))
 
         expected_shapes = (None, 1)
-        compile_utils.verify_loss_differentiability(
+        compile_utils.verify_object_differentiability(
             differentiable_loss, expected_shapes
         )
 
-        compile_utils.verify_loss_differentiability(
+        compile_utils.verify_object_differentiability(
             DifferentiableLossClass(), expected_shapes
         )
 
@@ -911,13 +912,23 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
                 return tf.round(tf.square(y_true - y_pred))
 
         with self.assertRaises(ValueError):
-            compile_utils.verify_loss_differentiability(
+            compile_utils.verify_object_differentiability(
                 non_differentiable_loss, expected_shapes
             )
 
         with self.assertRaises(ValueError):
-            compile_utils.verify_loss_differentiability(
+            compile_utils.verify_object_differentiability(
                 NonDifferentiableLossClass(), expected_shapes
+            )
+
+        # Case 3: Non-differentiable custom layer.
+        class NonDifferentiableLayer(layers_mod.Layer):
+            def call(self, inputs):
+                return tf.round(inputs)
+
+        with self.assertRaises(ValueError):
+            compile_utils.verify_object_differentiability(
+                NonDifferentiableLayer(), None
             )
 
     def test__verify_loss_differentiability(self):
@@ -931,13 +942,13 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
 
         expected_shapes = (1, 1)
         self.assertTrue(
-            compile_utils._verify_loss_differentiability(
+            compile_utils._verify_object_differentiability(
                 differentiable_loss, expected_shapes
             )
         )
 
         self.assertTrue(
-            compile_utils._verify_loss_differentiability(
+            compile_utils._verify_object_differentiability(
                 DifferentiableLossClass(), expected_shapes
             )
         )
@@ -951,14 +962,25 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
                 return tf.argmax(tf.square(y_true - y_pred))
 
         self.assertFalse(
-            compile_utils._verify_loss_differentiability(
+            compile_utils._verify_object_differentiability(
                 non_differentiable_loss, expected_shapes
             )
         )
 
         self.assertFalse(
-            compile_utils._verify_loss_differentiability(
+            compile_utils._verify_object_differentiability(
                 NonDifferentiableLossClass(), expected_shapes
+            )
+        )
+
+        # Case 3: Non-differentiable custom layer.
+        class NonDifferentiableLayer(layers_mod.Layer):
+            def call(self, inputs):
+                return tf.round(inputs)
+
+        self.assertFalse(
+            compile_utils._verify_object_differentiability(
+                NonDifferentiableLayer(), None
             )
         )
 
@@ -973,13 +995,13 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
 
         expected_shape = (1, 1)
         self.assertTrue(
-            compile_utils._check_loss_with_shapes(
+            compile_utils._check_object_with_shapes(
                 differentiable_loss, expected_shape
             )
         )
 
         self.assertTrue(
-            compile_utils._check_loss_with_shapes(
+            compile_utils._check_object_with_shapes(
                 DifferentiableLossClass(), expected_shape
             )
         )
@@ -993,13 +1015,13 @@ class TestLossDifferentiabilityFunctions(test_combinations.TestCase):
                 return tf.argmax(tf.square(y_true - y_pred))
 
         self.assertFalse(
-            compile_utils._check_loss_with_shapes(
+            compile_utils._check_object_with_shapes(
                 non_differentiable_loss, expected_shape
             )
         )
 
         self.assertFalse(
-            compile_utils._check_loss_with_shapes(
+            compile_utils._check_object_with_shapes(
                 NonDifferentiableLossClass(), expected_shape
             )
         )
