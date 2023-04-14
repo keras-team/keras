@@ -38,6 +38,8 @@ SAFE_MODE = threading.local()
 # TODO(nkovela): Debug serialization of decorated functions inside lambdas
 # to allow for serialization of custom_gradient.
 NON_SERIALIZABLE_CLASS_MODULES = ("tensorflow.python.ops.custom_gradient",)
+
+# List of Keras modules with built-in string representations for Keras defaults
 BUILTIN_MODULES = (
     "activations",
     "constraints",
@@ -301,16 +303,22 @@ def serialize_with_public_class(cls, inner_config=None):
     keras_api_name = tf_export.get_canonical_name_for_symbol(
         cls, api_name="keras"
     )
+
+    # Case of custom or unknown class object
     if keras_api_name is None:
         registered_name = object_registration.get_registered_name(cls)
-        if registered_name:
-            return {
-                "module": cls.__module__,
-                "class_name": cls.__name__,
-                "config": inner_config,
-                "registered_name": registered_name,
-            }
-        return None
+        if registered_name is None:
+            return None
+
+        # Return custom object config with corresponding registration name
+        return {
+            "module": cls.__module__,
+            "class_name": cls.__name__,
+            "config": inner_config,
+            "registered_name": registered_name,
+        }
+
+    # Split the canonical Keras API name into a Keras module and class name.
     parts = keras_api_name.split(".")
     return {
         "module": ".".join(parts[:-1]),
@@ -559,6 +567,15 @@ def deserialize_keras_object(
 
             # Case where config is class but not in custom objects
             else:
+                if config.get("module", "_") is None:
+                    raise TypeError(
+                        "Cannot deserialize object of type "
+                        f"`{config['class_name']}`. If "
+                        f"`{config['class_name']}` is a custom class, please "
+                        "register it using the "
+                        "`@keras.utils.register_keras_serializable()` "
+                        "decorator."
+                    )
                 config = config["class_name"]
         if not has_custom_object:
             # Return if not found in either module objects or custom objects

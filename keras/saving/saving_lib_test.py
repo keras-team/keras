@@ -735,5 +735,49 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_out, out, atol=1e-6)
 
 
+class CustomRNN(keras.layers.Layer):
+    def __init__(self, units):
+        super(CustomRNN, self).__init__()
+        self.units = units
+        self.projection_1 = keras.layers.Dense(units=units, activation="tanh")
+        self.projection_2 = keras.layers.Dense(units=units, activation="tanh")
+        self.classifier = keras.layers.Dense(1)
+
+    def call(self, inputs):
+        outputs = []
+        state = tf.zeros(shape=(inputs.shape[0], self.units))
+        for t in range(inputs.shape[1]):
+            x = inputs[:, t, :]
+            h = self.projection_1(x)
+            y = h + self.projection_2(state)
+            state = y
+            outputs.append(y)
+        features = tf.stack(outputs, axis=1)
+        return self.classifier(features)
+
+
+@test_utils.run_v2_only
+class SavingV3BattleTest(tf.test.TestCase, parameterized.TestCase):
+    def test_custom_model_without_registration_error(self):
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "my_custom_model.keras"
+        )
+        timesteps = 10
+        input_dim = 5
+        batch_size = 16
+
+        inputs = keras.Input(batch_shape=(batch_size, timesteps, input_dim))
+        x = keras.layers.Conv1D(32, 3)(inputs)
+        outputs = CustomRNN(32)(x)
+
+        model = keras.Model(inputs, outputs)
+
+        with self.assertRaisesRegex(
+            TypeError, "is a custom class, please register it"
+        ):
+            model.save(temp_filepath)
+            _ = keras.models.load_model(temp_filepath)
+
+
 if __name__ == "__main__":
     tf.test.main()
