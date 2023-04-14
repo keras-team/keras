@@ -1249,8 +1249,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # metric variables, which will be used to update the metrics.
         for shard_result in logs:
             for metric in self.metrics:
-                if metric.name == "loss":
-                    continue
                 if metric.name not in shard_result.keys():
                     logging.log_first_n(
                         logging.WARN,
@@ -1882,6 +1880,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             local_metrics = []
             with tf_utils.with_metric_local_vars_scope():
                 for metric in self.compiled_metrics.metrics:
+                    local_metrics.append(base_metric.clone_metric(metric))
+                for metric in self.compiled_loss.metrics:
                     local_metrics.append(base_metric.clone_metric(metric))
             dataset = input_ops.auto_shard_dataset(
                 dataset, total_shards, shard_idx
