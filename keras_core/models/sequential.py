@@ -73,6 +73,9 @@ class Sequential(Model):
         if not isinstance(input_shape, (tuple, list)):
             # Do not attempt to build if the model does not have a single input tensor.
             return
+        if input_shape and not (isinstance(input_shape[0], int) or input_shape[0] is None):
+            # Do not attempt to build if the model does not have a single input tensor.
+            return 
         if not self._layers:
             raise ValueError(
                 f"Sequential model {self.name} cannot be built because it has no layers. "
@@ -92,7 +95,12 @@ class Sequential(Model):
         inputs = self._layers[0].output
         x = inputs
         for layer in self._layers[1:]:
-            x = layer(x)
+            try:
+                x = layer(x)
+            except NotImplementedError:
+                # Can happen if shape inference is not implemented.
+                # TODO: consider reverting inbound nodes on layers processed so far.
+                return
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
         self.built = True
@@ -100,12 +108,8 @@ class Sequential(Model):
     def call(self, inputs, training=None, mask=None):
         if self._functional:
             return self._functional(inputs, training=training, mask=mask)
-        # Else, check if we can build a Functional model
-        if isinstance(inputs, backend.KerasTensor) or backend.is_tensor(inputs):
-            self.build(inputs.shape)
-            return self._functional(inputs, training=training, mask=mask)
 
-        # No functional model can be built -- Just apply the layer sequence.
+        # Fallback: Just apply the layer sequence.
         # This typically happens if `inputs` is a nested struct.
         for layer in self.layers:
             # During each iteration, `inputs` are the inputs to `layer`, and

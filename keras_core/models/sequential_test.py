@@ -113,6 +113,18 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(type(y), dict)
         model.summary()
 
+    def test_list_inputs(self):
+        class ListLayer(layers.Layer):
+            def call(self, inputs):
+                assert isinstance(inputs, list)
+                return inputs
+
+        model = Sequential([ListLayer()])
+        x = [np.random.random((3, 2)), np.random.random((3, 2))]
+        y = model(x)
+        self.assertEqual(type(y), list)
+        model.summary()
+
     def test_errors(self):
         # Trying to pass 2 Inputs
         model = Sequential()
@@ -142,6 +154,20 @@ class SequentialTest(testing.TestCase):
             model.build((3, 4))
         # But this works
         model.build((3, 2))
+
+    def test_shape_inference_failure(self):
+        class DynamicLayer(layers.Layer):
+            def call(self, inputs):
+                return inputs + 1.
+            
+            def compute_output_spec(self, *args, **kwargs):
+                raise NotImplementedError
+        
+        model = Sequential([DynamicLayer()])
+        x = np.random.random((3, 2))
+        y = model(x)
+        self.assertAllClose(y, x + 1)
+        model.summary()
 
     def test_serialization(self):
         # TODO
