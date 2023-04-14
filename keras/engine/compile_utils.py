@@ -866,18 +866,23 @@ def get_custom_object_name(obj):
         return None
 
 
-def verify_object_differentiability(custom_obj, expected_shapes):
+def verify_object_differentiability(custom_obj,
+                                    expected_shapes,
+                                    is_layer=False):
     """Verifies if a given object is differentiable.
 
     Args:
         custom_obj: Can be a plain function or a class instance.
         expected_shapes: A tuple containing the shapes for the inputs to the
             instance or function.
+        is_layer: Boolean indicating whether the custom object is a layer
     Raises:
         ValueError: If the custom object is not differentiable.
     """
 
-    if not _verify_object_differentiability(custom_obj, expected_shapes):
+    if not _verify_object_differentiability(custom_obj,
+                                            expected_shapes,
+                                            is_layer=is_layer):
         raise ValueError(
             f"The provided loss or layer ({custom_obj}) is not differentiable. "
             "Training requires differentiable objects. Please review your "
@@ -888,13 +893,16 @@ def verify_object_differentiability(custom_obj, expected_shapes):
         )
 
 
-def _verify_object_differentiability(custom_obj, expected_shapes=None):
+def _verify_object_differentiability(custom_obj,
+                                     expected_shapes=None,
+                                     is_layer=False):
     """Verifies if the loss is differentiable.
 
     Args:
-        loss: Can be a plain function or a class instance.
+        custom_obj: Can be a plain function or a class instance.
         expected_shapes: A tuple containing the shapes for the inputs to the
             loss.
+        is_layer: Boolean indicating whether the custom object is a layer.
     Returns:
         A boolean indicating whether the custom object is differentiable.
     """
@@ -915,9 +923,14 @@ def _verify_object_differentiability(custom_obj, expected_shapes=None):
             shape_generator = generate_shape_tuples(1, num_dims)
             for shapes in shape_generator:
                 try:
-                    differentiable = _check_object_with_shapes(
-                        custom_obj, shapes
-                    )
+                    if is_layer:
+                        differentiable = _check_object_with_shapes(
+                            custom_obj, shapes, is_layer=True
+                        )
+                    else:
+                        differentiable = _check_object_with_shapes(
+                            custom_obj, shapes, is_layer=False
+                        )
                     if differentiable:
                         return True
                     else:
@@ -932,9 +945,9 @@ def _verify_object_differentiability(custom_obj, expected_shapes=None):
         return _check_object_with_shapes(custom_obj, expected_shapes)
 
 
-def _check_object_with_shapes(custom_obj, expected_shape):
+def _check_object_with_shapes(custom_obj, expected_shape, is_layer=False):
     """Evaluates the custom_obj for the given shapes using `tf.GradientTape`."""
-
+    # print(custom_obj)
     # Replace None batch dimension with 1.
     expected_shape = tuple(1 if dim is None else dim for dim in expected_shape)
 
@@ -947,9 +960,27 @@ def _check_object_with_shapes(custom_obj, expected_shape):
 
     with tf.GradientTape() as tape:
         tape.watch(predictions)
-        loss_value = custom_obj(targets, predictions)
+        if is_layer:
+            try:
+                # Layer can have a single input or a list of inputs.
+                # Generic exception is used here because the layer can raise
+                # any exception if the input is not valid, and we can not know
+                # what exception to catch.
+                output_value = custom_obj(predictions)
+            except Exception:
+                for inp_multiply in range(2, 7):
+                    try:
+                        # In case the layer takes multiple inputs, we try
+                        # multiplying the input by a number from 2 to 6.
+                        output_value = custom_obj([predictions] * inp_multiply)
+                    except Exception:
+                        continue
+                    else:
+                        break
+        else:
+            output_value = custom_obj(targets, predictions)
 
-    gradients = tape.gradient(loss_value, predictions)
+    gradients = tape.gradient(output_value, predictions)
 
     if gradients is None:
         # If gradients is None, then the loss is not differentiable.
