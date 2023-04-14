@@ -924,11 +924,11 @@ class TestObjectDifferentiabilityFunctions(test_combinations.TestCase):
         # Case 3: Non-differentiable custom layer.
         class NonDifferentiableLayer(layers_mod.Layer):
             def call(self, inputs):
-                return tf.round(inputs)
+                return inputs.numpy()
 
         with self.assertRaises(ValueError):
             compile_utils.verify_object_differentiability(
-                NonDifferentiableLayer(), None
+                NonDifferentiableLayer(), None, is_layer=True
             )
 
     def test__verify_loss_differentiability(self):
@@ -976,11 +976,11 @@ class TestObjectDifferentiabilityFunctions(test_combinations.TestCase):
         # Case 3: Non-differentiable custom layer.
         class NonDifferentiableLayer(layers_mod.Layer):
             def call(self, inputs):
-                return tf.round(inputs)
+                return inputs.numpy()
 
         self.assertFalse(
             compile_utils._verify_object_differentiability(
-                NonDifferentiableLayer(), None
+                NonDifferentiableLayer(), None, is_layer=True
             )
         )
 
