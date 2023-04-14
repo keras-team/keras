@@ -48,6 +48,7 @@ ALLOWED_DTYPES = {
     "int32",
     "int64",
     "bfloat16",
+    "bool",
 }
 
 

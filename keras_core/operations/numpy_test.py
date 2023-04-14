@@ -1,11 +1,9 @@
 import numpy as np
 from tensorflow.python.ops.numpy_ops import np_config
 
-from keras_core import backend
 from keras_core import testing
 from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.operations import numpy as knp
-from keras_core.operations import operation
 
 np_config.enable_numpy_behavior()
 
@@ -161,6 +159,88 @@ class NumpyTwoInputOpsShapeTest(testing.TestCase):
             x = KerasTensor([2, 3])
             y = KerasTensor([2, 3, 4])
             knp.arctan2(x, y)
+
+    def test_cross(self):
+        x1 = KerasTensor([2, 3, 3])
+        x2 = KerasTensor([1, 3, 2])
+        y1 = KerasTensor([2, 3, 3])
+        y2 = KerasTensor([None, 1, 2])
+        y3 = KerasTensor([2, 3, 2])
+        self.assertEqual(knp.cross(x1, y1).shape, (2, 3, 3))
+        self.assertEqual(knp.cross(x1, y2).shape, (2, 3, 3))
+        self.assertEqual(knp.cross(x2, y2).shape, (None, 3))
+        self.assertEqual(knp.cross(x2, y3).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.cross(x, y)
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([4, 3, 3])
+            y = KerasTensor([2, 3, 3])
+            knp.cross(x, y)
+
+    def test_full_like(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.full_like(x, 2).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.full_like(x, KerasTensor([1, 3])).shape, (None, 3))
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.full_like(x, 2).shape, (None, 3, 3))
+
+    def test_greater(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.greater(x, y).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([2, None])
+        self.assertEqual(knp.greater(x, y).shape, (2, 3))
+
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.greater(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.greater(x, y)
+
+    def test_greater_equal(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.greater_equal(x, y).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([2, None])
+        self.assertEqual(knp.greater_equal(x, y).shape, (2, 3))
+
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.greater_equal(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.greater_equal(x, y)
+
+    def test_isclose(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.isclose(x, y).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([2, None])
+        self.assertEqual(knp.isclose(x, y).shape, (2, 3))
+
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.isclose(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.isclose(x, y)
 
 
 class NumpyOneInputOpsShapeTest(testing.TestCase):
@@ -466,6 +546,120 @@ class NumpyOneInputOpsShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 3])
         self.assertEqual(knp.cumsum(x, axis=1).shape, (None, 3, 3))
 
+    def test_diag(self):
+        x = KerasTensor([3])
+        self.assertEqual(knp.diag(x).shape, (3, 3))
+        self.assertEqual(knp.diag(x, k=3).shape, (6, 6))
+        self.assertEqual(knp.diag(x, k=-2).shape, (5, 5))
+
+        x = KerasTensor([3, 5])
+        self.assertEqual(knp.diag(x).shape, (3,))
+        self.assertEqual(knp.diag(x, k=3).shape, (2,))
+        self.assertEqual(knp.diag(x, k=-2).shape, (1,))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.diag(x).shape, (None,))
+        self.assertEqual(knp.diag(x, k=3).shape, (None,))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3, 4])
+            knp.diag(x)
+
+    def test_diagonal(self):
+        x = KerasTensor([3, 3])
+        self.assertEqual(knp.diagonal(x).shape, (3,))
+        self.assertEqual(knp.diagonal(x, offset=1).shape, (2,))
+
+        x = KerasTensor([3, 5, 5])
+        self.assertEqual(knp.diagonal(x).shape, (5, 3))
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.diagonal(x).shape, (3, None))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([3])
+            knp.diagonal(x)
+
+    def test_exp(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.exp(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.exp(x).shape, (None, 3))
+
+    def test_expand_dims(self):
+        x = KerasTensor([2, 3, 4])
+        self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
+        self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
+        self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.expand_dims(x, 0).shape, (1, None, 3))
+        self.assertEqual(knp.expand_dims(x, 1).shape, (None, 1, 3))
+        self.assertEqual(knp.expand_dims(x, -2).shape, (None, 1, 3))
+
+    def test_expm1(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.expm1(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.expm1(x).shape, (None, 3))
+
+    def test_flip(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.flip(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.flip(x).shape, (None, 3))
+
+    def test_floor(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.floor(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.floor(x).shape, (None, 3))
+
+    def test_hstack(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.hstack([x, y]).shape, (2, 6))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, 3])
+        self.assertEqual(knp.hstack([x, y]).shape, (None, 6))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, None])
+        self.assertEqual(knp.hstack([x, y]).shape, (None, None))
+
+    def test_imag(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.imag(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.imag(x).shape, (None, 3))
+
+    def test_isfinite(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.isfinite(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.isfinite(x).shape, (None, 3))
+
+    def test_isinf(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.isinf(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.isinf(x).shape, (None, 3))
+
+    def test_isnan(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.isnan(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.isnan(x).shape, (None, 3))
+
 
 class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
     def test_add(self):
@@ -568,6 +762,95 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.arctan2(x, y)), np.arctan2(x, y))
 
         self.assertAllClose(np.array(knp.Arctan2()(x, y)), np.arctan2(x, y))
+
+    def test_cross(self):
+        x1 = np.ones([2, 1, 4, 3])
+        x2 = np.ones([2, 1, 4, 2])
+        y1 = np.ones([2, 1, 4, 3])
+        y2 = np.ones([1, 5, 4, 3])
+        y3 = np.ones([1, 5, 4, 2])
+        self.assertAllClose(np.array(knp.cross(x1, y1)), np.cross(x1, y1))
+        self.assertAllClose(np.array(knp.cross(x1, y2)), np.cross(x1, y2))
+        self.assertAllClose(np.array(knp.cross(x1, y3)), np.cross(x1, y3))
+        self.assertAllClose(np.array(knp.cross(x2, y3)), np.cross(x2, y3))
+
+        self.assertAllClose(np.array(knp.Cross()(x1, y1)), np.cross(x1, y1))
+        self.assertAllClose(np.array(knp.Cross()(x1, y2)), np.cross(x1, y2))
+        self.assertAllClose(np.array(knp.Cross()(x1, y3)), np.cross(x1, y3))
+        self.assertAllClose(np.array(knp.Cross()(x2, y3)), np.cross(x2, y3))
+
+    def test_full_like(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.full_like(x, 2)), np.full_like(x, 2))
+        self.assertAllClose(
+            np.array(knp.full_like(x, np.ones([2, 3]))),
+            np.full_like(x, np.ones([2, 3])),
+        )
+        self.assertAllClose(
+            np.array(knp.full_like(x, 2, dtype="float32")),
+            np.full_like(x, 2, dtype="float32"),
+        )
+
+        self.assertAllClose(np.array(knp.FullLike()(x, 2)), np.full_like(x, 2))
+        self.assertAllClose(
+            np.array(knp.FullLike()(x, np.ones([2, 3]))),
+            np.full_like(x, np.ones([2, 3])),
+        )
+        self.assertAllClose(
+            np.array(knp.FullLike()(x, 2, dtype="float32")),
+            np.full_like(x, 2, dtype="float32"),
+        )
+
+    def test_greater(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.greater(x, y)), np.greater(x, y))
+        self.assertAllClose(np.array(knp.greater(x, 2)), np.greater(x, 2))
+        self.assertAllClose(np.array(knp.greater(2, x)), np.greater(2, x))
+
+        self.assertAllClose(np.array(knp.Greater()(x, y)), np.greater(x, y))
+        self.assertAllClose(np.array(knp.Greater()(x, 2)), np.greater(x, 2))
+        self.assertAllClose(np.array(knp.Greater()(2, x)), np.greater(2, x))
+
+    def test_greater_equal(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(
+            np.array(knp.greater_equal(x, y)),
+            np.greater_equal(x, y),
+        )
+        self.assertAllClose(
+            np.array(knp.greater_equal(x, 2)),
+            np.greater_equal(x, 2),
+        )
+        self.assertAllClose(
+            np.array(knp.greater_equal(2, x)),
+            np.greater_equal(2, x),
+        )
+
+        self.assertAllClose(
+            np.array(knp.GreaterEqual()(x, y)),
+            np.greater_equal(x, y),
+        )
+        self.assertAllClose(
+            np.array(knp.GreaterEqual()(x, 2)),
+            np.greater_equal(x, 2),
+        )
+        self.assertAllClose(
+            np.array(knp.GreaterEqual()(2, x)),
+            np.greater_equal(2, x),
+        )
+
+    def test_isclose(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.isclose(x, y)), np.isclose(x, y))
+        self.assertAllClose(np.array(knp.isclose(x, 2)), np.isclose(x, 2))
+        self.assertAllClose(np.array(knp.isclose(2, x)), np.isclose(2, x))
+
+        self.assertAllClose(np.array(knp.Isclose()(x, y)), np.isclose(x, y))
+        self.assertAllClose(np.array(knp.Isclose()(x, 2)), np.isclose(x, 2))
+        self.assertAllClose(np.array(knp.Isclose()(2, x)), np.isclose(2, x))
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
@@ -944,6 +1227,133 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.cumsum(x, axis=1),
         )
 
+    def test_diag(self):
+        x = np.array([1, 2, 3])
+        self.assertAllClose(np.array(knp.diag(x)), np.diag(x))
+        self.assertAllClose(np.array(knp.diag(x, k=1)), np.diag(x, k=1))
+        self.assertAllClose(np.array(knp.diag(x, k=-1)), np.diag(x, k=-1))
+
+        self.assertAllClose(np.array(knp.Diag()(x)), np.diag(x))
+        self.assertAllClose(np.array(knp.Diag(k=1)(x)), np.diag(x, k=1))
+        self.assertAllClose(np.array(knp.Diag(k=-1)(x)), np.diag(x, k=-1))
+
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.diag(x)), np.diag(x))
+        self.assertAllClose(np.array(knp.diag(x, k=1)), np.diag(x, k=1))
+        self.assertAllClose(np.array(knp.diag(x, k=-1)), np.diag(x, k=-1))
+
+        self.assertAllClose(np.array(knp.Diag()(x)), np.diag(x))
+        self.assertAllClose(np.array(knp.Diag(k=1)(x)), np.diag(x, k=1))
+        self.assertAllClose(np.array(knp.Diag(k=-1)(x)), np.diag(x, k=-1))
+
+    def test_diagonal(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.diagonal(x)), np.diagonal(x))
+        self.assertAllClose(
+            np.array(knp.diagonal(x, offset=1)),
+            np.diagonal(x, offset=1),
+        )
+        self.assertAllClose(
+            np.array(knp.diagonal(x, offset=-1)), np.diagonal(x, offset=-1)
+        )
+
+        self.assertAllClose(np.array(knp.Diagonal()(x)), np.diagonal(x))
+        self.assertAllClose(
+            np.array(knp.Diagonal(offset=1)(x)), np.diagonal(x, offset=1)
+        )
+        self.assertAllClose(
+            np.array(knp.Diagonal(offset=-1)(x)), np.diagonal(x, offset=-1)
+        )
+
+        x = np.ones([2, 3, 4, 5])
+        self.assertAllClose(np.array(knp.diagonal(x)), np.diagonal(x))
+        self.assertAllClose(
+            np.array(knp.diagonal(x, offset=1, axis1=2, axis2=3)),
+            np.diagonal(x, offset=1, axis1=2, axis2=3),
+        )
+        self.assertAllClose(
+            np.array(knp.diagonal(x, offset=-1, axis1=2, axis2=3)),
+            np.diagonal(x, offset=-1, axis1=2, axis2=3),
+        )
+
+    def test_exp(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.exp(x)), np.exp(x))
+        self.assertAllClose(np.array(knp.Exp()(x)), np.exp(x))
+
+    def test_expand_dims(self):
+        x = np.ones([2, 3, 4])
+        self.assertAllClose(
+            np.array(knp.expand_dims(x, 0)), np.expand_dims(x, 0)
+        )
+        self.assertAllClose(
+            np.array(knp.expand_dims(x, 1)), np.expand_dims(x, 1)
+        )
+        self.assertAllClose(
+            np.array(knp.expand_dims(x, -2)), np.expand_dims(x, -2)
+        )
+
+        self.assertAllClose(
+            np.array(knp.ExpandDims(0)(x)), np.expand_dims(x, 0)
+        )
+        self.assertAllClose(
+            np.array(knp.ExpandDims(1)(x)), np.expand_dims(x, 1)
+        )
+        self.assertAllClose(
+            np.array(knp.ExpandDims(-2)(x)), np.expand_dims(x, -2)
+        )
+
+    def test_expm1(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.expm1(x)), np.expm1(x))
+        self.assertAllClose(np.array(knp.Expm1()(x)), np.expm1(x))
+
+    def test_flip(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.flip(x)), np.flip(x))
+        self.assertAllClose(np.array(knp.flip(x, 0)), np.flip(x, 0))
+        self.assertAllClose(np.array(knp.flip(x, 1)), np.flip(x, 1))
+
+        self.assertAllClose(np.array(knp.Flip()(x)), np.flip(x))
+        self.assertAllClose(np.array(knp.Flip(0)(x)), np.flip(x, 0))
+        self.assertAllClose(np.array(knp.Flip(1)(x)), np.flip(x, 1))
+
+    def test_floor(self):
+        x = np.array([[1.1, 2.2, -3.3], [3.3, 2.2, -1.1]])
+        self.assertAllClose(np.array(knp.floor(x)), np.floor(x))
+        self.assertAllClose(np.array(knp.Floor()(x)), np.floor(x))
+
+    def test_hstack(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(np.array(knp.hstack([x, y])), np.hstack([x, y]))
+        self.assertAllClose(np.array(knp.Hstack()([x, y])), np.hstack([x, y]))
+
+        x = np.ones([2, 3, 4])
+        y = np.ones([2, 5, 4])
+        self.assertAllClose(np.array(knp.hstack([x, y])), np.hstack([x, y]))
+        self.assertAllClose(np.array(knp.Hstack()([x, y])), np.hstack([x, y]))
+
+    def test_imag(self):
+        x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
+        self.assertAllClose(np.array(knp.imag(x)), np.imag(x))
+        self.assertAllClose(np.array(knp.Imag()(x)), np.imag(x))
+
+    def test_isfinite(self):
+        x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
+        self.assertAllClose(np.array(knp.isfinite(x)), np.isfinite(x))
+        self.assertAllClose(np.array(knp.Isfinite()(x)), np.isfinite(x))
+
+    def test_isinf(self):
+        x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
+        self.assertAllClose(np.array(knp.isinf(x)), np.isinf(x))
+        self.assertAllClose(np.array(knp.Isinf()(x)), np.isinf(x))
+
+    def test_isnan(self):
+        x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
+        self.assertAllClose(np.array(knp.isnan(x)), np.isnan(x))
+        self.assertAllClose(np.array(knp.Isnan()(x)), np.isnan(x))
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -971,3 +1381,24 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.Arange()(3)), np.arange(3))
         self.assertAllClose(np.array(knp.Arange()(3, 7)), np.arange(3, 7))
         self.assertAllClose(np.array(knp.Arange()(3, 7, 2)), np.arange(3, 7, 2))
+
+    def test_full(self):
+        self.assertAllClose(np.array(knp.full([2, 3], 0)), np.full([2, 3], 0))
+        self.assertAllClose(
+            np.array(knp.full([2, 3], 0.1)), np.full([2, 3], 0.1)
+        )
+        self.assertAllClose(
+            np.array(knp.full([2, 3], [1, 4, 5])), np.full([2, 3], [1, 4, 5])
+        )
+
+        self.assertAllClose(np.array(knp.Full()([2, 3], 0)), np.full([2, 3], 0))
+        self.assertAllClose(
+            np.array(knp.Full()([2, 3], 0.1)), np.full([2, 3], 0.1)
+        )
+        self.assertAllClose(
+            np.array(knp.Full()([2, 3], [1, 4, 5])), np.full([2, 3], [1, 4, 5])
+        )
+
+    def test_identity(self):
+        self.assertAllClose(np.array(knp.identity(3)), np.identity(3))
+        self.assertAllClose(np.array(knp.Identity()(3)), np.identity(3))
