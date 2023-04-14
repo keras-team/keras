@@ -757,21 +757,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     loss, loss_weights, output_names=self.output_names
                 )
 
-            experimental_check_loss_differentiability = kwargs.pop(
-                "experimental_check_loss_differentiability", True
+            experimental_check_object_differentiability = kwargs.pop(
+                "experimental_check_object_differentiability", True
             )
 
             user_loss = self.compiled_loss._user_losses
             builtin_losses = set(get_keras_losses().keys())
 
-            if experimental_check_loss_differentiability:
+            if experimental_check_object_differentiability:
                 if (
                     not isinstance(user_loss, str)
                     and user_loss not in builtin_losses
                 ):
                     # users may pass "mse" for MeanSquaredError,
                     # which is an alias for a built-in loss.
-
                     input_shape_arg = (
                         self.input_shape
                         if hasattr(self, "input_shape")
@@ -782,19 +781,25 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         custom_obj=user_loss, expected_shapes=input_shape_arg
                     )
 
-                # Check if user has custom layers.
+                # Check if user has custom layers. We clone them in order not
+                # to set input_shape on the original layers accidentally.
                 for layer in self.layers:
                     if isinstance(layer, Layer):
-                        if layer_utils.is_not_from_keras_layers(layer):
+                        layer_copy = tf.keras.models.clone_model(layer)
+                        if layer_utils.is_not_from_keras_layers(layer_copy):
                             compile_utils.verify_object_differentiability(
-                                custom_obj=layer, expected_shapes=None
+                                custom_obj=layer_copy, expected_shapes=None,
+                                is_layer=True
                             )
                     # Check if it is a model instance.
                     elif isinstance(layer, Model):
-                        for sublayer in layer.layers:
+                        model_copy = tf.keras.models.clone_model(layer)
+                        for sublayer in model_copy.layers:
                             if layer_utils.is_not_from_keras_layers(sublayer):
+                                print(sublayer)
                                 compile_utils.verify_object_differentiability(
-                                    custom_obj=sublayer, expected_shapes=None
+                                    custom_obj=sublayer, expected_shapes=None,
+                                    is_layer=True
                                 )
 
             self.compiled_metrics = compile_utils.MetricsContainer(
@@ -3802,7 +3807,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         kwargs.pop("cloning", None)  # Legacy DistStrat argument, never used.
         kwargs.pop("experimental_run_tf_function", None)  # Always `True`.
-        kwargs.pop("experimental_check_loss_differentiability", None)
+        kwargs.pop("experimental_check_object_differentiability", None)
         distribute_arg = kwargs.pop("distribute", None)
         if distribute_arg is not None:
             raise ValueError(
