@@ -36,50 +36,50 @@ class AdditiveAttention(BaseDenseAttention):
     `[batch_size, Tv, dim]`. The calculation follows the steps:
 
     1. Reshape `query` and `key` into shapes `[batch_size, Tq, 1, dim]`
-       and `[batch_size, 1, Tv, dim]` respectively.
+        and `[batch_size, 1, Tv, dim]` respectively.
     2. Calculate scores with shape `[batch_size, Tq, Tv]` as a non-linear
-       sum: `scores = tf.reduce_sum(tf.tanh(query + key), axis=-1)`
+        sum: `scores = tf.reduce_sum(tf.tanh(query + key), axis=-1)`
     3. Use scores to calculate a distribution with shape
-       `[batch_size, Tq, Tv]`: `distribution = tf.nn.softmax(scores)`.
+        `[batch_size, Tq, Tv]`: `distribution = tf.nn.softmax(scores)`.
     4. Use `distribution` to create a linear combination of `value` with
-       shape `[batch_size, Tq, dim]`:
+        shape `[batch_size, Tq, dim]`:
        `return tf.matmul(distribution, value)`.
 
     Args:
-      use_scale: If `True`, will create a variable to scale the attention
-        scores.
-      dropout: Float between 0 and 1. Fraction of the units to drop for the
-        attention scores. Defaults to `0.0`.
+        use_scale: If `True`, will create a variable to scale the attention
+            scores.
+        dropout: Float between 0 and 1. Fraction of the units to drop for the
+            attention scores. Defaults to `0.0`.
 
     Call Args:
 
-      inputs: List of the following tensors:
-        * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
-        * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
-        * key: Optional key `Tensor` of shape `[batch_size, Tv, dim]`. If not
-          given, will use `value` for both `key` and `value`, which is the
-          most common case.
-      mask: List of the following tensors:
-        * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`.
-          If given, the output will be zero at the positions where
-          `mask==False`.
-        * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`.
-          If given, will apply the mask such that values at positions where
-          `mask==False` do not contribute to the result.
-      training: Python boolean indicating whether the layer should behave in
-        training mode (adding dropout) or in inference mode (no dropout).
-      return_attention_scores: bool, it `True`, returns the attention scores
-        (after masking and softmax) as an additional output argument.
-      use_causal_mask: Boolean. Set to `True` for decoder self-attention. Adds a
-        mask such that position `i` cannot attend to positions `j > i`. This
-        prevents the flow of information from the future towards the past.
-        Defaults to `False`.
+        inputs: List of the following tensors:
+            * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
+            * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
+            * key: Optional key `Tensor` of shape `[batch_size, Tv, dim]`.
+                If not given, will use `value` for both `key` and `value`,
+                which is the most common case.
+        mask: List of the following tensors:
+            * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`.
+                If given, the output will be zero at the positions where
+                `mask==False`.
+            * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`.
+                If given, will apply the mask such that values at positions
+                where `mask==False` do not contribute to the result.
+        training: Python boolean indicating whether the layer should behave in
+            training mode (adding dropout) or in inference mode (no dropout).
+        return_attention_scores: bool, it `True`, returns the attention scores
+            (after masking and softmax) as an additional output argument.
+        use_causal_mask: Boolean. Set to `True` for decoder self-attention. Adds
+            a mask such that position `i` cannot attend to positions `j > i`.
+            This prevents the flow of information from the future towards the
+            past. Defaults to `False`.
 
     Output:
 
-      Attention outputs of shape `[batch_size, Tq, dim]`.
-      [Optional] Attention scores after masking and softmax with shape
-        `[batch_size, Tq, Tv]`.
+        Attention outputs of shape `[batch_size, Tq, dim]`.
+        [Optional] Attention scores after masking and softmax with shape
+            `[batch_size, Tq, Tv]`.
 
     The meaning of `query`, `value` and `key` depend on the application. In the
     case of text similarity, for example, `query` is the sequence embeddings of
@@ -156,10 +156,10 @@ class AdditiveAttention(BaseDenseAttention):
         """Calculates attention scores as a nonlinear sum of query and key.
 
         Args:
-          query: Query tensor of shape `[batch_size, Tq, dim]`.
-          key: Key tensor of shape `[batch_size, Tv, dim]`.
+            query: Query tensor of shape `[batch_size, Tq, dim]`.
+            key: Key tensor of shape `[batch_size, Tv, dim]`.
         Returns:
-          Tensor of shape `[batch_size, Tq, Tv]`.
+            Tensor of shape `[batch_size, Tq, Tv]`.
         """
         # Reshape tensors to enable broadcasting.
         # Reshape into [batch_size, Tq, 1, dim].
