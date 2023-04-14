@@ -788,18 +788,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                         layer_copy = tf.keras.models.clone_model(layer)
                         if layer_utils.is_not_from_keras_layers(layer_copy):
                             compile_utils.verify_object_differentiability(
-                                custom_obj=layer_copy, expected_shapes=None,
-                                is_layer=True
+                                custom_obj=layer_copy,
+                                expected_shapes=None,
+                                is_layer=True,
                             )
                     # Check if it is a model instance.
                     elif isinstance(layer, Model):
                         model_copy = tf.keras.models.clone_model(layer)
                         for sublayer in model_copy.layers:
                             if layer_utils.is_not_from_keras_layers(sublayer):
-                                print(sublayer)
+
                                 compile_utils.verify_object_differentiability(
-                                    custom_obj=sublayer, expected_shapes=None,
-                                    is_layer=True
+                                    custom_obj=sublayer,
+                                    expected_shapes=None,
+                                    is_layer=True,
                                 )
 
             self.compiled_metrics = compile_utils.MetricsContainer(

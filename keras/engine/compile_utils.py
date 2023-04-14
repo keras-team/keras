@@ -866,9 +866,9 @@ def get_custom_object_name(obj):
         return None
 
 
-def verify_object_differentiability(custom_obj,
-                                    expected_shapes,
-                                    is_layer=False):
+def verify_object_differentiability(
+    custom_obj, expected_shapes, is_layer=False
+):
     """Verifies if a given object is differentiable.
 
     Args:
@@ -880,9 +880,9 @@ def verify_object_differentiability(custom_obj,
         ValueError: If the custom object is not differentiable.
     """
 
-    if not _verify_object_differentiability(custom_obj,
-                                            expected_shapes,
-                                            is_layer=is_layer):
+    if not _verify_object_differentiability(
+        custom_obj, expected_shapes, is_layer=is_layer
+    ):
         raise ValueError(
             f"The provided loss or layer ({custom_obj}) is not differentiable. "
             "Training requires differentiable objects. Please review your "
@@ -893,9 +893,9 @@ def verify_object_differentiability(custom_obj,
         )
 
 
-def _verify_object_differentiability(custom_obj,
-                                     expected_shapes=None,
-                                     is_layer=False):
+def _verify_object_differentiability(
+    custom_obj, expected_shapes=None, is_layer=False
+):
     """Verifies if the loss is differentiable.
 
     Args:
@@ -947,7 +947,7 @@ def _verify_object_differentiability(custom_obj,
 
 def _check_object_with_shapes(custom_obj, expected_shape, is_layer=False):
     """Evaluates the custom_obj for the given shapes using `tf.GradientTape`."""
-    # print(custom_obj)
+
     # Replace None batch dimension with 1.
     expected_shape = tuple(1 if dim is None else dim for dim in expected_shape)
 
@@ -983,7 +983,7 @@ def _check_object_with_shapes(custom_obj, expected_shape, is_layer=False):
     gradients = tape.gradient(output_value, predictions)
 
     if gradients is None:
-        # If gradients is None, then the loss is not differentiable.
+        # If `gradients` is None, then the loss is not differentiable.
         return False
 
     return True
