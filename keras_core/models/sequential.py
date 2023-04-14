@@ -73,9 +73,11 @@ class Sequential(Model):
         if not isinstance(input_shape, (tuple, list)):
             # Do not attempt to build if the model does not have a single input tensor.
             return
-        if input_shape and not (isinstance(input_shape[0], int) or input_shape[0] is None):
+        if input_shape and not (
+            isinstance(input_shape[0], int) or input_shape[0] is None
+        ):
             # Do not attempt to build if the model does not have a single input tensor.
-            return 
+            return
         if not self._layers:
             raise ValueError(
                 f"Sequential model {self.name} cannot be built because it has no layers. "

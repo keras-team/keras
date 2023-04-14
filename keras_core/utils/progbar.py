@@ -1,10 +1,12 @@
-from keras_core.utils import io_utils
-from keras_core.api_export import keras_core_export
-import sys
-import os
-import time
 import math
+import os
+import sys
+import time
+
 import numpy as np
+
+from keras_core.api_export import keras_core_export
+from keras_core.utils import io_utils
 
 
 @keras_core_export("keras_core.utils.Progbar")
@@ -21,6 +23,7 @@ class Progbar:
         interval: Minimum visual progress update interval (in seconds).
         unit_name: Display name for step counts (usually "step" or "sample").
     """
+
     def __init__(
         self,
         target,

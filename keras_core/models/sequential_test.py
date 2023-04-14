@@ -158,11 +158,11 @@ class SequentialTest(testing.TestCase):
     def test_shape_inference_failure(self):
         class DynamicLayer(layers.Layer):
             def call(self, inputs):
-                return inputs + 1.
-            
+                return inputs + 1.0
+
             def compute_output_spec(self, *args, **kwargs):
                 raise NotImplementedError
-        
+
         model = Sequential([DynamicLayer()])
         x = np.random.random((3, 2))
         y = model(x)
