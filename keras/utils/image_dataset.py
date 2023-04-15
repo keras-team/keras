@@ -80,8 +80,8 @@ def image_dataset_from_directory(
             (labels are generated from the directory structure),
             None (no labels),
             or a list/tuple of integer labels of the same size as the number of
-            image files found in the directory. Labels should be sorted according
-            to the alphanumeric order of the image file paths
+            image files found in the directory. Labels should be sorted
+            according to the alphanumeric order of the image file paths
             (obtained via `os.walk(directory)` in Python).
       label_mode: String describing the encoding of `labels`. Options are:
           - 'int': means that the labels are encoded as integers
@@ -136,8 +136,8 @@ def image_dataset_from_directory(
         - If `label_mode` is None, it yields `float32` tensors of shape
             `(batch_size, image_size[0], image_size[1], num_channels)`,
             encoding images (see below for rules regarding `num_channels`).
-        - Otherwise, it yields a tuple `(images, labels)`, where `images`
-            has shape `(batch_size, image_size[0], image_size[1], num_channels)`,
+        - Otherwise, it yields a tuple `(images, labels)`, where `images` has
+            shape `(batch_size, image_size[0], image_size[1], num_channels)`,
             and `labels` follows the format described below.
 
     Rules regarding labels format:
