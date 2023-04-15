@@ -909,12 +909,14 @@ class Diag(Operation):
             if None in x_shape:
                 output_shape = [None]
             else:
-                shorter_side = min(x_shape[0], x_shape[1])
+                shorter_side = np.minimum(x_shape[0], x_shape[1])
                 if self.k > 0:
                     remaining = x_shape[1] - self.k
                 else:
                     remaining = x_shape[0] + self.k
-                output_shape = [max(0, min(remaining, shorter_side))]
+                output_shape = [
+                    int(np.maximum(0, np.minimum(remaining, shorter_side)))
+                ]
         else:
             raise ValueError(
                 f"`x` must be 1-D or 2-D, but received shape {x.shape}."
@@ -959,12 +961,14 @@ class Diagonal(Operation):
         if None in shape_2d:
             diag_shape = [None]
         else:
-            shorter_side = min(shape_2d[0], shape_2d[1])
+            shorter_side = np.minimum(shape_2d[0], shape_2d[1])
             if self.offset > 0:
                 remaining = shape_2d[1] - self.offset
             else:
                 remaining = shape_2d[0] + self.offset
-            diag_shape = [max(0, min(remaining, shorter_side))]
+            diag_shape = [
+                int(np.maximum(0, np.minimum(remaining, shorter_side)))
+            ]
         output_shape = output_shape + diag_shape
         return KerasTensor(output_shape, dtype=x.dtype)
 
@@ -1310,6 +1314,285 @@ def isnan(x):
     return backend.execute("isnan", x)
 
 
+class Less(Operation):
+    def call(self, x1, x2):
+        return backend.execute("less", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def less(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Less().symbolic_call(x1, x2)
+    return backend.execute("less", x1, x2)
+
+
+class LessEqual(Operation):
+    def call(self, x1, x2):
+        return backend.execute("less_equal", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def less_equal(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return LessEqual().symbolic_call(x1, x2)
+    return backend.execute("less_equal", x1, x2)
+
+
+class Linspace(Operation):
+    def __init__(
+        self, num=50, endpoint=True, retstep=False, dtype=float, axis=0
+    ):
+        super().__init__()
+        self.num = num
+        self.endpoint = endpoint
+        self.retstep = retstep
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.execute(
+            "linspace",
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            retstep=self.retstep,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        if self.axis == -1:
+            output_shape = output_shape + [self.num]
+        elif self.axis >= 0:
+            output_shape = (
+                output_shape[: self.axis]
+                + [self.num]
+                + output_shape[self.axis :]
+            )
+        else:
+            output_shape = (
+                output_shape[: self.axis + 1]
+                + [self.num]
+                + output_shape[self.axis + 1 :]
+            )
+
+        dtype = self.dtype if self.dtype is not None else start.dtype
+        if self.retstep:
+            return (KerasTensor(output_shape, dtype=dtype), None)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
+    if any_symbolic_tensors((start, stop)):
+        return Linspace(num, endpoint, retstep, dtype, axis)(start, stop)
+    return backend.execute(
+        "linspace",
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        retstep=retstep,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
+class Log(Operation):
+    def call(self, x):
+        return backend.execute("log", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def log(x):
+    if any_symbolic_tensors((x,)):
+        return Log().symbolic_call(x)
+    return backend.execute("log", x)
+
+
+class Log10(Operation):
+    def call(self, x):
+        return backend.execute("log10", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def log10(x):
+    if any_symbolic_tensors((x,)):
+        return Log10().symbolic_call(x)
+    return backend.execute("log10", x)
+
+
+class Log1p(Operation):
+    def call(self, x):
+        return backend.execute("log1p", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def log1p(x):
+    if any_symbolic_tensors((x,)):
+        return Log10().symbolic_call(x)
+    return backend.execute("log1p", x)
+
+
+class Log2(Operation):
+    def call(self, x):
+        return backend.execute("log2", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def log2(x):
+    if any_symbolic_tensors((x,)):
+        return Log2().symbolic_call(x)
+    return backend.execute("log2", x)
+
+
+class Logaddexp(Operation):
+    def call(self, x1, x2):
+        return backend.execute("logaddexp", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def logaddexp(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Logaddexp().symbolic_call(x1, x2)
+    return backend.execute("logaddexp", x1, x2)
+
+
+class LogicalAnd(Operation):
+    def call(self, x1, x2):
+        return backend.execute("logical_and", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def logical_and(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return LogicalAnd().symbolic_call(x1, x2)
+    return backend.execute("logical_and", x1, x2)
+
+
+class LogicalNot(Operation):
+    def call(self, x):
+        return backend.execute("logical_not", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def logical_not(x):
+    if any_symbolic_tensors((x,)):
+        return LogicalNot().symbolic_call(x)
+    return backend.execute("logical_not", x)
+
+
+class LogicalOr(Operation):
+    def call(self, x1, x2):
+        return backend.execute("logical_or", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def logical_or(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return LogicalOr().symbolic_call(x1, x2)
+    return backend.execute("logical_or", x1, x2)
+
+
+class Logspace(Operation):
+    def __init__(self, num=50, endpoint=True, base=10, dtype=float, axis=0):
+        super().__init__()
+        self.num = num
+        self.endpoint = endpoint
+        self.base = base
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.execute(
+            "logspace",
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            base=self.base,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        if self.axis == -1:
+            output_shape = output_shape + [self.num]
+        elif self.axis >= 0:
+            output_shape = (
+                output_shape[: self.axis]
+                + [self.num]
+                + output_shape[self.axis :]
+            )
+        else:
+            output_shape = (
+                output_shape[: self.axis + 1]
+                + [self.num]
+                + output_shape[self.axis + 1 :]
+            )
+
+        dtype = self.dtype if self.dtype is not None else start.dtype
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+    if any_symbolic_tensors((start, stop)):
+        return Logspace(num, endpoint, base, dtype, axis)(start, stop)
+    return backend.execute(
+        "logspace",
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        base=base,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 class Matmul(Operation):
     def call(self, x1, x2):
         return backend.execute("matmul", x1, x2)
@@ -1349,6 +1632,494 @@ def matmul(x1, x2):
     x1 = backend.convert_to_tensor(x1)
     x2 = backend.convert_to_tensor(x2)
     return backend.execute("matmul", x1, x2)
+
+
+class Max(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.execute("max", x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=x.dtype,
+        )
+
+
+def max(x, axis=None, keepdims=False):
+    if any_symbolic_tensors((x,)):
+        return Max(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.execute("max", x, axis=axis, keepdims=keepdims)
+
+
+class Maximum(Operation):
+    def call(self, x1, x2):
+        return backend.execute("maximum", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def maximum(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Maximum().symbolic_call(x1, x2)
+    return backend.execute("maximum", x1, x2)
+
+
+class Meshgrid(Operation):
+    def __init__(self, indexing="xy"):
+        super().__init__()
+        if indexing not in ("xy", "ij"):
+            raise ValueError(
+                "Valid values for `indexing` are 'xy' and 'ij', but received {index}."
+            )
+        self.indexing = indexing
+
+    def call(self, *x):
+        return backend.execute("meshgrid", *x, indexing=self.indexing)
+
+    def compute_output_spec(self, *x):
+        output_shape = []
+        for xi in x:
+            if len(xi.shape) == 0:
+                size = 1
+            else:
+                if None in xi.shape:
+                    size = None
+                else:
+                    size = int(np.prod(xi.shape))
+            output_shape.append(size)
+        if self.indexing == "ij":
+            return [KerasTensor(output_shape) for _ in range(len(x))]
+        tmp = output_shape[0]
+        output_shape[0] = output_shape[1]
+        output_shape[1] = tmp
+        return [KerasTensor(output_shape) for _ in range(len(x))]
+
+
+def meshgrid(*x, indexing="xy"):
+    if any_symbolic_tensors(x):
+        return Meshgrid(indexing=indexing).symbolic_call(*x)
+    return backend.execute("meshgrid", *x, indexing=indexing)
+
+
+class Min(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.execute("min", x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=x.dtype,
+        )
+
+
+def min(x, axis=None, keepdims=False):
+    if any_symbolic_tensors((x,)):
+        return Min(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.execute("min", x, axis=axis, keepdims=keepdims)
+
+
+class Minimum(Operation):
+    def call(self, x1, x2):
+        return backend.execute("minimum", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def minimum(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Minimum().symbolic_call(x1, x2)
+    return backend.execute("minimum", x1, x2)
+
+
+class Mod(Operation):
+    def call(self, x1, x2):
+        return backend.execute("mod", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def mod(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Mod().symbolic_call(x1, x2)
+    return backend.execute("mod", x1, x2)
+
+
+class Moveaxis(Operation):
+    def __init__(self, source, destination):
+        super().__init__()
+        if isinstance(source, int):
+            self.source = [source]
+        else:
+            self.source = source
+        if isinstance(destination, int):
+            self.destination = [destination]
+        else:
+            self.destination = destination
+
+        if len(self.source) != len(self.destination):
+            raise ValueError(
+                "`source` and `destination` arguments must have the same "
+                f"number of elements, but received `source={source}` and "
+                f"`destination={destination}`."
+            )
+
+    def call(self, x):
+        return backend.execute("moveaxis", x, self.source, self.destination)
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        output_shape = [-1 for _ in range(len(x.shape))]
+        for sc, dst in zip(self.source, self.destination):
+            output_shape[dst] = x_shape[sc]
+            x_shape[sc] = -1
+        i, j = 0, 0
+        while i < len(output_shape):
+            while i < len(output_shape) and output_shape[i] != -1:
+                # Find the first dim unset.
+                i += 1
+            while j < len(output_shape) and x_shape[j] == -1:
+                # Find the first dim not being passed.
+                j += 1
+            if i == len(output_shape):
+                break
+            output_shape[i] = x_shape[j]
+            i += 1
+            j += 1
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def moveaxis(x, source, destination):
+    if any_symbolic_tensors((x,)):
+        return Moveaxis(source, destination).symbolic_call(x)
+    return backend.execute(
+        "moveaxis", x, source=source, destination=destination
+    )
+
+
+class Ndim(Operation):
+    def call(self, x):
+        return backend.execute(
+            "ndim",
+            x,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor([len(x.shape)])
+
+
+def ndim(x):
+    if any_symbolic_tensors((x,)):
+        return Ndim().symbolic_call(x)
+    return backend.execute("ndim", x)
+
+
+class Nonzero(Operation):
+    def call(self, x):
+        return backend.execute("nonzero", x)
+
+    def compute_output_spec(self, x):
+        output = []
+        for _ in range(len(x.shape)):
+            output.append(KerasTensor([None]))
+        return tuple(output)
+
+
+def nonzero(x):
+    if any_symbolic_tensors((x,)):
+        return Nonzero().symbolic_call(x)
+    return backend.execute("nonzero", x)
+
+
+class NotEqual(Operation):
+    def call(self, x1, x2):
+        return backend.execute("not_equal", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def not_equal(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return NotEqual().symbolic_call(x1, x2)
+    return backend.execute("not_equal", x1, x2)
+
+
+class OnesLike(Operation):
+    def call(self, x, dtype=None):
+        return backend.execute("ones_like", x, dtype=dtype)
+
+    def compute_output_spec(self, x, dtype=None):
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+def ones_like(x, dtype=None):
+    if any_symbolic_tensors((x,)):
+        return OnesLike().symbolic_call(x, dtype=dtype)
+    return backend.execute("ones_like", x, dtype=dtype)
+
+
+class Outer(Operation):
+    def call(self, x1, x2):
+        return backend.execute("outer", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [1])
+        x2_shape = getattr(x2, "shape", [1])
+        if None in x1_shape:
+            x1_flatten_shape = None
+        else:
+            x1_flatten_shape = int(np.prod(x1_shape))
+        if None in x2_shape:
+            x2_flatten_shape = None
+        else:
+            x2_flatten_shape = int(np.prod(x2_shape))
+        output_shape = [x1_flatten_shape, x2_flatten_shape]
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def outer(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Outer().symbolic_call(x1, x2)
+    return backend.execute("outer", x1, x2)
+
+
+class Pad(Operation):
+    def __init__(self, pad_width, mode="constant"):
+        super().__init__()
+        self.pad_width = self._process_pad_width(pad_width)
+        self.mode = mode
+
+    def _process_pad_width(self, pad_width):
+        if isinstance(pad_width, int):
+            return ((pad_width, pad_width),)
+        if isinstance(pad_width, (tuple, list)) and isinstance(
+            pad_width[0], int
+        ):
+            return (pad_width,)
+        first_len = len(pad_width[0])
+        for i, pw in enumerate(pad_width):
+            if len(pw) != first_len:
+                raise ValueError(
+                    "`pad_width` should be a list of tuples of length 2 or "
+                    f"1, but received {pad_width}."
+                )
+            if len(pw) == 1:
+                pad_width[i] = (pw[0], pw[0])
+        return pad_width
+
+    def call(self, x):
+        return backend.execute(
+            "pad", x, pad_width=self.pad_width, mode=self.mode
+        )
+
+    def compute_output_spec(self, x):
+        output_shape = list(x.shape)
+        if len(self.pad_width) == 1:
+            pad_width = [self.pad_width[0] for _ in range(len(output_shape))]
+        elif len(self.pad_width) == len(output_shape):
+            pad_width = self.pad_width
+        else:
+            raise ValueError(
+                "`pad_width` must have the same length as `x.shape`, but "
+                f"received {len(self.pad_width)} and {len(x.shape)}."
+            )
+
+        for i in range(len(output_shape)):
+            if output_shape[i] is None:
+                output_shape[i] = None
+            else:
+                output_shape[i] += pad_width[i][0] + pad_width[i][1]
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def pad(x, pad_width, mode="constant"):
+    if any_symbolic_tensors((x,)):
+        return Pad(pad_width, mode=mode).symbolic_call(x)
+    return backend.execute("pad", x, pad_width, mode=mode)
+
+
+class Prod(Operation):
+    def __init__(self, axis=None, keepdims=False, dtype=None):
+        super().__init__()
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.execute(
+            "prod",
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+            dtype=self.dtype,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=self.dtype,
+        )
+
+
+def prod(x, axis=None, keepdims=False, dtype=None):
+    if any_symbolic_tensors((x,)):
+        return Prod(axis=axis, keepdims=keepdims, dtype=dtype).symbolic_call(x)
+    return backend.execute("prod", x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+class Ravel(Operation):
+    def call(self, x):
+        return backend.execute("ravel", x)
+
+    def compute_output_spec(self, x):
+        if None in x.shape:
+            output_shape = [
+                None,
+            ]
+        else:
+            output_shape = [int(np.prod(x.shape))]
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def ravel(x):
+    if any_symbolic_tensors((x,)):
+        return Ravel().symbolic_call(x)
+    return backend.execute("ravel", x)
+
+
+class Real(Operation):
+    def call(self, x):
+        return backend.execute("real", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape)
+
+
+def real(x):
+    if any_symbolic_tensors((x,)):
+        return Real().symbolic_call(x)
+    return backend.execute("real", x)
+
+
+class Reciprocal(Operation):
+    def call(self, x):
+        return backend.execute("reciprocal", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape)
+
+
+def reciprocal(x):
+    if any_symbolic_tensors((x,)):
+        return Reciprocal().symbolic_call(x)
+    return backend.execute("reciprocal", x)
+
+
+class Repeat(Operation):
+    def __init__(self, repeats, axis=None):
+        super().__init__()
+        self.axis = axis
+        self.repeats = repeats
+
+    def call(self, x):
+        return backend.execute("repeat", x, self.repeats, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        if self.axis is None:
+            if None in x_shape:
+                return KerasTensor([None], dtype=x.dtype)
+
+            x_flatten_size = int(np.prod(x_shape))
+            if isinstance(self.repeats, int):
+                output_shape = [x_flatten_size * self.repeats]
+            else:
+                output_shape = [int(np.sum(self.repeats))]
+            return KerasTensor(output_shape, dtype=x.dtype)
+
+        size_on_ax = x_shape[self.axis]
+        output_shape = x_shape
+        if isinstance(self.repeats, int):
+            output_shape[self.axis] = size_on_ax * self.repeats
+        else:
+            output_shape[self.axis] = int(np.sum(self.repeats))
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def repeat(x, repeats, axis=None):
+    if any_symbolic_tensors((x,)):
+        return Repeat(repeats, axis=axis).symbolic_call(x)
+    return backend.execute("repeat", x, repeats, axis=axis)
+
+
+class Reshape(Operation):
+    def __init__(self, new_shape):
+        super().__init__()
+        self.new_shape = new_shape
+
+    def call(self, x):
+        return backend.execute("reshape", x, self.new_shape)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(self.new_shape, dtype=x.dtype)
+
+
+def reshape(x, new_shape):
+    if any_symbolic_tensors((x,)):
+        return Reshape(new_shape).symbolic_call(x)
+    return backend.execute("reshape", x, new_shape)
+
+
+class Roll(Operation):
+    def __init__(self, shift, axis=None):
+        super().__init__()
+        self.shift = shift
+        self.axis = axis
+
+    def call(self, x):
+        return backend.execute("roll", x, self.shift, self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def roll(x, shift, axis=None):
+    if any_symbolic_tensors((x,)):
+        return Roll(shift, axis=axis).symbolic_call(x)
+    return backend.execute("roll", x, shift, axis=axis)
 
 
 class Subtract(Operation):
