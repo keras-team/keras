@@ -471,7 +471,7 @@ class Reduce(Metric):
 
         Args:
           values: Per-example value.
-          sample_weight: Optional weighting of each example. Defaults to 1.
+          sample_weight: Optional weighting of each example. Defaults to `1`.
 
         Returns:
           Update op.
@@ -828,7 +828,7 @@ class MeanTensor(Metric):
 
         Args:
           values: Per-example value.
-          sample_weight: Optional weighting of each example. Defaults to 1.
+          sample_weight: Optional weighting of each example. Defaults to `1`.
 
         Returns:
           Update op.
