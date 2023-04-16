@@ -29,7 +29,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     values_ndim = len(values.shape)
     if values_ndim > 1:
         return reduce_fn(values, axis=list(range(1, values_ndim)))
-    return values
+    return values, sample_weight
 
 
 @keras_core_export("keras_core.metrics.Sum")
@@ -59,7 +59,7 @@ class Sum(Metric):
         self.total = self.add_variable(shape=(), initializer=initializers.Zeros(), dtype=self.dtype)
 
     def update_state(self, values, sample_weight=None):
-        values = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype)
+        values, _ = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype)
         self.total.assign(self.total + ops.sum(values))
 
     def reset_state(self):
@@ -85,7 +85,7 @@ class Mean(Metric):
 
     Example:
 
-    >>> m = tf.keras.metrics.Mean()
+    >>> m = Mean()
     >>> m.update_state([1, 3, 5, 7])
     >>> m.result()
     4.0
@@ -101,9 +101,12 @@ class Mean(Metric):
         self.count = self.add_variable(shape=(), initializer=initializers.Zeros(), dtype="int64")
 
     def update_state(self, values, sample_weight=None):
-        values = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype)
+        values, sample_weight = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype)
         self.total.assign(self.total + ops.sum(values))
-        num_samples = ops.shape(values)[0]
+        if sample_weight is not None:
+            num_samples = ops.sum(ops.ones(shape=(values.shape[0],)) * sample_weight)
+        else:
+            num_samples = values.shape[0]
         self.count.assign(self.count + ops.cast(num_samples, dtype="int64"))
 
     def reset_state(self):

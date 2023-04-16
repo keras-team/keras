@@ -34,7 +34,7 @@ class Loss:
             else:
                 mask = None
 
-            return reduce_weighted_loss(
+            return reduce_weighted_values(
                 losses,
                 sample_weight=sample_weight,
                 mask=mask,
@@ -78,56 +78,56 @@ def squeeze_to_same_rank(x1, x2):
     return x1, x2
 
 
-def reduce_loss(losses, reduction="sum_over_batch_size"):
+def reduce_values(values, reduction="sum_over_batch_size"):
     if (
         reduction is None
-        or tuple(losses.shape) == ()
-        or tuple(losses.shape) == (0,)
+        or tuple(values.shape) == ()
+        or tuple(values.shape) == (0,)
     ):
-        return losses
-    loss = ops.sum(losses)
+        return values
+    loss = ops.sum(values)
     if reduction == "sum_over_batch_size":
-        loss /= ops.cast(ops.shape(losses)[0], loss.dtype)
+        loss /= ops.cast(ops.shape(values)[0], loss.dtype)
     return loss
 
 
-def reduce_weighted_loss(
-    losses,
+def reduce_weighted_values(
+    values,
     sample_weight=None,
     mask=None,
     reduction="sum_over_batch_size",
 ):
     reduction = standardize_reduction(reduction)
 
-    losses = ops.convert_to_tensor(losses)
+    values = ops.convert_to_tensor(values)
     if sample_weight is not None:
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=losses.dtype)
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype=values.dtype)
     if mask is not None:
-        mask = ops.convert_to_tensor(mask, dtype=losses.dtype)
+        mask = ops.convert_to_tensor(mask, dtype=values.dtype)
 
     # Merge mask and sample weight into sample weight.
     sample_weight = apply_mask(
-        sample_weight, mask, dtype=losses.dtype, reduction=reduction
+        sample_weight, mask, dtype=values.dtype, reduction=reduction
     )
 
     # Convert any non float dtypes to floats, to avoid loss of precision
     # for dtype like int or bool.
-    dtype = backend.standardize_dtype(losses.dtype)
+    dtype = backend.standardize_dtype(values.dtype)
     if not dtype_utils.is_float(dtype):
-        input_dtype = losses.dtype
-        losses = ops.cast(losses, "float32")
+        input_dtype = values.dtype
+        values = ops.cast(values, "float32")
         input_casted = True
     else:
         input_casted = False
 
     if sample_weight is not None:
-        sample_weight = ops.cast(sample_weight, losses.dtype)
+        sample_weight = ops.cast(sample_weight, values.dtype)
         # Update dimensions of `sample_weight` to match `losses`.
-        losses, sample_weight = squeeze_to_same_rank(losses, sample_weight)
-        losses *= sample_weight
+        values, sample_weight = squeeze_to_same_rank(values, sample_weight)
+        values *= sample_weight
 
     # Apply reduction function to the individual weighted losses.
-    loss = reduce_loss(losses, reduction)
+    loss = reduce_values(values, reduction)
 
     if input_casted:
         # Convert the result back to the input type.

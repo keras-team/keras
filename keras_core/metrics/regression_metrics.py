@@ -31,7 +31,8 @@ from keras_core.metrics import reduction_metrics
 
 
 def mean_square_error(y_true, y_pred):
-    return (y_true - y_pred) ** 2
+    ndim = len(y_pred.shape)
+    return ops.mean((y_true - y_pred) ** 2, axis=list(range(1, ndim)))
 
 
 class MeanSquareError(reduction_metrics.MeanMetricWrapper):
