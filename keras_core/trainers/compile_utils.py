@@ -220,12 +220,12 @@ class CompileMetrics(metrics_module.Metric):
                     raise ValueError(
                         f"When there is only a single output, the `{argument_name}` argument "
                         "must be a list of metric objects. "
-                        f"Received instead: {argument_name}={metrics} of type {type(metrics)}"
+                        f"Received instead:\n{argument_name}={metrics} of type {type(metrics)}"
                     )
                 if not all(is_function_like(m) for m in metrics):
                     raise ValueError(
                         f"Expected all entries in the `{argument_name}` list to be "
-                        f"metric objects. Received instead: {argument_name}={metrics}"
+                        f"metric objects. Received instead:\n{argument_name}={metrics}"
                     )
                 flat_metrics.append(
                     MetricsList([get_metric(m, y_true[0], y_pred[0]) for m in metrics if m is not None])
@@ -237,8 +237,15 @@ class CompileMetrics(metrics_module.Metric):
                         "For a model with multiple outputs, "
                         f"when providing the `{argument_name}` argument as a list, "
                         "it should have as many entries as the model has outputs. "
-                        f"Received {argument_name}={metrics} of length {len(metrics)} "
+                        f"Received:\n{argument_name}={metrics}\nof length {len(metrics)} "
                         f"whereas the model has {len(y_pred)} outputs."
+                    )
+                if not all(isinstance(mls, list) for mls in metrics):
+                    raise ValueError(
+                        "For a model with multiple outputs, "
+                        f"when providing the `{argument_name}` argument as a list, "
+                        "each list entry should itself be a list (the list of metrics "
+                        f"corresponding to that output). Received:\n{argument_name}={metrics}"
                     )
                 for mls, yt, yp in zip(metrics, y_true, y_pred):
                     if not all(is_function_like(e) for e in mls):
@@ -251,12 +258,26 @@ class CompileMetrics(metrics_module.Metric):
                         MetricsList([get_metric(m, yt, yp) for m in mls if m is not None])
                     )
             elif isinstance(metrics, dict):
+                if output_names is None:
+                    raise ValueError(
+                        f"Argument `{argument_name}` can only be provided as a dict "
+                        "when the model also returns a dict of outputs. Received "
+                        f"{argument_name}={metrics}"
+                    )
                 for name in metrics.keys():
                     if name not in output_names:
                         raise ValueError(
-                            "In the dict argument `{argument_name}`, key "
+                            f"In the dict argument `{argument_name}`, key "
                             f"'{name}' does not correspond to any model output. "
-                            f"Received: {argument_name}={metrics}"
+                            f"Received:\n{argument_name}={metrics}"
+                        )
+                    if not isinstance(metrics[name], list):
+                        raise ValueError(
+                            "For a model with multiple outputs, "
+                            f"when providing the `{argument_name}` argument as a dict, "
+                            "each dict entry should be a list (the list of metrics "
+                            "corresponding to that output). "
+                            f"At key '{name}', received invalid type:\n{metrics[name]}"
                         )
                     if not all(is_function_like(e) for e in metrics[name]):
                         raise ValueError(
@@ -329,8 +350,9 @@ class CompileMetrics(metrics_module.Metric):
                     if name not in unique_name_counters:
                         unique_name_counters[name] = 1
                     else:
-                        name = f"{m.name}_{unique_name_counters[m.name]}"
-                        unique_name_counters[m.name] += 1
+                        index = unique_name_counters[name]
+                        unique_name_counters[name] += 1
+                        name = f"{name}_{index}"
                     results[name] = m.result()
         return results
 
