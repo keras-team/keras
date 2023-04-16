@@ -175,13 +175,17 @@ class CompileMetrics(metrics_module.Metric):
             output_names = sorted(list(y_pred.keys()))
             num_outputs = len(output_names)
         elif isinstance(y_pred, (list, tuple)):
-            output_names = None
             num_outputs = len(y_pred)
+            if all(hasattr(x, "_keras_history") for x in y_pred):
+                output_names = [x._keras_history.operation.name for x in y_pred]
+            else:
+                output_names = None
         else:
             output_names = None
             num_outputs = 1
 
         y_pred = nest.flatten(y_pred)
+        y_true = nest.flatten(y_true)
 
         metrics = self._user_metrics
         weighted_metrics = self._user_weighted_metrics
@@ -396,8 +400,145 @@ class CompileLoss(losses_module.Loss):
         self.built = False
 
     def build(self, y_true, y_pred):
-        # TODO
-        pass
+        if isinstance(y_pred, dict):
+            output_names = sorted(list(y_pred.keys()))
+            num_outputs = len(output_names)
+        elif isinstance(y_pred, (list, tuple)):
+            num_outputs = len(y_pred)
+            if all(hasattr(x, "_keras_history") for x in y_pred):
+                output_names = [x._keras_history.operation.name for x in y_pred]
+            else:
+                output_names = None
+        else:
+            output_names = None
+            num_outputs = 1
+
+        y_pred = nest.flatten(y_pred)
+        loss = self._user_loss
+        loss_weights = self._user_loss_weights
+        flat_losses = []
+        flat_loss_weights = []
+        if num_outputs == 1:
+            if not is_function_like(loss):
+                raise ValueError(
+                    f"When there is only a single output, the `loss` argument "
+                    "must be a callable. "
+                    f"Received instead:\nloss={loss} of type {type(loss)}"
+                )
+            flat_losses.append(get_loss(loss, y_true, y_pred))
+            if loss_weights:
+                if not isinstance(loss_weights, float):
+                    raise ValueError(
+                        f"When there is only a single output, the `loss_weights` argument "
+                        "must be a Python float. "
+                        f"Received instead:\loss_weights={loss_weights} of type {type(loss_weights)}"
+                    )
+                flat_loss_weights.append(loss_weights)
+            else:
+                flat_loss_weights.append(1.0)
+        elif isinstance(loss, (list, tuple)):
+            if len(loss) != len(y_pred):
+                raise ValueError(
+                    "For a model with multiple outputs, "
+                    f"when providing the `loss` argument as a list, "
+                    "it should have as many entries as the model has outputs. "
+                    f"Received:\nloss={loss}\nof length {len(loss)} "
+                    f"whereas the model has {len(y_pred)} outputs."
+                )
+            if not all(is_function_like(e) for e in loss):
+                raise ValueError(
+                    "For a model with multiple outputs, "
+                    f"when providing the `loss` argument as a list, "
+                    "each list entry should be a callable (the loss function "
+                    "corresponding to that output). "
+                    f"Received: loss={loss}"
+                )
+            flat_losses = [
+                get_loss(fn, y_true, y_pred) for fn in loss if fn is not None
+            ]
+            if loss_weights:
+                if not isinstance(loss_weights, (list, tuple)):
+                    raise ValueError(
+                        "If the `loss` argument is provided as a list/tuple, "
+                        "the `loss_weight` argument should also be provided as a list/tuple, "
+                        f"of equal length. Received: loss_weights={loss_weights}"
+                    )
+                if len(loss_weights) != len(y_pred):
+                    raise ValueError(
+                        "For a model with multiple outputs, "
+                        f"when providing the `loss_weights` argument as a list, "
+                        "it should have as many entries as the model has outputs. "
+                        f"Received:\loss_weights={loss_weights}\nof length {len(loss_weights)} "
+                        f"whereas the model has {len(y_pred)} outputs."
+                    )
+                if not all(isinstance(e, float) for e in loss_weights):
+                    raise ValueError(
+                        "For a model with multiple outputs, "
+                        f"when providing the `loss_weights` argument as a list, "
+                        "each list entry should be a Python float (the weighting coefficient "
+                        "corresponding to the loss for that output). "
+                        f"Received: loss_weights={loss_weights}"
+                    )
+                flat_loss_weights = list(loss_weights)
+            else:
+                flat_loss_weights = [1.0 for _ in loss]
+        elif isinstance(loss, dict):
+            if output_names is None:
+                raise ValueError(
+                    f"Argument `loss` can only be provided as a dict "
+                    "when the model also returns a dict of outputs. Received "
+                    f"loss={loss}"
+                )
+            for name in loss.keys():
+                if name not in output_names:
+                    raise ValueError(
+                        f"In the dict argument `loss`, key "
+                        f"'{name}' does not correspond to any model output. "
+                        f"Received:\nloss={loss}"
+                    )
+                if not is_function_like(loss[name]):
+                    raise ValueError(
+                        "For a model with multiple outputs, "
+                        f"when providing the `loss` argument as a dict, "
+                        "each dict entry should be a callable (the loss "
+                        "function corresponding to that output). "
+                        f"At key '{name}', received invalid type:\n{loss[name]}"
+                    )
+            for name, yt, yp in zip(output_names, y_true, y_pred):
+                if name in loss:
+                    if loss[name]:
+                        flat_losses.append(get_metric(loss[name], yt, yp))
+                    else:
+                        flat_losses.append(None)
+                else:
+                    flat_losses.append(None)
+            if loss_weights:
+                if not isinstance(loss_weights, dict):
+                    raise ValueError(
+                        "If the `loss` argument is provided as a dict, "
+                        "the `loss_weight` argument should also be provided as a dict. "
+                        f"Received: loss_weights={loss_weights}"
+                    )
+                for name in loss_weights.keys():
+                    if name not in output_names:
+                        raise ValueError(
+                            f"In the dict argument `loss_weights`, key "
+                            f"'{name}' does not correspond to any model output. "
+                            f"Received:\loss_weights={loss_weights}"
+                        )
+                    if not isinstance(loss_weights[name], float):
+                        raise ValueError(
+                            "For a model with multiple outputs, "
+                            f"when providing the `loss_weights` argument as a dict, "
+                            "each dict entry should be a Python float (the weighting coefficient "
+                            "corresponding to the loss for that output). "
+                            f"At key '{name}', received invalid type:\n{loss_weights[name]}"
+                        )
+                for name in output_names:
+                    if name in loss_weights:
+                        flat_loss_weights.append(loss_weights[name])
+                    else:
+                        flat_loss_weights.append(1.0)
 
     def call(self, y_true, y_pred):
         if not self.built:
@@ -412,6 +553,9 @@ class CompileLoss(losses_module.Loss):
             if loss:
                 value = w * ops.cast(loss(y_t, y_p), dtype=backend.floatx())
                 loss_values.append(value)
+        if loss_values:
+            return ops.sum(loss_values)
+        return None
 
     def get_config(self):
         raise NotImplementedError

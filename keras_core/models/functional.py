@@ -37,17 +37,51 @@ class Functional(Function, Model):
             for k, v in inputs.items():
                 if not isinstance(v, backend.KerasTensor):
                     raise ValueError(
-                        "When providing an input dict, all values in the dict "
+                        "When providing `inputs` as a dict, all values in the dict "
                         f"must be KerasTensors. Received: inputs={inputs} including "
                         f"invalid value {v} of type {type(v)}"
                     )
                 if k != v.name:
+                    # TODO: maybe make this a warning
                     raise ValueError(
-                        "When providing an input dict, all keys in the dict "
+                        "When providing `inputs` as a dict, all keys in the dict "
                         "must match the names of the corresponding tensors. "
                         f"Received key '{k}' mapping to value {v} which has name '{v.name}'. "
                         f"Change the tensor name to '{k}' (via `Input(..., name='{k}')`)"
                     )
+        elif isinstance(inputs, (list, tuple)):
+            for x in inputs:
+                if not isinstance(x, backend.KerasTensor):
+                    raise ValueError(
+                        "When providing `inputs` as a list/tuple, all values in the list/tuple "
+                        f"must be KerasTensors. Received: inputs={inputs} including "
+                        f"invalid value {x} of type {type(x)}"
+                    )
+        elif not isinstance(inputs, backend.KerasTensor):
+            raise ValueError(
+                f"Unrecognized type for `inputs`: {inputs} (of type {type(inputs)})"
+            )
+        if isinstance(outputs, dict):
+            for k, v in outputs.items():
+                if not isinstance(v, backend.KerasTensor):
+                    raise ValueError(
+                        "When providing `outputs` as a dict, all values in the dict "
+                        f"must be KerasTensors. Received: outputs={outputs} including "
+                        f"invalid value {v} of type {type(v)}"
+                    )
+        elif isinstance(outputs, (list, tuple)):
+            for x in outputs:
+                if not isinstance(x, backend.KerasTensor):
+                    raise ValueError(
+                        "When providing `outputs` as a list/tuple, all values in the list/tuple "
+                        f"must be KerasTensors. Received: outputs={outputs} including "
+                        f"invalid value {x} of type {type(x)}"
+                    )
+        elif not isinstance(outputs, backend.KerasTensor):
+            raise ValueError(
+                f"Unrecognized type for `outputs`: {outputs} (of type {type(outputs)})"
+            )
+
         super().__init__(inputs, outputs, name=name, **kwargs)
         self._layers = self.layers
         self.built = True
