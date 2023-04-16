@@ -822,7 +822,11 @@ class NumpyOneInputOpsShapeTest(testing.TestCase):
         x = KerasTensor([5, 3, 2])
         self.assertEqual(knp.get_item(x, 3).shape, (3, 2))
 
-        x = KerasTensor([2,])
+        x = KerasTensor(
+            [
+                2,
+            ]
+        )
         self.assertEqual(knp.get_item(x, 0).shape, ())
 
         x = KerasTensor([None, None])

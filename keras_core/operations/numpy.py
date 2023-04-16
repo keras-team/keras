@@ -1174,7 +1174,7 @@ class GetItem(Operation):
                 f"process key {key}"
             )
         return x[key]
-    
+
     def compute_output_spec(self, x, key):
         if not isinstance(key, int):
             # TODO: support slicing.
@@ -1194,7 +1194,7 @@ class GetItem(Operation):
                 f"but out-of-bound index {key} was requested."
             )
         return KerasTensor(x.shape[1:], dtype=x.dtype)
-    
+
 
 def get_item(x, key):
     if any_symbolic_tensors((x,)):

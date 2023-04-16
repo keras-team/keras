@@ -1,9 +1,8 @@
 from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
-from keras_core.metrics.metric import Metric
 from keras_core.metrics import reduction_metrics
-
+from keras_core.metrics.metric import Metric
 
 # class MeanSquareError(Metric):
 #     def __init__(self, name="mean_square_error", dtype=None):
@@ -40,7 +39,4 @@ class MeanSquareError(reduction_metrics.MeanMetricWrapper):
         super().__init__(fn=mean_square_error, name=name, dtype=dtype)
 
     def get_config(self):
-        return {
-            "name": self.name,
-            "dtype": self.dtype
-        }
+        return {"name": self.name, "dtype": self.dtype}

@@ -1,9 +1,9 @@
-from keras_core.losses import loss
+from keras_core import backend
+from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
+from keras_core.losses import loss
 from keras_core.metrics.metric import Metric
-from keras_core import initializers
-from keras_core import backend
 
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
@@ -12,11 +12,11 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, dtype=dtype)
         if mask is not None:
-            sample_weight = loss.apply_mask(sample_weight, mask, dtype=dtype, reduction="sum")
+            sample_weight = loss.apply_mask(
+                sample_weight, mask, dtype=dtype, reduction="sum"
+            )
         # Update dimensions of weights to match with values if possible.
-        values, sample_weight = loss.squeeze_to_same_rank(
-            values, sample_weight
-        )
+        values, sample_weight = loss.squeeze_to_same_rank(values, sample_weight)
         # Reduce values to same ndim as weight array
         weight_ndim = len(sample_weight.shape)
         values_ndim = len(values.shape)
@@ -25,7 +25,7 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
                 values, axis=list(range(weight_ndim, values_ndim))
             )
         values = values * sample_weight
-    
+
     values_ndim = len(values.shape)
     if values_ndim > 1:
         return reduce_fn(values, axis=list(range(1, values_ndim)))
@@ -56,14 +56,18 @@ class Sum(Metric):
 
     def __init__(self, name="sum", dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.total = self.add_variable(shape=(), initializer=initializers.Zeros(), dtype=self.dtype)
+        self.total = self.add_variable(
+            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+        )
 
     def update_state(self, values, sample_weight=None):
-        values, _ = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype)
+        values, _ = reduce_to_samplewise_values(
+            values, sample_weight, reduce_fn=ops.sum, dtype=self.dtype
+        )
         self.total.assign(self.total + ops.sum(values))
 
     def reset_state(self):
-        self.total.assign(0.)
+        self.total.assign(0.0)
 
     def result(self):
         return ops.identity(self.total)
@@ -95,26 +99,37 @@ class Mean(Metric):
     2.0
     ```
     """
+
     def __init__(self, name="sum", dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.total = self.add_variable(shape=(), initializer=initializers.Zeros(), dtype=self.dtype)
-        self.count = self.add_variable(shape=(), initializer=initializers.Zeros(), dtype="int64")
+        self.total = self.add_variable(
+            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+        )
+        self.count = self.add_variable(
+            shape=(), initializer=initializers.Zeros(), dtype="int64"
+        )
 
     def update_state(self, values, sample_weight=None):
-        values, sample_weight = reduce_to_samplewise_values(values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype)
+        values, sample_weight = reduce_to_samplewise_values(
+            values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
+        )
         self.total.assign(self.total + ops.sum(values))
         if sample_weight is not None:
-            num_samples = ops.sum(ops.ones(shape=(values.shape[0],)) * sample_weight)
+            num_samples = ops.sum(
+                ops.ones(shape=(values.shape[0],)) * sample_weight
+            )
         else:
             num_samples = values.shape[0]
         self.count.assign(self.count + ops.cast(num_samples, dtype="int64"))
 
     def reset_state(self):
-        self.total.assign(0.)
+        self.total.assign(0.0)
         self.count.assign(0)
 
     def result(self):
-        return self.total / (ops.cast(self.count, dtype=self.dtype) + backend.epsilon())
+        return self.total / (
+            ops.cast(self.count, dtype=self.dtype) + backend.epsilon()
+        )
 
 
 @keras_core_export("keras_core.metrics.MeanMetricWrapper")
@@ -152,13 +167,13 @@ class MeanMetricWrapper(Mean):
         mask = getattr(y_pred, "_keras_mask", None)
         values = self._fn(y_true, y_pred, **self._fn_kwargs)
         if sample_weight is not None and mask is not None:
-            sample_weight = loss.apply_mask(sample_weight, mask, dtype=self.dtype, reduction="sum")
+            sample_weight = loss.apply_mask(
+                sample_weight, mask, dtype=self.dtype, reduction="sum"
+            )
         return super().update_state(values, sample_weight=sample_weight)
 
     def get_config(self):
-        config = {
-            k: v for k, v in self._fn_kwargs.items()
-        }
+        config = {k: v for k, v in self._fn_kwargs.items()}
         config["fn"] = self._fn
         base_config = super().get_config()
         return {**base_config.items(), **config.items()}

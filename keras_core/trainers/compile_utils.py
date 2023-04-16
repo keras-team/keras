@@ -53,9 +53,7 @@ class MetricsList(metrics_module.Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         for m in self.metrics:
-            m.update_state(
-                y_true, y_pred, sample_weight=sample_weight
-            )
+            m.update_state(y_true, y_pred, sample_weight=sample_weight)
 
     def reset_state(self):
         for m in self.metrics:
@@ -228,7 +226,13 @@ class CompileMetrics(metrics_module.Metric):
                         f"metric objects. Received instead:\n{argument_name}={metrics}"
                     )
                 flat_metrics.append(
-                    MetricsList([get_metric(m, y_true[0], y_pred[0]) for m in metrics if m is not None])
+                    MetricsList(
+                        [
+                            get_metric(m, y_true[0], y_pred[0])
+                            for m in metrics
+                            if m is not None
+                        ]
+                    )
                 )
         else:
             if isinstance(metrics, (list, tuple)):
@@ -255,7 +259,13 @@ class CompileMetrics(metrics_module.Metric):
                             f"Found the following sublist with unknown types: {mls}"
                         )
                     flat_metrics.append(
-                        MetricsList([get_metric(m, yt, yp) for m in mls if m is not None])
+                        MetricsList(
+                            [
+                                get_metric(m, yt, yp)
+                                for m in mls
+                                if m is not None
+                            ]
+                        )
                     )
             elif isinstance(metrics, dict):
                 if output_names is None:
@@ -290,7 +300,11 @@ class CompileMetrics(metrics_module.Metric):
                     if name in metrics:
                         flat_metrics.append(
                             MetricsList(
-                                [get_metric(m, yt, yp) for m in metrics[name] if m is not None]
+                                [
+                                    get_metric(m, yt, yp)
+                                    for m in metrics[name]
+                                    if m is not None
+                                ]
                             )
                         )
                     else:
@@ -366,8 +380,20 @@ class CompileMetrics(metrics_module.Metric):
 
 class CompileLoss(losses_module.Loss):
     def __init__(self, loss, loss_weights):
+        if loss and not isinstance(loss, (list, tuple, dict)):
+            raise ValueError(
+                "Expected `loss` argument to be a list, tuple, or dict. "
+                f"Received instead: loss={loss} of type {type(loss)}"
+            )
+        if loss_weights and not isinstance(loss_weights, (list, tuple, dict)):
+            raise ValueError(
+                "Expected `loss_weights` argument to be a list, tuple, or dict. "
+                f"Received instead: loss_weights={loss_weights} "
+                f"of type {type(loss_weights)}"
+            )
         self._user_loss = loss
         self._user_loss_weights = loss_weights
+        self.built = False
 
     def build(self, y_true, y_pred):
         # TODO
