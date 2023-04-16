@@ -1,3 +1,5 @@
+from tensorflow import nest
+
 from keras_core import backend
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
@@ -15,8 +17,10 @@ class Loss:
         in_mask = getattr(y_pred, "_keras_mask", None)
 
         with ops.name_scope(self.name):
-            y_pred = ops.convert_to_tensor(y_pred)
-            y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+            y_pred = nest.map_structure(ops.convert_to_tensor, y_pred)
+            y_true = nest.map_structure(
+                lambda x: ops.convert_to_tensor(x, dtype=y_pred.dtype), y_true
+            )
 
             losses = self.call(y_true, y_pred)
             out_mask = getattr(losses, "_keras_mask", None)

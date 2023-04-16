@@ -5,7 +5,7 @@ from keras_core.backend import keras_tensor
 from keras_core.layers.layer import Layer
 
 
-class FunctionTest(testing.TestCase):
+class LayerTest(testing.TestCase):
     def test_positional_arg_error(self):
         class SomeLayer(Layer):
             def call(self, x, bool_arg):
