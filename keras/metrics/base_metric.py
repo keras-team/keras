@@ -15,6 +15,7 @@
 """Base Metric classes."""
 
 import abc
+import inspect
 import types
 import warnings
 
@@ -961,16 +962,24 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
 def clone_metric(metric):
     """Returns a clone of the metric if stateful, otherwise returns it as is."""
     if isinstance(metric, Metric):
+        metric_config = metric.get_config()
+        metric_argspec = inspect.getfullargspec(metric.__class__)
+        # Filter arguments if metric constructor doesn't accept arbitrary
+        # kwargs.
+        if metric_argspec.varkw is None:
+            metric_config = {
+                k: v for k, v in metric_config.items()
+                if k in metric_argspec.args
+            }
         # Metrics created within a remotely-executed tf.function during
         # parameter server evaluation should not be lifted out of the graph by
         # `init_scope`. This way the metric variables can be local: freely
         # usable and mutable within the function. This supports a visitation
         # guarantee for model evaluation.
         if tf_utils.in_local_vars_context():
-            return metric.__class__.from_config(metric.get_config())
-        else:
-            with tf.init_scope():
-                return metric.__class__.from_config(metric.get_config())
+            return metric.__class__.from_config(metric_config)
+        with tf.init_scope():
+            return metric.__class__.from_config(metric_config)
     return metric
 
 
