@@ -49,11 +49,11 @@ from keras_core.utils.naming import get_object_name
 
 class MetricsList(metrics_module.Metric):
     def __init__(self, metrics):
-        self.metrics = [m for m in metrics if m is not None]
+        self.metrics = metrics
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         for m in self.metrics:
-            self.metrics.update_state(
+            m.update_state(
                 y_true, y_pred, sample_weight=sample_weight
             )
 
@@ -228,7 +228,7 @@ class CompileMetrics(metrics_module.Metric):
                         f"metric objects. Received instead: {argument_name}={metrics}"
                     )
                 flat_metrics.append(
-                    MetricsList([get_metric(m, y_pred[0]) for m in metrics])
+                    MetricsList([get_metric(m, y_true[0], y_pred[0]) for m in metrics if m is not None])
                 )
         else:
             if isinstance(metrics, (list, tuple)):
@@ -248,7 +248,7 @@ class CompileMetrics(metrics_module.Metric):
                             f"Found the following sublist with unknown types: {mls}"
                         )
                     flat_metrics.append(
-                        MetricsList([get_metric(m, yt, yp) for m in mls])
+                        MetricsList([get_metric(m, yt, yp) for m in mls if m is not None])
                     )
             elif isinstance(metrics, dict):
                 for name in metrics.keys():
@@ -265,11 +265,11 @@ class CompileMetrics(metrics_module.Metric):
                             f"At key '{name}', found the following sublist "
                             f"with unknown types: {metrics[name]}"
                         )
-                for name, y in zip(output_names, y_pred):
+                for name, yt, yp in zip(output_names, y_true, y_pred):
                     if name in metrics:
                         flat_metrics.append(
                             MetricsList(
-                                [get_metric(m, y) for m in metrics[name]]
+                                [get_metric(m, yt, yp) for m in metrics[name] if m is not None]
                             )
                         )
                     else:
@@ -302,7 +302,7 @@ class CompileMetrics(metrics_module.Metric):
             if m:
                 m.reset_state()
 
-    def get_result(self):
+    def result(self):
         results = {}
         unique_name_counters = {}
         for mls in self._flat_metrics:
@@ -327,7 +327,7 @@ class CompileMetrics(metrics_module.Metric):
                 else:
                     name = f"weighted_{m.name}"
                     if name not in unique_name_counters:
-                        unique_name_counters[name] += 1
+                        unique_name_counters[name] = 1
                     else:
                         name = f"{m.name}_{unique_name_counters[m.name]}"
                         unique_name_counters[m.name] += 1

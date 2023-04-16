@@ -815,6 +815,19 @@ class NumpyOneInputOpsShapeTest(testing.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.floor(x).shape, (None, 3))
 
+    def test_get_item(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.get_item(x, 1).shape, (3,))
+
+        x = KerasTensor([5, 3, 2])
+        self.assertEqual(knp.get_item(x, 3).shape, (3, 2))
+
+        x = KerasTensor([2,])
+        self.assertEqual(knp.get_item(x, 0).shape, ())
+
+        x = KerasTensor([None, None])
+        self.assertEqual(knp.get_item(x, 5).shape, (None,))
+
     def test_hstack(self):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
