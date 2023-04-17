@@ -1,6 +1,3 @@
-import copy
-
-import numpy as np
 import tensorflow as tf
 
 from keras_core import callbacks as callbacks_module
@@ -27,10 +24,6 @@ class TensorFlowTrainer(trainer.Trainer):
         # Compute gradients
         trainable_weights = [v.value for v in self.trainable_weights]
         gradients = tape.gradient(loss, trainable_weights)
-
-        print("loss", loss)
-        print("trainable_weights", trainable_weights)
-        print("gradients", gradients)
 
         # Update weights
         self.optimizer.apply_gradients(zip(gradients, trainable_weights))
@@ -59,10 +52,6 @@ class TensorFlowTrainer(trainer.Trainer):
             train_function = tf.function(step_function, reduce_retracing=True)
         else:
             train_function = step_function
-
-        print("run eagerly:", self.run_eagerly)
-        print("train_function:", train_function)
-        print("self._compile_loss", self._compile_loss)
 
         self.train_function = train_function
 
