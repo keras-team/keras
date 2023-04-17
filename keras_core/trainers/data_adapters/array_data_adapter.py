@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import nest
 
+from keras_core import backend
 from keras_core.trainers.data_adapters import data_adapters_utils
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
@@ -13,14 +14,19 @@ except ImportError:
     pandas = None
 
 
-ARRAY_TYPES = [tf.Tensor, np.ndarray]
+ARRAY_TYPES = (tf.Tensor, np.ndarray)
 if pandas:
-    ARRAY_TYPES.extend([tf.Tensor, np.ndarray, pandas.Series, pandas.DataFrame])
+    ARRAY_TYPES = ARRAY_TYPES + (
+        tf.Tensor,
+        np.ndarray,
+        pandas.Series,
+        pandas.DataFrame,
+    )
 # TODO: support torch tensors?
 
 
 class ArrayDataAdapter(DataAdapter):
-    """Adapter that handles Tensor-like objects, e.g. EagerTensor and NumPy."""
+    """Adapter that handles array-like objects, e.g. tf.Tensor and NumPy arrays."""
 
     @staticmethod
     def can_handle(x, y=None):
@@ -40,15 +46,6 @@ class ArrayDataAdapter(DataAdapter):
     ):
         super().__init__(x, y, **kwargs)
         x, y, sample_weights = convert_to_arrays((x, y, sample_weights))
-
-        # If sample_weights are not specified for an output, use 1.0 as weights.
-        (
-            sample_weights,
-            _,
-            _,
-        ) = data_adapters_utils.handle_partial_sample_weights(
-            y, sample_weights, check_all_flat=True
-        )
 
         inputs = data_adapters_utils.pack_x_y_sample_weight(
             x, y, sample_weights
@@ -77,11 +74,11 @@ class ArrayDataAdapter(DataAdapter):
             start, stop = i * self._batch_size, (i + 1) * self._batch_size
             yield tf.nest.map_structure(lambda x: x[start:stop], self._inputs)
 
-    def get_dataset(self):
+    def get_tf_dataset(self):
         ds = tf.data.Dataset.from_tensor_slices(self._inputs)
         ds = ds.shuffle(self._batch_size * 8)
         ds = ds.batch(self._batch_size)
-        ds = ds.preftech(tf.data.AUTOTUNE)
+        ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
 
     def get_size(self):
@@ -97,7 +94,7 @@ class ArrayDataAdapter(DataAdapter):
         return self._partial_batch_size or None
 
 
-def convert_to_arrays(arrays):
+def convert_to_arrays(arrays, dtype=None):
     """Process array-like inputs.
 
     This function:
@@ -110,15 +107,27 @@ def convert_to_arrays(arrays):
         inputs: Structure of `Tensor`s, `NumPy` arrays, or tensor-like.
 
     Returns:
-        Structure of `ndarray`.
+        Structure of NumPy `ndarray`s.
     """
+    dtype = dtype or backend.floatx()
 
     def convert_single_array(x):
+        if x is None:
+            return x
         if pandas is not None:
             if isinstance(x, pandas.Series):
-                x = np.expand_dims(x.to_numpy(), axis=-1)
+                x = np.expand_dims(x.to_numpy(dtype=dtype), axis=-1)
+            elif isinstance(x, pandas.DataFrame):
+                x = x.to_numpy(dtype=dtype)
         if isinstance(x, (tf.Tensor, tf.Variable)):
             x = x.numpy()
+        if not isinstance(x, np.ndarray):
+            raise ValueError(
+                "Expected a NumPy array, tf.Tensor, Pandas Dataframe or Pandas Series. "
+                f"Received invalid input: {x} (of type {type(x)})"
+            )
+        if not str(x.dtype) == str(dtype):
+            x = x.astype(dtype)
         return x
 
     arrays = tf.nest.map_structure(convert_single_array, arrays)

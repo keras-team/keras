@@ -2,175 +2,94 @@ import numpy as np
 import tensorflow as tf
 
 
-def handle_partial_sample_weights(
-    outputs, sample_weights, sample_weight_modes, check_all_flat=False
-):
-    """Adds 1.0 as sample weights for the outputs for which there is no weight.
+def unpack_x_y_sample_weight(data):
+    """Unpacks user-provided data tuple.
+
+    This is a convenience utility to be used when overriding
+    `Model.train_step`, `Model.test_step`, or `Model.predict_step`.
+    This utility makes it easy to support data of the form `(x,)`,
+    `(x, y)`, or `(x, y, sample_weight)`.
+
+    Standalone usage:
+
+    >>> features_batch = tf.ones((10, 5))
+    >>> labels_batch = tf.zeros((10, 5))
+    >>> data = (features_batch, labels_batch)
+    >>> # `y` and `sample_weight` will default to `None` if not provided.
+    >>> x, y, sample_weight = unpack_x_y_sample_weight(data)
+    >>> sample_weight is None
+    True
 
     Args:
-      outputs: List of model outputs.
-      sample_weights: List of sample weight inputs.
-      sample_weight_modes: List of sample weight modes or None.
-      check_all_flat: Ensure that inputs are not nested structures. This is not
-        a free check, so we may not want to run it eagerly every iteration.
+        data: A tuple of the form `(x,)`, `(x, y)`, or `(x, y, sample_weight)`.
 
     Returns:
-      Tuple of sample weights, one sample weight for every output, and booleans
-      describing the raw sample weights.
+        The unpacked tuple, with `None`s for `y` and `sample_weight` if they are
+        not provided.
     """
-    if not isinstance(sample_weights, (list, tuple)):
-        any_sample_weight = sample_weights is not None
-        partial_sample_weight = any_sample_weight and sample_weights is None
-    else:
-        any_sample_weight = sample_weights is not None and any(
-            w is not None for w in sample_weights
-        )
-        partial_sample_weight = any_sample_weight and any(
-            w is None for w in sample_weights
-        )
-
-    if not any_sample_weight:
-        return None, any_sample_weight, partial_sample_weight
-
-    if not partial_sample_weight:
-        return sample_weights, any_sample_weight, partial_sample_weight
-
-    if check_all_flat:
-        tf.nest.assert_same_structure(
-            list_to_tuple(sample_weights),
-            list_to_tuple(tf.nest.flatten(sample_weights)),
-        )
-        tf.nest.assert_same_structure(
-            list_to_tuple(outputs), list_to_tuple(tf.nest.flatten(outputs))
-        )
-        if sample_weight_modes is not None:
-            tf.nest.assert_same_structure(
-                sample_weight_modes, tf.nest.flatten(sample_weight_modes)
-            )
-
-    new_sample_weights = []
-    for i, sw in enumerate(sample_weights):
-        if sw is None:
-            as_numpy = isinstance(outputs[i], np.ndarray)
-            output = outputs[i]
-            output_shape = output.shape if as_numpy else tf.shape(output)
-
-            is_temporal = (
-                sample_weight_modes is not None
-                and sample_weight_modes[i] == "temporal"
-            )
-            sw_shape = (
-                (output_shape[0], output_shape[1])
-                if is_temporal
-                else (output_shape[0],)
-            )
-
-            new_sample_weights.append(
-                np.ones(sw_shape) if as_numpy else tf.ones(sw_shape)
-            )
-
-        else:
-            new_sample_weights.append(sw)
-    return (
-        list_to_tuple(new_sample_weights),
-        any_sample_weight,
-        partial_sample_weight,
+    if isinstance(data, list):
+        data = tuple(data)
+    if not isinstance(data, tuple):
+        return (data, None, None)
+    elif len(data) == 1:
+        return (data[0], None, None)
+    elif len(data) == 2:
+        return (data[0], data[1], None)
+    elif len(data) == 3:
+        return (data[0], data[1], data[2])
+    error_msg = (
+        "Data is expected to be in format `x`, `(x,)`, `(x, y)`, "
+        f"or `(x, y, sample_weight)`, found: {data}"
     )
+    raise ValueError(error_msg)
 
 
-def slice_tf_tensors(arrays, indices, contiguous=True):
-    """Slices batches out of provided arrays (workaround for eager TF tensors).
+def pack_x_y_sample_weight(x, y=None, sample_weight=None):
+    """Packs user-provided data into a tuple.
 
-    Unfortunately eager tensors don't have the same slicing behavior as
-    Numpy arrays (they follow the same slicing behavior as symbolic TF tensors),
-    hence we cannot use `generic_utils.slice_arrays` directly
-    and we have to implement this workaround based on `concat`. This has a
-    performance cost.
+    This is a convenience utility for packing data into the tuple formats
+    that `Model.fit` uses.
+
+    Standalone usage:
+
+    >>> x = tf.ones((10, 1))
+    >>> data = pack_x_y_sample_weight(x)
+    >>> isinstance(data, tf.Tensor)
+    True
+    >>> y = tf.ones((10, 1))
+    >>> data = pack_x_y_sample_weight(x, y)
+    >>> isinstance(data, tuple)
+    True
+    >>> x, y = data
 
     Args:
-        arrays: Single array or list of arrays.
-        indices: List of indices in the array that should be included in the
-            output batch.
-        contiguous: Boolean flag indicating whether the indices are contiguous.
+        x: Features to pass to `Model`.
+        y: Ground-truth targets to pass to `Model`.
+        sample_weight: Sample weight for each element.
 
     Returns:
-        Slice of data (either single array or list of arrays).
+        Tuple in the format used in `Model.fit`.
     """
-    converted_to_list = False
-    if not isinstance(arrays, list):
-        converted_to_list = True
-        arrays = [arrays]
-    if any(tf.is_tensor(x) for x in arrays):
-        if not contiguous:
-            entries = [[x[i : i + 1] for i in indices] for x in arrays]
-            slices = [tf.concat(x, axis=0) for x in entries]
+    if y is None:
+        # For single x-input, we do no tuple wrapping since in this case
+        # there is no ambiguity. This also makes NumPy and Dataset
+        # consistent in that the user does not have to wrap their Dataset
+        # data in an unnecessary tuple.
+        if not isinstance(x, tuple or list):
+            return x
         else:
-            slices = [x[indices[0] : indices[-1] + 1] for x in arrays]
+            return (x,)
+    elif sample_weight is None:
+        return (x, y)
     else:
-        slices = slice_arrays(arrays, indices)
-
-    if converted_to_list:
-        slices = slices[0]
-    return slices
+        return (x, y, sample_weight)
 
 
 def list_to_tuple(maybe_list):
-    """Datasets will stack the list of tensor, so switch them to tuples."""
+    """Datasets will stack any list of tensors, so we convert them to tuples."""
     if isinstance(maybe_list, list):
         return tuple(maybe_list)
     return maybe_list
-
-
-def slice_arrays(arrays, start=None, stop=None):
-    """Slice an array or list of arrays.
-
-    This takes an array-like, or a list of
-    array-likes, and outputs:
-        - arrays[start:stop] if `arrays` is an array-like
-        - [x[start:stop] for x in arrays] if `arrays` is a list
-
-    Can also work on list/array of indices: `slice_arrays(x, indices)`
-
-    Args:
-        arrays: Single array or list of arrays.
-        start: can be an integer index (start index) or a list/array of indices
-        stop: integer (stop index); should be None if `start` was a list.
-
-    Returns:
-        A slice of the array(s).
-
-    Raises:
-        ValueError: If the value of start is a list and stop is not None.
-    """
-    if arrays is None:
-        return [None]
-    if isinstance(start, list) and stop is not None:
-        raise ValueError(
-            "The stop argument has to be None if the value of start "
-            f"is a list. Received start={start}, stop={stop}"
-        )
-    elif isinstance(arrays, list):
-        if hasattr(start, "__len__"):
-            # hdf5 datasets only support list objects as indices
-            if hasattr(start, "shape"):
-                start = start.tolist()
-            return [None if x is None else x[start] for x in arrays]
-        return [
-            None
-            if x is None
-            else None
-            if not hasattr(x, "__getitem__")
-            else x[start:stop]
-            for x in arrays
-        ]
-    else:
-        if hasattr(start, "__len__"):
-            if hasattr(start, "shape"):
-                start = start.tolist()
-            return arrays[start]
-        if hasattr(start, "__getitem__"):
-            return arrays[start:stop]
-        return [None]
 
 
 def check_data_cardinality(data):
