@@ -46,3 +46,35 @@ class TestTFDatasetAdapter(testing.TestCase):
             else:
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
+
+    def _test_class_weights(self, target_encoding="int"):
+        x = np.random.random((4, 2))
+        if target_encoding == "int":
+            y = np.array([[0], [1], [2], [3]], dtype="int64")
+        else:
+            y = np.array(
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                dtype="float32",
+            )
+
+        class_weight = {
+            0: 0.1,
+            1: 0.2,
+            2: 0.3,
+            3: 0.4,
+        }
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            base_ds, class_weight=class_weight
+        )
+        gen = adapter.get_numpy_iterator()
+        for batch in gen:
+            self.assertEqual(len(batch), 3)
+            _, _, bw = batch
+            self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
+
+    def test_class_weights_int_targets(self):
+        self._test_class_weights(target_encoding="int")
+
+    def test_class_weights_categorical_targets(self):
+        self._test_class_weights(target_encoding="categorical")

@@ -28,27 +28,69 @@ if pandas:
 class ArrayDataAdapter(DataAdapter):
     """Adapter that handles array-like objects, e.g. tf.Tensor and NumPy arrays."""
 
-    @staticmethod
-    def can_handle(x, y=None):
-        types_struct = nest.map_structure(lambda x: type(x), x)
-        flat_types = nest.flatten(types_struct)
-        return all(issubclass(c, ARRAY_TYPES) for c in flat_types)
-
     def __init__(
         self,
         x,
         y=None,
-        sample_weights=None,
+        sample_weight=None,
         batch_size=None,
         steps=None,
         shuffle=False,
+        class_weight=None,  # TODO
     ):
-        super().__init__(x, y)
-        x, y, sample_weights = convert_to_arrays((x, y, sample_weights))
+        types_struct = nest.map_structure(lambda x: type(x), x)
+        flat_types = nest.flatten(types_struct)
+        if not all(issubclass(c, ARRAY_TYPES) for c in flat_types):
+            raise ValueError(
+                "Expected all elements of `x` to be array-like. Received invalid types: "
+                f"x={x}"
+            )
 
-        inputs = data_adapters_utils.pack_x_y_sample_weight(
-            x, y, sample_weights
-        )
+        # TODO: broadcast sample weights so that all outputs have a corresponding sample_weight array
+        x, y, sample_weight = convert_to_arrays((x, y, sample_weight))
+        if sample_weight is not None:
+            if class_weight is not None:
+                raise ValueError(
+                    "You cannot `class_weight` and `sample_weight` at the same time."
+                )
+            if tf.nest.is_nested(y):
+                if isinstance(sample_weight, np.ndarray):
+                    is_samplewise = len(sample_weight.shape) == 1 or (
+                        len(sample_weight.shape) == 2
+                        and sample_weight.shape[1] == 1
+                    )
+                    if not is_samplewise:
+                        raise ValueError(
+                            "For a model with multiple outputs, when providing a single `sample_weight` array, "
+                            "it should only have one scalar score per sample (i.e. shape `(num_samples,)`). "
+                            "If you want to use non-scalar sample weights, pass a `sample_weight` argument with one "
+                            "array per model output."
+                        )
+                    # Replicate the same sample_weight array on all outputs.
+                    sample_weight = tf.nest.map_structure(
+                        lambda _: sample_weight, y
+                    )
+                else:
+                    try:
+                        tf.nest.assert_same_structure(y, sample_weight)
+                    except ValueError:
+                        raise ValueError(
+                            "You should provide one `sample_weight` array per output in `y`. "
+                            "The two structures did not match:\n"
+                            f"- y: {y}\n"
+                            f"- sample_weight: {sample_weight}\n"
+                        )
+        if class_weight is not None:
+            if tf.nest.is_nested(y):
+                raise ValueError(
+                    "`class_weight` is only supported for Models with a single "
+                    "output."
+                )
+            sample_weight = make_sample_weight_from_class_weight(
+                y, class_weight
+            )
+
+        inputs = data_adapters_utils.pack_x_y_sample_weight(x, y, sample_weight)
 
         data_adapters_utils.check_data_cardinality(inputs)
         num_samples = set(i.shape[0] for i in nest.flatten(inputs)).pop()
@@ -135,3 +177,14 @@ def convert_to_arrays(arrays, dtype=None):
 
     arrays = tf.nest.map_structure(convert_single_array, arrays)
     return tf.__internal__.nest.list_to_tuple(arrays)
+
+
+def make_sample_weight_from_class_weight(y, class_weight):
+    sample_weight = np.ones(shape=(y.shape[0],), dtype=y.dtype)
+    if len(y.shape) > 1 and y.shape[-1] != 1:
+        y = np.argmax(y, axis=-1)
+    else:
+        y = np.round(np.squeeze(y, axis=-1)).astype("int64")
+    for i in range(y.shape[0]):
+        sample_weight[i] = class_weight.get(int(y[i]), 1.0)
+    return sample_weight

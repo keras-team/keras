@@ -20,7 +20,7 @@ class TestArrayDataAdapter(testing.TestCase):
         adapter = array_data_adapter.ArrayDataAdapter(
             x,
             y=y,
-            sample_weights=None,
+            sample_weight=None,
             batch_size=16,
             steps=None,
             shuffle=False,
@@ -74,7 +74,7 @@ class TestArrayDataAdapter(testing.TestCase):
         adapter = array_data_adapter.ArrayDataAdapter(
             x={"x1": x1, "x2": x2},
             y=[y1, y2],
-            sample_weights=sw,
+            sample_weight=sw,
             batch_size=16,
             steps=None,
             shuffle=False,
@@ -86,12 +86,14 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertTrue(isinstance(bx, dict))
             # NOTE: the y list was converted to a tuple for tf.data compatibility.
             self.assertTrue(isinstance(by, tuple))
-            self.assertTrue(isinstance(bw, np.ndarray))
+            self.assertTrue(isinstance(bw, tuple))
 
             self.assertTrue(isinstance(bx["x1"], np.ndarray))
             self.assertTrue(isinstance(bx["x2"], np.ndarray))
             self.assertTrue(isinstance(by[0], np.ndarray))
             self.assertTrue(isinstance(by[1], np.ndarray))
+            self.assertTrue(isinstance(bw[0], np.ndarray))
+            self.assertTrue(isinstance(bw[1], np.ndarray))
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
             self.assertEqual(bx["x1"].dtype, backend.floatx())
@@ -100,11 +102,13 @@ class TestArrayDataAdapter(testing.TestCase):
                 self.assertEqual(bx["x2"].shape, (16, 2))
                 self.assertEqual(by[0].shape, (16, 3))
                 self.assertEqual(by[1].shape, (16, 4))
-                self.assertEqual(bw.shape, (16,))
+                self.assertEqual(bw[0].shape, (16,))
+                self.assertEqual(bw[1].shape, (16,))
             else:
                 self.assertEqual(bx["x1"].shape, (2, 1))
                 self.assertEqual(by[0].shape, (2, 3))
-                self.assertEqual(bw.shape, (2,))
+                self.assertEqual(bw[0].shape, (2,))
+                self.assertEqual(bw[1].shape, (2,))
         ds = adapter.get_tf_dataset()
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 3)
@@ -112,12 +116,14 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertTrue(isinstance(bx, dict))
             # NOTE: the y list was converted to a tuple for tf.data compatibility.
             self.assertTrue(isinstance(by, tuple))
-            self.assertTrue(isinstance(bw, tf.Tensor))
+            self.assertTrue(isinstance(bw, tuple))
 
             self.assertTrue(isinstance(bx["x1"], tf.Tensor))
             self.assertTrue(isinstance(bx["x2"], tf.Tensor))
             self.assertTrue(isinstance(by[0], tf.Tensor))
             self.assertTrue(isinstance(by[1], tf.Tensor))
+            self.assertTrue(isinstance(bw[0], tf.Tensor))
+            self.assertTrue(isinstance(bw[1], tf.Tensor))
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
             self.assertEqual(bx["x1"].dtype, backend.floatx())
@@ -126,12 +132,48 @@ class TestArrayDataAdapter(testing.TestCase):
                 self.assertEqual(tuple(bx["x2"].shape), (16, 2))
                 self.assertEqual(tuple(by[0].shape), (16, 3))
                 self.assertEqual(tuple(by[1].shape), (16, 4))
-                self.assertEqual(tuple(bw.shape), (16,))
+                self.assertEqual(tuple(bw[0].shape), (16,))
+                self.assertEqual(tuple(bw[1].shape), (16,))
             else:
                 self.assertEqual(tuple(bx["x1"].shape), (2, 1))
                 self.assertEqual(tuple(by[0].shape), (2, 3))
-                self.assertEqual(tuple(bw.shape), (2,))
+                self.assertEqual(tuple(bw[0].shape), (2,))
+                self.assertEqual(tuple(bw[1].shape), (2,))
 
-    def test_sample_weights(self):
+    def _test_class_weights(self, target_encoding="int"):
+        x = np.random.random((4, 2))
+        if target_encoding == "int":
+            y = np.array([[0], [1], [2], [3]], dtype="int64")
+        else:
+            y = np.array(
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                dtype="float32",
+            )
+
+        class_weight = {
+            0: 0.1,
+            1: 0.2,
+            2: 0.3,
+            3: 0.4,
+        }
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x,
+            y=y,
+            class_weight=class_weight,
+            batch_size=16,
+        )
+        gen = adapter.get_numpy_iterator()
+        for batch in gen:
+            self.assertEqual(len(batch), 3)
+            _, _, bw = batch
+            self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
+
+    def test_class_weights_int_targets(self):
+        self._test_class_weights(target_encoding="int")
+
+    def test_class_weights_categorical_targets(self):
+        self._test_class_weights(target_encoding="categorical")
+
+    def test_errors(self):
         # TODO
         pass
