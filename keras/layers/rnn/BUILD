@@ -559,6 +559,7 @@ cuda_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_oss",  # TODO(b/277925387)
         "no_windows_gpu",
     ],
     deps = [
