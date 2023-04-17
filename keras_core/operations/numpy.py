@@ -124,10 +124,7 @@ tri
 tril
 triu
 true_divide
-unique
-unrival_index
 vdot
-vectorize
 vstack
 where
 zeros
@@ -216,9 +213,9 @@ def shape_equal(shape1, shape2, axis=None, allow_none=True):
     if allow_none:
         for i in range(len(shape1)):
             if shape1[i] is None:
-                shape1[i] = -1
+                shape1[i] = shape2[i]
             if shape2[i] is None:
-                shape2[i] = -1
+                shape2[i] = shape1[i]
 
     return shape1 == shape2
 
@@ -2163,6 +2160,534 @@ def roll(x, shift, axis=None):
     if any_symbolic_tensors((x,)):
         return Roll(shift, axis=axis).symbolic_call(x)
     return backend.execute("roll", x, shift, axis=axis)
+
+
+class Round(Operation):
+    def __init__(self, decimal=0):
+        super().__init__()
+        self.decimal = decimal
+
+    def call(self, x):
+        return backend.execute("round", x, self.decimal)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+class Shape(Operation):
+    def call(self, x):
+        return backend.execute("shape", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor([len(x.shape)], dtype="int32")
+
+
+def shape(x):
+    if any_symbolic_tensors((x,)):
+        return Shape().symbolic_call(x)
+    return backend.execute("shape", x)
+
+
+class Sign(Operation):
+    def call(self, x):
+        return backend.execute("sign", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="int32")
+
+
+def sign(x):
+    if any_symbolic_tensors((x,)):
+        return Sign().symbolic_call(x)
+    return backend.execute("sign", x)
+
+
+class Sin(Operation):
+    def call(self, x):
+        return backend.execute("sin", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape)
+
+
+def sin(x):
+    if any_symbolic_tensors((x,)):
+        return Sin().symbolic_call(x)
+    return backend.execute("sin", x)
+
+
+class Size(Operation):
+    def call(self, x):
+        return backend.execute("size", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor([], dtype="int32")
+
+
+def size(x):
+    if any_symbolic_tensors((x,)):
+        return Size().symbolic_call(x)
+    return backend.execute("size", x)
+
+
+class Sort(Operation):
+    def __init__(self, axis=-1):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x):
+        return backend.execute("sort", x, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, x.dtype)
+
+
+def sort(x, axis=-1):
+    if any_symbolic_tensors((x,)):
+        return Sort(axis=axis).symbolic_call(x)
+    return backend.execute("sort", x, axis=axis)
+
+
+class Split(Operation):
+    def __init__(self, indices_or_sections, axis=0):
+        super().__init__()
+        self.indices_or_sections = indices_or_sections
+        self.axis = axis
+
+    def call(self, x):
+        return backend.execute(
+            "split", x, self.indices_or_sections, axis=self.axis
+        )
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        x_size_on_axis = x_shape[self.axis]
+        if isinstance(self.indices_or_sections, int):
+            if x_size_on_axis is None:
+                x_shape[self.axis] = None
+                return [
+                    KerasTensor(x_shape, dtype=x.dtype)
+                    for _ in range(self.indices_or_sections)
+                ]
+            if np.mod(x_size_on_axis, self.indices_or_sections) != 0:
+                raise ValueError(
+                    "`x` size on given `axis` must be dividible by "
+                    "`indices_or_sections` when `indices_or_sections` is an "
+                    f"int. But received {x_size_on_axis} and "
+                    f"{self.indices_or_sections}."
+                )
+            size = x_size_on_axis // self.indices_or_sections
+            x_shape[self.axis] = size
+            return [
+                KerasTensor(x_shape, dtype=x.dtype)
+                for _ in range(self.indices_or_sections)
+            ]
+
+        indices_or_sections = [0] + self.indices_or_sections
+        output_size = np.diff(indices_or_sections)
+        outputs = []
+        for i in range(len(output_size)):
+            output_shape = list(x_shape)
+            output_shape[self.axis] = int(output_size[i])
+            outputs.append(KerasTensor(output_shape, dtype=x.dtype))
+        return outputs
+
+
+def split(x, indices_or_sections, axis=0):
+    if any_symbolic_tensors((x,)):
+        return Split(indices_or_sections, axis=axis).symbolic_call(x)
+    return backend.execute("split", x, indices_or_sections, axis=axis)
+
+
+class Stack(Operation):
+    def __init__(self, axis=0):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, xs):
+        return backend.execute("stack", xs, axis=self.axis)
+
+    def compute_output_spec(self, xs):
+        first_shape = xs[0].shape
+        for x in xs:
+            if not shape_equal(x.shape, first_shape, axis=[], allow_none=True):
+                raise ValueError(
+                    "Every value in `xs` must have the same shape. But found "
+                    f"element of shape {x.shape},  which is different from the "
+                    f"first element's shape {first_shape}."
+                )
+
+        size_on_axis = len(xs)
+        output_shape = list(first_shape)
+        if self.axis == -1:
+            output_shape = output_shape + [size_on_axis]
+        elif self.axis >= 0:
+            output_shape.insert(self.axis, size_on_axis)
+        else:
+            output_shape.insert(self.axis + 1, size_on_axis)
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def stack(x, axis=0):
+    if any_symbolic_tensors((x,)):
+        return Stack(axis=axis).symbolic_call(x)
+    return backend.execute("stack", x, axis=axis)
+
+
+class Std(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.execute("std", x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+        )
+
+
+def std(x, axis=None, keepdims=False):
+    if any_symbolic_tensors((x,)):
+        return Std(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.execute("std", x, axis=axis, keepdims=keepdims)
+
+
+class Swapaxes(Operation):
+    def __init__(self, axis1, axis2):
+        super().__init__()
+
+        self.axis1 = axis1
+        self.axis2 = axis2
+
+    def call(self, x):
+        return backend.execute("swapaxes", x, self.axis1, self.axis2)
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        tmp = x_shape[self.axis1]
+        x_shape[self.axis1] = x_shape[self.axis2]
+        x_shape[self.axis2] = tmp
+        return KerasTensor(x_shape, dtype=x.dtype)
+
+
+def swapaxes(x, axis1, axis2):
+    if any_symbolic_tensors((x,)):
+        return Swapaxes(axis1, axis2).symbolic_call(x)
+    return backend.execute("swapaxes", x, axis1=axis1, axis2=axis2)
+
+
+class Take(Operation):
+    def __init__(self, axis=None):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x, indices):
+        return backend.execute("take", x, indices, axis=self.axis)
+
+    def compute_output_spec(self, x, indices):
+        x_shape = list(x.shape)
+        indices_shape = list(getattr(np.array(indices), "shape", []))
+        if self.axis is None:
+            return KerasTensor(indices_shape, dtype=x.dtype)
+
+        if self.axis == -1:
+            output_shape = x_shape[:-1] + indices_shape
+        else:
+            output_shape = (
+                x_shape[: self.axis] + indices_shape + x_shape[self.axis + 1 :]
+            )
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def take(x, indices, axis=None):
+    if any_symbolic_tensors((x, indices)):
+        return Take(axis=axis).symbolic_call(x, indices)
+    return backend.execute("take", x, indices, axis=axis)
+
+
+class TakeAlongAxis(Operation):
+    def __init__(self, axis=None):
+        super().__init__()
+        self.axis = axis
+
+    def call(self, x, indices):
+        return backend.execute("take_along_axis", x, indices, axis=self.axis)
+
+    def compute_output_spec(self, x, indices):
+        x_shape = list(x.shape)
+        indices_shape = list(indices.shape)
+        if self.axis is None:
+            x_shape = [None] if None in x_shape else [int(np.prod(x_shape))]
+
+        if len(x_shape) != len(indices_shape):
+            raise ValueError(
+                "`x` and `indices` must have the same number of dimensions, "
+                f"but receive shape {x_shape} and {indices_shape}."
+            )
+
+        del x_shape[self.axis]
+        del indices_shape[self.axis]
+        output_shape = broadcast_shapes(x_shape, indices_shape)
+        size_on_axis = indices.shape[self.axis]
+        if self.axis == -1:
+            output_shape = output_shape + [size_on_axis]
+        elif self.axis >= 0:
+            output_shape.insert(self.axis, size_on_axis)
+        else:
+            output_shape.insert(self.axis + 1, size_on_axis)
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def take_along_axis(x, indices, axis=None):
+    if any_symbolic_tensors((x, indices)):
+        return TakeAlongAxis(axis=axis).symbolic_call(x, indices)
+    return backend.execute("take_along_axis", x, indices, axis=axis)
+
+
+class Tan(Operation):
+    def call(self, x):
+        return backend.execute("tan", x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape)
+
+
+def tan(x):
+    if any_symbolic_tensors((x,)):
+        return Tan().symbolic_call(x)
+    return backend.execute("tan", x)
+
+
+class Tensordot(Operation):
+    def __init__(self, axes=2):
+        super().__init__()
+        self.axes = axes
+
+    def call(self, x1, x2):
+        return backend.execute("tensordot", x1, x2, axes=self.axes)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = list(getattr(x1, "shape", []))
+        x2_shape = list(getattr(x2, "shape", []))
+        if not isinstance(self.axes, int):
+            x1_select_shape = [x1_shape[ax] for ax in self.axes[0]]
+            x2_select_shape = [x2_shape[ax] for ax in self.axes[1]]
+            if not shape_equal(
+                x1_select_shape, x2_select_shape, allow_none=True
+            ):
+                raise ValueError(
+                    "Shape mismatch on `x1[axes[0]]` and `x2[axes[1]]`, "
+                    f"received {x1_select_shape} and {x2_select_shape}."
+                )
+
+            for ax in self.axes[0]:
+                x1_shape[ax] = -1
+            for ax in self.axes[1]:
+                x2_shape[ax] = -1
+
+            x1_shape = list(filter((-1).__ne__, x1_shape))
+            x2_shape = list(filter((-1).__ne__, x2_shape))
+
+            output_shape = x1_shape + x2_shape
+            return KerasTensor(output_shape, dtype=x1.dtype)
+
+        if self.axes <= 0:
+            output_shape = x1_shape + x2_shape
+        else:
+            output_shape = x1_shape[: -self.axes] + x2_shape[self.axes :]
+
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def tensordot(x1, x2, axes=2):
+    if any_symbolic_tensors((x1, x2)):
+        return Tensordot(axes=axes).symbolic_call(x1, x2)
+    return backend.execute("tensordot", x1, x2, axes=axes)
+
+
+def round(x):
+    if any_symbolic_tensors((x,)):
+        return Round().symbolic_call(x)
+    return backend.execute("round", x)
+
+
+class Tile(Operation):
+    def __init__(self, repeats):
+        super().__init__()
+        self.repeats = repeats
+
+    def call(self, x):
+        return backend.execute("tile", x, self.repeats)
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        repeats = self.repeats
+        if len(x_shape) > len(repeats):
+            repeats = [1] * (len(x_shape) - len(repeats)) + repeats
+        else:
+            x_shape = [1] * (len(repeats) - len(x_shape)) + x_shape
+
+        output_shape = []
+        for x_size, repeat in zip(x_shape, repeats):
+            if x_size is None:
+                output_shape.append(None)
+            else:
+                output_shape.append(x_size * repeat)
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def tile(x, repeats):
+    if any_symbolic_tensors((x,)):
+        return Tile(
+            repeats,
+        ).symbolic_call(x)
+    return backend.execute("tile", x, repeats)
+
+
+class Trace(Operation):
+    def __init__(self, offset=0, axis1=0, axis2=1):
+        super().__init__()
+        self.offset = offset
+        self.axis1 = axis1
+        self.axis2 = axis2
+
+    def call(self, x):
+        return backend.execute(
+            "trace", x, offset=self.offset, axis1=self.axis1, axis2=self.axis2
+        )
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        x_shape[self.axis1] = -1
+        x_shape[self.axis2] = -1
+        output_shape = list(filter((-1).__ne__, x_shape))
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+
+def trace(x, offset=0, axis1=0, axis2=1):
+    if any_symbolic_tensors((x,)):
+        return Trace(offset, axis1, axis2).symbolic_call(x)
+    return backend.execute("trace", x, offset=offset, axis1=axis1, axis2=axis2)
+
+
+class Tri(Operation):
+    def call(self, N, M=None, k=0, dtype="float32"):
+        return backend.execute("tri", N, M=M, k=k, dtype=dtype)
+
+    def compute_output_spec(self, N, M=None, k=0, dtype="float32"):
+        if M is None:
+            M = N
+        return KerasTensor((N, M), dtype=dtype)
+
+
+def tri(N, M=None, k=0, dtype="float32"):
+    return backend.execute("tri", N, M=M, k=k, dtype=dtype)
+
+
+class Tril(Operation):
+    def __init__(self, k=0):
+        super().__init__()
+        self.k = k
+
+    def call(self, x):
+        return backend.execute("tril", x, k=self.k)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def tril(x, k=0):
+    if any_symbolic_tensors((x,)):
+        return Tril(k=k).symbolic_call(x)
+    return backend.execute("tril", x, k=k)
+
+
+class Triu(Operation):
+    def __init__(self, k=0):
+        super().__init__()
+        self.k = k
+
+    def call(self, x):
+        return backend.execute("triu", x, k=self.k)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+def triu(x, k=0):
+    if any_symbolic_tensors((x,)):
+        return Triu(k=k).symbolic_call(x)
+    return backend.execute("triu", x, k=k)
+
+
+class Vdot(Operation):
+    def call(self, x1, x2):
+        return backend.execute("vdot", x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor([], dtype=x1.dtype)
+
+
+def vdot(x1, x2):
+    if any_symbolic_tensors((x1, x2)):
+        return Vdot().symbolic_call(x1, x2)
+    return backend.execute("vdot", x1, x2)
+
+
+class Vstack(Operation):
+    def call(self, xs):
+        return backend.execute("vstack", xs)
+
+    def compute_output_spec(self, xs):
+        first_shape = xs[0].shape
+        total_size_on_axis = 0
+        for x in xs:
+            if not shape_equal(x.shape, first_shape, axis=[0], allow_none=True):
+                raise ValueError(
+                    "Every value in `xs` must have the same shape except on "
+                    f"the `axis` dim. But found element of shape {x.shape}, "
+                    f"which is different from the first element's "
+                    f"shape {first_shape}."
+                )
+            if total_size_on_axis is None or x.shape[0] is None:
+                total_size_on_axis = None
+            else:
+                total_size_on_axis += x.shape[0]
+        output_shape = list(first_shape)
+        output_shape[0] = total_size_on_axis
+        return KerasTensor(output_shape)
+
+
+def vstack(xs):
+    if any_symbolic_tensors((xs,)):
+        return Vstack().symbolic_call(xs)
+    return backend.execute("vstack", xs)
+
+
+class Where(Operation):
+    def call(self, condition, x1, x2):
+        return backend.execute("where", condition, x1, x2)
+
+    def compute_output_spec(self, condition, x1, x2):
+        condition_shape = getattr(condition, "shape", [])
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(condition_shape, x1_shape)
+        output_shape = broadcast_shapes(output_shape, x2_shape)
+        return KerasTensor(output_shape, dtype=x1.dtype)
+
+
+def where(condition, x1, x2):
+    if any_symbolic_tensors((condition, x1, x2)):
+        return Where().symbolic_call(condition, x1, x2)
+    return backend.execute("where", condition, x1, x2)
 
 
 class Subtract(Operation):

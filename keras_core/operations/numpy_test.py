@@ -438,6 +438,86 @@ class NumpyTwoInputOpsShapeTest(testing.TestCase):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.outer(x, 2).shape, (6, 1))
 
+    def test_take(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.take(x, 1).shape, ())
+        self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
+        self.assertEqual(knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (2, 2, 2))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.take(x, 1).shape, ())
+        self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
+        self.assertEqual(
+            knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (None, 2, 2)
+        )
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.take(x, 1, axis=1).shape, (None, 3))
+        self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
+        self.assertEqual(
+            knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (None, 2, 2, 3)
+        )
+
+    def test_take_along_axis(self):
+        x = KerasTensor([2, 3])
+        indices = KerasTensor([1, 3])
+        self.assertEqual(knp.take_along_axis(x, indices, axis=0).shape, (1, 3))
+        self.assertEqual(knp.take_along_axis(x, indices, axis=1).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        indices = KerasTensor([1, 3])
+        self.assertEqual(knp.take_along_axis(x, indices, axis=0).shape, (1, 3))
+        self.assertEqual(knp.take_along_axis(x, indices, axis=1).shape, (1, 3))
+
+        x = KerasTensor([None, 3, 3])
+        indices = KerasTensor([1, 3, None])
+        self.assertEqual(
+            knp.take_along_axis(x, indices, axis=1).shape, (1, 3, 3)
+        )
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            indices = KerasTensor([1, 4])
+            knp.take_along_axis(x, indices, axis=0)
+
+    def test_tensordot(self):
+        x = KerasTensor([2, 3, 3])
+        y = KerasTensor([3, 3, 4])
+        self.assertEqual(knp.tensordot(x, y, axes=1).shape, (2, 3, 3, 4))
+        self.assertEqual(knp.tensordot(x, y, axes=2).shape, (2, 4))
+        self.assertEqual(
+            knp.tensordot(x, y, axes=[[1, 2], [0, 1]]).shape, (2, 4)
+        )
+
+        x = KerasTensor([None, 3, 4])
+        y = KerasTensor([3, 4])
+        self.assertEqual(knp.tensordot(x, y, axes=1).shape, (None, 3, 4))
+        self.assertEqual(knp.tensordot(x, y, axes=[[0, 1], [1, 0]]).shape, (4,))
+
+    def test_vdot(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.vdot(x, y).shape, ())
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, 3])
+        self.assertEqual(knp.vdot(x, y).shape, ())
+
+        x = KerasTensor([None, 3, 3])
+        y = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.vdot(x, y).shape, ())
+
+    def test_where(self):
+        condition = KerasTensor([2, 3])
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
+
+        condition = KerasTensor([2, None, 1])
+        x = KerasTensor([None, 1])
+        y = KerasTensor([None, 3])
+        self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
+
 
 class NumpyOneInputOpsShapeTest(testing.TestCase):
     def test_mean(self):
@@ -1066,6 +1146,170 @@ class NumpyOneInputOpsShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
 
+    def test_round(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.round(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.round(x).shape, (None, 3))
+
+    def test_shape(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.shape(x).shape, (2,))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.shape(x).shape, (2,))
+
+    def test_sign(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.sign(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.sign(x).shape, (None, 3))
+
+    def test_sin(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.sin(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.sin(x).shape, (None, 3))
+
+    def test_size(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.size(x).shape, ())
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.size(x).shape, ())
+
+    def test_sort(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.sort(x).shape, (2, 3))
+        self.assertEqual(knp.sort(x, axis=1).shape, (2, 3))
+        self.assertEqual(knp.sort(x, axis=0).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.sort(x).shape, (None, 3))
+        self.assertEqual(knp.sort(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.sort(x, axis=0).shape, (None, 3))
+
+    def test_split(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(len(knp.split(x, 2)), 2)
+        self.assertEqual(knp.split(x, 2)[0].shape, (1, 3))
+        self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (2, 1))
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[1].shape, (2, 2))
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.split(x, 2)[0].shape, (None, 3, 3))
+        self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (None, 1, 3))
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[1].shape, (None, 2, 3))
+
+        with self.assertRaises(ValueError):
+            knp.split(x, 2, axis=1)
+
+    def test_sqrt(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.sqrt(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.sqrt(x).shape, (None, 3))
+
+    def test_stack(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.stack([x, y]).shape, (2, 2, 3))
+        self.assertEqual(knp.stack([x, y], axis=-1).shape, (2, 3, 2))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, 3])
+        self.assertEqual(knp.stack([x, y]).shape, (2, None, 3))
+        self.assertEqual(knp.stack([x, y], axis=-1).shape, (None, 3, 2))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([3, 3])
+            knp.stack([x, y])
+
+    def test_std(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.std(x).shape, ())
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.std(x).shape, ())
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.std(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.std(x, axis=1, keepdims=True).shape, (None, 1, 3))
+
+    def test_swapaxes(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.swapaxes(x, 0, 1).shape, (3, 2))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.swapaxes(x, 0, 1).shape, (3, None))
+
+    def test_tan(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.tan(x).shape, (2, 3))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.tan(x).shape, (None, 3))
+
+    def test_tile(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.tile(x, [2]).shape, (2, 6))
+        self.assertEqual(knp.tile(x, [1, 2]).shape, (2, 6))
+        self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, 2, 6))
+
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.tile(x, [2]).shape, (None, 6))
+        self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
+        self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
+
+    def test_trace(self):
+        x = KerasTensor([2, 3, 4, 5])
+        self.assertEqual(knp.trace(x).shape, (4, 5))
+        self.assertEqual(knp.trace(x, axis1=2, axis2=3).shape, (2, 3))
+
+        x = KerasTensor([None, 3, None, 5])
+        self.assertEqual(knp.trace(x).shape, (None, 5))
+        self.assertEqual(knp.trace(x, axis1=2, axis2=3).shape, (None, 3))
+
+    def test_tril(self):
+        x = KerasTensor([2, 3, 4, 5])
+        self.assertEqual(knp.tril(x).shape, (2, 3, 4, 5))
+        self.assertEqual(knp.tril(x, k=1).shape, (2, 3, 4, 5))
+        self.assertEqual(knp.tril(x, k=-1).shape, (2, 3, 4, 5))
+
+        x = KerasTensor([None, 3, None, 5])
+        self.assertEqual(knp.tril(x).shape, (None, 3, None, 5))
+        self.assertEqual(knp.tril(x, k=1).shape, (None, 3, None, 5))
+        self.assertEqual(knp.tril(x, k=-1).shape, (None, 3, None, 5))
+
+    def test_triu(self):
+        x = KerasTensor([2, 3, 4, 5])
+        self.assertEqual(knp.triu(x).shape, (2, 3, 4, 5))
+        self.assertEqual(knp.triu(x, k=1).shape, (2, 3, 4, 5))
+        self.assertEqual(knp.triu(x, k=-1).shape, (2, 3, 4, 5))
+
+        x = KerasTensor([None, 3, None, 5])
+        self.assertEqual(knp.triu(x).shape, (None, 3, None, 5))
+        self.assertEqual(knp.triu(x, k=1).shape, (None, 3, None, 5))
+        self.assertEqual(knp.triu(x, k=-1).shape, (None, 3, None, 5))
+
+    def test_vstack(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([2, 3])
+        self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, 3])
+        self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
+
+        x = KerasTensor([None, 3])
+        y = KerasTensor([None, None])
+        self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
+
 
 class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
     def test_add(self):
@@ -1480,6 +1724,81 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         y = np.ones([2, 3, 4, 5, 6])
         self.assertAllClose(np.array(knp.outer(x, y)), np.outer(x, y))
         self.assertAllClose(np.array(knp.Outer()(x, y)), np.outer(x, y))
+
+    def test_take(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        indices = np.array([0, 1])
+        self.assertAllClose(np.array(knp.take(x, indices)), np.take(x, indices))
+        self.assertAllClose(np.array(knp.take(x, 0)), np.take(x, 0))
+        self.assertAllClose(
+            np.array(knp.take(x, 0, axis=1)), np.take(x, 0, axis=1)
+        )
+
+        self.assertAllClose(
+            np.array(knp.Take()(x, indices)), np.take(x, indices)
+        )
+        self.assertAllClose(np.array(knp.Take()(x, 0)), np.take(x, 0))
+        self.assertAllClose(
+            np.array(knp.Take(axis=1)(x, 0)), np.take(x, 0, axis=1)
+        )
+
+    def test_take_along_axis(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        indices = np.ones([1, 4, 1, 1], dtype=np.int32)
+        self.assertAllClose(
+            np.array(knp.take_along_axis(x, indices, axis=1)),
+            np.take_along_axis(x, indices, axis=1),
+        )
+        self.assertAllClose(
+            np.array(knp.TakeAlongAxis(axis=1)(x, indices)),
+            np.take_along_axis(x, indices, axis=1),
+        )
+
+        x = np.arange(12).reshape([1, 1, 3, 4])
+        indices = np.ones([1, 4, 1, 1], dtype=np.int32)
+        self.assertAllClose(
+            np.array(knp.take_along_axis(x, indices, axis=2)),
+            np.take_along_axis(x, indices, axis=2),
+        )
+        self.assertAllClose(
+            np.array(knp.TakeAlongAxis(axis=2)(x, indices)),
+            np.take_along_axis(x, indices, axis=2),
+        )
+
+    def test_tensordot(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        y = np.arange(24).reshape([3, 4, 1, 2])
+        self.assertAllClose(
+            np.array(knp.tensordot(x, y, axes=2)), np.tensordot(x, y, axes=2)
+        )
+        self.assertAllClose(
+            np.array(knp.tensordot(x, y, axes=([0, 1], [2, 3]))),
+            np.tensordot(x, y, axes=([0, 1], [2, 3])),
+        )
+        self.assertAllClose(
+            np.array(knp.Tensordot(axes=2)(x, y)),
+            np.tensordot(x, y, axes=2),
+        )
+        self.assertAllClose(
+            np.array(knp.Tensordot(axes=([0, 1], [2, 3]))(x, y)),
+            np.tensordot(x, y, axes=([0, 1], [2, 3])),
+        )
+
+    def test_vdot(self):
+        x = np.array([1, 2, 3])
+        y = np.array([4, 5, 6])
+        self.assertAllClose(np.array(knp.vdot(x, y)), np.vdot(x, y))
+        self.assertAllClose(np.array(knp.Vdot()(x, y)), np.vdot(x, y))
+
+    def test_where(self):
+        x = np.array([1, 2, 3])
+        y = np.array([4, 5, 6])
+        self.assertAllClose(
+            np.array(knp.where(x > 1, x, y)), np.where(x > 1, x, y)
+        )
+        self.assertAllClose(
+            np.array(knp.Where()(x > 1, x, y)), np.where(x > 1, x, y)
+        )
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
@@ -2233,6 +2552,135 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.array(knp.Roll(-1, axis=0)(x)), np.roll(x, -1, axis=0)
         )
 
+    def test_round(self):
+        x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
+        self.assertAllClose(np.array(knp.round(x)), np.round(x))
+        self.assertAllClose(np.array(knp.Round()(x)), np.round(x))
+
+    def test_shape(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.shape(x)), np.shape(x))
+        self.assertAllClose(np.array(knp.Shape()(x)), np.shape(x))
+
+    def test_sign(self):
+        x = np.array([[1, -2, 3], [-3, 2, -1]])
+        self.assertAllClose(np.array(knp.sign(x)), np.sign(x))
+        self.assertAllClose(np.array(knp.Sign()(x)), np.sign(x))
+
+    def test_sin(self):
+        x = np.array([[1, -2, 3], [-3, 2, -1]])
+        self.assertAllClose(np.array(knp.sin(x)), np.sin(x))
+        self.assertAllClose(np.array(knp.Sin()(x)), np.sin(x))
+
+    def test_size(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.size(x)), np.size(x))
+        self.assertAllClose(np.array(knp.Size()(x)), np.size(x))
+
+    def test_sort(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.sort(x)), np.sort(x))
+        self.assertAllClose(np.array(knp.Sort()(x)), np.sort(x))
+        self.assertAllClose(np.array(knp.sort(x, axis=0)), np.sort(x, axis=0))
+        self.assertAllClose(np.array(knp.Sort(axis=0)(x)), np.sort(x, axis=0))
+
+    def test_split(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.split(x, 2)), np.split(x, 2))
+        self.assertAllClose(np.array(knp.Split(2)(x)), np.split(x, 2))
+        self.assertAllClose(
+            np.array(knp.split(x, [1, 2], axis=1)),
+            np.split(x, [1, 2], axis=1),
+        )
+        self.assertAllClose(
+            np.array(knp.Split([1, 2], axis=1)(x)),
+            np.split(x, [1, 2], axis=1),
+        )
+
+    def test_sqrt(self):
+        x = np.array([[1, 4, 9], [16, 25, 36]])
+        self.assertAllClose(np.array(knp.sqrt(x)), np.sqrt(x))
+        self.assertAllClose(np.array(knp.Sqrt()(x)), np.sqrt(x))
+
+    def test_stack(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(np.array(knp.stack([x, y])), np.stack([x, y]))
+        self.assertAllClose(
+            np.array(knp.stack([x, y], axis=1)), np.stack([x, y], axis=1)
+        )
+        self.assertAllClose(np.array(knp.Stack()([x, y])), np.stack([x, y]))
+        self.assertAllClose(
+            np.array(knp.Stack(axis=1)([x, y])), np.stack([x, y], axis=1)
+        )
+
+    def test_std(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.std(x)), np.std(x))
+        self.assertAllClose(np.array(knp.std(x, axis=1)), np.std(x, axis=1))
+        self.assertAllClose(
+            np.array(knp.std(x, axis=1, keepdims=True)),
+            np.std(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(np.array(knp.Std()(x)), np.std(x))
+        self.assertAllClose(np.array(knp.Std(axis=1)(x)), np.std(x, axis=1))
+        self.assertAllClose(
+            np.array(knp.Std(axis=1, keepdims=True)(x)),
+            np.std(x, axis=1, keepdims=True),
+        )
+
+    def test_swapaxes(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        self.assertAllClose(
+            np.array(knp.swapaxes(x, 0, 1)),
+            np.swapaxes(x, 0, 1),
+        )
+        self.assertAllClose(
+            np.array(knp.Swapaxes(0, 1)(x)),
+            np.swapaxes(x, 0, 1),
+        )
+
+    def test_tan(self):
+        x = np.array([[1, -2, 3], [-3, 2, -1]])
+        self.assertAllClose(np.array(knp.tan(x)), np.tan(x))
+        self.assertAllClose(np.array(knp.Tan()(x)), np.tan(x))
+
+    def test_tile(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        self.assertAllClose(np.array(knp.tile(x, [2, 3])), np.tile(x, [2, 3]))
+        self.assertAllClose(np.array(knp.Tile([2, 3])(x)), np.tile(x, [2, 3]))
+
+    def test_trace(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        self.assertAllClose(np.array(knp.trace(x)), np.trace(x))
+        self.assertAllClose(
+            np.array(knp.trace(x, axis1=2, axis2=3)),
+            np.trace(x, axis1=2, axis2=3),
+        )
+        self.assertAllClose(
+            np.array(knp.Trace(axis1=2, axis2=3)(x)),
+            np.trace(x, axis1=2, axis2=3),
+        )
+
+    def test_tril(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        self.assertAllClose(np.array(knp.tril(x)), np.tril(x))
+        self.assertAllClose(np.array(knp.tril(x, -1)), np.tril(x, -1))
+        self.assertAllClose(np.array(knp.Tril(-1)(x)), np.tril(x, -1))
+
+    def test_triu(self):
+        x = np.arange(24).reshape([1, 2, 3, 4])
+        self.assertAllClose(np.array(knp.triu(x)), np.triu(x))
+        self.assertAllClose(np.array(knp.triu(x, -1)), np.triu(x, -1))
+        self.assertAllClose(np.array(knp.Triu(-1)(x)), np.triu(x, -1))
+
+    def test_vstack(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(np.array(knp.vstack([x, y])), np.vstack([x, y]))
+        self.assertAllClose(np.array(knp.Vstack()([x, y])), np.vstack([x, y]))
+
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
@@ -2281,3 +2729,12 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_identity(self):
         self.assertAllClose(np.array(knp.identity(3)), np.identity(3))
         self.assertAllClose(np.array(knp.Identity()(3)), np.identity(3))
+
+    def test_tri(self):
+        self.assertAllClose(np.array(knp.tri(3)), np.tri(3))
+        self.assertAllClose(np.array(knp.tri(3, 4)), np.tri(3, 4))
+        self.assertAllClose(np.array(knp.tri(3, 4, 1)), np.tri(3, 4, 1))
+
+        self.assertAllClose(np.array(knp.Tri()(3)), np.tri(3))
+        self.assertAllClose(np.array(knp.Tri()(3, 4)), np.tri(3, 4))
+        self.assertAllClose(np.array(knp.Tri()(3, 4, 1)), np.tri(3, 4, 1))
