@@ -5,26 +5,33 @@ import tensorflow as tf
 
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
-from keras_core.trainers import data_adapter
 from keras_core.trainers import trainer
+from keras_core.trainers.data_adapters import data_adapters_utils
+from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class TensorFlowTrainer(trainer.Trainer):
     def train_step(self, data):
-        # TODO: should be
-        # x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-        x, y = data
-        sample_weight = None
+        x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(data)
 
+        # Forward pass
         with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
+            if self._call_has_training_arg():
+                y_pred = self(x, training=True)
+            else:
+                y_pred = self(x)
             loss = self.compute_loss(
                 x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
             )
 
         # Compute gradients
-        trainable_weights = self.trainable_weights
+        trainable_weights = [v.value for v in self.trainable_weights]
         gradients = tape.gradient(loss, trainable_weights)
+
+        print("loss", loss)
+        print("trainable_weights", trainable_weights)
+        print("gradients", gradients)
+
         # Update weights
         self.optimizer.apply_gradients(zip(gradients, trainable_weights))
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
@@ -35,13 +42,34 @@ class TensorFlowTrainer(trainer.Trainer):
     def predict_step(self, data):
         raise NotImplementedError
 
-    def make_train_function(self):
+    def make_train_function(self, force=False):
+        # TODO: support tf.distribute and steps_per_execution.
+        if self.train_function is not None and not force:
+            return self.train_function
+
+        def step_function(data):
+            """Runs a single training step."""
+            return self.train_step(data)
+
+        if self.jit_compile:
+            train_function = tf.function(
+                step_function, jit_compile=True, reduce_retracing=True
+            )
+        elif not self.run_eagerly:
+            train_function = tf.function(step_function, reduce_retracing=True)
+        else:
+            train_function = step_function
+
+        print("run eagerly:", self.run_eagerly)
+        print("train_function:", train_function)
+        print("self._compile_loss", self._compile_loss)
+
+        self.train_function = train_function
+
+    def make_test_function(self, force=False):
         raise NotImplementedError
 
-    def make_test_function(self):
-        raise NotImplementedError
-
-    def make_predict_function(self):
+    def make_predict_function(self, force=False):
         raise NotImplementedError
 
     def fit(
@@ -63,6 +91,10 @@ class TensorFlowTrainer(trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
+        if not self.compiled:
+            raise ValueError(
+                "You must call `compile()` before calling `fit()`."
+            )
         # TODO: respect compiled trainable state
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -71,7 +103,7 @@ class TensorFlowTrainer(trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapter.train_validation_split(
+            ), validation_data = data_adapters_utils.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -80,21 +112,17 @@ class TensorFlowTrainer(trainer.Trainer):
                 val_x,
                 val_y,
                 val_sample_weight,
-            ) = data_adapter.unpack_x_y_sample_weight(validation_data)
+            ) = data_adapters_utils.unpack_x_y_sample_weight(validation_data)
 
         # Creates a `tf.data.Dataset` and handles batch and epoch iteration.
-        data_handler = data_adapter.get_data_handler(
+        epoch_iterator = EpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
             batch_size=batch_size,
             steps_per_epoch=steps_per_epoch,
-            initial_epoch=initial_epoch,
-            epochs=epochs,
             shuffle=shuffle,
             class_weight=class_weight,
-            model=self,
-            steps_per_execution=self._steps_per_execution,
         )
 
         # Container that configures and calls `tf.keras.Callback`s.
@@ -103,57 +131,39 @@ class TensorFlowTrainer(trainer.Trainer):
                 callbacks,
                 add_history=True,
                 add_progbar=verbose != 0,
-                model=self,
                 verbose=verbose,
                 epochs=epochs,
-                steps=data_handler.inferred_steps,
+                steps=epoch_iterator.num_batches,
+                model=self,
             )
 
         self.stop_training = False
-        self.train_function = self.make_train_function()
+        self.make_train_function()
         callbacks.on_train_begin()
         training_logs = None
         logs = None
-        for epoch, iterator in data_handler.enumerate_epochs():
+        for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
-            with data_handler.catch_stop_iteration():
-                for step in data_handler.steps():
-                    callbacks.on_train_batch_begin(step)
-                    logs = self.train_function(iterator)
-                    end_step = step + data_handler.step_increment
-                    callbacks.on_train_batch_end(end_step, logs)
-                    if self.stop_training:
-                        break
+            for step, batch in epoch_iterator.enumerate_epoch():
+                callbacks.on_train_batch_begin(step)
+                logs = self.train_function(batch)
+                callbacks.on_train_batch_end(step, logs)
+                if self.stop_training:
+                    break
 
-            logs = sync_to_numpy_or_python_type(logs)
-            if logs is None:
-                raise ValueError(
-                    "Unexpected result of `train_function` "
-                    "(Empty logs). This could be due to issues in input "
-                    "pipeline that resulted in an empty dataset. "
-                    "Otherwise, please use "
-                    "`Model.compile(..., run_eagerly=True)`, or "
-                    "`tf.config.run_functions_eagerly(True)` for more "
-                    "information of where went wrong."
-                )
             # Override with model metrics instead of last step logs
-            logs = self._validate_and_get_metrics_result(logs)
-            epoch_logs = copy.copy(logs)
+            epoch_logs = self.get_metrics_result()
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
-                if self._pss_evaluation_shards:
-                    self._disallow_exact_eval_with_add_metrics()
-                # Create data_handler for evaluation and cache it.
-                if getattr(self, "_eval_data_handler", None) is None:
-                    self._eval_data_handler = data_adapter.get_data_handler(
+                # Create EpochIterator for evaluation and cache it.
+                if getattr(self, "_eval_epoch_iterator", None) is None:
+                    self._eval_epoch_iterator = EpochIterator(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
-                        steps_per_epoch=validation_steps,
-                        initial_epoch=0,
                         epochs=1,
                     )
                 val_logs = self.evaluate(
@@ -180,11 +190,11 @@ class TensorFlowTrainer(trainer.Trainer):
             isinstance(self.optimizer, optimizers_module.Optimizer)
             and epochs > 0
         ):
-            self.optimizer.finalize_variable_values(self.trainable_variables)
+            self.optimizer.finalize_variable_values(self.trainable_weights)
 
-        # If eval data_handler exists, delete it after all epochs are done.
-        if getattr(self, "_eval_data_handler", None) is not None:
-            del self._eval_data_handler
+        # If _eval_epoch_iterator exists, delete it after all epochs are done.
+        if getattr(self, "_eval_epoch_iterator", None) is not None:
+            del self._eval_epoch_iterator
         callbacks.on_train_end(logs=training_logs)
         return self.history
 
@@ -206,45 +216,3 @@ class TensorFlowTrainer(trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-
-
-def sync_to_numpy_or_python_type(tensors):
-    """Syncs and converts a structure of `Tensor`s to `NumPy` arrays or Python
-    scalar types.
-
-    For each tensor, it calls `tensor.numpy()`. If the result is a scalar value,
-    it converts it to a Python type, such as a float or int, by calling
-    `result.item()`.
-
-    Numpy scalars are converted, as Python types are often more convenient to
-    deal with. This is especially useful for bfloat16 Numpy scalars, which don't
-    support as many operations as other Numpy values.
-
-    Async strategies (such as `TPUStrategy` and `ParameterServerStrategy`) are
-    forced to sync during this process.
-
-    Args:
-        tensors: A structure of tensors.
-
-    Returns:
-        `tensors`, but scalar tensors are converted to Python types and non-scalar
-        tensors are converted to Numpy arrays.
-    """
-    if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
-        tensors = tensors.fetch()
-    if isinstance(tensors, list) and isinstance(
-        tensors[0], tf.distribute.experimental.coordinator.RemoteValue
-    ):
-        tensors = tf.nest.map_structure(lambda t: t.fetch(), tensors)
-
-    def _to_single_numpy_or_python_type(t):
-        # Don't turn ragged or sparse tensors to NumPy.
-        if isinstance(t, tf.Tensor):
-            t = t.numpy()
-        # Strings, ragged and sparse tensors don't have .item(). Return them
-        # as-is.
-        if not isinstance(t, (np.ndarray, np.generic)):
-            return t
-        return t.item() if np.ndim(t) == 0 else t
-
-    return tf.nest.map_structure(_to_single_numpy_or_python_type, tensors)

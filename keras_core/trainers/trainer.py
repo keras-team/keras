@@ -5,6 +5,14 @@ from keras_core.trainers.compile_utils import CompileMetrics
 
 
 class Trainer:
+    def __init__(self):
+        self._run_eagerly = False
+        self._jit_compile = True
+        self.compiled = False
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+ 
     def compile(
         self,
         optimizer,
@@ -13,7 +21,7 @@ class Trainer:
         metrics=None,
         weighted_metrics=None,
         run_eagerly=False,
-        jit_compile=False,
+        jit_compile=True,
     ):
         # TODO: get from module
         self.optimizer = optimizer
@@ -25,8 +33,12 @@ class Trainer:
             self._compile_metrics = CompileMetrics(metrics, weighted_metrics)
         else:
             self._compile_metrics = None
+        if jit_compile and run_eagerly:
+            raise ValueError("If `jit_compile` is True, then `run_eagerly` cannot also be True.")
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
+        self.stop_training = False
+        self.compiled = True
 
     @property
     def jit_compile(self):
@@ -106,8 +118,8 @@ class Trainer:
         """
         del x  # The default implementation does not use `x`.
         losses = []
-        if self._compile_metrics is not None:
-            loss = self.compile_loss(y, y_pred, sample_weight)
+        if self._compile_loss is not None:
+            loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
         for l in self.losses:
@@ -235,6 +247,19 @@ class Trainer:
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
+    
+    def _should_eval(self, epoch, validation_freq):
+        epoch = epoch + 1  # one-index the user-facing epoch.
+        if isinstance(validation_freq, int):
+            return epoch % validation_freq == 0
+        elif isinstance(validation_freq, list):
+            return epoch in validation_freq
+        else:
+            raise ValueError(
+                "Expected `validation_freq` to be a list or int. "
+                f"Received: validation_freq={validation_freq} of the "
+                f"type {type(validation_freq)}."
+            )
 
     def get_compile_config(self):
         # TODO
