@@ -12,7 +12,7 @@ class Trainer:
         self.train_function = None
         self.test_function = None
         self.predict_function = None
- 
+
     def compile(
         self,
         optimizer,
@@ -34,7 +34,9 @@ class Trainer:
         else:
             self._compile_metrics = None
         if jit_compile and run_eagerly:
-            raise ValueError("If `jit_compile` is True, then `run_eagerly` cannot also be True.")
+            raise ValueError(
+                "If `jit_compile` is True, then `run_eagerly` cannot also be True."
+            )
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -60,7 +62,8 @@ class Trainer:
     def metrics(self):
         metrics = self._metrics[:]
         if self._compile_metrics is not None:
-            metrics += [self.compile_metric]
+            metrics += [self._compile_metrics]
+        # TODO: also track mean of compile_loss.
         return metrics
 
     def reset_metrics(self):
@@ -247,7 +250,7 @@ class Trainer:
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-    
+
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.
         if isinstance(validation_freq, int):

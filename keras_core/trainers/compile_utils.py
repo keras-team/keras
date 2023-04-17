@@ -335,6 +335,8 @@ class CompileMetrics(metrics_module.Metric):
                 m.update_state(y_t, y_p, s_w)
 
     def reset_state(self):
+        if not self.built:
+            return
         for m in self._flat_metrics:
             if m:
                 m.reset_state()
@@ -343,6 +345,10 @@ class CompileMetrics(metrics_module.Metric):
                 m.reset_state()
 
     def result(self):
+        if not self.built:
+            raise ValueError(
+                "Cannot get result() since the metric has not yet been built."
+            )
         results = {}
         unique_name_counters = {}
         for mls in self._flat_metrics:
@@ -384,7 +390,9 @@ class CompileMetrics(metrics_module.Metric):
 
 
 class CompileLoss(losses_module.Loss):
-    def __init__(self, loss, loss_weights=None, reduction="sum_over_batch_size"):
+    def __init__(
+        self, loss, loss_weights=None, reduction="sum_over_batch_size"
+    ):
         if loss_weights and not isinstance(loss_weights, (list, tuple, dict)):
             raise ValueError(
                 "Expected `loss_weights` argument to be a list, tuple, or dict. "

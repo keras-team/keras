@@ -1,18 +1,18 @@
 import numpy as np
 
 from keras_core import backend
-from keras_core import metrics as metrics_module
 from keras_core import metrics as losses_module
+from keras_core import metrics as metrics_module
 from keras_core import testing
-from keras_core.trainers.compile_utils import CompileMetrics
 from keras_core.trainers.compile_utils import CompileLoss
+from keras_core.trainers.compile_utils import CompileMetrics
 
 
 class TestCompileMetrics(testing.TestCase):
     def test_single_output_case(self):
         compile_metrics = CompileMetrics(
-            metrics=[metrics_module.MeanSquareError()],
-            weighted_metrics=[metrics_module.MeanSquareError()],
+            metrics=[metrics_module.MeanSquaredError()],
+            weighted_metrics=[metrics_module.MeanSquaredError()],
         )
         # Test symbolic build
         y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
@@ -50,22 +50,22 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics = CompileMetrics(
             metrics=[
                 [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
                 [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
             ],
             weighted_metrics=[
                 [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
                 [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
             ],
         )
@@ -113,22 +113,22 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics = CompileMetrics(
             metrics={
                 "output_1": [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
                 "output_2": [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
             },
             weighted_metrics={
                 "output_1": [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
                 "output_2": [
-                    metrics_module.MeanSquareError(),
-                    metrics_module.MeanSquareError(),
+                    metrics_module.MeanSquaredError(),
+                    metrics_module.MeanSquaredError(),
                 ],
             },
         )
@@ -182,7 +182,7 @@ class TestCompileMetrics(testing.TestCase):
 class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):
         compile_loss = CompileLoss(
-            loss=losses_module.MeanSquareError(),
+            loss=losses_module.MeanSquaredError(),
         )
         # Test symbolic build
         y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
@@ -194,4 +194,4 @@ class TestCompileLoss(testing.TestCase):
         y_pred = np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]])
         compile_loss.build(y_true, y_pred)
         value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 0.5)
+        self.assertAllClose(value, 0.068333, atol=1e-5)

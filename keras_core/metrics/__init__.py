@@ -1,6 +1,6 @@
 from keras_core.api_export import keras_core_export
 from keras_core.metrics.metric import Metric
-from keras_core.metrics.regression_metrics import MeanSquareError
+from keras_core.metrics.regression_metrics import MeanSquaredError
 
 
 @keras_core_export("keras_core.metrics.get")

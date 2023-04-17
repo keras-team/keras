@@ -42,8 +42,8 @@ import warnings
 
 import tensorflow as tf
 
-from keras_core.trainers.data_adapters import data_adapters_utils
 from keras_core.trainers.data_adapters import array_data_adapter
+from keras_core.trainers.data_adapters import data_adapters_utils
 from keras_core.trainers.data_adapters import tf_dataset_adapter
 
 

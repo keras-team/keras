@@ -1,9 +1,10 @@
 import numpy as np
 
-from keras_core import testing
 from keras_core import layers
-from keras_core import optimizers
 from keras_core import losses
+from keras_core import metrics
+from keras_core import optimizers
+from keras_core import testing
 from keras_core.backend.tensorflow.trainer import TensorFlowTrainer
 
 
@@ -22,7 +23,13 @@ class TestTFTrainer(testing.TestCase):
         batch_size = 16
         epochs = 10
 
-        model.compile(optimizer=optimizers.SGD(), loss=losses.MeanSquaredError(), run_eagerly=run_eagerly, jit_compile=jit_compile)
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
         history = model.fit(x, y, batch_size=batch_size, epochs=epochs)
 
     def test_basic_flow_eager(self):

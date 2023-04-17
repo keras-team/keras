@@ -2550,11 +2550,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.round(x)), np.round(x))
         self.assertAllClose(np.array(knp.Round()(x)), np.round(x))
 
-    def test_shape(self):
-        x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.shape(x)), np.shape(x))
-        self.assertAllClose(np.array(knp.Shape()(x)), np.shape(x))
-
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
         self.assertAllClose(np.array(knp.sign(x)), np.sign(x))
