@@ -42,9 +42,8 @@ class ArrayDataAdapter(DataAdapter):
         batch_size=None,
         steps=None,
         shuffle=False,
-        **kwargs,
     ):
-        super().__init__(x, y, **kwargs)
+        super().__init__(x, y)
         x, y, sample_weights = convert_to_arrays((x, y, sample_weights))
 
         inputs = data_adapters_utils.pack_x_y_sample_weight(
@@ -81,15 +80,19 @@ class ArrayDataAdapter(DataAdapter):
         ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
 
-    def get_size(self):
+    @property
+    def num_batches(self):
         return self._size
 
+    @property
     def batch_size(self):
         return self._batch_size
 
+    @property
     def has_partial_batch(self):
         return self._partial_batch_size > 0
 
+    @property
     def partial_batch_size(self):
         return self._partial_batch_size or None
 

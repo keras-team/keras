@@ -25,6 +25,11 @@ class TestArrayDataAdapter(testing.TestCase):
             steps=None,
             shuffle=False,
         )
+        self.assertEqual(adapter.num_batches, 3)
+        self.assertEqual(adapter.batch_size, 16)
+        self.assertEqual(adapter.has_partial_batch, True)
+        self.assertEqual(adapter.partial_batch_size, 2)
+
         gen = adapter.get_numpy_iterator()
         for i, batch in enumerate(gen):
             self.assertEqual(len(batch), 2)
