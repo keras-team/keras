@@ -2,8 +2,10 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import metrics as metrics_module
+from keras_core import metrics as losses_module
 from keras_core import testing
 from keras_core.trainers.compile_utils import CompileMetrics
+from keras_core.trainers.compile_utils import CompileLoss
 
 
 class TestCompileMetrics(testing.TestCase):
@@ -179,4 +181,17 @@ class TestCompileMetrics(testing.TestCase):
 
 class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):
-        pass
+        compile_loss = CompileLoss(
+            loss=losses_module.MeanSquareError(),
+        )
+        # Test symbolic build
+        y_true, y_pred = backend.KerasTensor((3, 4)), backend.KerasTensor(
+            (3, 4)
+        )
+        compile_loss.build(y_true, y_pred)
+        # Test eager build
+        y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
+        y_pred = np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]])
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.5)

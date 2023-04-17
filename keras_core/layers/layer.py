@@ -125,7 +125,7 @@ class Layer(Operation):
         shape,
         initializer,
         dtype=None,
-        trainable=None,
+        trainable=True,
         regularizer=None,
         constraint=None,
         name=None,

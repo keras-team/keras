@@ -16,8 +16,7 @@ class Variable(KerasVariable):
         self.name = name or auto_name(self.__class__.__name__)
         dtype = standardize_dtype(dtype)
         self.trainable = trainable
-        with tf.init_scope():
-            self._value = tf.Variable(value, dtype=dtype)
+        self._value = tf.Variable(value, dtype=dtype)
 
     def assign(self, value):
         value = convert_to_tensor(value, dtype=self.dtype)

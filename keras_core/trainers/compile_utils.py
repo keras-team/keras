@@ -169,6 +169,7 @@ class CompileMetrics(metrics_module.Metric):
         self._user_metrics = metrics
         self._user_weighted_metrics = weighted_metrics
         self.built = False
+        self.name = "compile_metrics"
 
     def build(self, y_true, y_pred):
         if isinstance(y_pred, dict):
@@ -383,12 +384,7 @@ class CompileMetrics(metrics_module.Metric):
 
 
 class CompileLoss(losses_module.Loss):
-    def __init__(self, loss, loss_weights):
-        if loss and not isinstance(loss, (list, tuple, dict)):
-            raise ValueError(
-                "Expected `loss` argument to be a list, tuple, or dict. "
-                f"Received instead: loss={loss} of type {type(loss)}"
-            )
+    def __init__(self, loss, loss_weights=None, reduction="sum_over_batch_size"):
         if loss_weights and not isinstance(loss_weights, (list, tuple, dict)):
             raise ValueError(
                 "Expected `loss_weights` argument to be a list, tuple, or dict. "
@@ -398,6 +394,7 @@ class CompileLoss(losses_module.Loss):
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
+        super().__init__(name="compile_loss", reduction=reduction)
 
     def build(self, y_true, y_pred):
         if isinstance(y_pred, dict):
@@ -539,6 +536,8 @@ class CompileLoss(losses_module.Loss):
                         flat_loss_weights.append(loss_weights[name])
                     else:
                         flat_loss_weights.append(1.0)
+        self.flat_losses = flat_losses
+        self.flat_loss_weights = flat_loss_weights
 
     def call(self, y_true, y_pred):
         if not self.built:
@@ -548,7 +547,7 @@ class CompileLoss(losses_module.Loss):
         y_pred = nest.flatten(y_pred)
         loss_values = []
         for loss, y_t, y_p, w in zip(
-            self.losses, y_true, y_pred, self.loss_weights
+            self.flat_losses, y_true, y_pred, self.flat_loss_weights
         ):
             if loss:
                 value = w * ops.cast(loss(y_t, y_p), dtype=backend.floatx())

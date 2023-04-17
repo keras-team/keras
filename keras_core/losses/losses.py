@@ -27,7 +27,11 @@ def mean_squared_error(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
-    return (y_true - y_pred) ** 2
+    output = (y_true - y_pred) ** 2
+    ndim = len(y_true.shape)
+    if ndim > 1:
+        output = ops.sum(output, axis=list(range(1, ndim)))
+    return output
 
 
 class MeanSquaredError(LossFunctionWrapper):
