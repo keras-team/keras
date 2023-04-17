@@ -178,9 +178,6 @@ class Trainer:
                 return_metrics[metric.name] = result
         return return_metrics
 
-    def call(self, inputs):
-        raise NotImplementedError
-
     def train_step(self, data):
         raise NotImplementedError
 
@@ -199,13 +196,44 @@ class Trainer:
     def make_predict_function(self):
         raise NotImplementedError
 
-    def fit(self, x, y=None):
+    def fit(
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        epochs=1,
+        verbose="auto",
+        callbacks=None,
+        validation_split=0.0,
+        validation_data=None,
+        shuffle=True,
+        class_weight=None,
+        sample_weight=None,
+        initial_epoch=0,
+        steps_per_epoch=None,
+        validation_steps=None,
+        validation_batch_size=None,
+        validation_freq=1,
+    ):
         raise NotImplementedError
 
-    def evaluate(self, x, y=None):
+    def evaluate(
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        verbose="auto",
+        sample_weight=None,
+        steps=None,
+        callbacks=None,
+        return_dict=False,
+        **kwargs,
+    ):
         raise NotImplementedError
 
-    def predict(self, x, y=None):
+    def predict(
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+    ):
         raise NotImplementedError
 
     def get_compile_config(self):
@@ -215,74 +243,3 @@ class Trainer:
     def compile_from_config(self):
         # TODO
         raise NotImplementedError
-
-    # @property
-    # def num_inputs(self):
-    #     """Return the number of input tensors expected to be taken by the first argument of `call`."""
-    #     from keras_core.models.functional import Functional
-    #     from keras_core.models.sequential import Sequential
-    #     if isinstance(self, Functional):
-    #         return len(self.inputs)
-    #     elif isinstance(self, Sequential) and self._functional:
-    #         return len(self._functional.inputs)
-    #     # Subclassed model: unknown
-    #     return None
-
-    # @property
-    # def num_outputs(self):
-    #     """Return the number of output tensors expected to be returned by `call`."""
-    #     from keras_core.models.functional import Functional
-    #     from keras_core.models.sequential import Sequential
-    #     if isinstance(self, Functional):
-    #         return len(self.outputs)
-    #     elif isinstance(self, Sequential) and self._functional:
-    #         return len(self._functional.outputs)
-    #     # Subclassed model: unknown
-    #     return None
-
-    # @property
-    # def output_names(self):
-    #     from keras_core.models.functional import Functional
-    #     from keras_core.models.sequential import Sequential
-    #     if isinstance(self, Functional):
-    #         functional = self
-    #     elif isinstance(self, Sequential) and self._functional:
-    #         functional = self._functional
-    #     else:
-    #         # Subclassed model: names undefined
-    #         return None
-    #     if isinstance(functional._outputs_struct, dict):
-    #         return sorted(functional._outputs_struct.keys())
-    #     return [
-    #         x._keras_history.operation.name for x in self._outputs_struct
-    #     ]
-
-    # @property
-    # def input_names(self):
-    #     from keras_core.models.functional import Functional
-    #     from keras_core.models.sequential import Sequential
-    #     if isinstance(self, Functional):
-    #         functional = self
-    #     elif isinstance(self, Sequential) and self._functional:
-    #         functional = self._functional
-    #     else:
-    #         # Subclassed model: names undefined
-    #         return None
-    #     if isinstance(functional._inputs_struct, dict):
-    #         return sorted(functional._inputs_struct.keys())
-    #     return [
-    #         x._keras_history.operation.name for x in self._inputs_struct
-    #     ]
-
-
-# def get_functional_inputs_and_outputs(model):
-#     from keras_core.models.functional import Functional
-#     from keras_core.models.sequential import Sequential
-#     functional = None
-#     if isinstance(model, Functional):
-#         functional = model
-#     elif isinstance(model, Sequential) and model._functional:
-#         functional = model._functional
-#     if functional:
-#         return functional._inputs_struct, functional._outputs_struct
-#     return None, None
