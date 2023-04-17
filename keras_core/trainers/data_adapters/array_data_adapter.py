@@ -14,17 +14,6 @@ except ImportError:
     pandas = None
 
 
-ARRAY_TYPES = (tf.Tensor, np.ndarray)
-if pandas:
-    ARRAY_TYPES = ARRAY_TYPES + (
-        tf.Tensor,
-        np.ndarray,
-        pandas.Series,
-        pandas.DataFrame,
-    )
-# TODO: support torch tensors?
-
-
 class ArrayDataAdapter(DataAdapter):
     """Adapter that handles array-like objects, e.g. tf.Tensor and NumPy arrays."""
 
@@ -40,13 +29,14 @@ class ArrayDataAdapter(DataAdapter):
     ):
         types_struct = nest.map_structure(lambda x: type(x), x)
         flat_types = nest.flatten(types_struct)
-        if not all(issubclass(c, ARRAY_TYPES) for c in flat_types):
+        if not all(
+            issubclass(c, data_adapters_utils.ARRAY_TYPES) for c in flat_types
+        ):
             raise ValueError(
                 "Expected all elements of `x` to be array-like. Received invalid types: "
                 f"x={x}"
             )
 
-        # TODO: broadcast sample weights so that all outputs have a corresponding sample_weight array
         x, y, sample_weight = convert_to_arrays((x, y, sample_weight))
         if sample_weight is not None:
             if class_weight is not None:
@@ -94,10 +84,7 @@ class ArrayDataAdapter(DataAdapter):
 
         data_adapters_utils.check_data_cardinality(inputs)
         num_samples = set(i.shape[0] for i in nest.flatten(inputs)).pop()
-        if shuffle:
-            inputs = data_adapters_utils.sync_shuffle(
-                inputs, num_samples=num_samples
-            )
+        self._num_samples = num_samples
         self._inputs = inputs
 
         # If batch_size is not passed but steps is, calculate from the input
@@ -111,13 +98,19 @@ class ArrayDataAdapter(DataAdapter):
         self._shuffle = shuffle
 
     def get_numpy_iterator(self):
+        inputs = self._inputs
+        if self._shuffle:
+            inputs = data_adapters_utils.sync_shuffle(
+                inputs, num_samples=self._num_samples
+            )
         for i in range(self._size):
             start, stop = i * self._batch_size, (i + 1) * self._batch_size
-            yield tf.nest.map_structure(lambda x: x[start:stop], self._inputs)
+            yield tf.nest.map_structure(lambda x: x[start:stop], inputs)
 
     def get_tf_dataset(self):
         ds = tf.data.Dataset.from_tensor_slices(self._inputs)
-        ds = ds.shuffle(self._batch_size * 8)
+        if self._shuffle:
+            ds = ds.shuffle(self._batch_size * 8)
         ds = ds.batch(self._batch_size)
         ds = ds.prefetch(tf.data.AUTOTUNE)
         return ds
