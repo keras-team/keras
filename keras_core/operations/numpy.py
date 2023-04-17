@@ -99,7 +99,6 @@ repeat
 reshape
 roll
 round
-shape
 sign
 sin
 size
@@ -2172,20 +2171,6 @@ class Round(Operation):
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
-
-
-class Shape(Operation):
-    def call(self, x):
-        return backend.execute("shape", x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor([len(x.shape)], dtype="int32")
-
-
-def shape(x):
-    if any_symbolic_tensors((x,)):
-        return Shape().symbolic_call(x)
-    return backend.execute("shape", x)
 
 
 class Sign(Operation):

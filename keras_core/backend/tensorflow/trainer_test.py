@@ -20,10 +20,10 @@ class TestTFTrainer(testing.TestCase):
         x = np.random.random((100, 4))
         y = np.random.random((100, 3))
         batch_size = 16
-        epochs = 3
+        epochs = 10
 
         model.compile(optimizer=optimizers.SGD(), loss=losses.MeanSquaredError(), run_eagerly=run_eagerly, jit_compile=jit_compile)
-        model.fit(x, y, batch_size=batch_size, epochs=epochs)
+        history = model.fit(x, y, batch_size=batch_size, epochs=epochs)
 
     def test_basic_flow_eager(self):
         self._test_basic_flow(run_eagerly=True, jit_compile=False)

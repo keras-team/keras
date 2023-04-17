@@ -1153,13 +1153,6 @@ class NumpyOneInputOpsShapeTest(testing.TestCase):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.round(x).shape, (None, 3))
 
-    def test_shape(self):
-        x = KerasTensor([2, 3])
-        self.assertEqual(knp.shape(x).shape, (2,))
-
-        x = KerasTensor([None, 3])
-        self.assertEqual(knp.shape(x).shape, (2,))
-
     def test_sign(self):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.sign(x).shape, (2, 3))
