@@ -22,6 +22,7 @@ class TensorFlowTrainer(trainer.Trainer):
             )
 
         # Compute gradients
+        # TODO: move value conversion to the optimizer
         trainable_weights = [v.value for v in self.trainable_weights]
         gradients = tape.gradient(loss, trainable_weights)
 
@@ -114,7 +115,7 @@ class TensorFlowTrainer(trainer.Trainer):
             class_weight=class_weight,
         )
 
-        # Container that configures and calls `tf.keras.Callback`s.
+        # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
                 callbacks,

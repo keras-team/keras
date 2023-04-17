@@ -27,24 +27,15 @@ class ProgbarLogger(Callback):
         self.verbose = 1
         self.epochs = 1
 
-        self._train_step, self._test_step, self._predict_step = None, None, None
-        self._call_batch_hooks = True
-
         self._called_in_fit = False
 
     def set_params(self, params):
-        self.verbose = params["verbose"]
+        verbose = params["verbose"]
+        if verbose == "auto":
+            verbose = 1
+        self.verbose = verbose
         self.epochs = params["epochs"]
         self.target = params["steps"]
-
-        self._call_batch_hooks = self.verbose == 1
-        if self.target is None:
-            try:
-                self._train_step = self.model._train_counter
-                self._test_step = self.model._test_counter
-                self._predict_step = self.model._predict_counter
-            except AttributeError:
-                self._call_batch_hooks = True
 
     def on_train_begin(self, logs=None):
         # When this logger is called inside `fit`, validation is silent.
@@ -66,25 +57,25 @@ class ProgbarLogger(Callback):
             io_utils.print_msg(f"Epoch {epoch + 1}/{self.epochs}")
 
     def on_train_batch_end(self, batch, logs=None):
-        self._batch_update_progbar(batch, logs)
+        self._update_progbar(batch, logs)
 
     def on_test_batch_end(self, batch, logs=None):
         if not self._called_in_fit:
-            self._batch_update_progbar(batch, logs)
+            self._update_progbar(batch, logs)
 
     def on_predict_batch_end(self, batch, logs=None):
         # Don't pass prediction results.
-        self._batch_update_progbar(batch, None)
+        self._update_progbar(batch, None)
 
     def on_epoch_end(self, epoch, logs=None):
-        self._finalize_progbar(logs, self._train_step)
+        self._finalize_progbar(logs)
 
     def on_test_end(self, logs=None):
         if not self._called_in_fit:
-            self._finalize_progbar(logs, self._test_step)
+            self._finalize_progbar(logs)
 
     def on_predict_end(self, logs=None):
-        self._finalize_progbar(logs, self._predict_step)
+        self._finalize_progbar(logs)
 
     def _reset_progbar(self):
         self.seen = 0
@@ -96,7 +87,7 @@ class ProgbarLogger(Callback):
                 target=self.target, verbose=self.verbose, unit_name="step"
             )
 
-    def _batch_update_progbar(self, batch, logs=None):
+    def _update_progbar(self, batch, logs=None):
         """Updates the progbar."""
         logs = logs or {}
         self._maybe_init_progbar()
@@ -105,11 +96,9 @@ class ProgbarLogger(Callback):
         if self.verbose == 1:
             self.progbar.update(self.seen, list(logs.items()), finalize=False)
 
-    def _finalize_progbar(self, logs, counter):
+    def _finalize_progbar(self, logs):
         logs = logs or {}
         if self.target is None:
-            if counter is not None:
-                counter = counter.numpy()
-            self.target = counter or self.seen
+            self.target = self.seen
             self.progbar.target = self.target
         self.progbar.update(self.target, list(logs.items()), finalize=True)
