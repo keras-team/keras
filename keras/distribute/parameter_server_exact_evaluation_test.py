@@ -318,7 +318,7 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             model = MyModel()
             model.compile(
                 metrics=[build_metric()],
-                loss="binary_crossentropy",
+                loss="mae",
                 pss_evaluation_shards=num_shards,
             )
 
@@ -337,7 +337,8 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             )
 
         metric_name = "custom_acc" if custom_metric else "accuracy"
-        expected_results = {metric_name: expected_acc}
+        # Since outputs are always 0 or 1, MAE loss should == accuracy
+        expected_results = {metric_name: expected_acc, "loss": expected_acc}
 
         def kill_and_revive_in_thread(wait_secs=0.1):
             def _kill_and_revive_fn():
@@ -380,9 +381,8 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
                 metric: val.numpy() for metric, val in eval_results.items()
             }
         for metric, val in eval_results.items():
-            if "loss" not in metric:
-                self.assertIn(metric, expected_results)
-                self.assertAlmostEqual(val, expected_results[metric], places=5)
+            self.assertIn(metric, expected_results)
+            self.assertAlmostEqual(val, expected_results[metric], places=5)
 
 
 if __name__ == "__main__":
