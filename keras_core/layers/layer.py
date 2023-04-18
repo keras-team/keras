@@ -49,6 +49,7 @@ class Layer(Operation):
 
         self._layers = []
         self._metrics = []
+        self._seed_generators = []
         self._losses = []
         self._variables = []
         self._trainable_variables = []
@@ -71,7 +72,7 @@ class Layer(Operation):
                     and not isinstance(x, Metric),
                     self._layers,
                 ),
-                # TODO: SeedGenerator tracking
+                "seed_generators": (lambda x: isinstance(x, backend.random.SeedGenerator), self._seed_generators),
             }
         )
 
@@ -176,8 +177,12 @@ class Layer(Operation):
 
     @property
     def variables(self):
-        # TODO: include not just weights by any variables (also from metrics, optimizers, SeedGenerators)
+        # Includes weights, seed generator state, and metric variables.
         variables = self.weights[:]
+        for m in self._metrics:
+            variables.extend(m.variables)
+        for sg in self._seed_generators:
+            variables.append(sg.state)
         return variables
 
     @property

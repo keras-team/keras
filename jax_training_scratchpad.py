@@ -82,13 +82,13 @@ class MyModel(Layer):
         super().__init__()
         self.dense1 = MiniDense(units)
         # self.bn = MiniBatchNorm()
-        # self.dropout = MiniDropout(0.5)
+        self.dropout = MiniDropout(0.5)
         self.dense2 = MiniDense(num_classes)
 
     def call(self, x):
         x = self.dense1(x)
         # x = self.bn(x)
-        # x = self.dropout(x)
+        x = self.dropout(x)
         return self.dense2(x)
 
 

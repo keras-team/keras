@@ -71,6 +71,8 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 def dropout(inputs, rate, noise_shape=None, seed=None):
     seed = draw_seed(seed)
     keep_prob = 1.0 - rate
+    if noise_shape is None:
+        noise_shape = inputs.shape
     mask = jax.random.bernoulli(seed, p=keep_prob, shape=noise_shape)
     mask = jax.numpy.broadcast_to(mask, inputs.shape)
     return jax.lax.select(
