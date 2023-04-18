@@ -1,8 +1,7 @@
 import json
 import os
-import sys
 
-from keras_core.backend.common import StatelessScope
+from keras_core.backend.stateless_scope import StatelessScope
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common import standardize_shape
 from keras_core.backend.config import epsilon
