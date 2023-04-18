@@ -219,7 +219,7 @@ class Optimizer:
                 if getattr(variable, "constraint", None) is not None:
                     variable.assign(variable.constraint(variable))
 
-    def stateless_apply(self, grads, optimizer_variables):
+    def stateless_apply(self, grads, trainable_variables, optimizer_variables):
         self._check_super_called()
 
         if not self.built:
@@ -235,9 +235,20 @@ class Optimizer:
                 f"Received list with length {len(optimizer_variables)}, but expected "
                 f"{len(self.variables)} variables."
             )
+        if len(trainable_variables) != len(self._trainable_variables):
+            raise ValueError(
+                "Argument `optimizer_variables` must be a list of tensors "
+                "corresponding 1:1 to the trainable variables list that "
+                "the optimizer was built with. "
+                f"Received len(trainable_variables) == {len(trainable_variables)} "
+                "whereas the optimizer was built with "
+                f"{len(self._trainable_variables)} variables."
+            )
 
         # Gather variable mapping
-        mapping = list(zip(self.variables, optimizer_variables))
+        mapping = list(
+            zip(self._trainable_variables, trainable_variables)
+        ) + list(zip(self.variables, optimizer_variables))
 
         # Call in stateless scope
         with backend.StatelessScope(state_mapping=mapping) as scope:

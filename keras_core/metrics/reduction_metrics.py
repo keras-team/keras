@@ -117,7 +117,7 @@ class Mean(Metric):
         if len(values.shape) >= 1:
             num_samples = ops.shape(values)[0]
         else:
-            num_samples = 1 
+            num_samples = 1
         if sample_weight is not None:
             num_samples = ops.sum(
                 ops.ones(shape=(num_samples,)) * sample_weight

@@ -1,7 +1,8 @@
 import warnings
+
 from keras_core import backend
-from keras_core import operations as ops
 from keras_core import metrics as metrics_module
+from keras_core import operations as ops
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
 
@@ -71,6 +72,13 @@ class Trainer:
         if self._compile_metrics is not None and self._compile_metrics.built:
             metrics += [self._compile_metrics]
         return metrics
+
+    @property
+    def metrics_variables(self):
+        vars = []
+        for metric in self.metrics:
+            vars.extend(metric.variables)
+        return vars
 
     def reset_metrics(self):
         for m in self.metrics:
@@ -144,7 +152,7 @@ class Trainer:
         self._loss_tracker.update_state(total_loss)
         return total_loss
 
-    def compute_metrics(self, x, y, y_pred, sample_weight):
+    def compute_metrics(self, x, y, y_pred, sample_weight=None):
         """Update metric states and collect all metrics to be returned.
 
         Subclasses can optionally override this method to provide custom metric

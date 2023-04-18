@@ -1,6 +1,6 @@
 import threading
-from keras_core.backend.common import KerasVariable
 
+from keras_core.backend.common import KerasVariable
 
 ### Stateless context manager
 

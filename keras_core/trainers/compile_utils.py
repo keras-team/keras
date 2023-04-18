@@ -8,7 +8,8 @@ from keras_core.utils.naming import get_object_name
 
 
 class MetricsList(metrics_module.Metric):
-    def __init__(self, metrics):
+    def __init__(self, metrics, name="metrics_list"):
+        super().__init__(name=name)
         self.metrics = metrics
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -112,7 +113,8 @@ def get_loss(identifier, y_true, y_pred):
 
 
 class CompileMetrics(metrics_module.Metric):
-    def __init__(self, metrics, weighted_metrics):
+    def __init__(self, metrics, weighted_metrics, name="compile_metric"):
+        super().__init__(name=name)
         if metrics and not isinstance(metrics, (list, tuple, dict)):
             raise ValueError(
                 "Expected `metrics` argument to be a list, tuple, or dict. "

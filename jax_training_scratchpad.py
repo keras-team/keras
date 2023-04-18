@@ -52,7 +52,9 @@ class MiniBatchNorm(Layer):
             initializers.Zeros()(shape), trainable=False, name="mean"
         )
         self.variance = backend.Variable(
-            initializers.GlorotUniform()(shape), trainable=False, name="variance"
+            initializers.GlorotUniform()(shape),
+            trainable=False,
+            name="variance",
         )
         self.beta = backend.Variable(initializers.Zeros()(shape))
         self.gamma = backend.Variable(initializers.Ones()(shape))
@@ -120,7 +122,7 @@ def compute_loss_and_updates(
     y_pred, non_trainable_variables = model.stateless_call(
         trainable_variables, non_trainable_variables, x
     )
-    
+
     loss = loss_fn(y, y_pred)
     return loss, non_trainable_variables
 
@@ -136,7 +138,7 @@ def train_step(
         trainable_variables, non_trainable_variables, x, y
     )
     trainable_variables, optimizer_variables = optimizer.stateless_apply(
-        grads, optimizer_variables
+        grads, trainable_variables, optimizer_variables
     )
     return trainable_variables, non_trainable_variables, optimizer_variables
 

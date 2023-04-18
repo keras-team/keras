@@ -1,8 +1,8 @@
 import math
 
+import jax
 import numpy as np
 import tensorflow as tf
-import jax
 
 try:
     import pandas

@@ -1,7 +1,7 @@
+from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import summary_utils
-from keras_core import backend
 
 if backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import Trainer

@@ -17,7 +17,9 @@ class TFModel(layers.Dense, Trainer):
         Trainer.__init__(self)
 
 
-@pytest.mark.skipif(backend.backend() != "tensorflow", reason="Target the TF backend only.")
+@pytest.mark.skipif(
+    backend.backend() != "tensorflow", reason="Target the TF backend only."
+)
 class TestTFTrainer(testing.TestCase):
     def _test_basic_flow(self, run_eagerly, jit_compile):
         model = TFModel(units=3)

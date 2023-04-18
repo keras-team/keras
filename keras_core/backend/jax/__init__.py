@@ -4,11 +4,11 @@ from jax import numpy as jnp
 from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
+from keras_core.backend.common import standardize_dtype
+from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.backend.stateless_scope import StatelessScope
 from keras_core.backend.stateless_scope import get_stateless_scope
 from keras_core.backend.stateless_scope import in_stateless_scope
-from keras_core.backend.common import standardize_dtype
-from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.utils.naming import auto_name
 
 DYNAMIC_SHAPES_OK = False  # Dynamic shapes NG

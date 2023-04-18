@@ -1,5 +1,4 @@
 import jax
-import numpy as np
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
@@ -10,7 +9,6 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
-
     def fit(
         self,
         x=None,
@@ -68,9 +66,16 @@ class Trainer(base_trainer.Trainer):
         if not self.built:
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                x, y, _ = data_adapters_utils.unpack_x_y_sample_weight(data)
+                (
+                    x,
+                    y,
+                    sample_weight,
+                ) = data_adapters_utils.unpack_x_y_sample_weight(data)
                 # Build model
-                self(x)
+                y_pred = self(x)
+                # Build metrics
+                self.compute_metrics(x, y, y_pred, sample_weight)
+                self.reset_metrics()
                 break
 
         # Container that configures and calls callbacks.
@@ -96,7 +101,7 @@ class Trainer(base_trainer.Trainer):
             self.optimizer.build(trainable_variables)
         non_trainable_variables = self.non_trainable_variables
         optimizer_variables = self.optimizer.variables
-
+        metrics_variables = self.metrics_variables
 
         def compute_loss_and_updates(
             trainable_variables, non_trainable_variables, x, y
@@ -104,33 +109,60 @@ class Trainer(base_trainer.Trainer):
             y_pred, non_trainable_variables = self.stateless_call(
                 trainable_variables, non_trainable_variables, x
             )
-            
+
             loss = self._compile_loss(y, y_pred)
             return loss, (y_pred, non_trainable_variables)
 
-
         grad_fn = jax.value_and_grad(compute_loss_and_updates, has_aux=True)
 
-
         @jax.jit
-        def train_step(
-            trainable_variables, non_trainable_variables, optimizer_variables, x, y
-        ):
+        def train_step(state, data):
+            (
+                trainable_variables,
+                non_trainable_variables,
+                optimizer_variables,
+                metrics_variables,
+            ) = state
+            x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(
+                data
+            )
             (loss, (y_pred, non_trainable_variables)), grads = grad_fn(
                 trainable_variables, non_trainable_variables, x, y
             )
-            # trainable_variables, optimizer_variables = self.optimizer.stateless_apply(
-            #     grads, optimizer_variables
-            # )
-            new_trainable_variables = []
-            for grad, var in zip(grads, trainable_variables):
-                new_trainable_variables.append(var - 0.0001 * grad)
-            trainable_variables = new_trainable_variables
 
-            
-            return loss, trainable_variables, non_trainable_variables, optimizer_variables
+            (
+                trainable_variables,
+                optimizer_variables,
+            ) = self.optimizer.stateless_apply(
+                grads, trainable_variables, optimizer_variables
+            )
 
-        # counter = jax.numpy.ones(())
+            with backend.StatelessScope(
+                state_mapping=[
+                    (ref_v, v)
+                    for ref_v, v in zip(
+                        self.metrics_variables, metrics_variables
+                    )
+                ]
+            ) as scope:
+                logs = self.compute_metrics(x, y, y_pred, sample_weight)
+                self._loss_tracker.update_state(loss)
+
+            new_metrics_variables = []
+            for ref_v in self.metrics_variables:
+                new_v = scope.get_current_value(ref_v)
+                if new_v is None:
+                    new_v = ref_v.value
+                new_metrics_variables.append(new_v)
+            metrics_variables = new_metrics_variables
+
+            state = (
+                trainable_variables,
+                non_trainable_variables,
+                optimizer_variables,
+                metrics_variables,
+            )
+            return logs, state
 
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
@@ -139,31 +171,41 @@ class Trainer(base_trainer.Trainer):
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
-                first_var = trainable_variables[0]
-
-
                 # Train step
-                x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(data)
-                (
-                    loss,
+                state = (
                     trainable_variables,
                     non_trainable_variables,
                     optimizer_variables,
-                ) = train_step(
-                    trainable_variables, non_trainable_variables, optimizer_variables, x, y
+                    metrics_variables,
                 )
-
-                self._loss_tracker.update_state(loss)
-
-                # print(np.sum(np.abs(trainable_variables[0] - first_var)))
+                logs, state = train_step(state, data)
+                (
+                    trainable_variables,
+                    non_trainable_variables,
+                    optimizer_variables,
+                    metrics_variables,
+                ) = state
 
                 # Callbacks
                 callbacks.on_train_batch_end(step, logs)
                 if self.stop_training:
                     break
 
+            # Update variable values
+            # NOTE: doing this after each step would be a big performance bottleneck.
+            for ref_v, v in zip(self.trainable_variables, trainable_variables):
+                ref_v.assign(v)
+            for ref_v, v in zip(
+                self.non_trainable_variables, non_trainable_variables
+            ):
+                ref_v.assign(v)
+            for ref_v, v in zip(self.optimizer.variables, optimizer_variables):
+                ref_v.assign(v)
+            for ref_v, v in zip(self.metrics_variables, metrics_variables):
+                ref_v.assign(v)
+
             # Override with model metrics instead of last step logs
-            epoch_logs = {"loss": self._loss_tracker.result()} # self._process_logs(self.get_metrics_result())
+            epoch_logs = self._process_logs(self.get_metrics_result())
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -226,7 +268,7 @@ class Trainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-    
+
     def _process_logs(self, logs):
         result = {}
         for key, value in logs.items():

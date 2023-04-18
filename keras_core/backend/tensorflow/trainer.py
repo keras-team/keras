@@ -206,7 +206,7 @@ class Trainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-    
+
     def _process_logs(self, logs):
         result = {}
         for key, value in logs.items():
