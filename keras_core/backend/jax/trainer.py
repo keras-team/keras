@@ -1,4 +1,5 @@
 import jax
+import numpy as np
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
@@ -9,73 +10,6 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
-
-    def compute_loss_and_updates(
-        self, trainable_variables, non_trainable_variables, data
-    ):
-        x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(data)
-        y_pred, non_trainable_variables = self.stateless_call(
-            trainable_variables, non_trainable_variables, x
-        )
-        loss = self.compute_loss(x, y, y_pred, sample_weight=sample_weight)
-        return loss, (non_trainable_variables, y_pred)
-    
-    def _get_gradient_fn(self):
-        return jax.value_and_grad(self.compute_loss_and_updates, has_aux=True)
-    
-    def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None):
-        """Stateless loss computation."""
-        del x  # The default implementation does not use `x`.
-        losses = []
-        if self._compile_loss is not None:
-            loss = self._compile_loss(y, y_pred, sample_weight)
-            if loss is not None:
-                losses.append(loss)
-        for l in self.losses:
-            losses.append(l.astype(backend.floatx()))
-        if len(losses) == 0:
-            raise ValueError(
-                "No loss to compute. Provide a `loss` argument in `compile()`."
-            )
-        if len(losses) == 1:
-            total_loss = losses[0]
-        else:
-            total_loss = sum(losses)
-        return total_loss
-
-    def train_step(self, trainable_variables, non_trainable_variables, optimizer_variables, data):
-        grad_fn = self._get_gradient_fn()
-        (loss, (non_trainable_variables, y_pred)), grads = grad_fn(
-            trainable_variables, non_trainable_variables, data
-        )
-        trainable_variables, optimizer_variables = self.optimizer.stateless_apply(
-            grads, optimizer_variables
-        )
-        return trainable_variables, non_trainable_variables, optimizer_variables, y_pred, loss
-
-    def test_step(self, data):
-        raise NotImplementedError
-
-    def predict_step(self, data):
-        raise NotImplementedError
-
-    def make_train_function(self, force=False):
-        if self.run_eagerly or not self.jit_compile:
-            self.train_function = self.train_step
-            return self.train_step
-
-        @jax.jit
-        def train_fn(trainable_variables, non_trainable_variables, optimizer_variables, data):
-            return self.train_step(trainable_variables, non_trainable_variables, optimizer_variables, data)
-        
-        self.train_function = train_fn
-        return train_fn
-
-    def make_test_function(self, force=False):
-        raise NotImplementedError
-
-    def make_predict_function(self, force=False):
-        raise NotImplementedError
 
     def fit(
         self,
@@ -152,7 +86,7 @@ class Trainer(base_trainer.Trainer):
             )
 
         self.stop_training = False
-        self.make_train_function()
+        # self.make_train_function()
         callbacks.on_train_begin()
         training_logs = None
         logs = None
@@ -163,6 +97,41 @@ class Trainer(base_trainer.Trainer):
         non_trainable_variables = self.non_trainable_variables
         optimizer_variables = self.optimizer.variables
 
+
+        def compute_loss_and_updates(
+            trainable_variables, non_trainable_variables, x, y
+        ):
+            y_pred, non_trainable_variables = self.stateless_call(
+                trainable_variables, non_trainable_variables, x
+            )
+            
+            loss = self._compile_loss(y, y_pred)
+            return loss, (y_pred, non_trainable_variables)
+
+
+        grad_fn = jax.value_and_grad(compute_loss_and_updates, has_aux=True)
+
+
+        @jax.jit
+        def train_step(
+            trainable_variables, non_trainable_variables, optimizer_variables, x, y
+        ):
+            (loss, (y_pred, non_trainable_variables)), grads = grad_fn(
+                trainable_variables, non_trainable_variables, x, y
+            )
+            # trainable_variables, optimizer_variables = self.optimizer.stateless_apply(
+            #     grads, optimizer_variables
+            # )
+            new_trainable_variables = []
+            for grad, var in zip(grads, trainable_variables):
+                new_trainable_variables.append(var - 0.0001 * grad)
+            trainable_variables = new_trainable_variables
+
+            
+            return loss, trainable_variables, non_trainable_variables, optimizer_variables
+
+        # counter = jax.numpy.ones(())
+
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
@@ -170,21 +139,23 @@ class Trainer(base_trainer.Trainer):
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
-                # Train step (in JAX context)
-                trainable_variables, non_trainable_variables, optimizer_variables, y_pred, loss = self.train_function(trainable_variables, non_trainable_variables, optimizer_variables, data)
+                first_var = trainable_variables[0]
 
-                # Run variable updates (back in eager context)
+
+                # Train step
                 x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(data)
-                logs = self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
-                # for variable, value in zip(self.trainable_variables, trainable_variables):
-                #     variable.assign(value)
-                # for variable, value in zip(
-                #     self.non_trainable_variables, non_trainable_variables
-                # ):
-                #     variable.assign(value)
-                # for variable, value in zip(self.optimizer.variables, optimizer_variables):
-                #     variable.assign(value)
+                (
+                    loss,
+                    trainable_variables,
+                    non_trainable_variables,
+                    optimizer_variables,
+                ) = train_step(
+                    trainable_variables, non_trainable_variables, optimizer_variables, x, y
+                )
+
                 self._loss_tracker.update_state(loss)
+
+                # print(np.sum(np.abs(trainable_variables[0] - first_var)))
 
                 # Callbacks
                 callbacks.on_train_batch_end(step, logs)

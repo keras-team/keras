@@ -18,11 +18,11 @@ class MiniDense(Layer):
         input_dim = input_shape[-1]
         w_shape = (input_dim, self.units)
         w_value = initializers.GlorotUniform()(w_shape)
-        self.w = backend.Variable(w_value)
+        self.w = backend.Variable(w_value, name="kernel")
 
         b_shape = (self.units,)
         b_value = initializers.Zeros()(b_shape)
-        self.b = backend.Variable(b_value)
+        self.b = backend.Variable(b_value, name="bias")
 
     def call(self, inputs):
         return ops.matmul(inputs, self.w) + self.b
@@ -49,10 +49,10 @@ class MiniBatchNorm(Layer):
     def build(self, input_shape):
         shape = (input_shape[-1],)
         self.mean = backend.Variable(
-            initializers.Zeros()(shape), trainable=False
+            initializers.Zeros()(shape), trainable=False, name="mean"
         )
         self.variance = backend.Variable(
-            initializers.GlorotUniform()(shape), trainable=False
+            initializers.GlorotUniform()(shape), trainable=False, name="variance"
         )
         self.beta = backend.Variable(initializers.Zeros()(shape))
         self.gamma = backend.Variable(initializers.Ones()(shape))
@@ -79,14 +79,14 @@ class MyModel(Layer):
     def __init__(self, units, num_classes):
         super().__init__()
         self.dense1 = MiniDense(units)
-        self.bn = MiniBatchNorm()
-        self.dropout = MiniDropout(0.5)
+        # self.bn = MiniBatchNorm()
+        # self.dropout = MiniDropout(0.5)
         self.dense2 = MiniDense(num_classes)
 
     def call(self, x):
         x = self.dense1(x)
-        x = self.bn(x)
-        x = self.dropout(x)
+        # x = self.bn(x)
+        # x = self.dropout(x)
         return self.dense2(x)
 
 
@@ -120,6 +120,7 @@ def compute_loss_and_updates(
     y_pred, non_trainable_variables = model.stateless_call(
         trainable_variables, non_trainable_variables, x
     )
+    
     loss = loss_fn(y, y_pred)
     return loss, non_trainable_variables
 
@@ -155,10 +156,12 @@ for x, y in dataset:
 
 # Post-processing model state update
 for variable, value in zip(model.trainable_variables, trainable_variables):
+    print(variable.name, np.sum(np.abs(variable - value)))
     variable.assign(value)
 for variable, value in zip(
     model.non_trainable_variables, non_trainable_variables
 ):
+    print(variable.name, np.sum(np.abs(variable - value)))
     variable.assign(value)
 
 print("Updated values")

@@ -31,4 +31,3 @@ class TestStatelessScope(testing.TestCase):
         # Updates can be reapplied.
         var_out.assign(scope.get_current_value(var_out))
         self.assertAllClose(var_out_value, 2 * np.ones((2,)))
-
