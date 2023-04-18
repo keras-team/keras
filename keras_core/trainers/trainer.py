@@ -60,10 +60,12 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = self._metrics[:]
-        if self._compile_metrics is not None:
+        metrics = []
+        if self._compile_loss is not None and self._compile_loss.built:
+            metrics.append(self._compile_loss.loss_tracker)
+        metrics.extend(self._metrics[:])
+        if self._compile_metrics is not None and self._compile_metrics.built:
             metrics += [self._compile_metrics]
-        # TODO: also track mean of compile_loss.
         return metrics
 
     def reset_metrics(self):

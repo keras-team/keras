@@ -143,7 +143,7 @@ class TensorFlowTrainer(trainer.Trainer):
                     break
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self.get_metrics_result()
+            epoch_logs = self._process_logs(self.get_metrics_result())
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -169,7 +169,7 @@ class TensorFlowTrainer(trainer.Trainer):
                 val_logs = {
                     "val_" + name: val for name, val in val_logs.items()
                 }
-                epoch_logs.update(val_logs)
+                epoch_logs.update(self._process_logs(val_logs))
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             training_logs = epoch_logs
@@ -206,3 +206,13 @@ class TensorFlowTrainer(trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
+    
+    def _process_logs(self, logs):
+        result = {}
+        for key, value in logs.items():
+            try:
+                value = float(value)
+            except:
+                pass
+            result[key] = value
+        return result

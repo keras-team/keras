@@ -114,12 +114,14 @@ class Mean(Metric):
             values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
         )
         self.total.assign(self.total + ops.sum(values))
+        if len(values.shape) >= 1:
+            num_samples = ops.shape(values)[0]
+        else:
+            num_samples = 1 
         if sample_weight is not None:
             num_samples = ops.sum(
-                ops.ones(shape=(ops.shape(values)[0],)) * sample_weight
+                ops.ones(shape=(num_samples,)) * sample_weight
             )
-        else:
-            num_samples = ops.shape(values)[0]
         self.count.assign(self.count + ops.cast(num_samples, dtype="int64"))
 
     def reset_state(self):

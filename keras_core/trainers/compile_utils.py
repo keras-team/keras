@@ -546,6 +546,8 @@ class CompileLoss(losses_module.Loss):
                         flat_loss_weights.append(1.0)
         self.flat_losses = flat_losses
         self.flat_loss_weights = flat_loss_weights
+        self.loss_tracker = metrics_module.Mean(name="loss")
+        self.built = True
 
     def call(self, y_true, y_pred):
         if not self.built:
@@ -561,7 +563,9 @@ class CompileLoss(losses_module.Loss):
                 value = w * ops.cast(loss(y_t, y_p), dtype=backend.floatx())
                 loss_values.append(value)
         if loss_values:
-            return ops.sum(loss_values)
+            total_loss = ops.sum(loss_values)
+            self.loss_tracker.update_state(total_loss)
+            return total_loss
         return None
 
     def get_config(self):
