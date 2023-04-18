@@ -84,11 +84,11 @@ def make_class_weight_map_fn(class_weight):
             y_classes = tf.__internal__.smart_cond.smart_cond(
                 tf.shape(y)[-1] > 1,
                 lambda: tf.argmax(y, axis=-1),
-                lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int64),
+                lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int32),
             )
         else:
             # Special casing for rank 1, where we can guarantee sparse encoding.
-            y_classes = tf.cast(tf.round(y), tf.int64)
+            y_classes = tf.cast(tf.round(y), tf.int32)
 
         cw = tf.gather(class_weight_tensor, y_classes)
         return x, y, cw

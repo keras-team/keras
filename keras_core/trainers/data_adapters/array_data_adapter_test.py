@@ -147,7 +147,7 @@ class TestArrayDataAdapter(testing.TestCase):
     def _test_class_weights(self, target_encoding="int"):
         x = np.random.random((4, 2))
         if target_encoding == "int":
-            y = np.array([[0], [1], [2], [3]], dtype="int64")
+            y = np.array([[0], [1], [2], [3]], dtype="int32")
         else:
             y = np.array(
                 [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],

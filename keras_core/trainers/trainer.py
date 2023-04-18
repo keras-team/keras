@@ -1,5 +1,7 @@
+import warnings
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core import metrics as metrics_module
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
 
@@ -34,13 +36,17 @@ class Trainer:
         else:
             self._compile_metrics = None
         if jit_compile and run_eagerly:
-            raise ValueError(
-                "If `jit_compile` is True, then `run_eagerly` cannot also be True."
+            jit_compile = False
+            warnings.warn(
+                "If `run_eagerly` is True, then `jit_compile` cannot also be True. "
+                "Disabling `jit_compile`.",
+                stacklevel=2,
             )
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
         self.compiled = True
+        self._loss_tracker = metrics_module.Mean(name="loss")
 
     @property
     def jit_compile(self):
@@ -60,9 +66,7 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = []
-        if self._compile_loss is not None and self._compile_loss.built:
-            metrics.append(self._compile_loss.loss_tracker)
+        metrics = [self._loss_tracker]
         metrics.extend(self._metrics[:])
         if self._compile_metrics is not None and self._compile_metrics.built:
             metrics += [self._compile_metrics]
@@ -134,8 +138,11 @@ class Trainer:
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
         if len(losses) == 1:
-            return losses[0]
-        return ops.sum(losses)
+            total_loss = losses[0]
+        else:
+            total_loss = ops.sum(losses)
+        self._loss_tracker.update_state(total_loss)
+        return total_loss
 
     def compute_metrics(self, x, y, y_pred, sample_weight):
         """Update metric states and collect all metrics to be returned.

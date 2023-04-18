@@ -36,7 +36,6 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
         self.assert_idempotent_config(initializer, external_config)
-        values = values.numpy()
         self.assertGreaterEqual(np.min(values), minval)
         self.assertLess(np.max(values), maxval)
 

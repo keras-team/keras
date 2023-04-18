@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import losses
 from keras_core import metrics
@@ -15,6 +17,7 @@ class TFModel(layers.Dense, Trainer):
         Trainer.__init__(self)
 
 
+@pytest.mark.skipif(backend.backend() != "tensorflow", reason="Target the TF backend only.")
 class TestTFTrainer(testing.TestCase):
     def _test_basic_flow(self, run_eagerly, jit_compile):
         model = TFModel(units=3)

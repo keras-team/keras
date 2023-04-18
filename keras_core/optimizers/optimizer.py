@@ -60,7 +60,7 @@ class Optimizer:
 
         self.built = False
         self.iterations = backend.Variable(
-            0, name="iteration", dtype="int64", trainable=False
+            0, name="iteration", dtype="int32", trainable=False
         )
         if isinstance(
             learning_rate, learning_rate_schedule.LearningRateSchedule

@@ -104,7 +104,7 @@ class Trainer(base_trainer.Trainer):
                 val_sample_weight,
             ) = data_adapters_utils.unpack_x_y_sample_weight(validation_data)
 
-        # Creates a `tf.data.Dataset` and handles batch and epoch iteration.
+        # Create an iterator that yields batches for one epoch.
         epoch_iterator = EpochIterator(
             x=x,
             y=y,
@@ -135,7 +135,7 @@ class Trainer(base_trainer.Trainer):
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
-            for step, batch in epoch_iterator.enumerate_epoch():
+            for step, batch in epoch_iterator.enumerate_epoch(return_type="tf"):
                 callbacks.on_train_batch_begin(step)
                 logs = self.train_function(batch)
                 callbacks.on_train_batch_end(step, logs)

@@ -3,9 +3,10 @@ from keras_core.layers.layer import Layer
 from keras_core.utils import summary_utils
 from keras_core import backend
 
-# TODO: clean up
 if backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import Trainer
+elif backend.backend() == "jax":
+    from keras_core.backend.jax.trainer import Trainer
 else:
     Trainer = None
 

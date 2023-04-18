@@ -177,7 +177,7 @@ def make_sample_weight_from_class_weight(y, class_weight):
     if len(y.shape) > 1 and y.shape[-1] != 1:
         y = np.argmax(y, axis=-1)
     else:
-        y = np.round(np.squeeze(y, axis=-1)).astype("int64")
+        y = np.round(np.squeeze(y, axis=-1)).astype("int32")
     for i in range(y.shape[0]):
         sample_weight[i] = class_weight.get(int(y[i]), 1.0)
     return sample_weight

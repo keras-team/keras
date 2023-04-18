@@ -1,43 +1,3 @@
-"""
-## Simple case:
-
-metrics = ["m1', "m2"]
-outputs = x
-
-## Nested list case:
-
-metrics = [["m1', "m2"], ["m3"]]
-outputs [x1, x2]
-
-## Nested dict case:
-
-metrics = {"out_1": ["m1', "m2"], "out_2": ["m3"]]
-outputs {"out_1": x1, "out_2": x2}
-
-## Process
-
-Case 1: known symbolic outputs
-
--> Flatten metrics to standard order at build time
--> Flatten arrays to standard order at computation time
-
-Case 2: only arrays are known
-
--> expect exact matches between arrays and metrics
--> Give array elements names based on dict keys or order,
-used to uniquify public-facing metric names
-
-
-
-General process:
-
-1. At build time
-- Check structure match
-- Flatten everything
-
-
-
-"""
 from tensorflow import nest
 
 from keras_core import backend
@@ -546,7 +506,6 @@ class CompileLoss(losses_module.Loss):
                         flat_loss_weights.append(1.0)
         self.flat_losses = flat_losses
         self.flat_loss_weights = flat_loss_weights
-        self.loss_tracker = metrics_module.Mean(name="loss")
         self.built = True
 
     def call(self, y_true, y_pred):
@@ -563,8 +522,7 @@ class CompileLoss(losses_module.Loss):
                 value = w * ops.cast(loss(y_t, y_p), dtype=backend.floatx())
                 loss_values.append(value)
         if loss_values:
-            total_loss = ops.sum(loss_values)
-            self.loss_tracker.update_state(total_loss)
+            total_loss = sum(loss_values)
             return total_loss
         return None
 
