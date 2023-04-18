@@ -2,12 +2,12 @@ import tensorflow as tf
 
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
-from keras_core.trainers import trainer
+from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapters_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
 
 
-class TensorFlowTrainer(trainer.Trainer):
+class Trainer(base_trainer.Trainer):
     def train_step(self, data):
         x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(data)
 
@@ -88,7 +88,7 @@ class TensorFlowTrainer(trainer.Trainer):
         # TODO: respect compiled trainable state
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
-            # for `Tensor` and `NumPy` input.
+            # for TF/numpy/jax arrays.
             (
                 x,
                 y,

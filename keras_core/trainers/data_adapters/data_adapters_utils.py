@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 import tensorflow as tf
+import jax
 
 try:
     import pandas
@@ -9,7 +10,7 @@ except ImportError:
     pandas = None
 
 
-ARRAY_TYPES = (tf.Tensor, np.ndarray)
+ARRAY_TYPES = (tf.Tensor, np.ndarray, jax.numpy.ndarray)
 if pandas:
     ARRAY_TYPES = ARRAY_TYPES + (
         tf.Tensor,

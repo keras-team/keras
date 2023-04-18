@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import jax
 
 from keras_core import backend
 from keras_core import testing
@@ -14,6 +15,9 @@ class TestArrayDataAdapter(testing.TestCase):
         elif array_type == "tf":
             x = tf.random.normal((34, 4))
             y = tf.random.normal((34, 2))
+        elif array_type == "jax":
+            x = jax.numpy.ones((34, 4))
+            y = jax.numpy.ones((34, 2))
         elif array_type == "pandas":
             # TODO
             raise ValueError("TODO")

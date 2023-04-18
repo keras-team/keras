@@ -36,15 +36,15 @@ class TestCompileMetrics(testing.TestCase):
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 2)
-        self.assertAllClose(result["mean_square_error"], 0.055833336)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0725)
+        self.assertAllClose(result["mean_squared_error"], 0.055833336)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 2)
-        self.assertAllClose(result["mean_square_error"], 0.0)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0)
+        self.assertAllClose(result["mean_squared_error"], 0.0)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
 
     def test_list_output_case(self):
         compile_metrics = CompileMetrics(
@@ -99,15 +99,15 @@ class TestCompileMetrics(testing.TestCase):
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 8)
-        self.assertAllClose(result["mean_square_error"], 0.055833336)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0725)
+        self.assertAllClose(result["mean_squared_error"], 0.055833336)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 8)
-        self.assertAllClose(result["mean_square_error"], 0.0)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0)
+        self.assertAllClose(result["mean_squared_error"], 0.0)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
 
     def test_dict_output_case(self):
         compile_metrics = CompileMetrics(
@@ -168,15 +168,15 @@ class TestCompileMetrics(testing.TestCase):
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 8)
-        self.assertAllClose(result["mean_square_error"], 0.055833336)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0725)
+        self.assertAllClose(result["mean_squared_error"], 0.055833336)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
         self.assertEqual(len(result), 8)
-        self.assertAllClose(result["mean_square_error"], 0.0)
-        self.assertAllClose(result["weighted_mean_square_error"], 0.0)
+        self.assertAllClose(result["mean_squared_error"], 0.0)
+        self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
 
 
 class TestCompileLoss(testing.TestCase):

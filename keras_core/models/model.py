@@ -1,11 +1,17 @@
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.trainers.trainer import Trainer
 from keras_core.utils import summary_utils
+from keras_core import backend
+
+# TODO: clean up
+if backend.backend() == "tensorflow":
+    from keras_core.backend.tensorflow.trainer import Trainer
+else:
+    Trainer = None
 
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])
-class Model(Layer, Trainer):
+class Model(Trainer, Layer):
     """
 
     Combination of a Layer and Trainer. Adds:
@@ -30,6 +36,10 @@ class Model(Layer, Trainer):
     #         return functional.Functional(*args, **kwargs, skip_init=True)
     #     else:
     #         return super(Model, cls).__new__(cls, *args, **kwargs)
+
+    def __init__(self, trainable=True, name=None, dtype=None):
+        Trainer.__init__(self)
+        Layer.__init__(self, trainable=trainable, name=name, dtype=dtype)
 
     def call(self, inputs, training=False):
         raise NotImplementedError

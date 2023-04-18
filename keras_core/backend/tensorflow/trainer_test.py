@@ -5,14 +5,14 @@ from keras_core import losses
 from keras_core import metrics
 from keras_core import optimizers
 from keras_core import testing
-from keras_core.backend.tensorflow.trainer import TensorFlowTrainer
+from keras_core.backend.tensorflow.trainer import Trainer
 
 
 # A model is just a layer mixed in with a Trainer.
-class TFModel(layers.Dense, TensorFlowTrainer):
+class TFModel(layers.Dense, Trainer):
     def __init__(self, units):
         layers.Dense.__init__(self, units=units)
-        TensorFlowTrainer.__init__(self)
+        Trainer.__init__(self)
 
 
 class TestTFTrainer(testing.TestCase):
