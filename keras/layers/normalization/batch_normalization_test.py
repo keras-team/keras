@@ -295,6 +295,17 @@ class BatchNormalizationTest(test_combinations.TestCase):
         self.assertAllEqual(model.layers[2].moving_variance, [0.25, 0.0])
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_moments_with_all_zeros_mask(self):
+        inputs = tf.random.normal(shape=[8, 3, 4])
+        mask = tf.zeros(shape=[8, 3], dtype=tf.bool)
+        reduction_axes = [0, 1]
+        bn = keras.layers.BatchNormalization()
+        mean, var = bn._moments(
+            inputs, reduction_axes, keep_dims=False, mask=mask)
+        self.assertAllClose(mean, tf.zeros(shape=[4]))
+        self.assertAllClose(var, tf.zeros(shape=[4]))
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_eager_batchnorm_in_custom_model_call_with_tf_function(self):
         class MyModel(keras.Model):
             def __init__(self):
