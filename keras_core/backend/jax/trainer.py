@@ -9,16 +9,15 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
-
     def stateless_compute_loss_and_updates(
-            self, trainable_variables, non_trainable_variables, x, y, sample_weight
-        ):
-            y_pred, non_trainable_variables = self.stateless_call(
-                trainable_variables, non_trainable_variables, x
-            )
+        self, trainable_variables, non_trainable_variables, x, y, sample_weight
+    ):
+        y_pred, non_trainable_variables = self.stateless_call(
+            trainable_variables, non_trainable_variables, x
+        )
 
-            loss = self.compute_loss(x, y, y_pred, sample_weight)
-            return loss, (y_pred, non_trainable_variables)
+        loss = self.compute_loss(x, y, y_pred, sample_weight)
+        return loss, (y_pred, non_trainable_variables)
 
     def fit(
         self,
@@ -104,8 +103,10 @@ class Trainer(base_trainer.Trainer):
                 model=self,
             )
 
-        grad_fn = jax.value_and_grad(self.stateless_compute_loss_and_updates, has_aux=True)
-        
+        grad_fn = jax.value_and_grad(
+            self.stateless_compute_loss_and_updates, has_aux=True
+        )
+
         def _train_step(state, data):
             (
                 trainable_variables,
@@ -117,7 +118,11 @@ class Trainer(base_trainer.Trainer):
                 data
             )
             (loss, (y_pred, non_trainable_variables)), grads = grad_fn(
-                trainable_variables, non_trainable_variables, x, y, sample_weight
+                trainable_variables,
+                non_trainable_variables,
+                x,
+                y,
+                sample_weight,
             )
 
             (
@@ -153,14 +158,16 @@ class Trainer(base_trainer.Trainer):
                 metrics_variables,
             )
             return logs, state
-        
+
         if not self.run_eagerly and self.jit_compile:
+
             @jax.jit
             def train_step(state, data):
                 return _train_step(state, data)
+
         else:
             train_step = _train_step
-        
+
         self.stop_training = False
         callbacks.on_train_begin()
 
