@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from keras_core.trainers.data_adapters import data_adapters_utils
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
 
@@ -69,7 +69,7 @@ def make_class_weight_map_fn(class_weight):
 
     def class_weights_map_fn(*data):
         """Convert `class_weight` to `sample_weight`."""
-        x, y, sw = data_adapters_utils.unpack_x_y_sample_weight(data)
+        x, y, sw = data_adapter_utils.unpack_x_y_sample_weight(data)
         if sw is not None:
             raise ValueError(
                 "You cannot `class_weight` and `sample_weight` at the same time."

@@ -4,7 +4,7 @@ from keras_core import backend
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
-from keras_core.trainers.data_adapters import data_adapters_utils
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
 
 
@@ -41,7 +41,7 @@ class Trainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
-            ), validation_data = data_adapters_utils.train_validation_split(
+            ), validation_data = data_adapter_utils.train_validation_split(
                 (x, y, sample_weight), validation_split=validation_split
             )
 
@@ -50,7 +50,7 @@ class Trainer(base_trainer.Trainer):
                 val_x,
                 val_y,
                 val_sample_weight,
-            ) = data_adapters_utils.unpack_x_y_sample_weight(validation_data)
+            ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
         epoch_iterator = EpochIterator(
@@ -70,7 +70,7 @@ class Trainer(base_trainer.Trainer):
                     x,
                     y,
                     sample_weight,
-                ) = data_adapters_utils.unpack_x_y_sample_weight(data)
+                ) = data_adapter_utils.unpack_x_y_sample_weight(data)
                 # Build model
                 y_pred = self(x)
                 # Build metrics
@@ -123,7 +123,7 @@ class Trainer(base_trainer.Trainer):
                 optimizer_variables,
                 metrics_variables,
             ) = state
-            x, y, sample_weight = data_adapters_utils.unpack_x_y_sample_weight(
+            x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(
                 data
             )
             (loss, (y_pred, non_trainable_variables)), grads = grad_fn(

@@ -43,7 +43,7 @@ import warnings
 import tensorflow as tf
 
 from keras_core.trainers.data_adapters import array_data_adapter
-from keras_core.trainers.data_adapters import data_adapters_utils
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters import tf_dataset_adapter
 
 
@@ -61,7 +61,7 @@ class EpochIterator:
         self.steps_per_epoch = steps_per_epoch
         if steps_per_epoch:
             self._current_iterator = None
-        if isinstance(x, data_adapters_utils.ARRAY_TYPES):
+        if isinstance(x, data_adapter_utils.ARRAY_TYPES):
             self.data_adapter = array_data_adapter.ArrayDataAdapter(
                 x,
                 y,

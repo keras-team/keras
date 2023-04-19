@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import nest
 
 from keras_core import backend
-from keras_core.trainers.data_adapters import data_adapters_utils
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
 try:
@@ -30,7 +30,7 @@ class ArrayDataAdapter(DataAdapter):
         types_struct = nest.map_structure(lambda x: type(x), x)
         flat_types = nest.flatten(types_struct)
         if not all(
-            issubclass(c, data_adapters_utils.ARRAY_TYPES) for c in flat_types
+            issubclass(c, data_adapter_utils.ARRAY_TYPES) for c in flat_types
         ):
             raise ValueError(
                 "Expected all elements of `x` to be array-like. Received invalid types: "
@@ -80,9 +80,9 @@ class ArrayDataAdapter(DataAdapter):
                 y, class_weight
             )
 
-        inputs = data_adapters_utils.pack_x_y_sample_weight(x, y, sample_weight)
+        inputs = data_adapter_utils.pack_x_y_sample_weight(x, y, sample_weight)
 
-        data_adapters_utils.check_data_cardinality(inputs)
+        data_adapter_utils.check_data_cardinality(inputs)
         num_samples = set(i.shape[0] for i in nest.flatten(inputs)).pop()
         self._num_samples = num_samples
         self._inputs = inputs
@@ -100,7 +100,7 @@ class ArrayDataAdapter(DataAdapter):
     def get_numpy_iterator(self):
         inputs = self._inputs
         if self._shuffle:
-            inputs = data_adapters_utils.sync_shuffle(
+            inputs = data_adapter_utils.sync_shuffle(
                 inputs, num_samples=self._num_samples
             )
         for i in range(self._size):
