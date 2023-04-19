@@ -12,6 +12,12 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
+    def __init__(self):
+        super().__init__()
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
@@ -36,10 +42,24 @@ class Trainer(base_trainer.Trainer):
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def test_step(self, data):
-        raise NotImplementedError
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        loss = self.compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        )
+        self._loss_tracker.update_state(loss)
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
-        raise NotImplementedError
+        x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        return y_pred
 
     def make_train_function(self, force=False):
         # TODO: support tf.distribute and steps_per_execution.
@@ -47,7 +67,7 @@ class Trainer(base_trainer.Trainer):
             return self.train_function
 
         def one_step_on_data(data):
-            """Runs a single training step."""
+            """Runs a single training step on a batch of data."""
             return self.train_step(data)
 
         if not self.run_eagerly and self.jit_compile:
@@ -56,6 +76,7 @@ class Trainer(base_trainer.Trainer):
             )
 
         def one_step_on_iterator(iterator):
+            """Runs a single training step given a Dataset iterator."""
             data = next(iterator)
             return one_step_on_data(data)
 
@@ -68,10 +89,58 @@ class Trainer(base_trainer.Trainer):
         self.train_function = train_function
 
     def make_test_function(self, force=False):
-        raise NotImplementedError
+        # TODO: support tf.distribute and steps_per_execution.
+        if self.test_function is not None and not force:
+            return self.test_function
+
+        def one_step_on_data(data):
+            """Runs a single test step on a batch of data."""
+            return self.test_step(data)
+
+        if not self.run_eagerly and self.jit_compile:
+            one_step_on_data = tf.function(
+                one_step_on_data, jit_compile=True, reduce_retracing=True
+            )
+
+        def one_step_on_iterator(iterator):
+            """Runs a single test step given a Dataset iterator."""
+            data = next(iterator)
+            return one_step_on_data(data)
+
+        if not self.run_eagerly:
+            test_function = tf.function(
+                one_step_on_iterator, reduce_retracing=True
+            )
+        else:
+            test_function = one_step_on_iterator
+        self.test_function = test_function
 
     def make_predict_function(self, force=False):
-        raise NotImplementedError
+        # TODO: support tf.distribute and steps_per_execution.
+        if self.predict_function is not None and not force:
+            return self.predict_function
+
+        def one_step_on_data(data):
+            """Runs a predict test step on a batch of data."""
+            return self.predict_step(data)
+
+        if not self.run_eagerly and self.jit_compile:
+            one_step_on_data = tf.function(
+                one_step_on_data, jit_compile=True, reduce_retracing=True
+            )
+
+        def one_step_on_iterator(iterator):
+            """Runs a single predict step given a Dataset iterator."""
+            data = next(iterator)
+            return one_step_on_data(data)
+
+        if not self.run_eagerly:
+            predict_function = tf.function(
+                one_step_on_iterator, reduce_retracing=True
+            )
+        else:
+            predict_function = one_step_on_iterator
+        self.predict_function = predict_function
 
     def fit(
         self,
@@ -212,12 +281,70 @@ class Trainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        raise NotImplementedError
+        # TODO: respect compiled trainable state
+        use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
+
+        if use_cached_eval_dataset:
+            epoch_iterator = self._eval_epoch_iterator
+        else:
+            # Create an iterator that yields batches for one epoch.
+            epoch_iterator = TFEpochIterator(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                steps_per_epoch=steps,
+                shuffle=False,
+            )
+
+        # Container that configures and calls callbacks.
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_history=True,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        self.make_test_function()
+        callbacks.on_test_begin()
+        logs = None
+        self.reset_metrics()
+        with epoch_iterator.catch_stop_iteration():
+            for step, iterator in epoch_iterator.enumerate_epoch():
+                callbacks.on_test_batch_begin(step)
+                logs = self.test_function(iterator)
+                callbacks.on_test_batch_end(step, logs)
+        logs = self._process_logs(self.get_metrics_result())
+        callbacks.on_test_end(logs)
+
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
 
     def predict(
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
+
+    def _flatten_metrics_in_order(self, logs):
+        """Turns the `logs` dict into a list as per key order of `metrics_names`."""
+        metric_names = [m.name for m in self.metrics]
+        results = []
+        for name in metric_names:
+            if name in logs:
+                results.append(logs[name])
+        for key in sorted(logs.keys()):
+            if key not in metric_names:
+                results.append(logs[key])
+        if len(results) == 1:
+            return results[0]
+        return results
 
 
 class TFEpochIterator(EpochIterator):

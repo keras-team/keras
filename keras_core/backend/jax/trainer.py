@@ -9,9 +9,10 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
-    def stateless_compute_loss_and_updates(
+    def compute_loss_and_updates(
         self, trainable_variables, non_trainable_variables, x, y, sample_weight
     ):
+        """This method is stateless and is intended for use with jax.grad."""
         y_pred, non_trainable_variables = self.stateless_call(
             trainable_variables, non_trainable_variables, x
         )
@@ -104,7 +105,7 @@ class Trainer(base_trainer.Trainer):
             )
 
         grad_fn = jax.value_and_grad(
-            self.stateless_compute_loss_and_updates, has_aux=True
+            self.compute_loss_and_updates, has_aux=True
         )
 
         def _train_step(state, data):

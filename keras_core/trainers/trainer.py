@@ -5,6 +5,7 @@ from keras_core import metrics as metrics_module
 from keras_core import operations as ops
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
+from keras_core.utils import tracking
 
 
 class Trainer:
@@ -12,10 +13,8 @@ class Trainer:
         self._run_eagerly = False
         self._jit_compile = True
         self.compiled = False
-        self.train_function = None
-        self.test_function = None
-        self.predict_function = None
 
+    @tracking.no_automatic_dependency_tracking
     def compile(
         self,
         optimizer,
@@ -208,24 +207,6 @@ class Trainer:
             else:
                 return_metrics[metric.name] = result
         return return_metrics
-
-    def train_step(self, data):
-        raise NotImplementedError
-
-    def test_step(self, data):
-        raise NotImplementedError
-
-    def predict_step(self, data):
-        raise NotImplementedError
-
-    def make_train_function(self):
-        raise NotImplementedError
-
-    def make_test_function(self):
-        raise NotImplementedError
-
-    def make_predict_function(self):
-        raise NotImplementedError
 
     def fit(
         self,

@@ -13,7 +13,7 @@ from keras_core.utils.naming import auto_name
 DYNAMIC_SHAPES_OK = True
 
 
-class Variable(KerasVariable):
+class Variable(KerasVariable, tf.__internal__.types.Tensor):
     def __init__(self, value, dtype=None, trainable=True, name=None):
         self.name = name or auto_name(self.__class__.__name__)
         dtype = standardize_dtype(dtype)

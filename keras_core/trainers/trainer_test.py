@@ -27,7 +27,7 @@ class ExampleModel(layers.Dense, Trainer):
 
 
 class TestTrainer(testing.TestCase):
-    def _test_basic_flow(self, run_eagerly, jit_compile):
+    def _test_fit_flow(self, run_eagerly, jit_compile):
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -49,11 +49,41 @@ class TestTrainer(testing.TestCase):
             history["mean_squared_error"], [13.938, 9.547, 6.539], atol=1e-2
         )
 
-    def test_basic_flow_eager(self):
-        self._test_basic_flow(run_eagerly=True, jit_compile=False)
+    def test_fit_flow_eager(self):
+        self._test_fit_flow(run_eagerly=True, jit_compile=False)
 
-    def test_basic_flow_graph_fn(self):
-        self._test_basic_flow(run_eagerly=False, jit_compile=False)
+    def test_fit_flow_graph_fn(self):
+        self._test_fit_flow(run_eagerly=False, jit_compile=False)
 
-    def test_basic_flow_jit(self):
-        self._test_basic_flow(run_eagerly=False, jit_compile=True)
+    def test_fit_flow_jit(self):
+        self._test_fit_flow(run_eagerly=False, jit_compile=True)
+
+    def _test_evaluate_flow(self, run_eagerly, jit_compile):
+        model = ExampleModel(units=3)
+        x = np.ones((100, 4))
+        y = np.zeros((100, 3))
+        batch_size = 16
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
+        output = model.evaluate(x, y, batch_size=batch_size)
+        self.assertAllClose(output, [16.0, 16.0])
+        output = model.evaluate(x, y, batch_size=batch_size, return_dict=True)
+        self.assertTrue(isinstance(output, dict))
+        self.assertIn("loss", output)
+        self.assertIn("mean_squared_error", output)
+        self.assertAllClose(output["mean_squared_error"], 16.0)
+
+    def test_evaluate_flow_eager(self):
+        self._test_evaluate_flow(run_eagerly=True, jit_compile=False)
+
+    def test_evaluate_flow_graph_fn(self):
+        self._test_evaluate_flow(run_eagerly=False, jit_compile=False)
+
+    def test_evaluate_flow_jit(self):
+        self._test_evaluate_flow(run_eagerly=False, jit_compile=True)
