@@ -149,7 +149,6 @@ class Trainer:
             total_loss = losses[0]
         else:
             total_loss = ops.sum(losses)
-        self._loss_tracker.update_state(total_loss)
         return total_loss
 
     def compute_metrics(self, x, y, y_pred, sample_weight=None):
@@ -288,3 +287,13 @@ class Trainer:
     def compile_from_config(self):
         # TODO
         raise NotImplementedError
+
+    def _process_logs(self, logs):
+        result = {}
+        for key, value in logs.items():
+            try:
+                value = float(value)
+            except:
+                pass
+            result[key] = value
+        return result

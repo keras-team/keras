@@ -9,6 +9,17 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class Trainer(base_trainer.Trainer):
+
+    def stateless_compute_loss_and_updates(
+            self, trainable_variables, non_trainable_variables, x, y, sample_weight
+        ):
+            y_pred, non_trainable_variables = self.stateless_call(
+                trainable_variables, non_trainable_variables, x
+            )
+
+            loss = self.compute_loss(x, y, y_pred, sample_weight)
+            return loss, (y_pred, non_trainable_variables)
+
     def fit(
         self,
         x=None,
@@ -77,6 +88,9 @@ class Trainer(base_trainer.Trainer):
                 self.compute_metrics(x, y, y_pred, sample_weight)
                 self.reset_metrics()
                 break
+        if not self.optimizer.built:
+            # Build optimizer
+            self.optimizer.build(self.trainable_variables)
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -90,33 +104,9 @@ class Trainer(base_trainer.Trainer):
                 model=self,
             )
 
-        self.stop_training = False
-        # self.make_train_function()
-        callbacks.on_train_begin()
-        training_logs = None
-        logs = None
-
-        trainable_variables = self.trainable_variables
-        if not self.optimizer.built:
-            self.optimizer.build(trainable_variables)
-        non_trainable_variables = self.non_trainable_variables
-        optimizer_variables = self.optimizer.variables
-        metrics_variables = self.metrics_variables
-
-        def compute_loss_and_updates(
-            trainable_variables, non_trainable_variables, x, y
-        ):
-            y_pred, non_trainable_variables = self.stateless_call(
-                trainable_variables, non_trainable_variables, x
-            )
-
-            loss = self._compile_loss(y, y_pred)
-            return loss, (y_pred, non_trainable_variables)
-
-        grad_fn = jax.value_and_grad(compute_loss_and_updates, has_aux=True)
-
-        @jax.jit
-        def train_step(state, data):
+        grad_fn = jax.value_and_grad(self.stateless_compute_loss_and_updates, has_aux=True)
+        
+        def _train_step(state, data):
             (
                 trainable_variables,
                 non_trainable_variables,
@@ -127,7 +117,7 @@ class Trainer(base_trainer.Trainer):
                 data
             )
             (loss, (y_pred, non_trainable_variables)), grads = grad_fn(
-                trainable_variables, non_trainable_variables, x, y
+                trainable_variables, non_trainable_variables, x, y, sample_weight
             )
 
             (
@@ -163,10 +153,26 @@ class Trainer(base_trainer.Trainer):
                 metrics_variables,
             )
             return logs, state
+        
+        if not self.run_eagerly and not self.jit_compile:
+            @jax.jit
+            def train_step(state, data):
+                return _train_step(state, data)
+        else:
+            train_step = _train_step
+        
+        self.stop_training = False
+        callbacks.on_train_begin()
 
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
+
+            trainable_variables = self.trainable_variables
+            non_trainable_variables = self.non_trainable_variables
+            optimizer_variables = self.optimizer.variables
+            metrics_variables = self.metrics_variables
+
             for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
@@ -268,13 +274,3 @@ class Trainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-
-    def _process_logs(self, logs):
-        result = {}
-        for key, value in logs.items():
-            try:
-                value = float(value)
-            except:
-                pass
-            result[key] = value
-        return result

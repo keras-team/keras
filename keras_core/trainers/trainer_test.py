@@ -1,32 +1,38 @@
 import numpy as np
-import pytest
 
 from keras_core import backend
+from keras_core import initializers
 from keras_core import layers
 from keras_core import losses
 from keras_core import metrics
 from keras_core import optimizers
 from keras_core import testing
-from keras_core.backend.tensorflow.trainer import Trainer
+
+if backend.backend() == "jax":
+    from keras_core.backend.jax.trainer import Trainer
+else:
+    from keras_core.backend.tensorflow.trainer import Trainer
 
 
 # A model is just a layer mixed in with a Trainer.
-class TFModel(layers.Dense, Trainer):
+class ExampleModel(layers.Dense, Trainer):
     def __init__(self, units):
-        layers.Dense.__init__(self, units=units)
+        layers.Dense.__init__(
+            self,
+            units=units,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )
         Trainer.__init__(self)
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow", reason="Target the TF backend only."
-)
-class TestTFTrainer(testing.TestCase):
+class TestTrainer(testing.TestCase):
     def _test_basic_flow(self, run_eagerly, jit_compile):
-        model = TFModel(units=3)
-        x = np.random.random((100, 4))
-        y = np.random.random((100, 3))
+        model = ExampleModel(units=3)
+        x = np.ones((100, 4))
+        y = np.zeros((100, 3))
         batch_size = 16
-        epochs = 10
+        epochs = 3
 
         model.compile(
             optimizer=optimizers.SGD(),
@@ -36,6 +42,12 @@ class TestTFTrainer(testing.TestCase):
             jit_compile=jit_compile,
         )
         history = model.fit(x, y, batch_size=batch_size, epochs=epochs)
+        history = history.history
+        self.assertIn("loss", history)
+        self.assertIn("mean_squared_error", history)
+        self.assertAllClose(
+            history["mean_squared_error"], [13.938, 9.547, 6.539], atol=1e-2
+        )
 
     def test_basic_flow_eager(self):
         self._test_basic_flow(run_eagerly=True, jit_compile=False)

@@ -24,9 +24,10 @@ class Trainer(base_trainer.Trainer):
             loss = self.compute_loss(
                 x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
             )
+        self._loss_tracker.update_state(loss)
 
         # Compute gradients
-        # TODO: move value conversion to the optimizer
+        # TODO: move value conversion to TF
         trainable_weights = [v.value for v in self.trainable_weights]
         gradients = tape.gradient(loss, trainable_weights)
 
@@ -217,16 +218,6 @@ class Trainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-
-    def _process_logs(self, logs):
-        result = {}
-        for key, value in logs.items():
-            try:
-                value = float(value)
-            except:
-                pass
-            result[key] = value
-        return result
 
 
 class TFEpochIterator(EpochIterator):
