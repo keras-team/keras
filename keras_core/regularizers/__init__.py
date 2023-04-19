@@ -3,3 +3,8 @@ from keras_core.regularizers.regularizers import L1L2
 from keras_core.regularizers.regularizers import L2
 from keras_core.regularizers.regularizers import OrthogonalRegularizer
 from keras_core.regularizers.regularizers import Regularizer
+
+
+def get(identifier):
+    # temporary shim.
+    return identifier

@@ -1,8 +1,10 @@
+from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.backend import standardize_dtype
 from keras_core.initializers.initializer import Initializer
-from keras_core.operations import numpy as knp
 
 
+@keras_core_export("keras_core.initializers.Zeros")
 class Zeros(Initializer):
     """Initializer that generates tensors initialized to 0.
 
@@ -17,7 +19,7 @@ class Zeros(Initializer):
     >>> layer = Dense(3, kernel_initializer=initializer)
     """
 
-    def __call__(self, shape, dtype=None, **kwargs):
+    def __call__(self, shape, dtype=None):
         """Returns a tensor object initialized as specified by the initializer.
 
         Args:
@@ -29,9 +31,10 @@ class Zeros(Initializer):
             **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)
-        return knp.zeros(shape, dtype=dtype)
+        return ops.zeros(shape, dtype=dtype)
 
 
+@keras_core_export("keras_core.initializers.Ones")
 class Ones(Initializer):
     """Initializer that generates tensors initialized to 1.
 
@@ -48,7 +51,7 @@ class Ones(Initializer):
     >>> layer = Dense(3, kernel_initializer=initializer)
     """
 
-    def __call__(self, shape, dtype=None, **kwargs):
+    def __call__(self, shape, dtype=None):
         """Returns a tensor object initialized as specified by the initializer.
 
         Args:
@@ -60,4 +63,4 @@ class Ones(Initializer):
             **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)
-        return knp.ones(shape, dtype=dtype)
+        return ops.ones(shape, dtype=dtype)

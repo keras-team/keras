@@ -45,13 +45,12 @@ class Initializer:
     fine.
     """
 
-    def __call__(self, shape, dtype=None, **kwargs):
+    def __call__(self, shape, dtype=None):
         """Returns a tensor object initialized as specified by the initializer.
 
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor.
-            **kwargs: Additional keyword arguments.
         """
         raise NotImplementedError(
             "Initializer subclasses must implement the `__call__()` method."
@@ -84,17 +83,3 @@ class Initializer:
             An `Initializer` instance.
         """
         return cls(**config)
-
-    def _warn_reuse(self):
-        if getattr(self, "_used", False):
-            if getattr(self, "seed", None) is None:
-                warnings.warn(
-                    f"The initializer {self.__class__.__name__} is unseeded "
-                    "and being called multiple times, which will return "
-                    "identical values each time (even if the initializer is "
-                    "unseeded). Please update your code to provide a seed to "
-                    "the initializer, or avoid using the same initializer "
-                    "instance more than once."
-                )
-        else:
-            self._used = True
