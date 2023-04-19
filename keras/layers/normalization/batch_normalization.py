@@ -1245,6 +1245,7 @@ class BatchNormalizationBase(Layer):
             mask_weights = tf.expand_dims(
                 mask_weights, axis=-1, name="mask_weights_broadcasted"
             )
+            mask_weights = _expand_tensor_with_local_replica_group(mask_weights)
             mean, var = tf.nn.weighted_moments(
                 replica_tensor,
                 axes=updated_reduction_axes,
