@@ -97,6 +97,7 @@ class EpochIterator:
             raise ValueError(
                 f"Unrecognized data type: x={x} (of type {type(x)})"
             )
+        self._num_batches = self.data_adapter.num_batches
 
     def _get_iterator(self, return_type):
         if return_type not in ("np", "tf"):
@@ -118,19 +119,27 @@ class EpochIterator:
                 try:
                     data = next(self._current_iterator)
                     yield step, data
-                except StopIteration:
+                except (StopIteration, tf.errors.OutOfRangeError):
                     warnings.warn(
-                        "The dataset ran out of data before the end of the epoch. "
-                        "When passing `steps_per_epoch` "
-                        "(or otherwise `validation_steps` in `fit()` or `steps` in `evaluate()`), "
-                        "make sure that your dataset size (number of batches) is divisible "
-                        "by `steps_per_epoch`."
+                        "Your input ran out of data; interrupting epoch. "
+                        "Make sure that your dataset or generator can generate "
+                        "at least `steps_per_epoch * epochs` batches. "
+                        "You may need to use the `.repeat()` "
+                        "function when building your dataset.",
+                        stacklevel=2,
                     )
-                    self._current_iterator = self._get_iterator(return_type)
+                    self._current_iterator = None
         else:
             for step, data in enumerate(self._get_iterator(return_type)):
                 yield step, data
+            if not self._num_batches:
+                # Infer the number of batches returned by the data_adater.
+                # Assumed static.
+                self._num_batches = step + 1
+        self.data_adapter.on_epoch_end()
 
     @property
     def num_batches(self):
-        return self.data_adapter.num_batches
+        # Either copied from the data_adapter, or
+        # inferred at the end of an iteration.
+        return self._num_batches

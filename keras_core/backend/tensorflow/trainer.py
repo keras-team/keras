@@ -1,4 +1,8 @@
+import contextlib
+import warnings
+
 import tensorflow as tf
+from tensorflow.python.eager import context as tf_context
 
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
@@ -41,19 +45,25 @@ class Trainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
-        def step_function(data):
+        def one_step_on_data(data):
             """Runs a single training step."""
             return self.train_step(data)
 
-        if self.jit_compile:
-            train_function = tf.function(
-                step_function, jit_compile=True, reduce_retracing=True
+        if not self.run_eagerly and self.jit_compile:
+            one_step_on_data = tf.function(
+                one_step_on_data, jit_compile=True, reduce_retracing=True
             )
-        elif not self.run_eagerly:
-            train_function = tf.function(step_function, reduce_retracing=True)
-        else:
-            train_function = step_function
 
+        def one_step_on_iterator(iterator):
+            data = next(iterator)
+            return one_step_on_data(data)
+
+        if not self.run_eagerly:
+            train_function = tf.function(
+                one_step_on_iterator, reduce_retracing=True
+            )
+        else:
+            train_function = one_step_on_iterator
         self.train_function = train_function
 
     def make_test_function(self, force=False):
@@ -105,7 +115,7 @@ class Trainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TFEpochIterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
@@ -135,12 +145,13 @@ class Trainer(base_trainer.Trainer):
         for epoch in range(initial_epoch, epochs):
             self.reset_metrics()
             callbacks.on_epoch_begin(epoch)
-            for step, batch in epoch_iterator.enumerate_epoch(return_type="tf"):
-                callbacks.on_train_batch_begin(step)
-                logs = self.train_function(batch)
-                callbacks.on_train_batch_end(step, logs)
-                if self.stop_training:
-                    break
+            with epoch_iterator.catch_stop_iteration():
+                for step, iterator in epoch_iterator.enumerate_epoch():
+                    callbacks.on_train_batch_begin(step)
+                    logs = self.train_function(iterator)
+                    callbacks.on_train_batch_end(step, logs)
+                    if self.stop_training:
+                        break
 
             # Override with model metrics instead of last step logs
             epoch_logs = self._process_logs(self.get_metrics_result())
@@ -216,3 +227,53 @@ class Trainer(base_trainer.Trainer):
                 pass
             result[key] = value
         return result
+
+
+class TFEpochIterator(EpochIterator):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._steps_seen = 0
+
+    def enumerate_epoch(self):
+        if self.steps_per_epoch:
+            if not self._current_iterator:
+                self._current_iterator = iter(
+                    self.data_adapter.get_tf_dataset()
+                )
+            for step in range(self.steps_per_epoch):
+                yield step, self._current_iterator
+        else:
+            iterator = iter(self.data_adapter.get_tf_dataset())
+            if self.num_batches:
+                for step in range(self.num_batches):
+                    yield step, iterator
+            else:
+                step = -1
+                while True:
+                    step += 1
+                    self._steps_seen = step + 1
+                    yield step, iterator
+        self.data_adapter.on_epoch_end()
+
+    def tf_sync(self):
+        tf_context.async_wait()
+
+    @contextlib.contextmanager
+    def catch_stop_iteration(self):
+        """Catches errors when an iterator runs out of data."""
+        try:
+            yield
+            self.tf_sync()
+        except (StopIteration, tf.errors.OutOfRangeError):
+            if self._num_batches is None:
+                self._num_batches = self._steps_seen
+            warnings.warn(
+                "Your input ran out of data; interrupting training. "
+                "Make sure that your dataset or generator can generate "
+                "at least `steps_per_epoch * epochs` batches. "
+                "You may need to use the `.repeat()` "
+                "function when building your dataset.",
+                stacklevel=2,
+            )
+            self._current_iterator = None
+            self.data_adapter.on_epoch_end()

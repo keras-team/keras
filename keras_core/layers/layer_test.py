@@ -1,7 +1,7 @@
 import numpy as np
 
-from keras_core import testing
 from keras_core import backend
+from keras_core import testing
 from keras_core.layers.layer import Layer
 
 
@@ -30,7 +30,7 @@ class LayerTest(testing.TestCase):
 
             def call(self, x):
                 return backend.random.dropout(x, rate=0.5, seed=self.seed_gen)
-            
+
         layer = RNGLayer()
         self.assertEqual(layer.variables, [layer.seed_gen.state])
         self.assertAllClose(layer.variables[0], [1337, 0])
@@ -49,12 +49,14 @@ class LayerTest(testing.TestCase):
                 x = backend.random.dropout(x, rate=0.5, seed=self.seed_gens[0])
                 x = backend.random.dropout(x, rate=0.5, seed=self.seed_gens[1])
                 return x
-        
+
         layer = RNGListLayer()
-        self.assertEqual(layer.variables, [layer.seed_gens[0].state, layer.seed_gens[1].state])
+        self.assertEqual(
+            layer.variables,
+            [layer.seed_gens[0].state, layer.seed_gens[1].state],
+        )
         self.assertAllClose(layer.variables[0], [1, 0])
         self.assertAllClose(layer.variables[1], [10, 0])
         layer(np.ones((3, 4)))
         self.assertAllClose(layer.variables[0], [1, 1])
         self.assertAllClose(layer.variables[1], [10, 1])
-
