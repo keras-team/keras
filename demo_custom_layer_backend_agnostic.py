@@ -19,6 +19,7 @@ class MyDense(layers.Layer):
         input_dim = input_shape[-1]
         w_shape = (input_dim, self.units)
         w_value = initializers.GlorotUniform()(w_shape)
+        # State must be stored in backend.Variable objects.
         self.w = backend.Variable(w_value, name="kernel")
 
         b_shape = (self.units,)

@@ -154,7 +154,7 @@ class Trainer(base_trainer.Trainer):
             )
             return logs, state
         
-        if not self.run_eagerly and not self.jit_compile:
+        if not self.run_eagerly and self.jit_compile:
             @jax.jit
             def train_step(state, data):
                 return _train_step(state, data)

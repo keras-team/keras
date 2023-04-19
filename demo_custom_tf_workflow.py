@@ -59,6 +59,9 @@ optimizer = optimizers.SGD(learning_rate=0.0001)
 dataset = Dataset()
 
 
+######### Custom TF workflow ###############
+
+
 @tf.function(jit_compile=True)
 def train_step(data):
     x, y = data
