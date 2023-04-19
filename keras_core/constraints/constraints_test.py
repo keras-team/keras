@@ -29,6 +29,7 @@ class ConstraintsTest(testing.TestCase):
     def test_non_neg(self):
         constraint_fn = constraints.NonNeg()
         output = constraint_fn(get_example_array())
+        output = np.array(output)
         self.assertTrue((np.min(output, axis=1) >= 0.0).all())
 
     def test_unit_norm(self):
