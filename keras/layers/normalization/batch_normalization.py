@@ -1165,7 +1165,7 @@ class BatchNormalizationBase(Layer):
                 )
 
             if mask is not None:
-                mask_weights = tf.cast(mask, tf.float32, name="mask_weights")
+                mask_weights = tf.cast(mask, y.dtype, name="mask_weights")
                 mask_weights = tf.expand_dims(
                     mask_weights, axis=-1, name="mask_weights_broadcasted"
                 )
