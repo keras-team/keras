@@ -2358,6 +2358,29 @@ class TestAffineTransformations(test_combinations.TestCase):
         must_be_0 = image.random_brightness(img, [1, 1], True)
         self.assertAllEqual(zeros, must_be_0)
 
+    def test_width_shift(self):
+        img = np.zeros((8, 8, 1), dtype=np.uint8)
+        img[3:5, 3:5, :] = 255
+        samples = tf.expand_dims(img, 0)
+        tf.keras.utils.set_random_seed(123)
+        datagen = image.ImageDataGenerator(width_shift_range=[-2, 2])
+        iterator = datagen.flow(samples, batch_size=1)
+        batch = iterator.next()
+        img = batch[0].astype("uint8")
+        result = np.array(
+            [
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+                [[0], [0], [0], [0], [0], [255], [255], [0]],
+                [[0], [0], [0], [0], [0], [255], [255], [0]],
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+                [[0], [0], [0], [0], [0], [0], [0], [0]],
+            ]
+        )
+        self.assertAllEqual(img, result)
+
 
 if __name__ == "__main__":
     tf.test.main()
