@@ -72,7 +72,10 @@ class Layer(Operation):
                     and not isinstance(x, Metric),
                     self._layers,
                 ),
-                "seed_generators": (lambda x: isinstance(x, backend.random.SeedGenerator), self._seed_generators),
+                "seed_generators": (
+                    lambda x: isinstance(x, backend.random.SeedGenerator),
+                    self._seed_generators,
+                ),
             }
         )
 

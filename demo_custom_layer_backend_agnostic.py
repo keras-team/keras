@@ -28,7 +28,7 @@ class MyDense(layers.Layer):
     def call(self, inputs):
         # Use Keras ops to create backend-agnostic layers/metrics/etc.
         return ops.matmul(inputs, self.w) + self.b
-    
+
 
 class MyDropout(layers.Layer):
     def __init__(self, rate, name=None):

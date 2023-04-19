@@ -1,3 +1,8 @@
+import json
+import os
+
+from keras_core.utils.io_utils import print_msg
+
 # The type of float to use throughout a session.
 _FLOATX = "float32"
 
@@ -7,36 +12,8 @@ _EPSILON = 1e-7
 # Default image data format, one of "channels_last", "channels_first".
 _IMAGE_DATA_FORMAT = "channels_last"
 
-
-def epsilon():
-    """Return the value of the fuzz factor used in numeric expressions.
-
-    Returns:
-        A float.
-
-    Example:
-    >>> keras_core.backend.epsilon()
-    1e-07
-    """
-    return _EPSILON
-
-
-def set_epsilon(value):
-    """Set the value of the fuzz factor used in numeric expressions.
-
-    Args:
-        value: float. New value of epsilon.
-
-    Example:
-    >>> keras_core.backend.epsilon()
-    1e-07
-    >>> keras_core.backend.set_epsilon(1e-5)
-    >>> keras_core.backend.epsilon()
-    1e-05
-     >>> keras_core.backend.set_epsilon(1e-7)
-    """
-    global _EPSILON
-    _EPSILON = value
+# Default backend: TensorFlow.
+_BACKEND = "tensorflow"
 
 
 def floatx():
@@ -88,6 +65,37 @@ def set_floatx(value):
     _FLOATX = str(value)
 
 
+def epsilon():
+    """Return the value of the fuzz factor used in numeric expressions.
+
+    Returns:
+        A float.
+
+    Example:
+    >>> keras_core.backend.epsilon()
+    1e-07
+    """
+    return _EPSILON
+
+
+def set_epsilon(value):
+    """Set the value of the fuzz factor used in numeric expressions.
+
+    Args:
+        value: float. New value of epsilon.
+
+    Example:
+    >>> keras_core.backend.epsilon()
+    1e-07
+    >>> keras_core.backend.set_epsilon(1e-5)
+    >>> keras_core.backend.epsilon()
+    1e-05
+     >>> keras_core.backend.set_epsilon(1e-7)
+    """
+    global _EPSILON
+    _EPSILON = value
+
+
 def image_data_format():
     """Return the default image data format convention.
 
@@ -126,3 +134,79 @@ def set_image_data_format(data_format):
             f"Expected one of {accepted_formats}"
         )
     _IMAGE_DATA_FORMAT = str(data_format)
+
+
+# Set Keras base dir path given KERAS_HOME env variable, if applicable.
+# Otherwise either ~/.keras or /tmp.
+if "KERAS_HOME" in os.environ:
+    _keras_dir = os.environ.get("KERAS_HOME")
+else:
+    _keras_base_dir = os.path.expanduser("~")
+    if not os.access(_keras_base_dir, os.W_OK):
+        _keras_base_dir = "/tmp"
+    _keras_dir = os.path.join(_keras_base_dir, ".keras")
+
+
+# Attempt to read Keras config file.
+_config_path = os.path.expanduser(os.path.join(_keras_dir, "keras.json"))
+if os.path.exists(_config_path):
+    try:
+        with open(_config_path) as f:
+            _config = json.load(f)
+    except ValueError:
+        _config = {}
+    _floatx = _config.get("floatx", floatx())
+    assert _floatx in {"float16", "float32", "float64"}
+    _epsilon = _config.get("epsilon", epsilon())
+    assert isinstance(_epsilon, float)
+    _backend = _config.get("backend", _BACKEND)
+    _image_data_format = _config.get("image_data_format", image_data_format())
+    assert _image_data_format in {"channels_last", "channels_first"}
+
+    set_floatx(_floatx)
+    set_epsilon(_epsilon)
+    set_image_data_format(_image_data_format)
+    _BACKEND = _backend
+
+# Save config file, if possible.
+if not os.path.exists(_keras_dir):
+    try:
+        os.makedirs(_keras_dir)
+    except OSError:
+        # Except permission denied and potential race conditions
+        # in multi-threaded environments.
+        pass
+
+if not os.path.exists(_config_path):
+    _config = {
+        "floatx": floatx(),
+        "epsilon": epsilon(),
+        "backend": _BACKEND,
+        "image_data_format": image_data_format(),
+    }
+    try:
+        with open(_config_path, "w") as f:
+            f.write(json.dumps(_config, indent=4))
+    except IOError:
+        # Except permission denied.
+        pass
+
+# Set backend based on KERAS_BACKEND flag, if applicable.
+if "KERAS_BACKEND" in os.environ:
+    _backend = os.environ["KERAS_BACKEND"]
+    if _backend:
+        _BACKEND = _backend
+
+
+def backend():
+    """Publicly accessible method for determining the current backend.
+
+    Returns:
+        String, the name of the backend Keras is currently using.
+
+    Example:
+
+    >>> keras.backend.backend()
+    'tensorflow'
+    """
+    return _BACKEND

@@ -2,8 +2,7 @@ import threading
 
 from keras_core.backend.common import KerasVariable
 
-### Stateless context manager
-
+# Stateless context manager
 GLOBAL_SCOPE_TRACKER = threading.local()
 
 

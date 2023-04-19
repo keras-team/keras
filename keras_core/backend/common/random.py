@@ -1,7 +1,5 @@
 import random as python_random
 
-from keras_core.backend import backend
-
 
 class SeedGenerator:
     def __init__(self, seed):
@@ -37,9 +35,3 @@ def draw_seed(seed):
         "or an instance of `SeedGenerator`. "
         f"Received: seed={seed} (of type {type(seed)})"
     )
-
-
-if backend() == "jax":
-    from keras_core.backend.jax.random import *
-else:
-    from keras_core.backend.tensorflow.random import *

@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 from tensorflow.python.ops.numpy_ops import np_config
 
 from keras_core import testing
