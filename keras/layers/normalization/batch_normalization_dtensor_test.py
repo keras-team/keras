@@ -67,9 +67,10 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
         training=[True, False],
         synchronized=[True, False],
         renorm=[True, False],
+        use_mask=[True, False],
     )
     def test_batch_normalization_with_dtensor_strategy(
-        self, training, synchronized, renorm
+        self, training, synchronized, renorm, use_mask
     ):
         num_replica = 2
         local_batch_size = 4
@@ -81,9 +82,29 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
         replica_inputs = tf.reshape(
             global_inputs, [num_replica, local_batch_size, *feature_shape]
         )
+        if use_mask:
+            mask = tf.concat(
+                [
+                    tf.ones(shape=[global_batch_size, 2]),
+                    tf.zeros(shape=[global_batch_size, 1]),
+                ],
+                axis=-1,
+            )
+            mask = tf.cast(mask, tf.bool)
+            mask = tf.reshape(mask, [num_replica, local_batch_size, 3])
 
-        def value_fn(value_context):
-            return replica_inputs[value_context.replica_id_in_sync_group]
+            def value_fn(value_context):
+                return {
+                    "inputs": replica_inputs[
+                        value_context.replica_id_in_sync_group
+                    ],
+                    "mask": mask[value_context.replica_id_in_sync_group],
+                }
+
+        else:
+
+            def value_fn(value_context):
+                return replica_inputs[value_context.replica_id_in_sync_group]
 
         normal_strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         dtensor_strategy = dtensor_mirrored_strategy.MirroredStrategy(
@@ -121,6 +142,8 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
     ):
         @tf.function
         def run_fn(inputs):
+            if isinstance(inputs, dict):
+                return bn_layer(**inputs, **run_kwargs)
             return bn_layer(inputs, **run_kwargs)
 
         distributed_inputs = (
