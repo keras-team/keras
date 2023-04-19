@@ -32,7 +32,7 @@ class MeanSquaredError(LossFunctionWrapper):
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
             `"sum_over_batch_size"` or None.
-      name: Optional name for the instance.
+        name: Optional name for the instance.
     """
 
     def __init__(
