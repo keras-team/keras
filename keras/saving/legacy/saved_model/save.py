@@ -64,7 +64,7 @@ def save(
       save_traces: (only applies to SavedModel format) When enabled, the
         SavedModel will store the function traces for each layer. This
         can be disabled, so that only the configs of each layer are stored.
-        Disabling this will decrease serialization time and filesize, but
+        Disabling this will decrease serialization time and file size, but
         it requires that all custom layers/models implement a
         `get_config()` method. Defaults to `True`.
 
