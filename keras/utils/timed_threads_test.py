@@ -42,6 +42,47 @@ class TimedThreadTest(test_combinations.TestCase):
         time.sleep(0.1)
         self.assertFalse(log_thread.is_alive())
 
+    def test_timed_thread_restart(self):
+        # Verfiy that thread can be started and stopped multiple times.
+        class LogThread(timed_threads.TimedThread):
+            def on_interval(self):
+                logging.info("Thread Run")
+
+        log_thread = LogThread(interval=0.1)
+        for _ in range(2):
+            self.assertFalse(log_thread.is_alive())
+            with self.assertLogs(level="INFO") as logs:
+                log_thread.start()
+                time.sleep(1)
+                self.assertTrue(log_thread.is_alive())
+                log_thread.stop()
+            self.assertIn("INFO:absl:Thread Run", logs.output)
+            time.sleep(0.1)
+            self.assertFalse(log_thread.is_alive())
+
+    def test_timed_thread_running_warning(self):
+        # Verfiy thread start warning if its already running
+        class LogThread(timed_threads.TimedThread):
+            def on_interval(self):
+                logging.info("Thread Run")
+
+        log_thread = LogThread(interval=0.1)
+        self.assertFalse(log_thread.is_alive())
+        with self.assertLogs(level="INFO") as logs:
+            log_thread.start()
+            time.sleep(1)
+            self.assertTrue(log_thread.is_alive())
+            self.assertIn("INFO:absl:Thread Run", logs.output)
+        with self.assertLogs(level="WARNING") as logs:
+            log_thread.start()
+            self.assertIn(
+                "WARNING:absl:Thread is already running.", logs.output
+            )
+            self.assertTrue(log_thread.is_alive())
+        log_thread.stop()
+        time.sleep(0.1)
+        self.assertFalse(log_thread.is_alive())
+
     def test_timed_thread_callback_model_fit(self):
         class LogThreadCallback(
             timed_threads.TimedThread, keras.callbacks.Callback

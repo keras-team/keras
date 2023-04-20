@@ -17,11 +17,12 @@
 import abc
 import threading
 
+from absl import logging
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.utils.TimedThread", v1=[])
-class TimedThread(threading.Thread):
+class TimedThread:
     """Time-based interval Threads.
 
     Runs a timed thread every x seconds. It can be used to run a threaded
@@ -30,15 +31,17 @@ class TimedThread(threading.Thread):
     Args:
         interval: The interval, in seconds, to wait between calls to the
             `on_interval` function.
-        **kwargs: additional args that are passed to `threading.Thread`.
+        **kwargs: additional args that are passed to `threading.Thread`. By
+            default, `Thread` is started as a `daemon` thread unless
+            overridden by the user in `kwargs`.
 
     Examples:
 
     ```python
     class TimedLogIterations(keras.utils.TimedThread):
-        def __init__(self, model, interval, *args, **kwargs):
+        def __init__(self, model, interval):
             self.model = model
-            super().__init__(interval, *args, **kwargs)
+            super().__init__(interval)
 
         def on_interval(self):
             # Logs Optimizer iterations every x seconds
@@ -92,9 +95,10 @@ class TimedThread(threading.Thread):
 
     def __init__(self, interval, **kwargs):
         self.interval = interval
-        daemon = kwargs.pop("daemon", True)
-        self.thread_stop_event = threading.Event()
-        super().__init__(target=self._call_on_interval, daemon=daemon, **kwargs)
+        self.daemon = kwargs.pop("daemon", True)
+        self.thread_kwargs = kwargs
+        self.thread = None
+        self.thread_stop_event = None
 
     def _call_on_interval(self):
         # Runs indefinitely once thread is started
@@ -102,9 +106,29 @@ class TimedThread(threading.Thread):
             self.on_interval()
             self.thread_stop_event.wait(self.interval)
 
+    def start(self):
+        """Creates and starts the thread run."""
+        if self.thread and self.thread.is_alive():
+            logging.warning("Thread is already running.")
+            return
+        self.thread = threading.Thread(
+            target=self._call_on_interval,
+            daemon=self.daemon,
+            **self.thread_kwargs
+        )
+        self.thread_stop_event = threading.Event()
+        self.thread.start()
+
     def stop(self):
         """Stops the thread run."""
-        self.thread_stop_event.set()
+        if self.thread_stop_event:
+            self.thread_stop_event.set()
+
+    def is_alive(self):
+        """Returns True if thread is running. Otherwise returns False."""
+        if self.thread:
+            return self.thread.is_alive()
+        return False
 
     def __enter__(self):
         # Starts the thread in context manager
