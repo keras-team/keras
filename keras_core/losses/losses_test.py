@@ -182,6 +182,7 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
         self.assertAlmostEqual(loss, [621.8518, 352.6666])
 
+
 class MeanSquaredLogarithmicErrorTest(testing.TestCase):
     def test_config(self):
         # TODO

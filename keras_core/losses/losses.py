@@ -1,5 +1,5 @@
-from keras_core import operations as ops
 from keras_core import backend
+from keras_core import operations as ops
 from keras_core.losses.loss import Loss
 from keras_core.losses.loss import squeeze_to_same_rank
 
@@ -27,7 +27,11 @@ class LossFunctionWrapper(Loss):
 class MeanSquaredError(LossFunctionWrapper):
     """Computes the mean of squares of errors between labels and predictions.
 
-    `loss = mean(square(y_true - y_pred))`
+    Formula:
+
+    ```python
+    loss = mean(square(y_true - y_pred))
+    ```
 
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
@@ -45,7 +49,11 @@ class MeanSquaredError(LossFunctionWrapper):
 class MeanAbsoluteError(LossFunctionWrapper):
     """Computes the mean of absolute difference between labels and predictions.
 
-    `loss = mean(abs(y_true - y_pred))`
+    Formula:
+
+    ```python
+    loss = mean(abs(y_true - y_pred))
+    ```
 
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
@@ -65,7 +73,9 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 
     Formula:
 
-    `loss = 100 * mean(abs((y_true - y_pred) / y_true))`
+    ```python
+    loss = 100 * mean(abs((y_true - y_pred) / y_true))
+    ```
 
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
@@ -87,7 +97,11 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 class MeanSquaredLogarithmicError(LossFunctionWrapper):
     """Computes the mean squared logarithmic error between `y_true` & `y_pred`.
 
-    `loss = mean(square(log(y_true + 1.) - log(y_pred + 1.)))`
+    Formula:
+
+    ```python
+    loss = mean(square(log(y_true + 1) - log(y_pred + 1)))
+    ```
 
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
@@ -109,10 +123,11 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
 def mean_squared_error(y_true, y_pred):
     """Computes the mean squared error between labels and predictions.
 
-    After computing the squared distance between the inputs, the mean value over
-    the last dimension is returned.
+    Formula:
 
-    `loss = mean(square(y_true - y_pred), axis=-1)`
+    ```python
+    loss = mean(square(y_true - y_pred), axis=-1)
+    ```
 
     Standalone usage:
 
@@ -136,10 +151,9 @@ def mean_squared_error(y_true, y_pred):
 def mean_absolute_error(y_true, y_pred):
     """Computes the mean absolute error between labels and predictions.
 
-    After computing the absolute distance between the inputs, the mean value
-    over the last dimension is returned.
-
-    `loss = mean(abs(y_true - y_pred), axis=-1)`
+    ```python
+    loss = mean(abs(y_true - y_pred), axis=-1)
+    ```
 
     Standalone usage:
 
@@ -166,9 +180,8 @@ def mean_absolute_percentage_error(y_true, y_pred):
     `loss = 100 * mean(abs((y_true - y_pred) / y_true), axis=-1)`
 
     Division by zero is prevented by dividing by `maximum(y_true, epsilon)`
-    where epsilon defaults to `1e-7` and is equal to:
-
-    >>> epsilon = keras_core.backend.epsilon()
+    where `epsilon = keras_core.backend.epsilon()`
+    (default to `1e-7`).
 
     Standalone usage:
 
@@ -195,7 +208,11 @@ def mean_absolute_percentage_error(y_true, y_pred):
 def mean_squared_logarithmic_error(y_true, y_pred):
     """Computes the mean squared logarithmic error between `y_true` & `y_pred`.
 
-    `loss = mean(square(log(y_true + 1) - log(y_pred + 1)), axis=-1)`
+    Formula:
+
+    ```python
+    loss = mean(square(log(y_true + 1) - log(y_pred + 1)), axis=-1)
+    ```
 
     Note that `y_pred` and `y_true` cannot be less or equal to 0. Negative
     values and 0 values will be replaced with `keras_core.backend.epsilon()`
@@ -205,7 +222,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
 
     >>> y_true = np.random.randint(0, 2, size=(2, 3))
     >>> y_pred = np.random.random(size=(2, 3))
-    >>> loss = tf.keras.losses.mean_squared_logarithmic_error(y_true, y_pred)
+    >>> loss = keras_core.losses.mean_squared_logarithmic_error(y_true, y_pred)
 
     Args:
         y_true: Ground truth values with shape = `[batch_size, d0, .. dN]`.
