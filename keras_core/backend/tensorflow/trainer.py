@@ -224,7 +224,7 @@ class Trainer(base_trainer.Trainer):
                         break
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self._process_logs(self.get_metrics_result())
+            epoch_logs = self._pythonify_logs(self.get_metrics_result())
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -250,7 +250,7 @@ class Trainer(base_trainer.Trainer):
                 val_logs = {
                     "val_" + name: val for name, val in val_logs.items()
                 }
-                epoch_logs.update(self._process_logs(val_logs))
+                epoch_logs.update(self._pythonify_logs(val_logs))
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             training_logs = epoch_logs
@@ -320,7 +320,7 @@ class Trainer(base_trainer.Trainer):
                 callbacks.on_test_batch_begin(step)
                 logs = self.test_function(iterator)
                 callbacks.on_test_batch_end(step, logs)
-        logs = self._process_logs(self.get_metrics_result())
+        logs = self._pythonify_logs(self.get_metrics_result())
         callbacks.on_test_end(logs)
 
         if return_dict:
@@ -331,20 +331,6 @@ class Trainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         raise NotImplementedError
-
-    def _flatten_metrics_in_order(self, logs):
-        """Turns the `logs` dict into a list as per key order of `metrics_names`."""
-        metric_names = [m.name for m in self.metrics]
-        results = []
-        for name in metric_names:
-            if name in logs:
-                results.append(logs[name])
-        for key in sorted(logs.keys()):
-            if key not in metric_names:
-                results.append(logs[key])
-        if len(results) == 1:
-            return results[0]
-        return results
 
 
 class TFEpochIterator(EpochIterator):

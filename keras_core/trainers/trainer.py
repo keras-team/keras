@@ -185,6 +185,7 @@ class Trainer:
         """
         del x  # The default implementation does not use `x`.
         if self._compile_metrics is not None:
+            print("Call compile_metrics.update")
             self._compile_metrics.update_state(y, y_pred, sample_weight)
         return self.get_metrics_result()
 
@@ -248,6 +249,14 @@ class Trainer:
     ):
         raise NotImplementedError
 
+    def get_compile_config(self):
+        # TODO
+        raise NotImplementedError
+
+    def compile_from_config(self):
+        # TODO
+        raise NotImplementedError
+
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.
         if isinstance(validation_freq, int):
@@ -261,15 +270,7 @@ class Trainer:
                 f"type {type(validation_freq)}."
             )
 
-    def get_compile_config(self):
-        # TODO
-        raise NotImplementedError
-
-    def compile_from_config(self):
-        # TODO
-        raise NotImplementedError
-
-    def _process_logs(self, logs):
+    def _pythonify_logs(self, logs):
         result = {}
         for key, value in logs.items():
             try:
@@ -278,3 +279,17 @@ class Trainer:
                 pass
             result[key] = value
         return result
+
+    def _flatten_metrics_in_order(self, logs):
+        """Turns the `logs` dict into a list as per key order of `metrics_names`."""
+        metric_names = [m.name for m in self.metrics]
+        results = []
+        for name in metric_names:
+            if name in logs:
+                results.append(logs[name])
+        for key in sorted(logs.keys()):
+            if key not in metric_names:
+                results.append(logs[key])
+        if len(results) == 1:
+            return results[0]
+        return results

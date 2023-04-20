@@ -133,6 +133,18 @@ class CompileMetrics(metrics_module.Metric):
         self.built = False
         self.name = "compile_metrics"
 
+    @property
+    def variables(self):
+        # Avoiding relying on implicit tracking since
+        # CompileMetrics may be instantiated or built in a no tracking scope.
+        if not self.built:
+            return []
+        vars = []
+        for m in self._flat_metrics + self._flat_weighted_metrics:
+            if m is not None:
+                vars.extend(m.variables)
+        return vars
+
     def build(self, y_true, y_pred):
         if isinstance(y_pred, dict):
             output_names = sorted(list(y_pred.keys()))

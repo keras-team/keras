@@ -27,6 +27,43 @@ class ExampleModel(layers.Dense, Trainer):
 
 
 class TestTrainer(testing.TestCase):
+    def test_metric_tracking(self):
+        class ModelWithMetric(layers.Dense, Trainer):
+            def __init__(self, units):
+                layers.Dense.__init__(
+                    self,
+                    units=units,
+                    use_bias=False,
+                    kernel_initializer=initializers.Ones(),
+                )
+                Trainer.__init__(self)
+                self.my_metric = metrics.MeanSquaredError(name="my_metric")
+
+        model = ModelWithMetric(units=3)
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+        x = np.ones((2, 4))
+        y = np.zeros((2, 3))
+        # Fit the model to make sure compile_metrics are built
+        model.fit(x, y, batch_size=2, epochs=1)
+
+        # The model should have 3 metrics: loss_tracker, compile_metrics, my_metric
+        self.assertEqual(len(model.metrics), 3)
+        self.assertEqual(model.metrics[0], model._loss_tracker)
+        self.assertEqual(model.metrics[1], model.my_metric)
+        self.assertEqual(model.metrics[2], model._compile_metrics)
+
+        # All metrics should have their weights created
+        self.assertEqual(len(model._loss_tracker.variables), 2)
+        self.assertEqual(len(model._compile_metrics.variables), 2)
+        self.assertEqual(len(model.my_metric.variables), 2)
+
+        # And those weights are tracked at the model level
+        self.assertEqual(len(model.metrics_variables), 6)
+
     def _test_fit_flow(self, run_eagerly, jit_compile):
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
