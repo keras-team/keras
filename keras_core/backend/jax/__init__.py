@@ -5,6 +5,7 @@ from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
+from keras_core.backend.jax import nn
 from keras_core.backend.jax import numpy
 from keras_core.backend.jax import random
 from keras_core.backend.keras_tensor import KerasTensor
@@ -240,9 +241,7 @@ class Variable(KerasVariable):
         return self.value.__round__(ndigits)
 
 
-### Shape / dtype inference util
-
-
+# Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
 
@@ -289,9 +288,7 @@ def compute_output_spec(fn, *args, **kwargs):
         return nest.map_structure(convert_jax_spec_to_keras_tensor, jax_out)
 
 
-### NumPy op delegation
-
-
+# NumPy op delegation
 def execute(op_name, *args, **kwargs):
     if hasattr(jnp, op_name):
         op = getattr(jnp, op_name)
