@@ -467,7 +467,7 @@ class MeanIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) -1 dimension contains the logits. Defaults to `-1`.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 
@@ -583,7 +583,7 @@ class OneHotIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) -1 dimension contains the logits. Defaults to `-1`.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 
@@ -697,7 +697,7 @@ class OneHotMeanIoU(MeanIoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) -1 dimension contains the logits. Defaults to `-1`.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 

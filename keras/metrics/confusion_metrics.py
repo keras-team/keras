@@ -40,7 +40,7 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
         threshold values in [0, 1]. A threshold is compared with prediction
         values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). One metric
-        value is generated for each threshold value. Defaults to 0.5.
+        value is generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
     """
