@@ -185,7 +185,6 @@ class Trainer:
         """
         del x  # The default implementation does not use `x`.
         if self._compile_metrics is not None:
-            print("Call compile_metrics.update")
             self._compile_metrics.update_state(y, y_pred, sample_weight)
         return self.get_metrics_result()
 
