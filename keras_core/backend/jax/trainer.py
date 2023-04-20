@@ -10,7 +10,7 @@ from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
 
 
-class Trainer(base_trainer.Trainer):
+class JAXTrainer(base_trainer.Trainer):
     def compute_loss_and_updates(
         self, trainable_variables, non_trainable_variables, x, y, sample_weight
     ):

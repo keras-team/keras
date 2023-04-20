@@ -12,7 +12,7 @@ from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
 
 
-class Trainer(base_trainer.Trainer):
+class TensorFlowTrainer(base_trainer.Trainer):
     def __init__(self):
         super().__init__()
         self.train_function = None
@@ -290,7 +290,7 @@ class Trainer(base_trainer.Trainer):
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
         else:
-            # Create an iterator that yields batches for one epoch.
+            # Create an iterator that yields batches of input/target data.
             epoch_iterator = TFEpochIterator(
                 x=x,
                 y=y,

@@ -9,9 +9,9 @@ from keras_core import optimizers
 from keras_core import testing
 
 if backend.backend() == "jax":
-    from keras_core.backend.jax.trainer import Trainer
+    from keras_core.backend.jax.trainer import JAXTrainer as Trainer
 else:
-    from keras_core.backend.tensorflow.trainer import Trainer
+    from keras_core.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 
 
 # A model is just a layer mixed in with a Trainer.
