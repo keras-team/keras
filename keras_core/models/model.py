@@ -28,15 +28,14 @@ class Model(Trainer, Layer):
     - no masking support
     """
 
-    # def __new__(cls, *args, **kwargs):
-    #     # Signature detection
-    #     if functional_init_arguments(args, kwargs) and cls == Model:
-    #         # Functional model
-    #         from keras_core.models import functional
+    def __new__(cls, *args, **kwargs):
+        # Signature detection
+        if functional_init_arguments(args, kwargs) and cls == Model:
+            # Functional model
+            from keras_core.models import functional
 
-    #         return functional.Functional(*args, **kwargs, skip_init=True)
-    #     else:
-    #         return super(Model, cls).__new__(cls, *args, **kwargs)
+            return functional.Functional(*args, **kwargs, skip_init=True)
+        return Layer.__new__(cls)
 
     def __init__(self, trainable=True, name=None, dtype=None):
         Trainer.__init__(self)
