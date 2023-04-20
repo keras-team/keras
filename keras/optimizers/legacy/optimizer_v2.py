@@ -692,12 +692,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
           grads_and_vars: List of (gradient, variable) pairs.
-          name: Optional name for the returned operation. When None, uses the
+          name: Optional name for the returned operation. When `None`, uses the
             name passed to the `Optimizer` constructor. Defaults to `None`.
           experimental_aggregate_gradients: Whether to sum gradients from
             different replicas in the presence of `tf.distribute.Strategy`. If
             False, it's user responsibility to aggregate the gradients. Default
-            to True.
+            to `True`.
 
         Returns:
           An `Operation` that applies the specified gradients. The `iterations`

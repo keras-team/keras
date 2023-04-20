@@ -264,7 +264,7 @@ def polynomial_decay(
       end_learning_rate: A scalar `float32` or `float64` `Tensor` or a Python
         number.  The minimal end learning rate.
       power: A scalar `float32` or `float64` `Tensor` or a Python number.  The
-        power of the polynomial. Linear is default. Defaults to `1.0`.
+        power of the polynomial. Defaults to `1.0`.
       cycle: A boolean, whether it should cycle beyond decay_steps. Defaults to
         `False`.
       name: String. Optional name of the operation. Defaults to
