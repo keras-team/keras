@@ -26,6 +26,28 @@ class ExampleModel(layers.Dense, Trainer):
         Trainer.__init__(self)
 
 
+class OutputStructModel(layers.Layer, Trainer):
+    def __init__(self, units):
+        layers.Layer.__init__(self)
+        Trainer.__init__(self)
+        self.dense_1 = layers.Dense(
+            units,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )
+        self.dense_2 = layers.Dense(
+            units,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )
+
+    def call(self, x):
+        return {
+            "y_one": self.dense_1(x),
+            "y_two": self.dense_2(x),
+        }
+
+
 class TestTrainer(testing.TestCase):
     def test_metric_tracking(self):
         class ModelWithMetric(layers.Dense, Trainer):
@@ -124,3 +146,36 @@ class TestTrainer(testing.TestCase):
 
     def test_evaluate_flow_jit(self):
         self._test_evaluate_flow(run_eagerly=False, jit_compile=True)
+
+    def _test_predict_flow(self, run_eagerly, jit_compile):
+        # Test basic example
+        model = ExampleModel(units=3)
+        model.run_eagerly = run_eagerly
+        model.jit_compile = jit_compile
+
+        x = np.ones((100, 4))
+        batch_size = 16
+        outputs = model.predict(x, batch_size=batch_size)
+        self.assertAllClose(outputs, 4 * np.ones((100, 3)))
+
+        # Test with output struct
+        model = OutputStructModel(units=3)
+        model.run_eagerly = run_eagerly
+        model.jit_compile = jit_compile
+
+        x = np.ones((100, 4))
+        batch_size = 16
+        outputs = model.predict(x, batch_size=batch_size)
+        self.assertTrue(isinstance(outputs, dict))
+        self.assertEqual(len(outputs), 2)
+        self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
+        self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
+
+    def test_predicte_flow_eager(self):
+        self._test_predict_flow(run_eagerly=True, jit_compile=False)
+
+    def test_predict_flow_graph_fn(self):
+        self._test_predict_flow(run_eagerly=False, jit_compile=False)
+
+    def test_predict_flow_jit(self):
+        self._test_predict_flow(run_eagerly=False, jit_compile=True)

@@ -36,8 +36,8 @@ class MyModel(Model):
         self.dense3 = MyDense(output_dim)
 
     def call(self, x):
-        x = self.dense1(x)
-        x = self.dense2(x)
+        x = tf.nn.relu(self.dense1(x))
+        x = tf.nn.relu(self.dense2(x))
         return self.dense3(x)
 
 
@@ -45,7 +45,7 @@ def Dataset():
     for _ in range(20):
         yield (
             np.random.random((32, 128)).astype("float32"),
-            np.random.random((32, 16)).astype("float32"),
+            np.random.random((32, 4)).astype("float32"),
         )
 
 
@@ -53,9 +53,9 @@ def loss_fn(y_true, y_pred):
     return ops.sum((y_true - y_pred) ** 2)
 
 
-model = MyModel(hidden_dim=256, output_dim=16)
+model = MyModel(hidden_dim=256, output_dim=4)
 
-optimizer = optimizers.SGD(learning_rate=0.0001)
+optimizer = optimizers.SGD(learning_rate=0.001)
 dataset = Dataset()
 
 

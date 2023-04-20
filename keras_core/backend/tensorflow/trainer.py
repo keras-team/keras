@@ -1,6 +1,7 @@
 import contextlib
 import warnings
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.eager import context as tf_context
 
@@ -330,7 +331,52 @@ class Trainer(base_trainer.Trainer):
     def predict(
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
-        raise NotImplementedError
+        # Create an iterator that yields batches of input data.
+        epoch_iterator = TFEpochIterator(
+            x=x,
+            batch_size=batch_size,
+            steps_per_epoch=steps,
+            shuffle=False,
+        )
+
+        # Container that configures and calls callbacks.
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_history=True,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        self.make_predict_function()
+        callbacks.on_predict_begin()
+        outputs = None
+        with epoch_iterator.catch_stop_iteration():
+            for step, iterator in epoch_iterator.enumerate_epoch():
+                callbacks.on_predict_batch_begin(step)
+                batch_outputs = self.predict_function(iterator)
+                if outputs is None:
+                    outputs = tf.nest.map_structure(
+                        lambda batch_output: [batch_output],
+                        batch_outputs,
+                    )
+                else:
+                    tf.__internal__.nest.map_structure_up_to(
+                        batch_outputs,
+                        lambda output, batch_output: output.append(
+                            batch_output
+                        ),
+                        outputs,
+                        batch_outputs,
+                    )
+                callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+        callbacks.on_predict_end()
+        return tf.__internal__.nest.map_structure_up_to(
+            batch_outputs, np.concatenate, outputs
+        )
 
 
 class TFEpochIterator(EpochIterator):
