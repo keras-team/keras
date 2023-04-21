@@ -4,7 +4,9 @@ from keras_core.layers.layer import Layer
 from keras_core.utils import summary_utils
 
 if backend.backend() == "tensorflow":
-    from keras_core.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
+    from keras_core.backend.tensorflow.trainer import (
+        TensorFlowTrainer as Trainer,
+    )
 elif backend.backend() == "jax":
     from keras_core.backend.jax.trainer import JAXTrainer as Trainer
 else:

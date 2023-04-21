@@ -23,6 +23,7 @@ from tensorflow import keras as tf_keras
 from tensorflow import nest
 
 from keras_core import backend
+from keras_core import initializers
 from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
@@ -137,10 +138,8 @@ class Layer(Operation):
         # TODO: handle constraint (in the optimizer)
         # TODO: handle layout
         self._check_super_called()
-        if callable(initializer):
-            value = initializer(shape=shape, dtype=dtype)
-        else:
-            raise ValueError(f"Invalid initializer: {initializer}")
+        initializer = initializers.get(initializer)
+        value = initializer(shape=shape, dtype=dtype)
         variable = backend.Variable(
             value=value,
             dtype=dtype,

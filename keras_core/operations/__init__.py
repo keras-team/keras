@@ -7,6 +7,7 @@ from keras_core.backend import cond
 from keras_core.backend import convert_to_tensor
 from keras_core.backend import is_tensor
 from keras_core.backend import name_scope
+from keras_core.backend import random
 from keras_core.backend import shape
 from keras_core.operations.nn import *
 from keras_core.operations.numpy import *

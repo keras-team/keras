@@ -4,6 +4,38 @@ from keras_core.backend import standardize_dtype
 from keras_core.initializers.initializer import Initializer
 
 
+@keras_core_export("keras_core.initializers.Constant")
+class Constant(Initializer):
+    """Initializer that generates tensors with constant values.
+
+    Only scalar values are allowed.
+    The constant value provided must be convertible to the dtype requested
+    when calling the initializer.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = Constant(10.)
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = Constant(10.)
+    >>> layer = Dense(3, kernel_initializer=initializer)
+
+    Args:
+        value: A Python scalar.
+    """
+
+    def __init__(self, value=0.0):
+        self.value = float(value)
+
+    def __call__(self, shape, dtype=None):
+        return self.value * ops.ones(shape=shape, dtype=dtype)
+
+    def get_config(self):
+        return {"value": self.value}
+
+
 @keras_core_export("keras_core.initializers.Zeros")
 class Zeros(Initializer):
     """Initializer that generates tensors initialized to 0.
@@ -16,7 +48,7 @@ class Zeros(Initializer):
 
     >>> # Usage in a Keras layer:
     >>> initializer = Zeros()
-    >>> layer = Dense(3, kernel_initializer=initializer)
+    >>> layer = Dense(units=3, kernel_initializer=initializer)
     """
 
     def __call__(self, shape, dtype=None):

@@ -1,3 +1,7 @@
-def register_keras_core_serializable(symbol):
-    # TODO(fchollet)
-    pass
+from keras_core.saving.object_registration import CustomObjectScope
+from keras_core.saving.object_registration import get_custom_objects
+from keras_core.saving.object_registration import get_registered_name
+from keras_core.saving.object_registration import get_registered_object
+from keras_core.saving.object_registration import register_keras_serializable
+from keras_core.saving.serialization_lib import deserialize_keras_object
+from keras_core.saving.serialization_lib import serialize_keras_object
