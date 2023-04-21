@@ -21,6 +21,7 @@ class MeanSquaredError(reduction_metrics.MeanMetricWrapper):
     >>> m.result()
     0.25
     """
+
     def __init__(self, name="mean_squared_error", dtype=None):
         super().__init__(fn=mean_squared_error, name=name, dtype=dtype)
 

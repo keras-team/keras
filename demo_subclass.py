@@ -32,7 +32,9 @@ model.compile(
     loss=losses.MeanSquaredError(),
     metrics=[metrics.MeanSquaredError()],
 )
-history = model.fit(x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2)
+history = model.fit(
+    x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
+)
 
 print("History:")
 print(history.history)

@@ -1,7 +1,9 @@
 from keras_core import backend
 
+
 def relu(x):
     return backend.nn.relu(x)
+
 
 def identity(x):
     return x

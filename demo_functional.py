@@ -1,10 +1,10 @@
 import numpy as np
 
+from keras_core import Model
 from keras_core import layers
 from keras_core import losses
 from keras_core import metrics
 from keras_core import optimizers
-from keras_core import Model
 
 inputs = layers.Input((128,), batch_size=32)
 x = layers.Dense(256, activation="relu")(inputs)
@@ -25,7 +25,9 @@ model.compile(
     loss=losses.MeanSquaredError(),
     metrics=[metrics.MeanSquaredError()],
 )
-history = model.fit(x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2)
+history = model.fit(
+    x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
+)
 
 print("History:")
 print(history.history)
