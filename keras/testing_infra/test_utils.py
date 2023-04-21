@@ -880,10 +880,11 @@ def get_multi_io_model(
       shared_input_branch: An optional sequence of layers to apply to a single
         input, before applying both branches to that intermediate result. If
         set, the model will take only one input instead of two. Defaults to
-        None.
+        `None`.
       shared_output_branch: An optional sequence of layers to merge the
         intermediate results produced by branch a and branch b. If set,
-        the model will produce only one output instead of two. Defaults to None.
+        the model will produce only one output instead of two.
+        Defaults to `None`.
 
     Returns:
       A multi-io model of the type specified by `get_model_type`, specified
