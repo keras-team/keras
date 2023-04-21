@@ -238,6 +238,7 @@ class JAXTrainer(base_trainer.Trainer):
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
+                        epochs=1,
                     )
                 val_logs = self.evaluate(
                     x=val_x,
