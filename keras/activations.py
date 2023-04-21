@@ -358,7 +358,8 @@ def gelu(x, approximate=False):
         if `approximate` is `False`.
 
     Reference:
-        - [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
+        - [Gaussian Error Linear Units (GELUs)]
+        (https://arxiv.org/abs/1606.08415)
     """
     return tf.nn.gelu(x, approximate)
 
