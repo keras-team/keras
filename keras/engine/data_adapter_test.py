@@ -1442,6 +1442,34 @@ class DataHandlerTest(test_combinations.TestCase):
                 # Check that single x input is not wrapped in a tuple.
                 self.assertIsInstance(next(iterator), tf.Tensor)
 
+    def test_error_if_zero_steps_per_epoch(self):
+        data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3]).batch(1)
+
+        with self.assertRaisesRegex(ValueError, "`steps_per_epoch=0`"):
+            data_adapter.DataHandler(
+                data, initial_epoch=0, epochs=2, steps_per_epoch=0
+            )
+
+    def test_error_if_empty_array_input_data(self):
+        x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+        y = np.array([0, 1, 1, 0])
+        idx = []
+
+        with self.assertRaisesWithLiteralMatch(
+            ValueError,
+            "Expected input data to `fit()` to be non-empty.",
+        ):
+            data_adapter.DataHandler(x[idx], y[idx])
+
+    def test_error_if_empty_dataset_input_data(self):
+        data = tf.data.Dataset.from_tensor_slices([]).batch(1)
+
+        with self.assertRaisesWithLiteralMatch(
+            ValueError,
+            "Expected input data to `fit()` to be non-empty.",
+        ):
+            data_adapter.DataHandler(data)
+
 
 class TestValidationSplit(test_combinations.TestCase):
     @parameterized.named_parameters(("numpy_arrays", True), ("tensors", False))
