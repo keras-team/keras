@@ -85,7 +85,7 @@ class KerasTensor:
     def __repr__(self):
         return (
             f"<KerasTensor shape={self.shape}, dtype={self.dtype}, "
-            "name={self.name}>"
+            f"name={self.name}>"
         )
 
     def __iter__(self):

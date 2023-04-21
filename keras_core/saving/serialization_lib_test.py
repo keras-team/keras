@@ -168,7 +168,9 @@ class SerializationLibTest(testing.TestCase):
     # def test_safe_mode_scope(self):
     #     lmbda = keras_core.layers.Lambda(lambda x: x**2)
     #     with serialization_lib.SafeModeScope(safe_mode=True):
-    #         with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+    #         with self.assertRaisesRegex(
+    #             ValueError, "arbitrary code execution"
+    #         ):
     #             self.roundtrip(lmbda)
     #     with serialization_lib.SafeModeScope(safe_mode=False):
     #         _, new_lmbda, _ = self.roundtrip(lmbda)
@@ -192,44 +194,47 @@ class SerializationLibTest(testing.TestCase):
         self.assertIs(model.layers[2], model.layers[3].layer)
         self.assertIs(new_model.layers[2], new_model.layers[3].layer)
 
-    # TODO
-    # def test_functional_subclass(self):
-    #     class PlainFunctionalSubclass(keras_core.Model):
-    #         pass
+    def test_functional_subclass(self):
+        class PlainFunctionalSubclass(keras_core.Model):
+            pass
 
-    #     inputs = keras_core.Input((2,), batch_size=3)
-    #     outputs = keras_core.layers.Dense(1)(inputs)
-    #     model = PlainFunctionalSubclass(inputs, outputs)
-    #     x = ops.random.normal((2, 2))
-    #     y1 = model(x)
-    #     _, new_model, _ = self.roundtrip(
-    #         model,
-    #         custom_objects={"PlainFunctionalSubclass": PlainFunctionalSubclass},
-    #     )
-    #     new_model.set_weights(model.get_weights())
-    #     y2 = new_model(x)
-    #     self.assertAllClose(y1, y2, atol=1e-5)
-    #     self.assertIsInstance(new_model, PlainFunctionalSubclass)
+        inputs = keras_core.Input((2,), batch_size=3)
+        outputs = keras_core.layers.Dense(1)(inputs)
+        model = PlainFunctionalSubclass(inputs, outputs)
+        x = ops.random.normal((2, 2))
+        y1 = model(x)
+        _, new_model, _ = self.roundtrip(
+            model,
+            custom_objects={"PlainFunctionalSubclass": PlainFunctionalSubclass},
+        )
+        new_model.set_weights(model.get_weights())
+        y2 = new_model(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+        self.assertIsInstance(new_model, PlainFunctionalSubclass)
 
-    #     class FunctionalSubclassWCustomInit(keras_core.Model):
-    #         def __init__(self, num_units=1, **kwargs):
-    #             inputs = keras_core.Input((2,), batch_size=3)
-    #             outputs = keras_core.layers.Dense(num_units)(inputs)
-    #             super().__init__(inputs, outputs)
+        class FunctionalSubclassWCustomInit(keras_core.Model):
+            def __init__(self, num_units=2):
+                inputs = keras_core.Input((2,), batch_size=3)
+                outputs = keras_core.layers.Dense(num_units)(inputs)
+                super().__init__(inputs, outputs)
+                self.num_units = num_units
 
-    #     model = FunctionalSubclassWCustomInit(num_units=2)
-    #     x = ops.random.normal((2, 2))
-    #     y1 = model(x)
-    #     _, new_model, _ = self.roundtrip(
-    #         model,
-    #         custom_objects={
-    #             "FunctionalSubclassWCustomInit": FunctionalSubclassWCustomInit
-    #         },
-    #     )
-    #     new_model.set_weights(model.get_weights())
-    #     y2 = new_model(x)
-    #     self.assertAllClose(y1, y2, atol=1e-5)
-    #     self.assertIsInstance(new_model, FunctionalSubclassWCustomInit)
+            def get_config(self):
+                return {"num_units": self.num_units}
+
+        model = FunctionalSubclassWCustomInit(num_units=3)
+        x = ops.random.normal((2, 2))
+        y1 = model(x)
+        _, new_model, _ = self.roundtrip(
+            model,
+            custom_objects={
+                "FunctionalSubclassWCustomInit": FunctionalSubclassWCustomInit
+            },
+        )
+        new_model.set_weights(model.get_weights())
+        y2 = new_model(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+        self.assertIsInstance(new_model, FunctionalSubclassWCustomInit)
 
     def test_shared_object(self):
         class MyLayer(keras_core.layers.Layer):
