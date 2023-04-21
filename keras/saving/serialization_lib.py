@@ -508,12 +508,20 @@ def deserialize_keras_object(
     gco = object_registration._GLOBAL_CUSTOM_OBJECTS
     custom_objects = {**custom_objects, **tlco, **gco}
 
+    # Optional deprecated argument for legacy deserialization call
+    printable_module_name = kwargs.pop("printable_module_name", "object")
+    if kwargs:
+        raise ValueError(
+            "The following argument(s) are not supported: "
+            f"{list(kwargs.keys())}"
+        )
+
     # Fall back to legacy deserialization for all TF1 users or if
     # wrapped by in_tf_saved_model_scope() to explicitly use legacy
     # saved_model logic.
     if not tf.__internal__.tf2.enabled() or in_tf_saved_model_scope():
         return legacy_serialization.deserialize_keras_object(
-            config, module_objects, custom_objects
+            config, module_objects, custom_objects, printable_module_name
         )
 
     if config is None:
