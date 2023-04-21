@@ -95,8 +95,8 @@ def _decode_helper(
 
     Args:
       obj: A decoded dictionary that may represent an object.
-      deserialize: Boolean, defaults to False. When True, deserializes any Keras
-        objects found in `obj`.
+      deserialize: Boolean. When True, deserializes any Keras
+        objects found in `obj`. Defaults to `False`.
       module_objects: A dictionary of built-in objects to look the name up in.
         Generally, `module_objects` is provided by midlevel library
         implementers.
