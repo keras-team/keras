@@ -52,7 +52,7 @@ class MiniBatchNorm(Layer):
             initializers.Zeros()(shape), trainable=False, name="mean"
         )
         self.variance = backend.Variable(
-            initializers.GlorotUniform()(shape),
+            initializers.Ones()(shape),
             trainable=False,
             name="variance",
         )
@@ -61,8 +61,8 @@ class MiniBatchNorm(Layer):
 
     def call(self, inputs, training=False):
         if training:
-            mean = jnp.mean(inputs, axis=(0,))  # TODO: extend to rank 3+
-            variance = jnp.var(inputs, axis=(0,))
+            mean = ops.mean(inputs, axis=(0,))  # TODO: extend to rank 3+
+            variance = ops.var(inputs, axis=(0,))
             outputs = (inputs - mean) / (variance + self.epsilon)
             self.variance.assign(
                 self.variance * self.momentum + variance * (1.0 - self.momentum)

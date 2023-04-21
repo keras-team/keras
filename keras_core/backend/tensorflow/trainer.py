@@ -231,12 +231,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
             if validation_data and self._should_eval(epoch, validation_freq):
                 # Create EpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = EpochIterator(
+                    self._eval_epoch_iterator = TFEpochIterator(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
-                        epochs=1,
                     )
                 val_logs = self.evaluate(
                     x=val_x,
