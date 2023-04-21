@@ -281,6 +281,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
 
+@pytest.mark.skipif(
+    backend() != "tensorflow",
+    reason="Not have other backend support yet.",
+)
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([1, 2, 3])
@@ -543,6 +547,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
 
+@pytest.mark.skipif(
+    backend() != "tensorflow",
+    reason="Not have other backend support yet.",
+)
 class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
