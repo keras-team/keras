@@ -434,7 +434,7 @@ class JAXTrainer(base_trainer.Trainer):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Build model
-                y_pred = self(data)
+                self(data)
                 break
 
         # Container that configures and calls callbacks.

@@ -148,7 +148,6 @@ class Functional(Function, Model):
 
     def _adjust_input_rank(self, flat_inputs):
         flat_ref_shapes = [x.shape for x in self._inputs]
-        names = [x.name for x in self._inputs]
         adjusted = []
         for x, ref_shape in zip(flat_inputs, flat_ref_shapes):
             x_rank = len(x.shape)
