@@ -186,7 +186,8 @@ class RNNCell(base_layer.Layer):
             `2-D Tensor` with shape `[batch_size, self.state_size]`. Otherwise,
             if `self.state_size` is a tuple of integers, this should be a tuple
             with shapes `[batch_size, s] for s in self.state_size`.
-          scope: VariableScope for the created subgraph; defaults to class name.
+          scope: VariableScope for the created subgraph; None uses class name.
+            Defaults to `None`.
 
         Returns:
           A pair containing:
