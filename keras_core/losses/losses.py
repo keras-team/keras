@@ -1,5 +1,6 @@
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
 from keras_core.losses.loss import squeeze_to_same_rank
 
@@ -24,6 +25,7 @@ class LossFunctionWrapper(Loss):
         raise NotImplementedError
 
 
+@keras_core_export("keras_core.losses.MeanSquaredError")
 class MeanSquaredError(LossFunctionWrapper):
     """Computes the mean of squares of errors between labels and predictions.
 
@@ -46,6 +48,7 @@ class MeanSquaredError(LossFunctionWrapper):
         super().__init__(mean_squared_error, reduction=reduction, name=name)
 
 
+@keras_core_export("keras_core.losses.MeanAbsoluteError")
 class MeanAbsoluteError(LossFunctionWrapper):
     """Computes the mean of absolute difference between labels and predictions.
 
@@ -68,6 +71,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
         super().__init__(mean_absolute_error, reduction=reduction, name=name)
 
 
+@keras_core_export("keras_core.losses.MeanAbsolutePercentageError")
 class MeanAbsolutePercentageError(LossFunctionWrapper):
     """Computes the mean absolute percentage error between `y_true` & `y_pred`.
 
@@ -94,6 +98,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
         )
 
 
+@keras_core_export("keras_core.losses.MeanSquaredLogarithmicError")
 class MeanSquaredLogarithmicError(LossFunctionWrapper):
     """Computes the mean squared logarithmic error between `y_true` & `y_pred`.
 
@@ -120,6 +125,10 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
         )
 
 
+@keras_core_export(
+    "keras_core.metrics.mean_squared_error",
+    "keras_core.losses.mean_squared_error",
+)
 def mean_squared_error(y_true, y_pred):
     """Computes the mean squared error between labels and predictions.
 
@@ -148,6 +157,10 @@ def mean_squared_error(y_true, y_pred):
     return ops.mean(ops.square(y_true - y_pred), axis=-1)
 
 
+@keras_core_export(
+    "keras_core.metrics.mean_absolute_error",
+    "keras_core.losses.mean_absolute_error",
+)
 def mean_absolute_error(y_true, y_pred):
     """Computes the mean absolute error between labels and predictions.
 
@@ -174,6 +187,10 @@ def mean_absolute_error(y_true, y_pred):
     return ops.mean(ops.abs(y_true - y_pred), axis=-1)
 
 
+@keras_core_export(
+    "keras_core.metrics.mean_absolute_percentage_error",
+    "keras_core.losses.mean_absolute_percentage_error",
+)
 def mean_absolute_percentage_error(y_true, y_pred):
     """Computes the mean absolute percentage error between `y_true` & `y_pred`.
 
@@ -205,6 +222,10 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return 100.0 * ops.mean(diff, axis=-1)
 
 
+@keras_core_export(
+    "keras_core.metrics.mean_squared_logarithmic_error",
+    "keras_core.losses.mean_squared_logarithmic_error",
+)
 def mean_squared_logarithmic_error(y_true, y_pred):
     """Computes the mean squared logarithmic error between `y_true` & `y_pred`.
 
