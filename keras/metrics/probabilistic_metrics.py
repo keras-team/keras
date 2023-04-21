@@ -183,8 +183,8 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
         smoothed, meaning the confidence on label values are relaxed. e.g.
         `label_smoothing=0.2` means that we will use a value of `0.1` for label
         `0` and `0.9` for label `1`"
-      axis: (Optional) Defaults to -1. The dimension along which entropy is
-        computed.
+      axis: (Optional) -1 is the dimension along which entropy is
+        computed. Defaults to `-1`.
 
     Standalone usage:
 
@@ -261,8 +261,8 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
         metric computation. This is useful, for example, in segmentation
         problems featuring a "void" class (commonly -1 or 255) in segmentation
         maps. By default (`ignore_class=None`), all classes are considered.
-      axis: (Optional) Defaults to -1. The dimension along which entropy is
-        computed.
+      axis: (Optional) The dimension along which entropy is
+        computed. Defaults to `-1`.
 
     Standalone usage:
 

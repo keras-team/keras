@@ -36,11 +36,11 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
 
     Args:
       confusion_matrix_cond: One of `metrics_utils.ConfusionMatrix` conditions.
-      thresholds: (Optional) Defaults to 0.5. A float value or a python
-        list/tuple of float threshold values in [0, 1]. A threshold is compared
-        with prediction values to determine the truth value of predictions
+      thresholds: (Optional) A float value or a python list/tuple of float
+        threshold values in [0, 1]. A threshold is compared with prediction
+        values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). One metric
-        value is generated for each threshold value.
+        value is generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
     """
@@ -67,9 +67,9 @@ class _ConfusionMatrixConditionCount(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -113,13 +113,13 @@ class FalsePositives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-      thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+      thresholds: (Optional) A float value, or a Python
         list/tuple of float threshold values in [0, 1]. A threshold is compared
         with prediction values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). If used with a
         loss function that sets `from_logits=True` (i.e. no sigmoid applied to
         predictions), `thresholds` should be set to 0. One metric value is
-        generated for each threshold value.
+        generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -174,13 +174,13 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-      thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+      thresholds: (Optional) A float value, or a Python
         list/tuple of float threshold values in [0, 1]. A threshold is compared
         with prediction values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). If used with a
         loss function that sets `from_logits=True` (i.e. no sigmoid applied to
         predictions), `thresholds` should be set to 0. One metric value is
-        generated for each threshold value.
+        generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -235,13 +235,13 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-      thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+      thresholds: (Optional) A float value, or a Python
         list/tuple of float threshold values in [0, 1]. A threshold is compared
         with prediction values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). If used with a
         loss function that sets `from_logits=True` (i.e. no sigmoid applied to
         predictions), `thresholds` should be set to 0. One metric value is
-        generated for each threshold value.
+        generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -296,13 +296,13 @@ class TruePositives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-      thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+      thresholds: (Optional) A float value, or a Python
         list/tuple of float threshold values in [0, 1]. A threshold is compared
         with prediction values to determine the truth value of predictions
         (i.e., above the threshold is `true`, below is `false`). If used with a
         loss function that sets `from_logits=True` (i.e. no sigmoid applied to
         predictions), `thresholds` should be set to 0. One metric value is
-        generated for each threshold value.
+        generated for each threshold value. Defaults to `0.5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -460,9 +460,9 @@ class Precision(base_metric.Metric):
             Will be cast to `bool`.
           y_pred: The predicted values. Each element must be in the range
             `[0, 1]`.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -606,9 +606,9 @@ class Recall(base_metric.Metric):
             Will be cast to `bool`.
           y_pred: The predicted values. Each element must be in the range
             `[0, 1]`.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -702,9 +702,9 @@ class SensitivitySpecificityBase(base_metric.Metric, metaclass=abc.ABCMeta):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -798,8 +798,8 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
 
     Args:
       specificity: A scalar value in range `[0, 1]`.
-      num_thresholds: (Optional) Defaults to 200. The number of thresholds to
-        use for matching the given specificity.
+      num_thresholds: (Optional) The number of thresholds to
+        use for matching the given specificity. Defaults to `200`.
       class_id: (Optional) Integer class ID for which we want binary metrics.
         This must be in the half-open interval `[0, num_classes)`, where
         `num_classes` is the last dimension of predictions.
@@ -903,8 +903,8 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
 
     Args:
       sensitivity: A scalar value in range `[0, 1]`.
-      num_thresholds: (Optional) Defaults to 200. The number of thresholds to
-        use for matching the given sensitivity.
+      num_thresholds: (Optional) The number of thresholds to
+        use for matching the given sensitivity. Defaults to `200`.
       class_id: (Optional) Integer class ID for which we want binary metrics.
         This must be in the half-open interval `[0, num_classes)`, where
         `num_classes` is the last dimension of predictions.
@@ -999,8 +999,8 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
 
     Args:
       recall: A scalar value in range `[0, 1]`.
-      num_thresholds: (Optional) Defaults to 200. The number of thresholds to
-        use for matching the given recall.
+      num_thresholds: (Optional) The number of thresholds to
+        use for matching the given recall. Defaults to `200`.
       class_id: (Optional) Integer class ID for which we want binary metrics.
         This must be in the half-open interval `[0, num_classes)`, where
         `num_classes` is the last dimension of predictions.
@@ -1090,8 +1090,8 @@ class RecallAtPrecision(SensitivitySpecificityBase):
 
     Args:
       precision: A scalar value in range `[0, 1]`.
-      num_thresholds: (Optional) Defaults to 200. The number of thresholds to
-        use for matching the given precision.
+      num_thresholds: (Optional) The number of thresholds to
+        use for matching the given precision. Defaults to `200`.
       class_id: (Optional) Integer class ID for which we want binary metrics.
         This must be in the half-open interval `[0, num_classes)`, where
         `num_classes` is the last dimension of predictions.
@@ -1209,8 +1209,9 @@ class AUC(base_metric.Metric):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-      num_thresholds: (Optional) Defaults to 200. The number of thresholds to
+      num_thresholds: (Optional) The number of thresholds to
         use when discretizing the roc curve. Values must be > 1.
+        Defaults to `200`.
       curve: (Optional) Specifies the name of the curve to be computed, 'ROC'
         [default] or 'PR' for the Precision-Recall-curve.
       summation_method: (Optional) Specifies the [Riemann summation method](
@@ -1442,9 +1443,9 @@ class AUC(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
