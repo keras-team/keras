@@ -2599,9 +2599,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ):
             # Check input assumptions set after layer building, e.g. input
             # shape.
-            outputs = self._keras_tensor_symbolic_call(
-                inputs, input_masks, args, kwargs
-            )
+            try:
+                outputs = self._keras_tensor_symbolic_call(
+                    inputs, input_masks, args, kwargs
+                )
+            except TypeError as e:
+                if "DictWrapper" in str(e):
+                    raise TypeError(
+                        f"{self} could not be deserialized properly. Please"
+                        " ensure that components that are Python object"
+                        " instances (layers, models, etc.) returned by"
+                        " `get_config()` are explicitly deserialized in the"
+                        " model's `from_config()` method."
+                    ) from e
+                else:
+                    raise e
 
             if outputs is None:
                 raise ValueError(

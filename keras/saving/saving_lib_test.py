@@ -859,7 +859,7 @@ class SavingV3BattleTest(tf.test.TestCase, parameterized.TestCase):
 
         model.save(temp_filepath)
 
-        with self.assertRaisesRegex(TypeError, "object is not callable"):
+        with self.assertRaisesRegex(TypeError, "are explicitly deserialized"):
             _ = keras.models.load_model(temp_filepath)
 
 
