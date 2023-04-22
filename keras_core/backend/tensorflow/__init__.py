@@ -58,7 +58,7 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
     def ndim(self):
         return self.value.ndim
 
-    def numpy(self):  # noqa: F811
+    def numpy(self):
         return self.value.numpy()
 
     # Overload native accessor.

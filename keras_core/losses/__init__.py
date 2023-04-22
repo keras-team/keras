@@ -4,10 +4,6 @@ from keras_core.losses.losses import LossFunctionWrapper
 from keras_core.losses.losses import MeanSquaredError
 
 
-def deserialize(obj):
-    raise NotImplementedError
-
-
 @keras_core_export("keras_core.losses.get")
 def get(identifier):
     """Retrieves a Keras loss as a `function`/`Loss` class instance.

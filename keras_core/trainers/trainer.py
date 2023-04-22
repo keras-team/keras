@@ -138,8 +138,8 @@ class Trainer:
             loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
-        for loss in self.losses:
-            losses.append(ops.cast(loss, dtype=backend.floatx()))
+        for l in self.losses:
+            losses.append(ops.cast(l, dtype=backend.floatx()))
         if len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
