@@ -410,7 +410,7 @@ class CompileLoss(losses_module.Loss):
                     raise ValueError(
                         f"When there is only a single output, the `loss_weights` argument "
                         "must be a Python float. "
-                        f"Received instead: loss_weights={loss_weights} of type {type(loss_weights)}"
+                        f"Received instead:\loss_weights={loss_weights} of type {type(loss_weights)}"
                     )
                 flat_loss_weights.append(loss_weights)
             else:
@@ -447,7 +447,7 @@ class CompileLoss(losses_module.Loss):
                         "For a model with multiple outputs, "
                         f"when providing the `loss_weights` argument as a list, "
                         "it should have as many entries as the model has outputs. "
-                        f"Received: loss_weights={loss_weights} of length {len(loss_weights)} "
+                        f"Received:\loss_weights={loss_weights}\nof length {len(loss_weights)} "
                         f"whereas the model has {len(y_pred)} outputs."
                     )
                 if not all(isinstance(e, float) for e in loss_weights):
@@ -503,7 +503,7 @@ class CompileLoss(losses_module.Loss):
                         raise ValueError(
                             f"In the dict argument `loss_weights`, key "
                             f"'{name}' does not correspond to any model output. "
-                            f"Received: loss_weights={loss_weights}"
+                            f"Received:\loss_weights={loss_weights}"
                         )
                     if not isinstance(loss_weights[name], float):
                         raise ValueError(

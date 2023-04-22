@@ -7,8 +7,8 @@ from keras_core.api_export import keras_core_export
 class Dropout(layers.Layer):
     """Applies dropout to the input.
 
-    The `Dropout` layer randomly sets input units to 0 with a frequency of
-    `rate` at each step during training time, which helps prevent overfitting.
+    The `Dropout` layer randomly sets input units to 0 with a frequency of `rate`
+    at each step during training time, which helps prevent overfitting.
     Inputs not set to 0 are scaled up by `1 / (1 - rate)` such that the sum over
     all inputs is unchanged.
 

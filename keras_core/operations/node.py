@@ -10,9 +10,9 @@ class Node:
     """A `Node` describes an operation `__call__()` event.
 
     A Keras Function is a DAG with `Node` instances as nodes, and
-    `KerasTensor` instances as edges. Nodes aren't `Operation` instances,
-    because a single operation could be called multiple times, which would
-    result in graph cycles.
+    `KerasTensor` instances as edges. Nodes aren't `Operation` instances, because a
+    single operation could be called multiple times, which would result in graph
+    cycles.
 
     A `__call__()` event involves input tensors (and other input arguments),
     the operation that was called, and the resulting output tensors.
@@ -89,11 +89,7 @@ class Node:
 
     @property
     def parent_nodes(self):
-        """The parent `Node`s.
-
-        Returns:
-            all the `Node`s whose output this node immediately depends on.
-        """
+        """Returns all the `Node`s whose output this node immediately depends on."""
         node_deps = []
         for kt in self.arguments.keras_tensors:
             op = kt._keras_history.operation
@@ -120,9 +116,9 @@ class KerasHistory(
       operation: The Operation instance that produced the Tensor.
       node_index: The specific call to the Operation that produced this Tensor.
         Operations can be called multiple times in order to share weights. A new
-        node is created every time an Operation is called. The corresponding
-        node that represents the call event that produced the Tensor can be
-        found at `op._inbound_nodes[node_index]`.
+        node is created every time an Operation is called. The corresponding node
+        that represents the call event that produced the Tensor can be found at
+        `op._inbound_nodes[node_index]`.
       tensor_index: The output index for this Tensor.
         Always zero if the Operation that produced this Tensor
         only has one output. Nested structures of

@@ -28,8 +28,7 @@ class StatelessScope:
                     "Invalid variable value in VariableSwapScope: "
                     "all values in argument `mapping` must be tensors with "
                     "a shape that matches the corresponding variable shape. "
-                    f"For variable {k}, received invalid value {v} with shape "
-                    f"{v.shape}."
+                    f"For variable {k}, received invalid value {v} with shape {v.shape}."
                 )
             self.state_mapping[id(k)] = v
 

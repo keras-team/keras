@@ -41,8 +41,8 @@ class Initializer:
 
     Note that we don't have to implement `from_config()` in the example above
     since the constructor arguments of the class the keys in the config returned
-    by `get_config()` are the same. In this case, the default `from_config()`
-    works fine.
+    by `get_config()` are the same. In this case, the default `from_config()` works
+    fine.
     """
 
     def __call__(self, shape, dtype=None):

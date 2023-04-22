@@ -106,8 +106,7 @@ class LossTest(testing.TestCase):
             loss,
         )
 
-    # @testing.parametrize(
-    #     "uprank", ["mask", "sample_weight", "y_true", "y_pred"])
+    # @testing.parametrize("uprank", ["mask", "sample_weight", "y_true", "y_pred"])
     # TODO: use parameterization decorator
     def test_rank_adjustment(self):
         for uprank in ["mask", "sample_weight", "ys"]:

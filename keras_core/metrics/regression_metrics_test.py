@@ -19,7 +19,7 @@ class MeanSquaredErrorTest(testing.TestCase):
             [[0, 0, 1, 1, 0], [1, 1, 1, 1, 1], [0, 1, 0, 1, 0], [1, 1, 1, 1, 1]]
         )
 
-        mse_obj.update_state(y_true, y_pred)
+        update_op = mse_obj.update_state(y_true, y_pred)
         result = mse_obj.result()
         self.assertAllClose(0.5, result, atol=1e-5)
 

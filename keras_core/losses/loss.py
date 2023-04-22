@@ -54,7 +54,7 @@ class Loss:
 
 def standardize_reduction(reduction):
     allowed = {"sum_over_batch_size", "sum", None}
-    if reduction not in allowed:
+    if not reduction in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
             f"Expected on of {allowed}. Received: "

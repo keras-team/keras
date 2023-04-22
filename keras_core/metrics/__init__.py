@@ -6,10 +6,6 @@ from keras_core.metrics.reduction_metrics import Sum
 from keras_core.metrics.regression_metrics import MeanSquaredError
 
 
-def deserialize(obj):
-    raise NotImplementedError
-
-
 @keras_core_export("keras_core.metrics.get")
 def get(identifier):
     """Retrieves a Keras metric as a `function`/`Metric` class instance.
@@ -35,8 +31,8 @@ def get(identifier):
 
     Args:
         identifier: A metric identifier. One of None or string name of a metric
-            function/class or metric configuration dictionary or a metric
-            function or a metric class instance
+            function/class or metric configuration dictionary or a metric function
+            or a metric class instance
 
     Returns:
         A Keras metric as a `function`/ `Metric` class instance.
