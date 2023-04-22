@@ -23,8 +23,8 @@ class DataAdapter(object):
 
         Returns:
             A `tf.data.Dataset`. Caller might use the dataset in different
-            context, e.g. iter(dataset) in eager to get the value directly, or in
-            graph mode, provide the iterator tensor to Keras model function.
+            context, e.g. iter(dataset) in eager to get the value directly, or
+            in graph mode, provide the iterator tensor to Keras model function.
         """
         raise NotImplementedError
 
@@ -38,9 +38,9 @@ class DataAdapter(object):
         may or may not have an end state.
 
         Returns:
-            int, the number of batches for the dataset, or None if it is unknown.
-            The caller could use this to control the loop of training, show
-            progress bar, or handle unexpected StopIteration error.
+            int, the number of batches for the dataset, or None if it is
+            unknown.  The caller could use this to control the loop of training,
+            show progress bar, or handle unexpected StopIteration error.
         """
         raise NotImplementedError
 

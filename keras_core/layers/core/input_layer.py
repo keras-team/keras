@@ -17,11 +17,13 @@ class InputLayer(Layer):
         super().__init__(name=name)
         if shape is not None and batch_shape is not None:
             raise ValueError(
-                "You cannot pass both `shape` and `batch_shape` at the same time."
+                "You cannot pass both `shape` and `batch_shape` at the "
+                "same time."
             )
         if batch_size is not None and batch_shape is not None:
             raise ValueError(
-                "You cannot pass both `batch_size` and `batch_shape` at the same time."
+                "You cannot pass both `batch_size` and `batch_shape` at the "
+                "same time."
             )
         if shape is None and batch_shape is None:
             raise ValueError("You must pass a `shape` argument.")
@@ -36,7 +38,8 @@ class InputLayer(Layer):
             if not isinstance(input_tensor, backend.KerasTensor):
                 raise ValueError(
                     "Argument `input_tensor` must be a KerasTensor. "
-                    f"Received invalid type: input_tensor={input_tensor} (of type {type(input_tensor)})"
+                    f"Received invalid type: input_tensor={input_tensor} "
+                    f"(of type {type(input_tensor)})"
                 )
         else:
             input_tensor = backend.KerasTensor(

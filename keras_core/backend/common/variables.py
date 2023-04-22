@@ -28,7 +28,10 @@ class KerasVariable:
         raise NotImplementedError
 
     def __repr__(self):
-        return f"<KerasVariable shape={self.shape}, dtype={self.dtype}, name={self.name}>"
+        return (
+            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
+            "name={self.name}>"
+        )
 
 
 ALLOWED_DTYPES = {
@@ -70,10 +73,12 @@ def standardize_shape(shape, fully_defined=False):
             continue
         if not isinstance(e, int):
             raise ValueError(
-                f"Cannot convert '{shape}' to a shape. Found invalid entry '{e}'"
+                f"Cannot convert '{shape}' to a shape. "
+                f"Found invalid entry '{e}'"
             )
         if e < 0:
             raise ValueError(
-                f"Cannot convert '{shape}' to a shape. Negative dimensions are not allowed."
+                f"Cannot convert '{shape}' to a shape. "
+                "Negative dimensions are not allowed."
             )
     return shape

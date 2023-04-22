@@ -1716,7 +1716,8 @@ class Meshgrid(Operation):
         super().__init__()
         if indexing not in ("xy", "ij"):
             raise ValueError(
-                "Valid values for `indexing` are 'xy' and 'ij', but received {index}."
+                "Valid values for `indexing` are 'xy' and 'ij', "
+                "but received {index}."
             )
         self.indexing = indexing
 

@@ -88,7 +88,8 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertEqual(len(batch), 3)
             bx, by, bw = batch
             self.assertTrue(isinstance(bx, dict))
-            # NOTE: the y list was converted to a tuple for tf.data compatibility.
+            # NOTE: the y list was converted to a tuple for tf.data
+            # compatibility.
             self.assertTrue(isinstance(by, tuple))
             self.assertTrue(isinstance(bw, tuple))
 
@@ -118,7 +119,8 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertEqual(len(batch), 3)
             bx, by, bw = batch
             self.assertTrue(isinstance(bx, dict))
-            # NOTE: the y list was converted to a tuple for tf.data compatibility.
+            # NOTE: the y list was converted to a tuple for tf.data
+            # compatibility.
             self.assertTrue(isinstance(by, tuple))
             self.assertTrue(isinstance(bw, tuple))
 
