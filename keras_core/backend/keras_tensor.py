@@ -14,11 +14,73 @@ class KerasTensor:
         self.shape = shape
         self.dtype = backend.standardize_dtype(dtype)
         self.name = name or auto_name(self.__class__.__name__)
-
-    def astype(self, dtype):
+    
+    @property
+    def ndim(self):
+        return len(self.shape)
+    
+    def reshape(self, new_shape):
         from keras_core import operations
 
-        return operations.Cast(dtype=dtype)(self)
+        return operations.Reshape(new_shape)(self)
+
+    def squeeze(self, axis=None):
+        from keras_core import operations
+
+        return operations.Squeeze(axis)(self)
+    
+    def __array__(self):
+        raise ValueError(
+            "A KerasTensor is symbolic: it's a placeholder for a shape "
+            "an a dtype. It doesn't have any actual numerical value. "
+            "You cannot convert it to a NumPy array."
+        )
+    
+    def __jax_array__(self):
+        raise ValueError(
+            "A KerasTensor cannot be used as input to a JAX function. "
+            "A KerasTensor is a symbolic placeholder for a shape and dtype, "
+            "used when constructing Keras Functional models "
+            "or Keras Functions. You can only use it as input to a Keras layer "
+            "or a Keras operation (from the namespaces `keras_core.layers` "
+            "and `keras_core.operations`). "
+            "You are likely doing something like:\n\n"
+            "```\n"
+            "x = Input(...)\n"
+            "...\n"
+            "jax_fn(x)  # Invalid.\n"
+            "```\n\n"
+            "What you should do instead is wrap `jax_fn` in a layer:\n\n"
+            "```\n"
+            "class MyLayer(Layer):\n"
+            "    def call(self, x):\n"
+            "        return jax_fn(x)\n\n"
+            "x = MyLayer()(x)"
+            "```\n"
+        )
+    
+    def __tf_tensor__(self, dtype=None, name=None):
+        raise ValueError(
+            "A KerasTensor cannot be used as input to a TensorFlow function. "
+            "A KerasTensor is a symbolic placeholder for a shape and dtype, "
+            "used when constructing Keras Functional models "
+            "or Keras Functions. You can only use it as input to a Keras layer "
+            "or a Keras operation (from the namespaces `keras_core.layers` "
+            "and `keras_core.operations`). "
+            "You are likely doing something like:\n\n"
+            "```\n"
+            "x = Input(...)\n"
+            "...\n"
+            "tf_fn(x)  # Invalid.\n"
+            "```\n\n"
+            "What you should do instead is wrap `tf_fn` in a layer:\n\n"
+            "```\n"
+            "class MyLayer(Layer):\n"
+            "    def call(self, x):\n"
+            "        return tf_fn(x)\n\n"
+            "x = MyLayer()(x)"
+            "```\n"
+        )
 
     def __repr__(self):
         return (
@@ -119,6 +181,7 @@ class KerasTensor:
 
         return operations.GetItem().symbolic_call(self, key)
 
+    # TODO
     #   "__floordiv__",
     #   "__rfloordiv__",
     #   "__mod__",
@@ -136,6 +199,9 @@ class KerasTensor:
     #   "__xor__",
     #   "__rxor__",
     #   "__invert__",
+    #   "broadcast_to"
+    #   "astype"
+    #   a few more NumPy ones...
 
 
 def any_symbolic_tensors(args=None, kwargs=None):
