@@ -1071,11 +1071,10 @@ class ExpandDims(Operation):
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
         if self.axis < 0:
-            output_shape = (
-                x_shape[: self.axis + 1] + [1] + x_shape[self.axis + 1 :]
-            )
+            axis = len(x.shape) + 1 + self.axis
         else:
-            output_shape = x_shape[: self.axis] + [1] + x_shape[self.axis :]
+            axis = self.axis
+        output_shape = x_shape[: axis] + [1] + x_shape[axis :]
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
