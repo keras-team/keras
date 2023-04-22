@@ -634,9 +634,9 @@ class BinaryCrossentropy(LossFunctionWrapper):
 
         Args:
             from_logits: Whether to interpret `y_pred` as a tensor of
-                [logit](https://en.wikipedia.org/wiki/Logit) values. By default, we
-                assume that `y_pred` contains probabilities (i.e., values in [0,
-                1]).
+                [logit](https://en.wikipedia.org/wiki/Logit) values. By default,
+                we assume that `y_pred` contains probabilities (i.e., values in
+                [0, 1]).
             label_smoothing: Float in [0, 1]. When 0, no smoothing occurs.
                 When > 0, we compute the loss between the predicted labels and a
                 smoothed version of the true labels, where the smoothing
