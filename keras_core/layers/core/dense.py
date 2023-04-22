@@ -58,7 +58,6 @@ class Dense(Layer):
 
     def get_config(self):
         base_config = super().get_config()
-        # TODO
         config = {
             "units": self.units,
             "activation": activations.serialize(self.activation),
