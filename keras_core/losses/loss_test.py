@@ -62,7 +62,7 @@ class LossTest(testing.TestCase):
         y_pred._keras_mask = mask
         loss = loss_fn(y_true, y_pred)
         self.assertEqual(loss.dtype.name, "float32")
-        self.assertEqual(loss, 0)  # No NaN.
+        self.assertAllClose(loss, 0)  # No NaN.
 
     def test_sample_weight(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
@@ -80,7 +80,7 @@ class LossTest(testing.TestCase):
         sample_weight = np.array([0.0, 0.0, 0.0, 0.0])
         loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss.dtype.name, "float32")
-        self.assertEqual(loss, 0)  # No NaN.
+        self.assertAllClose(loss, 0)  # No NaN.
 
     def test_mask_and_sample_weight(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
