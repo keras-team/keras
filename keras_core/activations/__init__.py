@@ -15,7 +15,3 @@ def get(identifier):
     if identifier == "relu":
         return relu
     return identifier
-
-
-def serialize(activation):
-    return activation.__name__

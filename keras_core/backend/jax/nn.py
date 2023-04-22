@@ -103,3 +103,7 @@ def conv_transpose(
 ):
     # TODO: Implement `conv_transpose`.
     raise NotImplementedError
+
+
+def one_hot(x, num_classes, axis=-1):
+    return jnn.one_hot(x, num_classes, axis=axis)

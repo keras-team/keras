@@ -61,15 +61,10 @@ class Dense(Layer):
         # TODO
         config = {
             "units": self.units,
-            "activation": activations.serialize(self.activation),
             "use_bias": self.use_bias,
             "kernel_initializer": initializers.serialize(
                 self.kernel_initializer
             ),
             "bias_initializer": initializers.serialize(self.bias_initializer),
-            "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
-            "bias_regularizer": regularizers.serialize(self.bias_regularizer),
-            "kernel_constraint": constraints.serialize(self.kernel_constraint),
-            "bias_constraint": constraints.serialize(self.bias_constraint),
         }
         return {**base_config, **config}

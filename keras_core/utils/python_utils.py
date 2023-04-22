@@ -86,3 +86,20 @@ def func_load(code, defaults=None, closure=None, globs=None):
     return python_types.FunctionType(
         code, globs, name=code.co_name, argdefs=defaults, closure=closure
     )
+
+
+def to_list(x):
+    """Normalizes a list/tensor into a list.
+
+    If a tensor is passed, we return
+    a list of size 1 containing the tensor.
+
+    Args:
+        x: target object to be normalized.
+
+    Returns:
+        A list.
+    """
+    if isinstance(x, list):
+        return x
+    return [x]

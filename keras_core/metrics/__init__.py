@@ -1,4 +1,5 @@
 from keras_core.api_export import keras_core_export
+from keras_core.metrics.confusion_metrics import FalsePositives
 from keras_core.metrics.metric import Metric
 from keras_core.metrics.reduction_metrics import Mean
 from keras_core.metrics.reduction_metrics import MeanMetricWrapper
