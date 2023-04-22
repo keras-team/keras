@@ -146,7 +146,7 @@ def serialize_keras_object(obj):
             "class_name": "__tensor__",
             "config": {
                 "value": np.array(obj).tolist(),
-                "dtype": str(obj.dtype),
+                "dtype": backend.standardize_dtype(obj.dtype),
             },
         }
     if type(obj).__module__ == np.__name__:
@@ -155,7 +155,7 @@ def serialize_keras_object(obj):
                 "class_name": "__numpy__",
                 "config": {
                     "value": obj.tolist(),
-                    "dtype": backend.standardize_dytpe(obj.dtype),
+                    "dtype": backend.standardize_dtype(obj.dtype),
                 },
             }
         else:
