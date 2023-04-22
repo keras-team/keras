@@ -42,8 +42,8 @@ def cast(x, dtype):
     return convert_to_tensor(x, dtype=dtype)
 
 
-def cond(pred, true_fun, false_fun):
-    return jax.lax.cond(pred, true_fn=true_fun, false_fun=false_fun)
+def cond(pred, true_fn, false_fn):
+    return jax.lax.cond(pred, true_fn=true_fn, false_fun=false_fn)
 
 
 def name_scope(name):

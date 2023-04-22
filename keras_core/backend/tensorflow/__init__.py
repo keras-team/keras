@@ -232,8 +232,8 @@ def cast(x, dtype):
     return tf.cast(x, dtype=dtype)
 
 
-def cond(pred, true_fun, false_fun):
-    return tf.cond(pred, true_fn=true_fun, false_fun=false_fun)
+def cond(pred, true_fn, false_fn):
+    return tf.cond(pred, true_fn=true_fn, false_fn=false_fn)
 
 
 def name_scope(name):
