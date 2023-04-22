@@ -287,7 +287,7 @@ class Optimizer:
     def _filter_empty_gradients(self, grads_and_vars):
         filtered = [(g, v) for g, v in grads_and_vars if g is not None]
         if not filtered:
-            raise ValueError(f"No gradients provided for any variable.")
+            raise ValueError("No gradients provided for any variable.")
         if len(filtered) < len(grads_and_vars):
             missing_grad_vars = [v for g, v in grads_and_vars if g is None]
             warnings.warn(

@@ -261,7 +261,8 @@ def serialize_with_public_class(cls, inner_config=None):
     Keras API or has been registered as serializable via
     `keras_core.saving.register_keras_serializable()`.
     """
-    # This gets the `keras_core.*` exported name, such as "keras_core.optimizers.Adam".
+    # This gets the `keras_core.*` exported name, such as
+    # "keras_core.optimizers.Adam".
     keras_api_name = api_export.get_name_from_symbol(cls)
 
     # Case of custom or unknown class object
@@ -293,8 +294,8 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
 
     Called to check and retrieve the config of any function that has a public
     Keras API or has been registered as serializable via
-    `keras_core.saving.register_keras_serializable()`. If function's module name is
-    already known, returns corresponding config.
+    `keras_core.saving.register_keras_serializable()`. If function's module name
+    is already known, returns corresponding config.
     """
     if fn_module_name:
         return {
@@ -373,9 +374,9 @@ def deserialize_keras_object(
     - `module`: String. The path of the python module. Built-in Keras classes
       expect to have prefix `keras_core`.
     - `registered_name`: String. The key the class is registered under via
-      `keras_core.saving.register_keras_serializable(package, name)` API. The key has
-      the format of '{package}>{name}', where `package` and `name` are the
-      arguments passed to `register_keras_serializable()`. If `name` is not
+      `keras_core.saving.register_keras_serializable(package, name)` API. The
+      key has the format of '{package}>{name}', where `package` and `name` are
+      the arguments passed to `register_keras_serializable()`. If `name` is not
       provided, it uses the class name. If `registered_name` successfully
       resolves to a class (that was registered), the `class_name` and `config`
       values in the dict will not be used. `registered_name` is only used for

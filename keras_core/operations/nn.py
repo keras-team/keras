@@ -334,8 +334,9 @@ def max_pool(
             dimensions only.
         pool_size: int or tuple/list of integers of size
             `len(inputs_spatial_shape)`, specifying the size of the pooling
-            window for each spatial dimension of the input tensor. If `pool_size`
-            is int, then every spatial dimension shares the same `pool_size`.
+            window for each spatial dimension of the input tensor. If
+            `pool_size` is int, then every spatial dimension shares the same
+            `pool_size`.
         strides: int or tuple/list of integers of size
             `len(inputs_spatial_shape)`. The stride of the sliding window for
             each spatial dimension of the input tensor. If `strides` is int,
@@ -435,8 +436,9 @@ def average_pool(
             dimensions only.
         pool_size: int or tuple/list of integers of size
             `len(inputs_spatial_shape)`, specifying the size of the pooling
-            window for each spatial dimension of the input tensor. If `pool_size`
-            is int, then every spatial dimension shares the same `pool_size`.
+            window for each spatial dimension of the input tensor. If
+            `pool_size` is int, then every spatial dimension shares the same
+            `pool_size`.
         strides: int or tuple/list of integers of size
             `len(inputs_spatial_shape)`. The stride of the sliding window for
             each spatial dimension of the input tensor. If `strides` is int,
@@ -511,7 +513,8 @@ class Conv(Operation):
             raise ValueError(
                 "Dilation must be None, scalar or tuple/list of length of "
                 "inputs' spatial shape, but received "
-                f"`dilation_rate={self.dilation_rate}` and input of shape {input_shape}."
+                f"`dilation_rate={self.dilation_rate}` and "
+                f"input of shape {input_shape}."
             )
         spatial_shape = np.array(spatial_shape)
         kernel_spatial_shape = np.array(kernel.shape[:-2])
@@ -651,7 +654,8 @@ class DepthwiseConv(Operation):
             raise ValueError(
                 "Dilation must be None, scalar or tuple/list of length of "
                 "inputs' spatial shape, but received "
-                f"`dilation_rate={self.dilation_rate}` and input of shape {input_shape}."
+                f"`dilation_rate={self.dilation_rate}` and input of "
+                f"shape {input_shape}."
             )
         spatial_shape = np.array(spatial_shape)
         kernel_spatial_shape = np.array(kernel.shape[:-2])

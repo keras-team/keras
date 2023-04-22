@@ -141,10 +141,10 @@ def train_validation_split(arrays, validation_split):
     The last part of data will become validation data.
 
     Args:
-        arrays: Tensors to split. Allowed inputs are arbitrarily nested structures
-            of Tensors and NumPy arrays.
-        validation_split: Float between 0 and 1. The proportion of the dataset to
-            include in the validation split. The rest of the dataset will be
+        arrays: Tensors to split. Allowed inputs are arbitrarily nested
+            structures of Tensors and NumPy arrays.
+        validation_split: Float between 0 and 1. The proportion of the dataset
+            to include in the validation split. The rest of the dataset will be
             included in the training split.
 
     Returns:
@@ -158,7 +158,8 @@ def train_validation_split(arrays, validation_split):
     unsplitable = [type(t) for t in flat_arrays if not _can_split(t)]
     if unsplitable:
         raise ValueError(
-            "Argument `validation_split` is only supported for tf.Tensors or NumPy "
+            "Argument `validation_split` is only supported "
+            "for tf.Tensors or NumPy "
             "arrays. Found incompatible type in the input: {unsplitable}"
         )
 

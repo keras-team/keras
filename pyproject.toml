@@ -1,2 +1,9 @@
 [tool.black]
 line-length = 80
+
+[tool.isort]
+profile = "black"
+force_single_line = "True"
+known_first_party = ["keras_core", "tests"]
+default_section = "THIRDPARTY"
+line_length = 80

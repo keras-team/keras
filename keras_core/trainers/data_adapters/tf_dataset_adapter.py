@@ -10,7 +10,8 @@ class TFDatasetAdapter(DataAdapter):
     def __init__(self, dataset, class_weight=None):
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
-                f"Expected argument `dataset` to be a tf.data.Dataset. Received: {dataset}"
+                "Expected argument `dataset` to be a tf.data.Dataset. "
+                f"Received: {dataset}"
             )
         if class_weight is not None:
             dataset = dataset.map(
@@ -72,7 +73,8 @@ def make_class_weight_map_fn(class_weight):
         x, y, sw = data_adapter_utils.unpack_x_y_sample_weight(data)
         if sw is not None:
             raise ValueError(
-                "You cannot `class_weight` and `sample_weight` at the same time."
+                "You cannot `class_weight` and `sample_weight` "
+                "at the same time."
             )
         if tf.nest.is_nested(y):
             raise ValueError(

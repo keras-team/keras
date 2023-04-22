@@ -57,9 +57,9 @@ class Zeros(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras_core.backend.floatx()` is
-                used, which default to `float32` unless you configured it otherwise
-                (via `keras_core.backend.set_floatx(float_dtype)`).
+                are supported. If not specified, `keras_core.backend.floatx()`
+                is used, which default to `float32` unless you configured it
+                otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
             **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)
@@ -89,9 +89,9 @@ class Ones(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-                are supported. If not specified, `keras_core.backend.floatx()` is
-                used, which default to `float32` unless you configured it otherwise
-                (via `keras_core.backend.set_floatx(float_dtype)`).
+                are supported. If not specified, `keras_core.backend.floatx()`
+                is used, which default to `float32` unless you configured it
+                otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
             **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)

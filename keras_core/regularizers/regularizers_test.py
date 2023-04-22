@@ -30,5 +30,5 @@ class RegularizersTest(testing.TestCase):
     def test_orthogonal_regularizer(self):
         value = np.random.random((4, 4))
         x = backend.Variable(value)
-        y = regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")(x)
+        regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")(x)
         # TODO
