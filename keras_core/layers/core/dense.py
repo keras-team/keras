@@ -19,9 +19,9 @@ class Dense(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        name=None,
+        **kwargs,
     ):
-        super().__init__(name=name)
+        super().__init__(**kwargs)
         self.units = units
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -56,6 +56,11 @@ class Dense(Layer):
         if self.use_bias:
             x = x + self.bias
         return self.activation(x)
+
+    def compute_output_shape(self, input_shape):
+        output_shape = list(input_shape)
+        output_shape[-1] = self.units
+        return tuple(output_shape)
 
     def get_config(self):
         base_config = super().get_config()
