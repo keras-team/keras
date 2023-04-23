@@ -38,6 +38,8 @@ SAFE_MODE = threading.local()
 # TODO(nkovela): Debug serialization of decorated functions inside lambdas
 # to allow for serialization of custom_gradient.
 NON_SERIALIZABLE_CLASS_MODULES = ("tensorflow.python.ops.custom_gradient",)
+
+# List of Keras modules with built-in string representations for Keras defaults
 BUILTIN_MODULES = (
     "activations",
     "constraints",
@@ -295,22 +297,28 @@ def serialize_with_public_class(cls, inner_config=None):
 
     Called to check and retrieve the config of any class that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable`.
+    `keras.saving.register_keras_serializable()`.
     """
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
         cls, api_name="keras"
     )
+
+    # Case of custom or unknown class object
     if keras_api_name is None:
         registered_name = object_registration.get_registered_name(cls)
-        if registered_name:
-            return {
-                "module": cls.__module__,
-                "class_name": cls.__name__,
-                "config": inner_config,
-                "registered_name": registered_name,
-            }
-        return None
+        if registered_name is None:
+            return None
+
+        # Return custom object config with corresponding registration name
+        return {
+            "module": cls.__module__,
+            "class_name": cls.__name__,
+            "config": inner_config,
+            "registered_name": registered_name,
+        }
+
+    # Split the canonical Keras API name into a Keras module and class name.
     parts = keras_api_name.split(".")
     return {
         "module": ".".join(parts[:-1]),
@@ -325,7 +333,7 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
 
     Called to check and retrieve the config of any function that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable`. If function's module name is
+    `keras.saving.register_keras_serializable()`. If function's module name is
     already known, returns corresponding config.
     """
     if fn_module_name:
@@ -409,10 +417,10 @@ def deserialize_keras_object(
       "keras.engine.compile_utils". Built-in Keras classes
       expect to have prefix `keras`.
     - `registered_name`: String. The key the class is registered under via
-      `keras.utils.register_keras_serializable(package, name)` API. The key has
+      `keras.saving.register_keras_serializable(package, name)` API. The key has
       the format of '{package}>{name}', where `package` and `name` are the
       arguments passed to `register_keras_serializable()`. If `name` is not
-      provided, it defaults to the class name. If `registered_name` successfully
+      provided, it uses the class name. If `registered_name` successfully
       resolves to a class (that was registered), the `class_name` and `config`
       values in the dict will not be used. `registered_name` is only used for
       non-built-in classes.
@@ -461,7 +469,7 @@ def deserialize_keras_object(
     loss:
 
     ```python
-    @keras.utils.register_keras_serializable(package='my_package')
+    @keras.saving.register_keras_serializable(package='my_package')
     class ModifiedMeanSquaredError(keras.losses.MeanSquaredError):
       ...
 
@@ -485,7 +493,7 @@ def deserialize_keras_object(
         safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
             When `safe_mode=False`, loading an object has the potential to
             trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to True.
+            applicable to the Keras v3 model format. Defaults to `True`.
 
     Returns:
       The object described by the `config` dictionary.
@@ -500,12 +508,20 @@ def deserialize_keras_object(
     gco = object_registration._GLOBAL_CUSTOM_OBJECTS
     custom_objects = {**custom_objects, **tlco, **gco}
 
+    # Optional deprecated argument for legacy deserialization call
+    printable_module_name = kwargs.pop("printable_module_name", "object")
+    if kwargs:
+        raise ValueError(
+            "The following argument(s) are not supported: "
+            f"{list(kwargs.keys())}"
+        )
+
     # Fall back to legacy deserialization for all TF1 users or if
     # wrapped by in_tf_saved_model_scope() to explicitly use legacy
     # saved_model logic.
     if not tf.__internal__.tf2.enabled() or in_tf_saved_model_scope():
         return legacy_serialization.deserialize_keras_object(
-            config, module_objects, custom_objects
+            config, module_objects, custom_objects, printable_module_name
         )
 
     if config is None:
@@ -559,6 +575,15 @@ def deserialize_keras_object(
 
             # Case where config is class but not in custom objects
             else:
+                if config.get("module", "_") is None:
+                    raise TypeError(
+                        "Cannot deserialize object of type "
+                        f"`{config['class_name']}`. If "
+                        f"`{config['class_name']}` is a custom class, please "
+                        "register it using the "
+                        "`@keras.saving.register_keras_serializable()` "
+                        "decorator."
+                    )
                 config = config["class_name"]
         if not has_custom_object:
             # Return if not found in either module objects or custom objects
@@ -695,7 +720,7 @@ def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
     # If there is a custom object registered via
-    # `register_keras_serializable`, that takes precedence.
+    # `register_keras_serializable()`, that takes precedence.
     if obj_type == "function":
         custom_obj = object_registration.get_registered_object(
             name, custom_objects=custom_objects
@@ -767,6 +792,6 @@ def _retrieve_class_or_fn(
     raise TypeError(
         f"Could not locate {obj_type} '{name}'. "
         "Make sure custom classes are decorated with "
-        "`@keras.utils.register_keras_serializable`. "
+        "`@keras.saving.register_keras_serializable()`. "
         f"Full object config: {full_config}"
     )

@@ -68,12 +68,12 @@ def load_data(
           all words are kept. Defaults to `None`.
       skip_top: skip the top N most frequently occurring words
           (which may not be informative). These words will appear as
-          `oov_char` value in the dataset. `0` means no words are
+          `oov_char` value in the dataset. 0 means no words are
           skipped. Defaults to `0`.
       maxlen: int or None. Maximum sequence length.
-          Any longer sequence will be truncated. `None` means no truncation.
+          Any longer sequence will be truncated. None means no truncation.
           Defaults to `None`.
-      test_split: Float between 0 and 1. Fraction of the dataset to be used
+      test_split: Float between `0.` and `1.`. Fraction of the dataset to be used
         as test data. 0.2 means that 20% of the dataset is used as
         test data. Defaults to `0.2`.
       seed: int. Seed for reproducible data shuffling.

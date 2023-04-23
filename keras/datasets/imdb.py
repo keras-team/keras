@@ -64,7 +64,7 @@ def load_data(
           `oov_char` value in the dataset. When 0, no words are
           skipped. Defaults to `0`.
       maxlen: int or None. Maximum sequence length.
-          Any longer sequence will be truncated. `None`, means no truncation.
+          Any longer sequence will be truncated. None, means no truncation.
           Defaults to `None`.
       seed: int. Seed for reproducible data shuffling.
       start_char: int. The start of a sequence will be marked with this
