@@ -2,6 +2,7 @@ import numpy as np
 
 from keras_core import layers
 from keras_core import testing
+from keras_core.backend import keras_tensor
 
 
 class DenseTest(testing.TestCase):
@@ -55,3 +56,9 @@ class DenseTest(testing.TestCase):
             [[-1.0, 2.0]],
         )
         self.assertAllClose(layer(inputs), [[10.0, 0.0]])
+
+    def test_dense_errors(self):
+        with self.assertRaisesRegex(ValueError, "incompatible with the layer"):
+            layer = layers.Dense(units=2, activation="relu")
+            layer(keras_tensor.KerasTensor((1, 2)))
+            layer(keras_tensor.KerasTensor((1, 3)))
