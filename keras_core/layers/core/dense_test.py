@@ -1,8 +1,10 @@
+import numpy as np
+
 from keras_core import testing
 from keras_core.layers.core.dense import Dense
 
-class DenseTest(testing.TestCase):
 
+class DenseTest(testing.TestCase):
     def test_basics(self):
         # 2D case, no bias.
         self.run_layer_test(
@@ -41,5 +43,15 @@ class DenseTest(testing.TestCase):
         )
 
     def test_correctness(self):
-        # TODO
-        pass
+        layer = Dense(units=2, activation="relu")
+        layer.build((1, 2))
+        layer.set_weights(
+            [
+                np.array([[1.0, -2.0], [3.0, -4.0]]),
+                np.array([5.0, -6.0]),
+            ]
+        )
+        inputs = np.array(
+            [[-1.0, 2.0]],
+        )
+        self.assertAllClose(layer(inputs), [[10.0, 0.0]])

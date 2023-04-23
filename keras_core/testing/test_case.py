@@ -110,7 +110,7 @@ class TestCase(unittest.TestCase):
             raise ValueError(
                 "In order to use expected_mask_shape, supports_masking must be True."
             )
-        
+
         init_kwargs = init_kwargs or {}
         call_kwargs = call_kwargs or {}
 
