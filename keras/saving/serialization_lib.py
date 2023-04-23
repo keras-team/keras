@@ -297,7 +297,7 @@ def serialize_with_public_class(cls, inner_config=None):
 
     Called to check and retrieve the config of any class that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable()`.
+    `keras.saving.register_keras_serializable()`.
     """
     # This gets the `keras.*` exported name, such as "keras.optimizers.Adam".
     keras_api_name = tf_export.get_canonical_name_for_symbol(
@@ -333,7 +333,7 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
 
     Called to check and retrieve the config of any function that has a public
     Keras API or has been registered as serializable via
-    `keras.utils.register_keras_serializable()`. If function's module name is
+    `keras.saving.register_keras_serializable()`. If function's module name is
     already known, returns corresponding config.
     """
     if fn_module_name:
@@ -417,7 +417,7 @@ def deserialize_keras_object(
       "keras.engine.compile_utils". Built-in Keras classes
       expect to have prefix `keras`.
     - `registered_name`: String. The key the class is registered under via
-      `keras.utils.register_keras_serializable(package, name)` API. The key has
+      `keras.saving.register_keras_serializable(package, name)` API. The key has
       the format of '{package}>{name}', where `package` and `name` are the
       arguments passed to `register_keras_serializable()`. If `name` is not
       provided, it uses the class name. If `registered_name` successfully
@@ -469,7 +469,7 @@ def deserialize_keras_object(
     loss:
 
     ```python
-    @keras.utils.register_keras_serializable(package='my_package')
+    @keras.saving.register_keras_serializable(package='my_package')
     class ModifiedMeanSquaredError(keras.losses.MeanSquaredError):
       ...
 
@@ -581,7 +581,7 @@ def deserialize_keras_object(
                         f"`{config['class_name']}`. If "
                         f"`{config['class_name']}` is a custom class, please "
                         "register it using the "
-                        "`@keras.utils.register_keras_serializable()` "
+                        "`@keras.saving.register_keras_serializable()` "
                         "decorator."
                     )
                 config = config["class_name"]
@@ -792,6 +792,6 @@ def _retrieve_class_or_fn(
     raise TypeError(
         f"Could not locate {obj_type} '{name}'. "
         "Make sure custom classes are decorated with "
-        "`@keras.utils.register_keras_serializable()`. "
+        "`@keras.saving.register_keras_serializable()`. "
         f"Full object config: {full_config}"
     )
