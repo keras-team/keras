@@ -44,8 +44,8 @@ class SharpnessAwareMinimization(Model):
       rho: float. The gradients scaling factor. Defaults to `0.05`.
       num_batch_splits: int. The number of mini batches to
         split into from each data batch. If None, batches are not split into
-        sub-batches. Defaults to None.
-      name: string. The name of the SAM model. Defaults to None.
+        sub-batches. Defaults to `None`.
+      name: string. The name of the SAM model. Defaults to `None`.
 
     Reference:
       [Pierre Foret et al., 2020](https://arxiv.org/abs/2010.01412)
