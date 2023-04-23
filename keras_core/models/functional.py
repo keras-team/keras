@@ -24,15 +24,16 @@ class Functional(Function, Model):
     Symbolic add_loss
     """
 
+    def __new__(cls, *args, **kwargs):
+        # Skip Model.__new__.
+        return Function.__new__(cls)
+
     @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
         # This is used by the Model class, since we have some logic to swap the
         # class in the __new__ method, which will lead to __init__ get invoked
         # twice. Using the skip_init to skip one of the invocation of __init__
         # to avoid any side effects
-        skip_init = kwargs.pop("skip_init", False)
-        if skip_init:
-            return
         if isinstance(inputs, dict):
             for k, v in inputs.items():
                 if not isinstance(v, backend.KerasTensor):

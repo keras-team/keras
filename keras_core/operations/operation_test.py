@@ -26,6 +26,21 @@ class OpWithMultipleOutputs(operation.Operation):
         )
 
 
+class OpWithCustomConstructor(operation.Operation):
+    def __init__(self, alpha, mode="foo"):
+        super().__init__()
+        self.alpha = alpha
+        self.mode = mode
+
+    def call(self, x):
+        if self.mode == "foo":
+            return x
+        return self.alpha * x
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
 class OperationTest(testing.TestCase):
     def test_symbolic_call(self):
         x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
@@ -117,6 +132,13 @@ class OperationTest(testing.TestCase):
         self.assertEqual(config, {"name": "test_op"})
         op = OpWithMultipleOutputs.from_config(config)
         self.assertEqual(op.name, "test_op")
+
+    def test_autoconfig(self):
+        op = OpWithCustomConstructor(alpha=0.2, mode="bar")
+        config = op.get_config()
+        self.assertEqual(config, {"alpha": 0.2, "mode": "bar"})
+        revived = OpWithCustomConstructor.from_config(config)
+        self.assertEqual(revived.get_config(), config)
 
     def test_input_conversion(self):
         x = np.ones((2,))

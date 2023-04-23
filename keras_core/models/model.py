@@ -1,6 +1,9 @@
+import inspect
+
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.utils import python_utils
 from keras_core.utils import summary_utils
 
 if backend.backend() == "tensorflow":
@@ -32,11 +35,11 @@ class Model(Trainer, Layer):
 
     def __new__(cls, *args, **kwargs):
         # Signature detection
-        if functional_init_arguments(args, kwargs) and cls == Model:
+        if functional_init_arguments(args, kwargs):
             # Functional model
             from keras_core.models import functional
 
-            return functional.Functional(*args, **kwargs, skip_init=True)
+            return functional.Functional(*args, **kwargs)
         return Layer.__new__(cls)
 
     def __init__(self, trainable=True, name=None, dtype=None):
@@ -152,6 +155,32 @@ class Model(Trainer, Layer):
     def export(self, filepath):
         raise NotImplementedError
 
+    @python_utils.default
+    def get_config(self):
+        # Prepare base arguments
+        config = {
+            "name": self.name,
+            "trainable": self.trainable,
+        }
+        # Check whether the class has a constructor compatible with a Functional
+        # model or if it has a custom constructor.
+        if functional_like_constructor(self.__class__):
+            # Only return a Functional config if the constructor is the same
+            # as that of a Functional model. This excludes subclassed Functional
+            # models with a custom __init__.
+            config = {**config, **get_functional_config(self)}
+        else:
+            # Try to autogenerate config
+            xtra_args = set(config.keys())
+            if getattr(self, "_auto_get_config", False):
+                config.update(self._auto_config.config)
+            # Remove args non explicitly supported
+            argspec = inspect.getfullargspec(self.__init__)
+            if argspec.varkw != "kwargs":
+                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
+                    config.pop(key, None)
+        return config
+
 
 def functional_init_arguments(args, kwargs):
     return (
@@ -159,3 +188,11 @@ def functional_init_arguments(args, kwargs):
         or (len(args) == 1 and "outputs" in kwargs)
         or ("inputs" in kwargs and "outputs" in kwargs)
     )
+
+
+def functional_like_constructor(cls):
+    raise NotImplementedError
+
+
+def get_functional_config(model):
+    raise NotImplementedError

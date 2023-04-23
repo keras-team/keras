@@ -4,7 +4,7 @@ from keras_core import testing
 
 
 class ActivationTest(testing.TestCase):
-    def test_dense_basics(self):
+    def test_activation_basics(self):
         self.run_layer_test(
             layers.Activation,
             init_kwargs={
