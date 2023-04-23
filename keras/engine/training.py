@@ -334,10 +334,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     def _init_batch_counters(self):
         # Untracked Variables, used to keep track of mini-batches seen in `fit`,
         # `evaluate`, and `predict`.
-        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-        self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-        self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-        self._predict_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+        if not tf.inside_function():
+            # Creating variables inside tf.function is not allowed, hence
+            # these would otherwise prevent users from creating Keras layers
+            # inside tf.function.
+            # These variables are not connected to outputs so they have no
+            # effect on graph generation anyway.
+            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+            self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+            self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
+            self._predict_counter = tf.Variable(
+                0, dtype="int64", aggregation=agg
+            )
 
     def __setattr__(self, name, value):
         if not getattr(self, "_self_setattr_tracking", True):
@@ -673,12 +681,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               coefficients.
             weighted_metrics: List of metrics to be evaluated and weighted by
               `sample_weight` or `class_weight` during training and testing.
-            run_eagerly: Bool. Defaults to `False`. If `True`, this `Model`'s
-              logic will not be wrapped in a `tf.function`. Recommended to leave
-              this as `None` unless your `Model` cannot be run inside a
-              `tf.function`. `run_eagerly=True` is not supported when using
-              `tf.distribute.experimental.ParameterServerStrategy`.
-            steps_per_execution: Int. Defaults to 1. The number of batches to
+            run_eagerly: Bool. If `True`, this `Model`'s logic will not be
+              wrapped in a `tf.function`. Recommended to leave this as `None`
+              unless your `Model` cannot be run inside a `tf.function`.
+              `run_eagerly=True` is not supported when using
+              `tf.distribute.experimental.ParameterServerStrategy`. Defaults to
+               `False`.
+            steps_per_execution: Int. The number of batches to
               run during each `tf.function` call. Running multiple batches
               inside a single `tf.function` call can greatly improve performance
               on TPUs or small models with a large Python overhead. At most, one
@@ -687,7 +696,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               the size of the epoch. Note that if `steps_per_execution` is set
               to `N`, `Callback.on_batch_begin` and `Callback.on_batch_end`
               methods will only be called every `N` batches (i.e. before/after
-              each `tf.function` execution).
+              each `tf.function` execution). Defaults to `1`.
             jit_compile: If `True`, compile the model training step with XLA.
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.
@@ -708,9 +717,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               not process the same data. The number of shards should be at least
               the number of workers for good performance. A value of 'auto'
               turns on exact evaluation and uses a heuristic for the number of
-              shards based on the number of workers. Defaults to 0, meaning no
+              shards based on the number of workers. 0, meaning no
               visitation guarantee is provided. NOTE: Custom implementations of
               `Model.test_step` will be ignored when doing exact evaluation.
+              Defaults to `0`.
             **kwargs: Arguments supported for backwards compatibility only.
         """
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
@@ -1239,8 +1249,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # metric variables, which will be used to update the metrics.
         for shard_result in logs:
             for metric in self.metrics:
-                if metric.name == "loss":
-                    continue
                 if metric.name not in shard_result.keys():
                     logging.log_first_n(
                         logging.WARN,
@@ -1457,11 +1465,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 of index `epochs` is reached.
             verbose: 'auto', 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
-                'auto' defaults to 1 for most cases, but 2 when used with
+                'auto' becomes 1 for most cases, but 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so verbose=2 is
                 recommended when not running interactively (eg, in a production
-                environment).
+                environment). Defaults to 'auto'.
             callbacks: List of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
                 See `tf.keras.callbacks`. Note
@@ -1873,6 +1881,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             with tf_utils.with_metric_local_vars_scope():
                 for metric in self.compiled_metrics.metrics:
                     local_metrics.append(base_metric.clone_metric(metric))
+                for metric in self.compiled_loss.metrics:
+                    local_metrics.append(base_metric.clone_metric(metric))
             dataset = input_ops.auto_shard_dataset(
                 dataset, total_shards, shard_idx
             )
@@ -2059,11 +2069,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               they generate batches).
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
-                `"auto"` defaults to 1 for most cases, and to 2 when used with
+                `"auto"` becomes 1 for most cases, and to 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so `verbose=2` is
                 recommended when not running interactively (e.g. in a production
-                environment).
+                environment). Defaults to 'auto'.
             sample_weight: Optional Numpy array of weights for the test samples,
               used for weighting the loss function. You can either pass a flat
               (1D) Numpy array with the same length as the input samples
@@ -2419,11 +2429,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 (since they generate batches).
             verbose: `"auto"`, 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = single line.
-                `"auto"` defaults to 1 for most cases, and to 2 when used with
+                `"auto"` becomes 1 for most cases, and to 2 when used with
                 `ParameterServerStrategy`. Note that the progress bar is not
                 particularly useful when logged to a file, so `verbose=2` is
                 recommended when not running interactively (e.g. in a production
-                environment).
+                environment). Defaults to 'auto'.
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
                 Ignored with the default value of `None`. If x is a `tf.data`
@@ -2958,7 +2968,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         SavedModel format arguments:
             include_optimizer: Only applied to SavedModel and legacy HDF5
                 formats. If False, do not save the optimizer state.
-                Defaults to True.
+                Defaults to `True`.
             signatures: Only applies to SavedModel format. Signatures to save
                 with the SavedModel. See the `signatures` argument in
                 `tf.saved_model.save` for details.
@@ -3051,7 +3061,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 target location, or provide the user with a manual prompt.
             save_format: Either 'tf' or 'h5'. A `filepath` ending in '.h5' or
                 '.keras' will default to HDF5 if `save_format` is `None`.
-                Otherwise `None` defaults to 'tf'.
+                Otherwise, `None` becomes 'tf'. Defaults to `None`.
             options: Optional `tf.train.CheckpointOptions` object that specifies
                 options for saving weights.
 
@@ -3366,17 +3376,17 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 (e.g. set this to adapt the display to different
                 terminal window sizes).
             positions: Relative or absolute positions of log elements
-                in each line. If not provided,
-                defaults to `[0.3, 0.6, 0.70, 1.]`
+                in each line. If not provided, becomes
+                `[0.3, 0.6, 0.70, 1.]`. Defaults to `None`.
             print_fn: Print function to use. By default, prints to `stdout`.
                 If `stdout` doesn't work in your environment, change to `print`.
                 It will be called on each line of the summary.
                 You can set it to a custom function
                 in order to capture the string summary.
             expand_nested: Whether to expand the nested models.
-                If not provided, defaults to `False`.
+                Defaults to `False`.
             show_trainable: Whether to show if a layer is trainable.
-                If not provided, defaults to `False`.
+                Defaults to `False`.
             layer_range: a list or tuple of 2 strings,
                 which is the starting layer name and ending layer name
                 (both inclusive) indicating the range of layers to be printed
@@ -3942,7 +3952,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         Args:
           user_metrics: Whether to return user-supplied metrics or `Metric`
-            objects. Defaults to returning the user-supplied metrics.
+            objects. If True, returns the user-supplied metrics.
+            Defaults to `True`.
 
         Returns:
           Dictionary of arguments that were used when compiling the model.
@@ -4186,11 +4197,11 @@ def _get_verbosity(verbose, distribute_strategy):
             distribute_strategy._should_use_with_coordinator
             or not io_utils.is_interactive_logging_enabled()
         ):
-            # Default to epoch-level logging for PSStrategy or using absl
+            # Defaults to epoch-level logging for PSStrategy or using absl
             # logging.
             return 2
         else:
-            return 1  # Default to batch-level logging otherwise.
+            return 1  # Defaults to batch-level logging otherwise.
     return verbose
 
 
@@ -4352,10 +4363,13 @@ def inject_functional_model_class(cls):
 
 
 def is_functional_model_init_params(args, kwargs):
-    return (
-        len(args) == 2
-        or len(args) == 1
-        and "outputs" in kwargs
-        or "inputs" in kwargs
-        and "outputs" in kwargs
-    )
+    # Both inputs and outputs in args
+    if len(args) == 2:
+        return True
+    # Both inputs in args, outputs in kwargs
+    if len(args) == 1 and "outputs" in kwargs:
+        return True
+    # Both in kwargs
+    if "inputs" in kwargs and "outputs" in kwargs:
+        return True
+    return False

@@ -268,7 +268,7 @@ class TensorLikeDataAdapter(DataAdapter):
         _check_data_cardinality(inputs)
 
         # If batch_size is not passed but steps is, calculate from the input
-        # data.  Default to 32 for backwards compat.
+        # data.  Defaults to `32` for backwards compatibility.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -645,7 +645,7 @@ class CompositeTensorDataAdapter(DataAdapter):
             dataset = dataset.shuffle(num_samples)
 
         # If batch_size is not passed but steps is, calculate from the input
-        # data.  Default to 32 for backwards compatibility.
+        # data.  Defaults to `32` for backwards compatibility.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
