@@ -11,12 +11,12 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
     Args:
         shape: The shape of the random values to generate.
-        mean: Floats, default to 0. Mean of the random values to generate.
-        stddev: Floats, default to 1. Standard deviation of the random values
+        mean: Floats, defaults to 0. Mean of the random values to generate.
+        stddev: Floats, defaults to 1. Standard deviation of the random values
             to generate.
         dtype: Optional dtype of the tensor. Only floating point types are
             supported. If not specified, `keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
+            which defaults to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`).
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
@@ -33,18 +33,18 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     return sample * stddev + mean
 
 
-def uniform(shape, minval=0.0, maxval=None, dtype=None, seed=None):
+def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Produce random number based on the uniform distribution.
 
     Args:
         shape: The shape of the random values to generate.
-        minval: Floats, default to 0. Lower bound of the range of
+        minval: Floats, defaults to 0. Lower bound of the range of
             random values to generate (inclusive).
-        minval: Floats, default to None. Upper bound of the range of
+        maxval: Floats, defaults to 1. Upper bound of the range of
             random values to generate (exclusive).
         dtype: Optional dtype of the tensor. Only floating point types are
             supported. If not specified, `keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
+            which defaults to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`)
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
@@ -67,12 +67,12 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
     Args:
         shape: The shape of the random values to generate.
-        mean: Floats, default to 0. Mean of the random values to generate.
-        stddev: Floats, default to 1. Standard deviation of the random values
+        mean: Floats, defaults to 0. Mean of the random values to generate.
+        stddev: Floats, defaults to 1. Standard deviation of the random values
             to generate.
         dtype: Optional dtype of the tensor. Only floating point types are
             supported. If not specified, `keras.backend.floatx()` is used,
-            which default to `float32` unless you configured it otherwise (via
+            which defaults to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`)
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
