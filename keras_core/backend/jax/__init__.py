@@ -44,7 +44,7 @@ def cast(x, dtype):
 
 
 def cond(pred, true_fn, false_fn):
-    return jax.lax.cond(pred, true_fn=true_fn, false_fun=false_fn)
+    return jax.lax.cond(pred, true_fun=true_fn, false_fun=false_fn)
 
 
 def name_scope(name):
