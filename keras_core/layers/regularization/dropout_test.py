@@ -7,9 +7,20 @@ from keras_core import testing
 
 
 class DropoutTest(testing.TestCase):
-    def test_dropout_supports_masking(self):
-        dropout = layers.Dropout(0.5)
-        self.assertEqual(True, dropout.supports_masking)
+    def test_dropout_basics(self):
+        self.run_layer_test(
+            layers.Dropout,
+            init_kwargs={
+                "rate": 0.2,
+            },
+            input_shape=(2, 3),
+            expected_output_shape=(2, 3),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=1,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
 
     def test_dropout_rescaling(self):
         inputs = np.ones((20, 500))

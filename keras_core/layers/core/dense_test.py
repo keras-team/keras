@@ -5,7 +5,7 @@ from keras_core.layers.core.dense import Dense
 
 
 class DenseTest(testing.TestCase):
-    def test_basics(self):
+    def test_dense_basics(self):
         # 2D case, no bias.
         self.run_layer_test(
             Dense,
@@ -42,7 +42,7 @@ class DenseTest(testing.TestCase):
             supports_masking=False,
         )
 
-    def test_correctness(self):
+    def test_dense_correctness(self):
         layer = Dense(units=2, activation="relu")
         layer.build((1, 2))
         layer.set_weights(
