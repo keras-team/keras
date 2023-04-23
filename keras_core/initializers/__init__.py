@@ -13,6 +13,7 @@ from keras_core.initializers.random_initializers import LecunNormal
 from keras_core.initializers.random_initializers import LecunUniform
 from keras_core.initializers.random_initializers import RandomNormal
 from keras_core.initializers.random_initializers import RandomUniform
+from keras_core.initializers.random_initializers import TruncatedNormal
 from keras_core.initializers.random_initializers import VarianceScaling
 from keras_core.saving import serialization_lib
 from keras_core.utils.naming import to_snake_case
@@ -29,6 +30,7 @@ ALL_OBJECTS = {
     LecunNormal,
     LecunUniform,
     RandomNormal,
+    TruncatedNormal,
     RandomUniform,
     VarianceScaling,
 }

@@ -55,6 +55,59 @@ class RandomNormal(Initializer):
         return {"mean": self.mean, "stddev": self.stddev, "seed": self.seed}
 
 
+@keras_core_export("keras_core.initializers.TruncatedNormal")
+class TruncatedNormal(Initializer):
+    """Initializer that generates a truncated normal distribution.
+
+    The values generated are similar to values from a
+    `RandomNormal` initializer, except that values more
+    than two standard deviations from the mean are
+    discarded and re-drawn.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = TruncatedNormal(mean=0., stddev=1.)
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = TruncatedNormal(mean=0., stddev=1.)
+    >>> layer = Dense(3, kernel_initializer=initializer)
+
+    Args:
+        mean: A python scalar or a scalar keras tensor. Mean of the random values to
+            generate.
+        stddev: A python scalar or a scalar keras tensor. Standard deviation of the
+           random values to generate.
+        seed: A Python integer or instance of
+            `keras_core.backend.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.SeedGenerator`.
+    """
+
+    def __init__(self, mean=0.0, stddev=1.0, seed=None):
+        self.mean = mean
+        self.stddev = stddev
+        self.seed = seed or random.make_default_seed()
+        super().__init__()
+
+    def __call__(self, shape, dtype=None):
+        return random.truncated_normal(
+            shape=shape,
+            mean=self.mean,
+            stddev=self.stddev,
+            seed=self.seed,
+            dtype=dtype,
+        )
+
+    def get_config(self):
+        return {"mean": self.mean, "stddev": self.stddev, "seed": self.seed}
+
+
 @keras_core_export("keras_core.initializers.RandomUniform")
 class RandomUniform(Initializer):
     """Random uniform initializer.

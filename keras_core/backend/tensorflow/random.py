@@ -23,7 +23,14 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             supported. If not specified, `keras.backend.floatx()` is used,
             which default to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`).
-        seed: TODO
+        seed: A Python integer or instance of
+            `keras_core.backend.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.SeedGenerator`.
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
@@ -45,7 +52,14 @@ def uniform(shape, minval=0.0, maxval=None, dtype=None, seed=None):
             supported. If not specified, `keras.backend.floatx()` is used,
             which default to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`)
-        seed: TODO
+        seed: A Python integer or instance of
+            `keras_core.backend.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.SeedGenerator`.
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
@@ -70,7 +84,14 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             supported. If not specified, `keras.backend.floatx()` is used,
             which default to `float32` unless you configured it otherwise (via
             `keras.backend.set_floatx(float_dtype)`)
-        seed: TODO
+        seed: A Python integer or instance of
+            `keras_core.backend.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.backend.SeedGenerator`.
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
