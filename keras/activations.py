@@ -573,8 +573,8 @@ def serialize(activation, use_legacy_format=False):
             f"Unknown activation function '{activation}' cannot be "
             "serialized due to invalid function name. Make sure to use "
             "an activation name that matches the references defined in "
-            "activations.py or use `@keras.utils.register_keras_serializable` "
-            "for any custom activations. "
+            "activations.py or use `@keras.utils.register_keras_serializable()`"
+            "to register any custom activations. "
             f"config={fn_config}"
         )
     if not isinstance(activation, types.FunctionType):

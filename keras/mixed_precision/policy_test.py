@@ -75,9 +75,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
 
         # Test passing a DType
         with self.assertRaisesRegex(
-            TypeError,
-            "'name' must be a string, not a DType. "
-            "Instead, pass DType.name. Got: float16",
+            TypeError, "'name' must be a string, not a DType. "
         ):
             mp_policy.Policy(tf.float16)
 

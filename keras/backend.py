@@ -1901,8 +1901,8 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         When `rng_type` is "legacy_stateful", the seed will be passed down to
         stateful random ops.
       rng_type: Type of RNG to use, one of "stateful", "stateless",
-        "legacy_stateful". It defaults to "stateful" if
-        `enable_tf_random_generator` has been activated, or to
+        "legacy_stateful". When `None` it uses "stateful" if
+        `enable_tf_random_generator` has been activated, or
         "legacy_stateful" otherwise.
         - When using "stateless", the random ops outputs are constant (the same
           inputs result in the same outputs).
@@ -1913,6 +1913,7 @@ class RandomGenerator(tf.__internal__.tracking.AutoTrackable):
         - "legacy_stateful" is backed by TF1 stateful RNG ops
           (e.g. `tf.random.uniform`), while "stateful"
           is backed by TF2 APIs (e.g. `tf.random.Generator.uniform`).
+        Defaults to `None`.
     """
 
     RNG_STATELESS = "stateless"
@@ -5566,8 +5567,12 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             labels=target, logits=output, axis=axis
         )
 
-    # scale preds so that the class probas of each sample sum to 1
+    # Adjust the predictions so that the probability of
+    # each class for every sample adds up to 1
+    # This is needed to ensure that the cross entropy is
+    # computed correctly.
     output = output / tf.reduce_sum(output, axis, True)
+
     # Compute cross entropy from probabilities.
     epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, epsilon_, 1.0 - epsilon_)
@@ -5844,28 +5849,29 @@ def binary_focal_crossentropy(
     where `alpha` is a float in the range of `[0, 1]`.
 
     Args:
-      target: A tensor with the same shape as `output`.
-      output: A tensor.
-      apply_class_balancing: A bool, whether to apply weight balancing on the
-        binary classes 0 and 1.
-      alpha: A weight balancing factor for class 1, default is `0.25` as
-        mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
-      gamma: A focusing parameter, default is `2.0` as mentioned in the
-        reference.
-      from_logits: Whether `output` is expected to be a logits tensor. By
-        default, we consider that `output` encodes a probability distribution.
+        target: A tensor with the same shape as `output`.
+        output: A tensor.
+        apply_class_balancing: A bool, whether to apply weight balancing on the
+            binary classes 0 and 1.
+        alpha: A weight balancing factor for class 1, default is `0.25` as
+            mentioned in the reference. The weight for class 0 is `1.0 - alpha`.
+        gamma: A focusing parameter, default is `2.0` as mentioned in the
+            reference.
+        from_logits: Whether `output` is expected to be a logits tensor. By
+            default, we consider that `output` encodes a probability
+            distribution.
 
     Returns:
-      A tensor.
+        A tensor.
     """
-    sigmoidal = tf.__internal__.smart_cond.smart_cond(
-        from_logits,
-        lambda: sigmoid(output),
-        lambda: output,
-    )
+
+    sigmoidal = sigmoid(output) if from_logits else output
+
     p_t = target * sigmoidal + (1 - target) * (1 - sigmoidal)
+
     # Calculate focal factor
     focal_factor = tf.pow(1.0 - p_t, gamma)
+
     # Binary crossentropy
     bce = binary_crossentropy(
         target=target,
@@ -5893,7 +5899,7 @@ def sigmoid(x):
     Returns:
         A tensor.
     """
-    return tf.sigmoid(x)
+    return tf.math.sigmoid(x)
 
 
 @keras_export("keras.backend.hard_sigmoid")
@@ -6318,13 +6324,13 @@ def separable_conv1d(
     pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
     dilation_rate = (1,) + dilation_rate
 
-    x = tf.compat.v1.nn.separable_conv2d(
+    x = tf.nn.separable_conv2d(
         x,
         depthwise_kernel,
         pointwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
 
@@ -6384,13 +6390,13 @@ def separable_conv2d(
     else:
         strides = (1, 1) + strides
 
-    x = tf.compat.v1.nn.separable_conv2d(
+    x = tf.nn.separable_conv2d(
         x,
         depthwise_kernel,
         pointwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
     if data_format == "channels_first" and tf_data_format == "NHWC":
@@ -6439,12 +6445,12 @@ def depthwise_conv2d(
     else:
         strides = (1, 1) + strides
 
-    x = tf.compat.v1.nn.depthwise_conv2d(
+    x = tf.nn.depthwise_conv2d(
         x,
         depthwise_kernel,
         strides=strides,
         padding=padding,
-        rate=dilation_rate,
+        dilations=dilation_rate,
         data_format=tf_data_format,
     )
     if data_format == "channels_first" and tf_data_format == "NHWC":
@@ -6898,11 +6904,11 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     Args:
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, the mean value of the normal distribution to draw
-          samples. Default to 0.0.
+          samples. Defaults to `0.0`.
         stddev: A float, the standard deviation of the normal distribution
-          to draw samples. Default to 1.0.
-        dtype: `tf.dtypes.DType`, dtype of returned tensor. Default to use Keras
-          backend dtype which is float32.
+          to draw samples. Defaults to `1.0`.
+        dtype: `tf.dtypes.DType`, dtype of returned tensor. None uses Keras
+          backend dtype which is float32. Defaults to `None`.
         seed: Integer, random seed. Will use a random numpy integer when not
           specified.
 

@@ -248,6 +248,12 @@ class SidecarEvaluator:
                     # iteration value.
                     self.model.optimizer.iterations.assign(self._iterations)
             except (tf.errors.OpError,) as e:
+                if isinstance(e, tf.errors.UnavailableError):
+                    # With distribute training, worker preemption can result in
+                    # `UnavailableError`. Raise this to be handled outside the
+                    # evaluation loop.
+                    raise e
+
                 # A couple errors can happen here with the coordinator racing to
                 # write checkpoint:
                 # 1) OpError: open failed for <file path>: No such file or

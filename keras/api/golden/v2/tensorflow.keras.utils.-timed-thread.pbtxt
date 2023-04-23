@@ -1,0 +1,25 @@
+path: "tensorflow.keras.utils.TimedThread"
+tf_class {
+  is_instance: "<class \'keras.utils.timed_threads.TimedThread\'>"
+  is_instance: "<type \'object\'>"
+  member_method {
+    name: "__init__"
+    argspec: "args=[\'self\', \'interval\'], varargs=None, keywords=kwargs, defaults=None"
+  }
+  member_method {
+    name: "is_alive"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "on_interval"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "start"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "stop"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+}

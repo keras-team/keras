@@ -303,7 +303,7 @@ class LossFunctionWrapper(Loss):
 class MeanSquaredError(LossFunctionWrapper):
     """Computes the mean of squares of errors between labels and predictions.
 
-    `loss = square(y_true - y_pred)`
+    `loss = mean(square(y_true - y_pred))`
 
     Standalone usage:
 
@@ -362,7 +362,7 @@ class MeanSquaredError(LossFunctionWrapper):
 class MeanAbsoluteError(LossFunctionWrapper):
     """Computes the mean of absolute difference between labels and predictions.
 
-    `loss = abs(y_true - y_pred)`
+    `loss = mean(abs(y_true - y_pred))`
 
     Standalone usage:
 
