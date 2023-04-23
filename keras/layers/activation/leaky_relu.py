@@ -30,8 +30,8 @@ class LeakyReLU(Layer):
     It allows a small gradient when the unit is not active:
 
     ```
-      f(x) = alpha * x if x < 0
-      f(x) = x if x >= 0
+        f(x) = alpha * x if x < 0
+        f(x) = x if x >= 0
     ```
 
     Usage:
@@ -46,15 +46,15 @@ class LeakyReLU(Layer):
     [-0.3, -0.1, 0.0, 2.0]
 
     Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the batch axis)
-      when using this layer as the first layer in a model.
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the batch axis)
+        when using this layer as the first layer in a model.
 
     Output shape:
-      Same shape as the input.
+        Same shape as the input.
 
     Args:
-      alpha: Float >= 0. Negative slope coefficient. Default to 0.3.
+        alpha: Float >= 0. Negative slope coefficient. Defaults to `0.3`.
 
     """
 

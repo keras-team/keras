@@ -1551,6 +1551,44 @@ class NetworkConstructionTest(test_combinations.TestCase):
         self.assertAllEqual([5, 1], input_spec["y"].shape.as_list())
         self.assertAllEqual(tf.int32, input_spec["y"].dtype)
 
+    def test_layer_ordering_checkpoint_compatibility(self):
+        class MLPKeras(layers.Layer):
+            def __init__(self, name: str) -> None:
+                super(MLPKeras, self).__init__(name=name)
+                self.layer_1 = layers.Dense(
+                    10, activation="relu", name=f"{name}_dense_1"
+                )
+                self.layer_2 = layers.Dense(
+                    10, activation="relu", name=f"{name}_dense_2"
+                )
+
+            def call(self, inputs: tf.Tensor) -> tf.Tensor:
+                return self.layer_2(self.layer_1(inputs))
+
+        mlp_keras_1 = MLPKeras("mlp_1")
+        mlp_keras_2 = MLPKeras("mlp_2")
+
+        inputs = input_layer_lib.Input((5,))
+
+        # Make model which is the sum of two MLPs.
+        outputs_1 = mlp_keras_1(inputs) + mlp_keras_2(inputs)
+        functional_model_1 = functional.Functional(
+            inputs=inputs, outputs=outputs_1
+        )
+
+        ckpt_1 = Checkpoint(model=functional_model_1)
+        filepath = tf.io.gfile.join(self.get_temp_dir(), "model_1_ckpt")
+        ckpt_path = ckpt_1.save(filepath)
+
+        # Swap order of MLPs.
+        outputs_2 = mlp_keras_2(inputs) + mlp_keras_1(inputs)
+        functional_model_2 = functional.Functional(
+            inputs=inputs, outputs=outputs_2
+        )
+        Checkpoint(model=functional_model_2).restore(
+            ckpt_path
+        ).assert_consumed()
+
 
 class DeferredModeTest(test_combinations.TestCase):
     @test_combinations.generate(
