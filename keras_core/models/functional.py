@@ -1,3 +1,4 @@
+import inspect
 import warnings
 
 from tensorflow import nest
@@ -7,6 +8,7 @@ from keras_core import operations as ops
 from keras_core.layers.layer import Layer
 from keras_core.models.model import Model
 from keras_core.operations.function import Function
+from keras_core.utils import python_utils
 from keras_core.utils import tracking
 
 
@@ -184,6 +186,32 @@ class Functional(Function, Model):
         # Symbolic only. TODO
         raise NotImplementedError
 
+    @python_utils.default
+    def get_config(self):
+        # Prepare base arguments
+        config = {
+            "name": self.name,
+            "trainable": self.trainable,
+        }
+        # Check whether the class has a constructor compatible with a Functional
+        # model or if it has a custom constructor.
+        if functional_like_constructor(self.__class__):
+            # Only return a Functional config if the constructor is the same
+            # as that of a Functional model. This excludes subclassed Functional
+            # models with a custom __init__.
+            config = {**config, **get_functional_config(self)}
+        else:
+            # Try to autogenerate config
+            xtra_args = set(config.keys())
+            if getattr(self, "_auto_get_config", False):
+                config.update(self._auto_config.config)
+            # Remove args non explicitly supported
+            argspec = inspect.getfullargspec(self.__init__)
+            if argspec.varkw != "kwargs":
+                for key in xtra_args - xtra_args.intersection(argspec.args[1:]):
+                    config.pop(key, None)
+        return config
+
 
 def operation_fn(operation, training):
     def call(*args, **kwargs):
@@ -195,3 +223,11 @@ def operation_fn(operation, training):
         return operation(*args, **kwargs)
 
     return call
+
+
+def functional_like_constructor(cls):
+    raise NotImplementedError
+
+
+def get_functional_config(model):
+    raise NotImplementedError
