@@ -108,8 +108,7 @@ class TestCase(unittest.TestCase):
             )
         if expected_mask_shape is not None and supports_masking is not True:
             raise ValueError(
-                """In order to use expected_mask_shape, supports_masking
-                must be True."""
+                "In order to use expected_mask_shape, supports_masking must be True."
             )
 
         init_kwargs = init_kwargs or {}

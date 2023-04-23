@@ -106,7 +106,7 @@ class Mean(Metric):
             shape=(), initializer=initializers.Zeros(), dtype=self.dtype
         )
         self.count = self.add_variable(
-            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+            shape=(), initializer=initializers.Zeros(), dtype="int32"
         )
 
     def update_state(self, values, sample_weight=None):
@@ -122,7 +122,7 @@ class Mean(Metric):
             num_samples = ops.sum(
                 ops.ones(shape=(num_samples,)) * sample_weight
             )
-        self.count.assign(self.count + ops.cast(num_samples, dtype=self.dtype))
+        self.count.assign(self.count + ops.cast(num_samples, dtype="int32"))
 
     def reset_state(self):
         self.total.assign(0.0)
