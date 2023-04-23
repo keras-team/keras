@@ -1,9 +1,11 @@
+import numpy as np
+import tensorflow as tf
+from jax import numpy as jnp
+
+from keras_core import operations as ops
 from keras_core import testing
 from keras_core.backend import keras_tensor
-from keras_core import operations as ops
-import numpy as np
-from jax import numpy as jnp
-import tensorflow as tf
+
 
 class KerasTensorTest(testing.TestCase):
     def test_attributes(self):
@@ -30,11 +32,17 @@ class KerasTensorTest(testing.TestCase):
 
     def test_invalid_usage(self):
         x = keras_tensor.KerasTensor(shape=(3,), dtype="float32")
-        with self.assertRaisesRegex(ValueError, "doesn't have any actual numerical value"):
+        with self.assertRaisesRegex(
+            ValueError, "doesn't have any actual numerical value"
+        ):
             np.array(x)
 
-        with self.assertRaisesRegex(ValueError, "cannot be used as input to a JAX function"):
+        with self.assertRaisesRegex(
+            ValueError, "cannot be used as input to a JAX function"
+        ):
             jnp.array(x)
 
-        with self.assertRaisesRegex(ValueError, "cannot be used as input to a TensorFlow function"):
+        with self.assertRaisesRegex(
+            ValueError, "cannot be used as input to a TensorFlow function"
+        ):
             tf.convert_to_tensor(x)

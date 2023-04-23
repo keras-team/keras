@@ -39,8 +39,17 @@ def relu(x, negative_slope=0.0, max_value=None, threshold=0.0):
         A tensor with the same shape and dtype as input `x`.
     """
     if backend.any_symbolic_tensors((x,)):
-        return ReLU(negative_slope=negative_slope, max_value=max_value, threshold=threshold)(x)
-    return ReLU.static_call(x, negative_slope=negative_slope, max_value=max_value, threshold=threshold)
+        return ReLU(
+            negative_slope=negative_slope,
+            max_value=max_value,
+            threshold=threshold,
+        )(x)
+    return ReLU.static_call(
+        x,
+        negative_slope=negative_slope,
+        max_value=max_value,
+        threshold=threshold,
+    )
 
 
 class ReLU(ops.Operation):
@@ -62,7 +71,7 @@ class ReLU(ops.Operation):
 
     def compute_output_spec(self, x):
         return backend.KerasTensor(x.shape, x.dtype)
-    
+
     @staticmethod
     def static_call(x, negative_slope=0.0, max_value=None, threshold=0.0):
         if negative_slope != 0.0:
@@ -91,7 +100,6 @@ class ReLU(ops.Operation):
         if negative_slope != 0.0:
             x -= negative_slope * negative_part
         return x
-    
 
 
 @keras_core_export("keras_core.activations.leaky_relu")
@@ -215,7 +223,7 @@ def selu(x):
 @keras_core_export("keras_core.activations.softplus")
 def softplus(x):
     """Softplus activation function.
-    
+
     It is defined as: `softplus(x) = log(exp(x) + 1)`.
 
     Args:
@@ -227,7 +235,7 @@ def softplus(x):
 @keras_core_export("keras_core.activations.softsign")
 def softsign(x):
     """Softsign activation function.
-    
+
     Softsign is defined as: `softsign(x) = x / (abs(x) + 1)`.
 
     Args:
@@ -236,10 +244,12 @@ def softsign(x):
     return ops.softsign(x)
 
 
-@keras_core_export(["keras_core.activations.silu", "keras_core.activations.swish"])
+@keras_core_export(
+    ["keras_core.activations.silu", "keras_core.activations.swish"]
+)
 def silu(x):
     """Swish (or Silu) activation function.
-    
+
     It is defined as: `swish(x) = x * sigmoid(x)`.
 
     The Swish (or Silu) activation function is a smooth,
@@ -295,7 +305,7 @@ def tanh(x):
 @keras_core_export("keras_core.activations.sigmoid")
 def sigmoid(x):
     """Sigmoid activation function.
-    
+
     It is defined as: `sigmoid(x) = 1 / (1 + exp(-x))`.
 
     For small values (<-5),
@@ -367,7 +377,7 @@ class Mish(ops.Operation):
 
     def compute_output_spec(self, x):
         return backend.KerasTensor(x.shape, x.dtype)
-    
+
     @staticmethod
     def static_call(x):
         return x * backend.tanh(backend.softplus(x))
@@ -389,7 +399,7 @@ def mish(x):
         x: Input tensor.
 
     Reference:
-    
+
     - [Misra, 2019](https://arxiv.org/abs/1908.08681)
     """
     return Mish.static_call(x)

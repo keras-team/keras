@@ -1,27 +1,25 @@
 import types
 
-from keras_core.api_export import keras_core_export
-from keras_core.saving import serialization_lib
-from keras_core.saving import object_registration
-
-from keras_core.activations.activations import relu
-from keras_core.activations.activations import leaky_relu
-from keras_core.activations.activations import relu6
-from keras_core.activations.activations import softmax
 from keras_core.activations.activations import elu
+from keras_core.activations.activations import exponential
+from keras_core.activations.activations import gelu
+from keras_core.activations.activations import hard_sigmoid
+from keras_core.activations.activations import leaky_relu
+from keras_core.activations.activations import linear
+from keras_core.activations.activations import log_softmax
+from keras_core.activations.activations import mish
+from keras_core.activations.activations import relu
+from keras_core.activations.activations import relu6
 from keras_core.activations.activations import selu
+from keras_core.activations.activations import sigmoid
+from keras_core.activations.activations import silu
+from keras_core.activations.activations import softmax
 from keras_core.activations.activations import softplus
 from keras_core.activations.activations import softsign
-from keras_core.activations.activations import silu
-from keras_core.activations.activations import gelu
 from keras_core.activations.activations import tanh
-from keras_core.activations.activations import sigmoid
-from keras_core.activations.activations import exponential
-from keras_core.activations.activations import hard_sigmoid
-from keras_core.activations.activations import linear
-from keras_core.activations.activations import mish
-from keras_core.activations.activations import log_softmax
-
+from keras_core.api_export import keras_core_export
+from keras_core.saving import object_registration
+from keras_core.saving import serialization_lib
 
 ALL_OBJECTS = {
     relu,
@@ -42,7 +40,7 @@ ALL_OBJECTS = {
     mish,
     log_softmax,
 }
-  
+
 ALL_OBJECTS_DICT = {fn.__name__: fn for fn in ALL_OBJECTS}
 
 

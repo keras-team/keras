@@ -1,4 +1,5 @@
 from keras_core.saving.object_registration import CustomObjectScope
+from keras_core.saving.object_registration import custom_object_scope
 from keras_core.saving.object_registration import get_custom_objects
 from keras_core.saving.object_registration import get_registered_name
 from keras_core.saving.object_registration import get_registered_object

@@ -38,22 +38,25 @@ class CustomObjectScope:
     ```
 
     Args:
-        *args: Dictionary or dictionaries of `{name: object}` pairs.
+        custom_objects: Dictionary of `{name: object}` pairs.
     """
 
-    def __init__(self, *args):
-        self.custom_objects = args
+    def __init__(self, custom_objects):
+        self.custom_objects = custom_objects or {}
         self.backup = None
 
     def __enter__(self):
         self.backup = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.copy()
-        for objects in self.custom_objects:
-            _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(objects)
+        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.custom_objects)
         return self
 
     def __exit__(self, *args, **kwargs):
         _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.clear()
         _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
+
+
+# Alias.
+custom_object_scope = CustomObjectScope
 
 
 @keras_core_export(

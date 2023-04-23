@@ -1074,7 +1074,7 @@ class ExpandDims(Operation):
             axis = len(x.shape) + 1 + self.axis
         else:
             axis = self.axis
-        output_shape = x_shape[: axis] + [1] + x_shape[axis :]
+        output_shape = x_shape[:axis] + [1] + x_shape[axis:]
         return KerasTensor(output_shape, dtype=x.dtype)
 
 

@@ -49,6 +49,7 @@ class Dense(Layer):
                 initializer=self.bias_initializer,
                 regularizer=self.bias_regularizer,
             )
+        self.built = True
 
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
@@ -66,7 +67,9 @@ class Dense(Layer):
                 self.kernel_initializer
             ),
             "bias_initializer": initializers.serialize(self.bias_initializer),
-            "kernel_regularizer": regularizers.serialize(self.kernel_regularizer),
+            "kernel_regularizer": regularizers.serialize(
+                self.kernel_regularizer
+            ),
             "bias_regularizer": regularizers.serialize(self.bias_regularizer),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),

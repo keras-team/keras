@@ -14,11 +14,11 @@ class KerasTensor:
         self.shape = shape
         self.dtype = backend.standardize_dtype(dtype)
         self.name = name or auto_name(self.__class__.__name__)
-    
+
     @property
     def ndim(self):
         return len(self.shape)
-    
+
     def reshape(self, new_shape):
         from keras_core import operations
 
@@ -28,14 +28,14 @@ class KerasTensor:
         from keras_core import operations
 
         return operations.Squeeze(axis)(self)
-    
+
     def __array__(self):
         raise ValueError(
             "A KerasTensor is symbolic: it's a placeholder for a shape "
             "an a dtype. It doesn't have any actual numerical value. "
             "You cannot convert it to a NumPy array."
         )
-    
+
     def __jax_array__(self):
         raise ValueError(
             "A KerasTensor cannot be used as input to a JAX function. "
@@ -58,7 +58,7 @@ class KerasTensor:
             "x = MyLayer()(x)"
             "```\n"
         )
-    
+
     def __tf_tensor__(self, dtype=None, name=None):
         raise ValueError(
             "A KerasTensor cannot be used as input to a TensorFlow function. "
