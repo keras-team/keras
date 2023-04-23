@@ -109,12 +109,12 @@ class Hashing(base_layer.Layer):
         bin, so the effective number of bins is `(num_bins - 1)` if `mask_value`
         is set.
       mask_value: A value that represents masked inputs, which are mapped to
-        index 0. None means no mask term will be added and the
+        index 0. `None` means no mask term will be added and the
         hashing will start at index 0. Defaults to `None`.
       salt: A single unsigned integer or None.
         If passed, the hash function used will be SipHash64, with these values
         used as an additional input (known as a "salt" in cryptography).
-        These should be non-zero. If None, uses the FarmHash64 hash function.
+        These should be non-zero. If `None`, uses the FarmHash64 hash function.
         It also supports tuple/list of 2 unsigned integer numbers, see
         reference paper for details. Defaults to `None`.
       output_mode: Specification for the output of the layer. Values can bes
