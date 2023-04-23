@@ -406,7 +406,7 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
     Args:
       inner_optimizer: The `tf.keras.optimizers.Optimizer` or
         `tf.keras.optimizers.experimental.Optimizer` instance to wrap.
-      dynamic: Bool indicating whether dynamic loss scaling is used.  If True,
+      dynamic: Bool indicating whether dynamic loss scaling is used. If `True`,
         the loss scale will be dynamically updated over time using an algorithm
         that keeps the loss scale at approximately its optimal value. If False,
         a single fixed loss scale is used and  `initial_scale` must be
