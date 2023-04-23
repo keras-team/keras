@@ -46,7 +46,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         shape: The shape of the random values to generate.
         minval: Floats, defaults to 0. Lower bound of the range of
             random values to generate (inclusive).
-        minval: Floats, defaults to 1. Upper bound of the range of
+        maxval: Floats, defaults to 1. Upper bound of the range of
             random values to generate (exclusive).
         dtype: Optional dtype of the tensor. Only floating point types are
             supported. If not specified, `keras.backend.floatx()` is used,
