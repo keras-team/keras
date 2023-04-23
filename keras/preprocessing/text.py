@@ -154,8 +154,8 @@ def hashing_trick(
     Args:
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: when None uses a python `hash` function, can be 'md5' or
-            any function that takes in input a string and returns a int.
+        hash_function: When `None` uses a python `hash` function. Can be 'md5'
+            or any function that takes in input a string and returns a int.
             Note that 'hash' is not a stable hashing function, so
             it is not consistent across different runs, while 'md5'
             is a stable hashing function. Defaults to `None`.
