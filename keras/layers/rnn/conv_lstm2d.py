@@ -44,9 +44,10 @@ class ConvLSTM2D(ConvLSTM):
         `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape `(batch, time, ...,
         channels)` while `channels_first` corresponds to inputs with shape
-        `(batch, time, channels, ...)`. It defaults to the `image_data_format`
-        value found in your Keras config file at `~/.keras/keras.json`. If you
-        never set it, then it will be "channels_last".
+        `(batch, time, channels, ...)`. When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+        `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       dilation_rate: An integer or tuple/list of n integers, specifying the
         dilation rate to use for dilated convolution. Currently, specifying any
         `dilation_rate` value != 1 is incompatible with specifying any `strides`

@@ -215,7 +215,7 @@ class MultiHeadAttention(Layer):
             `attention_output` if `False`. Defaults to `False`.
         training: Python boolean indicating whether the layer should behave in
             training mode (adding dropout) or in inference mode (no dropout).
-            Defaults to either using the training mode of the parent
+            Will go with either using the training mode of the parent
             layer/model, or False (inference) if there is no parent layer.
         use_causal_mask: A boolean to indicate whether to apply a causal mask to
             prevent tokens from attending to future tokens (e.g., used in a

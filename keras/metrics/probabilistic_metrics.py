@@ -118,7 +118,7 @@ class BinaryCrossentropy(base_metric.MeanMetricWrapper):
     Args:
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      from_logits: (Optional )Whether output is expected to be a logits tensor.
+      from_logits: (Optional) Whether output is expected to be a logits tensor.
         By default, we consider that output encodes a probability distribution.
       label_smoothing: (Optional) Float in [0, 1]. When > 0, label values are
         smoothed, meaning the confidence on label values are relaxed.

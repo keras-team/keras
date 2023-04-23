@@ -1889,9 +1889,21 @@ class BackupAndRestore(Callback):
         self._training_state.restore()
 
     def on_train_batch_begin(self, batch, logs=None):
+        # Skip batch update for PSS Strategy
+        if isinstance(
+            self.model.distribute_strategy,
+            tf.distribute.ParameterServerStrategy,
+        ):
+            return
         self._training_state._ckpt_saved_batch.assign(batch)
 
     def on_train_batch_end(self, batch, logs=None):
+        # Skip batch update for PSS Strategy
+        if isinstance(
+            self.model.distribute_strategy,
+            tf.distribute.ParameterServerStrategy,
+        ):
+            return
         self._training_state.backup_if_preempted()
         if self.save_freq and self.save_freq != "epoch":
             self._batches_count += 1

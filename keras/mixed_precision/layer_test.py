@@ -466,10 +466,7 @@ class LayerTest(test_combinations.TestCase):
         with strategy.scope(), self.assertRaisesRegex(
             ValueError,
             "Mixed precision is not supported with the "
-            "tf.distribute.Strategy: CentralStorageStrategy. Either "
-            "stop using mixed precision by removing the use of the "
-            '"mixed_float16" policy or use a different Strategy, e.g. '
-            "a MirroredStrategy.",
+            "tf.distribute.Strategy: CentralStorageStrategy.",
         ):
             mp_test_util.MultiplyLayer(dtype="mixed_float16")
         # Non-mixed policies are fine

@@ -29,6 +29,7 @@ from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.optimizers import optimizer_v1
 from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model.utils import keras_option_scope
 from keras.saving.object_registration import CustomObjectScope
 from keras.utils import generic_utils
 from keras.utils import version_utils
@@ -209,9 +210,18 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
             f"Received: layer_fn={layer_fn}"
         )
 
-    model_configs, created_layers = _clone_layers_and_model_config(
-        model, new_input_layers, layer_fn
-    )
+    # For affected g3 users who need to default to old serialization in cloning
+    if getattr(model, "use_legacy_config", False):
+        with keras_option_scope(
+            save_traces=False, in_tf_saved_model_scope=True
+        ):
+            model_configs, created_layers = _clone_layers_and_model_config(
+                model, new_input_layers, layer_fn
+            )
+    else:
+        model_configs, created_layers = _clone_layers_and_model_config(
+            model, new_input_layers, layer_fn
+        )
     # Reconstruct model from the config, using the cloned layers.
     (
         input_tensors,
