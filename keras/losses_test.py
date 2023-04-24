@@ -2980,6 +2980,54 @@ class CustomLossTest(tf.test.TestCase):
             7.0,
         )
 
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class LossIgnoreNaNTest(tf.test.TestCase):
+    def test_loss_ignorenan(self):
+        mse_loss = losses.MeanSquaredError()
+        loss_fn = losses.LossIgnoreNaN(mse_loss)
+
+        y_true = backend.variable(np.array([1, 2, 3]))
+        y_pred = backend.variable(np.array([1, 2, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAlmostEqual(backend.eval(loss_value), 1 / 3)
+
+        y_true = backend.variable(np.array([1, np.nan, 3]))
+        y_pred = backend.variable(np.array([1, 2, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAlmostEqual(backend.eval(loss_value), 2 / 3)
+
+        y_true = backend.variable(np.array([1, 2, 3]))
+        y_pred = backend.variable(np.array([1, np.nan, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAlmostEqual(backend.eval(loss_value), 1 / 3)
+
+        y_true = backend.variable(np.array([1, np.nan, 3]))
+        y_pred = backend.variable(np.array([1, np.nan, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAlmostEqual(backend.eval(loss_value), 0.5)
+
+        y_true = backend.variable(np.array([1, np.nan, 3]))
+        y_pred = backend.variable(np.array([1, np.nan, 4]))
+        sample_weight = backend.variable(np.array([0.7, 0.3, 1]))
+        loss_value = loss_fn(y_true, y_pred, sample_weight)
+        self.assertAlmostEqual(backend.eval(loss_value), (0.7 * 0 + 0.3 * 0.5 + 1 * 0.5) / 2)
+
+        loss_fn = losses.LossIgnoreNaN(mse_loss, reduction=losses.Reduction.SUM)
+        y_true = backend.variable(np.array([1, np.nan, 3]))
+        y_pred = backend.variable(np.array([1, np.nan, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAlmostEqual(backend.eval(loss_value), 1.0)
+
+        loss_fn = losses.LossIgnoreNaN(mse_loss, reduction=losses.Reduction.NONE)
+        y_true = backend.variable(np.array([1, np.nan, 3]))
+        y_pred = backend.variable(np.array([1, np.nan, 4]))
+        loss_value = loss_fn(y_true, y_pred)
+        self.assertAllClose(backend.eval(loss_value), np.array([0.5, 0.5]))
+
+        loss_fn.reset_state()
+        self.assertEqual(backend.eval(loss_fn.total), 0.0)
+        self.assertEqual(backend.eval(loss_fn.count), 0.0)
+
 
 if __name__ == "__main__":
     tf.test.main()

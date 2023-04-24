@@ -185,6 +185,40 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
             )
             self.assertEqual(np.mean(result), 0.0)
 
+    def test_metric_ignorenan(self):
+        with self.cached_session():
+            metric = metrics.MetricIgnoreNaN(metrics.MeanSquaredError())
+
+            y_true = backend.variable(np.array([1, 2, 3]))
+            y_pred = backend.variable(np.array([1, 2, 4]))
+            metric.update_state(y_true, y_pred)
+            self.assertAlmostEqual(backend.eval(metric.result()), 1 / 3)
+
+            y_true = backend.variable(np.array([1, np.nan, 3]))
+            y_pred = backend.variable(np.array([1, 2, 4]))
+            metric.update_state(y_true, y_pred)
+            self.assertAlmostEqual(backend.eval(metric.result()), 2 / 3)
+
+            y_true = backend.variable(np.array([1, 2, 3]))
+            y_pred = backend.variable(np.array([1, np.nan, 4]))
+            metric.update_state(y_true, y_pred)
+            self.assertAlmostEqual(backend.eval(metric.result()), 1 / 3)
+
+            y_true = backend.variable(np.array([1, np.nan, 3]))
+            y_pred = backend.variable(np.array([1, np.nan, 4]))
+            metric.update_state(y_true, y_pred)
+            self.assertAlmostEqual(backend.eval(metric.result()), 0.5)
+
+            metric.reset_state()
+            self.assertEqual(backend.eval(metric.result()), 0.0)
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     tf.test.main()
