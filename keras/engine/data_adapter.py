@@ -1273,8 +1273,9 @@ class DataHandler:
 
         if steps_per_epoch == 0:
             raise ValueError(
-                "Got argument `steps_per_epoch=0` passed to `fit()`."
-                "Try checking the argument and `Model.fit()` documentation."
+                "Unexpected value for `steps_per_epoch`. Received value is 0. "
+                "Please check the docstring for `model.fit()` for supported "
+                "values."
             )
 
         self._steps_per_epoch = steps_per_epoch
@@ -1315,7 +1316,7 @@ class DataHandler:
         )
 
         if self._inferred_steps == 0:
-            raise ValueError("Expected input data to `fit()` to be non-empty.")
+            raise ValueError("Expected input data to be non-empty.")
 
     def _configure_dataset_and_inferred_steps(
         self, strategy, x, steps_per_epoch, class_weight, distribute

@@ -1445,7 +1445,10 @@ class DataHandlerTest(test_combinations.TestCase):
     def test_error_if_zero_steps_per_epoch(self):
         data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3]).batch(1)
 
-        with self.assertRaisesRegex(ValueError, "`steps_per_epoch=0`"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unexpected value for `steps_per_epoch`. Received value is 0.",
+        ):
             data_adapter.DataHandler(
                 data, initial_epoch=0, epochs=2, steps_per_epoch=0
             )
@@ -1457,7 +1460,7 @@ class DataHandlerTest(test_combinations.TestCase):
 
         with self.assertRaisesWithLiteralMatch(
             ValueError,
-            "Expected input data to `fit()` to be non-empty.",
+            "Expected input data to be non-empty.",
         ):
             data_adapter.DataHandler(x[idx], y[idx])
 
@@ -1466,7 +1469,7 @@ class DataHandlerTest(test_combinations.TestCase):
 
         with self.assertRaisesWithLiteralMatch(
             ValueError,
-            "Expected input data to `fit()` to be non-empty.",
+            "Expected input data to be non-empty.",
         ):
             data_adapter.DataHandler(data)
 
