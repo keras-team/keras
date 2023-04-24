@@ -858,7 +858,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     1.177
 
     >>> # Calling with 'sample_weight'.
-    >>> cce(y_true, y_pred, sample_weight=tf.constant([0.3, 0.7])).numpy()
+    >>> cce(y_true, y_pred, sample_weight=np.array([0.3, 0.7]))
     0.814
 
     >>> # Using 'sum' reduction type.
@@ -976,7 +976,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
     0.23315276
 
     >>> # Calling with 'sample_weight'.
-    >>> cce(y_true, y_pred, sample_weight=tf.constant([0.3, 0.7])).numpy()
+    >>> cce(y_true, y_pred, sample_weight=np.array([0.3, 0.7]))
     0.1632
 
     >>> # Using 'sum' reduction type.
@@ -1086,7 +1086,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     1.177
 
     >>> # Calling with 'sample_weight'.
-    >>> scce(y_true, y_pred, sample_weight=tf.constant([0.3, 0.7])).numpy()
+    >>> scce(y_true, y_pred, sample_weight=np.array([0.3, 0.7]))
     0.814
 
     >>> # Using 'sum' reduction type.
