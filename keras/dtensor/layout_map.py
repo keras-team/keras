@@ -27,7 +27,6 @@ from keras.dtensor import utils
 from keras.engine import base_layer
 
 # isort: off
-from tensorflow.python.util.deprecation import deprecated
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -235,10 +234,6 @@ class LayoutMap(collections.abc.MutableMapping):
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
-@keras_export("keras.dtensor.experimental.layout_map_scope", v1=[])
-@deprecated(
-    None, "use tf.keras.dtensor.experimental.LayoutMap.scope() instead."
-)
 @contextlib.contextmanager
 def layout_map_scope(layout_map):
     """Apply the layout to all the tf.Variables created under the scope.
