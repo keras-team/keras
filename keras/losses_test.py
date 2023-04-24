@@ -3011,7 +3011,8 @@ class LossIgnoreNaNTest(tf.test.TestCase):
         y_pred = backend.variable(np.array([1, np.nan, 4]))
         sample_weight = backend.variable(np.array([0.7, 0.3, 1]))
         loss_value = loss_fn(y_true, y_pred, sample_weight)
-        self.assertAlmostEqual(backend.eval(loss_value), (0.7 * 0 + 0.3 * 0.5 + 1 * 0.5) / 2)
+        self.assertAlmostEqual(backend.eval(loss_value),
+         (0.7 * 0 + 0.3 * 0.5 + 1 * 0.5) / 2)
 
         loss_fn = losses.LossIgnoreNaN(mse_loss, reduction=losses.Reduction.SUM)
         y_true = backend.variable(np.array([1, np.nan, 3]))
@@ -3019,7 +3020,8 @@ class LossIgnoreNaNTest(tf.test.TestCase):
         loss_value = loss_fn(y_true, y_pred)
         self.assertAlmostEqual(backend.eval(loss_value), 1.0)
 
-        loss_fn = losses.LossIgnoreNaN(mse_loss, reduction=losses.Reduction.NONE)
+        loss_fn = losses.LossIgnoreNaN(mse_loss, 
+        reduction=losses.Reduction.NONE)
         y_true = backend.variable(np.array([1, np.nan, 3]))
         y_pred = backend.variable(np.array([1, np.nan, 4]))
         loss_value = loss_fn(y_true, y_pred)

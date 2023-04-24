@@ -894,7 +894,8 @@ class MeanTensor(Metric):
 
 @keras_export('keras.metrics.MetricIgnoreNaN')
 class MetricIgnoreNaN(Metric):
-    """Computes the given metric between the labels and predictions while ignoring NaN.
+    """Computes the given metric between the labels and predictions while
+    ignoring NaN.
 
     This class wraps another metric and computes it, ignoring any NaN values
     in the labels and predictions.
@@ -927,7 +928,8 @@ class MetricIgnoreNaN(Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true_non_nan, y_pred_non_nan = self.mask_nan_values(y_true, y_pred)
-        self.metric_fn.update_state(y_true_non_nan, y_pred_non_nan, sample_weight=sample_weight)
+        self.metric_fn.update_state(y_true_non_nan, y_pred_non_nan, 
+        sample_weight=sample_weight)
 
     def result(self):
         return self.metric_fn.result()
@@ -937,7 +939,8 @@ class MetricIgnoreNaN(Metric):
 
     @staticmethod
     def mask_nan_values(y_true, y_pred):
-        nan_mask = tf.math.logical_or(tf.math.is_nan(y_true), tf.math.is_nan(y_pred))
+        nan_mask = tf.math.logical_or(tf.math.is_nan(y_true), 
+        tf.math.is_nan(y_pred))
         non_nan_mask = tf.math.logical_not(nan_mask)
         y_true_non_nan = tf.boolean_mask(y_true, non_nan_mask)
         y_pred_non_nan = tf.boolean_mask(y_pred, non_nan_mask)

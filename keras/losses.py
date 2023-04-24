@@ -1602,7 +1602,8 @@ class LossIgnoreNaN(Loss):
     Usage with the `compile()` API:
 
     ```python (example: using mse loss with ignore nan)
-    model.compile(optimizer='sgd', loss=tf.keras.losses.LossIgnoreNaN(keras.losses.MeanSquaredError))
+    model.compile(optimizer='sgd', 
+    loss=tf.keras.losses.LossIgnoreNaN(keras.losses.MeanSquaredError))
     ```
     """
     def __init__(self, loss, **kwargs):
@@ -1611,12 +1612,14 @@ class LossIgnoreNaN(Loss):
 
     def call(self, y_true, y_pred, sample_weight=None):
         y_true_non_nan, y_pred_non_nan = self.mask_nan_values(y_true, y_pred)
-        loss_value_non_nan = self.loss_fn(y_true_non_nan, y_pred_non_nan, sample_weight=sample_weight)
+        loss_value_non_nan = self.loss_fn(y_true_non_nan, y_pred_non_nan,
+         sample_weight=sample_weight)
         return loss_value_non_nan
 
     @staticmethod
     def mask_nan_values(y_true, y_pred):
-        nan_mask = tf.math.logical_or(tf.math.is_nan(y_true), tf.math.is_nan(y_pred))
+        nan_mask = tf.math.logical_or(tf.math.is_nan(y_true),
+         tf.math.is_nan(y_pred))
         non_nan_mask = tf.math.logical_not(nan_mask)
         y_true_non_nan = tf.boolean_mask(y_true, non_nan_mask)
         y_pred_non_nan = tf.boolean_mask(y_pred, non_nan_mask)
