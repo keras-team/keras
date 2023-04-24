@@ -61,10 +61,10 @@ class Operation:
     def __new__(cls, *args, **kwargs):
         """We override __new__ to saving serializable constructor arguments.
 
-        These arguments are used to auto-generate an object serialization config,
-        which enables user-created subclasses to be serializable out of the box
-        in most cases without forcing the user to manually implement
-        `get_config()`.
+        These arguments are used to auto-generate an object serialization
+        config, which enables user-created subclasses to be serializable
+        out of the box in most cases without forcing the user
+        to manually implement `get_config()`.
         """
         # Generate a config to be returned by default by `get_config()`.
         arg_names = inspect.getfullargspec(cls.__init__).args

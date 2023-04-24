@@ -4,7 +4,6 @@ from tensorflow import nest
 
 from keras_core.backend import KerasTensor
 from keras_core.operations.operation import Operation
-from keras_core.utils.naming import auto_name
 
 
 class Function(Operation):
@@ -16,7 +15,7 @@ class Function(Operation):
         self._inputs = nest.flatten(inputs)
         self._outputs = nest.flatten(outputs)
 
-        (nodes, nodes_by_depth, operations, operations_by_depth) = _map_graph(
+        (nodes, nodes_by_depth, operations, operations_by_depth) = map_graph(
             self._inputs, self._outputs
         )
         self._nodes = nodes
@@ -135,11 +134,11 @@ class Function(Operation):
                         )
 
 
-def _make_node_key(op_name, node_index):
+def make_node_key(op_name, node_index):
     return op_name + "_ib-" + str(node_index)
 
 
-def _map_graph(inputs, outputs):
+def map_graph(inputs, outputs):
     """Validates a graph's topology and gather its operations and nodes.
 
     Args:
@@ -157,7 +156,7 @@ def _map_graph(inputs, outputs):
     # Nodes are ordered from inputs -> outputs.
     nodes_in_decreasing_depth, operation_indices = _build_map(outputs)
     network_nodes = {
-        _make_node_key(
+        make_node_key(
             str(id(node.operation)), node.operation._inbound_nodes.index(node)
         )
         for node in nodes_in_decreasing_depth
@@ -196,7 +195,7 @@ def _map_graph(inputs, outputs):
             operations_depths[input_operation] = 0
             operation_indices[input_operation] = -1
             nodes_depths[input_operation._inbound_nodes[0]] = 0
-            network_nodes.add(_make_node_key(input_operation.name, 0))
+            network_nodes.add(make_node_key(input_operation.name, 0))
 
     # Build a dict {depth: list of nodes with this depth}
     nodes_by_depth = collections.defaultdict(list)
