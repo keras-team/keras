@@ -1315,9 +1315,7 @@ class DataHandler:
         )
 
         if self._inferred_steps == 0:
-            raise ValueError(
-                "Expected input data to `fit()` to be non-empty."
-            )
+            raise ValueError("Expected input data to `fit()` to be non-empty.")
 
     def _configure_dataset_and_inferred_steps(
         self, strategy, x, steps_per_epoch, class_weight, distribute
