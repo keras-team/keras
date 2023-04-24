@@ -1,8 +1,6 @@
 import re
 import warnings
 
-import numpy as np
-
 from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
@@ -14,7 +12,6 @@ from keras_core.utils.tracking import Tracker
 
 @keras_core_export(["keras_core.Optimizer", "keras_core.optimizers.Optimizer"])
 class Optimizer:
-    # TODO: support jit_compile
     def __init__(
         self,
         learning_rate,
@@ -137,7 +134,7 @@ class Optimizer:
         """Add an all-zeros variable with the shape and dtype of a reference variable."""
         initializer = initializers.Zeros()
         name = name or auto_name(self.__class__.__name__)
-        self.add_variable(
+        return self.add_variable(
             shape=reference_variable.shape,
             initializer=initializer,
             dtype=reference_variable.dtype,
@@ -276,29 +273,6 @@ class Optimizer:
     @property
     def learning_rate(self):
         return self._get_current_learning_rate()
-
-    def save_own_variables(self, store):
-        """Get the state of this optimizer object."""
-        for i, variable in enumerate(self.variables):
-            store[str(i)] = np.array(variable)
-
-    def load_own_variables(self, store):
-        """Set the state of this optimizer object."""
-        if len(store.keys()) != len(self.variables):
-            msg = (
-                f"Skipping variable loading for optimizer '{self.name}', "
-                f"because it has {len(self.variables)} variables whereas "
-                f"the saved optimizer has {len(store.keys())} variables. "
-            )
-            if len(self.variables) == 0:
-                msg += (
-                    "This is likely because the optimizer has not been "
-                    "called/built yet."
-                )
-            warnings.warn(msg, stacklevel=2)
-            return
-        for i, variable in enumerate(self.variables):
-            variable.assign(store[str(i)])
 
     def _get_current_learning_rate(self):
         if isinstance(
@@ -500,7 +474,6 @@ class Optimizer:
             "use_ema": self.use_ema,
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
-            "jit_compile": self.jit_compile,
         }
         return config
 

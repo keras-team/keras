@@ -1,12 +1,10 @@
-import copy
-
 from tensorflow import nest
 
+from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.core.input_layer import InputLayer
 from keras_core.models.functional import Functional
 from keras_core.models.model import Model
-from keras_core.saving import serialization_lib
 from keras_core.utils import tracking
 
 
@@ -164,40 +162,8 @@ class Sequential(Model):
         return True
 
     def get_config(self):
-        layer_configs = []
-        for layer in super().layers:
-            # `super().layers` include the InputLayer if available (it is
-            # filtered out of `self.layers`).
-            layer_configs.append(
-                serialization_lib.serialize_keras_object(layer)
-            )
-        config = Model.get_config(self)
-        config["name"] = self.name
-        config["layers"] = copy.deepcopy(layer_configs)
-        if self._functional is not None:
-            config["build_input_shape"] = self._layers[0].batch_shape
-        return config
+        raise NotImplementedError
 
     @classmethod
-    def from_config(cls, config, custom_objects=None):
-        if "name" in config:
-            name = config["name"]
-            build_input_shape = config.get("build_input_shape")
-            layer_configs = config["layers"]
-        else:
-            name = None
-            layer_configs = config
-        model = cls(name=name)
-        for layer_config in layer_configs:
-            layer = serialization_lib.deserialize_keras_object(
-                layer_config,
-                custom_objects=custom_objects,
-            )
-            model.add(layer)
-        if (
-            not model._functional
-            and build_input_shape
-            and isinstance(build_input_shape, (tuple, list))
-        ):
-            model.build(build_input_shape)
-        return model
+    def from_config(cls, config):
+        raise NotImplementedError
