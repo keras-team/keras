@@ -16,7 +16,7 @@ class Adam(optimizer.Optimizer):
     data/parameters*".
 
     Args:
-      learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
+      learning_rate: A `Tensor`, floating point value, a schedule that is a
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
         learning rate. Defaults to `0.001`.
