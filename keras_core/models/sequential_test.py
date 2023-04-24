@@ -174,18 +174,22 @@ class SequentialTest(testing.TestCase):
         model = Sequential(name="seq")
         model.add(layers.Dense(4))
         model.add(layers.Dense(5))
-        self.run_class_serialization_test(model)
+        revived = self.run_class_serialization_test(model)
+        self.assertLen(revived.layers, 2)
 
         # Built deferred
         model.build((2, 3))
-        self.run_class_serialization_test(model)
+        revived = self.run_class_serialization_test(model)
+        self.assertLen(revived.layers, 2)
 
         # Regular
         model = Sequential(name="seq")
         model.add(Input(shape=(2,), batch_size=3))
         model.add(layers.Dense(4))
         model.add(layers.Dense(5))
-        self.run_class_serialization_test(model)
+        model.add(layers.Dense(6))
+        revived = self.run_class_serialization_test(model)
+        self.assertLen(revived.layers, 3)
 
         # Weird
         class DictLayer(layers.Layer):
@@ -194,6 +198,7 @@ class SequentialTest(testing.TestCase):
                 return inputs
 
         model = Sequential([DictLayer()])
-        self.run_class_serialization_test(
+        revived = self.run_class_serialization_test(
             model, custom_objects={"DictLayer": DictLayer}
         )
+        self.assertLen(revived.layers, 1)

@@ -49,6 +49,7 @@ class TestCase(unittest.TestCase):
         )
         self.assertEqual(config_json, revived_config_json)
         self.assertEqual(ref_dir, dir(revived_instance))
+        return revived_instance
 
     def run_layer_test(
         self,
