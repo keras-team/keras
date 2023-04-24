@@ -139,6 +139,19 @@ def serialize_keras_object(obj):
             "class_name": "__bytes__",
             "config": {"value": obj.decode("utf-8")},
         }
+    if isinstance(obj, backend.KerasTensor):
+        history = getattr(obj, "_keras_history", None)
+        if history:
+            history = list(history)
+            history[0] = history[0].name
+        return {
+            "class_name": "__keras_tensor__",
+            "config": {
+                "shape": obj.shape,
+                "dtype": obj.dtype,
+                "keras_history": history,
+            },
+        }
     if isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
     if isinstance(obj, (tf.Tensor, jax.numpy.ndarray)):
@@ -202,12 +215,6 @@ def serialize_keras_object(obj):
     config_with_public_class = serialize_with_public_class(
         obj.__class__, inner_config
     )
-
-    # TODO(nkovela): Add TF ops dispatch handler serialization for
-    # ops.EagerTensor that contains nested numpy array.
-    # Target: NetworkConstructionTest.test_constant_initializer_with_numpy
-    if isinstance(inner_config, str) and inner_config == "op_dispatch_handler":
-        return obj
 
     if config_with_public_class is not None:
         get_build_and_compile_config(obj, config_with_public_class)
@@ -564,6 +571,13 @@ def deserialize_keras_object(
     custom_objects = custom_objects or {}
 
     # Special cases:
+    if class_name == "__keras_tensor__":
+        obj = backend.KerasTensor(
+            inner_config["shape"], dtype=inner_config["dtype"]
+        )
+        obj._pre_serialization_keras_history = inner_config["keras_history"]
+        return obj
+
     if class_name == "__tensor__":
         return backend.convert_to_tensor(
             inner_config["value"], dtype=inner_config["dtype"]

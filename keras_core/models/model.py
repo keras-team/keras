@@ -1,6 +1,7 @@
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.utils import python_utils
 from keras_core.utils import summary_utils
 
 if backend.backend() == "tensorflow":
@@ -33,15 +34,21 @@ class Model(Trainer, Layer):
     def __new__(cls, *args, **kwargs):
         # Signature detection
         if functional_init_arguments(args, kwargs):
-            # Functional model
             from keras_core.models import functional
 
             return functional.Functional(*args, **kwargs)
-        return Layer.__new__(cls)
+        return super().__new__(cls)
 
-    def __init__(self, trainable=True, name=None, dtype=None):
+    def __init__(self, *args, **kwargs):
         Trainer.__init__(self)
-        Layer.__init__(self, trainable=trainable, name=name, dtype=dtype)
+        from keras_core.models import functional
+
+        if isinstance(self, functional.Functional) and python_utils.is_default(
+            self.__init__
+        ):
+            functional.Functional.__init__(self, *args, **kwargs)
+        else:
+            Layer.__init__(self, *args, **kwargs)
 
     def call(self, inputs, training=False):
         raise NotImplementedError

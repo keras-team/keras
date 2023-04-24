@@ -250,11 +250,11 @@ class Trainer:
 
     def get_compile_config(self):
         # TODO
-        raise NotImplementedError
+        pass
 
     def compile_from_config(self):
         # TODO
-        raise NotImplementedError
+        return {}
 
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.
