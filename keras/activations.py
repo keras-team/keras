@@ -358,9 +358,8 @@ def gelu(x, approximate=False):
         if `approximate` is `False`.
 
     Reference:
-        - [Gaussian Error Linear Units (GELUs)](
-            https://arxiv.org/abs/1606.08415)
-    """
+        - [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
+    """  # noqa: E501
     return tf.nn.gelu(x, approximate)
 
 
@@ -537,7 +536,7 @@ def serialize(activation, use_legacy_format=False):
     Args:
         activation : Function object.
         use_legacy_format: Boolean, whether to use the legacy format for
-            serialization.
+            serialization. Defaults to False.
 
     Returns:
         String denoting the name attribute of the input function
@@ -614,7 +613,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
         custom_objects: Optional `{function_name: function_obj}`
             dictionary listing user-provided activation functions.
         use_legacy_format: Boolean, whether to use the legacy format for
-            deserialization.
+            deserialization. Defaults to False.
 
     Returns:
         Corresponding activation function.
