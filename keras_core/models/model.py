@@ -31,24 +31,17 @@ class Model(Trainer, Layer):
     """
 
     def __new__(cls, *args, **kwargs):
-        # Signature detection for usage of `Model` as a `Functional`
-        if functional_init_arguments(args, kwargs) and cls == Model:
+        # Signature detection
+        if functional_init_arguments(args, kwargs):
+            # Functional model
             from keras_core.models import functional
 
             return functional.Functional(*args, **kwargs)
-        return super().__new__(cls)
+        return Layer.__new__(cls)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, trainable=True, name=None, dtype=None):
         Trainer.__init__(self)
-        from keras_core.models import functional
-
-        # Signature detection for usage of a `Model` subclass
-        # as a `Functional` subclass
-        if functional_init_arguments(args, kwargs):
-            inject_functional_model_class(self.__class__)
-            functional.Functional.__init__(self, *args, **kwargs)
-        else:
-            Layer.__init__(self, *args, **kwargs)
+        Layer.__init__(self, trainable=trainable, name=name, dtype=dtype)
 
     def call(self, inputs, training=False):
         raise NotImplementedError
@@ -166,24 +159,3 @@ def functional_init_arguments(args, kwargs):
         or (len(args) == 1 and "outputs" in kwargs)
         or ("inputs" in kwargs and "outputs" in kwargs)
     )
-
-
-def inject_functional_model_class(cls):
-    """Inject `Functional` into the hierarchy of this class if needed."""
-    from keras_core.models import functional
-
-    if cls == Model:
-        return functional.Functional
-    # In case there is any multiple inheritance, we stop injecting the
-    # class if keras model is not in its class hierarchy.
-    if cls == object:
-        return object
-
-    cls.__bases__ = tuple(
-        inject_functional_model_class(base) for base in cls.__bases__
-    )
-    # Trigger any `__new__` class swapping that needed to happen on `Functional`
-    # but did not because functional was not in the class hierarchy.
-    cls.__new__(cls)
-
-    return cls

@@ -24,10 +24,6 @@ class Function(Operation):
         self._operations_by_depth = operations_by_depth
 
     @property
-    def operations(self):
-        return self._operations[:]
-
-    @property
     def inputs(self):
         return self._inputs
 
@@ -138,8 +134,8 @@ class Function(Operation):
                         )
 
 
-def make_node_key(op, node_index):
-    return str(id(op)) + "_ib-" + str(node_index)
+def make_node_key(op_name, node_index):
+    return op_name + "_ib-" + str(node_index)
 
 
 def map_graph(inputs, outputs):
@@ -160,7 +156,9 @@ def map_graph(inputs, outputs):
     # Nodes are ordered from inputs -> outputs.
     nodes_in_decreasing_depth, operation_indices = _build_map(outputs)
     network_nodes = {
-        make_node_key(node.operation, node.operation._inbound_nodes.index(node))
+        make_node_key(
+            str(id(node.operation)), node.operation._inbound_nodes.index(node)
+        )
         for node in nodes_in_decreasing_depth
     }
 
@@ -197,7 +195,7 @@ def map_graph(inputs, outputs):
             operations_depths[input_operation] = 0
             operation_indices[input_operation] = -1
             nodes_depths[input_operation._inbound_nodes[0]] = 0
-            network_nodes.add(make_node_key(input_operation, 0))
+            network_nodes.add(make_node_key(input_operation.name, 0))
 
     # Build a dict {depth: list of nodes with this depth}
     nodes_by_depth = collections.defaultdict(list)

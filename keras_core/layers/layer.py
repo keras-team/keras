@@ -127,10 +127,8 @@ class Layer(Operation):
         if config:
             if "input_shape" in config:
                 self.build(config["input_shape"])
-                self._build_shapes_dict = config
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
-                self._build_shapes_dict = config["shapes_dict"]
 
     def add_variable(
         self,

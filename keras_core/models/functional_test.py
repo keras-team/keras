@@ -4,8 +4,7 @@ from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 from keras_core.layers.core.input_layer import Input
-from keras_core.models import Functional
-from keras_core.models import Model
+from keras_core.models.functional import Functional
 
 
 class FunctionalTest(testing.TestCase):
@@ -15,12 +14,8 @@ class FunctionalTest(testing.TestCase):
         x = input_a + input_b
         x = layers.Dense(5)(x)
         outputs = layers.Dense(4)(x)
-        model = Functional([input_a, input_b], outputs, name="basic")
+        model = Functional([input_a, input_b], outputs)
         model.summary()
-
-        self.assertEqual(model.name, "basic")
-        self.assertTrue(isinstance(model, Functional))
-        self.assertTrue(isinstance(model, Model))
 
         # Eager call
         in_val = [np.random.random((2, 3)), np.random.random((2, 3))]
@@ -161,44 +156,8 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(out_val.shape, (2, 3, 3))
 
     def test_serialization(self):
-        # Test basic model
-        inputs = Input(shape=(3,), batch_size=2)
-        outputs = layers.Dense(3)(inputs)
-        model = Functional(inputs, outputs)
-        self.run_class_serialization_test(model)
-
-        # Test multi-io model
-        input_a = Input(shape=(3,), batch_size=2, name="input_a")
-        input_b = Input(shape=(3,), batch_size=2, name="input_b")
-        xa = layers.Dense(5, name="middle_a")(input_a)
-        xb = layers.Dense(5, name="middle_b")(input_b)
-        output_a = layers.Dense(4, name="output_a")(xa)
-        output_b = layers.Dense(4, name="output_b")(xb)
-        model = Functional(
-            [input_a, input_b], [output_a, output_b], name="func"
-        )
-        self.run_class_serialization_test(model)
-
-        # Test model that includes floating ops
-        input_a = Input(shape=(3,), batch_size=2, name="input_a")
-        input_b = Input(shape=(3,), batch_size=2, name="input_b")
-        x = input_a + input_b
-        x = layers.Dense(5, name="middle")(x)
-        output_a = layers.Dense(4, name="output_a")(x)
-        output_b = layers.Dense(4, name="output_b")(x)
-        model = Functional(
-            [input_a, input_b], [output_a, output_b], name="func"
-        )
-        self.run_class_serialization_test(model)
-
-        # Test model with dict i/o
-        input_a = Input(shape=(3,), batch_size=2, name="a")
-        input_b = Input(shape=(3,), batch_size=2, name="b")
-        x = input_a + input_b
-        x = layers.Dense(5)(x)
-        outputs = layers.Dense(4)(x)
-        model = Functional({"a": input_a, "b": input_b}, outputs)
-        self.run_class_serialization_test(model)
+        # TODO
+        pass
 
     def test_add_loss(self):
         # TODO

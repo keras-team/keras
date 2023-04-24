@@ -6,8 +6,6 @@ from tensorflow import nest
 
 
 class TestCase(unittest.TestCase):
-    maxDiff = None
-
     def assertAllClose(self, x1, x2, atol=1e-7, rtol=1e-7):
         np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
 
@@ -25,29 +23,20 @@ class TestCase(unittest.TestCase):
         # get_config roundtrip
         cls = instance.__class__
         config = instance.get_config()
-        config_json = json.dumps(config, sort_keys=True, indent=4)
         ref_dir = dir(instance)[:]
         with custom_object_scope(custom_objects):
             revived_instance = cls.from_config(config)
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
-        self.assertEqual(config_json, revived_config_json)
+        self.assertEqual(config, revived_config)
         self.assertEqual(ref_dir, dir(revived_instance))
 
         # serialization roundtrip
         serialized = serialize_keras_object(instance)
-        serialized_json = json.dumps(serialized, sort_keys=True, indent=4)
+        json_str = json.dumps(serialized)
         with custom_object_scope(custom_objects):
-            revived_instance = deserialize_keras_object(
-                json.loads(serialized_json)
-            )
+            revived_instance = deserialize_keras_object(json.loads(json_str))
         revived_config = revived_instance.get_config()
-        revived_config_json = json.dumps(
-            revived_config, sort_keys=True, indent=4
-        )
-        self.assertEqual(config_json, revived_config_json)
+        self.assertEqual(config, revived_config)
         self.assertEqual(ref_dir, dir(revived_instance))
 
     def run_layer_test(
