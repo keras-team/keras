@@ -3,6 +3,7 @@ import warnings
 from keras_core import backend
 from keras_core import metrics as metrics_module
 from keras_core import operations as ops
+from keras_core.saving import serialization_lib
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
 from keras_core.utils import tracking
@@ -47,6 +48,16 @@ class Trainer:
         self.stop_training = False
         self.compiled = True
         self._loss_tracker = metrics_module.Mean(name="loss")
+
+        self._compile_config = serialization_lib.SerializableDict(
+            optimizer=optimizer,
+            loss=loss,
+            loss_weights=loss_weights,
+            metrics=metrics,
+            weighted_metrics=weighted_metrics,
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
 
     @property
     def jit_compile(self):
@@ -249,12 +260,44 @@ class Trainer:
         raise NotImplementedError
 
     def get_compile_config(self):
-        # TODO
-        pass
+        """Returns a serialized config with information for compiling the model.
 
-    def compile_from_config(self):
-        # TODO
-        return {}
+        This method returns a config dictionary containing all the information
+        (optimizer, loss, metrics, etc.) with which the model was compiled.
+
+        Returns:
+            A dict containing information for compiling the model.
+        """
+        if self.compiled and hasattr(self, "_compile_config"):
+            return self._compile_config.serialize()
+
+    def compile_from_config(self, config):
+        """Compiles the model with the information given in config.
+
+        This method uses the information in the config (optimizer, loss,
+        metrics, etc.) to compile the model.
+
+        Args:
+            config: Dict containing information for compiling the model.
+        """
+        has_overridden_compile = self.__class__.compile != Trainer.compile
+        if has_overridden_compile:
+            warnings.warn(
+                "`compile()` was not called as part of model loading "
+                "because the model's `compile()` method is custom. "
+                "All subclassed Models that have `compile()` "
+                "overridden should also override "
+                "`get_compile_config()` and `compile_from_config(config)`. "
+                "Alternatively, you can "
+                "call `compile()` manually after loading.",
+                stacklevel=2,
+            )
+            return
+        config = serialization_lib.deserialize_keras_object(config)
+        self.compile(**config)
+        if hasattr(self, "optimizer") and self.built:
+            # Create optimizer variables.
+            self.optimizer.build(self.trainable_variables)
 
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.

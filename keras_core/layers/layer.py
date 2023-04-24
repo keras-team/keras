@@ -58,8 +58,6 @@ class Layer(Operation):
         self._seed_generators = []
         self._losses = []
         self._variables = []
-        self._trainable_variables = []
-        self._non_trainable_variables = []
         self._supports_masking = not utils.is_default(self.compute_mask)
         self._build_shapes_dict = None
         self._call_signature_parameters = [
@@ -447,6 +445,39 @@ class Layer(Operation):
                 weight_regularization_losses.append(regularizer(v))
         losses.extend(weight_regularization_losses)
         return losses
+
+    def save_own_variables(self, store):
+        """Saves the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is saved upon calling `model.save()`.
+
+        Args:
+            store: Dict where the state of the model will be saved.
+        """
+        all_vars = self._variables
+        for i, v in enumerate(all_vars):
+            store[f"{i}"] = np.array(v)
+
+    def load_own_variables(self, store):
+        """Loads the state of the layer.
+
+        You can override this method to take full control of how the state of
+        the layer is loaded upon calling `keras.models.load_model()`.
+
+        Args:
+            store: Dict from which the state of the model will be loaded.
+        """
+        all_vars = self._variables
+        if len(store.keys()) != len(all_vars):
+            raise ValueError(
+                f"Layer '{self.name}' expected {len(all_vars)} variables, "
+                "but received "
+                f"{len(store.keys())} variables during loading. "
+                f"Expected: {[v.name for v in all_vars]}"
+            )
+        for i, v in enumerate(all_vars):
+            v.assign(store[f"{i}"])
 
     def _clear_losses(self):
         if backend.in_stateless_scope():

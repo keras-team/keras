@@ -1,6 +1,8 @@
 import re
 import warnings
 
+import numpy as np
+
 from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
@@ -274,6 +276,29 @@ class Optimizer:
     @property
     def learning_rate(self):
         return self._get_current_learning_rate()
+
+    def save_own_variables(self, store):
+        """Get the state of this optimizer object."""
+        for i, variable in enumerate(self.variables):
+            store[str(i)] = np.array(variable)
+
+    def load_own_variables(self, store):
+        """Set the state of this optimizer object."""
+        if len(store.keys()) != len(self.variables):
+            msg = (
+                f"Skipping variable loading for optimizer '{self.name}', "
+                f"because it has {len(self.variables)} variables whereas "
+                f"the saved optimizer has {len(store.keys())} variables. "
+            )
+            if len(self.variables) == 0:
+                msg += (
+                    "This is likely because the optimizer has not been "
+                    "called/built yet."
+                )
+            warnings.warn(msg, stacklevel=2)
+            return
+        for i, variable in enumerate(self.variables):
+            variable.assign(store[str(i)])
 
     def _get_current_learning_rate(self):
         if isinstance(
