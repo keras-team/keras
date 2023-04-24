@@ -80,7 +80,7 @@ class Adam(optimizer.Optimizer):
         velocity_hat (only set when amsgrad is applied),
 
         Args:
-          var_list: list of model variables to build Adam variables on.
+            var_list: list of model variables to build Adam variables on.
         """
         if self.built:
             return
