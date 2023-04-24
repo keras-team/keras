@@ -170,5 +170,30 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
     def test_serialization(self):
-        # TODO
-        pass
+        # Unbuilt deferred
+        model = Sequential(name="seq")
+        model.add(layers.Dense(4))
+        model.add(layers.Dense(5))
+        self.run_class_serialization_test(model)
+
+        # Built deferred
+        model.build((2, 3))
+        self.run_class_serialization_test(model)
+
+        # Regular
+        model = Sequential(name="seq")
+        model.add(Input(shape=(2,), batch_size=3))
+        model.add(layers.Dense(4))
+        model.add(layers.Dense(5))
+        self.run_class_serialization_test(model)
+
+        # Weird
+        class DictLayer(layers.Layer):
+            def call(self, inputs):
+                assert isinstance(inputs, dict)
+                return inputs
+
+        model = Sequential([DictLayer()])
+        self.run_class_serialization_test(
+            model, custom_objects={"DictLayer": DictLayer}
+        )
