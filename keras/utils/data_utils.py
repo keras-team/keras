@@ -568,6 +568,66 @@ class Sequence:
             yield item
 
 
+class TorchDataset(Sequence):
+    """Adapts `torch.utils.data.Dataset` to Sequence interface.
+
+    Args:
+        torch_dataset: Instance of `torch.utils.data.Dataset`
+        batch_size: Size of batch returned from __getitem__
+        shuffle: If True, shuffles data in the batches after each epoch.
+    """
+
+    def __init__(self, torch_dataset, batch_size=32, shuffle=True):
+        self.dataset = torch_dataset
+        self.batch_size = batch_size
+
+        self.indexes = np.arange(len(self.dataset))
+        self.shuffle = shuffle
+        self.on_epoch_end()
+
+    def __len__(self):
+        """Denotes the number of batches per epoch."""
+        return int(np.floor(len(self.dataset) / self.batch_size))
+
+    def __getitem__(self, index):
+        """Generates single batch of data.
+
+        Args:
+            index: Index of the batch in the Sequence.
+
+        Returns:
+            Batch for the given index.
+        """
+
+        # Obtain indexes of the batch
+        indexes = self.indexes[
+            index * self.batch_size : (index + 1) * self.batch_size
+        ]
+
+        # Transform pytorch `tensor` to numpy array
+        X = [np.array(*self.dataset[i][0]) for i in indexes]
+        y = [self.dataset[i][1] for i in indexes]
+
+        return np.array(X), np.array(y)
+
+    def on_epoch_end(self):
+        """Shuffles indexes after each epoch."""
+        if self.shuffle:
+            np.random.shuffle(self.indexes)
+
+
+class TorchDataLoader(TorchDataset):
+    """Adapts `torch.utils.data.DataLoader` to Sequence interface.
+
+    Args:
+        torch_dataloader: Instance of `torch.utils.data.DataLoader`
+    """
+
+    def __init__(self, torch_dataloader):
+        # Pass dataset and batch_size from DataLoader to TorchDataset.
+        super().__init__(torch_dataloader.dataset, torch_dataloader.batch_size)
+
+
 def iter_sequence_infinite(seq):
     """Iterates indefinitely over a Sequence.
 

@@ -1077,6 +1077,90 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
         self._keras_sequence.on_epoch_end()
 
 
+class TorchDatasetAdapter(KerasSequenceAdapter):
+    """Adapter that handles `torch.utils.data.Dataset`."""
+
+    @staticmethod
+    def can_handle(x, y=None):
+        """Conditionally imports pytorch library.
+        If import fails, dataset cannot be pytorch dataset.
+        """
+        try:
+            from torch.utils.data import Dataset
+        except ImportError:
+            return False
+
+        # If import succeeds, returns True if `x` is pytorch type Dataset.
+        return isinstance(x, Dataset) or isinstance(x, data_utils.TorchDataset)
+
+    def __init__(
+        self,
+        x,
+        y=None,
+        sample_weights=None,
+        shuffle=False,
+        workers=1,
+        use_multiprocessing=False,
+        max_queue_size=10,
+        model=None,
+        **kwargs,
+    ):
+        super().__init__(
+            x=data_utils.TorchDataset(x),
+            y=None,
+            sample_weights=None,
+            shuffle=False,
+            workers=1,
+            use_multiprocessing=False,
+            max_queue_size=10,
+            model=None,
+            **kwargs,
+        )
+
+
+class TorchDataLoaderAdapter(KerasSequenceAdapter):
+    """Adapter that handles `torch.utils.data.DataLoader`."""
+
+    @staticmethod
+    def can_handle(x, y=None):
+        """Conditionally imports pytorch library.
+        If import fails, dataset cannot be pytorch DataLoader.
+        """
+        try:
+            from torch.utils.data import DataLoader
+        except ImportError:
+            return False
+
+        # If import succeeds, returns True if `x` is pytorch type `DataLoader`.
+        return isinstance(x, DataLoader) or isinstance(
+            x, data_utils.TorchDataLoader
+        )
+
+    def __init__(
+        self,
+        x,
+        y=None,
+        sample_weights=None,
+        shuffle=False,
+        workers=1,
+        use_multiprocessing=False,
+        max_queue_size=10,
+        model=None,
+        **kwargs,
+    ):
+        super().__init__(
+            x=data_utils.TorchDataLoader(x),
+            y=None,
+            sample_weights=None,
+            shuffle=False,
+            workers=1,
+            use_multiprocessing=False,
+            max_queue_size=10,
+            model=None,
+            **kwargs,
+        )
+
+
 ALL_ADAPTER_CLS = [
     ListsOfScalarsDataAdapter,
     TensorLikeDataAdapter,
@@ -1086,6 +1170,8 @@ ALL_ADAPTER_CLS = [
     KerasSequenceAdapter,
     CompositeTensorDataAdapter,
     DatasetCreatorAdapter,
+    TorchDatasetAdapter,
+    TorchDataLoaderAdapter,
 ]
 
 UNSHARDABLE_DATASET_TYPES = [
