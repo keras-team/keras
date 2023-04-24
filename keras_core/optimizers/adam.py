@@ -16,7 +16,7 @@ class Adam(optimizer.Optimizer):
     data/parameters*".
 
     Args:
-      learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
+      learning_rate: A `Tensor`, floating point value, a schedule that is a
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
         learning rate. Defaults to `0.001`.
@@ -54,7 +54,7 @@ class Adam(optimizer.Optimizer):
         **kwargs
     ):
         super().__init__(
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
             name=name,
             weight_decay=weight_decay,
             clipnorm=clipnorm,
@@ -87,12 +87,12 @@ class Adam(optimizer.Optimizer):
         for var in var_list:
             self._momentums.append(
                 self.add_variable_from_reference(
-                    model_variable=var, variable_name="m"
+                    reference_variable=var, name="m"
                 )
             )
             self._velocities.append(
                 self.add_variable_from_reference(
-                    model_variable=var, variable_name="v"
+                    reference_variable=var, name="v"
                 )
             )
         if self.amsgrad:
@@ -100,7 +100,7 @@ class Adam(optimizer.Optimizer):
             for var in var_list:
                 self._velocity_hats.append(
                     self.add_variable_from_reference(
-                        model_variable=var, variable_name="vhat"
+                        reference_variable=var, name="vhat"
                     )
                 )
 
@@ -108,10 +108,15 @@ class Adam(optimizer.Optimizer):
         """Update step given gradient and the associated model variable."""
         beta_1_power = None
         beta_2_power = None
-        lr = ops.cast(self.learning_rate, variable.dtype)
+        lr = ops.cast(learning_rate, variable.dtype)
+        gradient = ops.cast(gradient, variable.dtype)
         local_step = ops.cast(self.iterations + 1, variable.dtype)
-        beta_1_power = ops.power(ops.cast(self.beta_1, variable.dtype), local_step)
-        beta_2_power = ops.power(ops.cast(self.beta_2, variable.dtype), local_step)
+        beta_1_power = ops.power(
+            ops.cast(self.beta_1, variable.dtype), local_step
+        )
+        beta_2_power = ops.power(
+            ops.cast(self.beta_2, variable.dtype), local_step
+        )
 
         m = self._momentums[self._get_variable_index(variable)]
         v = self._velocities[self._get_variable_index(variable)]
@@ -124,7 +129,7 @@ class Adam(optimizer.Optimizer):
             v_hat = self._velocity_hats[self._get_variable_index(variable)]
             v_hat.assign(ops.maximum(v_hat, v))
             v = v_hat
-        variable.assign(m - (m * alpha) / (ops.sqrt(v) + self.epsilon))
+        variable.assign(variable - (m * alpha) / (ops.sqrt(v) + self.epsilon))
 
     def get_config(self):
         config = super().get_config()
