@@ -213,12 +213,5 @@ class KerasFunctionalMetricsTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(backend.eval(metric.result()), 0.0)
 
 
-
-
-
-
-
-
-
 if __name__ == "__main__":
     tf.test.main()

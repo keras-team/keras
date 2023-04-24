@@ -2980,6 +2980,7 @@ class CustomLossTest(tf.test.TestCase):
             7.0,
         )
 
+
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class LossIgnoreNaNTest(tf.test.TestCase):
     def test_loss_ignorenan(self):
