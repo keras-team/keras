@@ -1,7 +1,6 @@
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.utils import python_utils
 from keras_core.utils import summary_utils
 
 if backend.backend() == "tensorflow":
@@ -32,8 +31,8 @@ class Model(Trainer, Layer):
     """
 
     def __new__(cls, *args, **kwargs):
-        # Signature detection
-        if functional_init_arguments(args, kwargs):
+        # Signature detection for usage of `Model` as a `Functional`
+        if functional_init_arguments(args, kwargs) and cls == Model:
             from keras_core.models import functional
 
             return functional.Functional(*args, **kwargs)
@@ -43,9 +42,10 @@ class Model(Trainer, Layer):
         Trainer.__init__(self)
         from keras_core.models import functional
 
-        if isinstance(self, functional.Functional) and python_utils.is_default(
-            self.__init__
-        ):
+        # Signature detection for usage of a `Model` subclass
+        # as a `Functional` subclass
+        if functional_init_arguments(args, kwargs):
+            inject_functional_model_class(self.__class__)
             functional.Functional.__init__(self, *args, **kwargs)
         else:
             Layer.__init__(self, *args, **kwargs)
@@ -166,3 +166,24 @@ def functional_init_arguments(args, kwargs):
         or (len(args) == 1 and "outputs" in kwargs)
         or ("inputs" in kwargs and "outputs" in kwargs)
     )
+
+
+def inject_functional_model_class(cls):
+    """Inject `Functional` into the hierarchy of this class if needed."""
+    from keras_core.models import functional
+
+    if cls == Model:
+        return functional.Functional
+    # In case there is any multiple inheritance, we stop injecting the
+    # class if keras model is not in its class hierarchy.
+    if cls == object:
+        return object
+
+    cls.__bases__ = tuple(
+        inject_functional_model_class(base) for base in cls.__bases__
+    )
+    # Trigger any `__new__` class swapping that needed to happen on `Functional`
+    # but did not because functional was not in the class hierarchy.
+    cls.__new__(cls)
+
+    return cls

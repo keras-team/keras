@@ -11,7 +11,6 @@ from keras_core.models.model import Model
 from keras_core.operations.function import Function
 from keras_core.operations.function import make_node_key
 from keras_core.saving import serialization_lib
-from keras_core.utils import python_utils
 from keras_core.utils import tracking
 
 
@@ -29,12 +28,7 @@ class Functional(Function, Model):
     Symbolic add_loss
     """
 
-    def __new__(cls, *args, **kwargs):
-        # Skip Model.__new__.
-        return Function.__new__(cls)
-
     @tracking.no_automatic_dependency_tracking
-    @python_utils.default
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
@@ -192,7 +186,7 @@ class Functional(Function, Model):
             # Subclassed networks are not serializable
             # (unless serialization is implemented by
             # the author of the subclassed network).
-            return Model.get_config()
+            return Model.get_config(self)
 
         config = {
             "name": self.name,
@@ -266,6 +260,55 @@ class Functional(Function, Model):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
+        functional_config_keys = [
+            "name",
+            "layers",
+            "input_layers",
+            "output_layers",
+        ]
+        is_functional_config = all(
+            key in config for key in functional_config_keys
+        )
+        argspec = inspect.getfullargspec(cls.__init__)
+        functional_init_args = inspect.getfullargspec(Functional.__init__).args[
+            1:
+        ]
+        revivable_as_functional = (
+            cls in {Functional, Model}
+            or argspec.args[1:] == functional_init_args
+            or (argspec.varargs == "args" and argspec.varkw == "kwargs")
+        )
+        if is_functional_config and revivable_as_functional:
+            # Revive Functional model
+            # (but not Functional subclasses with a custom __init__)
+            return cls._from_config(config, custom_objects=custom_objects)
+
+        # Either the model has a custom __init__, or the config
+        # does not contain all the information necessary to
+        # revive a Functional model. This happens when the user creates
+        # subclassed models where `get_config()` is returning
+        # insufficient information to be considered a Functional model.
+        # In this case, we fall back to provide all config into the
+        # constructor of the class.
+        try:
+            return cls(**config)
+        except TypeError as e:
+            raise TypeError(
+                "Unable to revive model from config. When overriding "
+                "the `get_config()` method, make sure that the "
+                "returned config contains all items used as arguments "
+                f"in the  constructor to {cls}, "
+                "which is the default behavior. "
+                "You can override this default behavior by defining a "
+                "`from_config(cls, config)` class method to specify "
+                "how to create an "
+                f"instance of {cls.__name__} from its config.\n\n"
+                f"Received config={config}\n\n"
+                f"Error encountered during deserialization: {e}"
+            )
+
+    @classmethod
+    def _from_config(cls, config, custom_objects=None):
         """Instantiates a Model from its config (output of `get_config()`)."""
         # Layer instances created during
         # the graph reconstruction process

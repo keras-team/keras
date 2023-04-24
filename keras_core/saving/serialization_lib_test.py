@@ -210,29 +210,31 @@ class SerializationLibTest(testing.TestCase):
         new_model.set_weights(model.get_weights())
         y2 = new_model(x)
         self.assertAllClose(y1, y2, atol=1e-5)
-        # TODO
-        # self.assertIsInstance(new_model, PlainFunctionalSubclass)
+        self.assertIsInstance(new_model, PlainFunctionalSubclass)
 
-        # TODO
-        # class FunctionalSubclassWCustomInit(keras_core.Model):
-        #     def __init__(self, num_units=1, **kwargs):
-        #         inputs = keras_core.Input((2,), batch_size=3)
-        #         outputs = keras_core.layers.Dense(num_units)(inputs)
-        #         super().__init__(inputs, outputs)
+        class FunctionalSubclassWCustomInit(keras_core.Model):
+            def __init__(self, num_units=2):
+                inputs = keras_core.Input((2,), batch_size=3)
+                outputs = keras_core.layers.Dense(num_units)(inputs)
+                super().__init__(inputs, outputs)
+                self.num_units = num_units
 
-        # model = FunctionalSubclassWCustomInit(num_units=2)
-        # x = ops.random.normal((2, 2))
-        # y1 = model(x)
-        # _, new_model, _ = self.roundtrip(
-        #     model,
-        #     custom_objects={
-        #         "FunctionalSubclassWCustomInit": FunctionalSubclassWCustomInit
-        #     },
-        # )
-        # new_model.set_weights(model.get_weights())
-        # y2 = new_model(x)
-        # self.assertAllClose(y1, y2, atol=1e-5)
-        # self.assertIsInstance(new_model, FunctionalSubclassWCustomInit)
+            def get_config(self):
+                return {"num_units": self.num_units}
+
+        model = FunctionalSubclassWCustomInit(num_units=3)
+        x = ops.random.normal((2, 2))
+        y1 = model(x)
+        _, new_model, _ = self.roundtrip(
+            model,
+            custom_objects={
+                "FunctionalSubclassWCustomInit": FunctionalSubclassWCustomInit
+            },
+        )
+        new_model.set_weights(model.get_weights())
+        y2 = new_model(x)
+        self.assertAllClose(y1, y2, atol=1e-5)
+        self.assertIsInstance(new_model, FunctionalSubclassWCustomInit)
 
     def test_shared_object(self):
         class MyLayer(keras_core.layers.Layer):
