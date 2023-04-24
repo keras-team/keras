@@ -1366,6 +1366,14 @@ class ModelCheckpoint(Callback):
                     f"Got {options}."
                 )
         else:
+            if filepath and filepath.endswith(".keras") and options is not None:
+                raise ValueError(
+                    "The native Keras format does not support "
+                    "the `options` argument. Please remove "
+                    "the `options` argument, or use the SavedModel "
+                    "format by removing the `.keras` extension from "
+                    "the model filepath."
+                )
             if options is None or isinstance(
                 options, tf.saved_model.SaveOptions
             ):
@@ -1563,6 +1571,8 @@ class ModelCheckpoint(Callback):
                         self.model.save_weights(
                             filepath, overwrite=True, options=self._options
                         )
+                    elif filepath.endswith(".keras"):
+                        self.model.save(filepath, overwrite=True)
                     else:
                         self.model.save(
                             filepath, overwrite=True, options=self._options
