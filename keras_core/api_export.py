@@ -42,7 +42,7 @@ else:
 
     class keras_core_export:
         def __init__(self, path):
-            pass
+            self.path = path
 
         def __call__(self, symbol):
             register_internal_serializable(self.path, symbol)
