@@ -73,8 +73,8 @@ def load_data(
       maxlen: int or None. Maximum sequence length.
           Any longer sequence will be truncated. None means no truncation.
           Defaults to `None`.
-      test_split: Float between `0.` and `1.`. Fraction of the dataset to be used
-        as test data. 0.2 means that 20% of the dataset is used as
+      test_split: Float between `0.` and `1.`. Fraction of the dataset to be
+        used as test data. `0.2` means that 20% of the dataset is used as
         test data. Defaults to `0.2`.
       seed: int. Seed for reproducible data shuffling.
       start_char: int. The start of a sequence will be marked with this
