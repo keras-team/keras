@@ -45,7 +45,7 @@ class Loss:
         raise NotImplementedError
 
     def get_config(self):
-        return {"name": self.name}
+        return {"name": self.name, "reduction": self.reduction}
 
     @classmethod
     def from_config(cls, config):

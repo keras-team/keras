@@ -1,11 +1,75 @@
 from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
+from keras_core.losses.losses import CategoricalHinge
+from keras_core.losses.losses import Hinge
 from keras_core.losses.losses import LossFunctionWrapper
+from keras_core.losses.losses import MeanAbsoluteError
+from keras_core.losses.losses import MeanAbsolutePercentageError
 from keras_core.losses.losses import MeanSquaredError
+from keras_core.losses.losses import MeanSquaredLogarithmicError
+from keras_core.losses.losses import SquaredHinge
+from keras_core.losses.losses import categorical_hinge
+from keras_core.losses.losses import hinge
+from keras_core.losses.losses import mean_absolute_error
+from keras_core.losses.losses import mean_absolute_percentage_error
+from keras_core.losses.losses import mean_squared_error
+from keras_core.losses.losses import mean_squared_logarithmic_error
+from keras_core.losses.losses import squared_hinge
+from keras_core.saving import serialization_lib
+
+ALL_OBJECTS = {
+    Loss,
+    LossFunctionWrapper,
+    MeanSquaredError,
+    MeanAbsoluteError,
+    MeanAbsolutePercentageError,
+    MeanSquaredLogarithmicError,
+    Hinge,
+    SquaredHinge,
+    CategoricalHinge,
+    mean_squared_error,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_logarithmic_error,
+    hinge,
+    squared_hinge,
+    categorical_hinge,
+}
+
+ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 
 
-def deserialize(obj):
-    raise NotImplementedError
+@keras_core_export("keras_core.losses.serialize")
+def serialize(loss):
+    """Serializes loss function or `Loss` instance.
+
+    Args:
+        loss: A Keras `Loss` instance or a loss function.
+
+    Returns:
+        Loss configuration dictionary.
+    """
+    return serialization_lib.serialize_keras_object(loss)
+
+
+@keras_core_export("keras_core.losses.deserialize")
+def deserialize(name, custom_objects=None):
+    """Deserializes a serialized loss class/function instance.
+
+    Args:
+        name: Loss configuration.
+        custom_objects: Optional dictionary mapping names (strings) to custom
+          objects (classes and functions) to be considered during
+          deserialization.
+
+    Returns:
+        A Keras `Loss` instance or a loss function.
+    """
+    return serialization_lib.deserialize_keras_object(
+        name,
+        module_objects=ALL_OBJECTS_DICT,
+        custom_objects=custom_objects,
+    )
 
 
 @keras_core_export("keras_core.losses.get")

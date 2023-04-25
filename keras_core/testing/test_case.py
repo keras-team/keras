@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 import unittest
 
 import numpy as np
@@ -7,6 +9,11 @@ from tensorflow import nest
 
 class TestCase(unittest.TestCase):
     maxDiff = None
+
+    def get_temp_dir(self):
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: os.rmdir(temp_dir))
+        return temp_dir
 
     def assertAllClose(self, x1, x2, atol=1e-7, rtol=1e-7):
         np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
