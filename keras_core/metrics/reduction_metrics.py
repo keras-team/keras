@@ -28,7 +28,8 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
 
     values_ndim = len(values.shape)
     if values_ndim > 1:
-        return reduce_fn(values, axis=list(range(1, values_ndim)))
+        values = reduce_fn(values, axis=list(range(1, values_ndim)))
+        return values, sample_weight
     return values, sample_weight
 
 
@@ -52,6 +53,11 @@ class Sum(Metric):
     >>> m.update_state([1, 3, 5, 7])
     >>> m.result()
     16.0
+
+    >>> m = metrics.Sum()
+    >>> m.update_state([1, 3, 5, 7], sample_weight=[1, 1, 0, 0])
+    >>> m.result()
+    4.0
     """
 
     def __init__(self, name="sum", dtype=None):
@@ -70,7 +76,7 @@ class Sum(Metric):
         self.total.assign(0.0)
 
     def result(self):
-        return ops.identity(self.total)
+        return ops.cast(self.total, self.dtype)
 
 
 @keras_core_export("keras_core.metrics.Mean")
@@ -93,6 +99,7 @@ class Mean(Metric):
     >>> m.update_state([1, 3, 5, 7])
     >>> m.result()
     4.0
+
     >>> m.reset_state()
     >>> m.update_state([1, 3, 5, 7], sample_weight=[1, 1, 0, 0])
     >>> m.result()
@@ -100,7 +107,7 @@ class Mean(Metric):
     ```
     """
 
-    def __init__(self, name="sum", dtype=None):
+    def __init__(self, name="mean", dtype=None):
         super().__init__(name=name, dtype=dtype)
         self.total = self.add_variable(
             shape=(), initializer=initializers.Zeros(), dtype=self.dtype
