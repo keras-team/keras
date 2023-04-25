@@ -25,13 +25,14 @@ conv_transpose
 ctc ??
 """
 
-import math
-
 import numpy as np
 
 from keras_core import backend
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
+from keras_core.backend.common.backend_utils import (
+    compute_conv_transpose_output_shape,
+)
 from keras_core.operations.operation import Operation
 
 
@@ -901,7 +902,7 @@ class ConvTranspose(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
-        output_shape = backend.nn.compute_output_shape_conv_transpose(
+        output_shape = compute_conv_transpose_output_shape(
             inputs,
             kernel,
             self.strides,
@@ -934,7 +935,7 @@ def conv_transpose(
             `data_format="channels_first"`. Pooling happens over the spatial
             dimensions only.
         kernel: Tensor of rank N+2. `kernel` has shape
-            [kernel_spatial_shape, num_input_channels, num_output_channels],
+            [kernel_spatial_shape, num_output_channels, num_input_channels],
             `num_input_channels` should match the number of channels in
             `inputs`.
         strides: int or int tuple/list of `len(inputs_spatial_shape)`,
