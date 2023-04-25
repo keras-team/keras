@@ -43,12 +43,13 @@ ALL_OBJECTS_DICT.update(
 
 @keras_core_export("keras_core.initializers.serialize")
 def serialize(initializer):
+    """Returns the initializer configuration as a Python dict."""
     return serialization_lib.serialize_keras_object(initializer)
 
 
 @keras_core_export("keras_core.initializers.deserialize")
 def deserialize(config, custom_objects=None):
-    """Return a Keras initializer object via its config."""
+    """Returns a Keras initializer object via its configuration."""
     return serialization_lib.deserialize_keras_object(
         config,
         module_objects=ALL_OBJECTS_DICT,
@@ -58,7 +59,7 @@ def deserialize(config, custom_objects=None):
 
 @keras_core_export("keras_core.initializers.get")
 def get(identifier):
-    """Retrieve a Keras initializer object via an identifier.
+    """Retrieves a Keras initializer object via an identifier.
 
     The `identifier` may be the string name of a initializers function or class
     (case-sensitively).

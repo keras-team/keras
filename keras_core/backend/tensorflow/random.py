@@ -8,7 +8,8 @@ from keras_core.backend.config import floatx
 
 def tf_draw_seed(seed):
     # TF ops only accept int32/64 seeds but our base seed is uint32.
-    return tf.cast(draw_seed(seed), dtype="int32")
+    with tf.init_scope():
+        return tf.cast(draw_seed(seed), dtype="int32")
 
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -34,9 +35,10 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
-    return tf.random.stateless_normal(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
-    )
+    with tf.init_scope():
+        return tf.random.stateless_normal(
+            shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
+        )
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -63,13 +65,14 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
-    return tf.random.stateless_uniform(
-        shape=shape,
-        minval=minval,
-        maxval=maxval,
-        dtype=dtype,
-        seed=seed,
-    )
+    with tf.init_scope():
+        return tf.random.stateless_uniform(
+            shape=shape,
+            minval=minval,
+            maxval=maxval,
+            dtype=dtype,
+            seed=seed,
+        )
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -95,16 +98,18 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     """
     dtype = dtype or floatx()
     seed = tf_draw_seed(seed)
-    return tf.random.stateless_truncated_normal(
-        shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
-    )
+    with tf.init_scope():
+        return tf.random.stateless_truncated_normal(
+            shape=shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
+        )
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
     seed = tf_draw_seed(seed)
-    return tf.nn.experimental.stateless_dropout(
-        inputs,
-        rate=rate,
-        noise_shape=noise_shape,
-        seed=seed,
-    )
+    with tf.init_scope():
+        return tf.nn.experimental.stateless_dropout(
+            inputs,
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=seed,
+        )

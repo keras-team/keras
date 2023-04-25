@@ -23,3 +23,11 @@ def mean(x, axis=None, keepdims=False):
 
 def max(x, axis=None, keepdims=False):
     return jnp.max(x, axis=axis, keepdims=keepdims)
+
+
+def ones(shape, dtype="float32"):
+    return jnp.ones(shape, dtype=dtype)
+
+
+def zeros(shape, dtype="float32"):
+    return jnp.zeros(shape, dtype=dtype)

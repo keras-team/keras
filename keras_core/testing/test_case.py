@@ -1,5 +1,5 @@
 import json
-import os
+import shutil
 import tempfile
 import unittest
 
@@ -12,7 +12,7 @@ class TestCase(unittest.TestCase):
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
-        self.addCleanup(lambda: os.rmdir(temp_dir))
+        self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
     def assertAllClose(self, x1, x2, atol=1e-7, rtol=1e-7):

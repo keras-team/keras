@@ -2923,26 +2923,26 @@ def sum(x, axis=None, keepdims=False):
 
 class Zeros(Operation):
     def call(self, shape, dtype="float32"):
-        return backend.execute("zeros", shape, dtype)
+        return backend.numpy.zeros(shape, dtype=dtype)
 
     def compute_output_spec(self, shape, dtype="float32"):
         return KerasTensor(shape, dtype=dtype)
 
 
 def zeros(shape, dtype="float32"):
-    return backend.execute("zeros", shape, dtype)
+    return backend.numpy.zeros(shape, dtype=dtype)
 
 
 class Ones(Operation):
     def call(self, shape, dtype="float32"):
-        return backend.execute("ones", shape, dtype)
+        return backend.numpy.ones(shape, dtype=dtype)
 
     def compute_output_spec(self, shape, dtype="float32"):
         return KerasTensor(shape, dtype=dtype)
 
 
 def ones(shape, dtype="float32"):
-    return backend.execute("ones", shape, dtype)
+    return backend.numpy.ones(shape, dtype=dtype)
 
 
 class Eye(Operation):

@@ -36,6 +36,8 @@ _ASSETS_DIRNAME = "assets"
 
 ATTR_SKIPLIST = frozenset(
     {
+        "_operations",
+        "_layers",
         "_functional",
         "_losses",
         "_inbound_nodes",
@@ -108,47 +110,43 @@ def save_model(model, filepath, weights_format="h5"):
         zip_filepath = os.path.join(get_temp_dir(), "tmp_model.keras")
     else:
         zip_filepath = filepath
-    try:
-        with zipfile.ZipFile(zip_filepath, "w") as zf:
-            with zf.open(_METADATA_FILENAME, "w") as f:
-                f.write(metadata_json.encode())
-            with zf.open(_CONFIG_FILENAME, "w") as f:
-                f.write(config_json.encode())
 
-            if weights_format == "h5":
-                weights_store = H5IOStore(
-                    _VARS_FNAME + ".h5", archive=zf, mode="w"
-                )
-            elif weights_format == "npz":
-                weights_store = NpzIOStore(
-                    _VARS_FNAME + ".npz", archive=zf, mode="w"
-                )
-            else:
-                raise ValueError(
-                    "Unknown `weights_format` argument. "
-                    "Expected 'h5' or 'npz'. "
-                    f"Received: weights_format={weights_format}"
-                )
+    with zipfile.ZipFile(zip_filepath, "w") as zf:
+        with zf.open(_METADATA_FILENAME, "w") as f:
+            f.write(metadata_json.encode())
+        with zf.open(_CONFIG_FILENAME, "w") as f:
+            f.write(config_json.encode())
 
-            asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
-
-            _save_state(
-                model,
-                weights_store=weights_store,
-                assets_store=asset_store,
-                inner_path="",
-                visited_trackables=set(),
+        if weights_format == "h5":
+            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="w")
+        elif weights_format == "npz":
+            weights_store = NpzIOStore(
+                _VARS_FNAME + ".npz", archive=zf, mode="w"
             )
-            weights_store.close()
-            asset_store.close()
+        else:
+            raise ValueError(
+                "Unknown `weights_format` argument. "
+                "Expected 'h5' or 'npz'. "
+                f"Received: weights_format={weights_format}"
+            )
 
-        if is_remote_path(filepath):
-            # Using gfile context manager doesn't close zip file when
-            # writing to GCS. Hence writing to local and copying to filepath.
-            gfile.copy(zip_filepath, filepath, overwrite=True)
-            os.remove(zip_filepath)
-    except Exception as e:
-        raise e
+        asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="w")
+
+        _save_state(
+            model,
+            weights_store=weights_store,
+            assets_store=asset_store,
+            inner_path="",
+            visited_trackables=set(),
+        )
+        weights_store.close()
+        asset_store.close()
+
+    if is_remote_path(filepath):
+        # Using gfile context manager doesn't close zip file when
+        # writing to GCS. Hence writing to local and copying to filepath.
+        gfile.copy(zip_filepath, filepath, overwrite=True)
+        os.remove(zip_filepath)
 
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
@@ -161,59 +159,52 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             f"Received: filepath={filepath}"
         )
 
-    try:
-        with gfile.GFile(filepath, mode="r+b") as gfile_handle, zipfile.ZipFile(
-            gfile_handle, "r"
-        ) as zf:
-            with zf.open(_CONFIG_FILENAME, "r") as f:
-                config_json = f.read()
+    with gfile.GFile(filepath, mode="r+b") as gfile_handle, zipfile.ZipFile(
+        gfile_handle, "r"
+    ) as zf:
+        with zf.open(_CONFIG_FILENAME, "r") as f:
+            config_json = f.read()
 
-            # Note: we should NOT use a custom JSON decoder. Anything that
-            # needs custom decoding must be handled in deserialize_keras_object.
-            config_dict = json.loads(config_json)
-            if not compile:
-                # Disable compilation
-                config_dict["compile_config"] = None
-            # Construct the model from the configuration file in the archive.
-            with ObjectSharingScope():
-                model = deserialize_keras_object(
-                    config_dict, custom_objects, safe_mode=safe_mode
-                )
-
-            all_filenames = zf.namelist()
-            if _VARS_FNAME + ".h5" in all_filenames:
-                weights_store = H5IOStore(
-                    _VARS_FNAME + ".h5", archive=zf, mode="r"
-                )
-            elif _VARS_FNAME + ".npz" in all_filenames:
-                weights_store = NpzIOStore(
-                    _VARS_FNAME + ".npz", archive=zf, mode="r"
-                )
-            else:
-                raise ValueError(
-                    f"Expected a {_VARS_FNAME}.h5 or {_VARS_FNAME}.npz file."
-                )
-
-            if len(all_filenames) > 3:
-                asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
-            else:
-                asset_store = None
-
-            _load_state(
-                model,
-                weights_store=weights_store,
-                assets_store=asset_store,
-                inner_path="",
-                visited_trackables=set(),
+        # Note: we should NOT use a custom JSON decoder. Anything that
+        # needs custom decoding must be handled in deserialize_keras_object.
+        config_dict = json.loads(config_json)
+        if not compile:
+            # Disable compilation
+            config_dict["compile_config"] = None
+        # Construct the model from the configuration file in the archive.
+        with ObjectSharingScope():
+            model = deserialize_keras_object(
+                config_dict, custom_objects, safe_mode=safe_mode
             )
-            weights_store.close()
-            if asset_store:
-                asset_store.close()
 
-    except Exception as e:
-        raise e
-    else:
-        return model
+        all_filenames = zf.namelist()
+        if _VARS_FNAME + ".h5" in all_filenames:
+            weights_store = H5IOStore(_VARS_FNAME + ".h5", archive=zf, mode="r")
+        elif _VARS_FNAME + ".npz" in all_filenames:
+            weights_store = NpzIOStore(
+                _VARS_FNAME + ".npz", archive=zf, mode="r"
+            )
+        else:
+            raise ValueError(
+                f"Expected a {_VARS_FNAME}.h5 or {_VARS_FNAME}.npz file."
+            )
+
+        if len(all_filenames) > 3:
+            asset_store = DiskIOStore(_ASSETS_DIRNAME, archive=zf, mode="r")
+        else:
+            asset_store = None
+
+        _load_state(
+            model,
+            weights_store=weights_store,
+            assets_store=asset_store,
+            inner_path="",
+            visited_trackables=set(),
+        )
+        weights_store.close()
+        if asset_store:
+            asset_store.close()
+    return model
 
 
 def save_weights_only(model, filepath):

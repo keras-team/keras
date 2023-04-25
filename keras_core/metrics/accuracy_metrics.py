@@ -1,15 +1,15 @@
+from keras_core import backend
 from keras_core import operations as ops
-from keras_core.metrics import reduction_metrics
 from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import squeeze_to_same_rank
-from keras_core.backend import floatx
+from keras_core.metrics import reduction_metrics
 
 
 def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
-    return ops.cast(ops.equal(y_true, y_pred), dtype=floatx())
+    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
 
 
 @keras_core_export("keras_core.metrics.Accuracy")

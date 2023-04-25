@@ -1,9 +1,5 @@
 import tensorflow as tf
 
-from keras_core.backend.common.backend_utils import (
-    compute_conv_transpose_output_shape,
-)
-
 
 def relu(x):
     return tf.nn.relu(x)
@@ -256,8 +252,10 @@ def separable_conv(
 
     if data_format == "channels_last":
         strides = (1,) + strides + (1,)
+        spatial_start_dim = 1
     else:
         strides = (1, 1) + strides
+        spatial_start_dim = 2
     return tf.nn.separable_conv2d(
         inputs,
         depthwise_kernel,
@@ -267,6 +265,100 @@ def separable_conv(
         data_format=tf_data_format,
         dilations=dilation_rate,
     )
+
+
+def _deconv_output_length(
+    input_length,
+    kernel_size,
+    padding,
+    output_padding=None,
+    stride=1,
+    dilation=1,
+):
+    """Determines output length of a transposed convolution given input length.
+
+    Args:
+        input_length: Integer.
+        kernel_size: Integer.
+        padding: one of `"same"` or `"valid"`.
+        output_padding: Integer, amount of padding along the output dimension.
+          Can be set to `None` in which case the output length is inferred.
+        stride: Integer.
+        dilation: Integer.
+
+    Returns:
+        The output length (integer).
+    """
+    assert padding in {"same", "valid"}
+    if input_length is None:
+        return None
+
+    # Get the dilated kernel size
+    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+
+    # Infer length if output padding is None, else compute the exact length
+    if output_padding is None:
+        if padding == "valid":
+            length = input_length * stride + max(kernel_size - stride, 0)
+        else:
+            length = input_length * stride
+    else:
+        if padding == "same":
+            pad = kernel_size // 2
+        else:
+            pad = 0
+
+        length = (
+            (input_length - 1) * stride + kernel_size - 2 * pad + output_padding
+        )
+    return length
+
+
+def compute_output_shape_conv_transpose(
+    inputs,
+    kernel,
+    strides,
+    padding,
+    output_padding=None,
+    data_format="channels_last",
+    dilation_rate=1,
+):
+    num_spatial_dims = len(inputs.shape) - 2
+    kernel_spatial_shape = kernel.shape[:-2]
+
+    if isinstance(output_padding, int):
+        output_padding = (output_padding,) * len(kernel_spatial_shape)
+    if isinstance(strides, int):
+        strides = (strides,) * num_spatial_dims
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * num_spatial_dims
+
+    if data_format == "channels_last":
+        inputs_spatial_shape = inputs.shape[1:-1]
+    else:
+        inputs_spatial_shape = inputs.shape[2:]
+
+    output_shape = []
+    for i in range(num_spatial_dims):
+        current_output_padding = (
+            None if output_padding is None else output_padding[i]
+        )
+        output_shape.append(
+            _deconv_output_length(
+                inputs_spatial_shape[i],
+                kernel_spatial_shape[i],
+                padding=padding,
+                output_padding=current_output_padding,
+                stride=strides[i],
+                dilation=dilation_rate[0],
+            )
+        )
+
+    if data_format == "channels_last":
+        output_shape = [inputs.shape[0]] + output_shape + [kernel.shape[-2]]
+    else:
+        output_shape = [inputs.shape[0], kernel.shape[-1]] + output_shape
+    return output_shape
 
 
 def conv_transpose(
@@ -279,7 +371,7 @@ def conv_transpose(
     dilation_rate=1,
 ):
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-    output_shape = compute_conv_transpose_output_shape(
+    output_shape = compute_output_shape_conv_transpose(
         inputs,
         kernel,
         strides,

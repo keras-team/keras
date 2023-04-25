@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 
 
@@ -23,3 +24,13 @@ def mean(x, axis=None, keepdims=False):
 
 def max(x, axis=None, keepdims=False):
     return tfnp.max(x, axis=axis, keepdims=keepdims)
+
+
+def ones(shape, dtype="float32"):
+    with tf.init_scope():
+        return tf.ones(shape, dtype=dtype)
+
+
+def zeros(shape, dtype="float32"):
+    with tf.init_scope():
+        return tf.zeros(shape, dtype=dtype)

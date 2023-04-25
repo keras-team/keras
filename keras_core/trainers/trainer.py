@@ -3,6 +3,7 @@ import warnings
 from keras_core import backend
 from keras_core import metrics as metrics_module
 from keras_core import operations as ops
+from keras_core import optimizers
 from keras_core.saving import serialization_lib
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
@@ -26,8 +27,7 @@ class Trainer:
         run_eagerly=False,
         jit_compile=True,
     ):
-        # TODO: get from module
-        self.optimizer = optimizer
+        self.optimizer = optimizers.get(optimizer)
         if loss is not None:
             self._compile_loss = CompileLoss(loss, loss_weights)
         else:

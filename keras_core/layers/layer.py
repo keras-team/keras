@@ -470,6 +470,22 @@ class Layer(Operation):
         """
         all_vars = self._variables
         if len(store.keys()) != len(all_vars):
+            if len(all_vars) == 0 and not self.built:
+                raise ValueError(
+                    f"Layer '{self.name}' was never built "
+                    "and thus it doesn't have any variables. "
+                    f"However the weights file lists {len(store.keys())} "
+                    "variables for this layer. In most cases, "
+                    "this indicates that you need to implement the "
+                    "`def build_from_config(self, config)` method "
+                    "on the layer. "
+                    "You might also want to implement the method "
+                    "that generates the config at saving time, "
+                    "`def get_build_config(self)`. "
+                    "The method `build_from_config()` is meant "
+                    "to create the state "
+                    "of the layer (i.e. its variables) upon deserialization.",
+                )
             raise ValueError(
                 f"Layer '{self.name}' expected {len(all_vars)} variables, "
                 "but received "

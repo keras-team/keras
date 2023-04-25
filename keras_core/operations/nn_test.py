@@ -281,6 +281,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
 
+@pytest.mark.skipif(
+    backend() != "tensorflow",
+    reason="Not have other backend support yet.",
+)
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
         x = KerasTensor([1, 2, 3])
@@ -543,6 +547,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
         )
 
 
+@pytest.mark.skipif(
+    backend() != "tensorflow",
+    reason="Not have other backend support yet.",
+)
 class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)
@@ -769,7 +777,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = tf.nn.conv3d(
             inputs_3d, kernel, (1, 1, 1, 1, 1), padding="VALID"
         )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(outputs, expected)
 
         outputs = knn.conv(
             inputs_3d,
@@ -785,13 +793,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
             padding="VALID",
             dilations=(1, 1, 1, 1, 1),
         )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(outputs, expected)
 
         outputs = knn.conv(inputs_3d, kernel, 2, padding="same")
         expected = tf.nn.conv3d(
             inputs_3d, kernel, (1, 2, 2, 2, 1), padding="SAME"
         )
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(outputs, expected)
 
     def test_depthwise_conv(self):
         # Test 2D conv.
@@ -904,6 +912,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected)
 
+        outputs = knn.conv_transpose(
+            inputs_1d, kernel, 5, output_padding=4, padding="valid"
+        )
+        expected = tf.nn.conv_transpose(
+            inputs_1d, kernel, [2, 21, 5], 5, padding="VALID"
+        )
+        self.assertAllClose(outputs, expected)
+
         # Test 2D conv.
         inputs_2d = np.arange(96, dtype=float).reshape([2, 4, 4, 3])
         kernel = np.arange(60, dtype=float).reshape([2, 2, 5, 3])
@@ -917,5 +933,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
         outputs = knn.conv_transpose(inputs_2d, kernel, 2, padding="same")
         expected = tf.nn.conv_transpose(
             inputs_2d, kernel, [2, 8, 8, 5], 2, padding="SAME"
+        )
+        self.assertAllClose(outputs, expected)
+
+        outputs = knn.conv_transpose(
+            inputs_2d,
+            kernel,
+            5,
+            output_padding=4,
+            padding="valid",
+            dilation_rate=(1, 1),
+        )
+        expected = tf.nn.conv_transpose(
+            inputs_2d,
+            kernel,
+            [2, 21, 21, 5],
+            5,
+            padding="VALID",
+            dilations=(1, 1),
         )
         self.assertAllClose(outputs, expected)
