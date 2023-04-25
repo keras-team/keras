@@ -106,10 +106,9 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
     seed = tf_draw_seed(seed)
-    with tf.init_scope():
-        return tf.nn.experimental.stateless_dropout(
-            inputs,
-            rate=rate,
-            noise_shape=noise_shape,
-            seed=seed,
-        )
+    return tf.nn.experimental.stateless_dropout(
+        inputs,
+        rate=rate,
+        noise_shape=noise_shape,
+        seed=seed,
+    )
