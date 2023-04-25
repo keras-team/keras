@@ -42,7 +42,6 @@ def deserialize(config, custom_objects=None):
     if config["class_name"].lower() in ALL_OBJECTS_DICT:
         config["class_name"] = config["class_name"].lower()
 
-    print("deserialize:", config)
     return serialization_lib.deserialize_keras_object(
         config,
         module_objects=ALL_OBJECTS_DICT,
@@ -63,16 +62,13 @@ def get(identifier):
     Returns:
         A Keras Optimizer instance.
     """
-    print("call get with", identifier)
     if isinstance(identifier, Optimizer):
         return identifier
     elif isinstance(identifier, dict):
         return deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": identifier, "config": {}}
-        opt = deserialize(config)
-        print(opt)
-        return opt
+        return deserialize(config)
     else:
         raise ValueError(
             f"Could not interpret optimizer identifier: {identifier}"

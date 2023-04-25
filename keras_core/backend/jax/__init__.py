@@ -59,6 +59,13 @@ class Variable(KerasVariable):
     def __init__(self, value, dtype=None, trainable=True, name=None):
         self.name = name or auto_name(self.__class__.__name__)
         dtype = standardize_dtype(dtype)
+        if in_stateless_scope():
+            raise ValueError(
+                "You are attempting to create a variable "
+                "while in a stateless scope. This is disallowed. "
+                "Make sure that all variables are created "
+                "before you start using your layer/model objects. " 
+            )
         self._value = jnp.array(value, dtype=dtype)
         self._dtype = dtype
         self._shape = tuple(self._value.shape)
@@ -299,3 +306,18 @@ def execute(op_name, *args, **kwargs):
         op = getattr(jnp, op_name)
         return op(*args, **kwargs)
     raise AttributeError(f"The JAX backend does not support op '{op_name}'")
+
+
+def traceable_tensor(shape, dtype=None):
+    """Create a "traceable tensor".
+    
+    That's a tensor that can be passed as input
+    to a stateful backend-native function to
+    create state during the trace.
+    """
+    shape = list(shape)
+    dtype = dtype or "float32"
+    for i, x in enumerate(shape):
+        if x is None:
+            shape[i] = 1
+    return jnp.ones(shape, dtype=dtype)

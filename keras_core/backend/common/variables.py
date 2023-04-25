@@ -30,7 +30,7 @@ class KerasVariable:
     def __repr__(self):
         return (
             f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
-            "name={self.name}>"
+            f"name={self.name}>"
         )
 
 

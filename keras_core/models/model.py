@@ -221,19 +221,19 @@ class Model(Trainer, Layer):
                     input_shape = tuple(input_shape)
                 if isinstance(input_shape, list):
                     input_tensors = [
-                        backend.KerasTensor(shape) for shape in input_shape
+                        backend.traceable_tensor(shape) for shape in input_shape
                     ]
                 elif isinstance(input_shape, dict):
                     input_tensors = {
-                        k: backend.KerasTensor(shape)
+                        k: backend.traceable_tensor(shape)
                         for k, shape in input_shape.items()
                     }
                 else:
-                    input_tensors = backend.KerasTensor(input_shape)
+                    input_tensors = backend.traceable_tensor(input_shape)
                 try:
                     self(input_tensors)
                     self._build_shapes_dict = config
-                except:
+                except Exception as e:
                     failure = True
             elif "shapes_dict" in config:
                 # Case: inputs were recorded as multiple keyword arguments.
@@ -242,7 +242,7 @@ class Model(Trainer, Layer):
                 ):
                     # Case: all input keyword arguments were plain tensors.
                     input_tensors = {
-                        k: backend.KerasTensor(v)
+                        k: backend.traceable_tensor(v)
                         for k, v in config["shapes_dict"].items()
                     }
                     try:
