@@ -233,7 +233,7 @@ class Model(Trainer, Layer):
                 try:
                     self(input_tensors)
                     self._build_shapes_dict = config
-                except Exception as e:
+                except Exception:
                     failure = True
             elif "shapes_dict" in config:
                 # Case: inputs were recorded as multiple keyword arguments.

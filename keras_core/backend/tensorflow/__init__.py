@@ -278,7 +278,7 @@ def execute(op_name, *args, **kwargs):
 
 def traceable_tensor(shape, dtype=None):
     """Create a "traceable tensor".
-    
+
     That's a tensor that can be passed as input
     to a stateful backend-native function to
     create state during the trace.

@@ -661,7 +661,7 @@ def deserialize_keras_object(
     with custom_obj_scope, safe_mode_scope:
         instance = cls.from_config(inner_config)
         build_config = config.get("build_config", None)
-        if build_config:
+        if build_config and not instance.built:
             instance.build_from_config(build_config)
         compile_config = config.get("compile_config", None)
         if compile_config:

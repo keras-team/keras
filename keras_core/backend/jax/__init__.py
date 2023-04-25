@@ -64,7 +64,11 @@ class Variable(KerasVariable):
                 "You are attempting to create a variable "
                 "while in a stateless scope. This is disallowed. "
                 "Make sure that all variables are created "
-                "before you start using your layer/model objects. " 
+                "before you start using your layer/model objects. "
+                "Most of this time, this means you need to "
+                "implement a `def build(self, input_shape)` method "
+                "on your layer/model, which will "
+                "create its variables."
             )
         self._value = jnp.array(value, dtype=dtype)
         self._dtype = dtype
@@ -310,7 +314,7 @@ def execute(op_name, *args, **kwargs):
 
 def traceable_tensor(shape, dtype=None):
     """Create a "traceable tensor".
-    
+
     That's a tensor that can be passed as input
     to a stateful backend-native function to
     create state during the trace.

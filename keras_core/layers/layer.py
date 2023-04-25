@@ -129,6 +129,7 @@ class Layer(Operation):
             elif "shapes_dict" in config:
                 self.build(**config["shapes_dict"])
                 self._build_shapes_dict = config["shapes_dict"]
+            self.built = True
 
     def add_variable(
         self,
@@ -525,8 +526,8 @@ class Layer(Operation):
         return summary_utils.count_params(self.weights)
 
     def _maybe_build(self, *args, **kwargs):
-        arguments_dict = get_arguments_dict(self.call, *args, **kwargs)
         if not self.built:
+            arguments_dict = get_arguments_dict(self.call, *args, **kwargs)
             shapes_dict = get_shapes_dict(arguments_dict)
             self._build_shapes_dict = shapes_dict
             if len(shapes_dict) == 1:
