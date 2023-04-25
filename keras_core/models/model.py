@@ -1,6 +1,10 @@
+import os
+
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.saving import saving_lib
+from keras_core.utils import io_utils
 from keras_core.utils import summary_utils
 
 if backend.backend() == "tensorflow":
@@ -153,8 +157,53 @@ class Model(Trainer, Layer):
             layer_range=layer_range,
         )
 
-    def save(self, filepath):
-        raise NotImplementedError
+    def save(self, filepath, overwrite=True):
+        if not filepath.endswith(".keras"):
+            raise ValueError(
+                "The filename must end in `.keras`. "
+                f"Received: filepath={filepath}"
+            )
+        try:
+            exists = os.path.exists(filepath)
+        except TypeError:
+            exists = False
+        if exists and not overwrite:
+            proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        saving_lib.save_model(self, filepath)
+
+    def save_weights(self, filepath, overwrite=True):
+        if not filepath.endswith(".weights.h5"):
+            raise ValueError(
+                "The filename must end in `.weights.h5`. "
+                f"Received: filepath={filepath}"
+            )
+        try:
+            exists = os.path.exists(filepath)
+        except TypeError:
+            exists = False
+        if exists and not overwrite:
+            proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        saving_lib.save_weights_only(self, filepath)
+
+    def load_weights(self, filepath, skip_mismatch=False):
+        if str(filepath).endswith(".keras"):
+            saving_lib.load_weights_only(
+                self, filepath, skip_mismatch=skip_mismatch
+            )
+        elif str(filepath).endswith(".weights.h5"):
+            saving_lib.load_weights_only(
+                self, filepath, skip_mismatch=skip_mismatch
+            )
+        else:
+            raise ValueError(
+                f"File format not supported: filepath={filepath}. "
+                "Keras Core only supports V3 `.keras` and `.weights.h5` "
+                "files."
+            )
 
     def export(self, filepath):
         raise NotImplementedError
