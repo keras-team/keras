@@ -670,7 +670,10 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
 
     num_val_samples = int(validation_split * len(samples))
     if subset == "training":
-        io_utils.print_msg(f"Using {len(samples) - num_val_samples} files for training.")
+    	io_utils.print_msg(
+                f"Using {len(samples) - num_val_samples} "
+                f"files for training."
+        )
         samples = samples[:-num_val_samples]
         labels = labels[:-num_val_samples]
     elif subset == "validation":
