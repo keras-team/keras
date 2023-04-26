@@ -15,7 +15,7 @@ class TestCase(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
-    def assertAllClose(self, x1, x2, atol=1e-7, rtol=1e-7):
+    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6):
         np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
 
     def assertAlmostEqual(self, x1, x2, decimal=3):

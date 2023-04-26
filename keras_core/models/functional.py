@@ -449,7 +449,7 @@ def functional_like_constructor(cls):
 
 
 def unpack_singleton(x):
-    if len(x) == 1:
+    if isinstance(x, (list, tuple)) and len(x) == 1:
         return x[0]
     return x
 

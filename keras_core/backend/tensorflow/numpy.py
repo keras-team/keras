@@ -27,10 +27,8 @@ def max(x, axis=None, keepdims=False):
 
 
 def ones(shape, dtype="float32"):
-    with tf.init_scope():
-        return tf.ones(shape, dtype=dtype)
+    return tf.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype="float32"):
-    with tf.init_scope():
-        return tf.zeros(shape, dtype=dtype)
+    return tf.zeros(shape, dtype=dtype)

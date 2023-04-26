@@ -13,8 +13,6 @@ from keras_core.backend.tensorflow import random
 from keras_core.utils.naming import auto_name
 
 DYNAMIC_SHAPES_OK = True
-# Disable autograph
-tf.__internal__.autograph.control_status_ctx().status = 2
 
 
 class Variable(KerasVariable, tf.__internal__.types.Tensor):
