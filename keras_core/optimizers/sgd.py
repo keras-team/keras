@@ -93,6 +93,7 @@ class SGD(optimizer.Optimizer):
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
         learning_rate = ops.cast(learning_rate, variable.dtype)
+        gradient = ops.cast(gradient, variable.dtype)
         m = None
         momentum = ops.cast(self.momentum, variable.dtype)
         m = self.momentums[self._get_variable_index(variable)]
