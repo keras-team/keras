@@ -68,8 +68,7 @@ def get(identifier):
         return deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": identifier, "config": {}}
-        return deserialize(config)
-    else:
-        raise ValueError(
-            f"Could not interpret optimizer identifier: {identifier}"
-        )
+        opt = deserialize(config)
+        if isinstance(opt, Optimizer):
+            return opt
+    raise ValueError(f"Could not interpret optimizer identifier: {identifier}")

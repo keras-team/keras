@@ -82,10 +82,24 @@ class LayerTest(testing.TestCase):
                 x = self.layer_list[1](x)
                 return x
 
+        class DoubleNestedLayer(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.inner_layer = NestedLayer(units)
+
+            def call(self, x):
+                return self.inner_layer(x)
+
         layer = NestedLayer(3)
         layer.build((1, 3))
         self.assertLen(layer._layers, 4)
         layer(np.zeros((1, 3)))
+        self.assertLen(layer.weights, 8)
+
+        layer = DoubleNestedLayer(3)
+        self.assertLen(layer._layers, 1)
+        layer(np.zeros((1, 3)))
+        self.assertLen(layer.inner_layer.weights, 8)
         self.assertLen(layer.weights, 8)
 
     def test_build_on_call(self):

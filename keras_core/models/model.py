@@ -160,7 +160,7 @@ class Model(Trainer, Layer):
         )
 
     def save(self, filepath, overwrite=True):
-        if not filepath.endswith(".keras"):
+        if not str(filepath).endswith(".keras"):
             raise ValueError(
                 "The filename must end in `.keras`. "
                 f"Received: filepath={filepath}"
@@ -176,7 +176,7 @@ class Model(Trainer, Layer):
         saving_lib.save_model(self, filepath)
 
     def save_weights(self, filepath, overwrite=True):
-        if not filepath.endswith(".weights.h5"):
+        if not str(filepath).endswith(".weights.h5"):
             raise ValueError(
                 "The filename must end in `.weights.h5`. "
                 f"Received: filepath={filepath}"

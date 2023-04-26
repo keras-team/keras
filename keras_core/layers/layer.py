@@ -209,10 +209,19 @@ class Layer(Operation):
 
     @property
     def weights(self):
-        # Return only "own weights" of all Layers, recursively
-        weights = self._variables[:]
+        # Return only "own weights" of all Layers, recursively.
+        # Also deduplicate them.
+        weights = []
+        seen_ids = set()
+        for w in self._variables:
+            if id(w) not in seen_ids:
+                weights.append(w)
+                seen_ids.add(id(w))
         for layer in self._layers:
-            weights.extend(layer._variables)
+            for w in layer.weights:
+                if id(w) not in seen_ids:
+                    weights.append(w)
+                    seen_ids.add(id(w))
         return weights
 
     @property
