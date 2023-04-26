@@ -559,8 +559,17 @@ class Layer(Operation):
                             failure = True
                     else:
                         self.build(**shapes_dict)
-            if failure:  # TODO: warn or raise
-                pass
+            if failure:
+                raise ValueError(
+                    f"Layer '{self.name}' looks like it has "
+                    "unbuilt state, but Keras is not able to "
+                    "trace the layer `call()` in order to "
+                    "build it automatically. You must implement "
+                    "the `def build(self, input_shape)` method on your "
+                    "layer. It should create all variables used by the "
+                    "layer (e.g. by calling `layer.build()` on all its "
+                    "children layers)."
+                )
             self.built = True
 
             # Check input spec again (after build, since self.input_spec
