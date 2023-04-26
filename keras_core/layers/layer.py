@@ -685,7 +685,7 @@ class Layer(Operation):
     def _maybe_reset_call_context(self):
         global CALL_CTX
         call_ctx = getattr(CALL_CTX, "current", None)
-        if call_ctx is None and call_ctx.entry_layer == self:
+        if call_ctx is None or call_ctx.entry_layer == self:
             CALL_CTX.current = None
 
     def _get_default_training_value(self):

@@ -2,6 +2,8 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import layers
+from keras_core import models
+from keras_core import operations as ops
 from keras_core import testing
 
 
@@ -133,7 +135,59 @@ class LayerTest(testing.TestCase):
         self.assertLen(layer.weights, 4)
 
     def test_activity_regularization(self):
-        pass
+        class ActivityRegularizer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = ActivityRegularizer(activity_regularizer="l1")
+        layer(
+            np.ones(
+                1,
+            )
+        )
+        self.assertLen(layer.losses, 1)
+        self.assertAllClose(layer.losses[0], 0.01)
+
+        # losses are reset upon call
+        layer(
+            np.ones(
+                1,
+            )
+        )
+        self.assertLen(layer.losses, 1)
+        self.assertAllClose(layer.losses[0], 0.01)
 
     def test_add_loss(self):
-        pass
+        class LossLayer(layers.Layer):
+            def call(self, x):
+                self.add_loss(ops.sum(x))
+                return x
+
+        layer = LossLayer()
+        layer(
+            np.ones(
+                1,
+            )
+        )
+        self.assertLen(layer.losses, 1)
+        self.assertAllClose(layer.losses[0], 1.0)
+
+        # losses are reset upon call
+        layer = LossLayer()
+        layer(
+            np.ones(
+                1,
+            )
+        )
+        self.assertLen(layer.losses, 1)
+        self.assertAllClose(layer.losses[0], 1.0)
+
+        # It works inside a model
+        model = models.Sequential([layer])
+        model(
+            np.ones(
+                1,
+            )
+        )
+        self.assertLen(model.losses, 1)
+        self.assertAllClose(model.losses[0], 1.0)
