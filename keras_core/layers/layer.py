@@ -573,20 +573,17 @@ class Layer(Operation):
             input_shape = tuple(input_shape)
         if isinstance(input_shape, list):
             input_tensors = [
-                backend.KerasTensor(shape, record_history=False)
-                for shape in input_shape
+                backend.traceable_tensor(shape) for shape in input_shape
             ]
         elif isinstance(input_shape, dict):
             input_tensors = {
-                k: backend.KerasTensor(shape, record_history=False)
+                k: backend.traceable_tensor(shape)
                 for k, shape in input_shape.items()
             }
         else:
-            input_tensors = backend.KerasTensor(
-                input_shape, record_history=False
-            )
+            input_tensors = backend.traceable_tensor(input_shape)
         try:
-            self.compute_output_spec(input_tensors)
+            self.call(input_tensors)
             return True
         except:
             return False
@@ -596,11 +593,11 @@ class Layer(Operation):
         if all(is_shape_tuple(s) for s in shapes_dict.values()):
             # Case: all input keyword arguments were plain tensors.
             input_tensors = {
-                k: backend.KerasTensor(v, record_history=False)
-                for k, v in shapes_dict.items()
+                k: backend.traceable_tensor(shape)
+                for k, shape in shapes_dict.items()
             }
             try:
-                self.compute_output_spec(**input_tensors)
+                self.call(**input_tensors)
             except:
                 return False
         else:

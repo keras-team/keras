@@ -286,3 +286,18 @@ def execute(op_name, *args, **kwargs):
     raise AttributeError(
         f"The TensorFlow backend does not support op '{op_name}'"
     )
+
+
+def traceable_tensor(shape, dtype=None):
+    """Create a "traceable tensor".
+
+    That's a tensor that can be passed as input
+    to a stateful backend-native function to
+    create state during the trace.
+    """
+    shape = list(shape)
+    dtype = dtype or "float32"
+    for i, x in enumerate(shape):
+        if x is None:
+            shape[i] = 1
+    return tf.ones(shape, dtype=dtype)
