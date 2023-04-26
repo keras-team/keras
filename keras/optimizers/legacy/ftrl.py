@@ -81,9 +81,9 @@ class Ftrl(optimizer_v2.OptimizerV2):
       initial_accumulator_value: The starting value for accumulators.
         Only zero or positive values are allowed.
       l1_regularization_strength: A float value, must be greater than or
-        equal to zero. Defaults to 0.0.
+        equal to zero. Defaults to `0.0`.
       l2_regularization_strength: A float value, must be greater than or
-        equal to zero. Defaults to 0.0.
+        equal to zero. Defaults to `0.0`.
       name: Optional name prefix for the operations created when applying
         gradients.  Defaults to `"Ftrl"`.
       l2_shrinkage_regularization_strength: A float value, must be greater than
@@ -91,7 +91,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
         stabilization penalty, whereas this L2 shrinkage is a magnitude penalty.
         When input is sparse shrinkage will only happen on the active weights.
       beta: A float value, representing the beta value from the paper.
-        Defaults to 0.0.
+        Defaults to `0.0`.
       **kwargs: keyword arguments. Allowed arguments are `clipvalue`,
         `clipnorm`, `global_clipnorm`.
         If `clipvalue` (float) is set, the gradient of each weight

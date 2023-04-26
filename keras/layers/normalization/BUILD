@@ -152,6 +152,7 @@ cuda_py_test(
 tf_py_test(
     name = "batch_normalization_dtensor_test",
     srcs = ["batch_normalization_dtensor_test.py"],
+    shard_count = 2,
     tags = ["no_oss"],
     deps = [
         ":batch_normalization",

@@ -38,7 +38,6 @@ from keras.engine import input_spec
 from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.mixed_precision import autocast_variable
-from keras.mixed_precision import loss_scale_optimizer
 from keras.mixed_precision import policy
 from keras.saving import serialization_lib
 from keras.saving.legacy.saved_model import layer_serialization
@@ -458,7 +457,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
         # Whether the layer will track any layers that is set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
-        # in the parent layer's variables() as well.  Default to True, which
+        # in the parent layer's variables() as well.  Defaults to `True`, which
         # means auto tracking is turned on. Certain subclass might want to turn
         # it off, like Sequential model.
         self._auto_track_sub_layers = True
@@ -2600,9 +2599,21 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         ):
             # Check input assumptions set after layer building, e.g. input
             # shape.
-            outputs = self._keras_tensor_symbolic_call(
-                inputs, input_masks, args, kwargs
-            )
+            try:
+                outputs = self._keras_tensor_symbolic_call(
+                    inputs, input_masks, args, kwargs
+                )
+            except TypeError as e:
+                if "DictWrapper" in str(e):
+                    raise TypeError(
+                        f"{self} could not be deserialized properly. Please"
+                        " ensure that components that are Python object"
+                        " instances (layers, models, etc.) returned by"
+                        " `get_config()` are explicitly deserialized in the"
+                        " model's `from_config()` method."
+                    ) from e
+                else:
+                    raise e
 
             if outputs is None:
                 raise ValueError(
@@ -2705,37 +2716,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     def _set_dtype_policy(self, dtype):
         """Sets self._dtype_policy."""
-        if isinstance(dtype, policy.Policy):
-            self._dtype_policy = dtype
-        elif isinstance(dtype, dict):
-            self._dtype_policy = policy.deserialize(dtype)
-        elif isinstance(dtype, str) and dtype in (
-            "mixed_float16",
-            "mixed_bfloat16",
-        ):
-            # The isinstance check is required since np.dtype raises an error if
-            # compared to a non-dtype string.
-            self._dtype_policy = policy.Policy(dtype)
-        elif dtype:
-            self._dtype_policy = policy.Policy(tf.as_dtype(dtype).name)
-        else:
-            self._dtype_policy = policy.global_policy()
-        if (
-            self._dtype_policy.name == "mixed_float16"
-            and not loss_scale_optimizer.strategy_supports_loss_scaling()
-        ):
-            # Although only loss scaling doesn't support certain strategies, to
-            # avoid confusion, we disallow the 'mixed_float16' policy with
-            # unsupported strategies. This is because 'mixed_float16' requires
-            # loss scaling for numeric stability.
-            strategy = tf.distribute.get_strategy()
-            raise ValueError(
-                "Mixed precision is not supported with the "
-                "tf.distribute.Strategy: %s. Either stop using mixed "
-                'precision by removing the use of the "%s" policy or '
-                "use a different Strategy, e.g. a MirroredStrategy."
-                % (strategy.__class__.__name__, self._dtype_policy.name)
-            )
+        self._dtype_policy = policy.get_policy(dtype)
 
         # Performance optimization: cache the compute dtype as a Dtype object or
         # None, so that str to Dtype conversion doesn't happen in
@@ -3830,9 +3811,9 @@ class BaseRandomLayer(Layer):
           force_generator: boolean, default to False, whether to force the
             RandomGenerator to use the code branch of tf.random.Generator.
           rng_type: string, the rng type that will be passed to backend
-            RandomGenerator. Default to `None`, which will allow RandomGenerator
-            to choose types by itself. Valid values are "stateful", "stateless",
-            "legacy_stateful".
+            RandomGenerator. `None` will allow RandomGenerator to choose
+            types by itself. Valid values are "stateful", "stateless",
+            "legacy_stateful". Defaults to `None`.
           **kwargs: other keyword arguments that will be passed to the parent
             *class
         """

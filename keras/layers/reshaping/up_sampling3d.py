@@ -51,9 +51,10 @@ class UpSampling3D(Layer):
         `(batch_size, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
         while `channels_first` corresponds to inputs with shape
         `(batch_size, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
 
     Input shape:
       5D tensor with shape:

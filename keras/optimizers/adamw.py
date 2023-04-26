@@ -52,8 +52,6 @@ class AdamW(optimizer.Optimizer):
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
         learning rate. Defaults to 0.001.
-      weight_decay: A `tf.Tensor`, floating point value. The weight decay.
-        Defaults to 0.004.
       beta_1: A float value or a constant float tensor, or a callable
         that takes no arguments and returns the actual value to use. The
         exponential decay rate for the 1st moment estimates. Defaults to 0.9.

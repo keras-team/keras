@@ -45,9 +45,10 @@ class ConvLSTMCell(DropoutRNNCellMixin, base_layer.BaseRandomLayer):
         up/down of the input such that output has the same height/width
         dimension as the input.
       data_format: A string, one of `channels_last` (default) or
-        `channels_first`.  It defaults to the `image_data_format` value found in
-        your Keras config file at `~/.keras/keras.json`. If you never set it,
-        then it will be "channels_last".
+        `channels_first`. When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+        `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       dilation_rate: An integer or tuple/list of n integers, specifying the
         dilation rate to use for dilated convolution. Currently, specifying any
         `dilation_rate` value != 1 is incompatible with specifying any `strides`
@@ -383,9 +384,10 @@ class ConvLSTM(ConvRNN):
         `(batch, time, ..., channels)`
         while `channels_first` corresponds to
         inputs with shape `(batch, time, channels, ...)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       dilation_rate: An integer or tuple/list of n integers, specifying
         the dilation rate to use for dilated convolution.
         Currently, specifying any `dilation_rate` value != 1 is

@@ -133,7 +133,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         for k in kwargs:
             if k in legacy_kwargs:
                 raise ValueError(
-                    f"{k} is deprecated in the new Keras optimizer, please"
+                    f"{k} is deprecated in the new Keras optimizer, please "
                     "check the docstring for valid arguments, or use the "
                     "legacy optimizer, e.g., "
                     f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
@@ -636,7 +636,6 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-            grads_and_vars = list(zip(grads, trainable_variables))
             grads_and_vars = optimizer_utils.filter_empty_gradients(
                 grads_and_vars
             )
@@ -902,7 +901,7 @@ class Optimizer(_BaseOptimizer):
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
+    opt = keras.optimizers.SGD(learning_rate=0.1)
     var1, var2 = tf.Variable(1.0), tf.Variable(2.0)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.

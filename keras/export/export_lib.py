@@ -396,6 +396,8 @@ def export_model(model, filepath):
     export_archive.track(model)
     if isinstance(model, (functional.Functional, sequential.Sequential)):
         input_signature = tf.nest.map_structure(_make_tensor_spec, model.inputs)
+        if isinstance(input_signature, list) and len(input_signature) > 1:
+            input_signature = [input_signature]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     else:
         save_spec = model._get_save_spec()
@@ -537,7 +539,7 @@ class ReloadedLayer(base_layer.Layer):
 
 
 def _make_tensor_spec(x):
-    return tf.TensorSpec(x.shape, dtype=x.dtype)
+    return tf.TensorSpec(x.shape, dtype=x.dtype, name=x.name)
 
 
 def _print_signature(fn, name):
