@@ -37,6 +37,12 @@ ALL_OBJECTS = {
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
+ALL_OBJECTS_DICT.update({
+    "mae": mean_absolute_error,
+    "MAE": mean_absolute_error,
+    "mse": mean_squared_error,
+    "MSE": mean_squared_error,
+})
 
 
 @keras_core_export("keras_core.losses.serialize")

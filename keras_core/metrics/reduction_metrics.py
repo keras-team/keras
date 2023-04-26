@@ -4,6 +4,7 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.losses import loss
 from keras_core.metrics.metric import Metric
+from keras_core.saving import serialization_lib
 
 
 def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
@@ -182,11 +183,13 @@ class MeanMetricWrapper(Mean):
         return super().update_state(values, sample_weight=sample_weight)
 
     def get_config(self):
-        config = {k: v for k, v in self._fn_kwargs.items()}
-        config["fn"] = self._fn
         base_config = super().get_config()
-        return {**base_config.items(), **config.items()}
+        config = {"fn": serialization_lib.serialize_keras_object(self.fn)}
+        config.update(serialization_lib.serialize_keras_object(self._fn_kwargs))
+        return {**base_config, **config}
 
     @classmethod
     def from_config(cls, config):
-        raise NotImplementedError
+        if "fn" in config:
+            config = serialization_lib.deserialize_keras_object(config)
+        return cls(**config)
