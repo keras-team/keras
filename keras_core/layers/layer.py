@@ -531,12 +531,15 @@ class Layer(Operation):
             arguments_dict = get_arguments_dict(self.call, *args, **kwargs)
             shapes_dict = get_shapes_dict(arguments_dict)
             self._build_shapes_dict = shapes_dict
+            failure = False
             if len(shapes_dict) == 1:
                 # Single arg: pass it positionally
                 input_shape = tuple(shapes_dict.values())[0]
                 with backend.name_scope(self.name):
-                    if utils.is_default(self.build) and might_have_state(self):
-                        self._build_for_single_pos_arg(input_shape)
+                    if utils.is_default(self.build) and might_have_unbuilt_state(self):
+                        status = self._build_by_run_for_single_pos_arg(input_shape)
+                        if not status:
+                            failure = True
                     else:
                         self.build(input_shape)
             else:
@@ -544,17 +547,20 @@ class Layer(Operation):
                 # and check that build() expects the right args.
                 check_build_signature(self.build, shapes_dict)
                 with backend.name_scope(self.name):
-                    if utils.is_default(self.build) and might_have_state(self):
-                        self._build_for_kwargs(shapes_dict)
+                    if utils.is_default(self.build) and might_have_unbuilt_state(self):
+                        status = self._build_by_run_for_kwargs(shapes_dict)
+                        if not status:
+                            failure = True
                     else:
                         self.build(**shapes_dict)
+            # if failure: # TODO: warn or raise
             self.built = True
 
             # Check input spec again (after build, since self.input_spec
             # may have been updated
             self._assert_input_compatibility(*args)
 
-    def _build_for_single_pos_arg(self, input_shape):
+    def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         if is_shape_tuple(input_shape):
             input_shape = tuple(input_shape)
@@ -570,12 +576,12 @@ class Layer(Operation):
         else:
             input_tensors = backend.KerasTensor(input_shape, record_history=False)
         try:
-            self(input_tensors)
+            self.compute_output_spec(input_tensors)
             return True
-        except:
+        except Exception as e:
             return False
 
-    def _build_for_kwargs(self, shapes_dict):
+    def _build_by_run_for_kwargs(self, shapes_dict):
         # Case: inputs were recorded as multiple keyword arguments.
         if all(is_shape_tuple(s) for s in shapes_dict.values()):
             # Case: all input keyword arguments were plain tensors.
@@ -583,7 +589,7 @@ class Layer(Operation):
                 k: backend.KerasTensor(v, record_history=False) for k, v in shapes_dict.items()
             }
             try:
-                self(**input_tensors)
+                self.compute_output_spec(**input_tensors)
             except:
                 return False
         else:
@@ -787,5 +793,5 @@ def is_shape_tuple(s):
     )
 
 
-def might_have_state(layer):
-    return layer._variables or layer._layers or layer._metrics or layer._seed_generators
+def might_have_unbuilt_state(layer):
+    return any(not lr.built for lr in layer._layers)

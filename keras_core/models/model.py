@@ -7,6 +7,7 @@ from keras_core.layers.layer import Layer
 from keras_core.saving import saving_lib
 from keras_core.utils import io_utils
 from keras_core.utils import summary_utils
+from keras_core import utils
 
 if backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import (
@@ -211,12 +212,28 @@ class Model(Trainer, Layer):
             return
         if "input_shape" in config:
             # Case: all inputs are in the first arg (possibly nested).
-            status = self._build_for_single_pos_arg(config["input_shape"])
+            if utils.is_default(self.build):
+                status = self._build_by_run_for_single_pos_arg(config["input_shape"])
+            else:
+                try:
+                    self.build(config["input_shape"])
+                    status = True
+                except:
+                    status = False
             self._build_shapes_dict = config
+
         elif "shapes_dict" in config:
             # Case: inputs were recorded as multiple keyword arguments.
-            status = self._build_for_kwargs(config["shapes_dict"])
+            if utils.is_default(self.build):
+                status = self._build_for_kwargs(config["shapes_dict"])
+            else:
+                try:
+                    self.build(**config["shapes_dict"])
+                    status = True
+                except:
+                    status = False
             self._build_shapes_dict = config["shapes_dict"]
+            
         if not status:
             warnings.warn(
                 f"Model '{self.name}' had a build config, but the model "

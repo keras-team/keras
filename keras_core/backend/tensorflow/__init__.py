@@ -6,6 +6,7 @@ from keras_core.backend.common import standardize_dtype
 from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.backend.stateless_scope import get_stateless_scope
 from keras_core.backend.stateless_scope import in_stateless_scope
+from keras_core.backend.stateless_scope import StatelessScope
 from keras_core.backend.tensorflow import math
 from keras_core.backend.tensorflow import nn
 from keras_core.backend.tensorflow import numpy
@@ -256,23 +257,23 @@ def vectorized_map(function, elements):
 def compute_output_spec(fn, *args, **kwargs):
     graph_name = auto_name("scratch_graph")
     with tf.__internal__.FuncGraph(graph_name).as_default():
+        with StatelessScope():
+            def convert_keras_tensor_to_tf(x):
+                if isinstance(x, KerasTensor):
+                    return tf.compat.v1.placeholder(shape=x.shape, dtype=x.dtype)
+                return x
 
-        def convert_keras_tensor_to_tf(x):
-            if isinstance(x, KerasTensor):
-                return tf.compat.v1.placeholder(shape=x.shape, dtype=x.dtype)
-            return x
+            args, kwargs = tf.nest.map_structure(
+                convert_keras_tensor_to_tf, (args, kwargs)
+            )
+            tf_out = fn(*args, **kwargs)
 
-        args, kwargs = tf.nest.map_structure(
-            convert_keras_tensor_to_tf, (args, kwargs)
-        )
-        tf_out = fn(*args, **kwargs)
+            def convert_tf_to_keras_tensor(x):
+                if tf.is_tensor(x):
+                    return KerasTensor(x.shape, x.dtype)
+                return x
 
-        def convert_tf_to_keras_tensor(x):
-            if tf.is_tensor(x):
-                return KerasTensor(x.shape, x.dtype)
-            return x
-
-        return tf.nest.map_structure(convert_tf_to_keras_tensor, tf_out)
+            return tf.nest.map_structure(convert_tf_to_keras_tensor, tf_out)
 
 
 def execute(op_name, *args, **kwargs):
