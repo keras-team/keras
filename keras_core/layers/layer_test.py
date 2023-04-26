@@ -140,20 +140,12 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = ActivityRegularizer(activity_regularizer="l1")
-        layer(
-            np.ones(
-                1,
-            )
-        )
+        layer(np.ones((1,)))
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 0.01)
 
         # losses are reset upon call
-        layer(
-            np.ones(
-                1,
-            )
-        )
+        layer(np.ones((1,)))
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 0.01)
 
@@ -164,30 +156,18 @@ class LayerTest(testing.TestCase):
                 return x
 
         layer = LossLayer()
-        layer(
-            np.ones(
-                1,
-            )
-        )
+        layer(np.ones((1,)))
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 1.0)
 
         # losses are reset upon call
         layer = LossLayer()
-        layer(
-            np.ones(
-                1,
-            )
-        )
+        layer(np.ones((1,)))
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 1.0)
 
         # It works inside a model
         model = models.Sequential([layer])
-        model(
-            np.ones(
-                1,
-            )
-        )
+        model(np.ones((1,)))
         self.assertLen(model.losses, 1)
         self.assertAllClose(model.losses[0], 1.0)
