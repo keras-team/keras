@@ -343,7 +343,9 @@ class Layer(Operation):
             outputs = super().__call__(*args, **kwargs)
             # Record activity regularizer loss.
             if self.activity_regularizer is not None:
-                self.add_loss(self.activity_regularizer(outputs))
+                for output in nest.flatten(outputs):
+                    if backend.is_tensor(output):
+                        self.add_loss(self.activity_regularizer(output))
 
         # TODO: Set masks on outputs
         # self._set_mask_metadata(inputs, outputs, previous_mask)
