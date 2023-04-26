@@ -109,6 +109,9 @@ class Functional(Function, Model):
         # From Function
         return super().compute_output_spec(inputs)
 
+    def build(self, input_shape):
+        self.built = True
+
     def _assert_input_compatibility(self, *args):
         return super(Model, self)._assert_input_compatibility(*args)
 

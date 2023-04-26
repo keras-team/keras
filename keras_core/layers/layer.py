@@ -535,18 +535,60 @@ class Layer(Operation):
                 # Single arg: pass it positionally
                 input_shape = tuple(shapes_dict.values())[0]
                 with backend.name_scope(self.name):
-                    self.build(input_shape)
+                    if utils.is_default(self.build) and might_have_state(self):
+                        self._build_for_single_pos_arg(input_shape)
+                    else:
+                        self.build(input_shape)
             else:
                 # More than one shape: pass them by name,
                 # and check that build() expects the right args.
                 check_build_signature(self.build, shapes_dict)
                 with backend.name_scope(self.name):
-                    self.build(**shapes_dict)
+                    if utils.is_default(self.build) and might_have_state(self):
+                        self._build_for_kwargs(shapes_dict)
+                    else:
+                        self.build(**shapes_dict)
             self.built = True
 
             # Check input spec again (after build, since self.input_spec
             # may have been updated
             self._assert_input_compatibility(*args)
+
+    def _build_for_single_pos_arg(self, input_shape):
+        # Case: all inputs are in the first arg (possibly nested).
+        if is_shape_tuple(input_shape):
+            input_shape = tuple(input_shape)
+        if isinstance(input_shape, list):
+            input_tensors = [
+                backend.KerasTensor(shape, record_history=False) for shape in input_shape
+            ]
+        elif isinstance(input_shape, dict):
+            input_tensors = {
+                k: backend.KerasTensor(shape, record_history=False)
+                for k, shape in input_shape.items()
+            }
+        else:
+            input_tensors = backend.KerasTensor(input_shape, record_history=False)
+        try:
+            self(input_tensors)
+            return True
+        except:
+            return False
+
+    def _build_for_kwargs(self, shapes_dict):
+        # Case: inputs were recorded as multiple keyword arguments.
+        if all(is_shape_tuple(s) for s in shapes_dict.values()):
+            # Case: all input keyword arguments were plain tensors.
+            input_tensors = {
+                k: backend.KerasTensor(v, record_history=False) for k, v in shapes_dict.items()
+            }
+            try:
+                self(**input_tensors)
+            except:
+                return False
+        else:
+            # Not supported: nested input keyword arguments.
+            return False
 
     def __repr__(self):
         # TODO: improve
@@ -743,3 +785,7 @@ def is_shape_tuple(s):
     return isinstance(s, (list, tuple)) and all(
         d is None or isinstance(d, int) for d in s
     )
+
+
+def might_have_state(layer):
+    return layer._variables or layer._layers or layer._metrics or layer._seed_generators

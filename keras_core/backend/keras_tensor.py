@@ -4,7 +4,7 @@ from keras_core.utils.naming import auto_name
 
 
 class KerasTensor:
-    def __init__(self, shape, dtype="float32", name=None):
+    def __init__(self, shape, dtype="float32", record_history=True, name=None):
         from keras_core import backend
 
         if backend.DYNAMIC_SHAPES_OK:
@@ -14,6 +14,7 @@ class KerasTensor:
         self.shape = shape
         self.dtype = backend.standardize_dtype(dtype)
         self.name = name or auto_name(self.__class__.__name__)
+        self.record_history = record_history
 
     @property
     def ndim(self):

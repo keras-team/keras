@@ -174,7 +174,7 @@ class TestTrainer(testing.TestCase):
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
 
-    def test_predicte_flow_eager(self):
+    def test_predict_flow_eager(self):
         self._test_predict_flow(run_eagerly=True, jit_compile=False)
 
     def test_predict_flow_graph_fn(self):

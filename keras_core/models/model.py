@@ -207,67 +207,31 @@ class Model(Trainer, Layer):
             )
 
     def build_from_config(self, config):
-        def is_shape_tuple(s):
-            return isinstance(s, (list, tuple)) and all(
-                d is None or isinstance(d, int) for d in s
+        if not config:
+            return
+        if "input_shape" in config:
+            # Case: all inputs are in the first arg (possibly nested).
+            status = self._build_for_single_pos_arg(config["input_shape"])
+            self._build_shapes_dict = config
+        elif "shapes_dict" in config:
+            # Case: inputs were recorded as multiple keyword arguments.
+            status = self._build_for_kwargs(config["shapes_dict"])
+            self._build_shapes_dict = config["shapes_dict"]
+        if not status:
+            warnings.warn(
+                f"Model '{self.name}' had a build config, but the model "
+                "cannot be built automatically in "
+                "`build_from_config(config)`. "
+                "You should implement "
+                "`def build_from_config(self, config)`, "
+                "and you might also want to implement the method "
+                " that generates the config at saving time, "
+                "`def get_build_config(self)`. "
+                "The method `build_from_config()` is meant to "
+                "create the state of the model (i.e. its variables) "
+                "upon deserialization.",
+                stacklevel=2,
             )
-
-        if config:
-            failure = False
-            if "input_shape" in config:
-                # Case: all inputs are in the first arg (possibly nested).
-                input_shape = config["input_shape"]
-                if is_shape_tuple(input_shape):
-                    input_shape = tuple(input_shape)
-                if isinstance(input_shape, list):
-                    input_tensors = [
-                        backend.KerasTensor(shape) for shape in input_shape
-                    ]
-                elif isinstance(input_shape, dict):
-                    input_tensors = {
-                        k: backend.KerasTensor(shape)
-                        for k, shape in input_shape.items()
-                    }
-                else:
-                    input_tensors = backend.KerasTensor(input_shape)
-                try:
-                    self(input_tensors)
-                    self._build_shapes_dict = config
-                except Exception:
-                    failure = True
-            elif "shapes_dict" in config:
-                # Case: inputs were recorded as multiple keyword arguments.
-                if all(
-                    is_shape_tuple(s) for s in config["shapes_dict"].values()
-                ):
-                    # Case: all input keyword arguments were plain tensors.
-                    input_tensors = {
-                        k: backend.KerasTensor(v)
-                        for k, v in config["shapes_dict"].items()
-                    }
-                    try:
-                        self(**input_tensors)
-                        self._build_shapes_dict = config["shapes_dict"]
-                    except:
-                        failure = True
-                else:
-                    # Not supported: nested input keyword arguments.
-                    failure = True
-            if failure:
-                warnings.warn(
-                    f"Model '{self.name}' had a build config, but the model "
-                    "cannot be built automatically in "
-                    "`build_from_config(config)`. "
-                    "You should implement "
-                    "`def build_from_config(self, config)`, "
-                    "and you might also want to implement the method "
-                    " that generates the config at saving time, "
-                    "`def get_build_config(self)`. "
-                    "The method `build_from_config()` is meant to "
-                    "create the state of the model (i.e. its variables) "
-                    "upon deserialization.",
-                    stacklevel=2,
-                )
 
     def export(self, filepath):
         raise NotImplementedError
