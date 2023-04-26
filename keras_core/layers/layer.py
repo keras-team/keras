@@ -536,8 +536,12 @@ class Layer(Operation):
                 # Single arg: pass it positionally
                 input_shape = tuple(shapes_dict.values())[0]
                 with backend.name_scope(self.name):
-                    if utils.is_default(self.build) and might_have_unbuilt_state(self):
-                        status = self._build_by_run_for_single_pos_arg(input_shape)
+                    if utils.is_default(
+                        self.build
+                    ) and might_have_unbuilt_state(self):
+                        status = self._build_by_run_for_single_pos_arg(
+                            input_shape
+                        )
                         if not status:
                             failure = True
                     else:
@@ -547,13 +551,16 @@ class Layer(Operation):
                 # and check that build() expects the right args.
                 check_build_signature(self.build, shapes_dict)
                 with backend.name_scope(self.name):
-                    if utils.is_default(self.build) and might_have_unbuilt_state(self):
+                    if utils.is_default(
+                        self.build
+                    ) and might_have_unbuilt_state(self):
                         status = self._build_by_run_for_kwargs(shapes_dict)
                         if not status:
                             failure = True
                     else:
                         self.build(**shapes_dict)
-            # if failure: # TODO: warn or raise
+            if failure:  # TODO: warn or raise
+                pass
             self.built = True
 
             # Check input spec again (after build, since self.input_spec
@@ -566,7 +573,8 @@ class Layer(Operation):
             input_shape = tuple(input_shape)
         if isinstance(input_shape, list):
             input_tensors = [
-                backend.KerasTensor(shape, record_history=False) for shape in input_shape
+                backend.KerasTensor(shape, record_history=False)
+                for shape in input_shape
             ]
         elif isinstance(input_shape, dict):
             input_tensors = {
@@ -574,11 +582,13 @@ class Layer(Operation):
                 for k, shape in input_shape.items()
             }
         else:
-            input_tensors = backend.KerasTensor(input_shape, record_history=False)
+            input_tensors = backend.KerasTensor(
+                input_shape, record_history=False
+            )
         try:
             self.compute_output_spec(input_tensors)
             return True
-        except Exception as e:
+        except:
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
@@ -586,7 +596,8 @@ class Layer(Operation):
         if all(is_shape_tuple(s) for s in shapes_dict.values()):
             # Case: all input keyword arguments were plain tensors.
             input_tensors = {
-                k: backend.KerasTensor(v, record_history=False) for k, v in shapes_dict.items()
+                k: backend.KerasTensor(v, record_history=False)
+                for k, v in shapes_dict.items()
             }
             try:
                 self.compute_output_spec(**input_tensors)

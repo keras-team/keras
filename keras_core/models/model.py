@@ -2,12 +2,12 @@ import os
 import warnings
 
 from keras_core import backend
+from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.saving import saving_lib
 from keras_core.utils import io_utils
 from keras_core.utils import summary_utils
-from keras_core import utils
 
 if backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import (
@@ -213,7 +213,9 @@ class Model(Trainer, Layer):
         if "input_shape" in config:
             # Case: all inputs are in the first arg (possibly nested).
             if utils.is_default(self.build):
-                status = self._build_by_run_for_single_pos_arg(config["input_shape"])
+                status = self._build_by_run_for_single_pos_arg(
+                    config["input_shape"]
+                )
             else:
                 try:
                     self.build(config["input_shape"])
@@ -233,7 +235,7 @@ class Model(Trainer, Layer):
                 except:
                     status = False
             self._build_shapes_dict = config["shapes_dict"]
-            
+
         if not status:
             warnings.warn(
                 f"Model '{self.name}' had a build config, but the model "

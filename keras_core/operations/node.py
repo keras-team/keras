@@ -51,8 +51,10 @@ class Node:
                     f"Operation {operation} returned a non-tensor. "
                     f"Non-tensor received: {x}"
                 )
-        
-        zero_history = any(not x.record_history for x in self.arguments.keras_tensors)
+
+        zero_history = any(
+            not x.record_history for x in self.arguments.keras_tensors
+        )
 
         # If inputs don't have metadata yet, add it.
         if not zero_history:
