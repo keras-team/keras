@@ -151,7 +151,7 @@ class LayerTest(testing.TestCase):
 
         # KerasTensors are no op
         layer = ActivityRegularizer(activity_regularizer="l1")
-        layer(layers.Input((2, 2)))
+        layer(layers.Input(batch_shape=(2, 2)))
         self.assertLen(layer.losses, 0)
 
     def test_add_loss(self):
