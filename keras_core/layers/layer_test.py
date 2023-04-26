@@ -60,3 +60,6 @@ class LayerTest(testing.TestCase):
         layer(np.ones((3, 4)))
         self.assertAllClose(layer.variables[0], [1, 1])
         self.assertAllClose(layer.variables[1], [10, 1])
+
+    def test_build_on_call(self):
+        pass

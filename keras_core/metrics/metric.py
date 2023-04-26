@@ -1,4 +1,5 @@
 from keras_core import backend
+from keras_core import initializers
 from keras_core.api_export import keras_core_export
 from keras_core.utils.naming import auto_name
 from keras_core.utils.tracking import Tracker
@@ -48,12 +49,10 @@ class Metric:
 
     def add_variable(self, shape, initializer, dtype=None, name=None):
         self._check_super_called()
-        if callable(initializer):
-            value = initializer(shape=shape, dtype=dtype)
-        else:
-            raise ValueError(f"Invalid initializer: {initializer}")
+        initializer = initializers.get(initializer)
         variable = backend.Variable(
-            value=value,
+            initializer=initializer,
+            shape=shape,
             dtype=dtype,
             trainable=False,
             name=name,

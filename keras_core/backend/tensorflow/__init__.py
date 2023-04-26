@@ -16,11 +16,10 @@ DYNAMIC_SHAPES_OK = True
 
 
 class Variable(KerasVariable, tf.__internal__.types.Tensor):
-    def __init__(self, value, dtype=None, trainable=True, name=None):
-        self.name = name or auto_name(self.__class__.__name__)
-        dtype = standardize_dtype(dtype)
-        self.trainable = trainable
-        self._value = tf.Variable(value, dtype=dtype)
+    def _initialize(self, value):
+        self._value = tf.Variable(
+            value, dtype=self._dtype, trainable=self.trainable
+        )
 
     def assign(self, value):
         value = convert_to_tensor(value, dtype=self.dtype)
@@ -45,6 +44,15 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
             value = scope.get_current_value(self)
             if value is not None:
                 return value
+        if self._value is None:
+            # Unitialized variable. Return a placeholder.
+            # This is fine because it's only ever used
+            # during shape inference in a scratch graph
+            # (anything else would be a bug, to be fixed.)
+            return tf.constant(
+                self._initializer(self._shape, dtype=self._dtype),
+                dtype=self._dtype,
+            )
         return self._value
 
     @property
@@ -274,18 +282,3 @@ def execute(op_name, *args, **kwargs):
     raise AttributeError(
         f"The TensorFlow backend does not support op '{op_name}'"
     )
-
-
-def traceable_tensor(shape, dtype=None):
-    """Create a "traceable tensor".
-
-    That's a tensor that can be passed as input
-    to a stateful backend-native function to
-    create state during the trace.
-    """
-    shape = list(shape)
-    dtype = dtype or "float32"
-    for i, x in enumerate(shape):
-        if x is None:
-            shape[i] = 1
-    return tf.ones(shape, dtype=dtype)

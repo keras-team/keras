@@ -1,6 +1,7 @@
 import threading
 
-from keras_core.backend.common import KerasVariable
+from keras_core.backend.common.variables import KerasVariable
+from keras_core.backend.common.variables import initialize_all_variables
 
 ### Stateless context manager
 
@@ -50,6 +51,11 @@ class StatelessScope:
 
     def __exit__(self, *args, **kwargs):
         GLOBAL_SCOPE_TRACKER.stateless_scope = self.original_scope
+        if self.original_scope is None:
+            # We're back in eager scope;
+            # if any variables were created within the stateless
+            # scope, we initialize them here.
+            initialize_all_variables()
 
 
 def in_stateless_scope():

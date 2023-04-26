@@ -5,6 +5,7 @@ from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
+from keras_core.backend.common import standardize_shape
 from keras_core.backend.jax import math
 from keras_core.backend.jax import nn
 from keras_core.backend.jax import numpy
@@ -56,25 +57,8 @@ def vectorized_map(function, elements):
 
 
 class Variable(KerasVariable):
-    def __init__(self, value, dtype=None, trainable=True, name=None):
-        self.name = name or auto_name(self.__class__.__name__)
-        dtype = standardize_dtype(dtype)
-        if in_stateless_scope():
-            raise ValueError(
-                "You are attempting to create a variable "
-                "while in a stateless scope. This is disallowed. "
-                "Make sure that all variables are created "
-                "before you start using your layer/model objects. "
-                "Most of this time, this means you need to "
-                "implement a `def build(self, input_shape)` method "
-                "on your layer/model, which will "
-                "create its variables."
-            )
-        self._value = jnp.array(value, dtype=dtype)
-        self._dtype = dtype
-        self._shape = tuple(self._value.shape)
-        self._ndim = len(self._shape)
-        self.trainable = trainable
+    def _initialize(self, value):
+        self._value = jnp.array(value, dtype=self._dtype)
 
     def assign(self, value):
         value = convert_to_tensor(value, dtype=self.dtype)
@@ -103,6 +87,15 @@ class Variable(KerasVariable):
             value = scope.get_current_value(self)
             if value is not None:
                 return value
+        if self._value is None:
+            # Unitialized variable. Return a placeholder.
+            # This is fine because it's only ever used
+            # in during shape inference with JAX tracer objects
+            # (anything else would be a bug, to be fixed.)
+            return jnp.array(
+                self._initializer(self._shape, dtype=self._dtype),
+                dtype=self._dtype,
+            )
         return self._value
 
     @property
@@ -310,18 +303,3 @@ def execute(op_name, *args, **kwargs):
         op = getattr(jnp, op_name)
         return op(*args, **kwargs)
     raise AttributeError(f"The JAX backend does not support op '{op_name}'")
-
-
-def traceable_tensor(shape, dtype=None):
-    """Create a "traceable tensor".
-
-    That's a tensor that can be passed as input
-    to a stateful backend-native function to
-    create state during the trace.
-    """
-    shape = list(shape)
-    dtype = dtype or "float32"
-    for i, x in enumerate(shape):
-        if x is None:
-            shape[i] = 1
-    return jnp.ones(shape, dtype=dtype)

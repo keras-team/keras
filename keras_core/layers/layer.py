@@ -18,6 +18,7 @@ And some more magic:
 import collections
 import inspect
 import threading
+import warnings
 
 import numpy as np
 from tensorflow import keras as tf_keras
@@ -145,9 +146,9 @@ class Layer(Operation):
         # TODO: handle layout
         self._check_super_called()
         initializer = initializers.get(initializer)
-        value = initializer(shape=shape, dtype=dtype)
         variable = backend.Variable(
-            value=value,
+            initializer=initializer,
+            shape=shape,
             dtype=dtype,
             trainable=trainable,
             name=name,
@@ -736,3 +737,9 @@ class CallContext:
     def __init__(self, entry_layer):
         self.entry_layer = entry_layer
         self.training = None
+
+
+def is_shape_tuple(s):
+    return isinstance(s, (list, tuple)) and all(
+        d is None or isinstance(d, int) for d in s
+    )

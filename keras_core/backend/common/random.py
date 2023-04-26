@@ -11,7 +11,13 @@ class SeedGenerator:
             raise ValueError(
                 "Argument `seed` must be an integer. " f"Received: seed={seed}"
             )
-        self.state = Variable([seed, 0], dtype="uint32", trainable=False)
+
+        def seed_initializer(*args, **kwargs):
+            return [seed, 0]
+
+        self.state = Variable(
+            seed_initializer, shape=(2,), dtype="uint32", trainable=False
+        )
 
 
 def make_default_seed():

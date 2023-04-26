@@ -60,6 +60,9 @@ class Optimizer:
             )
 
         self.built = False
+        # NOTE: the below will not work in a stateless scope.
+        # optimizers should be created outside of any stateless scope,
+        # at this time.
         self.iterations = backend.Variable(
             0, name="iteration", dtype="int32", trainable=False
         )
@@ -117,12 +120,10 @@ class Optimizer:
         name=None,
     ):
         self._check_super_called()
-        if callable(initializer):
-            value = initializer(shape=shape, dtype=dtype)
-        else:
-            raise ValueError(f"Invalid initializer: {initializer}")
+        initializer = initializers.get(initializer)
         variable = backend.Variable(
-            value=value,
+            initializer=initializer,
+            shape=shape,
             dtype=dtype,
             trainable=False,
             name=name,
