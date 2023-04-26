@@ -42,7 +42,12 @@ from keras_core.utils.tracking import Tracker
 @keras_core_export(["keras_core.Layer", "keras_core.layers.Layer"])
 class Layer(Operation):
     def __init__(
-        self, activity_regularizer=None, trainable=True, dtype=None, name=None
+        self,
+        *,
+        activity_regularizer=None,
+        trainable=True,
+        dtype=None,
+        name=None,
     ):
         super().__init__(name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
@@ -594,7 +599,11 @@ class Layer(Operation):
         try:
             self.call(input_tensors)
             return True
-        except:
+        except Exception as e:
+            warnings.warn(
+                "Error when attempting to automatically build "
+                f"the layer by tracing it: {e}"
+            )
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
@@ -602,12 +611,18 @@ class Layer(Operation):
         if all(is_shape_tuple(s) for s in shapes_dict.values()):
             # Case: all input keyword arguments were plain tensors.
             input_tensors = {
-                k: backend.traceable_tensor(shape)
+                # We strip the `_shape` suffix to recover kwarg names.
+                k[:-6]: backend.traceable_tensor(shape)
                 for k, shape in shapes_dict.items()
             }
             try:
                 self.call(**input_tensors)
-            except:
+                return True
+            except Exception as e:
+                warnings.warn(
+                    "Error when attempting to automatically build "
+                    f"the layer by tracing it: {e}"
+                )
                 return False
         else:
             # Not supported: nested input keyword arguments.

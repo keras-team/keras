@@ -35,11 +35,15 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         # Compute gradients
         # TODO: move value conversion to TF
-        trainable_weights = [v.value for v in self.trainable_weights]
-        gradients = tape.gradient(loss, trainable_weights)
+        if self.trainable_weights:
+            trainable_weights = [v.value for v in self.trainable_weights]
+            gradients = tape.gradient(loss, trainable_weights)
 
-        # Update weights
-        self.optimizer.apply_gradients(zip(gradients, trainable_weights))
+            # Update weights
+            self.optimizer.apply_gradients(zip(gradients, trainable_weights))
+        else:
+            warnings.warn("The model does not have any trainable weights.")
+
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def test_step(self, data):
