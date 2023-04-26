@@ -54,7 +54,7 @@ class LeakyReLU(Layer):
         Same shape as the input.
 
     Args:
-        alpha: Float >= 0. Negative slope coefficient. Defaults to `0.3`.
+        alpha: Float >= `0.`. Negative slope coefficient. Defaults to `0.3`.
 
     """
 
