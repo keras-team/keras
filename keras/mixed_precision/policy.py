@@ -21,6 +21,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
+from keras.mixed_precision import loss_scale_optimizer
 from keras.saving import serialization_lib
 
 # isort: off
@@ -191,7 +192,7 @@ class Policy:
         if isinstance(name, tf.DType):
             raise TypeError(
                 "'name' must be a string, not a DType. "
-                "Instead, pass DType.name. Got: %s" % (name.name,)
+                f"Instead, pass DType.name. Received: name={name.name}"
             )
         elif not isinstance(name, str):
             raise TypeError(f"'name' must be a string, but got: {name}")
@@ -246,12 +247,11 @@ class Policy:
         try:
             dtype = tf.as_dtype(name).name
         except TypeError:
-            error = (
-                "Cannot convert value %s to a mixed precision Policy. "
+            raise ValueError(
+                f"Cannot convert value {name} to a mixed precision Policy. "
                 "Valid policies include 'mixed_float16', 'mixed_bfloat16', "
-                "and the name of any dtype such as 'float32'." % (name,)
+                "and the name of any dtype such as 'float32'."
             )
-            raise ValueError(error)
         return dtype, dtype
 
     @property
@@ -440,7 +440,7 @@ def set_global_policy(policy):
         raise ValueError(
             "set_global_policy can only be used to set the global "
             'policy to floating-point policies, such as "float32" and '
-            '"mixed_float16", but got policy: %s' % (policy.name,)
+            f'"mixed_float16", but got policy: {policy.name}'
         )
     _global_policy = policy
     tf.__internal__.train.set_using_mixed_precision_policy(is_mixed_policy)
@@ -463,6 +463,41 @@ def policy_scope(policy):
         yield
     finally:
         set_global_policy(old_policy)
+
+
+def get_policy(identifier):
+    if isinstance(identifier, Policy):
+        dtype_policy = identifier
+    elif isinstance(identifier, dict):
+        dtype_policy = deserialize(identifier)
+    elif isinstance(identifier, str) and identifier in (
+        "mixed_float16",
+        "mixed_bfloat16",
+    ):
+        # The isinstance check is required since np.dtype raises an error if
+        # compared to a non-dtype string.
+        dtype_policy = Policy(identifier)
+    elif identifier:
+        dtype_policy = Policy(tf.as_dtype(identifier).name)
+    else:
+        dtype_policy = global_policy()
+    if (
+        dtype_policy.name == "mixed_float16"
+        and not loss_scale_optimizer.strategy_supports_loss_scaling()
+    ):
+        # Although only loss scaling doesn't support certain strategies, to
+        # avoid confusion, we disallow the 'mixed_float16' policy with
+        # unsupported strategies. This is because 'mixed_float16' requires
+        # loss scaling for numeric stability.
+        strategy = tf.distribute.get_strategy()
+        raise ValueError(
+            "Mixed precision is not supported with the "
+            f"tf.distribute.Strategy: {strategy.__class__.__name__}. "
+            "Either stop using mixed precision by removing the use of "
+            f"the {dtype_policy.name} policy or "
+            "use a different Strategy, e.g. a MirroredStrategy."
+        )
+    return dtype_policy
 
 
 def _is_convertible_to_dtype(dtype):

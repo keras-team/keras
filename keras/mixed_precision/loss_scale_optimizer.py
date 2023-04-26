@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import optimizers
+from keras.dtensor import utils as dtensor_utils
 from keras.optimizers import optimizer
 from keras.optimizers import utils as optimizer_utils
 from keras.optimizers.legacy import optimizer_v2
@@ -1282,7 +1283,19 @@ class LossScaleOptimizerV3(
         experimental_aggregate_gradients = kwargs.pop(
             "experimental_aggregate_gradients", True
         )
-        if not skip_gradients_aggregation and experimental_aggregate_gradients:
+        run_with_dtensor = (
+            # `_run_with_dtensor` is for dtensor based strategy scope, and
+            # `_mesh` is when user explicitly specify the mesh setting for
+            # optimizer.
+            self._optimizer._run_with_dtensor
+            or self._optimizer._mesh
+        )
+
+        if (
+            not skip_gradients_aggregation
+            and experimental_aggregate_gradients
+            and not run_with_dtensor
+        ):
             # We must aggregate the gradients here instead of in
             # self.optimizer.apply_gradients, so that any NaN or Inf gradients
             # are propagated to each replica. If any replica has a NaN or Inf
@@ -1549,16 +1562,19 @@ def strategy_supports_loss_scaling():
     # variable replica for each compute replica, this works fine, but otherwise
     # issues will occur.
     # TODO(reedwm): Support all strategies.
-    return isinstance(
-        strategy,
-        (
-            tf.distribute.MultiWorkerMirroredStrategy,
-            tf.compat.v1.distribute.experimental.MultiWorkerMirroredStrategy,
-            tf.distribute.OneDeviceStrategy,
-            tf.compat.v1.distribute.OneDeviceStrategy,
-            tf.distribute.MirroredStrategy,
-            tf.compat.v1.distribute.MirroredStrategy,
-        ),
+    return (
+        isinstance(
+            strategy,
+            (
+                tf.distribute.MultiWorkerMirroredStrategy,
+                tf.compat.v1.distribute.experimental.MultiWorkerMirroredStrategy,  # noqa: E501
+                tf.distribute.OneDeviceStrategy,
+                tf.compat.v1.distribute.OneDeviceStrategy,
+                tf.distribute.MirroredStrategy,
+                tf.compat.v1.distribute.MirroredStrategy,
+            ),
+        )
+        or dtensor_utils.running_with_dtensor_strategy()
     )
 
 

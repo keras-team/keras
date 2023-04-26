@@ -109,17 +109,16 @@ class Hashing(base_layer.Layer):
         bin, so the effective number of bins is `(num_bins - 1)` if `mask_value`
         is set.
       mask_value: A value that represents masked inputs, which are mapped to
-        index 0. Defaults to None, meaning no mask term will be added and the
-        hashing will start at index 0.
+        index 0. `None` means no mask term will be added and the
+        hashing will start at index 0. Defaults to `None`.
       salt: A single unsigned integer or None.
         If passed, the hash function used will be SipHash64, with these values
         used as an additional input (known as a "salt" in cryptography).
-        These should be non-zero. Defaults to `None` (in that
-        case, the FarmHash64 hash function is used). It also supports
-        tuple/list of 2 unsigned integer numbers, see reference paper for
-        details.
-      output_mode: Specification for the output of the layer. Defaults to
-        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or
+        These should be non-zero. If `None`, uses the FarmHash64 hash function.
+        It also supports tuple/list of 2 unsigned integer numbers, see
+        reference paper for details. Defaults to `None`.
+      output_mode: Specification for the output of the layer. Values can bes
+        `"int"`, `"one_hot"`, `"multi_hot"`, or
         `"count"` configuring the layer as follows:
           - `"int"`: Return the integer bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
@@ -134,9 +133,10 @@ class Hashing(base_layer.Layer):
             will be `(..., num_tokens)`.
           - `"count"`: As `"multi_hot"`, but the int array contains a count of
             the number of times the bin index appeared in the sample.
+        Defaults to `"int"`.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
-        a dense `Tensor`. Defaults to False.
+        a dense `Tensor`. Defaults to `False`.
       **kwargs: Keyword arguments to construct a layer.
 
     Input shape:

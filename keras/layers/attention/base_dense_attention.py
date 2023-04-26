@@ -39,32 +39,33 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
     reuse the `apply_attention_scores()` method.
 
     Args:
-      dropout: Float between 0 and 1. Fraction of the units to drop for the
-        attention scores.
+        dropout: Float between 0 and 1. Fraction of the units to drop for the
+            attention scores.
 
     Call Args:
-      inputs: List of the following tensors:
-        * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
-        * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
-        * key: Optional key `Tensor` of shape `[batch_size, Tv, dim]`. If not
-          given, will use `value` for both `key` and `value`, which is the most
-          common case.
-      mask: List of the following tensors:
-        * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`. If
-          given, the output will be zero at the positions where `mask==False`.
-        * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`. If
-          given, will apply the mask such that values at positions where
-          `mask==False` do not contribute to the result.
-      training: Python boolean indicating whether the layer should behave in
-        training mode (adding dropout) or in inference mode (no dropout).
-      return_attention_scores: bool, if `True`, returns the attention scores
-        (after masking and softmax) as an additional output argument.
+        inputs: List of the following tensors:
+            * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
+            * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
+            * key: Optional key `Tensor` of shape `[batch_size, Tv, dim]`. If
+                not given, will use `value` for both `key` and `value`, which is
+                the most common case.
+        mask: List of the following tensors:
+            * query_mask: A boolean mask `Tensor` of shape `[batch_size, Tq]`.
+                If given, the output will be zero at the positions where
+                `mask==False`.
+            * value_mask: A boolean mask `Tensor` of shape `[batch_size, Tv]`.
+                If given, will apply the mask such that values at positions
+                 where `mask==False` do not contribute to the result.
+        training: Python boolean indicating whether the layer should behave in
+            training mode (adding dropout) or in inference mode (no dropout).
+        return_attention_scores: bool, if `True`, returns the attention scores
+            (after masking and softmax) as an additional output argument.
 
     Output:
 
-      Attention outputs of shape `[batch_size, Tq, dim]`.
-      [Optional] Attention scores after masking and softmax with shape
-        `[batch_size, Tq, Tv]`.
+        Attention outputs of shape `[batch_size, Tq, dim]`.
+        [Optional] Attention scores after masking and softmax with shape
+            `[batch_size, Tq, Tv]`.
     """
 
     def __init__(self, dropout=0.0, **kwargs):
@@ -91,11 +92,11 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         """Calculates attention scores.
 
         Args:
-          query: Query tensor of shape `[batch_size, Tq, dim]`.
-          key: Key tensor of shape `[batch_size, Tv, dim]`.
+            query: Query tensor of shape `[batch_size, Tq, dim]`.
+            key: Key tensor of shape `[batch_size, Tv, dim]`.
 
         Returns:
-          Tensor of shape `[batch_size, Tq, Tv]`.
+            Tensor of shape `[batch_size, Tq, Tv]`.
         """
         return NotImplementedError
 
@@ -105,27 +106,29 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         To use this method in your attention layer, follow the steps:
 
         * Use `query` tensor of shape `[batch_size, Tq]` and `key` tensor of
-          shape `[batch_size, Tv]` to calculate the attention `scores`.
+            shape `[batch_size, Tv]` to calculate the attention `scores`.
         * Pass `scores` and `value` tensors to this method. The method applies
-          `scores_mask`, calculates `attention_distribution = softmax(scores)`,
-          then returns `matmul(attention_distribution, value).
+            `scores_mask`, calculates
+            `attention_distribution = softmax(scores)`, then returns
+            `matmul(attention_distribution, value).
         * Apply `query_mask` and return the result.
 
         Args:
-          scores: Scores float tensor of shape `[batch_size, Tq, Tv]`.
-          value: Value tensor of shape `[batch_size, Tv, dim]`.
-          scores_mask: A boolean mask `Tensor` of shape `[batch_size, 1, Tv]` or
-            `[batch_size, Tq, Tv]`. If given, scores at positions where
-            `scores_mask==False` do not contribute to the result. It must
-            contain at least one `True` value in each line along the last
-            dimension.
-          training: Python boolean indicating whether the layer should behave in
-            training mode (adding dropout) or in inference mode (no dropout).
+            scores: Scores float tensor of shape `[batch_size, Tq, Tv]`.
+            value: Value tensor of shape `[batch_size, Tv, dim]`.
+            scores_mask: A boolean mask `Tensor` of shape `[batch_size, 1, Tv]`
+                or `[batch_size, Tq, Tv]`. If given, scores at positions where
+                `scores_mask==False` do not contribute to the result. It must
+                contain at least one `True` value in each line along the last
+                dimension.
+            training: Python boolean indicating whether the layer should behave
+                in training mode (adding dropout) or in inference mode
+                (no dropout).
 
         Returns:
-          Tensor of shape `[batch_size, Tq, dim]`.
-          Attention scores after masking and softmax with shape
-            `[batch_size, Tq, Tv]`.
+            Tensor of shape `[batch_size, Tq, dim]`.
+            Attention scores after masking and softmax with shape
+                `[batch_size, Tq, Tv]`.
         """
         if scores_mask is not None:
             padding_mask = tf.logical_not(scores_mask)

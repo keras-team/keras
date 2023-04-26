@@ -604,7 +604,7 @@ class KerasObjectLoader:
                         "One of several possible causes could be "
                         "a missing custom object. "
                         "Decorate your custom object with "
-                        "`@keras.utils.register_keras_serializable` and "
+                        "`@keras.utils.register_keras_serializable()` and "
                         "include that file in your program, "
                         "or pass your class in a "
                         "`keras.utils.CustomObjectScope` "

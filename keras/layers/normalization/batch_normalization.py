@@ -1148,7 +1148,9 @@ class BatchNormalizationBase(Layer):
                 keepdims=keep_dims,
             )
 
-    def _sync_calculate_mean_and_var(self, x, axes, keep_dims, mask=None):
+    def _sync_calculate_mean_and_var(
+        self, x, reduction_axes, keep_dims, mask=None
+    ):
         with backend.name_scope("moments"):
             # The dynamic range of fp16 is too limited to support the collection
             # of sufficient statistics. As a workaround we simply perform the
@@ -1159,22 +1161,29 @@ class BatchNormalizationBase(Layer):
 
             if not replica_ctx:
                 return self._no_sync_calculate_mean_and_var(
-                    x, axes, keep_dims, mask=mask
+                    x, reduction_axes, keep_dims, mask=mask
                 )
 
             if mask is not None:
-                mask_weights = tf.cast(mask, tf.float32, name="mask_weights")
+                mask_weights = tf.cast(mask, y.dtype, name="mask_weights")
                 mask_weights = tf.expand_dims(
                     mask_weights, axis=-1, name="mask_weights_broadcasted"
                 )
                 y *= mask_weights
+                local_count = tf.broadcast_to(
+                    mask_weights, tf.shape(y), name="count"
+                )
+            else:
+                local_count = tf.ones_like(y, name="count")
 
-            local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+            local_sum = tf.reduce_sum(y, axis=reduction_axes, keepdims=True)
             local_squared_sum = tf.reduce_sum(
-                tf.square(y), axis=axes, keepdims=True
+                tf.square(y), axis=reduction_axes, keepdims=True
+            )
+            local_count = tf.reduce_sum(
+                local_count, axis=reduction_axes, keepdims=True
             )
 
-            batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
             # TODO(b/163099951): batch the all-reduces once we sort out the
             # ordering issue for NCCL. We don't have a mechanism to launch
             # NCCL in the same order in each replica nowadays, so we limit
@@ -1185,21 +1194,17 @@ class BatchNormalizationBase(Layer):
             y_squared_sum = replica_ctx.all_reduce(
                 tf.distribute.ReduceOp.SUM, local_squared_sum
             )
-            global_batch_size = replica_ctx.all_reduce(
-                tf.distribute.ReduceOp.SUM, batch_size
+            count_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_count
             )
 
-            axes_vals = [(tf.shape(y))[axes[i]] for i in range(1, len(axes))]
-            multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-            multiplier = multiplier * global_batch_size
-
-            mean = y_sum / multiplier
-            y_squared_mean = y_squared_sum / multiplier
+            mean = y_sum / count_sum
+            y_squared_mean = y_squared_sum / count_sum
             # var = E(x^2) - E(x)^2
             variance = y_squared_mean - tf.square(mean)
             if not keep_dims:
-                mean = tf.squeeze(mean, axes)
-                variance = tf.squeeze(variance, axes)
+                mean = tf.squeeze(mean, reduction_axes)
+                variance = tf.squeeze(variance, reduction_axes)
             if x.dtype == tf.float16:
                 return (
                     tf.cast(mean, tf.float16),
@@ -1240,6 +1245,7 @@ class BatchNormalizationBase(Layer):
             mask_weights = tf.expand_dims(
                 mask_weights, axis=-1, name="mask_weights_broadcasted"
             )
+            mask_weights = _expand_tensor_with_local_replica_group(mask_weights)
             mean, var = tf.nn.weighted_moments(
                 replica_tensor,
                 axes=updated_reduction_axes,
