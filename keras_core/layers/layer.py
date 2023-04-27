@@ -340,25 +340,26 @@ class Layer(Operation):
         # TODO: Populate mask argument(s)
 
         # Call the layer.
-        with backend.name_scope(self.name):
-            if self.autocast and self.compute_dtype != self.variable_dtype:
-                # For mixed precision, we automatically cast layer variables
-                # (float ones only) to the compute dtype upon access.
-                with backend.AutocastScope(self.compute_dtype):
+        try:
+            with backend.name_scope(self.name):
+                if self.autocast and self.compute_dtype != self.variable_dtype:
+                    # For mixed precision, we automatically cast layer variables
+                    # (float ones only) to the compute dtype upon access.
+                    with backend.AutocastScope(self.compute_dtype):
+                        outputs = super().__call__(*args, **kwargs)
+                else:
                     outputs = super().__call__(*args, **kwargs)
-            else:
-                outputs = super().__call__(*args, **kwargs)
-            # Record activity regularizer loss.
-            if self.activity_regularizer is not None:
-                for output in nest.flatten(outputs):
-                    if backend.is_tensor(output):
-                        self.add_loss(self.activity_regularizer(output))
+                # Record activity regularizer loss.
+                if self.activity_regularizer is not None:
+                    for output in nest.flatten(outputs):
+                        if backend.is_tensor(output):
+                            self.add_loss(self.activity_regularizer(output))
 
-        # TODO: Set masks on outputs
-        # self._set_mask_metadata(inputs, outputs, previous_mask)
-
-        # Destroy call context if we created it
-        self._maybe_reset_call_context()
+            # TODO: Set masks on outputs
+            # self._set_mask_metadata(inputs, outputs, previous_mask)
+        finally:
+            # Destroy call context if we created it
+            self._maybe_reset_call_context()
         return outputs
 
     def call(self, *args, **kwargs):

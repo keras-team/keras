@@ -228,6 +228,25 @@ class LayerTest(testing.TestCase):
         y = layer(x, training=False)
         self.assertEqual(ops.min(y), 0)
 
+        # Test that layer interruption does not cause
+        # the call context to linger
+        class BadLayer(layers.Layer):
+            def call(self, x, training=False):
+                raise RuntimeError("oops!")
+
+        x = np.ones((4, 4))
+        layer = BadLayer()
+        try:
+            # training=True will be recorded
+            # in the call context
+            layer(x, training=True)
+        except RuntimeError:
+            pass
+        layer = TrainingLayer()
+        # But this layer call should not see it
+        y = layer(x)
+        self.assertEqual(ops.min(y), 1)
+
     def test_mixed_precision(self):
         x = np.ones((4, 4))
 
