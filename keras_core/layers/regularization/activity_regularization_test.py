@@ -11,7 +11,7 @@ class ActivityRegularizationTest(test_case.TestCase):
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 4 * 0.3 + 2 * 0.2)
 
-    def test_basics(self):
+    def test_activity_regularization_basics(self):
         self.run_layer_test(
             layers.ActivityRegularization,
             {"l1": 0.1, "l2": 0.2},

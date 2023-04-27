@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 
@@ -226,6 +227,8 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
 
 def convert_to_tensor(x, dtype=None):
     dtype = standardize_dtype(dtype)
+    if tf.is_tensor(x):
+        return tf.cast(x, dtype=dtype)
     return tf.convert_to_tensor(x, dtype=dtype)
 
 

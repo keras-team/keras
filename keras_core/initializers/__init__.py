@@ -39,6 +39,13 @@ ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {to_snake_case(cls.__name__): cls for cls in ALL_OBJECTS}
 )
+# Aliases
+ALL_OBJECTS_DICT.update(
+    {
+        "uniform": RandomUniform,
+        "normal": RandomNormal,
+    }
+)
 
 
 @keras_core_export("keras_core.initializers.serialize")
@@ -90,15 +97,15 @@ def get(identifier):
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        identifier = deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(config)
-    elif callable(identifier):
+        identifier = deserialize(config)
+
+    if callable(identifier):
         if inspect.isclass(identifier):
             identifier = identifier()
         return identifier
-    else:
-        raise ValueError(
-            f"Could not interpret initializer object identifier: {identifier}"
-        )
+    raise ValueError(
+        f"Could not interpret initializer object identifier: {identifier}"
+    )

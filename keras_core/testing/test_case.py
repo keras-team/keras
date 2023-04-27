@@ -6,6 +6,8 @@ import unittest
 import numpy as np
 from tensorflow import nest
 
+from keras_core import operations as ops
+
 
 class TestCase(unittest.TestCase):
     maxDiff = None
@@ -234,11 +236,24 @@ def create_keras_tensors(input_shape, dtype):
 def create_eager_tensors(input_shape, dtype):
     from keras_core.backend import random
 
+    if dtype in ["float16", "float32", "float64"]:
+        create_fn = random.uniform
+    elif dtype in ["int16", "int32", "int64"]:
+
+        def create_fn(shape, dtype):
+            return ops.cast(
+                random.uniform(shape, dtype="float32") * 3, dtype=dtype
+            )
+
+    else:
+        raise ValueError(
+            "dtype must be a standard float or int dtype. "
+            f"Received: dtype={dtype}"
+        )
+
     if isinstance(input_shape, tuple):
-        return random.uniform(input_shape, dtype=dtype)
+        return create_fn(input_shape, dtype=dtype)
     if isinstance(input_shape, list):
-        return [random.uniform(s, dtype=dtype) for s in input_shape]
+        return [create_fn(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
-        return {
-            k: random.uniform(v, dtype=dtype) for k, v in input_shape.items()
-        }
+        return {k: create_fn(v, dtype=dtype) for k, v in input_shape.items()}

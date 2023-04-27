@@ -22,6 +22,8 @@ depthwise_conv
 separable_conv
 conv_transpose
 
+one_hot
+
 ctc ??
 """
 
