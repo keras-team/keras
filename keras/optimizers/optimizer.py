@@ -685,31 +685,21 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
-            for var, average in zip(
-                var_list, self._model_variables_moving_average
-            ):
+            for var in var_list:
+                average = self._model_variables_moving_average[
+                    self._index_dict[self._var_key(var)]
+                ]
                 average.assign(
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
     def _overwrite_model_variables_with_average_value(self, var_list):
         """Overwrite model variables with its moving average."""
-        if len(var_list) != len(self._model_variables_moving_average):
-            raise ValueError(
-                f"The length of model variables ({len(var_list)}) to "
-                "override does not match the length of model variables "
-                "stored in the optimizer "
-                f"({len(self._model_variables_moving_average)}). Please "
-                "check if the optimizer was called on your model."
-            )
-        self._overwrite_model_variables_with_average_value_helper(var_list)
-
-    def _overwrite_model_variables_with_average_value_helper(self, var_list):
-        """Helper function that overwrites model variables."""
-        for var, average_var in zip(
-            var_list, self._model_variables_moving_average
-        ):
-            var.assign(average_var)
+        for var in var_list:
+            average = self._model_variables_moving_average[
+                self._index_dict[self._var_key(var)]
+            ]
+            var.assign(average)
 
     def finalize_variable_values(self, var_list):
         """Set the final value of model's trainable variables.
@@ -1263,8 +1253,8 @@ class Optimizer(_BaseOptimizer):
             grads_and_vars,
         )
 
-    def _overwrite_model_variables_with_average_value_helper(self, var_list):
-        """Helper function to _overwrite_model_variables_with_average_value.
+    def _overwrite_model_variables_with_average_value(self, var_list):
+        """Overwrite model variables with their moving average values.
 
         This function overwrites variables on each device.
         Args:
@@ -1272,17 +1262,16 @@ class Optimizer(_BaseOptimizer):
         """
         if self._mesh or self._run_with_dtensor:
             # Skip any usage of strategy logic for DTensor
-            super()._overwrite_model_variables_with_average_value_helper(
-                var_list
-            )
+            super()._overwrite_model_variables_with_average_value(var_list)
 
         strategy = self._distribution_strategy
         # Override model variable by the stored average value on all devices.
-        for var, average_var in zip(
-            var_list, self._model_variables_moving_average
-        ):
+        for var in var_list:
+            average = self._model_variables_moving_average[
+                self._index_dict[self._var_key(var)]
+            ]
             strategy.extended.update(
-                var, lambda a, b: a.assign(b), args=(average_var,)
+                var, lambda a, b: a.assign(b), args=(average,)
             )
 
     def _build_learning_rate(self, learning_rate):
@@ -1330,9 +1319,10 @@ class Optimizer(_BaseOptimizer):
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
-            for var, average in zip(
-                var_list, self._model_variables_moving_average
-            ):
+            for var in var_list:
+                average = self._model_variables_moving_average[
+                    self._index_dict[self._var_key(var)]
+                ]
                 self._distribution_strategy.extended.update(
                     average, update_average, args=(var,), group=False
                 )
