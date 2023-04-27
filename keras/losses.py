@@ -2873,7 +2873,7 @@ def serialize(loss, use_legacy_format=False):
     Args:
         loss: A Keras `Loss` instance or a loss function.
         use_legacy_format: Boolean, whether to use the legacy serialization
-            format.
+            format. Defaults to `False`.
 
     Returns:
         Loss configuration dictionary.
@@ -2893,7 +2893,7 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
             objects (classes and functions) to be considered during
             deserialization.
         use_legacy_format: Boolean, whether to use the legacy serialization
-            format.
+            format. Defaults to `False`.
 
     Returns:
         A Keras `Loss` instance or a loss function.
