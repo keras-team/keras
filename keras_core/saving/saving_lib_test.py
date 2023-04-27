@@ -377,7 +377,9 @@ class SavingTest(testing.TestCase):
     #         os.path.join(self.get_temp_dir(), "my_model.keras")
     #     )
     #     model = CompileOverridingModel()
-    #     with mock.patch("re.match", autospec=True) as mock_re_match, mock.patch(
+    #     with mock.patch(
+    #         "re.match", autospec=True
+    #     ) as mock_re_match, mock.patch(
     #         "tensorflow.compat.v2.io.gfile.copy", autospec=True
     #     ) as mock_copy:
     #         # Mock Remote Path check to true to test gfile copy logic
@@ -389,7 +391,9 @@ class SavingTest(testing.TestCase):
     #         self.assertIn(str(temp_filepath), mock_copy.call_args.args)
 
     # def test_load_model_api_endpoint(self):
-    #     temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
+    #     temp_filepath = Path(
+    #         os.path.join(self.get_temp_dir(), "mymodel.keras")
+    #     )
     #     model = self._get_functional_model()
     #     ref_input = np.random.random((10, 32))
     #     ref_output = model.predict(ref_input)
@@ -448,7 +452,9 @@ class SavingTest(testing.TestCase):
     #     with self.assertRaises(EOFError):
     #         model.save(temp_filepath, overwrite=False)
 
-    #     temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
+    #     temp_filepath = os.path.join(
+    #         self.get_temp_dir(), "mymodel.weights.h5"
+    #     )
     #     model = self._get_basic_functional_model()
     #     model.save_weights(temp_filepath)
     #     model.save_weights(temp_filepath, overwrite=True)
@@ -550,7 +556,8 @@ class SavingTest(testing.TestCase):
 #             [
 #                 keras_core.Input(shape=(3,)),
 #                 keras_core.layers.Normalization(
-#                     mean=np.random.random((3,)), variance=np.random.random((3,))
+#                     mean=np.random.random((3,)),
+#                     variance=np.random.random((3,)),
 #                 ),
 #             ]
 #         )
@@ -566,8 +573,12 @@ class SavingTest(testing.TestCase):
 #     def __init__(self, units):
 #         super(CustomRNN, self).__init__()
 #         self.units = units
-#         self.projection_1 = keras_core.layers.Dense(units=units, activation="tanh")
-#         self.projection_2 = keras_core.layers.Dense(units=units, activation="tanh")
+#         self.projection_1 = keras_core.layers.Dense(
+#             units=units, activation="tanh"
+#         )
+#         self.projection_2 = keras_core.layers.Dense(
+#             units=units, activation="tanh"
+#         )
 #         self.classifier = keras_core.layers.Dense(1)
 
 #     def call(self, inputs):
@@ -647,7 +658,9 @@ class SavingTest(testing.TestCase):
 #         input_dim = 5
 #         batch_size = 16
 
-#         inputs = keras_core.Input(batch_shape=(batch_size, timesteps, input_dim))
+#         inputs = keras_core.Input(
+#             batch_shape=(batch_size, timesteps, input_dim)
+#         )
 #         x = keras_core.layers.Conv1D(32, 3)(inputs)
 #         outputs = CustomRNN(32)(x)
 
@@ -665,7 +678,9 @@ class SavingTest(testing.TestCase):
 #         )
 
 #         inputs = keras_core.Input(shape=(4, 4))
-#         outputs = keras_core.layers.Dense(1, activation=GrowthFactor(0.5))(inputs)
+#         outputs = keras_core.layers.Dense(
+#             1, activation=GrowthFactor(0.5)
+#         )(inputs)
 #         model = keras_core.Model(inputs, outputs)
 
 #         model.save(temp_filepath)
@@ -676,7 +691,9 @@ class SavingTest(testing.TestCase):
 #             _ = keras_core.models.load_model(temp_filepath)
 
 #     def test_complex_model_without_explicit_deserialization(self):
-#         temp_filepath = os.path.join(self.get_temp_dir(), "complex_model.keras")
+#         temp_filepath = os.path.join(
+#             self.get_temp_dir(), "complex_model.keras"
+#         )
 
 #         inputs = keras_core.Input((32,))
 #         outputs = ComplexModel(first_layer=FactorLayer(0.5))(inputs)

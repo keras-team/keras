@@ -15,7 +15,9 @@ except ImportError:
 
 
 class ArrayDataAdapter(DataAdapter):
-    """Adapter that handles array-like objects, e.g. tf.Tensor and NumPy arrays."""
+    """Adapter that handles array-like objects,
+    e.g. tf.Tensor and NumPy arrays.
+    """
 
     def __init__(
         self,
@@ -33,15 +35,16 @@ class ArrayDataAdapter(DataAdapter):
             issubclass(c, data_adapter_utils.ARRAY_TYPES) for c in flat_types
         ):
             raise ValueError(
-                "Expected all elements of `x` to be array-like. Received invalid types: "
-                f"x={x}"
+                "Expected all elements of `x` to be array-like. "
+                f"Received invalid types: x={x}"
             )
 
         x, y, sample_weight = convert_to_arrays((x, y, sample_weight))
         if sample_weight is not None:
             if class_weight is not None:
                 raise ValueError(
-                    "You cannot `class_weight` and `sample_weight` at the same time."
+                    "You cannot `class_weight` and `sample_weight` "
+                    "at the same time."
                 )
             if tf.nest.is_nested(y):
                 if isinstance(sample_weight, np.ndarray):
@@ -51,10 +54,12 @@ class ArrayDataAdapter(DataAdapter):
                     )
                     if not is_samplewise:
                         raise ValueError(
-                            "For a model with multiple outputs, when providing a single `sample_weight` array, "
-                            "it should only have one scalar score per sample (i.e. shape `(num_samples,)`). "
-                            "If you want to use non-scalar sample weights, pass a `sample_weight` argument with one "
-                            "array per model output."
+                            "For a model with multiple outputs, when providing "
+                            "a single `sample_weight` array, it should only "
+                            "have one scalar score per sample "
+                            "(i.e. shape `(num_samples,)`). If you want to use "
+                            "non-scalar sample weights, pass a `sample_weight` "
+                            "argument with one array per model output."
                         )
                     # Replicate the same sample_weight array on all outputs.
                     sample_weight = tf.nest.map_structure(
@@ -65,8 +70,8 @@ class ArrayDataAdapter(DataAdapter):
                         tf.nest.assert_same_structure(y, sample_weight)
                     except ValueError:
                         raise ValueError(
-                            "You should provide one `sample_weight` array per output in `y`. "
-                            "The two structures did not match:\n"
+                            "You should provide one `sample_weight` array per "
+                            "output in `y`. The two structures did not match:\n"
                             f"- y: {y}\n"
                             f"- sample_weight: {sample_weight}\n"
                         )
@@ -161,8 +166,8 @@ def convert_to_arrays(arrays, dtype=None):
             x = x.numpy()
         if not isinstance(x, np.ndarray):
             raise ValueError(
-                "Expected a NumPy array, tf.Tensor, Pandas Dataframe or Pandas Series. "
-                f"Received invalid input: {x} (of type {type(x)})"
+                "Expected a NumPy array, tf.Tensor, Pandas Dataframe or Pandas "
+                f"Series. Received invalid input: {x} (of type {type(x)})"
             )
         if not str(x.dtype) == str(dtype):
             x = x.astype(dtype)

@@ -19,9 +19,9 @@ class CustomObjectScope:
     """Exposes custom classes/functions to Keras deserialization internals.
 
     Under a scope `with custom_object_scope(objects_dict)`, Keras methods such
-    as `keras_core.models.load_model()` or `keras_core.models.model_from_config()`
-    will be able to deserialize any custom object referenced by a
-    saved config (e.g. a custom layer or metric).
+    as `keras_core.models.load_model()` or
+    `keras_core.models.model_from_config()` will be able to deserialize any
+    custom object referenced by a saved config (e.g. a custom layer or metric).
 
     Example:
 
@@ -108,18 +108,20 @@ def register_keras_serializable(package="Custom", name=None):
     class MyDense(keras_core.layers.Dense):
         pass
 
-    assert keras_core.saving.get_registered_object('my_package>MyDense') == MyDense
-    assert keras_core.saving.get_registered_name(MyDense) == 'my_package>MyDense'
+    assert keras_core.saving.get_registered_object(
+        'my_package>MyDense') == MyDense
+    assert keras_core.saving.get_registered_name(
+        MyDense) == 'my_package>MyDense'
     ```
 
     Args:
         package: The package that this class belongs to. This is used for the
-            `key` (which is `"package>name"`) to idenfify the class. Note that this
-            is the first argument passed into the decorator.
+            `key` (which is `"package>name"`) to idenfify the class. Note that
+            this is the first argument passed into the decorator.
         name: The name to serialize this class under in this package. If not
-            provided or `None`, the class' name will be used (note that this is the
-            case when the decorator is used with only one argument, which becomes
-            the `package`).
+            provided or `None`, the class' name will be used (note that this is
+            the case when the decorator is used with only one argument, which
+            becomes the `package`).
 
     Returns:
         A decorator that registers the decorated class with the passed names.
@@ -187,7 +189,8 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
         custom_objects: A dictionary of custom objects to look the name up in.
             Generally, custom_objects is provided by the user.
         module_objects: A dictionary of custom objects to look the name up in.
-            Generally, module_objects is provided by midlevel library implementers.
+            Generally, module_objects is provided by midlevel library
+            implementers.
 
     Returns:
         An instantiable class associated with `name`, or `None` if no such class

@@ -36,7 +36,8 @@ from keras_core.operations.operation import Operation
 from keras_core.utils import summary_utils
 from keras_core.utils.tracking import Tracker
 
-# TODO: cache all call signature processing. See layer_utils.CallFunctionSpec() in Keras.
+# TODO: cache all call signature processing.
+# See layer_utils.CallFunctionSpec() in Keras.
 
 
 @keras_core_export(["keras_core.Layer", "keras_core.layers.Layer"])
@@ -240,8 +241,8 @@ class Layer(Operation):
         if len(layer_weights) != len(weights):
             raise ValueError(
                 f"You called `set_weights(weights)` on layer '{self.name}' "
-                f"with a weight list of length {len(weights)}, but the layer was "
-                f"expecting {len(layer_weights)} weights."
+                f"with a weight list of length {len(weights)}, but the layer "
+                f"was expecting {len(layer_weights)} weights."
             )
         for variable, value in zip(layer_weights, weights):
             if variable.shape != value.shape:
@@ -320,9 +321,9 @@ class Layer(Operation):
 
         # Infer training value
         # Training phase for `Layer.call` is set via (in order of priority):
-        # (1) The `training` argument passed to this `Layer.call`, if it is not None
+        # (1) The `training` argument passed to this `Layer.call`, if not None
         # (2) The training argument of an outer `Layer.call`.
-        # (4) Any non-None default value for `training` specified in the call signature
+        # (4) Any non-None default value for `training` in the call signature
         # (5) False (treating the layer as if it's in inference)
         arguments_dict = get_arguments_dict(self.call, *args, **kwargs)
         training = arguments_dict.get("training", None)
@@ -366,23 +367,25 @@ class Layer(Operation):
 
         if not self.built:
             raise ValueError(
-                "To call stateless_call, {self.__class__.__name__} must be built "
-                "(i.e. its variables must have been already created). "
+                "To call stateless_call, {self.__class__.__name__} must be "
+                "built (i.e. its variables must have been already created). "
                 "You can build it by calling it on some data."
             )
         if len(trainable_variables) != len(self.trainable_variables):
             raise ValueError(
                 "Argument `trainable_variables` must be a list of tensors "
-                f"corresponding 1:1 to {self.__class__.__name__}().trainable_variables. "
-                f"Received list with length {len(trainable_variables)}, but expected "
-                f"{len(self.trainable_variables)} variables."
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().trainable_variables. "
+                f"Received list with length {len(trainable_variables)}, "
+                f"but expected {len(self.trainable_variables)} variables."
             )
         if len(non_trainable_variables) != len(self.non_trainable_variables):
             raise ValueError(
                 "Argument `non_trainable_variables` must be a list of tensors "
-                f"corresponding 1:1 to {self.__class__.__name__}().non_trainable_variables. "
-                f"Received list with length {len(non_trainable_variables)}, but expected "
-                f"{len(self.non_trainable_variables)} variables."
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().non_trainable_variables. "
+                f"Received list with length {len(non_trainable_variables)}, "
+                f"but expected {len(self.non_trainable_variables)} variables."
             )
 
         # Gather variable mapping
@@ -440,8 +443,8 @@ class Layer(Operation):
         for x in losses:
             if not backend.is_tensor(x):
                 raise ValueError(
-                    "`add_loss()` can only be called from inside `build()` or `call()`, "
-                    f"on a tensor input. Received invalid value: {x}"
+                    "`add_loss()` can only be called from inside `build()` or "
+                    f"`call()`, on a tensor input. Received invalid value: {x}"
                 )
         if backend.in_stateless_scope():
             scope = backend.get_stateless_scope()
@@ -760,7 +763,8 @@ def get_shapes_dict(arguments_dict):
     Example:
 
     ```
-    >>> get_shapes_dict({"input_a": KerasTensor(shape=(2, 3)), "training": False})
+    >>> get_shapes_dict(
+        {"input_a": KerasTensor(shape=(2, 3)), "training": False})
     {"input_a_shape": (2, 3)}
     ```
     """
@@ -778,8 +782,8 @@ def get_shapes_dict(arguments_dict):
                     for x in flat
                 ):
                     raise ValueError(
-                        "You cannot mix tensors and non-tensors in a nested argument. "
-                        f"Invalid argument: {k}={v}"
+                        "You cannot mix tensors and non-tensors in a nested "
+                        f"argument. Invalid argument: {k}={v}"
                     )
             shapes_dict[f"{k}_shape"] = nest.map_structure(
                 lambda x: backend.standardize_shape(x.shape), v
@@ -788,7 +792,7 @@ def get_shapes_dict(arguments_dict):
 
 
 def check_build_signature(build_fn, shapes_dict):
-    """Asserts that the argument names in build_fn match the entries in shapes_dict.
+    """Asserts that the argument names in build_fn match entries in shapes_dict.
 
     For instance if call() has the signature `def call(self, a, b)`
     then we'll see `shapes_dict == {"a_shape": (...), "b_shape": (...)}

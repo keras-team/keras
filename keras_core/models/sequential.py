@@ -42,9 +42,9 @@ class Sequential(Model):
             and isinstance(self._layers[0], InputLayer)
         ):
             raise ValueError(
-                f"Sequential model '{self.name}' has already been configured to "
-                f"use input shape {self._layers[0].batch_shape}. You cannot add "
-                f"a different Input layer to it."
+                f"Sequential model '{self.name}' has already been configured "
+                f"to use input shape {self._layers[0].batch_shape}. You cannot "
+                f"add a different Input layer to it."
             )
 
         self._layers.append(layer)
@@ -73,23 +73,26 @@ class Sequential(Model):
 
     def build(self, input_shape=None):
         if not isinstance(input_shape, (tuple, list)):
-            # Do not attempt to build if the model does not have a single input tensor.
+            # Do not attempt to build if the model does not have a single
+            # input tensor.
             return
         if input_shape and not (
             isinstance(input_shape[0], int) or input_shape[0] is None
         ):
-            # Do not attempt to build if the model does not have a single input tensor.
+            # Do not attempt to build if the model does not have a single
+            # input tensor.
             return
         if not self._layers:
             raise ValueError(
-                f"Sequential model {self.name} cannot be built because it has no layers. "
-                "Call `model.add(layer)`."
+                f"Sequential model {self.name} cannot be built because it has "
+                "no layers. Call `model.add(layer)`."
             )
         if isinstance(self._layers[0], InputLayer):
             if self._layers[0].batch_shape != input_shape:
                 raise ValueError(
-                    f"Sequential model '{self.name}' has already been configured to "
-                    f"use input shape {self._layers[0].batch_shape}. You cannot build it "
+                    f"Sequential model '{self.name}' has already been "
+                    "configured to use input shape "
+                    f"{self._layers[0].batch_shape}. You cannot build it "
                     f"with input_shape {input_shape}"
                 )
         else:
@@ -103,7 +106,7 @@ class Sequential(Model):
                 x = layer(x)
             except NotImplementedError:
                 # Can happen if shape inference is not implemented.
-                # TODO: consider reverting inbound nodes on layers processed so far.
+                # TODO: consider reverting inbound nodes on layers processed.
                 return
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)

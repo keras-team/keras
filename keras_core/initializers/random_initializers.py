@@ -22,10 +22,10 @@ class RandomNormal(Initializer):
     >>> layer = Dense(3, kernel_initializer=initializer)
 
     Args:
-        mean: A python scalar or a scalar keras tensor. Mean of the random values to
-            generate.
-        stddev: A python scalar or a scalar keras tensor. Standard deviation of the
-           random values to generate.
+        mean: A python scalar or a scalar keras tensor. Mean of the random
+            values to generate.
+        stddev: A python scalar or a scalar keras tensor. Standard deviation of
+           the random values to generate.
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
@@ -75,10 +75,10 @@ class TruncatedNormal(Initializer):
     >>> layer = Dense(3, kernel_initializer=initializer)
 
     Args:
-        mean: A python scalar or a scalar keras tensor. Mean of the random values to
-            generate.
-        stddev: A python scalar or a scalar keras tensor. Standard deviation of the
-           random values to generate.
+        mean: A python scalar or a scalar keras tensor. Mean of the random
+            values to generate.
+        stddev: A python scalar or a scalar keras tensor. Standard deviation of
+           the random values to generate.
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
@@ -125,10 +125,10 @@ class RandomUniform(Initializer):
     >>> layer = Dense(3, kernel_initializer=initializer)
 
     Args:
-        minval: A python scalar or a scalar keras tensor. Lower bound of the range of
-            random values to generate (inclusive).
-        maxval: A python scalar or a scalar keras tensor. Upper bound of the range of
-            random values to generate (exclusive).
+        minval: A python scalar or a scalar keras tensor. Lower bound of the
+            range of random values to generate (inclusive).
+        maxval: A python scalar or a scalar keras tensor. Upper bound of the
+            range of random values to generate (exclusive).
         seed: A Python integer or instance of
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
@@ -177,11 +177,13 @@ class VarianceScaling(Initializer):
     Examples:
 
     >>> # Standalone usage:
-    >>> initializer = VarianceScaling(scale=0.1, mode='fan_in', distribution='uniform')
+    >>> initializer = VarianceScaling(
+        scale=0.1, mode='fan_in', distribution='uniform')
     >>> values = initializer(shape=(2, 2))
 
     >>> # Usage in a Keras layer:
-    >>> initializer = VarianceScaling(scale=0.1, mode='fan_in', distribution='uniform')
+    >>> initializer = VarianceScaling(
+        scale=0.1, mode='fan_in', distribution='uniform')
     >>> layer = Dense(3, kernel_initializer=initializer)
 
     Args:
@@ -241,9 +243,9 @@ class VarianceScaling(Initializer):
         Args:
             shape: Shape of the tensor.
             dtype: Optional dtype of the tensor. Only floating point types are
-                supported. If not specified, `tf.keras.backend.floatx()` is used,
-                which default to `float32` unless you configured it otherwise (via
-                `tf.keras.backend.set_floatx(float_dtype)`)
+                supported. If not specified, `tf.keras.backend.floatx()` is
+                used, which default to `float32` unless you configured it
+                otherwise (via `tf.keras.backend.set_floatx(float_dtype)`)
         """
         scale = self.scale
         fan_in, fan_out = compute_fans(shape)

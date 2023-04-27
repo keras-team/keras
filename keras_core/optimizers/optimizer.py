@@ -45,8 +45,8 @@ class Optimizer:
                 or ema_overwrite_frequency < 1
             ):
                 raise ValueError(
-                    "`ema_overwrite_frequency` must be an integer >= 1 or None. "
-                    "Received: ema_overwrite_frequency="
+                    "`ema_overwrite_frequency` must be an integer >= 1 or "
+                    "None. Received: ema_overwrite_frequency="
                     f"{ema_overwrite_frequency}"
                 )
         self.ema_momentum = ema_momentum
@@ -75,11 +75,11 @@ class Optimizer:
         else:
             if not isinstance(learning_rate, float):
                 raise ValueError(
-                    "Argument `learning_rate` should be float, or an instance of "
-                    "LearningRateSchedule, or a callable "
+                    "Argument `learning_rate` should be float, or an instance "
+                    "of LearningRateSchedule, or a callable "
                     "(that takes in the current iteration value "
-                    "and returns the corresponding learning rate value). Received instead: "
-                    f"learning_rate={learning_rate}"
+                    "and returns the corresponding learning rate value). "
+                    f"Received instead: learning_rate={learning_rate}"
                 )
             self._learning_rate = backend.Variable(
                 learning_rate,
@@ -134,7 +134,9 @@ class Optimizer:
         return variable
 
     def add_variable_from_reference(self, reference_variable, name=None):
-        """Add an all-zeros variable with the shape and dtype of a reference variable."""
+        """Add an all-zeros variable with the shape and dtype of a reference
+        variable.
+        """
         initializer = initializers.Zeros()
         name = name or auto_name(self.__class__.__name__)
         return self.add_variable(
@@ -150,8 +152,8 @@ class Optimizer:
                 raise ValueError(
                     f"Unknown variable: {v}. This optimizer can only "
                     "be called for the variables it was originally built with. "
-                    "When working with a new set of variables, you should recreate "
-                    "a new optimizer instance."
+                    "When working with a new set of variables, you should "
+                    "recreate a new optimizer instance."
                 )
 
     def update_step(self, gradient, variable, learning_rate):
@@ -178,13 +180,15 @@ class Optimizer:
             if not self.built:
                 raise ValueError(
                     "When passing `grads` without `variables`, the optimizer "
-                    "must already be built on a list of variables. Call `optimizer.build(trainable_variables)` first. "
+                    "must already be built on a list of variables. "
+                    "Call `optimizer.build(trainable_variables)` first. "
                 )
             if len(grads) != len(self._trainable_variables_indices):
                 raise ValueError(
-                    "When passing `grads` as a list of gradient tensors, the gradients must "
-                    f"match `optimizer.variables` one-to-on. Received a list of {len(grads)} "
-                    f"gradients, but the optimizer is tracking {len(self._trainable_variables)} "
+                    "When passing `grads` as a list of gradient tensors, the "
+                    f"gradients must match `optimizer.variables` one-to-on. "
+                    f"Received a list of {len(grads)} gradients, but the "
+                    f"optimizer is tracking {len(self._trainable_variables)} "
                     "trainable variables."
                 )
             trainable_variables = self._trainable_variables
@@ -227,22 +231,22 @@ class Optimizer:
         if not self.built:
             raise ValueError(
                 "To call stateless_apply_gradients, {self.__class__.__name__} "
-                "must be built (i.e. its variables must have been already created). "
+                "must be built (i.e. its variables must have been created). "
                 "You can build it via `optimizer.build(trainable_variables)`."
             )
         if len(optimizer_variables) != len(self.variables):
             raise ValueError(
                 "Argument `optimizer_variables` must be a list of tensors "
                 f"corresponding 1:1 to {self.__class__.__name__}().variables. "
-                f"Received list with length {len(optimizer_variables)}, but expected "
-                f"{len(self.variables)} variables."
+                f"Received list with length {len(optimizer_variables)}, but "
+                f"expected {len(self.variables)} variables."
             )
         if len(trainable_variables) != len(self._trainable_variables):
             raise ValueError(
                 "Argument `optimizer_variables` must be a list of tensors "
                 "corresponding 1:1 to the trainable variables list that "
-                "the optimizer was built with. "
-                f"Received len(trainable_variables) == {len(trainable_variables)} "
+                "the optimizer was built with. Received "
+                f"len(trainable_variables) == {len(trainable_variables)} "
                 "whereas the optimizer was built with "
                 f"{len(self._trainable_variables)} variables."
             )

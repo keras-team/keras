@@ -39,8 +39,8 @@ class Trainer:
         if jit_compile and run_eagerly:
             jit_compile = False
             warnings.warn(
-                "If `run_eagerly` is True, then `jit_compile` cannot also be True. "
-                "Disabling `jit_compile`.",
+                "If `run_eagerly` is True, then `jit_compile` "
+                "cannot also be True. Disabling `jit_compile`.",
                 stacklevel=2,
             )
         self.jit_compile = jit_compile
@@ -174,7 +174,8 @@ class Trainer:
           def compute_metrics(self, x, y, y_pred, sample_weight):
             # This super call updates `self.compiled_metrics` and returns
             # results for all metrics listed in `self.metrics`.
-            metric_results = super().compute_metrics(x, y, y_pred, sample_weight)
+            metric_results = super().compute_metrics(
+                x, y, y_pred, sample_weight)
 
             # Note that `self.custom_metric` is not listed in `self.metrics`.
             self.custom_metric.update_state(x, y, y_pred, sample_weight)
@@ -185,14 +186,14 @@ class Trainer:
         Args:
             x: Input data.
             y: Target data.
-            y_pred: Predictions returned by the model (output of `model.call(x)`)
+            y_pred: Predictions returned by the model output of `model.call(x)`.
             sample_weight: Sample weights for weighting the loss function.
 
         Returns:
             A `dict` containing values that will be passed to
-            `tf.keras.callbacks.CallbackList.on_train_batch_end()`. Typically, the
-            values of the metrics listed in `self.metrics` are returned. Example:
-            `{'loss': 0.2, 'accuracy': 0.7}`.
+            `tf.keras.callbacks.CallbackList.on_train_batch_end()`. Typically,
+            the values of the metrics listed in `self.metrics` are returned.
+            Example: `{'loss': 0.2, 'accuracy': 0.7}`.
         """
         del x  # The default implementation does not use `x`.
         if self._compile_metrics is not None:
@@ -323,7 +324,7 @@ class Trainer:
         return result
 
     def _flatten_metrics_in_order(self, logs):
-        """Turns the `logs` dict into a list as per key order of `metrics_names`."""
+        """Turns `logs` dict into a list as per key order of `metrics_names`."""
         metric_names = [m.name for m in self.metrics]
         results = []
         for name in metric_names:

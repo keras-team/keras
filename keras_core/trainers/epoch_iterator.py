@@ -78,19 +78,22 @@ class EpochIterator:
             # Unsupported args: y, sample_weight, shuffle
             if y is not None:
                 raise ValueError(
-                    "When providing `x` as a tf.data.Dataset, `y` should not be passed. "
-                    "Instead, the targets should be included as part of the Dataset `x`."
+                    "When providing `x` as a tf.data.Dataset, `y` should not "
+                    "be passed. Instead, the targets should be included as "
+                    "part of the Dataset `x`."
                 )
             if sample_weight is not None:
                 raise ValueError(
-                    "When providing `x` as a tf.data.Dataset, `sample_weight` should not be passed. "
-                    "Instead, the sample weights should be included as part of the Dataset `x`."
+                    "When providing `x` as a tf.data.Dataset, `sample_weight` "
+                    "should not be passed. Instead, the sample weights should "
+                    "be included as part of the Dataset `x`."
                 )
             # TODO: should we warn or not?
             # warnings.warn(
-            #     "`shuffle=True` was passed, but will be ignored since the data `x` was provided "
-            #     "as a tf.data.Dataset. The Dataset is expected to already "
-            #     "be shuffled (via `.shuffle(tf.data.AUTOTUNE)`)"
+            #     "`shuffle=True` was passed, but will be ignored since the "
+            #     "data `x` was provided as a tf.data.Dataset. The Dataset is "
+            #     "expected to already be shuffled "
+            #     "(via `.shuffle(tf.data.AUTOTUNE)`)"
             # )
         else:
             # TODO: add support for more types.

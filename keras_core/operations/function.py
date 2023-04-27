@@ -124,17 +124,19 @@ class Function(Operation):
         for x, x_ref in zip(nest.flatten(inputs), self._inputs):
             if len(x.shape) != len(x_ref.shape):
                 raise ValueError(
-                    f"{self.__class__.__name__} was passed incompatible inputs. "
-                    f"For input '{x_ref.name}', expected shape {x_ref.shape}, "
-                    f"but received instead a tensor with shape {x.shape}."
+                    f"{self.__class__.__name__} was passed "
+                    f"incompatible inputs. For input '{x_ref.name}', "
+                    f"expected shape {x_ref.shape}, but received "
+                    f"instead a tensor with shape {x.shape}."
                 )
             for dim, ref_dim in zip(x.shape, x_ref.shape):
                 if ref_dim is not None and dim is not None:
                     if dim != ref_dim:
                         raise ValueError(
-                            f"{self.__class__.__name__} was passed incompatible inputs. "
-                            f"For input '{x_ref.name}', expected shape {x_ref.shape}, "
-                            f"but received instead a tensor with shape {x.shape}."
+                            f"{self.__class__.__name__} was passed "
+                            f"incompatible inputs. For input '{x_ref.name}', "
+                            f"expected shape {x_ref.shape}, but received "
+                            f"instead a tensor with shape {x.shape}."
                         )
 
 
@@ -154,7 +156,8 @@ def map_graph(inputs, outputs):
         - nodes: list of Node instances.
         - nodes_by_depth: dict mapping ints (depth) to lists of node instances.
         - operations: list of Operation instances.
-        - operations_by_depth: dict mapping ints (depth) to lists of Operation instances.
+        - operations_by_depth: dict mapping ints (depth) to lists of Operation
+            instances.
     """
     # "depth" is number of operations between output Node and the Node.
     # Nodes are ordered from inputs -> outputs.
@@ -274,14 +277,15 @@ def _build_map(outputs):
 
     Returns:
         A tuple like (ordered_nodes, operation_to_first_traversal_index)
-        ordered_nodes: list of nodes appearing in the keras history, topologically
-            sorted from original inputs to the `outputs`.
-            (If outputs have different sets of ancestors, the inputs to one output
-            may appear after a different output).
+        ordered_nodes: list of nodes appearing in the keras history,
+            topologically sorted from original inputs to the `outputs`.
+            (If outputs have different sets of ancestors, the inputs to one
+            output may appear after a different output).
         operation_to_first_traversal_index:
-            A dict mapping operation to the traversal index in the DFS where it is
-            seen. Note: if a operation is shared by several nodes, the dict will only
-            store the index corresponding to the *first* time the operation seen.
+            A dict mapping operation to the traversal index in the DFS where it
+            is seen. Note: if a operation is shared by several nodes, the dict
+            will onlystore the index corresponding to the *first* time the
+            operation seen.
     """
     finished_nodes = set()
     nodes_in_progress = set()
@@ -323,7 +327,8 @@ def _build_map_helper(
     # Prevent cycles.
     if node in nodes_in_progress:
         raise ValueError(
-            f'Tensor {tensor} from operation "{operation.name}" is part of a cycle.'
+            f"Tensor {tensor} from operation '{operation.name}' is part of a "
+            "cycle."
         )
 
     # Store the traversal order for operation sorting.
