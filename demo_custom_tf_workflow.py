@@ -1,3 +1,9 @@
+# flake8: noqa
+import os
+
+# Set backend env to tensorflow
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import numpy as np
 import tensorflow as tf
 

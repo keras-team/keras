@@ -1,3 +1,9 @@
+# flake8: noqa
+import os
+
+# Set backend env to JAX
+os.environ["KERAS_BACKEND"] = "jax"
+
 import jax
 import numpy as np
 
