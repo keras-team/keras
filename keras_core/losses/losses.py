@@ -4,6 +4,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
 from keras_core.losses.loss import squeeze_to_same_rank
 from keras_core.saving import serialization_lib
+from keras_core.utils.numerical_utils import l2_normalize
 
 
 class LossFunctionWrapper(Loss):
@@ -44,7 +45,7 @@ class MeanSquaredError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance.
     """
 
@@ -70,7 +71,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance.
     """
 
@@ -96,7 +97,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance.
     """
 
@@ -126,7 +127,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance.
     """
 
@@ -141,6 +142,43 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
 
     def get_config(self):
         return Loss.get_config(self)
+
+
+@keras_core_export("keras_core.losses.CosineSimilarity")
+class CosineSimilarity(LossFunctionWrapper):
+    """Computes the cosine similarity between `y_true` & `y_pred`.
+
+    Note that it is a number between -1 and 1. When it is a negative number
+    between -1 and 0, 0 indicates orthogonality and values closer to -1
+    indicate greater similarity. This makes it usable as a loss function in a
+    setting where you try to maximize the proximity between predictions and
+    targets. If either `y_true` or `y_pred` is a zero vector, cosine similarity
+    will be 0 regardless of the proximity between predictions and targets.
+
+    Formula:
+
+    ```python
+    loss = mean(square(log(y_true + 1) - log(y_pred + 1)))
+    ```
+
+    Args:
+        axis: The axis along which the cosine similarity is computed
+            (the features axis). Defaults to -1.
+        reduction: Type of reduction to apply to loss. Options are `"sum"`,
+            `"sum_over_batch_size"` or `None`. Defaults to
+            `"sum_over_batch_size"`.
+        name: Optional name for the instance.
+    """
+
+    def __init__(
+        self,
+        axis=-1,
+        reduction="sum_over_batch_size",
+        name="cosine_similarity",
+    ):
+        super().__init__(
+            cosine_similarity, reduction=reduction, name=name, axis=axis
+        )
 
 
 @keras_core_export("keras_core.losses.Hinge")
@@ -159,7 +197,7 @@ class Hinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance. Defaults to `"hinge"`
     """
 
@@ -186,7 +224,7 @@ class SquaredHinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance. Defaults to `"squared_hinge"`
     """
 
@@ -212,7 +250,7 @@ class CategoricalHinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to loss. For almost all cases
             this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
-            `"sum_over_batch_size"` or None.
+            `"sum_over_batch_size"` or `None`.
         name: Optional name for the instance. Defaults to
             `"categorical_hinge"`
     """
@@ -505,3 +543,42 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     first_log = ops.log(ops.maximum(y_pred, epsilon) + 1.0)
     second_log = ops.log(ops.maximum(y_true, epsilon) + 1.0)
     return ops.mean(ops.square(first_log - second_log), axis=-1)
+
+
+@keras_core_export("keras_core.losses.cosine_similarity")
+def cosine_similarity(y_true, y_pred, axis=-1):
+    """Computes the cosine similarity between labels and predictions.
+
+    Formula:
+    ```python
+    loss = -sum(l2_norm(y_true) * l2_norm(y_pred))
+    ```
+
+    Note that it is a number between -1 and 1. When it is a negative number
+    between -1 and 0, 0 indicates orthogonality and values closer to -1
+    indicate greater similarity. This makes it usable as a loss function in a
+    setting where you try to maximize the proximity between predictions and
+    targets. If either `y_true` or `y_pred` is a zero vector, cosine
+    similarity will be 0 regardless of the proximity between predictions
+    and targets.
+
+    Standalone usage:
+    >>> y_true = [[0., 1.], [1., 1.], [1., 1.]]
+    >>> y_pred = [[1., 0.], [1., 1.], [-1., -1.]]
+    >>> loss = keras_core.losses.cosine_similarity(y_true, y_pred, axis=-1)
+    [-0., -0.99999994, 0.99999994]
+
+    Args:
+        y_true: Tensor of true targets.
+        y_pred: Tensor of predicted targets.
+        axis: Axis along which to determine similarity. Defaults to -1.
+
+    Returns:
+        Cosine similarity tensor.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    y_pred = l2_normalize(y_pred, axis=axis)
+    y_true = l2_normalize(y_true, axis=axis)
+    return -ops.sum(y_true * y_pred, axis=axis)

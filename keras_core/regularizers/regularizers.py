@@ -2,6 +2,7 @@ import math
 
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
+from keras_core.utils.numerical_utils import l2_normalize
 
 
 @keras_core_export(
@@ -344,8 +345,3 @@ def validate_float_arg(value, name):
             f"Received: {name}={value}"
         )
     return float(value)
-
-
-def l2_normalize(x, axis=0):
-    l2_norm = ops.sqrt(ops.sum(ops.square(x), axis=axis))
-    return x / l2_norm

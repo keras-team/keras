@@ -382,3 +382,83 @@ class CategoricalHingeTest(testing.TestCase):
         hinge_obj = losses.CategoricalHinge()
         loss = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
         self.assertEqual(loss, 0.0)
+
+
+class CosineSimilarityTest(testing.TestCase):
+    def l2_norm(self, x, axis):
+        epsilon = 1e-12
+        square_sum = np.sum(np.square(x), axis=axis, keepdims=True)
+        x_inv_norm = 1 / np.sqrt(np.maximum(square_sum, epsilon))
+        return np.multiply(x, x_inv_norm)
+
+    def setup(self, axis=1):
+        self.np_y_true = np.asarray([[1, 9, 2], [-5, -2, 6]], dtype=np.float32)
+        self.np_y_pred = np.asarray([[4, 8, 12], [8, 1, 3]], dtype=np.float32)
+
+        y_true = self.l2_norm(self.np_y_true, axis)
+        y_pred = self.l2_norm(self.np_y_pred, axis)
+        self.expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(axis,))
+
+        self.y_true = self.np_y_true
+        self.y_pred = self.np_y_pred
+
+    def test_config(self):
+        cosine_obj = losses.CosineSimilarity(
+            axis=2, reduction="sum", name="cosine_loss"
+        )
+        self.assertEqual(cosine_obj.name, "cosine_loss")
+        self.assertEqual(cosine_obj.reduction, "sum")
+
+    def test_unweighted(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity()
+        loss = cosine_obj(self.y_true, self.y_pred)
+        expected_loss = -np.mean(self.expected_loss)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_scalar_weighted(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity()
+        sample_weight = 2.3
+        loss = cosine_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        expected_loss = -np.mean(self.expected_loss * sample_weight)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_sample_weighted(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity()
+        sample_weight = np.asarray([1.2, 3.4])
+        loss = cosine_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        expected_loss = -np.mean(self.expected_loss * sample_weight)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_timestep_weighted(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity()
+        np_y_true = self.np_y_true.reshape((2, 3, 1))
+        np_y_pred = self.np_y_pred.reshape((2, 3, 1))
+        sample_weight = np.asarray([3, 6, 5, 0, 4, 2]).reshape((2, 3))
+
+        y_true = self.l2_norm(np_y_true, 2)
+        y_pred = self.l2_norm(np_y_pred, 2)
+        expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(2,))
+
+        y_true = np_y_true
+        y_pred = np_y_pred
+        loss = cosine_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        expected_loss = -np.mean(expected_loss * sample_weight)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_zero_weighted(self):
+        self.setup()
+        cosine_obj = losses.CosineSimilarity()
+        loss = cosine_obj(self.y_true, self.y_pred, sample_weight=0)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_axis(self):
+        self.setup(axis=1)
+        cosine_obj = losses.CosineSimilarity(axis=1)
+        loss = cosine_obj(self.y_true, self.y_pred)
+        expected_loss = -np.mean(self.expected_loss)
+        self.assertAlmostEqual(loss, expected_loss, 3)
