@@ -847,6 +847,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 3])
         self.assertEqual(knp.diagonal(x).shape, (3, None))
 
+    def test_dot(self):
+        x = KerasTensor([None, 3])
+        y = KerasTensor([3, 2])
+        z = KerasTensor([None, None, 2])
+        self.assertEqual(knp.dot(x, y).shape, (None, 2))
+        self.assertEqual(knp.dot(x, 2).shape, (None, 3))
+        self.assertEqual(knp.dot(x, z).shape, (None, None, 2))
+
+        x = KerasTensor([None])
+        y = KerasTensor([5])
+        self.assertEqual(knp.dot(x, y).shape, ())
+
     def test_exp(self):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.exp(x).shape, (None, 3))
@@ -1251,6 +1263,23 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaises(ValueError):
             x = KerasTensor([3])
             knp.diagonal(x)
+
+    def test_dot(self):
+        x = KerasTensor([2, 3])
+        y = KerasTensor([3, 2])
+        z = KerasTensor([4, 3, 2])
+        self.assertEqual(knp.dot(x, y).shape, (2, 2))
+        self.assertEqual(knp.dot(x, 2).shape, (2, 3))
+        self.assertEqual(knp.dot(x, z).shape, (2, 4, 2))
+
+        x = KerasTensor([5])
+        y = KerasTensor([5])
+        self.assertEqual(knp.dot(x, y).shape, ())
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3])
+            knp.dot(x, y)
 
     def test_exp(self):
         x = KerasTensor([2, 3])
@@ -2445,6 +2474,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.array(knp.diagonal(x, offset=-1, axis1=2, axis2=3)),
             np.diagonal(x, offset=-1, axis1=2, axis2=3),
         )
+
+    def test_dot(self):
+        x = np.arange(24).reshape([2, 3, 4])
+        y = np.arange(12).reshape([4, 3])
+        z = np.arange(4)
+        self.assertAllClose(np.array(knp.dot(x, y)), np.dot(x, y))
+        self.assertAllClose(np.array(knp.dot(x, z)), np.dot(x, z))
+        self.assertAllClose(np.array(knp.dot(x, 2)), np.dot(x, 2))
+
+        self.assertAllClose(np.array(knp.Dot()(x, y)), np.dot(x, y))
+        self.assertAllClose(np.array(knp.Dot()(x, z)), np.dot(x, z))
+        self.assertAllClose(np.array(knp.Dot()(x, 2)), np.dot(x, 2))
 
     def test_exp(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

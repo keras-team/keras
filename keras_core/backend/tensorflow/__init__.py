@@ -128,15 +128,6 @@ def compute_output_spec(fn, *args, **kwargs):
             return tf.nest.map_structure(convert_tf_to_keras_tensor, tf_out)
 
 
-def execute(op_name, *args, **kwargs):
-    if hasattr(tfnp, op_name):
-        op = getattr(tfnp, op_name)
-        return op(*args, **kwargs)
-    raise AttributeError(
-        f"The TensorFlow backend does not support op '{op_name}'"
-    )
-
-
 def traceable_tensor(shape, dtype=None):
     """Create a "traceable tensor".
 

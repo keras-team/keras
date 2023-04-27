@@ -160,14 +160,6 @@ def compute_output_spec(fn, *args, **kwargs):
         return nest.map_structure(convert_jax_spec_to_keras_tensor, jax_out)
 
 
-# NumPy op delegation
-def execute(op_name, *args, **kwargs):
-    if hasattr(jnp, op_name):
-        op = getattr(jnp, op_name)
-        return op(*args, **kwargs)
-    raise AttributeError(f"The JAX backend does not support op '{op_name}'")
-
-
 def traceable_tensor(shape, dtype=None):
     """Create a "traceable tensor".
 
