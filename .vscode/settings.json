@@ -1,8 +1,0 @@
-{
-    "python.testing.pytestEnabled": true,
-    "python.formatting.provider": "black",
-    "editor.rulers": [
-        80
-    ],
-    "python.linting.pylintEnabled": false,
-}

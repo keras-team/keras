@@ -13,3 +13,4 @@ tmp/**
 .vs/
 dist/**
 *.egg-info/*
+.vscode
