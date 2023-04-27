@@ -21,11 +21,11 @@ import threading
 import warnings
 
 import numpy as np
-from tensorflow import keras as tf_keras
 from tensorflow import nest
 
 from keras_core import backend
 from keras_core import initializers
+from keras_core import mixed_precision
 from keras_core import regularizers
 from keras_core import utils
 from keras_core.api_export import keras_core_export
@@ -48,18 +48,18 @@ class Layer(Operation):
         activity_regularizer=None,
         trainable=True,
         dtype=None,
+        autocast=True,
         name=None,
     ):
         super().__init__(name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
-        self._trainable = trainable
-        if dtype is None:
-            dtype = backend.floatx()
 
         self.built = False
-        self.dtype_policy = tf_keras.mixed_precision.Policy(dtype)
+        self.dtype_policy = mixed_precision.resolve_policy(dtype)
+        self.autocast = autocast
         self.input_spec = None
 
+        self._trainable = trainable
         self._layers = []
         self._metrics = []
         self._seed_generators = []
@@ -148,14 +148,13 @@ class Layer(Operation):
         constraint=None,
         name=None,
     ):
-        # TODO: handle constraint (in the optimizer)
         # TODO: handle layout
         self._check_super_called()
         initializer = initializers.get(initializer)
         variable = backend.Variable(
             initializer=initializer,
             shape=shape,
-            dtype=dtype,
+            dtype=dtype or self.variable_dtype,
             trainable=trainable,
             name=name,
         )
@@ -266,7 +265,7 @@ class Layer(Operation):
     @property
     def variable_dtype(self):
         """The dtype of the state (weights) of the layer."""
-        return self.dtype_policy.compute_dtype
+        return self.dtype_policy.variable_dtype
 
     @property
     def supports_masking(self):
@@ -289,6 +288,7 @@ class Layer(Operation):
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             if isinstance(x, np.ndarray) or backend.is_tensor(x):
+                # TODO: only cast when float!
                 return backend.convert_to_tensor(x, dtype=self.compute_dtype)
             # TODO: cast KerasTensor too
             return x
@@ -341,7 +341,13 @@ class Layer(Operation):
 
         # Call the layer.
         with backend.name_scope(self.name):
-            outputs = super().__call__(*args, **kwargs)
+            if self.autocast and self.compute_dtype != self.variable_dtype:
+                # For mixed precision, we automatically cast layer variables
+                # (float ones only) to the compute dtype upon access.
+                with backend.AutocastScope(self.compute_dtype):
+                    outputs = super().__call__(*args, **kwargs)
+            else:
+                outputs = super().__call__(*args, **kwargs)
             # Record activity regularizer loss.
             if self.activity_regularizer is not None:
                 for output in nest.flatten(outputs):

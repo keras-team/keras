@@ -64,23 +64,38 @@ class KerasVariable:
         value = self._initializer(self._shape, dtype=self._dtype)
         self._initialize(value)
 
+    def _maybe_autocast(self, value):
+        autocast_scope = get_autocast_scope()
+        if autocast_scope is not None:
+            return autocast_scope.maybe_cast(value)
+        return value
+
+    @property
+    def dtype(self):
+        autocast_scope = get_autocast_scope()
+        if autocast_scope is not None and is_float_dtype(self._dtype):
+            return autocast_scope.dtype
+        return self._dtype
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def ndim(self):
+        return self._ndim
+
+    def __repr__(self):
+        return (
+            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
+            f"name={self.name}>"
+        )
+
     def _initialize(self, value):
         raise NotImplementedError
 
     @property
     def value(self):
-        raise NotImplementedError
-
-    @property
-    def dtype(self):
-        raise NotImplementedError
-
-    @property
-    def shape(self):
-        raise NotImplementedError
-
-    @property
-    def ndim(self):
         raise NotImplementedError
 
     def numpy(self):
@@ -89,11 +104,201 @@ class KerasVariable:
     def assign(self, value):
         raise NotImplementedError
 
-    def __repr__(self):
-        return (
-            f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
-            f"name={self.name}>"
+    def _convert_to_tensor(self, value, dtype=None):
+        raise NotImplementedError
+
+    def __getitem__(self, idx):
+        return self.value.__getitem__(idx)
+
+    def __array__(self, dtype=None):
+        return self.value.__array__(dtype)
+
+    def __bool__(self):
+        raise TypeError("A Keras Variable cannot be used as a boolean.")
+
+    def __neg__(self):
+        return self.value.__neg__()
+
+    def __pos__(self):
+        return self.value.__pos__()
+
+    def __abs__(self):
+        return self.value.__abs__()
+
+    def __invert__(self):
+        return self.value.__invert__()
+
+    def __eq__(self, other):
+        value = self.value
+        return value.__eq__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __ne__(self, other):
+        value = self.value
+        return value.__ne__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __lt__(self, other):
+        value = self.value
+        return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __le__(self, other):
+        value = self.value
+        return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __gt__(self, other):
+        value = self.value
+        return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __ge__(self, other):
+        value = self.value
+        return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __add__(self, other):
+        value = self.value
+        return value.__add__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __radd__(self, other):
+        value = self.value
+        return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __sub__(self, other):
+        value = self.value
+        return value.__sub__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rsub__(self, other):
+        value = self.value
+        return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __mul__(self, other):
+        value = self.value
+        return value.__mul__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rmul__(self, other):
+        value = self.value
+        return value.__rmul__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __div__(self, other):
+        value = self.value
+        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rdiv__(self, other):
+        value = self.value
+        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __truediv__(self, other):
+        value = self.value
+        return value.__truediv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
         )
+
+    def __rtruediv__(self, other):
+        value = self.value
+        return value.__rtruediv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __floordiv__(self, other):
+        value = self.value
+        return value.__floordiv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rfloordiv__(self, other):
+        value = self.value
+        return value.__rfloordiv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __divmod__(self, other):
+        value = self.value
+        return value.__divmod__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rdivmod__(self, other):
+        value = self.value
+        return value.__rdivmod__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __mod__(self, other):
+        value = self.value
+        return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rmod__(self, other):
+        value = self.value
+        return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __pow__(self, other):
+        value = self.value
+        return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rpow__(self, other):
+        value = self.value
+        return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __matmul__(self, other):
+        value = self.value
+        return value.__matmul__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rmatmul__(self, other):
+        value = self.value
+        return value.__rmatmul__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __and__(self, other):
+        value = self.value
+        return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rand__(self, other):
+        value = self.value
+        return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __or__(self, other):
+        value = self.value
+        return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __ror__(self, other):
+        value = self.value
+        return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __xor__(self, other):
+        value = self.value
+        return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rxor__(self, other):
+        value = self.value
+        return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __lshift__(self, other):
+        value = self.value
+        return value.__lshift__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rlshift__(self, other):
+        value = self.value
+        return value.__rlshift__(
+            self._convert_to_tensor(other, dtype=self.dtype)
+        )
+
+    def __rshift__(self, other):
+        value = self.value
+        return value.__rshift__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rrshift__(self, other):
+        value = self.value
+        return value.__rrshift__(
+            self._convert_to_tensor(other, dtype=self.dtype)
+        )
+
+    def __round__(self, ndigits=None):
+        value = self.value
+        return value.__round__(ndigits)
 
 
 GLOBAL_VARIABLE_TRACKER = threading.local()
@@ -162,3 +367,49 @@ def standardize_shape(shape, fully_defined=False):
                 "Negative dimensions are not allowed."
             )
     return shape
+
+
+def is_float_dtype(dtype):
+    if hasattr(dtype, "name"):
+        dtype = dtype.name
+    return dtype.startswith("float") or dtype.startswith("bfloat")
+
+
+GLOBAL_AUTOCAST_TRACKER = threading.local()
+
+
+def get_autocast_scope():
+    return getattr(GLOBAL_AUTOCAST_TRACKER, "autocast_scope", None)
+
+
+class AutocastScope:
+    """Context manager that enables the autocasting of float variables.
+
+    Under this context manager, float `KerasVariables`s will be cast to `dtype`
+    (note that `dtype` must also be float).
+    """
+
+    def __init__(self, dtype):
+        dtype = standardize_dtype(dtype)
+        if not is_float_dtype(dtype):
+            raise ValueError(
+                "`AutocastScope` can only be used with "
+                "a floating-point target dtype, such as 'float16'. "
+                f"Received: dtype={dtype}"
+            )
+        self.dtype = dtype
+        self.original_scope = None
+
+    def maybe_cast(self, value):
+        from keras_core import operations as ops
+
+        if is_float_dtype(value.dtype):
+            return ops.cast(value, dtype=self.dtype)
+        return value
+
+    def __enter__(self):
+        self.original_scope = get_autocast_scope()
+        GLOBAL_AUTOCAST_TRACKER.autocast_scope = self
+
+    def __exit__(self, *args, **kwargs):
+        GLOBAL_AUTOCAST_TRACKER.autocast_scope = self.original_scope

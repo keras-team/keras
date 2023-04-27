@@ -4,6 +4,7 @@ from jax import numpy as jnp
 from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
+from keras_core.backend.common import get_autocast_scope
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common import standardize_shape
 from keras_core.backend.jax import math
@@ -20,7 +21,8 @@ DYNAMIC_SHAPES_OK = False  # Dynamic shapes NG
 
 
 def convert_to_tensor(x, dtype=None):
-    dtype = standardize_dtype(dtype)
+    if dtype is not None:
+        dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):
         if dtype and dtype != x.dtype:
             return x.value.astype(dtype)
@@ -86,29 +88,19 @@ class Variable(KerasVariable):
             scope = get_stateless_scope()
             value = scope.get_current_value(self)
             if value is not None:
-                return value
+                return self._maybe_autocast(value)
         if self._value is None:
             # Unitialized variable. Return a placeholder.
             # This is fine because it's only ever used
             # in during shape inference with JAX tracer objects
             # (anything else would be a bug, to be fixed.)
-            return jnp.array(
-                self._initializer(self._shape, dtype=self._dtype),
-                dtype=self._dtype,
+            return self._maybe_autocast(
+                jnp.array(
+                    self._initializer(self._shape, dtype=self._dtype),
+                    dtype=self._dtype,
+                )
             )
-        return self._value
-
-    @property
-    def dtype(self):
-        return self._dtype
-
-    @property
-    def shape(self):
-        return self._shape
-
-    @property
-    def ndim(self):
-        return self._ndim
+        return self._maybe_autocast(self._value)
 
     def numpy(self):
         return np.array(self.value)
@@ -117,137 +109,8 @@ class Variable(KerasVariable):
     def __jax_array__(self):
         return self.value
 
-    def __getitem__(self, idx):
-        return self.value.__getitem__(idx)
-
-    def __array__(self, dtype=None):
-        return self.value.__array__(dtype)
-
-    def __bool__(self):
-        raise TypeError("A Keras Variable cannot be used as a boolean.")
-
-    def __neg__(self):
-        return self.value.__neg__()
-
-    def __pos__(self):
-        return self.value.__pos__()
-
-    def __abs__(self):
-        return self.value.__abs__()
-
-    def __invert__(self):
-        return self.value.__invert__()
-
-    def __eq__(self, other):
-        return self.value.__eq__(convert_to_tensor(other))
-
-    def __ne__(self, other):
-        return self.value.__ne__(convert_to_tensor(other))
-
-    def __lt__(self, other):
-        return self.value.__lt__(convert_to_tensor(other))
-
-    def __le__(self, other):
-        return self.value.__le__(convert_to_tensor(other))
-
-    def __gt__(self, other):
-        return self.value.__gt__(convert_to_tensor(other))
-
-    def __ge__(self, other):
-        return self.value.__ge__(convert_to_tensor(other))
-
-    def __add__(self, other):
-        return self.value.__add__(convert_to_tensor(other))
-
-    def __radd__(self, other):
-        return self.value.__radd__(convert_to_tensor(other))
-
-    def __sub__(self, other):
-        return self.value.__sub__(convert_to_tensor(other))
-
-    def __rsub__(self, other):
-        return self.value.__rsub__(convert_to_tensor(other))
-
-    def __mul__(self, other):
-        return self.value.__mul__(convert_to_tensor(other))
-
-    def __rmul__(self, other):
-        return self.value.__rmul__(convert_to_tensor(other))
-
-    def __div__(self, other):
-        return self.value.__div__(convert_to_tensor(other))
-
-    def __rdiv__(self, other):
-        return self.value.__rdiv__(convert_to_tensor(other))
-
-    def __truediv__(self, other):
-        return self.value.__truediv__(convert_to_tensor(other))
-
-    def __rtruediv__(self, other):
-        return self.value.__rtruediv__(convert_to_tensor(other))
-
-    def __floordiv__(self, other):
-        return self.value.__floordiv__(convert_to_tensor(other))
-
-    def __rfloordiv__(self, other):
-        return self.value.__rfloordiv__(convert_to_tensor(other))
-
-    def __divmod__(self, other):
-        return self.value.__divmod__(convert_to_tensor(other))
-
-    def __rdivmod__(self, other):
-        return self.value.__rdivmod__(convert_to_tensor(other))
-
-    def __mod__(self, other):
-        return self.value.__mod__(convert_to_tensor(other))
-
-    def __rmod__(self, other):
-        return self.value.__rmod__(convert_to_tensor(other))
-
-    def __pow__(self, other):
-        return self.value.__pow__(convert_to_tensor(other))
-
-    def __rpow__(self, other):
-        return self.value.__rpow__(convert_to_tensor(other))
-
-    def __matmul__(self, other):
-        return self.value.__matmul__(convert_to_tensor(other))
-
-    def __rmatmul__(self, other):
-        return self.value.__rmatmul__(convert_to_tensor(other))
-
-    def __and__(self, other):
-        return self.value.__and__(convert_to_tensor(other))
-
-    def __rand__(self, other):
-        return self.value.__rand__(convert_to_tensor(other))
-
-    def __or__(self, other):
-        return self.value.__or__(convert_to_tensor(other))
-
-    def __ror__(self, other):
-        return self.value.__ror__(convert_to_tensor(other))
-
-    def __xor__(self, other):
-        return self.value.__xor__(convert_to_tensor(other))
-
-    def __rxor__(self, other):
-        return self.value.__rxor__(convert_to_tensor(other))
-
-    def __lshift__(self, other):
-        return self.value.__lshift__(convert_to_tensor(other))
-
-    def __rlshift__(self, other):
-        return self.value.__rlshift__(convert_to_tensor(other))
-
-    def __rshift__(self, other):
-        return self.value.__rshift__(convert_to_tensor(other))
-
-    def __rrshift__(self, other):
-        return self.value.__rrshift__(convert_to_tensor(other))
-
-    def __round__(self, ndigits=None):
-        return self.value.__round__(ndigits)
+    def _convert_to_tensor(self, value, dtype=None):
+        return convert_to_tensor(value, dtype=dtype)
 
 
 # Shape / dtype inference util

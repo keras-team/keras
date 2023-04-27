@@ -17,7 +17,10 @@ class Loss:
         in_mask = getattr(y_pred, "_keras_mask", None)
 
         with ops.name_scope(self.name):
-            y_pred = nest.map_structure(ops.convert_to_tensor, y_pred)
+            dtype = backend.floatx()
+            y_pred = nest.map_structure(
+                lambda x: ops.convert_to_tensor(x, dtype=dtype), y_pred
+            )
             y_true = nest.map_structure(
                 lambda x: ops.convert_to_tensor(x, dtype=y_pred.dtype), y_true
             )
