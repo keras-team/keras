@@ -5,6 +5,10 @@ def add(x1, x2):
     return jnp.add(x1, x2)
 
 
+def einsum(subscripts, *operands, **kwargs):
+    return jnp.einsum(subscripts, *operands, **kwargs)
+
+
 def subtract(x1, x2):
     return jnp.subtract(x1, x2)
 

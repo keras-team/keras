@@ -6,6 +6,10 @@ def add(x1, x2):
     return tfnp.add(x1, x2)
 
 
+def einsum(subscripts, *operands, **kwargs):
+    return tfnp.einsum(subscripts, *operands, **kwargs)
+
+
 def subtract(x1, x2):
     return tfnp.subtract(x1, x2)
 
