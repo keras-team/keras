@@ -144,7 +144,7 @@ def categorical_accuracy(y_true, y_pred):
     return matches
 
 
-@keras_core_export("keras_core.metrics.BinaryAccuracy")
+@keras_core_export("keras_core.metrics.CategoricalAccuracy")
 class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
     """Calculates how often predictions match one-hot labels.
 
@@ -157,7 +157,7 @@ class CategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
     operation that simply divides `total` by `count`.
 
     `y_pred` and `y_true` should be passed in as vectors of probabilities,
-    rather than as labels. If necessary, use `tf.one_hot` to expand `y_true` as
+    rather than as labels. If necessary, use `ops.one_hot` to expand `y_true` as
     a vector.
 
     If `sample_weight` is `None`, weights default to 1.
