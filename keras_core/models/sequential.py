@@ -112,9 +112,14 @@ class Sequential(Model):
         self._functional = Functional(inputs=inputs, outputs=outputs)
         self.built = True
 
-    def call(self, inputs, training=None, mask=None):
+    def __call__(self, inputs, training=None, mask=None):
         if self._functional:
             return self._functional(inputs, training=training, mask=mask)
+        return super().__call__(inputs, training=training, mask=mask)
+
+    def call(self, inputs, training=None, mask=None):
+        if self._functional:
+            return self._functional.call(inputs, training=training, mask=mask)
 
         # Fallback: Just apply the layer sequence.
         # This typically happens if `inputs` is a nested struct.

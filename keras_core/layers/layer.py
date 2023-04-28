@@ -280,8 +280,7 @@ class Layer(Operation):
     def __call__(self, *args, **kwargs):
         self._check_super_called()
 
-        ######################################
-        # Argument validation and conversion. #
+        #####################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
             if isinstance(x, np.ndarray):
@@ -305,7 +304,8 @@ class Layer(Operation):
         args = nest.map_structure(maybe_convert, args)
         kwargs = nest.map_structure(maybe_convert, kwargs)
 
-        # 3. Enforce that only tensors can be passed positionally.
+        ##########################################################
+        # 2. Enforce that only tensors can be passed positionally.
         for arg in nest.flatten(args):
             if not isinstance(arg, KerasTensor) and not backend.is_tensor(arg):
                 raise ValueError(
@@ -315,39 +315,44 @@ class Layer(Operation):
                     f"(of type {type(arg)})"
                 )
 
+        # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(self.call, args, kwargs)
 
-        # 4. Check input spec for 1st positional arg.
+        ############################################
+        # 3. Check input spec for 1st positional arg.
         # TODO: consider extending this to all args and kwargs.
         self._assert_input_compatibility(call_spec.first_arg)
-        ######################################
 
-        ###############
-        # 5. Call build. #
+        ################
+        # 4. Call build.
         self._maybe_build(call_spec)
-        ###############
 
-        # Maintains info about the `Layer.call` stack.
-        call_context = self._get_call_context()
-
-        # 6. Infer training value
+        ##########################
+        # 5. Infer training value
         # Training phase for `Layer.call` is set via (in order of priority):
         # (1) The `training` argument passed to this `Layer.call`, if not None
         # (2) The training argument of an outer `Layer.call`.
         # (4) Any non-None default value for `training` in the call signature
         # (5) False (treating the layer as if it's in inference)
-        training = call_spec.arguments_dict.get("training", None)
+
+        # Maintains info about the `Layer.call` stack
+        # across nested calls.
+        call_context = self._get_call_context()
+
+        # This is the value explicity passed by the user
+        training = call_spec.user_arguments_dict.get("training", None)
         if training is None:
+            # Wasn't passed explicitly: use context value
             training = call_context.training
             if training is None:
-                training = self._get_default_training_value()
-                if training is None:
-                    training = False
+                # Get signature default value; else False
+                training = call_spec.arguments_dict.get("training", False)
         call_context.training = training
         if self._call_has_training_arg():
             kwargs["training"] = training
 
-        # 7. Populate mask argument(s)
+        ##############################
+        # 6. Populate mask argument(s)
         if self.supports_masking:
             if len(call_spec.tensor_arguments_dict) == 1:
                 if (
@@ -374,7 +379,8 @@ class Layer(Operation):
                             )
                             kwargs[expected_mask_arg_name] = mask
 
-        # 8. Call the layer.
+        ####################
+        # 7. Call the layer.
         try:
             with backend.name_scope(self.name):
                 if self.autocast and self.compute_dtype != self.variable_dtype:
@@ -678,6 +684,7 @@ class Layer(Operation):
         else:
             input_tensors = backend.traceable_tensor(input_shape)
         try:
+            # TODO: make this work without relying on eager tensors.
             self.call(input_tensors)
             return True
         except Exception as e:
@@ -697,6 +704,7 @@ class Layer(Operation):
                 for k, shape in shapes_dict.items()
             }
             try:
+                # TODO: make this work without relying on eager tensors.
                 self.call(**input_tensors)
                 return True
             except Exception as e:
@@ -764,19 +772,6 @@ class Layer(Operation):
         if call_ctx is None or call_ctx.entry_layer == self:
             CALL_CTX.current = None
 
-    def _get_default_training_value(self):
-        signature = inspect.signature(self.call)
-        kwargs = [
-            p.name
-            for p in signature.parameters.values()
-            if p.default is not inspect.Parameter.empty
-        ]
-        if not kwargs:
-            return None
-        values = self.call.__defaults__
-        mapping = dict(zip(kwargs, values))
-        return mapping.get("training", None)
-
     def _flatten_layers(self, include_self=True, recursive=True):
         layers = []
         if include_self:
@@ -821,6 +816,9 @@ class CallSpec:
     def __init__(self, call_fn, args, kwargs):
         sig = inspect.signature(call_fn)
         bound_args = sig.bind(*args, **kwargs)
+        self.user_arguments_dict = {
+            k: v for k, v in bound_args.arguments.items()
+        }
         bound_args.apply_defaults()
         arg_dict = {}
         arg_names = []
