@@ -4,12 +4,13 @@
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
         "//keras:friends",
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/distribute:__pkg__",
-        "//third_party/tensorflow/python/training/tracking:__pkg__",
+        "//third_party/tensorflow/python/trackable:__pkg__",
     ],
     licenses = ["notice"],
 )

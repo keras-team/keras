@@ -3,7 +3,12 @@
 
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
+# copybara:uncomment_begin(google-only)
+# load("//tools/build_defs/license:license.bzl", "license")
+# copybara:uncomment_end
+
 package(
+    # copybara:uncomment default_applicable_licenses = [":license"],
     default_visibility = [":friends"],
     licenses = ["notice"],
 )
@@ -368,9 +373,7 @@ tf_py_test(
 #         "//testing/pymocks:matchers",
 #     ],
 # )
-# copybara:uncomment_end
-
-# copybara:uncomment_begin(google-only)
+#
 # tf_py_test(
 #     name = "distribute_utils_test",
 #     srcs = ["google/distribute_utils_test.py"],
@@ -381,5 +384,10 @@ tf_py_test(
 #         "//keras/distribute",
 #         "//testing/pymocks:matchers",
 #     ],
+# )
+#
+# license(
+#     name = "license",
+#     package_name = "keras",
 # )
 # copybara:uncomment_end
