@@ -23,9 +23,9 @@ from keras_core.utils.io_utils import print_msg
 # Import backend functions.
 if backend() == "tensorflow":
     print_msg("Using TensorFlow backend")
-    from keras_core.backend.tensorflow import *
+    from keras_core.backend.tensorflow import *  # noqa: F403
 elif backend() == "jax":
     print_msg("Using JAX backend.")
-    from keras_core.backend.jax import *
+    from keras_core.backend.jax import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

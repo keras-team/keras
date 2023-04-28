@@ -1,6 +1,5 @@
 import jax
 import numpy as np
-from jax import numpy as jnp
 
 from keras_core import backend
 from keras_core import initializers

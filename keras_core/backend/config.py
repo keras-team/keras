@@ -1,8 +1,6 @@
 import json
 import os
 
-from keras_core.utils.io_utils import print_msg
-
 # The type of float to use throughout a session.
 _FLOATX = "float32"
 

@@ -1,6 +1,5 @@
 import numpy as np
 
-from keras_core import operations as ops
 from keras_core import testing
 from keras_core.losses import losses
 

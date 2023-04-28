@@ -1,11 +1,8 @@
-from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
-from keras_core.losses import losses
 from keras_core.losses.losses import categorical_hinge
 from keras_core.losses.losses import hinge
 from keras_core.losses.losses import squared_hinge
 from keras_core.metrics import reduction_metrics
-from keras_core.metrics.metric import Metric
 
 
 @keras_core_export("keras_core.metrics.Hinge")

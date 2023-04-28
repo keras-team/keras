@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-from tensorflow.python.ops.numpy_ops import np_config
 
 from keras_core import testing
 from keras_core.backend import backend

@@ -1,5 +1,3 @@
-import copy
-
 from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
 from keras_core.utils import io_utils

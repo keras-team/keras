@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 
-from keras_core import backend
 from keras_core import testing
 from keras_core.trainers.data_adapters import tf_dataset_adapter
 

@@ -1,6 +1,5 @@
 import math
 import re
-import string
 
 from tensorflow import nest
 
