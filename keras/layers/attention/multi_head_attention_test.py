@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 import keras
+from keras.saving import object_registration
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
 
@@ -515,6 +516,7 @@ class AttentionSubclassTest(test_combinations.TestCase):
         self.assertEqual(output.shape.as_list(), [None, 40, 80])
 
 
+@object_registration.register_keras_serializable()
 class TestModel(keras.Model):
     def __init__(self):
         super().__init__()
@@ -540,12 +542,19 @@ class TestModel(keras.Model):
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class KerasModelSavingTest(test_combinations.TestCase):
-    def test_keras_saving_subclass(self):
+    @parameterized.parameters("tf", "keras_v3")
+    def test_keras_saving_subclass(self, save_format):
         model = TestModel()
         query = keras.Input(shape=(40, 80))
         _ = model(query)
         model_path = self.get_temp_dir() + "/tmp_model"
-        keras.models.save_model(model, model_path, save_format="tf")
+        if save_format == "keras_v3":
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            model_path += ".keras"
+        keras.models.save_model(model, model_path, save_format=save_format)
         reloaded_model = keras.models.load_model(model_path)
         self.assertEqual(
             len(model.trainable_variables),
@@ -556,7 +565,7 @@ class KerasModelSavingTest(test_combinations.TestCase):
         ):
             self.assertAllEqual(src_v, loaded_v)
 
-    @parameterized.parameters("h5", "tf")
+    @parameterized.parameters("h5", "tf", "keras_v3")
     def test_keras_saving_functional(self, save_format):
         model = TestModel()
         query = keras.Input(shape=(40, 80))
@@ -565,6 +574,12 @@ class KerasModelSavingTest(test_combinations.TestCase):
         )(query, query)
         model = keras.Model(inputs=query, outputs=output)
         model_path = self.get_temp_dir() + "/tmp_model"
+        if save_format == "keras_v3":
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            model_path += ".keras"
         keras.models.save_model(model, model_path, save_format=save_format)
         reloaded_model = keras.models.load_model(model_path)
         self.assertEqual(
