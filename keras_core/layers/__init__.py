@@ -8,3 +8,4 @@ from keras_core.layers.regularization.activity_regularization import (
     ActivityRegularization,
 )
 from keras_core.layers.regularization.dropout import Dropout
+from keras_core.layers.regularization.gaussian_dropout import GaussianDropout

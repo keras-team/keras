@@ -338,6 +338,7 @@ class Layer(Operation):
             kwargs["training"] = training
 
         # TODO: Populate mask argument(s)
+        # if self._mask_has_training_arg():
 
         # Call the layer.
         try:
