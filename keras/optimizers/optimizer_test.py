@@ -527,6 +527,17 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         loaded_optimizer.build(loaded_model.trainable_variables)
         self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
 
+        # Save in `.keras` format.
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        loaded_model = keras.models.load_model(path)
+        loaded_model.load_weights(path)
+        loaded_optimizer = loaded_model.optimizer
+        self.assertEqual(type(optimizer), type(loaded_optimizer))
+        self.assertEqual(loaded_optimizer.learning_rate, 0.002)
+        self.assertEqual(loaded_optimizer.clipnorm, 0.1)
+        self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
+
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)
     def testSparseGradientsWorkAsExpected(self, optimizer_fn):
         optimizer_1 = optimizer_fn()
