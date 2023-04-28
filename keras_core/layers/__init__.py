@@ -10,3 +10,6 @@ from keras_core.layers.regularization.activity_regularization import (
 from keras_core.layers.regularization.dropout import Dropout
 from keras_core.layers.regularization.gaussian_dropout import GaussianDropout
 from keras_core.layers.regularization.gaussian_noise import GaussianNoise
+from keras_core.layers.regularization.spatial_dropout import SpatialDropout1D
+from keras_core.layers.regularization.spatial_dropout import SpatialDropout2D
+from keras_core.layers.regularization.spatial_dropout import SpatialDropout3D
