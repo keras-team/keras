@@ -60,3 +60,35 @@ class BinaryAccuracyTest(testing.TestCase):
         bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
         result = bin_acc_obj.result()
         self.assertAllClose(result, 0.5, atol=1e-3)
+
+
+class CategoricalAccuracyTest(testing.TestCase):
+    def test_config(self):
+        cat_acc_obj = accuracy_metrics.CategoricalAccuracy(
+            name="categorical_accuracy", dtype="float32"
+        )
+        self.assertEqual(cat_acc_obj.name, "categorical_accuracy")
+        self.assertEqual(len(cat_acc_obj.variables), 2)
+        self.assertEqual(cat_acc_obj._dtype, "float32")
+        # TODO: Check save and restore config
+
+    def test_unweighted(self):
+        cat_acc_obj = accuracy_metrics.CategoricalAccuracy(
+            name="categorical_accuracy", dtype="float32"
+        )
+        y_true = np.array([[0, 0, 1], [0, 1, 0]])
+        y_pred = np.array([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+        cat_acc_obj.update_state(y_true, y_pred)
+        result = cat_acc_obj.result()
+        self.assertAllClose(result, 0.5, atol=1e-3)
+
+    def test_weighted(self):
+        cat_acc_obj = accuracy_metrics.CategoricalAccuracy(
+            name="categorical_accuracy", dtype="float32"
+        )
+        y_true = np.array([[0, 0, 1], [0, 1, 0]])
+        y_pred = np.array([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+        sample_weight = np.array([0.7, 0.3])
+        cat_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
+        result = cat_acc_obj.result()
+        self.assertAllClose(result, 0.3, atol=1e-3)
