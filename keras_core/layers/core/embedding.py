@@ -91,7 +91,7 @@ class Embedding(Layer):
     def call(self, inputs):
         if inputs.dtype != "int32" and inputs.dtype != "int64":
             inputs = ops.cast(inputs, "int32")
-        one_hot_data = backend.nn.one_hot(inputs, num_classes=self.input_dim)
+        one_hot_data = ops.one_hot(inputs, num_classes=self.input_dim)
         return ops.matmul(one_hot_data, self.embeddings)
 
     def compute_mask(self, inputs, mask=None):

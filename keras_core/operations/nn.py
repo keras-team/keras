@@ -982,3 +982,32 @@ def conv_transpose(
         data_format,
         dilation_rate,
     )
+
+
+class OneHot(Operation):
+    def __init__(self, num_classes, axis=-1):
+        super().__init__()
+        self.num_classes = num_classes
+        self.axis = axis
+
+    def call(self, x):
+        return backend.nn.one_hot(x, self.num_classes, axis=self.axis)
+
+    def compute_output_spec(self, x):
+        x_shape = list(getattr(x, "shape", []))
+        if self.axis == -1:
+            x_shape.append(self.num_classes)
+        elif self.axis >= 0 and self.axis < len(x_shape):
+            x_shape.insert(self.axis, self.num_classes)
+        else:
+            raise ValueError(
+                f"axis must be -1 or between [0, {len(x.shape)}), but "
+                f"received {self.axis}."
+            )
+        return KerasTensor(x_shape)
+
+
+def one_hot(x, num_classes, axis=-1):
+    if any_symbolic_tensors((x,)):
+        return OneHot(num_classes, axis=axis).symbolic_call(x)
+    return backend.nn.one_hot(x, num_classes, axis=axis)
