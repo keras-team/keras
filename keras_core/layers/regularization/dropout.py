@@ -42,7 +42,7 @@ class Dropout(layers.Layer):
         self, rate, noise_shape=None, seed=None, name=None, dtype=None
     ):
         super().__init__(name=name, dtype=dtype)
-        if isinstance(rate, (int, float)) and not 0 <= rate <= 1:
+        if not 0 <= rate <= 1:
             raise ValueError(
                 f"Invalid value received for argument "
                 "`rate`. Expected a float value between 0 and 1. "

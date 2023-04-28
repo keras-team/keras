@@ -1,49 +1,49 @@
-import math
-
 from keras_core import backend
 from keras_core import layers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 
-@keras_core_export("keras_core.layers.GaussianDropout")
-class GaussianDropout(layers.Layer):
-    """Apply multiplicative 1-centered Gaussian noise.
+@keras_core_export("keras_core.layers.GaussianNoise")
+class GaussianNoise(layers.Layer):
+    """Apply additive zero-centered Gaussian noise.
+
+    This is useful to mitigate overfitting
+    (you could see it as a form of random data augmentation).
+    Gaussian Noise (GS) is a natural choice as corruption process
+    for real valued inputs.
 
     As it is a regularization layer, it is only active at training time.
 
     Args:
-        rate: Float, drop probability (as with `Dropout`).
-            The multiplicative noise will have
-            standard deviation `sqrt(rate / (1 - rate))`.
+        stddev: Float, standard deviation of the noise distribution.
         seed: Integer, optional random seed to enable deterministic behavior.
 
     Call arguments:
         inputs: Input tensor (of any rank).
         training: Python boolean indicating whether the layer should behave in
-            training mode (adding dropout) or in inference mode (doing nothing).
+            training mode (adding noise) or in inference mode (doing nothing).
     """
 
-    def __init__(self, rate, seed=None, name=None, dtype=None):
+    def __init__(self, stddev, seed=None, name=None, dtype=None):
         super().__init__(name=name, dtype=dtype)
-        if not 0 <= rate <= 1:
+        if not 0 <= stddev <= 1:
             raise ValueError(
                 f"Invalid value received for argument "
-                "`rate`. Expected a float value between 0 and 1. "
-                f"Received: rate={rate}"
+                "`stddev`. Expected a float value between 0 and 1. "
+                f"Received: stddev={stddev}"
             )
-        self.rate = rate
+        self.stddev = stddev
         self.seed = seed
         self.seed_generator = backend.random.SeedGenerator(seed)
         self.supports_masking = True
 
     def call(self, inputs, training=False):
-        if training and self.rate > 0:
-            stddev = math.sqrt(self.rate / (1.0 - self.rate))
-            return inputs * backend.random.normal(
+        if training and self.stddev > 0:
+            return inputs + backend.random.normal(
                 shape=ops.shape(inputs),
-                mean=1.0,
-                stddev=stddev,
+                mean=0.0,
+                stddev=self.stddev,
                 seed=self.seed_generator,
             )
         return inputs
@@ -54,7 +54,7 @@ class GaussianDropout(layers.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
-            "rate": self.rate,
+            "stddev": self.stddev,
             "seed": self.seed,
         }
         return {**base_config, **config}
