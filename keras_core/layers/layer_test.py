@@ -262,3 +262,73 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.variable_dtype, "float32")
         self.assertEqual(y.dtype.name, "float16")
         self.assertEqual(layer.kernel.dtype, "float32")
+
+    def test_masking(self):
+        class BasicMaskedLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                assert mask is not None
+                return x
+
+        layer = BasicMaskedLayer()
+        x = backend.numpy.ones((4, 4))
+        x._keras_mask = backend.numpy.ones((4,))
+        layer(x)
+
+        class NestedInputMaskedLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                assert isinstance(x, list)
+                assert len(x) == 2
+                assert isinstance(mask, list)
+                assert len(mask) == 2
+                return x
+
+        layer = NestedInputMaskedLayer()
+        x1 = backend.numpy.ones((4, 4))
+        x1._keras_mask = backend.numpy.ones((4,))
+        x2 = backend.numpy.ones((4, 4))
+        x2._keras_mask = backend.numpy.ones((4,))
+        layer([x1, x2])
+
+        class PositionalInputsMaskedLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x1, x2, x1_mask=None, x2_mask=None):
+                assert x1_mask is not None
+                assert x2_mask is not None
+                return x1 + x2
+
+        layer = PositionalInputsMaskedLayer()
+        layer(x1, x2)
+        layer(x1=x1, x2=x2)
+
+        class PositionalNestedInputsMaskedLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.supports_masking = True
+
+            def call(self, x1, x2, x1_mask=None, x2_mask=None):
+                assert isinstance(x1, tuple)
+                assert x1_mask is not None
+                assert x2_mask is not None
+                assert isinstance(x1_mask, tuple)
+                return x1[0] + x1[1] + x2
+
+        layer = PositionalNestedInputsMaskedLayer()
+        x1_1 = backend.numpy.ones((4, 4))
+        x1_1._keras_mask = backend.numpy.ones((4,))
+        x1_2 = backend.numpy.ones((4, 4))
+        x1_2._keras_mask = backend.numpy.ones((4,))
+        x2 = backend.numpy.ones((4, 4))
+        x2._keras_mask = backend.numpy.ones((4,))
+        layer((x1_1, x1_2), x2)
+        layer(x1=(x1_1, x1_2), x2=x2)
