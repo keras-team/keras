@@ -284,10 +284,22 @@ class Layer(Operation):
         # Argument validation and conversion. #
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
-            if isinstance(x, np.ndarray) or backend.is_tensor(x):
-                # TODO: only cast when float!
+            if isinstance(x, np.ndarray):
                 return backend.convert_to_tensor(x, dtype=self.compute_dtype)
-            # TODO: cast KerasTensor too?
+            if backend.is_tensor(x):
+                if (
+                    self.autocast
+                    and backend.is_float_dtype(x.dtype)
+                    and x.dtype != self.compute_dtype
+                ):
+                    return backend.cast(x, dtype=self.compute_dtype)
+            elif isinstance(x, backend.KerasTensor):
+                if (
+                    self.autocast
+                    and backend.is_float_dtype(x.dtype)
+                    and x.dtype != self.compute_dtype
+                ):
+                    x.dtype = self.compute_dtype
             return x
 
         args = nest.map_structure(maybe_convert, args)
