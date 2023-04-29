@@ -43,8 +43,9 @@ class RMSprop(optimizer.Optimizer):
     9.683772
 
     Reference:
-        - [Hinton, 2012](
-            http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
+
+    - [Hinton, 2012](
+        http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
     def __init__(

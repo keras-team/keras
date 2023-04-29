@@ -23,7 +23,7 @@ class AdamW(optimizer.Optimizer):
     Args:
         learning_rate: A floating point value or a callable that takes no
             arguments and returns the actual value to use. The learning rate.
-            Defaults to `0.001`.
+            Defaults to 0.001.
         beta_1: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             exponential decay rate for the 1st moment estimates.
@@ -41,11 +41,12 @@ class AdamW(optimizer.Optimizer):
             Defaults to `False`.
         {{base_optimizer_keyword_args}}
 
-    Reference:
-        - [Loshchilov et al., 2019](https://arxiv.org/abs/1711.05101)
-        - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980) for `adam`
-        - [Reddi et al., 2018](
-            https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
+    References:
+
+    - [Loshchilov et al., 2019](https://arxiv.org/abs/1711.05101)
+    - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980) for `adam`
+    - [Reddi et al., 2018](
+        https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
     """
 
     def __init__(
@@ -84,8 +85,8 @@ class AdamW(optimizer.Optimizer):
 
         if self.weight_decay is None:
             raise ValueError(
-                "Missing value of `weight_decay` which is required and"
-                " must be a float value."
+                "Argument `weight_decay` must be a float. Received: "
+                "weight_decay=None"
             )
 
     def build(self, var_list):
