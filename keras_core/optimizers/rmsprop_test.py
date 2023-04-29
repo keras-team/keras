@@ -2,26 +2,28 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import testing
-from keras_core.optimizers.adam import Adam
+from keras_core.optimizers.rmsprop import RMSprop
 
 
-class AdamTest(testing.TestCase):
+class RMSpropTest(testing.TestCase):
     def test_config(self):
-        optimizer = Adam(
+        optimizer = RMSprop(
             learning_rate=0.5,
-            beta_1=0.5,
-            beta_2=0.67,
-            epsilon=1e-5,
-            amsgrad=True,
+            rho=0.8,
+            momentum=0.05,
+            epsilon=1e-6,
+            centered=True,
         )
         self.run_class_serialization_test(optimizer)
 
     def test_single_step(self):
-        optimizer = Adam(learning_rate=0.5)
+        optimizer = RMSprop(learning_rate=0.5)
         grads = np.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.apply_gradients(zip([grads], [vars]))
-        self.assertAllClose(vars, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
+        self.assertAllClose(
+            vars, [-0.5811, 0.4189, 1.4189, 2.4189], rtol=1e-4, atol=1e-4
+        )
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
@@ -30,14 +32,14 @@ class AdamTest(testing.TestCase):
             backend.Variable(2.0, name="exclude"),
             backend.Variable(2.0),
         )
-        optimizer_1 = Adam(learning_rate=1.0, weight_decay=0.004)
+        optimizer_1 = RMSprop(learning_rate=1.0, weight_decay=0.004)
         optimizer_1.apply_gradients(zip([grads], [var1]))
 
-        optimizer_2 = Adam(learning_rate=1.0, weight_decay=0.004)
+        optimizer_2 = RMSprop(learning_rate=1.0, weight_decay=0.004)
         optimizer_2.exclude_from_weight_decay(var_names=["exclude"])
         optimizer_2.apply_gradients(zip([grads, grads], [var1, var2]))
 
-        optimizer_3 = Adam(learning_rate=1.0, weight_decay=0.004)
+        optimizer_3 = RMSprop(learning_rate=1.0, weight_decay=0.004)
         optimizer_3.exclude_from_weight_decay(var_list=[var3])
         optimizer_3.apply_gradients(zip([grads, grads], [var1, var3]))
 
@@ -46,14 +48,14 @@ class AdamTest(testing.TestCase):
         self.assertAlmostEqual(var3.numpy(), 2.0, decimal=6)
 
     def test_correctness_with_golden(self):
-        optimizer = Adam(amsgrad=True)
+        optimizer = RMSprop(centered=True)
 
         x = backend.Variable(np.ones([10]))
         grads = np.arange(0.1, 1.1, 0.1)
         first_grads = np.full((10,), 0.01)
 
         golden = np.tile(
-            [[0.999], [0.9982], [0.9974], [0.9965], [0.9955]], (1, 10)
+            [[0.9967], [0.9933], [0.9908], [0.9885], [0.9864]], (1, 10)
         )
 
         optimizer.apply_gradients(zip([first_grads], [x]))
@@ -65,7 +67,7 @@ class AdamTest(testing.TestCase):
         # TODO: implement clip_gradients, then uncomment
         pass
 
-    #     optimizer = Adam(clipnorm=1)
+    #     optimizer = RMSprop(clipnorm=1)
     #     grad = [np.array([100.0, 100.0])]
     #     clipped_grad = optimizer._clip_gradients(grad)
     #     self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
@@ -74,7 +76,7 @@ class AdamTest(testing.TestCase):
         # TODO: implement clip_gradients, then uncomment
         pass
 
-    #     optimizer = Adam(clipvalue=1)
+    #     optimizer = RMSprop(clipvalue=1)
     #     grad = [np.array([100.0, 100.0])]
     #     clipped_grad = optimizer._clip_gradients(grad)
     #     self.assertAllClose(clipped_grad[0], [1.0, 1.0])
