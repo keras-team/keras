@@ -2,7 +2,7 @@ import math
 
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
-from keras_core.utils.numerical_utils import l2_normalize
+from keras_core.utils.numerical_utils import normalize
 
 
 @keras_core_export(
@@ -313,11 +313,11 @@ class OrthogonalRegularizer(Regularizer):
                 f"inputs.shape={inputs.shape}"
             )
         if self.mode == "rows":
-            inputs = l2_normalize(inputs, axis=1)
+            inputs = normalize(inputs, axis=1)
             product = ops.matmul(inputs, ops.transpose(inputs))
             size = inputs.shape[0]
         else:
-            inputs = l2_normalize(inputs, axis=0)
+            inputs = normalize(inputs, axis=0)
             product = ops.matmul(ops.transpose(inputs), inputs)
             size = inputs.shape[1]
         product_no_diagonal = product * (

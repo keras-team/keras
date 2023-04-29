@@ -4,7 +4,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
 from keras_core.losses.loss import squeeze_to_same_rank
 from keras_core.saving import serialization_lib
-from keras_core.utils.numerical_utils import l2_normalize
+from keras_core.utils.numerical_utils import normalize
 
 
 class LossFunctionWrapper(Loss):
@@ -579,6 +579,6 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
-    y_pred = l2_normalize(y_pred, axis=axis)
-    y_true = l2_normalize(y_true, axis=axis)
+    y_pred = normalize(y_pred, axis=axis)
+    y_true = normalize(y_true, axis=axis)
     return -ops.sum(y_true * y_pred, axis=axis)

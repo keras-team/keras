@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import backend
@@ -52,3 +53,23 @@ class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
         one_hot = numerical_utils.to_categorical(label, NUM_CLASSES)
         assert backend.is_tensor(one_hot)
         self.assertAllClose(one_hot, expected)
+
+    @parameterized.parameters([1, 2, 3])
+    def test_normalize(self, order):
+        xnp = np.random.random((3, 3))
+        xb = backend.random.uniform((3, 3))
+
+        # Test NumPy
+        out = numerical_utils.normalize(xnp, axis=-1, order=order)
+        self.assertTrue(isinstance(out, np.ndarray))
+        self.assertAllClose(
+            tf.keras.utils.normalize(xnp, axis=-1, order=order), out
+        )
+
+        # Test backend
+        out = numerical_utils.normalize(xb, axis=-1, order=order)
+        self.assertTrue(backend.is_tensor(out))
+        self.assertAllClose(
+            tf.keras.utils.normalize(np.array(xb), axis=-1, order=order),
+            np.array(out),
+        )

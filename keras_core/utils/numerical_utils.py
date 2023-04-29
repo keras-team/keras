@@ -5,11 +5,44 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 
-def l2_normalize(x, axis=0):
+@keras_core_export("keras_core.utils.normalize")
+def normalize(x, axis=-1, order=2):
+    """Normalizes an array.
+
+    If the input is a NumPy array, a NumPy array will be returned.
+    If it's a backend tensor, a backend tensor will be returned.
+
+    Args:
+        x: Array to normalize.
+        axis: axis along which to normalize.
+        order: Normalization order (e.g. `order=2` for L2 norm).
+
+    Returns:
+        A normalized copy of the array.
+    """
+    if not isinstance(order, int) or not order >= 1:
+        raise ValueError(
+            "Argument `order` must be an int >= 1. " f"Received: order={order}"
+        )
+    if isinstance(x, np.ndarray):
+        # NumPy input
+        norm = np.atleast_1d(np.linalg.norm(x, order, axis))
+        norm[norm == 0] = 1
+        return x / np.expand_dims(norm, axis)
+
+    # Backend tensor input
+    if len(x.shape) == 0:
+        x = ops.expand_dims(x, axis=0)
     epsilon = backend.epsilon()
-    square_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
-    l2_norm = ops.reciprocal(ops.sqrt(ops.maximum(square_sum, epsilon)))
-    return ops.multiply(x, l2_norm)
+    if order == 2:
+        power_sum = ops.sum(ops.square(x), axis=axis, keepdims=True)
+        norm = ops.reciprocal(ops.sqrt(ops.maximum(power_sum, epsilon)))
+    else:
+        power_sum = ops.sum(ops.power(x, order), axis=axis, keepdims=True)
+        norm = ops.reciprocal(
+            ops.power(ops.maximum(power_sum, epsilon), 1.0 / order)
+        )
+    return ops.multiply(x, norm)
 
 
 @keras_core_export("keras_core.utils.to_categorical")
