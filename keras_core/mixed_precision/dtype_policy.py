@@ -1,9 +1,6 @@
-import threading
-
 from keras_core import backend
 from keras_core.api_export import keras_core_export
-
-GLOBAL_DTYPE_POLICY_TRACKER = threading.local()
+from keras_core.backend import global_state
 
 
 @keras_core_export("keras_core.mixed_precision.DTypePolicy")
@@ -98,7 +95,6 @@ class DTypePolicy:
 
 @keras_core_export("keras_core.mixed_precision.set_dtype_policy")
 def set_dtype_policy(policy):
-    global GLOBAL_DTYPE_POLICY_TRACKER
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
             policy = DTypePolicy(policy)
@@ -110,12 +106,12 @@ def set_dtype_policy(policy):
                 f"instance. Received: policy={policy} "
                 f"(of type {type(policy)})"
             )
-    GLOBAL_DTYPE_POLICY_TRACKER.dtype_policy = policy
+    global_state.set_global_setting("dtype_policy", policy)
 
 
 @keras_core_export("keras_core.mixed_precision.dtype_policy")
 def dtype_policy():
-    policy = getattr(GLOBAL_DTYPE_POLICY_TRACKER, "dtype_policy", None)
+    policy = global_state.get_global_setting("dtype_policy", None)
     if policy is None:
         policy = DTypePolicy(backend.floatx())
         set_dtype_policy(policy)

@@ -2,7 +2,6 @@
 
 import importlib
 import inspect
-import threading
 import types
 import warnings
 
@@ -13,12 +12,11 @@ import tensorflow as tf
 from keras_core import api_export
 from keras_core import backend
 from keras_core.api_export import keras_core_export
+from keras_core.backend import global_state
 from keras_core.saving import object_registration
 from keras_core.utils import python_utils
 
 PLAIN_TYPES = (str, int, float, bool)
-SHARED_OBJECTS = threading.local()
-SAFE_MODE = threading.local()
 
 # List of Keras modules with built-in string representations for Keras defaults
 BUILTIN_MODULES = (
@@ -48,61 +46,70 @@ class SafeModeScope:
 
     def __enter__(self):
         self.original_value = in_safe_mode()
-        SAFE_MODE.safe_mode = self.safe_mode
+        global_state.set_global_setting("safe_mode_saving", self.safe_mode)
 
     def __exit__(self, *args, **kwargs):
-        SAFE_MODE.safe_mode = self.original_value
+        global_state.set_global_setting("safe_mode_saving", self.original_value)
 
 
 def enable_unsafe_deserialization():
     """Disables safe mode globally, allowing deserialization of lambdas."""
-    SAFE_MODE.safe_mode = False
+    global_state.set_global_setting("safe_mode_saving", False)
 
 
 def in_safe_mode():
-    return getattr(SAFE_MODE, "safe_mode", None)
+    return global_state.get_global_setting("safe_mode_saving")
 
 
 class ObjectSharingScope:
     """Scope to enable detection and reuse of previously seen objects."""
 
     def __enter__(self):
-        SHARED_OBJECTS.enabled = True
-        SHARED_OBJECTS.id_to_obj_map = {}
-        SHARED_OBJECTS.id_to_config_map = {}
+        global_state.set_global_attribute("shared_objects/id_to_obj_map", {})
+        global_state.set_global_attribute("shared_objects/id_to_config_map", {})
 
     def __exit__(self, *args, **kwargs):
-        SHARED_OBJECTS.enabled = False
-        SHARED_OBJECTS.id_to_obj_map = {}
-        SHARED_OBJECTS.id_to_config_map = {}
+        global_state.set_global_attribute("shared_objects/id_to_obj_map", None)
+        global_state.set_global_attribute(
+            "shared_objects/id_to_config_map", None
+        )
 
 
 def get_shared_object(obj_id):
     """Retrieve an object previously seen during deserialization."""
-    if getattr(SHARED_OBJECTS, "enabled", False):
-        return SHARED_OBJECTS.id_to_obj_map.get(obj_id, None)
+    id_to_obj_map = global_state.get_global_attribute(
+        "shared_objects/id_to_obj_map"
+    )
+    if id_to_obj_map is not None:
+        return id_to_obj_map.get(obj_id, None)
 
 
 def record_object_after_serialization(obj, config):
     """Call after serializing an object, to keep track of its config."""
     if config["module"] == "__main__":
         config["module"] = None  # Ensures module is None when no module found
-    if not getattr(SHARED_OBJECTS, "enabled", False):
+    id_to_config_map = global_state.get_global_attribute(
+        "shared_objects/id_to_config_map"
+    )
+    if id_to_config_map is None:
         return  # Not in a sharing scope
     obj_id = int(id(obj))
-    if obj_id not in SHARED_OBJECTS.id_to_config_map:
-        SHARED_OBJECTS.id_to_config_map[obj_id] = config
+    if obj_id not in id_to_config_map:
+        id_to_config_map[obj_id] = config
     else:
         config["shared_object_id"] = obj_id
-        prev_config = SHARED_OBJECTS.id_to_config_map[obj_id]
+        prev_config = id_to_config_map[obj_id]
         prev_config["shared_object_id"] = obj_id
 
 
 def record_object_after_deserialization(obj, obj_id):
     """Call after deserializing an object, to keep track of it in the future."""
-    if not getattr(SHARED_OBJECTS, "enabled", False):
+    id_to_obj_map = global_state.get_global_attribute(
+        "shared_objects/id_to_obj_map"
+    )
+    if id_to_obj_map is None:
         return  # Not in a sharing scope
-    SHARED_OBJECTS.id_to_obj_map[obj_id] = obj
+    id_to_obj_map[obj_id] = obj
 
 
 @keras_core_export("keras_core.saving.serialize_keras_object")
@@ -467,8 +474,8 @@ def deserialize_keras_object(
 
     module_objects = kwargs.pop("module_objects", None)
     custom_objects = custom_objects or {}
-    tlco = object_registration._THREAD_LOCAL_CUSTOM_OBJECTS.__dict__
-    gco = object_registration._GLOBAL_CUSTOM_OBJECTS
+    tlco = global_state.get_global_attribute("custom_objects_scope_dict", {})
+    gco = object_registration.GLOBAL_CUSTOM_OBJECTS
     custom_objects = {**custom_objects, **tlco, **gco}
 
     if config is None:

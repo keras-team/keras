@@ -17,7 +17,6 @@ And some more magic:
 """
 import collections
 import inspect
-import threading
 import warnings
 
 import numpy as np
@@ -30,6 +29,7 @@ from keras_core import regularizers
 from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
+from keras_core.backend import global_state
 from keras_core.layers import input_spec
 from keras_core.metrics.metric import Metric
 from keras_core.operations.operation import Operation
@@ -757,20 +757,20 @@ class Layer(Operation):
 
     def _get_call_context(self):
         """Returns currently active `CallContext`."""
-        global CALL_CTX
-        call_ctx = getattr(CALL_CTX, "current", None)
-        if call_ctx is None:
+        layer_call_ctx = global_state.get_global_attribute("current_call_ctx")
+        if layer_call_ctx is None:
             # Enter new call context.
-            call_ctx = CallContext(entry_layer=self)
-            CALL_CTX.current = call_ctx
+            layer_call_ctx = CallContext(entry_layer=self)
+            global_state.set_global_attribute(
+                "current_call_ctx", layer_call_ctx
+            )
             self._clear_losses()
-        return call_ctx
+        return layer_call_ctx
 
     def _maybe_reset_call_context(self):
-        global CALL_CTX
-        call_ctx = getattr(CALL_CTX, "current", None)
-        if call_ctx is None or call_ctx.entry_layer == self:
-            CALL_CTX.current = None
+        layer_call_ctx = global_state.get_global_attribute("current_call_ctx")
+        if layer_call_ctx is None or layer_call_ctx.entry_layer == self:
+            global_state.set_global_attribute("current_call_ctx", None)
 
     def _flatten_layers(self, include_self=True, recursive=True):
         layers = []
@@ -918,9 +918,6 @@ def check_build_signature(build_fn, shapes_dict):
             "tensor arguments of `call()` method. Here we expect the signature "
             f"`build(self, {comma_separated})`."
         )
-
-
-CALL_CTX = threading.local()
 
 
 class CallContext:

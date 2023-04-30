@@ -1,19 +1,18 @@
-import threading
-
-GLOBAL_SCOPE_TRACKER = threading.local()
+from keras_core.backend.global_state import get_global_attribute
+from keras_core.backend.global_state import set_global_attribute
 
 
 class DotNotTrackScope:
     def __enter__(self):
         self.original_value = is_tracking_enabled()
-        GLOBAL_SCOPE_TRACKER.tracking_on = False
+        set_global_attribute("tracking_on", False)
 
     def __exit__(self, *args, **kwargs):
-        GLOBAL_SCOPE_TRACKER.tracking_on = self.original_value
+        set_global_attribute("tracking_on", self.original_value)
 
 
 def is_tracking_enabled():
-    return getattr(GLOBAL_SCOPE_TRACKER, "tracking_on", True)
+    return get_global_attribute("tracking_on", True)
 
 
 def no_automatic_dependency_tracking(fn):

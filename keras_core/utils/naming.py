@@ -1,7 +1,7 @@
 import collections
 import re
 
-OBJECT_NAME_UIDS = collections.defaultdict(int)
+from keras_core.backend.global_state import get_global_attribute
 
 
 def auto_name(prefix):
@@ -10,12 +10,16 @@ def auto_name(prefix):
 
 
 def uniquify(name):
-    global OBJECT_NAME_UIDS
-    if name in OBJECT_NAME_UIDS:
-        unique_name = f"{name}_{OBJECT_NAME_UIDS[name]}"
+    object_name_uids = get_global_attribute(
+        "object_name_uids",
+        default=collections.defaultdict(int),
+        set_to_default=True,
+    )
+    if name in object_name_uids:
+        unique_name = f"{name}_{object_name_uids[name]}"
     else:
         unique_name = name
-    OBJECT_NAME_UIDS[name] += 1
+    object_name_uids[name] += 1
     return unique_name
 
 

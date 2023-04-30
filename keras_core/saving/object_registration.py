@@ -1,12 +1,10 @@
 import inspect
-import threading
 
 from keras_core.api_export import keras_core_export
+from keras_core.backend import global_state
 
-_GLOBAL_CUSTOM_OBJECTS = {}
-_GLOBAL_CUSTOM_NAMES = {}
-# Thread-local custom objects set by custom_object_scope.
-_THREAD_LOCAL_CUSTOM_OBJECTS = threading.local()
+GLOBAL_CUSTOM_OBJECTS = {}
+GLOBAL_CUSTOM_NAMES = {}
 
 
 @keras_core_export(
@@ -46,13 +44,18 @@ class CustomObjectScope:
         self.backup = None
 
     def __enter__(self):
-        self.backup = _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.copy()
-        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.custom_objects)
+        self.backup = global_state.get_global_attribute(
+            "custom_objects_scope_dict", {}
+        ).copy()
+        global_state.set_global_attribute(
+            "custom_objects_scope_dict", self.custom_objects.copy()
+        )
         return self
 
     def __exit__(self, *args, **kwargs):
-        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.clear()
-        _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__.update(self.backup)
+        global_state.set_global_attribute(
+            "custom_objects_scope_dict", self.backup.copy()
+        )
 
 
 # Alias.
@@ -79,7 +82,7 @@ def get_custom_objects():
     Returns:
         Global dictionary mapping registered class names to classes.
     """
-    return _GLOBAL_CUSTOM_OBJECTS
+    return GLOBAL_CUSTOM_OBJECTS
 
 
 @keras_core_export(
@@ -108,10 +111,8 @@ def register_keras_serializable(package="Custom", name=None):
     class MyDense(keras_core.layers.Dense):
         pass
 
-    assert keras_core.saving.get_registered_object(
-        'my_package>MyDense') == MyDense
-    assert keras_core.saving.get_registered_name(
-        MyDense) == 'my_package>MyDense'
+    assert get_registered_object('my_package>MyDense') == MyDense
+    assert get_registered_name(MyDense) == 'my_package>MyDense'
     ```
 
     Args:
@@ -138,8 +139,8 @@ def register_keras_serializable(package="Custom", name=None):
                 "get_config() method."
             )
 
-        _GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
-        _GLOBAL_CUSTOM_NAMES[arg] = registered_name
+        GLOBAL_CUSTOM_OBJECTS[registered_name] = arg
+        GLOBAL_CUSTOM_NAMES[arg] = registered_name
 
         return arg
 
@@ -161,8 +162,8 @@ def get_registered_name(obj):
         The name associated with the object, or the default Python name if the
             object is not registered.
     """
-    if obj in _GLOBAL_CUSTOM_NAMES:
-        return _GLOBAL_CUSTOM_NAMES[obj]
+    if obj in GLOBAL_CUSTOM_NAMES:
+        return GLOBAL_CUSTOM_NAMES[obj]
     else:
         return obj.__name__
 
@@ -196,10 +197,13 @@ def get_registered_object(name, custom_objects=None, module_objects=None):
         An instantiable class associated with `name`, or `None` if no such class
             exists.
     """
-    if name in _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__:
-        return _THREAD_LOCAL_CUSTOM_OBJECTS.__dict__[name]
-    elif name in _GLOBAL_CUSTOM_OBJECTS:
-        return _GLOBAL_CUSTOM_OBJECTS[name]
+    custom_objects_scope_dict = global_state.get_global_attribute(
+        "custom_objects_scope_dict", {}
+    )
+    if name in custom_objects_scope_dict:
+        return custom_objects_scope_dict[name]
+    elif name in GLOBAL_CUSTOM_OBJECTS:
+        return GLOBAL_CUSTOM_OBJECTS[name]
     elif custom_objects and name in custom_objects:
         return custom_objects[name]
     elif module_objects and name in module_objects:

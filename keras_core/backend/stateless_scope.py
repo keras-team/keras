@@ -1,11 +1,6 @@
-import threading
-
+from keras_core.backend import global_state
 from keras_core.backend.common.variables import KerasVariable
 from keras_core.backend.common.variables import initialize_all_variables
-
-### Stateless context manager
-
-GLOBAL_SCOPE_TRACKER = threading.local()
 
 
 class StatelessScope:
@@ -36,7 +31,7 @@ class StatelessScope:
 
     def __enter__(self):
         self.original_scope = get_stateless_scope()
-        GLOBAL_SCOPE_TRACKER.stateless_scope = self
+        global_state.set_global_attribute("stateless_scope", self)
         return self
 
     def add_loss(self, loss):
@@ -50,7 +45,9 @@ class StatelessScope:
         return self.state_mapping.get(id(variable), None)
 
     def __exit__(self, *args, **kwargs):
-        GLOBAL_SCOPE_TRACKER.stateless_scope = self.original_scope
+        global_state.set_global_attribute(
+            "stateless_scope", self.original_scope
+        )
         if self.original_scope is None:
             # We're back in eager scope;
             # if any variables were created within the stateless
@@ -59,8 +56,8 @@ class StatelessScope:
 
 
 def in_stateless_scope():
-    return getattr(GLOBAL_SCOPE_TRACKER, "stateless_scope", None) is not None
+    return global_state.get_global_attribute("stateless_scope") is not None
 
 
 def get_stateless_scope():
-    return getattr(GLOBAL_SCOPE_TRACKER, "stateless_scope", None)
+    return global_state.get_global_attribute("stateless_scope")

@@ -1,5 +1,4 @@
-import threading
-
+from keras_core.backend import global_state
 from keras_core.backend.config import floatx
 from keras_core.utils.naming import auto_name
 
@@ -301,22 +300,19 @@ class KerasVariable:
         return value.__round__(ndigits)
 
 
-GLOBAL_VARIABLE_TRACKER = threading.local()
-
-
 def register_uninitialized_variable(variable):
-    global GLOBAL_VARIABLE_TRACKER
-    if not hasattr(GLOBAL_VARIABLE_TRACKER, "uninitialized_variables"):
-        GLOBAL_VARIABLE_TRACKER.uninitialized_variables = []
-    GLOBAL_VARIABLE_TRACKER.uninitialized_variables.append(variable)
+    uninitialized_variables = global_state.get_global_attribute(
+        "uninitialized_variables", [], set_to_default=True
+    )
+    uninitialized_variables.append(variable)
 
 
 def initialize_all_variables():
-    global GLOBAL_VARIABLE_TRACKER
-    collection = getattr(GLOBAL_VARIABLE_TRACKER, "uninitialized_variables", [])
-    for v in collection:
-        v._deferred_initialize()
-    GLOBAL_VARIABLE_TRACKER.uninitialized_variables = []
+    collection = global_state.get_global_attribute("uninitialized_variables")
+    if collection:
+        for v in collection:
+            v._deferred_initialize()
+    global_state.set_global_attribute("uninitialized_variables", [])
 
 
 ALLOWED_DTYPES = {
@@ -375,11 +371,8 @@ def is_float_dtype(dtype):
     return dtype.startswith("float") or dtype.startswith("bfloat")
 
 
-GLOBAL_AUTOCAST_TRACKER = threading.local()
-
-
 def get_autocast_scope():
-    return getattr(GLOBAL_AUTOCAST_TRACKER, "autocast_scope", None)
+    return global_state.get_global_attribute("autocast_scope")
 
 
 class AutocastScope:
@@ -409,7 +402,7 @@ class AutocastScope:
 
     def __enter__(self):
         self.original_scope = get_autocast_scope()
-        GLOBAL_AUTOCAST_TRACKER.autocast_scope = self
+        global_state.set_global_attribute("autocast_scope", self)
 
     def __exit__(self, *args, **kwargs):
-        GLOBAL_AUTOCAST_TRACKER.autocast_scope = self.original_scope
+        global_state.set_global_attribute("autocast_scope", self.original_scope)

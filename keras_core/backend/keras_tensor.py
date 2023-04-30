@@ -1,5 +1,6 @@
 from tensorflow import nest
 
+from keras_core.api_export import keras_core_export
 from keras_core.utils.naming import auto_name
 
 
@@ -214,5 +215,15 @@ def any_symbolic_tensors(args=None, kwargs=None):
     return False
 
 
+@keras_core_export("keras_core.utils.is_keras_tensor")
 def is_keras_tensor(x):
+    """Returns whether `x` is a Keras tensor.
+
+    A "Keras tensor" is a *symbolic tensor*, such as a tensor
+    that was created via `Input()`. A "symbolic tensor"
+    can be understood as a placeholder -- it does not
+    contain any actual numerical data, only a shape and dtype.
+    It can be used for building Functional models, but it
+    cannot be used in actual computations.
+    """
     return isinstance(x, KerasTensor)

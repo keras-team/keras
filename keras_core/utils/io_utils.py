@@ -1,12 +1,9 @@
 import sys
-import threading
 
 from absl import logging
 
 from keras_core.api_export import keras_core_export
-
-INTERACTIVE_LOGGING = threading.local()
-INTERACTIVE_LOGGING.enable = True
+from keras_core.backend import global_state
 
 
 @keras_core_export("keras_core.utils.enable_interactive_logging")
@@ -17,7 +14,7 @@ def enable_interactive_logging():
     This provides the best experience when using Keras in an interactive
     environment such as a shell or a notebook.
     """
-    INTERACTIVE_LOGGING.enable = True
+    global_state.set_global_setting("interactive_logging", True)
 
 
 @keras_core_export("keras_core.utils.disable_interactive_logging")
@@ -28,7 +25,7 @@ def disable_interactive_logging():
     This is the best option when using Keras in a non-interactive
     way, such as running a training or inference job on a server.
     """
-    INTERACTIVE_LOGGING.enable = False
+    global_state.set_global_setting("interactive_logging", False)
 
 
 @keras_core_export("keras_core.utils.is_interactive_logging_enabled")
@@ -40,11 +37,9 @@ def is_interactive_logging_enabled():
     `keras.utils.disable_interactie_logging()`.
 
     Returns:
-      Boolean (True if interactive logging is enabled and False otherwise).
+        Boolean (True if interactive logging is enabled and False otherwise).
     """
-    # Use `getattr` in case `INTERACTIVE_LOGGING`
-    # does not have the `enable` attribute.
-    return getattr(INTERACTIVE_LOGGING, "enable", True)
+    return global_state.get_global_setting("interactive_logging", True)
 
 
 def print_msg(message, line_break=True):
