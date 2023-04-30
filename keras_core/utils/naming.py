@@ -1,7 +1,8 @@
 import collections
 import re
 
-from keras_core.backend.global_state import get_global_attribute
+from keras_core.api_export import keras_core_export
+from keras_core.backend import global_state
 
 
 def auto_name(prefix):
@@ -10,7 +11,7 @@ def auto_name(prefix):
 
 
 def uniquify(name):
-    object_name_uids = get_global_attribute(
+    object_name_uids = global_state.get_global_attribute(
         "object_name_uids",
         default=collections.defaultdict(int),
         set_to_default=True,
@@ -30,9 +31,36 @@ def to_snake_case(name):
     return name
 
 
+@keras_core_export("keras_core.backend.get_uid")
+def get_uid(prefix=""):
+    """Associates a string prefix with an integer counter.
+
+    Args:
+        prefix: String prefix to index.
+
+    Returns:
+        Unique integer ID.
+
+    Example:
+
+    >>> get_uid('dense')
+    1
+    >>> get_uid('dense')
+    2
+    """
+    object_name_uids = global_state.get_global_attribute(
+        "object_name_uids",
+        default=collections.defaultdict(int),
+        set_to_default=True,
+    )
+    object_name_uids[prefix] += 1
+    return object_name_uids[prefix]
+
+
 def reset_uids():
-    global OBJECT_NAME_UIDS
-    OBJECT_NAME_UIDS = collections.defaultdict(int)
+    global_state.set_global_attribute(
+        "object_name_uids", collections.defaultdict(int)
+    )
 
 
 def get_object_name(obj):
