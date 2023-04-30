@@ -368,3 +368,169 @@ class TruePositiveTest(testing.TestCase):
             r"Threshold values must be in \[0, 1\]. Received: \[None\]",
         ):
             metrics.TruePositives(thresholds=[None])
+
+
+class PrecisionTest(testing.TestCase):
+    def test_config(self):
+        p_obj = metrics.Precision(
+            name="my_precision", thresholds=[0.4, 0.9], top_k=15, class_id=12
+        )
+        self.assertEqual(p_obj.name, "my_precision")
+        self.assertLen(p_obj.variables, 2)
+        self.assertEqual(
+            [v.name for v in p_obj.variables],
+            ["true_positives", "false_positives"],
+        )
+        self.assertEqual(p_obj.thresholds, [0.4, 0.9])
+        self.assertEqual(p_obj.top_k, 15)
+        self.assertEqual(p_obj.class_id, 12)
+
+        # Check save and restore config
+        p_obj2 = metrics.Precision.from_config(p_obj.get_config())
+        self.assertEqual(p_obj2.name, "my_precision")
+        self.assertLen(p_obj2.variables, 2)
+        self.assertEqual(p_obj2.thresholds, [0.4, 0.9])
+        self.assertEqual(p_obj2.top_k, 15)
+        self.assertEqual(p_obj2.class_id, 12)
+
+    def test_unweighted(self):
+        p_obj = metrics.Precision()
+        y_pred = np.array([1, 0, 1, 0])
+        y_true = np.array([0, 1, 1, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(0.5, result)
+
+    def test_unweighted_all_incorrect(self):
+        p_obj = metrics.Precision(thresholds=[0.5])
+        inputs = np.random.randint(0, 2, size=(100, 1))
+        y_pred = np.array(inputs)
+        y_true = np.array(1 - inputs)
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(0, result)
+
+    def test_weighted(self):
+        p_obj = metrics.Precision()
+        y_pred = np.array([[1, 0, 1, 0], [1, 0, 1, 0]])
+        y_true = np.array([[0, 1, 1, 0], [1, 0, 0, 1]])
+        result = p_obj(
+            y_true,
+            y_pred,
+            sample_weight=np.array([[1, 2, 3, 4], [4, 3, 2, 1]]),
+        )
+        weighted_tp = 3.0 + 4.0
+        weighted_positives = (1.0 + 3.0) + (4.0 + 2.0)
+        expected_precision = weighted_tp / weighted_positives
+        self.assertAlmostEqual(expected_precision, result)
+
+    def test_div_by_zero(self):
+        p_obj = metrics.Precision()
+        y_pred = np.array([0, 0, 0, 0])
+        y_true = np.array([0, 0, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertEqual(0, result)
+
+    def test_unweighted_with_threshold(self):
+        p_obj = metrics.Precision(thresholds=[0.5, 0.7])
+        y_pred = np.array([1, 0, 0.6, 0])
+        y_true = np.array([0, 1, 1, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual([0.5, 0.0], result, 0)
+
+    def test_weighted_with_threshold(self):
+        p_obj = metrics.Precision(thresholds=[0.5, 1.0])
+        y_true = np.array([[0, 1], [1, 0]])
+        y_pred = np.array([[1, 0], [0.6, 0]], dtype="float32")
+        weights = np.array([[4, 0], [3, 1]], dtype="float32")
+        result = p_obj(y_true, y_pred, sample_weight=weights)
+        weighted_tp = 0 + 3.0
+        weighted_positives = (0 + 3.0) + (4.0 + 0.0)
+        expected_precision = weighted_tp / weighted_positives
+        self.assertAlmostEqual([expected_precision, 0], result, 1e-3)
+
+    def test_multiple_updates(self):
+        p_obj = metrics.Precision(thresholds=[0.5, 1.0])
+        y_true = np.array([[0, 1], [1, 0]])
+        y_pred = np.array([[1, 0], [0.6, 0]], dtype="float32")
+        weights = np.array([[4, 0], [3, 1]], dtype="float32")
+        for _ in range(2):
+            p_obj.update_state(y_true, y_pred, sample_weight=weights)
+
+        weighted_tp = (0 + 3.0) + (0 + 3.0)
+        weighted_positives = ((0 + 3.0) + (4.0 + 0.0)) + (
+            (0 + 3.0) + (4.0 + 0.0)
+        )
+        expected_precision = weighted_tp / weighted_positives
+        self.assertAlmostEqual([expected_precision, 0], p_obj.result(), 1e-3)
+
+    def test_unweighted_top_k(self):
+        p_obj = metrics.Precision(top_k=3)
+        y_pred = np.array([0.2, 0.1, 0.5, 0, 0.2])
+        y_true = np.array([0, 1, 1, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1.0 / 3, result)
+
+    def test_weighted_top_k(self):
+        p_obj = metrics.Precision(top_k=3)
+        y_pred1 = np.array([[0.2, 0.1, 0.4, 0, 0.2]])
+        y_true1 = np.array([[0, 1, 1, 0, 1]])
+        p_obj(y_true1, y_pred1, sample_weight=np.array([[1, 4, 2, 3, 5]]))
+
+        y_pred2 = np.array([0.2, 0.6, 0.4, 0.2, 0.2])
+        y_true2 = np.array([1, 0, 1, 1, 1])
+        result = p_obj(y_true2, y_pred2, sample_weight=np.array(3))
+
+        tp = (2 + 5) + (3 + 3)
+        predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
+        expected_precision = tp / predicted_positives
+        self.assertAlmostEqual(expected_precision, result)
+
+    def test_unweighted_class_id(self):
+        p_obj = metrics.Precision(class_id=2)
+
+        y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
+        y_true = np.array([0, 1, 1, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(0, p_obj.false_positives)
+
+        y_pred = np.array([0.2, 0.1, 0, 0, 0.2])
+        y_true = np.array([0, 1, 1, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(0, p_obj.false_positives)
+
+        y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
+        y_true = np.array([0, 1, 0, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(0.5, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(1, p_obj.false_positives)
+
+    def test_unweighted_top_k_and_class_id(self):
+        p_obj = metrics.Precision(class_id=2, top_k=2)
+
+        y_pred = np.array([0.2, 0.6, 0.3, 0, 0.2])
+        y_true = np.array([0, 1, 1, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(0, p_obj.false_positives)
+
+        y_pred = np.array([1, 1, 0.9, 1, 1])
+        y_true = np.array([0, 1, 1, 0, 0])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(0, p_obj.false_positives)
+
+    def test_unweighted_top_k_and_threshold(self):
+        p_obj = metrics.Precision(thresholds=0.7, top_k=2)
+
+        y_pred = np.array([0.2, 0.8, 0.6, 0, 0.2])
+        y_true = np.array([0, 1, 1, 0, 1])
+        result = p_obj(y_true, y_pred)
+        self.assertAlmostEqual(1, result)
+        self.assertAlmostEqual(1, p_obj.true_positives)
+        self.assertAlmostEqual(0, p_obj.false_positives)

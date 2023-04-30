@@ -2035,6 +2035,15 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class NanToNum(Operation):
+    def call(self, x):
+        return backend.numpy.nan_to_num(x)
+
+
+def nan_to_num(x):
+    return backend.numpy.nan_to_num(x)
+
+
 class Ndim(Operation):
     def call(self, x):
         return backend.numpy.ndim(

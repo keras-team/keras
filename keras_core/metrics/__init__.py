@@ -1,6 +1,7 @@
 from keras_core.api_export import keras_core_export
 from keras_core.metrics.confusion_metrics import FalseNegatives
 from keras_core.metrics.confusion_metrics import FalsePositives
+from keras_core.metrics.confusion_metrics import Precision
 from keras_core.metrics.confusion_metrics import TrueNegatives
 from keras_core.metrics.confusion_metrics import TruePositives
 from keras_core.metrics.hinge_metrics import CategoricalHinge

@@ -533,7 +533,7 @@ def _filter_top_k(x, k):
     Returns:
       tensor with same shape and dtype as x.
     """
-    _, top_k_idx = ops.top_k(x, k, sorted=False)
+    _, top_k_idx = ops.top_k(x, k)
     top_k_mask = ops.sum(
         ops.one_hot(top_k_idx, ops.shape(x)[-1], axis=-1), axis=-2
     )

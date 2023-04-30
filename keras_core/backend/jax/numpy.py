@@ -339,6 +339,10 @@ def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 
 
+def nan_to_num(x):
+    return jnp.nan_to_num(x)
+
+
 def ndim(x):
     return jnp.ndim(x)
 
