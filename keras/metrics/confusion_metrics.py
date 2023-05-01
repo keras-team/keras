@@ -1400,9 +1400,9 @@ class AUC(base_metric.Metric):
         if self.multi_label:
             if shape.ndims != 2:
                 raise ValueError(
-                    "`y_true` must have rank 2 when `multi_label=True`. "
+                    "`y_pred` must have rank 2 when `multi_label=True`. "
                     f"Found rank {shape.ndims}. "
-                    f"Full shape received for `y_true`: {shape}"
+                    f"Full shape received for `y_pred`: {shape}"
                 )
             self._num_labels = shape[1]
             variable_shape = tf.TensorShape(
