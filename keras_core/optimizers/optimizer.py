@@ -8,6 +8,7 @@ from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.optimizers.schedules import learning_rate_schedule
+from keras_core.saving import serialization_lib
 from keras_core.utils.naming import auto_name
 from keras_core.utils.tracking import Tracker
 
@@ -329,34 +330,27 @@ class Optimizer:
 
     def _clip_gradients(self, grads):
         if self.clipnorm and self.clipnorm > 0:
-            raise NotImplementedError  # TODO
-            # clipped_grads = []
-            # for g in grads:
-            #     if g is None:
-            #         clipped_grads.append(g)
-            #     else:
-            #         clipped_grads.append(tf.clip_by_norm(g, self.clipnorm))
-            # return clipped_grads
+            clipped_grads = []
+            for g in grads:
+                if g is None:
+                    clipped_grads.append(g)
+                else:
+                    clipped_grads.append(clip_by_norm(g, self.clipnorm))
+            return clipped_grads
 
         if self.global_clipnorm and self.global_clipnorm > 0:
-            raise NotImplementedError  # TODO
-            # return tf.clip_by_global_norm(grads, self.global_clipnorm)[0]
+            return clip_by_global_norm(grads, self.global_clipnorm)
 
         if self.clipvalue and self.clipvalue > 0:
-            raise NotImplementedError  # TODO
-            # clipped_grads = []
-            # for g in grads:
-            #     if g is None:
-            #         clipped_grads.append(g)
-            #     else:
-            #         clipped_grads.append(
-            #             tf.clip_by_value(
-            #                 g,
-            #                 clip_value_min=-self.clipvalue,
-            #                 clip_value_max=self.clipvalue,
-            #             )
-            #         )
-            # return clipped_grads
+            clipped_grads = []
+            for g in grads:
+                if g is None:
+                    clipped_grads.append(g)
+                else:
+                    clipped_grads.append(
+                        ops.clip(g, -self.clipvalue, self.clipvalue)
+                    )
+            return clipped_grads
         return grads
 
     def exclude_from_weight_decay(self, var_list=None, var_names=None):
@@ -491,8 +485,9 @@ class Optimizer:
         elif ops.is_tensor(self._learning_rate):
             learning_rate = float(self._learning_rate)
         elif callable(self._learning_rate):
-            # TODO: serialize custom object
-            learning_rate = self._learning_rate
+            learning_rate = serialization_lib.serialize_keras_object(
+                self._learning_rate
+            )
 
         config = {
             "name": self.name,
@@ -524,7 +519,9 @@ class Optimizer:
         """
         if "learning_rate" in config:
             if isinstance(config["learning_rate"], dict):
-                config["learning_rate"] = learning_rate_schedule.deserialize(
+                config[
+                    "learning_rate"
+                ] = serialization_lib.deserialize_keras_object(
                     config["learning_rate"], custom_objects=custom_objects
                 )
         return cls(**config)
@@ -561,3 +558,41 @@ base_optimizer_keyword_args = """name: String. The name to use
           variables in-place). When using the built-in `fit()` training loop,
           this happens automatically after the last epoch,
           and you don't need to do anything."""
+
+
+def clip_by_norm(values, clip_norm, axes=None):
+    # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
+    l2sum = ops.sum(values * values, axes, keepdims=True)
+    pred = l2sum > 0
+    # Two-tap tf.where trick to bypass NaN gradients
+    l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
+    l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
+    intermediate = values * clip_norm
+    values_clip = intermediate / ops.maximum(l2norm, clip_norm)
+    return values_clip
+
+
+def global_norm(value_list):
+    """Computes the global norm of multiple tensors."""
+    squared_norms = []
+    for v in value_list:
+        if v is not None:
+            squared_norms.append(ops.sum(ops.square(v)))
+    squared_norm = ops.sum(ops.stack(squared_norms))
+    return ops.sqrt(squared_norm)
+
+
+def clip_by_global_norm(value_list, clip_norm):
+    use_norm = global_norm(value_list)
+    # Calculate L2-norm, clip elements by ratio of clip_norm to L2-norm
+    scale_for_finite = clip_norm * ops.minimum(1.0 / use_norm, 1.0 / clip_norm)
+    # If use_norm is any finite number, this is a no-op. For inf/-inf/NaN,
+    # this will make scale NaN.
+    scale = scale_for_finite + (use_norm - use_norm)
+    values_clipped = []
+    for v in value_list:
+        if v is None:
+            values_clipped.append(None)
+        else:
+            values_clipped.append(v * scale)
+    return values_clipped

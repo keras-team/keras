@@ -74,19 +74,13 @@ class AdamWTest(testing.TestCase):
             optimizer.apply_gradients(zip([grads], [x]))
 
     def test_clip_norm(self):
-        # TODO: implement clip_gradients, then uncomment
-        pass
-
-    #     optimizer = AdamW(clipnorm=1)
-    #     grad = [np.array([100.0, 100.0])]
-    #     clipped_grad = optimizer._clip_gradients(grad)
-    #     self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
+        optimizer = AdamW(clipnorm=1)
+        grad = [np.array([100.0, 100.0])]
+        clipped_grad = optimizer._clip_gradients(grad)
+        self.assertAllClose(clipped_grad[0], [2**0.5 / 2, 2**0.5 / 2])
 
     def test_clip_value(self):
-        # TODO: implement clip_gradients, then uncomment
-        pass
-
-    #     optimizer = AdamW(clipvalue=1)
-    #     grad = [np.array([100.0, 100.0])]
-    #     clipped_grad = optimizer._clip_gradients(grad)
-    #     self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+        optimizer = AdamW(clipvalue=1)
+        grad = [np.array([100.0, 100.0])]
+        clipped_grad = optimizer._clip_gradients(grad)
+        self.assertAllClose(clipped_grad[0], [1.0, 1.0])
