@@ -95,7 +95,7 @@ class ReLU(ops.Operation):
             x = backend.nn.relu(x)
 
         if clip_max:
-            x = backend.clip(x, 0.0, max_value)
+            x = backend.numpy.clip(x, 0.0, max_value)
 
         if negative_slope != 0.0:
             x -= negative_slope * negative_part
