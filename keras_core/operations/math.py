@@ -1,6 +1,7 @@
 """
 segment_sum
 top_k
+in_top_k
 """
 
 from keras_core import backend
@@ -28,3 +29,14 @@ def top_k(x, k, sorted=True):
     if any_symbolic_tensors((x,)):
         return TopK().symbolic_call(x, k, sorted)
     return backend.math.top_k(x, k, sorted)
+
+
+class InTopK(Operation):
+    def call(self, targets, predictions, k):
+        return backend.math.in_top_k(targets, predictions, k)
+
+
+def in_top_k(targets, predictions, k):
+    if any_symbolic_tensors((targets, predictions)):
+        return InTopK().symbolic_call(targets, predictions, k)
+    return backend.math.in_top_k(targets, predictions, k)

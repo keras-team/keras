@@ -23,6 +23,8 @@ separable_conv
 conv_transpose
 
 one_hot
+top_k
+in_top_k
 
 ctc ??
 """
