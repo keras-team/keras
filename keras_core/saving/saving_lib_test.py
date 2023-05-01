@@ -352,12 +352,11 @@ class SavingTest(testing.TestCase):
             mock_warn.call_args_list[0][0][0],
         )
 
-    # TODO: need Embedding layer
-    # def test_compile_overridden_warnings_sequential(self):
-    #     self._test_compile_overridden_warnings("sequential")
+    def test_compile_overridden_warnings_sequential(self):
+        self._test_compile_overridden_warnings("sequential")
 
-    # def test_compile_overridden_warnings_subclassed(self):
-    #     self._test_compile_overridden_warnings("subclassed")
+    def test_compile_overridden_warnings_subclassed(self):
+        self._test_compile_overridden_warnings("subclassed")
 
     def test_metadata(self):
         temp_filepath = Path(
@@ -390,16 +389,14 @@ class SavingTest(testing.TestCase):
     #         self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
     #         self.assertIn(str(temp_filepath), mock_copy.call_args.args)
 
-    # def test_load_model_api_endpoint(self):
-    #     temp_filepath = Path(
-    #         os.path.join(self.get_temp_dir(), "mymodel.keras")
-    #     )
-    #     model = self._get_functional_model()
-    #     ref_input = np.random.random((10, 32))
-    #     ref_output = model.predict(ref_input)
-    #     model.save(temp_filepath)
-    #     model = keras_core.models.load_model(temp_filepath)
-    #     self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+    def test_load_model_api_endpoint(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
+        model = self._get_basic_functional_model()
+        ref_input = np.random.random((2, 4))
+        ref_output = model.predict(ref_input)
+        model.save(temp_filepath)
+        model = keras_core.saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_save_load_weights_only(self):
         temp_filepath = Path(

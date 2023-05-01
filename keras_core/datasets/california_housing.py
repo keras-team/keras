@@ -30,15 +30,16 @@ def load_data(path="california_housing.npz", test_split=0.2, seed=113):
     - Latitude: block group latitude
     - Longitude: block group longitude
 
-    This dataset was derived from the 1990 U.S. census, using one row per census
-    block group. A block group is the smallest geographical unit for which the U.S.
-    Census Bureau publishes sample data (a block group typically has a population
-    of 600 to 3,000 people).
+    This dataset was derived from the 1990 U.S. census, using one row
+    per census block group. A block group is the smallest geographical
+    unit for which the U.S. Census Bureau publishes sample data
+    (a block group typically has a population of 600 to 3,000 people).
 
-    A household is a group of people residing within a home. Since the average
-    number of rooms and bedrooms in this dataset are provided per household, these
-    columns may take surprisingly large values for block groups with few households
-    and many empty houses, such as vacation resorts.
+    A household is a group of people residing within a home.
+    Since the average number of rooms and bedrooms in this dataset are
+    provided per household, these columns may take surprisingly large
+    values for block groups with few households and many empty houses,
+    such as vacation resorts.
 
     Args:
         path: path where to cache the dataset locally
@@ -54,9 +55,10 @@ def load_data(path="california_housing.npz", test_split=0.2, seed=113):
       containing either the training samples (for `x_train`),
       or test samples (for `y_train`).
 
-    **`y_train`, `y_test`**: numpy arrays of shape `(num_samples,)` containing the
-      target scalars. The targets are float scalars typically between 25,000 and
-      500,000 that represent the home prices in dollars.
+    **`y_train`, `y_test`**: numpy arrays of shape `(num_samples,)`
+        containing the target scalars. The targets are float scalars
+        typically between 25,000 and 500,000 that represent
+        the home prices in dollars.
     """
     assert 0 <= test_split < 1
     origin_folder = (
