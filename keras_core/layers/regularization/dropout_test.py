@@ -30,7 +30,8 @@ class DropoutTest(testing.TestCase):
         self.assertAllClose(np.max(outputs), 2.0)
 
     @pytest.mark.skipif(
-        backend.backend() != "tensorflow", reason="Requires dynamic shapes"
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
     )
     def test_dropout_partial_noise_shape_dynamic(self):
         inputs = np.ones((20, 5, 10))

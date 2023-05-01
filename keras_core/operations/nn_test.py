@@ -2,15 +2,15 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
+from keras_core import backend
 from keras_core import testing
-from keras_core.backend import backend
 from keras_core.backend.keras_tensor import KerasTensor
 from keras_core.operations import nn as knn
 
 
 @pytest.mark.skipif(
-    backend() != "tensorflow",
-    reason="Dynamic shapes are only supported in TensorFlow backend.",
+    not backend.DYNAMIC_SHAPES_OK,
+    reason="Backend does not support dynamic shapes",
 )
 class NNOpsDynamicShapeTest(testing.TestCase):
     def test_relu(self):
