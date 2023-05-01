@@ -264,6 +264,54 @@ class CategoricalHinge(LossFunctionWrapper):
         return Loss.get_config(self)
 
 
+@keras_core_export("keras_core.losses.KLDivergence")
+class KLDivergence(LossFunctionWrapper):
+    """Computes Kullback-Leibler divergence loss between `y_true` & `y_pred`.
+
+    Formula:
+
+    ```python
+    loss = y_true * log(y_true / y_pred)
+    ```
+
+    Args:
+        reduction: Type of reduction to apply to loss. For almost all cases
+            this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
+            `"sum_over_batch_size"` or `None`.
+        name: Optional name for the instance. Defaults to 'kl_divergence'.
+    """
+
+    def __init__(self, reduction="sum_over_batch_size", name="kl_divergence"):
+        super().__init__(kl_divergence, reduction=reduction, name=name)
+
+    def get_config(self):
+        return Loss.get_config(self)
+
+
+@keras_core_export("keras_core.losses.Poisson")
+class Poisson(LossFunctionWrapper):
+    """Computes the Poisson loss between `y_true` & `y_pred`.
+
+    Formula:
+
+    ```python
+    loss = y_pred - y_true * log(y_pred)
+    ```
+
+    Args:
+        reduction: Type of reduction to apply to loss. For almost all cases
+            this defaults to `"sum_over_batch_size"`. Options are `"sum"`,
+            `"sum_over_batch_size"` or `None`.
+        name: Optional name for the instance. Defaults to `"poisson"`
+    """
+
+    def __init__(self, reduction="sum_over_batch_size", name="poisson"):
+        super().__init__(poisson, reduction=reduction, name=name)
+
+    def get_config(self):
+        return Loss.get_config(self)
+
+
 def convert_binary_labels_to_hinge(y_true):
     """Converts binary labels into -1/1 for hinge loss/metric calculation."""
     are_zeros = ops.equal(y_true, 0)
@@ -582,3 +630,82 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
     return -ops.sum(y_true * y_pred, axis=axis)
+
+
+@keras_core_export(
+    [
+        "keras_core.metrics.kl_divergence",
+        "keras_core.losses.kl_divergence",
+    ]
+)
+def kl_divergence(y_true, y_pred):
+    """Computes Kullback-Leibler divergence loss between `y_true` & `y_pred`.
+
+    Formula:
+
+    ```python
+    loss = y_true * log(y_true / y_pred)
+    ```
+
+    Standalone usage:
+
+    >>> y_true = np.random.randint(0, 2, size=(2, 3)).astype(np.float32)
+    >>> y_pred = np.random.random(size=(2, 3))
+    >>> loss = keras_core.losses.kl_divergence(y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    >>> y_true = ops.clip(y_true, 1e-7, 1)
+    >>> y_pred = ops.clip(y_pred, 1e-7, 1)
+    >>> assert np.array_equal(
+    ...     loss, np.sum(y_true * np.log(y_true / y_pred), axis=-1))
+
+    Args:
+        y_true: Tensor of true targets.
+        y_pred: Tensor of predicted targets.
+
+    Returns:
+        KL Divergence loss values with shape = `[batch_size, d0, .. dN-1]`.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, y_pred.dtype)
+    y_true = ops.clip(y_true, backend.epsilon(), 1)
+    y_pred = ops.clip(y_pred, backend.epsilon(), 1)
+    return ops.sum(y_true * ops.log(y_true / y_pred), axis=-1)
+
+
+@keras_core_export(
+    [
+        "keras_core.metrics.poisson",
+        "keras_core.losses.poisson",
+    ]
+)
+def poisson(y_true, y_pred):
+    """Computes the Poisson loss between y_true and y_pred.
+
+    Formula:
+
+    ```python
+    loss = y_pred - y_true * log(y_pred)
+    ```
+
+    Standalone usage:
+
+    >>> y_true = np.random.randint(0, 2, size=(2, 3))
+    >>> y_pred = np.random.random(size=(2, 3))
+    >>> loss = keras_core.losses.poisson(y_true, y_pred)
+    >>> assert loss.shape == (2,)
+    >>> y_pred = y_pred + 1e-7
+    >>> assert np.allclose(
+    ...     loss, np.mean(y_pred - y_true * np.log(y_pred), axis=-1),
+    ...     atol=1e-5)
+
+    Args:
+        y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+        y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+
+    Returns:
+        Poisson loss values with shape = `[batch_size, d0, .. dN-1]`.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    epsilon = ops.convert_to_tensor(backend.epsilon())
+    return ops.mean(y_pred - y_true * ops.log(y_pred + epsilon), axis=-1)

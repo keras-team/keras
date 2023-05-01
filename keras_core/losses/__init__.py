@@ -2,36 +2,44 @@ from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
 from keras_core.losses.losses import CategoricalHinge
 from keras_core.losses.losses import Hinge
+from keras_core.losses.losses import KLDivergence
 from keras_core.losses.losses import LossFunctionWrapper
 from keras_core.losses.losses import MeanAbsoluteError
 from keras_core.losses.losses import MeanAbsolutePercentageError
 from keras_core.losses.losses import MeanSquaredError
 from keras_core.losses.losses import MeanSquaredLogarithmicError
+from keras_core.losses.losses import Poisson
 from keras_core.losses.losses import SquaredHinge
 from keras_core.losses.losses import categorical_hinge
 from keras_core.losses.losses import hinge
+from keras_core.losses.losses import kl_divergence
 from keras_core.losses.losses import mean_absolute_error
 from keras_core.losses.losses import mean_absolute_percentage_error
 from keras_core.losses.losses import mean_squared_error
 from keras_core.losses.losses import mean_squared_logarithmic_error
+from keras_core.losses.losses import poisson
 from keras_core.losses.losses import squared_hinge
 from keras_core.saving import serialization_lib
 
 ALL_OBJECTS = {
     Loss,
     LossFunctionWrapper,
+    KLDivergence,
     MeanSquaredError,
     MeanAbsoluteError,
     MeanAbsolutePercentageError,
     MeanSquaredLogarithmicError,
     Hinge,
+    Poisson,
     SquaredHinge,
     CategoricalHinge,
+    kl_divergence,
     mean_squared_error,
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_logarithmic_error,
     hinge,
+    poisson,
     squared_hinge,
     categorical_hinge,
 }

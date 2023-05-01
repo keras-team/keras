@@ -461,3 +461,171 @@ class CosineSimilarityTest(testing.TestCase):
         loss = cosine_obj(self.y_true, self.y_pred)
         expected_loss = -np.mean(self.expected_loss)
         self.assertAlmostEqual(loss, expected_loss, 3)
+
+
+class KLDivergenceTest(testing.TestCase):
+    def setup(self):
+        self.y_pred = np.asarray(
+            [0.4, 0.9, 0.12, 0.36, 0.3, 0.4], dtype=np.float32
+        ).reshape((2, 3))
+        self.y_true = np.asarray(
+            [0.5, 0.8, 0.12, 0.7, 0.43, 0.8], dtype=np.float32
+        ).reshape((2, 3))
+
+        self.batch_size = 2
+        self.expected_losses = np.multiply(
+            self.y_true, np.log(self.y_true / self.y_pred)
+        )
+
+    def test_config(self):
+        k_obj = losses.KLDivergence(reduction="sum", name="kld")
+        self.assertEqual(k_obj.name, "kld")
+        self.assertEqual(k_obj.reduction, "sum")
+
+    def test_unweighted(self):
+        self.setup()
+        k_obj = losses.KLDivergence()
+
+        loss = k_obj(self.y_true, self.y_pred)
+        expected_loss = np.sum(self.expected_losses) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_scalar_weighted(self):
+        self.setup()
+        k_obj = losses.KLDivergence()
+        sample_weight = 2.3
+
+        loss = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        expected_loss = (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, loss_2, 3)
+
+    def test_sample_weighted(self):
+        self.setup()
+        k_obj = losses.KLDivergence()
+        sample_weight = np.asarray([1.2, 3.4], dtype=np.float32).reshape((2, 1))
+        loss = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+
+        expected_loss = np.multiply(
+            self.expected_losses,
+            np.asarray(
+                [1.2, 1.2, 1.2, 3.4, 3.4, 3.4], dtype=np.float32
+            ).reshape(2, 3),
+        )
+        expected_loss = np.sum(expected_loss) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_timestep_weighted(self):
+        self.setup()
+        k_obj = losses.KLDivergence()
+        y_true = self.y_true.reshape(2, 3, 1)
+        y_pred = self.y_pred.reshape(2, 3, 1)
+        sample_weight = np.asarray([3, 6, 5, 0, 4, 2]).reshape(2, 3)
+        expected_losses = np.sum(
+            np.multiply(y_true, np.log(y_true / y_pred)), axis=-1
+        )
+        loss = k_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        num_timesteps = 3
+        expected_loss = np.sum(expected_losses * sample_weight) / (
+            self.batch_size * num_timesteps
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_zero_weighted(self):
+        self.setup()
+        k_obj = losses.KLDivergence()
+        loss = k_obj(self.y_true, self.y_pred, sample_weight=0)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+
+class PoissonTest(testing.TestCase):
+    def setup(self):
+        self.y_pred = np.asarray([1, 9, 2, 5, 2, 6], dtype=np.float32).reshape(
+            (2, 3)
+        )
+        self.y_true = np.asarray([4, 8, 12, 8, 1, 3], dtype=np.float32).reshape(
+            (2, 3)
+        )
+
+        self.batch_size = 6
+        self.expected_losses = self.y_pred - np.multiply(
+            self.y_true, np.log(self.y_pred)
+        )
+
+    def test_config(self):
+        poisson_obj = losses.Poisson(reduction="sum", name="poisson")
+        self.assertEqual(poisson_obj.name, "poisson")
+        self.assertEqual(poisson_obj.reduction, "sum")
+
+    def test_unweighted(self):
+        self.setup()
+        poisson_obj = losses.Poisson()
+
+        loss = poisson_obj(self.y_true, self.y_pred)
+        expected_loss = np.sum(self.expected_losses) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_scalar_weighted(self):
+        self.setup()
+        poisson_obj = losses.Poisson()
+        sample_weight = 2.3
+        loss = poisson_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        expected_loss = (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = poisson_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, loss_2, 3)
+
+    def test_sample_weighted(self):
+        self.setup()
+        poisson_obj = losses.Poisson()
+
+        sample_weight = np.asarray([1.2, 3.4]).reshape((2, 1))
+        loss = poisson_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+
+        expected_loss = np.multiply(
+            self.expected_losses,
+            np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3)),
+        )
+        expected_loss = np.sum(expected_loss) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_timestep_weighted(self):
+        self.setup()
+        poisson_obj = losses.Poisson()
+        y_true = self.y_true.reshape(2, 3, 1)
+        y_pred = self.y_pred.reshape(2, 3, 1)
+        sample_weight = np.asarray([3, 6, 5, 0, 4, 2]).reshape(2, 3, 1)
+        expected_losses = y_pred - np.multiply(y_true, np.log(y_pred))
+
+        loss = poisson_obj(
+            y_true,
+            y_pred,
+            sample_weight=np.asarray(sample_weight).reshape((2, 3)),
+        )
+        expected_loss = (
+            np.sum(expected_losses * sample_weight) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_zero_weighted(self):
+        self.setup()
+        poisson_obj = losses.Poisson()
+        loss = poisson_obj(self.y_true, self.y_pred, sample_weight=0)
+        self.assertAlmostEqual(loss, 0.0, 3)
