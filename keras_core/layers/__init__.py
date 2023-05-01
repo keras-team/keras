@@ -13,3 +13,4 @@ from keras_core.layers.regularization.gaussian_noise import GaussianNoise
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout1D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout2D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout3D
+from keras_core.layers.reshaping.reshape import Reshape
