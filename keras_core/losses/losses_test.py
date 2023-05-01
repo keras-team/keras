@@ -6,8 +6,7 @@ from keras_core.losses import losses
 
 class MeanSquaredErrorTest(testing.TestCase):
     def test_config(self):
-        # TODO
-        pass
+        self.run_class_serialization_test(losses.MeanSquaredError(name="mymse"))
 
     def test_all_correct_unweighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -69,8 +68,9 @@ class MeanSquaredErrorTest(testing.TestCase):
 
 class MeanAbsoluteErrorTest(testing.TestCase):
     def test_config(self):
-        # TODO
-        pass
+        self.run_class_serialization_test(
+            losses.MeanAbsoluteError(name="mymae")
+        )
 
     def test_all_correct_unweighted(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -132,8 +132,9 @@ class MeanAbsoluteErrorTest(testing.TestCase):
 
 class MeanAbsolutePercentageErrorTest(testing.TestCase):
     def test_config(self):
-        # TODO
-        pass
+        self.run_class_serialization_test(
+            losses.MeanAbsolutePercentageError(name="mymape")
+        )
 
     def test_all_correct_unweighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
@@ -184,8 +185,9 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
 
 class MeanSquaredLogarithmicErrorTest(testing.TestCase):
     def test_config(self):
-        # TODO
-        pass
+        self.run_class_serialization_test(
+            losses.MeanSquaredLogarithmicError(name="mysloge")
+        )
 
     def test_unweighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
@@ -629,3 +631,490 @@ class PoissonTest(testing.TestCase):
         poisson_obj = losses.Poisson()
         loss = poisson_obj(self.y_true, self.y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0, 3)
+
+
+class BinaryCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.BinaryCrossentropy(name="bce", axis=-1)
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="float32")
+        bce_obj = losses.BinaryCrossentropy()
+        loss = bce_obj(y_true, y_true)
+        self.assertAlmostEqual(loss, 0.0)
+
+        # Test with logits.
+        logits = np.array(
+            [
+                [10.0, -10.0, -10.0],
+                [-10.0, 10.0, -10.0],
+                [-10.0, -10.0, 10.0],
+            ]
+        )
+        bce_obj = losses.BinaryCrossentropy(from_logits=True)
+        loss = bce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0)
+
+    def test_unweighted(self):
+        y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.array([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
+        bce_obj = losses.BinaryCrossentropy()
+        loss = bce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 3.98559)
+
+        # Test with logits.
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        logits = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        bce_obj = losses.BinaryCrossentropy(from_logits=True)
+        loss = bce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 3.3333)
+
+    def test_scalar_weighted(self):
+        bce_obj = losses.BinaryCrossentropy()
+        y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.array([1, 1, 1, 0], dtype="float32").reshape([2, 2])
+        loss = bce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 9.1668)
+
+        # Test with logits.
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        logits = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        bce_obj = losses.BinaryCrossentropy(from_logits=True)
+        loss = bce_obj(y_true, logits, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 7.666)
+
+    def test_sample_weighted(self):
+        bce_obj = losses.BinaryCrossentropy()
+        y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.array([1, 1, 1, 0], dtype="float32").reshape([2, 2])
+        sample_weight = np.array([1.2, 3.4]).reshape((2, 1))
+        loss = bce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 4.7827)
+
+        # Test with logits.
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        logits = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        weights = np.array([4, 3])
+        bce_obj = losses.BinaryCrossentropy(from_logits=True)
+        loss = bce_obj(y_true, logits, sample_weight=weights)
+        self.assertAlmostEqual(loss, 10.0)
+
+    def test_no_reduction(self):
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        logits = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        bce_obj = losses.BinaryCrossentropy(from_logits=True, reduction=None)
+        loss = bce_obj(y_true, logits)
+        self.assertAllClose(loss, [0.0, 6.666], atol=1e-3)
+
+    def test_label_smoothing(self):
+        logits = np.array([[10.0, -10.0, -10.0]])
+        y_true = np.array([[1, 0, 1]])
+        label_smoothing = 0.1
+        bce_obj = losses.BinaryCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = bce_obj(y_true, logits)
+        expected_value = (10.0 + 5.0 * label_smoothing) / 3.0
+        self.assertAlmostEqual(loss, expected_value)
+
+    def test_shape_mismatch(self):
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]]
+        )
+        cce_obj = losses.BinaryCrossentropy()
+        with self.assertRaisesRegex(ValueError, "must have the same shape"):
+            cce_obj(y_true, y_pred)
+
+
+class CategoricalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.CategoricalCrossentropy(name="cce", axis=-1)
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        cce_obj = losses.CategoricalCrossentropy()
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.0)
+
+        # Test with logits.
+        logits = np.array(
+            [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+        )
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0)
+
+    def test_unweighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.3239)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0573)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.7449)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.1317)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        sample_weight = np.array([[1.2], [3.4], [5.6]]).reshape((3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 1.0696)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.31829)
+
+    def test_no_reduction(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalCrossentropy(
+            from_logits=True, reduction=None
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose((0.001822, 0.000459, 0.169846), loss, 3)
+
+    def test_label_smoothing(self):
+        logits = np.array([[100.0, -100.0, -100.0]])
+        y_true = np.array([[1, 0, 0]])
+        label_smoothing = 0.1
+        cce_obj = losses.CategoricalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+        expected_value = 400.0 * label_smoothing / 3.0
+        self.assertAlmostEqual(loss, expected_value)
+
+    def test_label_smoothing_ndarray(self):
+        logits = np.asarray([[100.0, -100.0, -100.0]])
+        y_true = np.asarray([[1, 0, 0]])
+        label_smoothing = 0.1
+        cce_obj = losses.CategoricalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+        expected_value = 400.0 * label_smoothing / 3.0
+        self.assertAlmostEqual(loss, expected_value)
+
+    def test_shape_mismatch(self):
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]]
+        )
+
+        cce_obj = losses.CategoricalCrossentropy()
+        with self.assertRaisesRegex(ValueError, "must have the same shape"):
+            cce_obj(y_true, y_pred)
+
+
+class SparseCategoricalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.SparseCategoricalCrossentropy(name="scce")
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[0], [1], [2]], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+        # Test with logits.
+        logits = np.array(
+            [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+        )
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_unweighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = np.array([0, 1, 2])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.3239, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0573, 3)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.7449, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.1317, 3)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = np.array([[0], [1], [2]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        sample_weight = np.array([[1.2], [3.4], [5.6]]).reshape((3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 1.0696, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.31829, 3)
+
+    def test_no_reduction(self):
+        y_true = np.array([[0], [1], [2]])
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, reduction=None
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose((0.001822, 0.000459, 0.169846), loss, 3)
+
+
+class BinaryFocalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.BinaryFocalCrossentropy(name="bfce")
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array(
+            [
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1],
+            ],
+            dtype="float32",
+        )
+        obj = losses.BinaryFocalCrossentropy(gamma=1.5)
+        loss = obj(y_true, y_true)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+        # Test with logits.
+        logits = np.array(
+            [
+                [100.0, -100.0, -100.0],
+                [-100.0, 100.0, -100.0],
+                [-100.0, -100.0, 100.0],
+            ]
+        )
+        obj = losses.BinaryFocalCrossentropy(gamma=2.0, from_logits=True)
+        loss = obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_unweighted(self):
+        y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape(
+            [2, 2]
+        )
+        obj = losses.BinaryFocalCrossentropy(gamma=2.0)
+        loss = obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.268, 3)
+
+        # Test with logits.
+        y_true = np.array([[1, 1, 0], [0, 1, 0]], dtype="float32")
+        logits = np.array([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+        obj = losses.BinaryFocalCrossentropy(gamma=3.0, from_logits=True)
+        loss = obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.799, 3)
+
+    def test_scalar_weighted(self):
+        y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape(
+            [2, 2]
+        )
+        obj = losses.BinaryFocalCrossentropy(gamma=2.0)
+        loss = obj(y_true, y_pred, sample_weight=1.23)
+        self.assertAlmostEqual(loss, 0.3296, 3)
+
+        # Test with logits.
+        y_true = np.array([[1, 1, 0], [0, 1, 0]], dtype="float32")
+        logits = np.array([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+        obj = losses.BinaryFocalCrossentropy(gamma=3.0, from_logits=True)
+        loss = obj(y_true, logits, sample_weight=3.21)
+        self.assertAlmostEqual(loss, 2.565, 3)
+
+    def test_sample_weighted(self):
+        y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape(
+            [2, 2]
+        )
+        sample_weight = np.array([1.2, 3.4]).reshape((2, 1))
+        obj = losses.BinaryFocalCrossentropy(gamma=2.0)
+        loss = obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.34415, 3)
+
+        # Test with logits.
+        y_true = np.array([[1, 1, 0], [0, 1, 0]], dtype="float32")
+        logits = np.array([[1.5, -2.7, 2.9], [-3.8, 1.2, -4.5]])
+        obj = losses.BinaryFocalCrossentropy(gamma=3.0, from_logits=True)
+        loss = obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.95977, 3)
+
+    def test_no_reduction(self):
+        y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.asarray([0.9, 0.8, 0.7, 0.2], dtype=np.float32).reshape(
+            [2, 2]
+        )
+        obj = losses.BinaryFocalCrossentropy(
+            gamma=2.0,
+            reduction=None,
+        )
+        loss = obj(y_true, y_pred)
+        self.assertAllClose(loss, (0.5155, 0.0205), 3)
+
+
+class CategoricalFocalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.CategoricalFocalCrossentropy(name="cfce")
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="int64")
+        y_pred = np.array(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype="float32",
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(alpha=0.25, gamma=2.0)
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+        # Test with logits.
+        logits = np.array(
+            [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_unweighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(loss, 0.02059, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(loss, 0.000345, 3)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.047368, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        self.assertAlmostEqual(loss, 0.000794, 4)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = np.array(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype="float32",
+        )
+        sample_weight = np.array([[1.2], [3.4], [5.6]]).reshape((3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.06987, 3)
+
+        # Test with logits.
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.001933, 3)
+
+    def test_no_reduction(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        logits = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, reduction=None
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose(
+            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
+            loss,
+            3,
+        )
+
+    def test_label_smoothing(self):
+        logits = np.array([[4.9, -0.5, 2.05]])
+        y_true = np.array([[1, 0, 0]])
+        label_smoothing = 0.1
+
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+
+        expected_value = 0.06685
+        self.assertAlmostEqual(loss, expected_value, 3)

@@ -413,6 +413,17 @@ class BinaryCrossentropy(LossFunctionWrapper):
             axis=axis,
         )
         self.from_logits = from_logits
+        self.label_smoothing = label_smoothing
+        self.axis = axis
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "from_logits": self.from_logits,
+            "label_smoothing": self.label_smoothing,
+            "axis": self.axis,
+        }
 
 
 @keras_core_export("keras_core.losses.BinaryFocalCrossentropy")
@@ -558,7 +569,6 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
         reduction="sum_over_batch_size",
         name="binary_focal_crossentropy",
     ):
-        """Initializes `BinaryFocalCrossentropy` instance."""
         super().__init__(
             binary_focal_crossentropy,
             apply_class_balancing=apply_class_balancing,
@@ -571,18 +581,23 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
             axis=axis,
         )
         self.from_logits = from_logits
+        self.label_smoothing = label_smoothing
+        self.axis = axis
         self.apply_class_balancing = apply_class_balancing
         self.alpha = alpha
         self.gamma = gamma
 
     def get_config(self):
-        config = {
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "from_logits": self.from_logits,
+            "label_smoothing": self.label_smoothing,
+            "axis": self.axis,
             "apply_class_balancing": self.apply_class_balancing,
             "alpha": self.alpha,
             "gamma": self.gamma,
         }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
 
 
 @keras_core_export("keras_core.losses.CategoricalCrossentropy")
@@ -664,6 +679,18 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             label_smoothing=label_smoothing,
             axis=axis,
         )
+        self.from_logits = from_logits
+        self.label_smoothing = label_smoothing
+        self.axis = axis
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "from_logits": self.from_logits,
+            "label_smoothing": self.label_smoothing,
+            "axis": self.axis,
+        }
 
 
 @keras_core_export("keras_core.losses.CategoricalFocalCrossentropy")
@@ -789,16 +816,21 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             axis=axis,
         )
         self.from_logits = from_logits
+        self.label_smoothing = label_smoothing
+        self.axis = axis
         self.alpha = alpha
         self.gamma = gamma
 
     def get_config(self):
-        config = {
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "from_logits": self.from_logits,
+            "label_smoothing": self.label_smoothing,
+            "axis": self.axis,
             "alpha": self.alpha,
             "gamma": self.gamma,
         }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
 
 
 @keras_core_export("keras_core.losses.SparseCategoricalCrossentropy")
@@ -820,11 +852,6 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     Args:
         from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
-        ignore_class: Optional integer. The ID of a class to be ignored during
-            loss computation. This is useful, for example, in segmentation
-            problems featuring a "void" class (commonly -1 or 255) in
-            segmentation maps.
-            By default (`ignore_class=None`), all classes are considered.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
             Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
@@ -866,7 +893,6 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     def __init__(
         self,
         from_logits=False,
-        ignore_class=None,
         reduction="sum_over_batch_size",
         name="sparse_categorical_crossentropy",
     ):
@@ -875,8 +901,15 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             name=name,
             reduction=reduction,
             from_logits=from_logits,
-            ignore_class=ignore_class,
         )
+        self.from_logits = from_logits
+
+    def get_config(self):
+        return {
+            "name": self.name,
+            "reduction": self.reduction,
+            "from_logits": self.from_logits,
+        }
 
 
 def convert_binary_labels_to_hinge(y_true):
@@ -1419,14 +1452,27 @@ def categorical_focal_crossentropy(
             label_smoothing / num_classes
         )
 
-    return ops.categorical_focal_crossentropy(
-        target=y_true,
-        output=y_pred,
-        alpha=alpha,
-        gamma=gamma,
-        from_logits=from_logits,
-        axis=axis,
-    )
+    if from_logits:
+        y_pred = ops.softmax(y_pred, axis=axis)
+
+    # Adjust the predictions so that the probability of
+    # each class for every sample adds up to 1
+    # This is needed to ensure that the cross entropy is
+    # computed correctly.
+    output = y_pred / ops.sum(y_pred, axis=axis, keepdims=True)
+    output = ops.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
+
+    # Calculate cross entropy
+    cce = -y_true * ops.log(output)
+
+    # Calculate factors
+    modulating_factor = ops.power(1.0 - output, gamma)
+    weighting_factor = ops.multiply(modulating_factor, alpha)
+
+    # Apply weighting factor
+    focal_cce = ops.multiply(weighting_factor, cce)
+    focal_cce = ops.sum(focal_cce, axis=axis)
+    return focal_cce
 
 
 @keras_core_export(
@@ -1435,9 +1481,7 @@ def categorical_focal_crossentropy(
         "keras_core.losses.sparse_categorical_crossentropy",
     ]
 )
-def sparse_categorical_crossentropy(
-    y_true, y_pred, from_logits=False, axis=-1, ignore_class=None
-):
+def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
     """Computes the sparse categorical crossentropy loss.
 
     Args:
@@ -1447,11 +1491,6 @@ def sparse_categorical_crossentropy(
             default, we assume that `y_pred` encodes a probability distribution.
         axis: Defaults to -1. The dimension along which the entropy is
             computed.
-        ignore_class: Optional integer. The ID of a class to be ignored during
-            loss computation. This is useful, for example, in segmentation
-            problems featuring a "void" class (commonly -1 or 255)
-            in segmentation maps. By default (`ignore_class=None`),
-            all classes are considered.
 
     Returns:
         Sparse categorical crossentropy loss value.
@@ -1464,27 +1503,11 @@ def sparse_categorical_crossentropy(
     >>> assert loss.shape == (2,)
     >>> loss
     array([0.0513, 2.303], dtype=float32)
-
-    >>> y_true = [[[ 0,  2],
-    ...            [-1, -1]],
-    ...           [[ 0,  2],
-    ...            [-1, -1]]]
-    >>> y_pred = [[[[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
-    ...             [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]]],
-    ...           [[[1.0, 0.0, 0.0], [0.0, 0.5, 0.5]],
-    ...            [[0.2, 0.5, 0.3], [0.0, 1.0, 0.0]]]]
-    >>> loss = keras_core.losses.sparse_categorical_crossentropy(
-    ...   y_true, y_pred, ignore_class=-1)
-    array([[[2.3841855e-07, 2.3841855e-07],
-            [0.0000000e+00, 0.0000000e+00]],
-           [[2.3841855e-07, 6.9314730e-01],
-            [0.0000000e+00, 0.0000000e+00]]], dtype=float32)
     """
     return ops.sparse_categorical_crossentropy(
         y_true,
         y_pred,
         from_logits=from_logits,
-        ignore_class=ignore_class,
         axis=axis,
     )
 
@@ -1606,14 +1629,23 @@ def binary_focal_crossentropy(
     if label_smoothing:
         y_true = y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
 
-    return ops.mean(
-        ops.binary_focal_crossentropy(
-            target=y_true,
-            output=y_pred,
-            apply_class_balancing=apply_class_balancing,
-            alpha=alpha,
-            gamma=gamma,
-            from_logits=from_logits,
-        ),
-        axis=axis,
+    if from_logits:
+        y_pred = ops.sigmoid(y_pred)
+
+    bce = ops.binary_crossentropy(
+        target=y_true,
+        output=y_pred,
+        from_logits=False,
     )
+
+    # Calculate focal factor
+    p_t = y_true * y_pred + (1 - y_true) * (1 - y_pred)
+    focal_factor = ops.power(1.0 - p_t, gamma)
+
+    focal_bce = focal_factor * bce
+
+    if apply_class_balancing:
+        weight = y_true * alpha + (1 - y_true) * (1 - alpha)
+        focal_bce = weight * focal_bce
+
+    return ops.mean(focal_bce, axis=axis)

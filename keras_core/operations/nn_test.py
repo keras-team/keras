@@ -553,6 +553,23 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (2, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (2, 3, 5, 1))
 
+    def test_binary_crossentropy(self):
+        x1 = KerasTensor([2, 3, 1])
+        x2 = KerasTensor([2, 3, 1])
+        self.assertEqual(knn.binary_crossentropy(x1, x2).shape, (2, 3, 1))
+
+    def test_categorical_crossentropy(self):
+        x1 = KerasTensor([2, 3, 4])
+        x2 = KerasTensor([2, 3, 4])
+        self.assertEqual(knn.categorical_crossentropy(x1, x2).shape, (2, 3))
+
+    def test_sparse_categorical_crossentropy(self):
+        x1 = KerasTensor([2, 3], dtype="int32")
+        x2 = KerasTensor([2, 3, 4])
+        self.assertEqual(
+            knn.sparse_categorical_crossentropy(x1, x2).shape, (2, 3)
+        )
+
 
 class NNOpsCorrectnessTest(testing.TestCase):
     def test_relu(self):
@@ -955,3 +972,91 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.one_hot(indices_2d, 4, axis=1),
             tf.one_hot(indices_2d, 4, axis=1),
         )
+
+    def test_binary_crossentropy(self):
+        # Test with from_logits=False
+        target = np.array([[0.1], [0.9], [0.2], [1.0]])
+        output = np.array([[0.1], [0.2], [0.3], [0.4]])
+        result = knn.binary_crossentropy(target, output, from_logits=False)
+        self.assertAllClose(
+            result,
+            np.array([[0.32508277], [1.47080801], [0.52613434], [0.91629048]]),
+        )
+
+        # Test with from_logits=True
+        target = np.array([[0.1], [0.9], [0.2], [1.0]])
+        output = np.array([[0.1], [0.2], [0.3], [0.4]])
+        result = knn.binary_crossentropy(target, output, from_logits=True)
+        self.assertAllClose(
+            result,
+            np.array([[0.73439666], [0.61813887], [0.79435524], [0.51301525]]),
+        )
+
+        # Test with output clipping
+        target = np.array([[0.1], [0.9], [0.2], [1.0]])
+        output = np.array([[0.99], [-0.2], [0.9], [-0.4]])
+        result = knn.binary_crossentropy(target, output, from_logits=True)
+        self.assertAllClose(
+            result,
+            np.array([[1.206961], [0.778139], [1.061154], [0.913015]]),
+        )
+
+    def test_categorical_crossentropy(self):
+        target = np.array(
+            [
+                [0.33008796, 0.0391289, 0.9503603],
+                [0.80376694, 0.92363342, 0.19147756],
+            ]
+        )
+        output = np.array(
+            [
+                [0.23446431, 0.35822914, 0.06683268],
+                [0.3413979, 0.05420256, 0.81619654],
+            ]
+        )
+
+        # Test from_logits=False
+        result = knn.categorical_crossentropy(
+            target, output, from_logits=False, axis=-1
+        )
+        self.assertAllClose(result, np.array([2.54095299, 3.96374412]))
+
+        # Test axis
+        result = knn.categorical_crossentropy(
+            target, output, from_logits=False, axis=0
+        )
+        self.assertAllClose(
+            result, np.array([0.71683073, 1.87988172, 2.46810762])
+        )
+
+        # Test from_logits=True
+        result = knn.categorical_crossentropy(
+            target, output, from_logits=True, axis=-1
+        )
+        self.assertAllClose(result, np.array([1.59419954, 2.49880593]))
+
+        # Test with output clipping
+        output = np.array(
+            [
+                [1.23446431, -0.35822914, 1.06683268],
+                [0.3413979, -0.05420256, 0.81619654],
+            ]
+        )
+        result = knn.categorical_crossentropy(
+            target, output, from_logits=True, axis=-1
+        )
+        self.assertAllClose(result, np.array([1.16825923, 2.55436813]))
+
+    def test_sparse_categorical_crossentropy(self):
+        target = np.array([0, 1, 2])
+        output = np.array(
+            [[0.9, 0.05, 0.05], [0.05, 0.89, 0.06], [0.05, 0.01, 0.94]]
+        )
+        result = knn.sparse_categorical_crossentropy(target, output)
+        self.assertAllClose(result, [0.105361, 0.116534, 0.061875])
+
+        output = np.array([[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]])
+        result = knn.sparse_categorical_crossentropy(
+            target, output, from_logits=True
+        )
+        self.assertAllClose(result, [0.001822, 0.000459, 0.169846])

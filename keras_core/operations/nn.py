@@ -1013,3 +1013,110 @@ def one_hot(x, num_classes, axis=-1):
     if any_symbolic_tensors((x,)):
         return OneHot(num_classes, axis=axis).symbolic_call(x)
     return backend.nn.one_hot(x, num_classes, axis=axis)
+
+
+class BinaryCrossentropy(Operation):
+    def __init__(self, from_logits=False):
+        super().__init__()
+        self.from_logits = from_logits
+
+    def call(self, target, output):
+        return backend.nn.binary_crossentropy(
+            target, output, from_logits=self.from_logits
+        )
+
+    def compute_output_spec(self, target, output):
+        if target.shape != output.shape:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
+        return KerasTensor(output.shape, dtype=output.dtype)
+
+
+def binary_crossentropy(target, output, from_logits=False):
+    if any_symbolic_tensors((target, output)):
+        return BinaryCrossentropy(from_logits=from_logits).symbolic_call(
+            target, output
+        )
+    return backend.nn.binary_crossentropy(
+        target, output, from_logits=from_logits
+    )
+
+
+class CategoricalCrossentropy(Operation):
+    def __init__(self, from_logits=False, axis=-1):
+        super().__init__()
+        self.from_logits = from_logits
+        self.axis = axis
+
+    def call(self, target, output):
+        return backend.nn.categorical_crossentropy(
+            target, output, from_logits=self.from_logits, axis=self.axis
+        )
+
+    def compute_output_spec(self, target, output):
+        if target.shape != output.shape:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
+        if len(target.shape) < 1:
+            raise ValueError(
+                "Arguments `target` and `output` must be at least rank 1. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
+        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+
+
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    if any_symbolic_tensors((target, output)):
+        return CategoricalCrossentropy(
+            from_logits=from_logits, axis=axis
+        ).symbolic_call(target, output)
+    return backend.nn.categorical_crossentropy(
+        target, output, from_logits=from_logits, axis=axis
+    )
+
+
+class SparseCategoricalCrossentropy(Operation):
+    def __init__(self, from_logits=False, axis=-1):
+        super().__init__()
+        self.from_logits = from_logits
+        self.axis = axis
+
+    def call(self, target, output):
+        return backend.nn.sparse_categorical_crossentropy(
+            target, output, from_logits=self.from_logits, axis=self.axis
+        )
+
+    def compute_output_spec(self, target, output):
+        if len(output.shape) < 1:
+            raise ValueError(
+                "Argument `output` must be at least rank 1. "
+                "Received: "
+                f"output.shape={output.shape}"
+            )
+        target_shape = target.shape
+        if len(target_shape) == len(output.shape) and target_shape[-1] == 1:
+            target_shape = target_shape[:-1]
+        if target_shape != output.shape[:-1]:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape "
+                "up until the last dimension: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
+        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+
+
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    if any_symbolic_tensors((target, output)):
+        return SparseCategoricalCrossentropy(
+            from_logits=from_logits, axis=axis
+        ).symbolic_call(target, output)
+    return backend.nn.sparse_categorical_crossentropy(
+        target, output, from_logits=from_logits, axis=axis
+    )

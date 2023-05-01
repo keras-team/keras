@@ -4,6 +4,8 @@ import numpy as np
 from jax import lax
 from jax import nn as jnn
 
+from keras_core.backend.config import epsilon
+
 
 def relu(x):
     return jnn.relu(x)
@@ -356,3 +358,76 @@ def conv_transpose(
 
 def one_hot(x, num_classes, axis=-1):
     return jnn.one_hot(x, num_classes, axis=axis)
+
+
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = jnp.array(target)
+    output = jnp.array(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if len(target.shape) < 1:
+        raise ValueError(
+            "Arguments `target` and `output` must be at least rank 1. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if from_logits:
+        log_prob = jax.nn.log_softmax(output, axis=axis)
+    else:
+        output = output / jnp.sum(output, axis, keepdims=True)
+        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        log_prob = jnp.log(output)
+    return -jnp.sum(target * log_prob, axis=axis)
+
+
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = jnp.array(target, dtype="int64")
+    output = jnp.array(output)
+    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
+        target = jnp.squeeze(target, axis=-1)
+
+    if len(output.shape) < 1:
+        raise ValueError(
+            "Argument `output` must be at least rank 1. "
+            "Received: "
+            f"output.shape={output.shape}"
+        )
+    if target.shape != output.shape[:-1]:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape "
+            "up until the last dimension: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if from_logits:
+        log_prob = jax.nn.log_softmax(output, axis=axis)
+    else:
+        output = output / jnp.sum(output, axis, keepdims=True)
+        output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+        log_prob = jnp.log(output)
+    target = jnn.one_hot(target, output.shape[axis], axis=axis)
+    return -jnp.sum(target * log_prob, axis=axis)
+
+
+def binary_crossentropy(target, output, from_logits=False):
+    target = jnp.array(target)
+    output = jnp.array(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        output = jnn.sigmoid(output)
+
+    output = jnp.clip(output, epsilon(), 1.0 - epsilon())
+    bce = target * jnp.log(output)
+    bce += (1.0 - target) * jnp.log(1.0 - output)
+    return -bce
