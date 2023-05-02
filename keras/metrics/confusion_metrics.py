@@ -139,7 +139,7 @@ class FalsePositives(_ConfusionMatrixConditionCount):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.FalsePositives()])
     ```
 
@@ -200,7 +200,7 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.FalseNegatives()])
     ```
 
@@ -261,7 +261,7 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.TrueNegatives()])
     ```
 
@@ -322,7 +322,7 @@ class TruePositives(_ConfusionMatrixConditionCount):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.TruePositives()])
     ```
 
@@ -414,7 +414,7 @@ class Precision(base_metric.Metric):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.Precision()])
     ```
 
@@ -560,7 +560,7 @@ class Recall(base_metric.Metric):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='binary_crossentropy',
                   metrics=[tf.keras.metrics.Recall()])
     ```
 
@@ -824,7 +824,7 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
     ```python
     model.compile(
         optimizer='sgd',
-        loss='mse',
+        loss='binary_crossentropy',
         metrics=[tf.keras.metrics.SensitivityAtSpecificity()])
     ```
     """
@@ -929,7 +929,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
     ```python
     model.compile(
         optimizer='sgd',
-        loss='mse',
+        loss='binary_crossentropy',
         metrics=[tf.keras.metrics.SpecificityAtSensitivity()])
     ```
     """
@@ -1025,7 +1025,7 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
     ```python
     model.compile(
         optimizer='sgd',
-        loss='mse',
+        loss='binary_crossentropy',
         metrics=[tf.keras.metrics.PrecisionAtRecall(recall=0.8)])
     ```
     """
@@ -1116,7 +1116,7 @@ class RecallAtPrecision(SensitivitySpecificityBase):
     ```python
     model.compile(
         optimizer='sgd',
-        loss='mse',
+        loss='binary_crossentropy',
         metrics=[tf.keras.metrics.RecallAtPrecision(precision=0.8)])
     ```
     """
