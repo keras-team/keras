@@ -69,6 +69,36 @@ def log_softmax(x, axis=None):
     return tf.nn.log_softmax(x, axis=axis)
 
 
+def _transpose_spatial_inputs(inputs):
+    num_spatial_dims = len(inputs.shape) - 2
+    # Tensorflow pooling does not support `channels_first` format, so
+    # we need to transpose to `channels_last` format.
+    if num_spatial_dims == 1:
+        inputs = tf.transpose(inputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        inputs = tf.transpose(inputs, (0, 2, 3, 1))
+    elif num_spatial_dims == 3:
+        inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+    else:
+        raise ValueError(
+            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
+            f"and 3D inputs. But received shape: {inputs.shape}."
+        )
+    return inputs
+
+
+def _transpose_spatial_outputs(outputs):
+    # Undo the tranpose in `_transpose_spatial_inputs`.
+    num_spatial_dims = len(outputs.shape) - 2
+    if num_spatial_dims == 1:
+        outputs = tf.transpose(outputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        outputs = tf.transpose(outputs, (0, 3, 1, 2))
+    elif num_spatial_dims == 3:
+        outputs = tf.transpose(outputs, (0, 4, 1, 2, 3))
+    return outputs
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -78,8 +108,22 @@ def max_pool(
 ):
     strides = pool_size if strides is None else strides
     padding = padding.upper()
-    data_format = _convert_data_format(data_format, len(inputs.shape))
-    return tf.nn.max_pool(inputs, pool_size, strides, padding, data_format)
+    tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
+    if data_format == "channels_first":
+        # Tensorflow pooling does not support `channels_first` format, so
+        # we need to transpose to `channels_last` format.
+        inputs = _transpose_spatial_inputs(inputs)
+
+    outputs = tf.nn.max_pool(
+        inputs,
+        pool_size,
+        strides,
+        padding,
+        tf_data_format,
+    )
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def average_pool(
@@ -91,8 +135,22 @@ def average_pool(
 ):
     strides = pool_size if strides is None else strides
     padding = padding.upper()
-    data_format = _convert_data_format(data_format, len(inputs.shape))
-    return tf.nn.avg_pool(inputs, pool_size, strides, padding, data_format)
+    tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
+    if data_format == "channels_first":
+        # Tensorflow pooling does not support `channels_first` format, so
+        # we need to transpose to `channels_last` format.
+        inputs = _transpose_spatial_inputs(inputs)
+
+    outputs = tf.nn.avg_pool(
+        inputs,
+        pool_size,
+        strides,
+        padding,
+        tf_data_format,
+    )
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def _convert_data_format(data_format, ndim):
