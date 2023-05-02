@@ -6,6 +6,8 @@ from keras_core.layers.core.input_layer import InputLayer
 from keras_core.layers.layer import Layer
 from keras_core.layers.merging.add import Add
 from keras_core.layers.merging.add import add
+from keras_core.layers.merging.subtract import Subtract
+from keras_core.layers.merging.subtract import subtract
 from keras_core.layers.regularization.activity_regularization import (
     ActivityRegularization,
 )
