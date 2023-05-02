@@ -340,7 +340,7 @@ class ObjectPathMappingTest(test_util.DTensorBaseTest):
 
     def test_weight_regularization(self):
         layout_map = layout_map_lib.LayoutMap(mesh=self.mesh)
-        with layout_map_lib.layout_map_scope(layout_map):
+        with layout_map.scope():
             model = models.Sequential(
                 [
                     layers.Dense(

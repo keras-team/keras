@@ -51,12 +51,27 @@ class SpectralNormalizationTest(test_combinations.TestCase):
         # initialize model
         model.predict(tf.random.uniform((2, 1)))
 
-        model.save("test.h5")
-        new_model = keras.models.load_model("test.h5")
+        with self.subTest("h5"):
+            model.save("test.h5")
+            new_model = keras.models.load_model("test.h5")
 
-        self.assertEqual(
-            model.layers[0].get_config(), new_model.layers[0].get_config()
-        )
+            self.assertEqual(
+                model.layers[0].get_config(), new_model.layers[0].get_config()
+            )
+        with self.subTest("savedmodel"):
+            model.save("test")
+            new_model = keras.models.load_model("test")
+
+            self.assertEqual(
+                model.layers[0].get_config(), new_model.layers[0].get_config()
+            )
+        with self.subTest("keras_v3"):
+            model.save("test.keras")
+            new_model = keras.models.load_model("test.keras")
+
+            self.assertEqual(
+                model.layers[0].get_config(), new_model.layers[0].get_config()
+            )
 
     @test_combinations.run_all_keras_modes
     def test_normalization(self):

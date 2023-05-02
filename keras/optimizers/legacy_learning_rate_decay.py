@@ -79,7 +79,7 @@ def exponential_decay(
         The decay rate.
       staircase: Boolean. If `True` decay the learning rate at discrete
         intervals
-      name: String. Optional name of the operation.  Defaults to
+      name: String. Optional name of the operation. Defaults to
         'ExponentialDecay'.
 
     Returns:
@@ -264,9 +264,10 @@ def polynomial_decay(
       end_learning_rate: A scalar `float32` or `float64` `Tensor` or a Python
         number.  The minimal end learning rate.
       power: A scalar `float32` or `float64` `Tensor` or a Python number.  The
-        power of the polynomial. Defaults to linear, 1.0.
-      cycle: A boolean, whether or not it should cycle beyond decay_steps.
-      name: String.  Optional name of the operation. Defaults to
+        power of the polynomial. Defaults to `1.0`.
+      cycle: A boolean, whether it should cycle beyond decay_steps. Defaults to
+        `False`.
+      name: String. Optional name of the operation. Defaults to
         'PolynomialDecay'.
 
     Returns:

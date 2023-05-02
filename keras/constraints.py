@@ -16,6 +16,8 @@
 
 """Constraints: functions that impose constraints on weight values."""
 
+import warnings
+
 import tensorflow.compat.v2 as tf
 
 from keras import backend
@@ -357,6 +359,13 @@ unitnorm = unit_norm
 
 @keras_export("keras.constraints.serialize")
 def serialize(constraint, use_legacy_format=False):
+    if not isinstance(constraint, Constraint):
+        warnings.warn(
+            "The `keras.constraints.serialize()` API should only be used for "
+            "objects of type `keras.constraints.Constraint`. Found an instance "
+            f"of type {type(constraint)}, which may lead to improper "
+            "serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(constraint)
     return serialize_keras_object(constraint)

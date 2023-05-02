@@ -185,13 +185,13 @@ class SeparableConv2D(SeparableConv):
             strides = (1,) + self.strides + (1,)
         else:
             strides = (1, 1) + self.strides
-        outputs = tf.compat.v1.nn.separable_conv2d(
+        outputs = tf.nn.separable_conv2d(
             inputs,
             self.depthwise_kernel,
             self.pointwise_kernel,
             strides=strides,
             padding=self.padding.upper(),
-            rate=self.dilation_rate,
+            dilations=self.dilation_rate,
             data_format=conv_utils.convert_data_format(
                 self.data_format, ndim=4
             ),

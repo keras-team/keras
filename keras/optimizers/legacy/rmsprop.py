@@ -45,13 +45,14 @@ class RMSprop(optimizer_v2.OptimizerV2):
       learning_rate: A `Tensor`, floating point value, or a schedule that is a
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
         that takes no arguments and returns the actual value to use. The
-        learning rate. Defaults to 0.001.
-      rho: Discounting factor for the history/coming gradient. Defaults to 0.9.
-      momentum: A scalar or a scalar `Tensor`. Defaults to 0.0.
+        learning rate. Defaults to `0.001`.
+      rho: Discounting factor for the history/coming gradient. Defaults to
+        `0.9`.
+      momentum: A scalar or a scalar `Tensor`. Defaults to `0.0`.
       epsilon: A small constant for numerical stability. This epsilon is
         "epsilon hat" in the Kingma and Ba paper (in the formula just before
         Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults to
-        1e-7.
+        `1e-7`.
       centered: Boolean. If `True`, gradients are normalized by the estimated
         variance of the gradient; if False, by the uncentered second moment.
         Setting this to `True` may help with training, but is slightly more
@@ -111,10 +112,10 @@ class RMSprop(optimizer_v2.OptimizerV2):
           learning_rate: A `Tensor`, floating point value, or a schedule that is
             a `tf.keras.optimizers.schedules.LearningRateSchedule`, or a
             callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.001.
+            use. The learning rate. Defaults to `0.001`.
           rho: Discounting factor for the history/coming gradient. Defaults to
-            0.9.
-          momentum: A scalar or a scalar `Tensor`. Defaults to 0.0.
+            `0.9`.
+          momentum: A scalar or a scalar `Tensor`. Defaults to `0.0`.
           epsilon: A small constant for numerical stability. This epsilon is
             "epsilon hat" in the Kingma and Ba paper (in the formula just before
             Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults

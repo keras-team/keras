@@ -20,6 +20,7 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 # Imports needed for deserialization.
 
 import platform
+import warnings
 
 import tensorflow.compat.v2 as tf
 from absl import logging
@@ -86,6 +87,20 @@ def serialize(optimizer, use_legacy_format=False):
     Returns:
       Python dict which contains the configuration of the input optimizer.
     """
+    if not isinstance(
+        optimizer,
+        (
+            base_optimizer.Optimizer,
+            Optimizer,
+            base_optimizer_legacy.OptimizerV2,
+        ),
+    ):
+        warnings.warn(
+            "The `keras.optimizers.serialize()` API should only be used for "
+            "objects of type `keras.optimizers.Optimizer`. Found an instance "
+            f"of type {type(optimizer)}, which may lead to improper "
+            "serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(optimizer)
     return serialize_keras_object(optimizer)
