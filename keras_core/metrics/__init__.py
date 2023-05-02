@@ -8,15 +8,19 @@ from keras_core.metrics.hinge_metrics import CategoricalHinge
 from keras_core.metrics.hinge_metrics import Hinge
 from keras_core.metrics.hinge_metrics import SquaredHinge
 from keras_core.metrics.metric import Metric
+from keras_core.metrics.probabilistic_metrics import BinaryCrossentropy
+from keras_core.metrics.probabilistic_metrics import CategoricalCrossentropy
 from keras_core.metrics.probabilistic_metrics import KLDivergence
 from keras_core.metrics.probabilistic_metrics import Poisson
+from keras_core.metrics.probabilistic_metrics import (
+    SparseCategoricalCrossentropy,
+)
 from keras_core.metrics.reduction_metrics import Mean
 from keras_core.metrics.reduction_metrics import MeanMetricWrapper
 from keras_core.metrics.reduction_metrics import Sum
 from keras_core.metrics.regression_metrics import MeanSquaredError
 from keras_core.metrics.regression_metrics import mean_squared_error
 from keras_core.saving import serialization_lib
-from keras_core.utils import naming
 
 ALL_OBJECTS = {
     Metric,
@@ -30,6 +34,9 @@ ALL_OBJECTS = {
     CategoricalHinge,
     KLDivergence,
     Poisson,
+    BinaryCrossentropy,
+    CategoricalCrossentropy,
+    SparseCategoricalCrossentropy,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(

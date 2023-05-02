@@ -65,13 +65,7 @@ class PoissonTest(testing.TestCase):
         )
 
     def test_config(self):
-        poisson_obj = metrics.Poisson(name="poisson", dtype="float32")
-        self.assertEqual(poisson_obj.name, "poisson")
-        self.assertEqual(poisson_obj._dtype, "float32")
-
-        poisson_obj2 = metrics.Poisson.from_config(poisson_obj.get_config())
-        self.assertEqual(poisson_obj2.name, "poisson")
-        self.assertEqual(poisson_obj2._dtype, "float32")
+        self.run_class_serialization_test(metrics.Poisson(name="poisson"))
 
     def test_unweighted(self):
         self.setup()
@@ -96,3 +90,147 @@ class PoissonTest(testing.TestCase):
         expected_result = np.multiply(self.expected_results, sample_weight)
         expected_result = np.sum(expected_result) / np.sum(sample_weight)
         self.assertAllClose(result, expected_result, atol=1e-3)
+
+
+class BinaryCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            metrics.BinaryCrossentropy(
+                name="bce", dtype="int32", label_smoothing=0.2
+            )
+        )
+
+    def test_unweighted(self):
+        bce_obj = metrics.BinaryCrossentropy()
+        y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.array([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
+        result = bce_obj(y_true, y_pred)
+        self.assertAllClose(result, 3.9855, atol=1e-3)
+
+    def test_unweighted_with_logits(self):
+        bce_obj = metrics.BinaryCrossentropy(from_logits=True)
+
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        y_pred = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        result = bce_obj(y_true, y_pred)
+        self.assertAllClose(result, 3.333, atol=1e-3)
+
+    def test_weighted(self):
+        bce_obj = metrics.BinaryCrossentropy()
+        y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
+        y_pred = np.array([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
+        sample_weight = np.array([1.5, 2.0])
+        result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(result, 3.4162, atol=1e-3)
+
+    def test_weighted_from_logits(self):
+        bce_obj = metrics.BinaryCrossentropy(from_logits=True)
+        y_true = np.array([[1, 0, 1], [0, 1, 1]])
+        y_pred = np.array([[10.0, -10.0, 10.0], [10.0, 10.0, -10.0]])
+        sample_weight = np.array([2.0, 2.5])
+        result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(result, 3.7037, atol=1e-3)
+
+    def test_label_smoothing(self):
+        logits = np.array(((10.0, -10.0, -10.0)))
+        y_true = np.array(((1, 0, 1)))
+        label_smoothing = 0.1
+        bce_obj = metrics.BinaryCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        result = bce_obj(y_true, logits)
+        expected_value = (10.0 + 5.0 * label_smoothing) / 3.0
+        self.assertAllClose(expected_value, result, atol=1e-3)
+
+
+class CategoricalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            metrics.CategoricalCrossentropy(
+                name="cce", dtype="int32", label_smoothing=0.2
+            )
+        )
+
+    def test_unweighted(self):
+        cce_obj = metrics.CategoricalCrossentropy()
+        y_true = np.array([[0, 1, 0], [0, 0, 1]])
+        y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+        result = cce_obj(y_true, y_pred)
+        self.assertAllClose(result, 1.176, atol=1e-3)
+
+    def test_unweighted_from_logits(self):
+        cce_obj = metrics.CategoricalCrossentropy(from_logits=True)
+
+        y_true = np.array([[0, 1, 0], [0, 0, 1]])
+        logits = np.array([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
+        result = cce_obj(y_true, logits)
+        self.assertAllClose(result, 3.5011, atol=1e-3)
+
+    def test_weighted(self):
+        cce_obj = metrics.CategoricalCrossentropy()
+
+        y_true = np.array([[0, 1, 0], [0, 0, 1]])
+        y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+        sample_weight = np.array([1.5, 2.0])
+        result = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(result, 1.338, atol=1e-3)
+
+    def test_weighted_from_logits(self):
+        cce_obj = metrics.CategoricalCrossentropy(from_logits=True)
+
+        y_true = np.array([[0, 1, 0], [0, 0, 1]])
+        logits = np.array([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
+        sample_weight = np.array([1.5, 2.0])
+        result = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAllClose(result, 4.0012, atol=1e-3)
+
+    def test_label_smoothing(self):
+        y_true = np.array([[0, 1, 0], [0, 0, 1]])
+        logits = np.array([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
+        label_smoothing = 0.1
+        cce_obj = metrics.CategoricalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose(loss, 3.667, atol=1e-3)
+
+
+class SparseCategoricalCrossentropyTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            metrics.SparseCategoricalCrossentropy(name="scce", dtype="int32")
+        )
+
+    def test_unweighted(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy()
+
+        y_true = np.array([1, 2])
+        y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+        result = scce_obj(y_true, y_pred)
+        self.assertAllClose(result, 1.176, atol=1e-3)
+
+    def test_unweighted_from_logits(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy(from_logits=True)
+
+        y_true = np.array([1, 2])
+        logits = np.array([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
+        result = scce_obj(y_true, logits)
+        self.assertAllClose(result, 3.5011, atol=1e-3)
+
+    def test_weighted(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy()
+
+        y_true = np.array([1, 2])
+        y_pred = np.array([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+        sample_weight = np.array([1.5, 2.0])
+        result = scce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(result, 1.338, atol=1e-3)
+
+    def test_weighted_from_logits(self):
+        scce_obj = metrics.SparseCategoricalCrossentropy(from_logits=True)
+
+        y_true = np.array([1, 2])
+        logits = np.array([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
+        sample_weight = np.array([1.5, 2.0])
+        result = scce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAllClose(result, 4.0012, atol=1e-3)
