@@ -1264,6 +1264,12 @@ class LossScaleOptimizerV3(
     def apply_gradients(
         self, grads_and_vars, skip_gradients_aggregation=False, **kwargs
     ):
+        grads_and_vars = list(grads_and_vars)
+        grads, trainable_variables = zip(*grads_and_vars)
+        with tf.init_scope():
+            # Lift variable creation to init scope to avoid environment
+            # issues.
+            self.build(trainable_variables)
         if tf.distribute.in_cross_replica_context():
             raise ValueError(
                 "apply_gradients() must be called in a replica context."
