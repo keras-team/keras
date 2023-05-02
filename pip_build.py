@@ -480,7 +480,7 @@ if __name__ == "__main__":
             f"dist_directory={dist_directory}\n"
             f"package_directory={package_directory}\n"
             f"src_directory={src_directory}\n"
-            f"is_nightly={is_nightly}"
+            f"is_nightly={is_nightly}\n"
             f"rc={rc}"
         )
     if os.path.exists(build_directory):
