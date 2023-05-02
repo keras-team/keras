@@ -16,6 +16,7 @@
 
 
 import math
+import warnings
 
 import tensorflow.compat.v2 as tf
 
@@ -419,6 +420,13 @@ orthogonal_regularizer = OrthogonalRegularizer
 
 @keras_export("keras.regularizers.serialize")
 def serialize(regularizer, use_legacy_format=False):
+    if not isinstance(regularizer, Regularizer):
+        warnings.warn(
+            "The `keras.regularizers.serialize()` API should only be used for "
+            "objects of type `keras.regularizers.Regularizer`. Found an "
+            f"instance of type {type(regularizer)}, which may lead to improper "
+            "serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(regularizer)
     return serialize_keras_object(regularizer)
