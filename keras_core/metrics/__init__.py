@@ -8,6 +8,7 @@ from keras_core.metrics.accuracy_metrics import TopKCategoricalAccuracy
 from keras_core.metrics.confusion_metrics import FalseNegatives
 from keras_core.metrics.confusion_metrics import FalsePositives
 from keras_core.metrics.confusion_metrics import Precision
+from keras_core.metrics.confusion_metrics import Recall
 from keras_core.metrics.confusion_metrics import TrueNegatives
 from keras_core.metrics.confusion_metrics import TruePositives
 from keras_core.metrics.hinge_metrics import CategoricalHinge
@@ -39,6 +40,7 @@ ALL_OBJECTS = {
     FalseNegatives,
     FalsePositives,
     Precision,
+    Recall,
     TrueNegatives,
     TruePositives,
     # Hinge
