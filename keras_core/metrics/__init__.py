@@ -19,30 +19,51 @@ from keras_core.metrics.reduction_metrics import Mean
 from keras_core.metrics.reduction_metrics import MeanMetricWrapper
 from keras_core.metrics.reduction_metrics import Sum
 from keras_core.metrics.regression_metrics import MeanSquaredError
-from keras_core.metrics.regression_metrics import mean_squared_error
+from keras_core.metrics.accuracy_metrics import Accuracy
+from keras_core.metrics.accuracy_metrics import BinaryAccuracy
+from keras_core.metrics.accuracy_metrics import CategoricalAccuracy
+from keras_core.metrics.accuracy_metrics import SparseCategoricalAccuracy
+from keras_core.metrics.accuracy_metrics import TopKCategoricalAccuracy
+from keras_core.metrics.accuracy_metrics import SparseTopKCategoricalAccuracy
 from keras_core.saving import serialization_lib
 
 ALL_OBJECTS = {
+    # Base
     Metric,
     Mean,
     Sum,
-    MeanSquaredError,
     MeanMetricWrapper,
+    # Regression
+    MeanSquaredError,
+    # Classification
+    FalseNegatives,
     FalsePositives,
+    Precision,
+    TrueNegatives,
+    TruePositives,
+    # Hinge
     Hinge,
     SquaredHinge,
     CategoricalHinge,
+    # Probabilistic
     KLDivergence,
     Poisson,
     BinaryCrossentropy,
     CategoricalCrossentropy,
     SparseCategoricalCrossentropy,
+    # Accuracy
+    Accuracy,
+    BinaryAccuracy,
+    CategoricalAccuracy,
+    SparseCategoricalAccuracy,
+    TopKCategoricalAccuracy,
+    SparseTopKCategoricalAccuracy,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {
-        "mse": mean_squared_error,
-        "MSE": mean_squared_error,
+        "mse": MeanSquaredError,
+        "MSE": MeanSquaredError,
     }
 )
 
