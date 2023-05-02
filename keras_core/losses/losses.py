@@ -183,6 +183,63 @@ class CosineSimilarity(LossFunctionWrapper):
         )
 
 
+@keras_core_export("keras_core.losses.Huber")
+class Huber(LossFunctionWrapper):
+    """Computes the Huber loss between `y_true` & `y_pred`.
+
+    Formula:
+    ```python
+    for x in error:
+        if abs(x) <= delta:
+            loss.append(0.5 * x^2)
+        elif abs(x) > delta:
+            loss.append(delta * abs(x) - 0.5 * delta^2)
+
+    loss = mean(loss, axis=-1)
+    ```
+    See: [Huber loss](https://en.wikipedia.org/wiki/Huber_loss).
+
+    Args:
+        delta: A float, the point where the Huber loss function changes from a
+            quadratic to linear.
+        reduction: Type of reduction to apply to loss. Options are `"sum"`,
+            `"sum_over_batch_size"` or `None`. Defaults to
+            `"sum_over_batch_size"`.
+        name: Optional name for the instance.
+    """
+
+    def __init__(
+        self,
+        delta=1.0,
+        reduction="sum_over_batch_size",
+        name="huber_loss",
+    ):
+        super().__init__(huber, name=name, reduction=reduction, delta=delta)
+
+
+@keras_core_export("keras_core.losses.LogCosh")
+class LogCosh(LossFunctionWrapper):
+    """Computes the logarithm of the hyperbolic cosine of the prediction error.
+
+    Formula:
+
+    ```python
+    error = y_pred - y_true
+    logcosh = log((exp(error) + exp(-error))/2)`
+    ```
+    where x is the error `y_pred - y_true`.
+
+    Args:
+        reduction: Type of reduction to apply to loss. Options are `"sum"`,
+            `"sum_over_batch_size"` or `None`. Defaults to
+            `"sum_over_batch_size"`.
+        name: Optional name for the instance.
+    """
+
+    def __init__(self, reduction="sum_over_batch_size", name="log_cosh"):
+        super().__init__(log_cosh, name=name, reduction=reduction)
+
+
 @keras_core_export("keras_core.losses.Hinge")
 class Hinge(LossFunctionWrapper):
     """Computes the hinge loss between `y_true` & `y_pred`.
@@ -1063,7 +1120,7 @@ def mean_squared_error(y_true, y_pred):
     loss = mean(square(y_true - y_pred), axis=-1)
     ```
 
-    Standalone usage:
+    Example:
 
     >>> y_true = np.random.randint(0, 2, size=(2, 3))
     >>> y_pred = np.random.random(size=(2, 3))
@@ -1235,6 +1292,97 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     y_pred = normalize(y_pred, axis=axis)
     y_true = normalize(y_true, axis=axis)
     return -ops.sum(y_true * y_pred, axis=axis)
+
+
+@keras_core_export(["keras_core.losses.huber", "keras_core.metrics.huber"])
+def huber(y_true, y_pred, delta=1.0):
+    """Computes Huber loss value.
+
+    Formula:
+    ```python
+    for x in error:
+        if abs(x) <= delta:
+            loss.append(0.5 * x^2)
+        elif abs(x) > delta:
+            loss.append(delta * abs(x) - 0.5 * delta^2)
+
+    loss = mean(loss, axis=-1)
+    ```
+    See: [Huber loss](https://en.wikipedia.org/wiki/Huber_loss).
+
+    Example:
+
+    >>> y_true = [[0, 1], [0, 0]]
+    >>> y_pred = [[0.6, 0.4], [0.4, 0.6]]
+    >>> loss = keras_core.losses.huber(y_true, y_pred)
+    0.155
+
+
+    Args:
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+        delta: A float, the point where the Huber loss function changes from a
+            quadratic to linear. Defaults to 1.
+
+    Returns:
+        Tensor with one scalar loss entry per sample.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    delta = ops.convert_to_tensor(delta)
+    error = ops.subtract(y_pred, y_true)
+    abs_error = ops.abs(error)
+    half = ops.convert_to_tensor(0.5, dtype=abs_error.dtype)
+    return ops.mean(
+        ops.where(
+            abs_error <= delta,
+            half * ops.square(error),
+            delta * abs_error - half * ops.square(delta),
+        ),
+        axis=-1,
+    )
+
+
+@keras_core_export(
+    ["keras_core.losses.log_cosh", "keras_core.metrics.log_cosh"]
+)
+def log_cosh(y_true, y_pred):
+    """Logarithm of the hyperbolic cosine of the prediction error.
+
+    Formula:
+    ```python
+    loss = mean(log(cosh(y_pred - y_true)), axis=-1)
+    ```
+
+    Note that `log(cosh(x))` is approximately equal to `(x ** 2) / 2` for small
+    `x` and to `abs(x) - log(2)` for large `x`. This means that 'logcosh' works
+    mostly like the mean squared error, but will not be so strongly affected by
+    the occasional wildly incorrect prediction.
+
+    Example:
+
+    >>> y_true = [[0., 1.], [0., 0.]]
+    >>> y_pred = [[1., 1.], [0., 0.]]
+    >>> loss = keras_core.losses.log_cosh(y_true, y_pred)
+    0.108
+
+    Args:
+        y_true: Ground truth values with shape = `[batch_size, d0, .. dN]`.
+        y_pred: The predicted values with shape = `[batch_size, d0, .. dN]`.
+
+    Returns:
+        Logcosh error values with shape = `[batch_size, d0, .. dN-1]`.
+    """
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
+    y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+    log2 = ops.convert_to_tensor(ops.log(2.0), dtype=y_pred.dtype)
+
+    def _logcosh(x):
+        return x + ops.softplus(-2.0 * x) - log2
+
+    return ops.mean(_logcosh(y_pred - y_true), axis=-1)
 
 
 @keras_core_export(

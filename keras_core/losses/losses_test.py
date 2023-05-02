@@ -465,6 +465,205 @@ class CosineSimilarityTest(testing.TestCase):
         self.assertAlmostEqual(loss, expected_loss, 3)
 
 
+class HuberLossTest(testing.TestCase):
+    def huber_loss(self, y_true, y_pred, delta=1.0):
+        error = y_pred - y_true
+        abs_error = np.abs(error)
+
+        quadratic = np.minimum(abs_error, delta)
+        linear = np.subtract(abs_error, quadratic)
+        return np.add(
+            np.multiply(0.5, np.multiply(quadratic, quadratic)),
+            np.multiply(delta, linear),
+        )
+
+    def setup(self, delta=1.0):
+        self.np_y_pred = np.array([[0.9, 0.2, 0.2], [0.8, 0.4, 0.6]])
+        self.np_y_true = np.array([[1.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
+
+        self.batch_size = 6
+        self.expected_losses = self.huber_loss(
+            self.np_y_true, self.np_y_pred, delta
+        )
+
+        self.y_pred = self.np_y_pred
+        self.y_true = self.np_y_true
+
+    def test_config(self):
+        h_obj = losses.Huber(reduction="sum", name="huber")
+        self.assertEqual(h_obj.name, "huber")
+        self.assertEqual(h_obj.reduction, "sum")
+
+    def test_all_correct(self):
+        self.setup()
+        h_obj = losses.Huber()
+        loss = h_obj(self.y_true, self.y_true)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_unweighted(self):
+        self.setup()
+        h_obj = losses.Huber()
+        loss = h_obj(self.y_true, self.y_pred)
+        actual_loss = np.sum(self.expected_losses) / self.batch_size
+        self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_scalar_weighted(self):
+        self.setup()
+        h_obj = losses.Huber()
+        sample_weight = 2.3
+        loss = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        actual_loss = (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, actual_loss, 3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, loss_2, 3)
+
+    def test_sample_weighted(self):
+        self.setup()
+        h_obj = losses.Huber()
+        sample_weight = np.array([[1.2], [3.4]])
+
+        loss = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        actual_loss = np.multiply(
+            self.expected_losses,
+            np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3)),
+        )
+        actual_loss = np.sum(actual_loss) / self.batch_size
+        self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_timestep_weighted(self):
+        self.setup()
+        h_obj = losses.Huber()
+        y_pred = self.np_y_pred.reshape((2, 3, 1))
+        y_true = self.np_y_true.reshape((2, 3, 1))
+        expected_losses = self.huber_loss(y_true, y_pred)
+
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3, 1))
+        loss = h_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        actual_loss = np.multiply(expected_losses, sample_weight)
+        actual_loss = np.sum(actual_loss) / self.batch_size
+        self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_zero_weighted(self):
+        self.setup()
+        h_obj = losses.Huber()
+        sample_weight = 0
+        loss = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+    def test_non_default_delta(self):
+        self.setup(delta=0.8)
+        h_obj = losses.Huber(delta=0.8)
+        sample_weight = 2.3
+        loss = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        actual_loss = (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, actual_loss, 3)
+
+    def test_loss_with_non_default_dtype(self):
+        # Test case for GitHub issue:
+        # https://github.com/tensorflow/tensorflow/issues/39004
+        # TODO
+        pass
+
+
+class LogCoshTest(testing.TestCase):
+    def setup(self):
+        y_true = np.asarray([[1, 9, 2], [-5, -2, 6]], dtype=np.float32)
+        y_pred = np.asarray([[4, 8, 12], [8, 1, 3]], dtype=np.float32)
+
+        self.batch_size = 6
+        error = y_pred - y_true
+        self.expected_losses = np.log((np.exp(error) + np.exp(-error)) / 2)
+
+        self.y_true = y_true
+        self.y_pred = y_pred
+
+    def test_config(self):
+        logcosh_obj = losses.LogCosh(reduction="sum", name="logcosh_loss")
+        self.assertEqual(logcosh_obj.name, "logcosh_loss")
+        self.assertEqual(logcosh_obj.reduction, "sum")
+
+    def test_unweighted(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh()
+
+        loss = logcosh_obj(self.y_true, self.y_pred)
+        expected_loss = np.sum(self.expected_losses) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_scalar_weighted(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh()
+        sample_weight = 2.3
+
+        loss = logcosh_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        expected_loss = (
+            sample_weight * np.sum(self.expected_losses) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = logcosh_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, loss_2, 3)
+
+    def test_sample_weighted(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh()
+
+        sample_weight = np.asarray([1.2, 3.4])
+        loss = logcosh_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+
+        expected_loss = np.multiply(
+            self.expected_losses,
+            np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3)),
+        )
+        expected_loss = np.sum(expected_loss) / self.batch_size
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_timestep_weighted(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh()
+        y_true = np.asarray([1, 9, 2, -5, -2, 6]).reshape(2, 3, 1)
+        y_pred = np.asarray([4, 8, 12, 8, 1, 3]).reshape(2, 3, 1)
+        error = y_pred - y_true
+        expected_losses = np.log((np.exp(error) + np.exp(-error)) / 2)
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3, 1))
+
+        loss = logcosh_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        expected_loss = (
+            np.sum(expected_losses * sample_weight) / self.batch_size
+        )
+        self.assertAlmostEqual(loss, expected_loss, 3)
+
+    def test_zero_weighted(self):
+        self.setup()
+        logcosh_obj = losses.LogCosh()
+        sample_weight = 0
+        loss = logcosh_obj(
+            self.y_true, self.y_pred, sample_weight=sample_weight
+        )
+        self.assertAlmostEqual(loss, 0.0, 3)
+
+
 class KLDivergenceTest(testing.TestCase):
     def setup(self):
         self.y_pred = np.asarray(
