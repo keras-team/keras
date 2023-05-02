@@ -15,6 +15,7 @@
 """All Keras metrics."""
 
 # isort: off
+import warnings
 from tensorflow.python.util.tf_export import keras_export
 
 # Base classes and utilities
@@ -138,6 +139,12 @@ def serialize(metric, use_legacy_format=False):
     Returns:
       Metric configuration dictionary.
     """
+    if not isinstance(metric, Metric):
+        warnings.warn(
+            "The `keras.metrics.serialize()` API should only be used for "
+            "objects of type `keras.metrics.Metric`. Found an instance of "
+            f"type {type(metric)}, which may lead to improper serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(metric)
     return serialize_keras_object(metric)

@@ -691,6 +691,11 @@ def _current_graph(op_input_list, graph=None):
     if graph and not isinstance(graph, tf.Graph):
         raise TypeError(f"Input graph needs to be a Graph: {graph}")
 
+    def _is_symbolic_tensor(tensor):
+        if hasattr(tf, "is_symbolic_tensor"):
+            return tf.is_symbolic_tensor(tensor)
+        return type(tensor) == tf.Tensor
+
     # 1. We validate that all of the inputs are from the same graph. This is
     #    either the supplied graph parameter, or the first one selected from one
     #    the graph-element-valued inputs. In the latter case, we hold onto
@@ -698,14 +703,9 @@ def _current_graph(op_input_list, graph=None):
     #    informative error if a mismatch is found.
     original_graph_element = None
     for op_input in op_input_list:
-        # Determine if this is a valid graph_element.
-        # TODO(joshl): Note that we exclude subclasses of Tensor. Need to clean
-        # this up.
         if isinstance(
-            op_input, (tf.Operation, tf.Tensor, tf.__internal__.CompositeTensor)
-        ) and (
-            (not isinstance(op_input, tf.Tensor)) or type(op_input) == tf.Tensor
-        ):
+            op_input, (tf.Operation, tf.__internal__.CompositeTensor)
+        ) or _is_symbolic_tensor(op_input):
             graph_element = op_input
         else:
             graph_element = _as_graph_element(op_input)

@@ -630,27 +630,56 @@ class IntegerLookupSavingTest(
         output_dataset = model.predict(input_array)
         self.assertAllEqual(output_dataset, expected_output)
 
-        # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format="tf")
+        with self.subTest("keras_v3"):
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
 
-        # Delete the session and graph to ensure that the loaded model is
-        # generated from scratch.
-        # TODO(b/149526183): Can't clear session when TF2 is disabled.
-        if tf.__internal__.tf2.enabled():
-            keras.backend.clear_session()
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_model.keras"
+            )
+            model.save(output_path, save_format="keras_v3")
 
-        loaded_model = keras.models.load_model(
-            output_path,
-            custom_objects={"IntegerLookup": integer_lookup.IntegerLookup},
-        )
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IntegerLookup": integer_lookup.IntegerLookup},
+            )
 
-        # Ensure that the loaded model is unique (so that the save/load is real)
-        self.assertIsNot(model, loaded_model)
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
 
-        # Validate correctness of the new model.
-        new_output_dataset = loaded_model.predict(input_array)
-        self.assertAllEqual(new_output_dataset, expected_output)
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
+
+        with self.subTest("savedmodel"):
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model"
+            )
+            model.save(output_path, save_format="tf")
+
+            # Delete the session and graph to ensure that the loaded model is
+            # generated from scratch.
+            # TODO(b/149526183): Can't clear session when TF2 is disabled.
+            if tf.__internal__.tf2.enabled():
+                keras.backend.clear_session()
+
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IntegerLookup": integer_lookup.IntegerLookup},
+            )
+
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
+
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
 
 if __name__ == "__main__":
