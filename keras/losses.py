@@ -2878,6 +2878,12 @@ def serialize(loss, use_legacy_format=False):
     Returns:
         Loss configuration dictionary.
     """
+    if not isinstance(loss, Loss):
+        warnings.warn(
+            "The `keras.losses.serialize()` API should only be used for "
+            "objects of type `keras.losses.Loss`. Found an instance of type "
+            f"{type(loss)}, which may lead to improper serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(loss)
     return serialize_keras_object(loss)

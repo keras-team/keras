@@ -86,7 +86,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
 
     1. Any callable can be passed to this Layer, but if you want to serialize
        this object you should only pass functions that are registered Keras
-       serializables (see `tf.keras.utils.register_keras_serializable` for more
+       serializables (see `tf.keras.saving.register_keras_serializable` for more
        details).
     2. When using a custom callable for `standardize`, the data received
        by the callable will be exactly as passed to this layer. The callable

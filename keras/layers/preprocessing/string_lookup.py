@@ -68,11 +68,11 @@ class StringLookup(index_lookup.IndexLookup):
         only be specified when adapting the vocabulary or when setting
         `pad_to_max_tokens=True`. If None, there is no cap on the size of the
         vocabulary. Note that this size includes the OOV and mask tokens.
-        Defaults to None.
+        Defaults to `None`.
       num_oov_indices: The number of out-of-vocabulary tokens to use. If this
         value is more than 1, OOV inputs are hashed to determine their OOV
         value. If this value is 0, OOV inputs will cause an error when calling
-        the layer.  Defaults to 1.
+        the layer.  Defaults to `1`.
       mask_token: A token that represents masked inputs. When `output_mode` is
         `"int"`, the token is included in vocabulary and mapped to index 0. In
         other output modes, the token will not appear in the vocabulary and
@@ -93,10 +93,10 @@ class StringLookup(index_lookup.IndexLookup):
         `"tf_idf"`, this argument must be supplied.
       invert: Only valid when `output_mode` is `"int"`. If True, this layer will
         map indices to vocabulary items instead of mapping vocabulary items to
-        indices. Default to False.
-      output_mode: Specification for the output of the layer. Defaults to
-        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`,
-        or `"tf_idf"` configuring the layer as follows:
+        indices. Defaults to `False`.
+      output_mode: Specification for the output of the layer. Values can be
+        `"int"`, `"one_hot"`, `"multi_hot"`, `"count"`, or `"tf_idf"`
+        configuring the layer as follows:
           - `"int"`: Return the raw integer indices of the input tokens.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as the vocabulary, containing a 1 at the element
@@ -114,6 +114,7 @@ class StringLookup(index_lookup.IndexLookup):
             find the value in each token slot.
         For `"int"` output, any shape of input and output is supported. For all
         other output modes, currently only output up to rank 2 is supported.
+        Defaults to `"int"`
       pad_to_max_tokens: Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, the output will have its feature axis
         padded to `max_tokens` even if the number of unique tokens in the
@@ -122,7 +123,7 @@ class StringLookup(index_lookup.IndexLookup):
         False.
       sparse: Boolean. Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, returns a `SparseTensor` instead of a
-        dense `Tensor`. Defaults to False.
+        dense `Tensor`. Defaults to `False`.
       encoding: Optional. The text encoding to use to interpret the input
         strings. Defaults to `"utf-8"`.
 

@@ -15,6 +15,7 @@
 """Keras initializer serialization / deserialization."""
 
 import threading
+import warnings
 
 import tensorflow.compat.v2 as tf
 
@@ -136,6 +137,14 @@ globals().update(LOCAL.ALL_OBJECTS)
 
 @keras_export("keras.initializers.serialize")
 def serialize(initializer, use_legacy_format=False):
+    populate_deserializable_objects()
+    if not isinstance(initializer, tuple(LOCAL.ALL_OBJECTS.values())):
+        warnings.warn(
+            "The `keras.initializers.serialize()` API should only be used for "
+            "objects of type `keras.initializers.Initializer`. Found an "
+            f"instance of type {type(initializer)}, which may lead to improper "
+            "serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(initializer)
 
