@@ -15,9 +15,7 @@ except ImportError:
 
 
 class ArrayDataAdapter(DataAdapter):
-    """Adapter that handles array-like objects,
-    e.g. tf.Tensor and NumPy arrays.
-    """
+    """Adapter for array-like objects, e.g. TF/JAX Tensors, NumPy arrays."""
 
     def __init__(
         self,
@@ -27,7 +25,7 @@ class ArrayDataAdapter(DataAdapter):
         batch_size=None,
         steps=None,
         shuffle=False,
-        class_weight=None,  # TODO
+        class_weight=None,
     ):
         types_struct = nest.map_structure(lambda x: type(x), x)
         flat_types = nest.flatten(types_struct)
