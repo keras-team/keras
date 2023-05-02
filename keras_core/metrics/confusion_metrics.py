@@ -277,8 +277,8 @@ class Precision(Metric):
             above the threshold is `True`, below is `False`). If used with a
             loss function that sets `from_logits=True` (i.e. no sigmoid applied
             to predictions), `thresholds` should be set to 0. One metric value
-            is generated for each threshold value. If neither thresholds nor
-            top_k are set, the default is to calculate precision with
+            is generated for each threshold value. If neither `thresholds` nor
+            `top_k` are set, the default is to calculate precision with
             `thresholds=0.5`.
         top_k: (Optional) Unset by default. An int value specifying the top-k
             predictions to consider when calculating precision.
@@ -429,11 +429,12 @@ class Recall(Metric):
         thresholds: (Optional) A float value, or a Python list/tuple of float
             threshold values in `[0, 1]`. A threshold is compared with
             prediction values to determine the truth value of predictions (i.e.,
-            above thethreshold is `True`, below is `False`). If used with a loss
-            function that sets `from_logits=True` (i.e. no sigmoid applied to
-            predictions), `thresholds` should be set to 0. One metric value is
-            generated for each threshold value. If neither thresholds nor top_k
-            are set, the default is to calculate recall with `thresholds=0.5`.
+            above the threshold is `True`, below is `False`). If used with a
+            loss function that sets `from_logits=True` (i.e. no sigmoid
+            applied to predictions), `thresholds` should be set to 0.
+            One metric value is generated for each threshold value.
+            If neither `thresholds` nor `top_k` are set,
+            the default is to calculate recall with `thresholds=0.5`.
         top_k: (Optional) Unset by default. An int value specifying the top-k
             predictions to consider when calculating recall.
         class_id: (Optional) Integer class ID for which we want binary metrics.
