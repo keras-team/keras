@@ -1,5 +1,9 @@
 import math
 
+import numpy as np
+
+from keras_core import backend
+from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.backend import random
 from keras_core.initializers.initializer import Initializer
@@ -238,15 +242,6 @@ class VarianceScaling(Initializer):
         self.seed = seed or random.make_default_seed()
 
     def __call__(self, shape, dtype=None):
-        """Returns a tensor object initialized as specified by the initializer.
-
-        Args:
-            shape: Shape of the tensor.
-            dtype: Optional dtype of the tensor. Only floating point types are
-                supported. If not specified, `tf.keras.backend.floatx()` is
-                used, which default to `float32` unless you configured it
-                otherwise (via `tf.keras.backend.set_floatx(float_dtype)`)
-        """
         scale = self.scale
         fan_in, fan_out = compute_fans(shape)
         if self.mode == "fan_in":
@@ -566,3 +561,79 @@ def compute_fans(shape):
         fan_in = shape[-2] * receptive_field_size
         fan_out = shape[-1] * receptive_field_size
     return int(fan_in), int(fan_out)
+
+
+@keras_core_export(
+    [
+        "keras_core.initializers.OrthogonalInitializer",
+        "keras_core.initializers.Orthogonal",
+    ]
+)
+class OrthogonalInitializer(Initializer):
+    """Initializer that generates an orthogonal matrix.
+
+    If the shape of the tensor to initialize is two-dimensional, it is
+    initialized with an orthogonal matrix obtained from the QR decomposition of
+    a matrix of random numbers drawn from a normal distribution. If the matrix
+    has fewer rows than columns then the output will have orthogonal rows.
+    Otherwise, the output will have orthogonal columns.
+
+    If the shape of the tensor to initialize is more than two-dimensional,
+    a matrix of shape `(shape[0] * ... * shape[n - 2], shape[n - 1])`
+    is initialized, where `n` is the length of the shape vector.
+    The matrix is subsequently reshaped to give a tensor of the desired shape.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = keras_core.initializers.Orthogonal()
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = keras_core.initializers.Orthogonal()
+    >>> layer = keras_core.layers.Dense(3, kernel_initializer=initializer)
+
+    Args:
+        gain: Multiplicative factor to apply to the orthogonal matrix.
+        seed: A Python integer. Used to make the behavior of the initializer
+            deterministic.
+
+    Reference:
+
+    - [Saxe et al., 2014](https://openreview.net/forum?id=_wzZwKpTDF_9C)
+    """
+
+    def __init__(self, gain=1.0, seed=None):
+        self.gain = gain
+        self.seed = seed or random.make_default_seed()
+
+    def __call__(self, shape, dtype=None):
+        if len(shape) < 2:
+            raise ValueError(
+                "The tensor to initialize must be "
+                "at least two-dimensional. Received: "
+                f"shape={shape} of rank {len(shape)}."
+            )
+
+        # Flatten the input shape with the last dimension remaining
+        # its original shape so it works for conv2d
+        num_rows = 1
+        for dim in shape[:-1]:
+            num_rows *= dim
+        num_cols = shape[-1]
+        flat_shape = (max(num_cols, num_rows), min(num_cols, num_rows))
+
+        # Generate a random matrix
+        a = random.normal(flat_shape, seed=self.seed, dtype=dtype)
+        # Compute the qr factorization
+        q, r = np.linalg.qr(a)
+        # Make Q uniform
+        d = np.diag(r)
+        q *= np.sign(d)
+        if num_rows < num_cols:
+            q = np.transpose(q)
+        q = backend.convert_to_tensor(q)
+        return self.gain * ops.reshape(q, shape)
+
+    def get_config(self):
+        return {"gain": self.gain, "seed": self.seed}

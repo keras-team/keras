@@ -11,6 +11,7 @@ from keras_core.initializers.random_initializers import HeNormal
 from keras_core.initializers.random_initializers import HeUniform
 from keras_core.initializers.random_initializers import LecunNormal
 from keras_core.initializers.random_initializers import LecunUniform
+from keras_core.initializers.random_initializers import OrthogonalInitializer
 from keras_core.initializers.random_initializers import RandomNormal
 from keras_core.initializers.random_initializers import RandomUniform
 from keras_core.initializers.random_initializers import TruncatedNormal
@@ -33,6 +34,7 @@ ALL_OBJECTS = {
     TruncatedNormal,
     RandomUniform,
     VarianceScaling,
+    OrthogonalInitializer,
 }
 
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
@@ -44,6 +46,7 @@ ALL_OBJECTS_DICT.update(
     {
         "uniform": RandomUniform,
         "normal": RandomNormal,
+        "orthogonal": OrthogonalInitializer,
     }
 )
 

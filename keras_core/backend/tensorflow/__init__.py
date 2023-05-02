@@ -134,6 +134,8 @@ def traceable_tensor(shape, dtype=None):
     That's a tensor that can be passed as input
     to a stateful backend-native function to
     create state during the trace.
+
+    TODO: get rid of this.
     """
     shape = list(shape)
     dtype = dtype or "float32"
