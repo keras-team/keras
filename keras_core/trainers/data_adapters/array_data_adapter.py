@@ -79,7 +79,7 @@ class ArrayDataAdapter(DataAdapter):
                     "`class_weight` is only supported for Models with a single "
                     "output."
                 )
-            sample_weight = make_sample_weight_from_class_weight(
+            sample_weight = data_adapter_utils.class_weight_to_sample_weights(
                 y, class_weight
             )
 
@@ -173,14 +173,3 @@ def convert_to_arrays(arrays, dtype=None):
 
     arrays = tf.nest.map_structure(convert_single_array, arrays)
     return tf.__internal__.nest.list_to_tuple(arrays)
-
-
-def make_sample_weight_from_class_weight(y, class_weight):
-    sample_weight = np.ones(shape=(y.shape[0],), dtype=y.dtype)
-    if len(y.shape) > 1 and y.shape[-1] != 1:
-        y = np.argmax(y, axis=-1)
-    else:
-        y = np.round(np.squeeze(y, axis=-1)).astype("int32")
-    for i in range(y.shape[0]):
-        sample_weight[i] = class_weight.get(int(y[i]), 1.0)
-    return sample_weight

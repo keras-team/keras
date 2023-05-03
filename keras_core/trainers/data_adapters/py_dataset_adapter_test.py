@@ -100,6 +100,10 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
         else:
             self.assertAllClose(sample_order, list(range(64)))
 
+    # TODO: test class_weight
+    # TODO: test sample weights
+    # TODO: test inference mode (single output)
+
     def test_speedup(self):
         x = np.random.random((40, 4))
         y = np.random.random((40, 2))

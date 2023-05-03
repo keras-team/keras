@@ -197,3 +197,14 @@ def train_validation_split(arrays, validation_split):
         lambda x: _split(x, start=split_at, end=batch_dim), arrays
     )
     return train_arrays, val_arrays
+
+
+def class_weight_to_sample_weights(y, class_weight):
+    sample_weight = np.ones(shape=(y.shape[0],), dtype=y.dtype)
+    if len(y.shape) > 1 and y.shape[-1] != 1:
+        y = np.argmax(y, axis=-1)
+    else:
+        y = np.round(np.squeeze(y, axis=-1)).astype("int32")
+    for i in range(y.shape[0]):
+        sample_weight[i] = class_weight.get(int(y[i]), 1.0)
+    return sample_weight

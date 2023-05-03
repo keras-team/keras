@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow as tf
 
 from keras_core.api_export import keras_core_export
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
 
@@ -166,9 +167,11 @@ class PyDatasetAdapter(DataAdapter):
     def __init__(
         self,
         x,
+        class_weight=None,
         shuffle=False,
     ):
         self.py_dataset = x
+        self.class_weight = class_weight
         self.enqueuer = None
         self.shuffle = shuffle
 
@@ -181,6 +184,17 @@ class PyDatasetAdapter(DataAdapter):
                 "(inputs, targets, sample_weights). "
                 f"Received: {data}"
             )
+        if self.class_weight is not None:
+            if len(data) == 3:
+                raise ValueError(
+                    "You cannot `class_weight` and `sample_weight` "
+                    "at the same time."
+                )
+            if len(data) == 2:
+                sw = data_adapter_utils.class_weight_to_sample_weights(
+                    data[1], class_weight
+                )
+                data = data + (sw,)
 
         def get_tensor_spec(x):
             shape = x.shape
@@ -230,6 +244,11 @@ class PyDatasetAdapter(DataAdapter):
     def get_numpy_iterator(self):
         gen_fn = self._make_multiprocessed_generator_fn()
         for i, batch in enumerate(gen_fn()):
+            if len(batch) == 2 and self.class_weight is not None:
+                sw = data_adapter_utils.class_weight_to_sample_weights(
+                    batch[1], self.class_weight
+                )
+                batch = batch + (sw,)
             yield batch
             if i >= len(self.py_dataset) - 1 and self.enqueuer:
                 self.enqueuer.stop()
@@ -395,6 +414,8 @@ class PyDatasetEnqueuer:
         Args:
             timeout: maximum time to wait on `thread.join()`
         """
+        if not self.is_running():
+            return
         self.stop_signal.set()
         with self.queue.mutex:
             self.queue.queue.clear()

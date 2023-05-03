@@ -38,12 +38,15 @@ EpochIterator steps:
 or until there is no data
 
 """
+import types
 import warnings
 
 import tensorflow as tf
 
 from keras_core.trainers.data_adapters import array_data_adapter
 from keras_core.trainers.data_adapters import data_adapter_utils
+from keras_core.trainers.data_adapters import generator_data_adapter
+from keras_core.trainers.data_adapters import py_dataset_adapter
 from keras_core.trainers.data_adapters import tf_dataset_adapter
 
 
@@ -77,16 +80,10 @@ class EpochIterator:
             )
             # Unsupported args: y, sample_weight, shuffle
             if y is not None:
-                raise ValueError(
-                    "When providing `x` as a tf.data.Dataset, `y` should not "
-                    "be passed. Instead, the targets should be included as "
-                    "part of the Dataset `x`."
-                )
+                raise_unsupported_arg("y", "the targets", "tf.data.Dataset")
             if sample_weight is not None:
-                raise ValueError(
-                    "When providing `x` as a tf.data.Dataset, `sample_weight` "
-                    "should not be passed. Instead, the sample weights should "
-                    "be included as part of the Dataset `x`."
+                raise_unsupported_arg(
+                    "sample_weights", "the sample weights", "tf.data.Dataset"
                 )
             # TODO: should we warn or not?
             # warnings.warn(
@@ -95,8 +92,37 @@ class EpochIterator:
             #     "expected to already be shuffled "
             #     "(via `.shuffle(tf.data.AUTOTUNE)`)"
             # )
+        elif isinstance(x, py_dataset_adapter.PyDataset):
+            self.data_adapter = tf_dataset_adapter.PyDatasetAdapter(
+                x, class_weight=class_weight, shuffle=shuffle
+            )
+            if y is not None:
+                raise_unsupported_arg("y", "the targets", "PyDataset")
+            if sample_weight is not None:
+                raise_unsupported_arg(
+                    "sample_weights", "the sample weights", "PyDataset"
+                )
+        elif isinstance(x, types.GeneratorType):
+            self.data_adapter = generator_data_adapter.GeneratorDataAdapter(
+                x, shuffle=shuffle
+            )
+            if y is not None:
+                raise_unsupported_arg("y", "the targets", "PyDataset")
+            if sample_weight is not None:
+                raise_unsupported_arg(
+                    "sample_weights", "the sample weights", "PyDataset"
+                )
+            if class_weight is not None:
+                raise ValueError(
+                    "Argument `class_weight` is not supported for Python generator "
+                    f"inputs. Received: class_weight={class_weight}"
+                )
+            if shuffle:
+                raise ValueError(
+                    "Argument `shuffle` is not supported for Python generator "
+                    f"inputs. Received: shuffle={shuffle}"
+                )
         else:
-            # TODO: add support for more types.
             raise ValueError(
                 f"Unrecognized data type: x={x} (of type {type(x)})"
             )
@@ -146,3 +172,11 @@ class EpochIterator:
         # Either copied from the data_adapter, or
         # inferred at the end of an iteration.
         return self._num_batches
+
+
+def raise_unsupported_arg(arg_name, arg_description, input_type):
+    raise ValueError(
+        f"When providing `x` as a {input_type}, `{arg_name}` "
+        f"should not be passed. Instead, the {arg_description} should "
+        f"be included as part of the {input_type}."
+    )
