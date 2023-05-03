@@ -6,6 +6,14 @@ from keras_core.layers.core.input_layer import InputLayer
 from keras_core.layers.layer import Layer
 from keras_core.layers.merging.add import Add
 from keras_core.layers.merging.add import add
+from keras_core.layers.merging.average import Average
+from keras_core.layers.merging.average import average
+from keras_core.layers.merging.maximum import Maximum
+from keras_core.layers.merging.maximum import maximum
+from keras_core.layers.merging.minimum import Minimum
+from keras_core.layers.merging.minimum import minimum
+from keras_core.layers.merging.multiply import Multiply
+from keras_core.layers.merging.multiply import multiply
 from keras_core.layers.merging.subtract import Subtract
 from keras_core.layers.merging.subtract import subtract
 from keras_core.layers.pooling.average_pooling1d import AveragePooling1D
