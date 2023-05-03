@@ -61,11 +61,8 @@ class Optimizer:
             )
 
         self.built = False
-        # NOTE: the below will not work in a stateless scope.
-        # optimizers should be created outside of any stateless scope,
-        # at this time.
         self.iterations = backend.Variable(
-            0, name="iteration", dtype="int32", trainable=False
+            0, name="iteration", dtype="int64", trainable=False
         )
         if isinstance(
             learning_rate, learning_rate_schedule.LearningRateSchedule
