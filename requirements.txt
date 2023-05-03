@@ -6,4 +6,4 @@ flake8
 isort
 pytest
 pandas
-absl-py
+absl
