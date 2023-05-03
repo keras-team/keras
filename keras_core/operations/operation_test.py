@@ -2,7 +2,7 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import testing
-from keras_core.backend import keras_tensor
+from keras_core.backend.common import keras_tensor
 from keras_core.operations import numpy as knp
 from keras_core.operations import operation
 

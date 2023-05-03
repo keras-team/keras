@@ -4,7 +4,7 @@ from jax import numpy as jnp
 
 from keras_core import operations as ops
 from keras_core import testing
-from keras_core.backend import keras_tensor
+from keras_core.backend.common import keras_tensor
 
 
 class KerasTensorTest(testing.TestCase):

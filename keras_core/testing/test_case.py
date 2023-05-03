@@ -220,7 +220,7 @@ class TestCase(unittest.TestCase):
 
 
 def create_keras_tensors(input_shape, dtype):
-    from keras_core.backend import keras_tensor
+    from keras_core.backend.common import keras_tensor
 
     if isinstance(input_shape, tuple):
         return keras_tensor.KerasTensor(input_shape, dtype=dtype)

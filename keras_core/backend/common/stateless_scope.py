@@ -1,4 +1,4 @@
-from keras_core.backend import global_state
+from keras_core.backend.common import global_state
 from keras_core.backend.common.variables import KerasVariable
 from keras_core.backend.common.variables import initialize_all_variables
 

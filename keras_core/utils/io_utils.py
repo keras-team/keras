@@ -3,7 +3,7 @@ import sys
 from absl import logging
 
 from keras_core.api_export import keras_core_export
-from keras_core.backend import global_state
+from keras_core.backend.common import global_state
 
 
 @keras_core_export("keras_core.utils.enable_interactive_logging")

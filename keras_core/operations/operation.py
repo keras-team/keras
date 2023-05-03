@@ -4,7 +4,7 @@ import textwrap
 from tensorflow import nest
 
 from keras_core import backend
-from keras_core.backend.keras_tensor import any_symbolic_tensors
+from keras_core.backend.common.keras_tensor import any_symbolic_tensors
 from keras_core.operations.node import Node
 from keras_core.saving import serialization_lib
 from keras_core.utils import python_utils

@@ -1,5 +1,5 @@
-from keras_core.backend.global_state import get_global_attribute
-from keras_core.backend.global_state import set_global_attribute
+from keras_core.backend.common.global_state import get_global_attribute
+from keras_core.backend.common.global_state import set_global_attribute
 
 
 class DotNotTrackScope:

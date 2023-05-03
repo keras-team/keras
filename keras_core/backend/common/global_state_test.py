@@ -1,4 +1,4 @@
-from keras_core.backend import global_state
+from keras_core.backend.common import global_state
 from keras_core.testing import test_case
 from keras_core.utils.naming import auto_name
 

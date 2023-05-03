@@ -4,10 +4,10 @@ from tensorflow.experimental import numpy as tfnp
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
-from keras_core.backend.keras_tensor import KerasTensor
-from keras_core.backend.stateless_scope import StatelessScope
-from keras_core.backend.stateless_scope import get_stateless_scope
-from keras_core.backend.stateless_scope import in_stateless_scope
+from keras_core.backend.common.keras_tensor import KerasTensor
+from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.backend.common.stateless_scope import get_stateless_scope
+from keras_core.backend.common.stateless_scope import in_stateless_scope
 from keras_core.backend.tensorflow import math
 from keras_core.backend.tensorflow import nn
 from keras_core.backend.tensorflow import numpy

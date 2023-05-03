@@ -12,7 +12,7 @@ import tensorflow as tf
 from keras_core import api_export
 from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.backend import global_state
+from keras_core.backend.common import global_state
 from keras_core.saving import object_registration
 from keras_core.utils import python_utils
 

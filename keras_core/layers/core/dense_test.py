@@ -2,7 +2,7 @@ import numpy as np
 
 from keras_core import layers
 from keras_core import testing
-from keras_core.backend import keras_tensor
+from keras_core.backend.common import keras_tensor
 
 
 class DenseTest(testing.TestCase):

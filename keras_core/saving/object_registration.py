@@ -1,7 +1,7 @@
 import inspect
 
 from keras_core.api_export import keras_core_export
-from keras_core.backend import global_state
+from keras_core.backend.common import global_state
 
 GLOBAL_CUSTOM_OBJECTS = {}
 GLOBAL_CUSTOM_NAMES = {}
