@@ -5,3 +5,5 @@ black>=22
 flake8
 isort
 pytest
+pandas
+absl

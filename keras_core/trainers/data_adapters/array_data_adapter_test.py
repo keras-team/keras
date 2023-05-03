@@ -1,14 +1,17 @@
 import jax
 import numpy as np
+import pandas
 import tensorflow as tf
+from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import testing
 from keras_core.trainers.data_adapters import array_data_adapter
 
 
-class TestArrayDataAdapter(testing.TestCase):
-    def _test_basic_flow(self, array_type="np"):
+class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
+    @parameterized.parameters([("np",), ("tf",), ("pandas")])
+    def test_basic_flow(self, array_type):
         if array_type == "np":
             x = np.random.random((34, 4))
             y = np.random.random((34, 2))
@@ -19,8 +22,9 @@ class TestArrayDataAdapter(testing.TestCase):
             x = jax.numpy.ones((34, 4))
             y = jax.numpy.ones((34, 2))
         elif array_type == "pandas":
-            # TODO
-            raise ValueError("TODO")
+            x = pandas.DataFrame(np.random.random((34, 4)))
+            y = pandas.DataFrame(np.random.random((34, 2)))
+
         adapter = array_data_adapter.ArrayDataAdapter(
             x,
             y=y,
@@ -62,12 +66,6 @@ class TestArrayDataAdapter(testing.TestCase):
             else:
                 self.assertEqual(tuple(bx.shape), (2, 4))
                 self.assertEqual(tuple(by.shape), (2, 2))
-
-    def test_basic_flow_np(self):
-        self._test_basic_flow("np")
-
-    def test_basic_flow_tf(self):
-        self._test_basic_flow("tf")
 
     def test_multi_inputs_and_outputs(self):
         x1 = np.random.random((34, 1))
@@ -146,7 +144,8 @@ class TestArrayDataAdapter(testing.TestCase):
                 self.assertEqual(tuple(bw[0].shape), (2,))
                 self.assertEqual(tuple(bw[1].shape), (2,))
 
-    def _test_class_weights(self, target_encoding="int"):
+    @parameterized.parameters([("int",), ("categorical",)])
+    def test_class_weights(self, target_encoding):
         x = np.random.random((4, 2))
         if target_encoding == "int":
             y = np.array([[0], [1], [2], [3]], dtype="int32")
@@ -173,12 +172,6 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertEqual(len(batch), 3)
             _, _, bw = batch
             self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
-
-    def test_class_weights_int_targets(self):
-        self._test_class_weights(target_encoding="int")
-
-    def test_class_weights_categorical_targets(self):
-        self._test_class_weights(target_encoding="categorical")
 
     def test_errors(self):
         # TODO
