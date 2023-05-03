@@ -1,5 +1,5 @@
-from keras_core import operations as ops
 from keras_core import backend
+from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.pooling.base_global_pooling import BaseGlobalPooling
 
@@ -33,6 +33,7 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
             a given step should be masked (excluded from the average).
 
     Input shape:
+
     - If `data_format='channels_last'`:
         3D tensor with shape:
         `(batch_size, steps, features)`
@@ -41,19 +42,20 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
         `(batch_size, features, steps)`
 
     Output shape:
-    - If `keepdims`=False:
+
+    - If `keepdims=False`:
         2D tensor with shape `(batch_size, features)`.
-    - If `keepdims`=True:
+    - If `keepdims=True`:
         - If `data_format="channels_last"`:
             3D tensor with shape `(batch_size, 1, features)`
         - If `data_format="channels_first"`:
             3D tensor with shape `(batch_size, features, 1)`
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(2, 3, 4)
     >>> y = keras_core.layers.GlobalAveragePooling1D()(x)
-    >>> print(y.shape)
+    >>> y.shape
     (2, 4)
     """
 
@@ -79,6 +81,6 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
             ) / ops.sum(mask, axis=steps_axis, keepdims=self.keepdims)
         else:
             return ops.mean(inputs, axis=steps_axis, keepdims=self.keepdims)
-        
+
     def compute_mask(self, inputs, mask=None):
         return None

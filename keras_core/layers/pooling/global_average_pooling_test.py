@@ -109,7 +109,7 @@ class GlobalAveragePoolingCorrectnessTest(
         outputs = layer(inputs)
         expected = tf_keras_layer(inputs)
         self.assertAllClose(outputs, expected)
-        
+
         if data_format == "channels_last":
             mask = np.array([[1, 1, 0], [0, 1, 0]], dtype=np.int)
         else:

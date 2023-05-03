@@ -20,11 +20,15 @@ class MyDense(layers.Layer):
         w_shape = (input_dim, self.units)
         w_value = initializers.GlorotUniform()(w_shape)
         # State must be stored in backend.Variable objects.
-        self.w = backend.Variable(w_value, name="kernel")
+        self.w = backend.Variable(w_value, name="kernel", trainable=True)
 
-        b_shape = (self.units,)
-        b_value = initializers.Zeros()(b_shape)
-        self.b = backend.Variable(b_value, name="bias")
+        # You can also use add_weight
+        self.b = self.add_weight(
+            shape=(self.units,),
+            initializer="zeros",
+            name="bias",
+            trainable=True,
+        )
 
     def call(self, inputs):
         # Use Keras ops to create backend-agnostic layers/metrics/etc.
@@ -69,7 +73,7 @@ model = MyModel(hidden_dim=256, output_dim=16)
 x = np.random.random((50000, 128))
 y = np.random.random((50000, 16))
 batch_size = 32
-epochs = 10
+epochs = 5
 
 model.compile(
     optimizer=optimizers.SGD(learning_rate=0.001),

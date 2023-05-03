@@ -27,6 +27,7 @@ class GlobalMaxPooling1D(BaseGlobalPooling):
             The behavior is the same as for `tf.reduce_mean` or `np.mean`.
 
     Input shape:
+
     - If `data_format='channels_last'`:
         3D tensor with shape:
         `(batch_size, steps, features)`
@@ -35,19 +36,20 @@ class GlobalMaxPooling1D(BaseGlobalPooling):
         `(batch_size, features, steps)`
 
     Output shape:
-    - If `keepdims`=False:
+
+    - If `keepdims=False`:
         2D tensor with shape `(batch_size, features)`.
-    - If `keepdims`=True:
+    - If `keepdims=True`:
         - If `data_format="channels_last"`:
             3D tensor with shape `(batch_size, 1, features)`
         - If `data_format="channels_first"`:
             3D tensor with shape `(batch_size, features, 1)`
 
-    Examples:
+    Example:
 
     >>> x = np.random.rand(2, 3, 4)
     >>> y = keras_core.layers.GlobalMaxPooling1D()(x)
-    >>> print(y.shape)
+    >>> y.shape
     (2, 4)
     """
 
