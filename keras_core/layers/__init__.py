@@ -19,6 +19,18 @@ from keras_core.layers.merging.subtract import subtract
 from keras_core.layers.pooling.average_pooling1d import AveragePooling1D
 from keras_core.layers.pooling.average_pooling2d import AveragePooling2D
 from keras_core.layers.pooling.average_pooling3d import AveragePooling3D
+from keras_core.layers.pooling.global_average_pooling1d import (
+    GlobalAveragePooling1D,
+)
+from keras_core.layers.pooling.global_average_pooling2d import (
+    GlobalAveragePooling2D,
+)
+from keras_core.layers.pooling.global_average_pooling3d import (
+    GlobalAveragePooling3D,
+)
+from keras_core.layers.pooling.global_max_pooling1d import GlobalMaxPooling1D
+from keras_core.layers.pooling.global_max_pooling2d import GlobalMaxPooling2D
+from keras_core.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
 from keras_core.layers.pooling.max_pooling1d import MaxPooling1D
 from keras_core.layers.pooling.max_pooling2d import MaxPooling2D
 from keras_core.layers.pooling.max_pooling3d import MaxPooling3D
