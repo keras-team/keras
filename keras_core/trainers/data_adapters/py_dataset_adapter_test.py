@@ -7,6 +7,7 @@ from absl.testing import parameterized
 
 from keras_core import testing
 from keras_core.trainers.data_adapters import py_dataset_adapter
+from keras_core.utils.rng_utils import set_random_seed
 
 
 class ExamplePyDataset(py_dataset_adapter.PyDataset):
@@ -52,6 +53,7 @@ class PyDatasetAdapterTest(testing.TestCase, parameterized.TestCase):
     def test_basic_flow(
         self, shuffle, workers, use_multiprocessing, max_queue_size
     ):
+        set_random_seed(1337)
         x = np.random.random((64, 4))
         y = np.array([[i, i] for i in range(64)], dtype="float64")
         py_dataset = ExamplePyDataset(
