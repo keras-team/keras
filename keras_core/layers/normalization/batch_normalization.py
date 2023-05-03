@@ -48,13 +48,13 @@ class BatchNormalization(Layer):
     inference data*.
 
     Args:
-        axis: Integer, the axis that should be normalized (typically the features
-            axis). For instance, after a `Conv2D` layer with
-            `data_format="channels_first"`, set `axis=1` in `BatchNormalization`.
+        axis: Integer, the axis that should be normalized
+            (typically the features axis). For instance, after a `Conv2D` layer
+            with `data_format="channels_first"`, use `axis=1`.
         momentum: Momentum for the moving average.
         epsilon: Small float added to variance to avoid dividing by zero.
-        center: If `True`, add offset of `beta` to normalized tensor. If False,
-            `beta` is ignored.
+        center: If `True`, add offset of `beta` to normalized tensor.
+            If `False`, `beta` is ignored.
         scale: If `True`, multiply by `gamma`. If `False`, `gamma` is not used.
             When the next layer is linear this can be disabled
             since the scaling will be done by the next layer.
@@ -72,10 +72,11 @@ class BatchNormalization(Layer):
         inputs: Input tensor (of any rank).
         training: Python boolean indicating whether the layer should behave in
             training mode or in inference mode.
-            - `training=True`: The layer will normalize its inputs using the mean
-            and variance of the current batch of inputs.
-            - `training=False`: The layer will normalize its inputs using the mean
-            and variance of its moving statistics, learned during training.
+            - `training=True`: The layer will normalize its inputs using
+            the mean and variance of the current batch of inputs.
+            - `training=False`: The layer will normalize its inputs using
+            the mean and variance of its moving statistics,
+            learned during training.
 
     Reference:
 
