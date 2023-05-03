@@ -113,6 +113,7 @@ for data in dataset:
     print("Loss:", loss)
 
 # Post-processing model state update
+trainable_variables, non_trainable_variables, optimizer_variables = state
 for variable, value in zip(model.trainable_variables, trainable_variables):
     variable.assign(value)
 for variable, value in zip(
