@@ -20,6 +20,10 @@ def sigmoid(x):
     return tf.nn.sigmoid(x)
 
 
+def tanh(x):
+    return tf.nn.tanh(x)
+
+
 def softplus(x):
     return tf.math.softplus(x)
 

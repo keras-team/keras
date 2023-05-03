@@ -74,7 +74,7 @@ class Sigmoid(Operation):
         return backend.nn.sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def sigmoid(x):
@@ -83,12 +83,26 @@ def sigmoid(x):
     return backend.nn.sigmoid(x)
 
 
+class Tanh(Operation):
+    def call(self, x):
+        return backend.nn.tanh(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, x.dtype)
+
+
+def tanh(x):
+    if any_symbolic_tensors((x,)):
+        return Tanh().symbolic_call(x)
+    return backend.nn.tanh(x)
+
+
 class Softplus(Operation):
     def call(self, x):
         return backend.nn.softplus(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def softplus(x):
@@ -102,7 +116,7 @@ class Softsign(Operation):
         return backend.nn.softsign(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def softsign(x):
@@ -116,7 +130,7 @@ class Silu(Operation):
         return backend.nn.silu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def silu(x):
@@ -130,7 +144,7 @@ class Swish(Operation):
         return backend.nn.swish(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def swish(x):
@@ -144,7 +158,7 @@ class LogSigmoid(Operation):
         return backend.nn.log_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def log_sigmoid(x):
@@ -162,7 +176,7 @@ class LeakyRelu(Operation):
         return backend.nn.leaky_relu(x, self.negative_slope)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def leaky_relu(x, negative_slope=0.2):
@@ -176,7 +190,7 @@ class HardSigmoid(Operation):
         return backend.nn.hard_sigmoid(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def hard_sigmoid(x):
@@ -190,7 +204,7 @@ class Elu(Operation):
         return backend.nn.elu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def elu(x):
@@ -204,7 +218,7 @@ class Selu(Operation):
         return backend.nn.selu(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def selu(x):
@@ -222,7 +236,7 @@ class Gelu(Operation):
         return backend.nn.gelu(x, self.approximate)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def gelu(x, approximate=True):
@@ -240,13 +254,13 @@ class Softmax(Operation):
         return backend.nn.softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def softmax(x, axis=None):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
-    return backend.nn.softmax(x)
+    return backend.nn.softmax(x, axis=axis)
 
 
 class LogSoftmax(Operation):
@@ -258,7 +272,7 @@ class LogSoftmax(Operation):
         return backend.nn.log_softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape)
+        return KerasTensor(x.shape, x.dtype)
 
 
 def log_softmax(x, axis=None):

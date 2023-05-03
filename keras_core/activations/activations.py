@@ -267,7 +267,7 @@ def silu(x):
 
 
 @keras_core_export("keras_core.activations.gelu")
-def gelu(x):
+def gelu(x, approximate=False):
     """Gaussian error linear unit (GELU) activation function.
 
     The Gaussian error linear unit (GELU) is defined as:
@@ -280,12 +280,13 @@ def gelu(x):
 
     Args:
         x: Input tensor.
+        approximate: A `bool`, whether to enable approximation.
 
     Reference:
 
     - [Hendrycks et al., 2016](https://arxiv.org/abs/1606.08415)
     """
-    return ops.gelu(x)
+    return ops.gelu(x, approximate=approximate)
 
 
 @keras_core_export("keras_core.activations.tanh")
@@ -380,7 +381,7 @@ class Mish(ops.Operation):
 
     @staticmethod
     def static_call(x):
-        return x * backend.tanh(backend.softplus(x))
+        return x * backend.nn.tanh(backend.nn.softplus(x))
 
 
 @keras_core_export("keras_core.activations.mish")
