@@ -1809,9 +1809,6 @@ def _ragged_tensor_mae(y_true, y_pred):
 
 
 @keras_export(
-    "keras.metrics.scale_invariant_error",
-    "keras.metrics.sie",
-    "keras.metrics.SIE",
     "keras.losses.scale_invariant_error",
     "keras.losses.sie",
     "keras.losses.SIE",
