@@ -51,7 +51,6 @@ class SGD(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="SGD",
-        **kwargs
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -63,7 +62,6 @@ class SGD(optimizer.Optimizer):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
-            **kwargs
         )
         if not isinstance(momentum, float) or momentum < 0 or momentum > 1:
             raise ValueError("`momentum` must be a float between [0, 1].")

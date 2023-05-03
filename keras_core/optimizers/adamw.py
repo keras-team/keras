@@ -64,7 +64,6 @@ class AdamW(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="adamw",
-        **kwargs
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -75,7 +74,6 @@ class AdamW(optimizer.Optimizer):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
-            **kwargs
         )
         self.weight_decay = weight_decay
         self.beta_1 = beta_1
