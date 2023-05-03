@@ -1,5 +1,4 @@
 from keras_core.layers.activations.activation import Activation
-from keras_core.layers.core.activation import Activation
 from keras_core.layers.core.dense import Dense
 from keras_core.layers.core.embedding import Embedding
 from keras_core.layers.core.input_layer import Input
