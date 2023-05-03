@@ -42,6 +42,10 @@ try:
 except ImportError:
     h5py = None
 
+keras_saving_gauge = tf.__internal__.monitoring.BoolGauge(
+    "/tensorflow/api/keras/saving", "keras saving usage", "method"
+)
+
 # isort: off
 
 _CONFIG_FILENAME = "config.json"
@@ -129,7 +133,7 @@ def save_model(model, filepath, weights_format="h5"):
     """
 
     # API usage tracking for Keras V3 saving
-    base_layer.keras_api_gauge.get_cell("save_model_v3").set(True)
+    keras_saving_gauge.get_cell("save_model_v3").set(True)
 
     filepath = str(filepath)
     if not filepath.endswith(".keras"):
@@ -292,7 +296,7 @@ def save_weights_only(model, filepath):
     # then upload it
 
     # API usage tracking for Keras V3 saving
-    base_layer.keras_api_gauge.get_cell("save_weights_v3").set(True)
+    keras_saving_gauge.get_cell("save_weights_v3").set(True)
 
     filepath = str(filepath)
     if not filepath.endswith(".weights.h5"):
