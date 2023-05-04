@@ -332,3 +332,71 @@ class LayerTest(testing.TestCase):
         x2._keras_mask = backend.numpy.ones((4,))
         layer((x1_1, x1_2), x2)
         layer(x1=(x1_1, x1_2), x2=x2)
+
+    def test_stateless_call(self):
+        class TestLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._seed_generator = backend.random.SeedGenerator(1337)
+                self.ntw = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                    trainable=False,
+                )
+                self.tw = self.add_weight(
+                    shape=(),
+                    initializer="zeros",
+                    trainable=True,
+                )
+                self.built = True
+
+            def call(self, x):
+                x = backend.convert_to_tensor(x, dtype="float32")
+                self.add_loss(ops.sum(x))
+                self.ntw.assign(ops.sum(x))
+                x = x + backend.random.normal(
+                    shape=(), seed=self._seed_generator
+                )
+                return x + self.tw + self.ntw
+
+        data = np.random.random((3, 4))
+        layer = TestLayer()
+        out = layer(data)
+        layer1 = TestLayer()
+        out1 = layer1(data)
+        # Check that the layer is in fact deterministic
+        self.assertAllClose(out, out1)
+
+        # Test stateless_call correctness
+        layer2 = TestLayer()
+        trainable_variables = layer2.trainable_variables
+        non_trainable_variables = layer2.non_trainable_variables
+        out2, non_trainable_variables = layer2.stateless_call(
+            trainable_variables, non_trainable_variables, data
+        )
+        self.assertAllClose(out1, out2)
+        self.assertEqual(
+            len(layer1.non_trainable_variables), len(non_trainable_variables)
+        )
+        for ref_v, v in zip(
+            layer1.non_trainable_variables, non_trainable_variables
+        ):
+            self.assertAllClose(ref_v, v)
+
+        # Test with loss collection
+        layer3 = TestLayer()
+        trainable_variables = layer3.trainable_variables
+        non_trainable_variables = layer3.non_trainable_variables
+        out3, non_trainable_variables, losses = layer3.stateless_call(
+            trainable_variables,
+            non_trainable_variables,
+            data,
+            return_losses=True,
+        )
+        self.assertAllClose(out1, out3)
+        for ref_v, v in zip(
+            layer1.non_trainable_variables, non_trainable_variables
+        ):
+            self.assertAllClose(ref_v, v)
+        for ref_loss, loss in zip(layer1.losses, losses):
+            self.assertAllClose(ref_loss, loss)

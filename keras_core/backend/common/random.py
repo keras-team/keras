@@ -28,7 +28,8 @@ def draw_seed(seed):
     from keras_core.backend import convert_to_tensor
 
     if isinstance(seed, SeedGenerator):
-        new_seed_value = seed.state.value
+        # Use * 1 to create a copy
+        new_seed_value = seed.state.value * 1
         seed.state.assign(
             seed.state + convert_to_tensor([0, 1], dtype="uint32")
         )
