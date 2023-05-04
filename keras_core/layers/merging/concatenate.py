@@ -38,6 +38,7 @@ class Concatenate(Merge):
         self._reshape_required = False
 
     def build(self, input_shape):
+        super().build(input_shape)
         # Used purely for shape validation.
         if len(input_shape) < 1 or not isinstance(input_shape[0], tuple):
             raise ValueError(

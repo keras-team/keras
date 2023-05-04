@@ -563,3 +563,155 @@ class MergingLayersTest(testing.TestCase):
             ValueError, " should have the same length."
         ):
             merge_layer.compute_mask([input_1, input_2], [None])
+
+    def test_concatenate_basic(self):
+        self.run_layer_test(
+            layers.Concatenate,
+            init_kwargs={"axis": 1},
+            input_shape=[(2, 3), (2, 3)],
+            expected_output_shape=(2, 6),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
+
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
+    def test_concatenate_correctness_dynamic(self):
+        x1 = np.random.rand(2, 4, 5)
+        x2 = np.random.rand(2, 4, 5)
+        axis = 1
+
+        x3 = ops.concatenate([x1, x2], axis=axis)
+
+        input_1 = layers.Input(shape=(4, 5))
+        input_2 = layers.Input(shape=(4, 5))
+        merge_layer = layers.Concatenate(axis=axis)
+        out = merge_layer([input_1, input_2])
+        model = models.Model([input_1, input_2], out)
+        res = model([x1, x2])
+
+        self.assertEqual(res.shape, (2, 8, 5))
+        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertIsNone(
+            merge_layer.compute_mask([input_1, input_2], [None, None])
+        )
+        self.assertTrue(
+            np.all(
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
+                )
+            )
+        )
+
+    def test_concatenate_correctness_static(self):
+        batch_size = 2
+        shape = (4, 5)
+        axis = 1
+        x1 = np.random.rand(batch_size, *shape)
+        x2 = np.random.rand(batch_size, *shape)
+        x3 = ops.concatenate([x1, x2], axis=axis)
+
+        input_1 = layers.Input(shape=shape, batch_size=batch_size)
+        input_2 = layers.Input(shape=shape, batch_size=batch_size)
+        merge_layer = layers.Concatenate(axis=axis)
+        out = merge_layer([input_1, input_2])
+        model = models.Model([input_1, input_2], out)
+        res = model([x1, x2])
+
+        self.assertEqual(res.shape, (batch_size, 8, 5))
+        self.assertAllClose(res, x3, atol=1e-4)
+        self.assertIsNone(
+            merge_layer.compute_mask([input_1, input_2], [None, None])
+        )
+        self.assertTrue(
+            np.all(
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [x1, x2],
+                )
+            )
+        )
+
+    def test_concatenate_errors(self):
+        batch_size = 2
+        shape = (4, 5)
+        axis = 1
+        x1 = np.random.rand(batch_size, *shape)
+
+        input_1 = layers.Input(shape=shape, batch_size=batch_size)
+        input_2 = layers.Input(shape=shape, batch_size=batch_size)
+        merge_layer = layers.Concatenate(axis=axis)
+
+        with self.assertRaisesRegex(ValueError, "`mask` should be a list."):
+            merge_layer.compute_mask([input_1, input_2], x1)
+
+        with self.assertRaisesRegex(ValueError, "`inputs` should be a list."):
+            merge_layer.compute_mask(input_1, [None, None])
+
+        with self.assertRaisesRegex(
+            ValueError, " should have the same length."
+        ):
+            merge_layer.compute_mask([input_1, input_2], [None])
+
+    def test_dot_basic(self):
+        self.run_layer_test(
+            layers.Dot,
+            init_kwargs={"axes": -1},
+            input_shape=[(4, 3), (4, 3)],
+            expected_output_shape=(4, 1),
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=None,
+        )
+
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
+    def test_dot_correctness_dynamic(self):
+        x1 = np.random.rand(2, 4)
+        x2 = np.random.rand(2, 4)
+        axes = 1
+
+        expected = np.zeros((2, 1))
+        expected[0, 0] = np.dot(x1[0], x2[0])
+        expected[1, 0] = np.dot(x1[1], x2[1])
+
+        input_1 = layers.Input(shape=(4,))
+        input_2 = layers.Input(shape=(4,))
+        merge_layer = layers.Dot(axes=axes)
+        out = merge_layer([input_1, input_2])
+        model = models.Model([input_1, input_2], out)
+        res = model([x1, x2])
+
+        self.assertEqual(res.shape, (2, 1))
+        self.assertAllClose(res, expected, atol=1e-4)
+
+    def test_dot_correctness_static(self):
+        batch_size = 2
+        shape = (4,)
+        axes = 1
+
+        x1 = np.random.rand(2, 4)
+        x2 = np.random.rand(2, 4)
+        expected = np.zeros((2, 1))
+        expected[0, 0] = np.dot(x1[0], x2[0])
+        expected[1, 0] = np.dot(x1[1], x2[1])
+
+        input_1 = layers.Input(shape=shape, batch_size=batch_size)
+        input_2 = layers.Input(shape=shape, batch_size=batch_size)
+        merge_layer = layers.Dot(axes=axes)
+        out = merge_layer([input_1, input_2])
+        model = models.Model([input_1, input_2], out)
+        res = model([x1, x2])
+
+        self.assertEqual(res.shape, (2, 1))
+        self.assertAllClose(res, expected, atol=1e-4)
