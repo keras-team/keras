@@ -51,15 +51,15 @@ class HashedCrossing(base_layer.Layer):
 
     Args:
       num_bins: Number of hash bins.
-      output_mode: Specification for the output of the layer. Defaults to
-        `"int"`.  Values can be `"int"`, or `"one_hot"` configuring the layer as
-        follows:
+      output_mode: Specification for the output of the layer. Values can be
+        `"int"`, or `"one_hot"` configuring the layer as follows:
           - `"int"`: Return the integer bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
             array the same size as `num_bins`, containing a 1 at the input's bin
             index.
+        Defaults to `"int"`.
       sparse: Boolean. Only applicable to `"one_hot"` mode. If True, returns a
-        `SparseTensor` instead of a dense `Tensor`. Defaults to False.
+        `SparseTensor` instead of a dense `Tensor`. Defaults to `False`.
       **kwargs: Keyword arguments to construct a layer.
 
     Examples:
