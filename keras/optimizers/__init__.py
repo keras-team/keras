@@ -87,6 +87,8 @@ def serialize(optimizer, use_legacy_format=False):
     Returns:
       Python dict which contains the configuration of the input optimizer.
     """
+    if optimizer is None:
+        return None
     if not isinstance(
         optimizer,
         (

@@ -139,6 +139,8 @@ def serialize(metric, use_legacy_format=False):
     Returns:
       Metric configuration dictionary.
     """
+    if metric is None:
+        return None
     if not isinstance(metric, Metric):
         warnings.warn(
             "The `keras.metrics.serialize()` API should only be used for "

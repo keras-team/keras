@@ -359,6 +359,8 @@ unitnorm = unit_norm
 
 @keras_export("keras.constraints.serialize")
 def serialize(constraint, use_legacy_format=False):
+    if constraint is None:
+        return None
     if not isinstance(constraint, Constraint):
         warnings.warn(
             "The `keras.constraints.serialize()` API should only be used for "
