@@ -233,7 +233,7 @@ class Dot(Merge):
     `(2, 3, 5)` and `(2, 10, 3)`. The batch dimension should be
     of same size for both the inputs, and `axes` should correspond
     to the dimensions that have the same size in the corresponding
-    inputs. e.g. with `axes=[1, 2]`, the dot product of `x`, and `y`
+    inputs. e.g. with `axes=(1, 2)`, the dot product of `x`, and `y`
     will result in a tensor with shape `(2, 5, 10)`
 
     Examples:
@@ -255,8 +255,9 @@ class Dot(Merge):
             desired axis from the second input, respectively. Note that the
             size of the two selected axes must match.
         normalize: Whether to L2-normalize samples along the dot product axis
-            before taking the dot product. If set to True, then the output of
-            the dot product is the cosine proximity between the two samples.
+            before taking the dot product. If set to `True`, then
+            the output of the dot product is the cosine proximity
+            between the two samples.
         **kwargs: Standard layer keyword arguments.
 
     Returns:
