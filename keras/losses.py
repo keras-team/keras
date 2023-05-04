@@ -2854,6 +2854,8 @@ def serialize(loss, use_legacy_format=False):
     Returns:
       Loss configuration dictionary.
     """
+    if loss is None:
+        return None
     if not isinstance(loss, Loss):
         warnings.warn(
             "The `keras.losses.serialize()` API should only be used for "

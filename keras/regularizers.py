@@ -420,6 +420,8 @@ orthogonal_regularizer = OrthogonalRegularizer
 
 @keras_export("keras.regularizers.serialize")
 def serialize(regularizer, use_legacy_format=False):
+    if regularizer is None:
+        return None
     if not isinstance(regularizer, Regularizer):
         warnings.warn(
             "The `keras.regularizers.serialize()` API should only be used for "

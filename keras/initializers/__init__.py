@@ -138,6 +138,8 @@ globals().update(LOCAL.ALL_OBJECTS)
 @keras_export("keras.initializers.serialize")
 def serialize(initializer, use_legacy_format=False):
     populate_deserializable_objects()
+    if initializer is None:
+        return None
     if not isinstance(initializer, tuple(LOCAL.ALL_OBJECTS.values())):
         warnings.warn(
             "The `keras.initializers.serialize()` API should only be used for "
