@@ -877,6 +877,9 @@ def get_shapes_dict(call_spec):
     """
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
+        if k == "mask" or k.startswith("mask_"):
+            # Do not include mask tensors in shapes dict
+            continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = nest.map_structure(
                 lambda x: backend.standardize_shape(x.shape), v

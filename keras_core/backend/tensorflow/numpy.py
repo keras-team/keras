@@ -50,6 +50,10 @@ def all(x, axis=None, keepdims=False):
     return tfnp.all(x, axis=axis, keepdims=keepdims)
 
 
+def any(x, axis=None, keepdims=False):
+    return tfnp.any(x, axis=axis, keepdims=keepdims)
+
+
 def amax(x, axis=None, keepdims=False):
     return tfnp.amax(x, axis=axis, keepdims=keepdims)
 

@@ -644,6 +644,14 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.all(x, axis=1).shape, (None, 3))
         self.assertEqual(knp.all(x, axis=1, keepdims=True).shape, (None, 1, 3))
 
+    def test_any(self):
+        x = KerasTensor([None, 3])
+        self.assertEqual(knp.any(x).shape, ())
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(knp.any(x, axis=1).shape, (None, 3))
+        self.assertEqual(knp.any(x, axis=1, keepdims=True).shape, (None, 1, 3))
+
     def test_var(self):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.var(x).shape, ())
@@ -1110,6 +1118,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_all(self):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.all(x).shape, ())
+
+    def test_any(self):
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.any(x).shape, ())
 
     def test_var(self):
         x = KerasTensor([2, 3])
@@ -2083,6 +2095,22 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             np.array(knp.All(axis=1, keepdims=True)(x)),
             np.all(x, axis=1, keepdims=True),
+        )
+
+    def test_any(self):
+        x = np.array([[True, False, True], [True, True, True]])
+        self.assertAllClose(np.array(knp.any(x)), np.any(x))
+        self.assertAllClose(np.array(knp.any(x, axis=1)), np.any(x, axis=1))
+        self.assertAllClose(
+            np.array(knp.any(x, axis=1, keepdims=True)),
+            np.any(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(np.array(knp.Any()(x)), np.any(x))
+        self.assertAllClose(np.array(knp.Any(axis=1)(x)), np.any(x, axis=1))
+        self.assertAllClose(
+            np.array(knp.Any(axis=1, keepdims=True)(x)),
+            np.any(x, axis=1, keepdims=True),
         )
 
     def test_var(self):

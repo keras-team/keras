@@ -283,7 +283,7 @@ class All(Operation):
                 axis=self.axis,
                 keepdims=self.keepdims,
             ),
-            dtype=x.dtype,
+            dtype="bool",
         )
 
 
@@ -291,6 +291,39 @@ def all(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return All(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
+
+
+class Any(Operation):
+    def __init__(self, axis=None, keepdims=False):
+        super().__init__()
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.any(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(
+                x.shape,
+                axis=self.axis,
+                keepdims=self.keepdims,
+            ),
+            dtype="bool",
+        )
+
+
+def any(x, axis=None, keepdims=False):
+    if any_symbolic_tensors((x,)):
+        return Any(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.any(x, axis=axis, keepdims=keepdims)
 
 
 class Amax(Operation):

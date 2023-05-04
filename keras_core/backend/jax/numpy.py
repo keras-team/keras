@@ -49,6 +49,10 @@ def all(x, axis=None, keepdims=False):
     return jnp.all(x, axis=axis, keepdims=keepdims)
 
 
+def any(x, axis=None, keepdims=False):
+    return jnp.any(x, axis=axis, keepdims=keepdims)
+
+
 def amax(x, axis=None, keepdims=False):
     return jnp.amax(x, axis=axis, keepdims=keepdims)
 

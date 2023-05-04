@@ -52,8 +52,8 @@ class Operation:
         except Exception as e:
             raise RuntimeError(
                 "Could not automatically infer the output shape / dtype of "
-                "this operation. "
-                "Please implement the `compute_output_spec` method "
+                f"operation '{self.name}'. "
+                "Please implement the `compute_output_spec()` method "
                 f"on your object ({self.__class__.__name__}). "
                 f"Error encountered: {e}"
             )
