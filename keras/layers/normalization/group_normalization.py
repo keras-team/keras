@@ -50,18 +50,19 @@ class GroupNormalization(Layer):
     Args:
       groups: Integer, the number of groups for Group Normalization. Can be in
         the range [1, N] where N is the input dimension. The input dimension
-        must be divisible by the number of groups. Defaults to 32.
+        must be divisible by the number of groups. Defaults to `32`.
       axis: Integer or List/Tuple. The axis or axes to normalize across.
-        Typically this is the features axis/axes. The left-out axes are
-        typically the batch axis/axes. This argument defaults to `-1`, the last
-        dimension in the input.
+        Typically, this is the features axis/axes. The left-out axes are
+        typically the batch axis/axes. `-1` is the last dimension in the
+        input. Defaults to `-1`.
       epsilon: Small float added to variance to avoid dividing by zero. Defaults
         to 1e-3
       center: If True, add offset of `beta` to normalized tensor. If False,
-        `beta` is ignored. Defaults to True.
+        `beta` is ignored. Defaults to `True`.
       scale: If True, multiply by `gamma`. If False, `gamma` is not used.
-        Defaults to True. When the next layer is linear (also e.g. `nn.relu`),
-        this can be disabled since the scaling will be done by the next layer.
+        When the next layer is linear (also e.g. `nn.relu`), this can be
+        disabled since the scaling will be done by the next layer.
+        Defaults to `True`.
       beta_initializer: Initializer for the beta weight. Defaults to zeros.
       gamma_initializer: Initializer for the gamma weight. Defaults to ones.
       beta_regularizer: Optional regularizer for the beta weight. None by

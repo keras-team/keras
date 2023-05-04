@@ -338,6 +338,7 @@ def build_pip_package(
     src_directory,
     dist_directory,
     is_nightly=False,
+    rc=None,
 ):
     # Build Keras with Bazel to get the protobuf .py files
     os.chdir(keras_root_directory)
@@ -383,6 +384,8 @@ def build_pip_package(
     if is_nightly:
         date = datetime.datetime.now()
         version += f".dev{date.strftime('%Y%m%d%H')}"
+    elif rc:
+        version += rc
     with open(os.path.join(package_directory, "__init__.py")) as f:
         init_contents = f.read()
     with open(os.path.join(package_directory, "__init__.py"), "w") as f:
@@ -455,8 +458,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether this is for the `keras-nightly` package.",
     )
+    parser.add_argument(
+        "--RC",
+        type=str,
+        help="Whether this is for the release candidate.",
+    )
     args = parser.parse_args()
     is_nightly = args.nightly
+    rc = args.RC
 
     build_directory = os.path.join(tempfile.gettempdir(), TMP_BUILD_DIRNAME)
     keras_root_directory = pathlib.Path(__file__).parent.resolve()
@@ -471,7 +480,8 @@ if __name__ == "__main__":
             f"dist_directory={dist_directory}\n"
             f"package_directory={package_directory}\n"
             f"src_directory={src_directory}\n"
-            f"is_nightly={is_nightly}"
+            f"is_nightly={is_nightly}\n"
+            f"rc={rc}"
         )
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
@@ -487,6 +497,7 @@ if __name__ == "__main__":
             src_directory,
             dist_directory,
             is_nightly,
+            rc,
         )
         wheel_filename = [f for f in saved_filenames if f.endswith(".whl")][0]
         if VERBOSE:
