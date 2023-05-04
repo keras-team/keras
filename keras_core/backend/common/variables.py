@@ -1,5 +1,5 @@
+from keras_core.backend import config
 from keras_core.backend.common import global_state
-from keras_core.backend.config import floatx
 from keras_core.utils.naming import auto_name
 
 
@@ -333,8 +333,13 @@ ALLOWED_DTYPES = {
 
 
 def standardize_dtype(dtype):
+    if dtype == "int":
+        if config.backend() == "tensorflow":
+            dtype = "int64"
+        else:
+            dtype = "int32"
     if dtype is None:
-        return floatx()
+        return config.floatx()
     if hasattr(dtype, "name"):
         dtype = dtype.name
     if dtype not in ALLOWED_DTYPES:

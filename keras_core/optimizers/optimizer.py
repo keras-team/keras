@@ -61,8 +61,10 @@ class Optimizer:
             )
 
         self.built = False
+        # Note: dtype="int" will resolve to int32 in JAX
+        # (since int64 is disallowed in JAX) and to int64 in TF.
         self.iterations = backend.Variable(
-            0, name="iteration", dtype="int64", trainable=False
+            0, name="iteration", dtype="int", trainable=False
         )
         if isinstance(
             learning_rate, learning_rate_schedule.LearningRateSchedule
