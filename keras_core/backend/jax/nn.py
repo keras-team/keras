@@ -380,6 +380,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+
     if from_logits:
         log_prob = jax.nn.log_softmax(output, axis=axis)
     else:

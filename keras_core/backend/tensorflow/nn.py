@@ -17,7 +17,10 @@ def relu6(x):
 
 
 def sigmoid(x):
-    return tf.nn.sigmoid(x)
+    logits = x
+    output = tf.nn.sigmoid(x)
+    output._keras_logits = logits
+    return output
 
 
 def tanh(x):
@@ -66,7 +69,10 @@ def gelu(x, approximate=True):
 
 
 def softmax(x, axis=None):
-    return tf.nn.softmax(x, axis=axis)
+    logits = x
+    output = tf.nn.softmax(x, axis=axis)
+    output._keras_logits = logits
+    return output
 
 
 def log_softmax(x, axis=None):
