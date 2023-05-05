@@ -223,6 +223,39 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         self.assertAllClose(0.26082, result, atol=1e-5)
 
 
+class RootMeanSquaredErrorTest(testing.TestCase):
+    def test_config(self):
+        rmse_obj = metrics.RootMeanSquaredError(name="rmse", dtype="int32")
+        self.assertEqual(rmse_obj.name, "rmse")
+        self.assertEqual(rmse_obj._dtype, "int32")
+
+        rmse_obj2 = metrics.RootMeanSquaredError.from_config(
+            rmse_obj.get_config()
+        )
+        self.assertEqual(rmse_obj2.name, "rmse")
+        self.assertEqual(rmse_obj2._dtype, "int32")
+
+    def test_unweighted(self):
+        rmse_obj = metrics.RootMeanSquaredError()
+        y_true = np.array([2, 4, 6])
+        y_pred = np.array([1, 3, 2])
+
+        rmse_obj.update_state(y_true, y_pred)
+        result = rmse_obj.result()
+        # error = [-1, -1, -4], square(error) = [1, 1, 16], mean = 18/3 = 6
+        self.assertAllClose(np.sqrt(6), result, atol=1e-3)
+
+    def test_weighted(self):
+        rmse_obj = metrics.RootMeanSquaredError()
+        y_true = np.array([2, 4, 6])
+        y_pred = np.array([1, 3, 2])
+        y_true = np.array([2, 4, 6, 8])
+        y_pred = np.array([1, 3, 2, 3])
+        sample_weight = np.array([0, 1, 0, 1])
+        result = rmse_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(np.sqrt(13), result, atol=1e-3)
+
+
 class LogCoshErrorTest(testing.TestCase):
     def setup(self):
         y_true = np.asarray([[1, 9, 2], [-5, -2, 6]], dtype=np.float32)

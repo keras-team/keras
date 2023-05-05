@@ -174,6 +174,72 @@ class MeanSquaredLogarithmicError(reduction_metrics.MeanMetricWrapper):
         return {"name": self.name, "dtype": self.dtype}
 
 
+@keras_core_export("keras_core.metrics.RootMeanSquaredError")
+class RootMeanSquaredError(reduction_metrics.Mean):
+    """Computes root mean squared error metric between `y_true` and `y_pred`.
+
+    Formula:
+
+    ```python
+    loss = sqrt(mean((y_pred-y_true)^2))
+    ```
+
+    Args:
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Examples:
+
+    Standalone usage:
+
+    >>> m = keras_core.metrics.RootMeanSquaredError()
+    >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]])
+    >>> m.result()
+    0.5
+
+    >>> m.reset_state()
+    >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
+    ...                sample_weight=[1, 0])
+    >>> m.result().numpy()
+    0.70710677
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        metrics=[keras_core.metrics.RootMeanSquaredError()])
+    ```
+    """
+
+    def __init__(self, name="root_mean_squared_error", dtype=None):
+        super().__init__(name, dtype=dtype)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates root mean squared error statistics.
+
+        Args:
+            y_true: The ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional weighting of each example. Can
+                be a `Tensor` whose rank is either 0, or the same rank as
+                `y_true`, and must be broadcastable to `y_true`.
+                Defaults to `1`.
+
+        Returns:
+            Update op.
+        """
+        y_true = ops.convert_to_tensor(y_true, self._dtype)
+        y_pred = ops.convert_to_tensor(y_pred, self._dtype)
+        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        error_sq = ops.square(y_pred - y_true)
+        return super().update_state(error_sq, sample_weight=sample_weight)
+
+    def result(self):
+        return ops.sqrt(super().result())
+
+
 @keras_core_export("keras_core.metrics.CosineSimilarity")
 class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
     """Computes the cosine similarity between the labels and predictions.

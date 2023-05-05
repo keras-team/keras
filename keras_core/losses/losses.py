@@ -226,7 +226,7 @@ class LogCosh(LossFunctionWrapper):
 
     ```python
     error = y_pred - y_true
-    logcosh = log((exp(error) + exp(-error))/2)`
+    logcosh = mean(log((exp(error) + exp(-error))/2), axis=-1)`
     ```
     where x is the error `y_pred - y_true`.
 
