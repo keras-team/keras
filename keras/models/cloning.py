@@ -484,12 +484,13 @@ def clone_model(model, input_tensors=None, clone_function=None):
             model (except `InputLayer` instances). It takes as argument the
             layer instance to be cloned, and returns the corresponding layer
             instance to be used in the model copy. If unspecified, this callable
-            defaults to the following serialization/deserialization function:
+            becomes the following serialization/deserialization function:
             `lambda layer: layer.__class__.from_config(layer.get_config())`.
             By passing a custom callable, you can customize your copy of the
             model, e.g. by wrapping certain layers of interest (you might want
             to replace all `LSTM` instances with equivalent
             `Bidirectional(LSTM(...))` instances, for example).
+            Defaults to `None`.
 
     Returns:
       An instance of `Model` reproducing the behavior
