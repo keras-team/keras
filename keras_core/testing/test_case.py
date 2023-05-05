@@ -17,14 +17,14 @@ class TestCase(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
-    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6):
+    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
 
-    def assertAlmostEqual(self, x1, x2, decimal=3):
+    def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
         np.testing.assert_almost_equal(x1, x2, decimal=decimal)
 
-    def assertLen(self, iterable, expected_len):
-        np.testing.assert_equal(len(iterable), expected_len)
+    def assertLen(self, iterable, expected_len, msg=None):
+        self.assertEqual(len(iterable), expected_len, msg=msg)
 
     def run_class_serialization_test(self, instance, custom_objects=None):
         from keras_core.saving import custom_object_scope
@@ -142,54 +142,87 @@ class TestCase(unittest.TestCase):
 
         # Basic masking test.
         if supports_masking is not None:
-            self.assertEqual(layer.supports_masking, supports_masking)
+            self.assertEqual(
+                layer.supports_masking,
+                supports_masking,
+                msg="Unexpected supports_masking value",
+            )
 
         def run_build_asserts(layer):
             self.assertTrue(layer.built)
             if expected_num_trainable_weights is not None:
                 self.assertLen(
-                    layer.trainable_weights, expected_num_trainable_weights
+                    layer.trainable_weights,
+                    expected_num_trainable_weights,
+                    msg="Unexpected number of trainable_weights",
                 )
             if expected_num_non_trainable_weights is not None:
                 self.assertLen(
                     layer.non_trainable_weights,
                     expected_num_non_trainable_weights,
+                    msg="Unexpected number of non_trainable_weights",
                 )
             if expected_num_seed_generators is not None:
                 self.assertLen(
-                    layer._seed_generators, expected_num_seed_generators
+                    layer._seed_generators,
+                    expected_num_seed_generators,
+                    msg="Unexpected number of _seed_generators",
                 )
 
         def run_output_asserts(layer, output, eager=False):
             if expected_output_shape is not None:
                 if isinstance(expected_output_shape, tuple):
-                    self.assertEqual(expected_output_shape, output.shape)
+                    self.assertEqual(
+                        expected_output_shape,
+                        output.shape,
+                        msg="Unexpected output shape",
+                    )
                 elif isinstance(expected_output_shape, dict):
                     self.assertTrue(isinstance(output, dict))
                     self.assertEqual(
-                        set(output.keys()), set(expected_output_shape.keys())
+                        set(output.keys()),
+                        set(expected_output_shape.keys()),
+                        msg="Unexpected output dict keys",
                     )
                     output_shape = {
                         k: v.shape for k, v in expected_output_shape.items()
                     }
-                    self.assertEqual(expected_output_shape, output_shape)
+                    self.assertEqual(
+                        expected_output_shape,
+                        output_shape,
+                        msg="Unexpected output shape",
+                    )
                 elif isinstance(expected_output_shape, list):
                     self.assertTrue(isinstance(output, list))
                     self.assertEqual(
-                        len(output.keys()), len(expected_output_shape.keys())
+                        len(output.keys()),
+                        len(
+                            expected_output_shape.keys(),
+                            msg="Unexpected number of outputs",
+                        ),
                     )
                     output_shape = [v.shape for v in expected_output_shape]
-                    self.assertEqual(expected_output_shape, output_shape)
+                    self.assertEqual(
+                        expected_output_shape,
+                        output_shape,
+                        msg="Unexpected output shape",
+                    )
                 if expected_output_dtype is not None:
                     output_dtype = nest.flatten(output)[0].dtype
-                    self.assertEqual(expected_output_dtype, output_dtype)
+                    self.assertEqual(
+                        expected_output_dtype,
+                        output_dtype,
+                        msg="Unexpected output dtype",
+                    )
             if eager:
                 if expected_output is not None:
                     self.assertEqual(type(expected_output), type(output))
                     for ref_v, v in zip(
                         nest.flatten(expected_output), nest.flatten(output)
                     ):
-                        self.assertAllClose(ref_v, v)
+                        self.assertAllClose(
+                            ref_v, v, msg="Unexpected output value"
+                        )
                 if expected_num_losses is not None:
                     self.assertLen(layer.losses, expected_num_losses)
 

@@ -181,7 +181,7 @@ class RootMeanSquaredError(reduction_metrics.Mean):
     Formula:
 
     ```python
-    loss = sqrt(mean((y_pred-y_true)^2))
+    loss = sqrt(mean((y_pred - y_true) ** 2))
     ```
 
     Args:

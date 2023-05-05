@@ -8,7 +8,8 @@ class ELU(Layer):
     """Applies an Exponential Linear Unit function to an output.
 
     Formula:
-    ```python
+
+    ```
     f(x) = (exp(x) - 1.) for x < 0
     f(x) = x for x >= 0
     ```
