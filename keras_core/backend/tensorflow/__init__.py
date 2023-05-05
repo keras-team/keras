@@ -8,6 +8,7 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope
+from keras_core.backend.tensorflow import image
 from keras_core.backend.tensorflow import math
 from keras_core.backend.tensorflow import nn
 from keras_core.backend.tensorflow import numpy
