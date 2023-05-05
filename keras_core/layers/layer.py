@@ -528,6 +528,23 @@ class Layer(Operation):
                 # More than one shape: pass them by name.
                 output_shape = self.compute_output_shape(**shapes_dict)
             if (
+                isinstance(output_shape, list)
+                and output_shape
+                and isinstance(output_shape[0], (int, type(None)))
+            ):
+                output_shape = tuple(output_shape)
+            if not isinstance(output_shape, (list, tuple, dict)):
+                try:
+                    output_shape = tuple(output_shape)
+                except:
+                    raise ValueError(
+                        "Method `compute_output_shape()` of layer "
+                        f"{self.__class__.__name__} is returning "
+                        "a type that cannot be interpreted as a shape. "
+                        "It should return a shape tuple. "
+                        f"Received: {output_shape}"
+                    )
+            if (
                 isinstance(output_shape, tuple)
                 and output_shape
                 and isinstance(output_shape[0], (int, type(None)))
