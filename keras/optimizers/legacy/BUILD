@@ -8,8 +8,6 @@ package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
         "//keras:friends",
-        "//third_party/tensorflow/python:__pkg__",
-        "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/trackable:__pkg__",
     ],
     licenses = ["notice"],
