@@ -74,8 +74,7 @@ def _update_confusion_matrix_variables_optimized(
       thresholds = [0.0, 1*width, 2*width, 3*width, ..., 1.0]
     Given a prediction value p, we can map it to its bucket by
       bucket_index(p) = floor( p * (num_thresholds - 1) )
-    so we can use ops.unsorted_segmenet_sum() to update the buckets in one
-    pass.
+    so we can use ops.segment_sum() to update the buckets in one pass.
 
     Consider following example:
     y_true = [0, 0, 1, 1]
@@ -93,7 +92,7 @@ def _update_confusion_matrix_variables_optimized(
     # Note the second item "1.0" is floored to 0, since the value need to be
     # strictly larger than the bucket lower bound.
     # In the implementation, we use ops.ceil() - 1 to achieve this.
-    tp_bucket_value = ops.unsorted_segmenet_sum(true_labels, bucket_indices,
+    tp_bucket_value = ops.segment_sum(true_labels, bucket_indices,
                                                    num_segments=num_thresholds)
                     = [1, 1, 0]
     # For [1, 1, 0] here, it means there is 1 true value contributed by bucket
@@ -109,35 +108,35 @@ def _update_confusion_matrix_variables_optimized(
     O(T * N).
 
     Args:
-      variables_to_update: Dictionary with 'tp', 'fn', 'tn', 'fp' as valid keys
-        and corresponding variables to update as values.
-      y_true: A floating point `Tensor` whose shape matches `y_pred`. Will be
-        cast to `bool`.
-      y_pred: A floating point `Tensor` of arbitrary shape and whose values are
-        in the range `[0, 1]`.
-      thresholds: A sorted floating point `Tensor` with value in `[0, 1]`.
-        It need to be evenly distributed (the diff between each element need to
-        be the same).
-      multi_label: Optional boolean indicating whether multidimensional
-        prediction/labels should be treated as multilabel responses, or
-        flattened into a single label. When True, the valus of
-        `variables_to_update` must have a second dimension equal to the number
-        of labels in y_true and y_pred, and those tensors must not be
-        RaggedTensors.
-      sample_weights: Optional `Tensor` whose rank is either 0, or the same rank
-        as `y_true`, and must be broadcastable to `y_true` (i.e., all dimensions
-        must be either `1`, or the same as the corresponding `y_true`
-        dimension).
-      label_weights: Optional tensor of non-negative weights for multilabel
-        data. The weights are applied when calculating TP, FP, FN, and TN
-        without explicit multilabel handling (i.e. when the data is to be
-        flattened).
-      thresholds_with_epsilon: Optional boolean indicating whether the leading
-        and tailing thresholds has any epsilon added for floating point
-        imprecisions.  It will change how we handle the leading and tailing
-        bucket.
+        variables_to_update: Dictionary with 'tp', 'fn', 'tn', 'fp' as valid
+            keys and corresponding variables to update as values.
+        y_true: A floating point `Tensor` whose shape matches `y_pred`. Will be
+            cast to `bool`.
+        y_pred: A floating point `Tensor` of arbitrary shape and whose values
+            are in the range `[0, 1]`.
+        thresholds: A sorted floating point `Tensor` with value in `[0, 1]`.
+            It need to be evenly distributed (the diff between each element need
+            to be the same).
+        multi_label: Optional boolean indicating whether multidimensional
+            prediction/labels should be treated as multilabel responses, or
+            flattened into a single label. When True, the valus of
+            `variables_to_update` must have a second dimension equal to the
+            number of labels in y_true and y_pred, and those tensors must not be
+            RaggedTensors.
+        sample_weights: Optional `Tensor` whose rank is either 0, or the same
+            rank as `y_true`, and must be broadcastable to `y_true` (i.e., all
+            dimensions must be either `1`, or the same as the corresponding
+            `y_true` dimension).
+        label_weights: Optional tensor of non-negative weights for multilabel
+            data. The weights are applied when calculating TP, FP, FN, and TN
+            without explicit multilabel handling (i.e. when the data is to be
+            flattened).
+        thresholds_with_epsilon: Optional boolean indicating whether the leading
+            and tailing thresholds has any epsilon added for floating point
+            imprecisions.  It will change how we handle the leading and tailing
+            bucket.
     """
-    num_thresholds = thresholds.shape.as_list()[0]
+    num_thresholds = ops.shape(thresholds)[0]
 
     if sample_weights is None:
         sample_weights = 1.0
@@ -160,7 +159,7 @@ def _update_confusion_matrix_variables_optimized(
 
     # We shouldn't need this, but in case there are predict value that is out of
     # the range of [0.0, 1.0]
-    y_pred = ops.clip(y_pred, clip_value_min=0.0, clip_value_max=1.0)
+    y_pred = ops.clip(y_pred, x_min=0.0, x_max=1.0)
 
     y_true = ops.cast(ops.cast(y_true, "bool"), y_true.dtype)
     if not multi_label:
@@ -198,7 +197,7 @@ def _update_confusion_matrix_variables_optimized(
                 label_and_bucket_index[0],
                 label_and_bucket_index[1],
             )
-            return ops.unsorted_segmenet_sum(
+            return ops.segment_sum(
                 data=label,
                 segment_ids=bucket_index,
                 num_segments=num_thresholds,
@@ -210,21 +209,21 @@ def _update_confusion_matrix_variables_optimized(
         fp_bucket_v = ops.vectorized_map(
             gather_bucket, (false_labels, bucket_indices), warn=False
         )
-        tp = ops.transpose(ops.cumsum(tp_bucket_v, reverse=True, axis=1))
-        fp = ops.transpose(ops.cumsum(fp_bucket_v, reverse=True, axis=1))
+        tp = ops.transpose(ops.cumsum(ops.flip(tp_bucket_v), axis=1))
+        fp = ops.transpose(ops.cumsum(ops.flip(fp_bucket_v), axis=1))
     else:
-        tp_bucket_v = ops.unsorted_segmenet_sum(
+        tp_bucket_v = ops.segment_sum(
             data=true_labels,
             segment_ids=bucket_indices,
             num_segments=num_thresholds,
         )
-        fp_bucket_v = ops.unsorted_segmenet_sum(
+        fp_bucket_v = ops.segment_sum(
             data=false_labels,
             segment_ids=bucket_indices,
             num_segments=num_thresholds,
         )
-        tp = ops.cumsum(tp_bucket_v, reverse=True)
-        fp = ops.cumsum(fp_bucket_v, reverse=True)
+        tp = ops.cumsum(ops.flip(tp_bucket_v))
+        fp = ops.cumsum(ops.flip(fp_bucket_v))
 
     # fn = sum(true_labels) - tp
     # tn = sum(false_labels) - fp

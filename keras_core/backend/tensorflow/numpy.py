@@ -26,7 +26,22 @@ def mean(x, axis=None, keepdims=False):
     return tfnp.mean(x, axis=axis, keepdims=keepdims)
 
 
-def max(x, axis=None, keepdims=False):
+def max(x, axis=None, keepdims=False, initial=None):
+    # The TensorFlow numpy API implementation doesn't support `initial` so we
+    # handle it manually here.
+    if initial is not None:
+        return tf.math.maximum(
+            tfnp.max(x, axis=axis, keepdims=keepdims), initial
+        )
+
+    # TensorFlow returns -inf by default for an empty list, but for consistency
+    # with other backends and the numpy API we want to throw in this case.
+    tf.assert_greater(
+        size(x),
+        tf.constant(0, dtype=tf.int64),
+        message="Cannot compute the max of an empty tensor.",
+    )
+
     return tfnp.max(x, axis=axis, keepdims=keepdims)
 
 
@@ -328,7 +343,22 @@ def meshgrid(*x, indexing="xy"):
     return tfnp.meshgrid(*x, indexing=indexing)
 
 
-def min(x, axis=None, keepdims=False):
+def min(x, axis=None, keepdims=False, initial=None):
+    # The TensorFlow numpy API implementation doesn't support `initial` so we
+    # handle it manually here.
+    if initial is not None:
+        return tf.math.minimum(
+            tfnp.min(x, axis=axis, keepdims=keepdims), initial
+        )
+
+    # TensorFlow returns inf by default for an empty list, but for consistency
+    # with other backends and the numpy API we want to throw in this case.
+    tf.assert_greater(
+        size(x),
+        tf.constant(0, dtype=tf.int64),
+        message="Cannot compute the min of an empty tensor.",
+    )
+
     return tfnp.min(x, axis=axis, keepdims=keepdims)
 
 

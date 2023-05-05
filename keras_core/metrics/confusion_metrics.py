@@ -69,7 +69,7 @@ class _ConfusionMatrixConditionCount(Metric):
     def get_config(self):
         config = {"thresholds": self.init_thresholds}
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}
 
 
 @keras_core_export("keras_core.metrics.FalsePositives")
@@ -402,7 +402,7 @@ class Precision(Metric):
             "class_id": self.class_id,
         }
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}
 
 
 @keras_core_export("keras_core.metrics.Recall")
@@ -543,4 +543,512 @@ class Recall(Metric):
             "class_id": self.class_id,
         }
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}
+
+
+class SensitivitySpecificityBase(Metric):
+    """Abstract base class for computing sensitivity and specificity.
+
+    For additional information about specificity and sensitivity, see
+    [the following](https://en.wikipedia.org/wiki/Sensitivity_and_specificity).
+    """
+
+    def __init__(
+        self, value, num_thresholds=200, class_id=None, name=None, dtype=None
+    ):
+        super().__init__(name=name, dtype=dtype)
+        if num_thresholds <= 0:
+            raise ValueError(
+                "Argument `num_thresholds` must be an integer > 0. "
+                f"Received: num_thresholds={num_thresholds}"
+            )
+        self.value = value
+        self.class_id = class_id
+
+        # Compute `num_thresholds` thresholds in [0, 1]
+        if num_thresholds == 1:
+            self.thresholds = [0.5]
+            self._thresholds_distributed_evenly = False
+        else:
+            thresholds = [
+                (i + 1) * 1.0 / (num_thresholds - 1)
+                for i in range(num_thresholds - 2)
+            ]
+            self.thresholds = [0.0] + thresholds + [1.0]
+            self._thresholds_distributed_evenly = True
+
+        self.true_positives = self.add_variable(
+            shape=(len(self.thresholds),),
+            initializer=initializers.Zeros(),
+            name="true_positives",
+        )
+        self.false_positives = self.add_variable(
+            shape=(len(self.thresholds),),
+            initializer=initializers.Zeros(),
+            name="false_positives",
+        )
+        self.true_negatives = self.add_variable(
+            shape=(len(self.thresholds),),
+            initializer=initializers.Zeros(),
+            name="true_negatives",
+        )
+        self.false_negatives = self.add_variable(
+            shape=(len(self.thresholds),),
+            initializer=initializers.Zeros(),
+            name="false_negatives",
+        )
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates confusion matrix statistics.
+
+        Args:
+            y_true: The ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional weighting of each example. Defaults to 1.
+                Can be a `Tensor` whose rank is either 0, or the same rank as
+                `y_true`, and must be broadcastable to `y_true`.
+        """
+        metrics_utils.update_confusion_matrix_variables(
+            {
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.TRUE_NEGATIVES: self.true_negatives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives,  # noqa: E501
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives,  # noqa: E501
+            },
+            y_true,
+            y_pred,
+            thresholds=self.thresholds,
+            thresholds_distributed_evenly=self._thresholds_distributed_evenly,
+            class_id=self.class_id,
+            sample_weight=sample_weight,
+        )
+
+    def reset_state(self):
+        num_thresholds = len(self.thresholds)
+        self.true_positives.assign(ops.zeros((num_thresholds,)))
+        self.false_positives.assign(ops.zeros((num_thresholds,)))
+        self.true_negatives.assign(ops.zeros((num_thresholds,)))
+        self.false_negatives.assign(ops.zeros((num_thresholds,)))
+
+    def get_config(self):
+        config = {"class_id": self.class_id}
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+    def _find_max_under_constraint(self, constrained, dependent, predicate):
+        """Returns the maximum of dependent_statistic that satisfies the
+        constraint.
+
+        Args:
+            constrained: Over these values the constraint is specified. A rank-1
+                tensor.
+            dependent: From these values the maximum that satiesfies the
+                constraint is selected. Values in this tensor and in
+                `constrained` are linked by having the same threshold at each
+                position, hence this tensor must have the same shape.
+            predicate: A binary boolean functor to be applied to arguments
+                `constrained` and `self.value`, e.g. `ops.greater`.
+
+        Returns:
+            maximal dependent value, if no value satisfies the constraint 0.0.
+        """
+        feasible = ops.array(ops.nonzero(predicate(constrained, self.value)))
+
+        print(feasible)
+        feasible_exists = ops.greater(ops.size(feasible), 0)
+        max_dependent = ops.max(ops.take(dependent, feasible), initial=0)
+
+        return ops.where(feasible_exists, max_dependent, 0.0)
+
+
+@keras_core_export("keras_core.metrics.SensitivityAtSpecificity")
+class SensitivityAtSpecificity(SensitivitySpecificityBase):
+    """Computes best sensitivity where specificity is >= specified value.
+
+    `Sensitivity` measures the proportion of actual positives that are correctly
+    identified as such `(tp / (tp + fn))`.
+    `Specificity` measures the proportion of actual negatives that are correctly
+    identified as such `(tn / (tn + fp))`.
+
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the sensitivity at the given specificity. The threshold for the
+    given specificity value is computed and used to evaluate the corresponding
+    sensitivity.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
+
+    For additional information about specificity and sensitivity, see
+    [the following](https://en.wikipedia.org/wiki/Sensitivity_and_specificity).
+
+    Args:
+        specificity: A scalar value in range `[0, 1]`.
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds to
+            use for matching the given specificity.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Standalone usage:
+
+    >>> m = keras_core.metrics.SensitivityAtSpecificity(0.5)
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    >>> m.result()
+    0.5
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8],
+    ...                sample_weight=[1, 1, 2, 2, 1])
+    >>> m.result()
+    0.333333
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        metrics=[keras_core.metrics.SensitivityAtSpecificity()])
+    ```
+    """
+
+    def __init__(
+        self,
+        specificity,
+        num_thresholds=200,
+        class_id=None,
+        name=None,
+        dtype=None,
+    ):
+        if specificity < 0 or specificity > 1:
+            raise ValueError(
+                "Argument `specificity` must be in the range [0, 1]. "
+                f"Received: specificity={specificity}"
+            )
+        self.specificity = specificity
+        self.num_thresholds = num_thresholds
+        super().__init__(
+            specificity,
+            num_thresholds=num_thresholds,
+            class_id=class_id,
+            name=name,
+            dtype=dtype,
+        )
+
+    def result(self):
+        sensitivities = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_negatives + backend.epsilon(),
+        )
+        specificities = ops.divide(
+            self.true_negatives,
+            self.true_negatives + self.false_positives + backend.epsilon(),
+        )
+        return self._find_max_under_constraint(
+            specificities, sensitivities, ops.greater_equal
+        )
+
+    def get_config(self):
+        config = {
+            "num_thresholds": self.num_thresholds,
+            "specificity": self.specificity,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+
+@keras_core_export("keras_core.metrics.SpecificityAtSensitivity")
+class SpecificityAtSensitivity(SensitivitySpecificityBase):
+    """Computes best specificity where sensitivity is >= specified value.
+
+    `Sensitivity` measures the proportion of actual positives that are correctly
+    identified as such `(tp / (tp + fn))`.
+    `Specificity` measures the proportion of actual negatives that are correctly
+    identified as such `(tn / (tn + fp))`.
+
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the specificity at the given sensitivity. The threshold for the
+    given sensitivity value is computed and used to evaluate the corresponding
+    specificity.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
+
+    For additional information about specificity and sensitivity, see
+    [the following](https://en.wikipedia.org/wiki/Sensitivity_and_specificity).
+
+    Args:
+        sensitivity: A scalar value in range `[0, 1]`.
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds to
+            use for matching the given sensitivity.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Standalone usage:
+
+    >>> m = keras_core.metrics.SpecificityAtSensitivity(0.5)
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    >>> m.result()
+    0.66666667
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8],
+    ...                sample_weight=[1, 1, 2, 2, 2])
+    >>> m.result()
+    0.5
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        metrics=[keras_core.metrics.SpecificityAtSensitivity()])
+    ```
+    """
+
+    def __init__(
+        self,
+        sensitivity,
+        num_thresholds=200,
+        class_id=None,
+        name=None,
+        dtype=None,
+    ):
+        if sensitivity < 0 or sensitivity > 1:
+            raise ValueError(
+                "Argument `sensitivity` must be in the range [0, 1]. "
+                f"Received: sensitivity={sensitivity}"
+            )
+        self.sensitivity = sensitivity
+        self.num_thresholds = num_thresholds
+        super().__init__(
+            sensitivity,
+            num_thresholds=num_thresholds,
+            class_id=class_id,
+            name=name,
+            dtype=dtype,
+        )
+
+    def result(self):
+        sensitivities = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_negatives + backend.epsilon(),
+        )
+        specificities = ops.divide(
+            self.true_negatives,
+            self.true_negatives + self.false_positives + backend.epsilon(),
+        )
+        return self._find_max_under_constraint(
+            sensitivities, specificities, ops.greater_equal
+        )
+
+    def get_config(self):
+        config = {
+            "num_thresholds": self.num_thresholds,
+            "sensitivity": self.sensitivity,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+
+@keras_core_export("keras_core.metrics.PrecisionAtRecall")
+class PrecisionAtRecall(SensitivitySpecificityBase):
+    """Computes best precision where recall is >= specified value.
+
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the precision at the given recall. The threshold for the given
+    recall value is computed and used to evaluate the corresponding precision.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
+
+    Args:
+        recall: A scalar value in range `[0, 1]`.
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds to
+            use for matching the given recall.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Standalone usage:
+
+    >>> m = keras_core.metrics.PrecisionAtRecall(0.5)
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+    >>> m.result()
+    0.5
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8],
+    ...                sample_weight=[2, 2, 2, 1, 1])
+    >>> m.result()
+    0.33333333
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        metrics=[keras_core.metrics.PrecisionAtRecall(recall=0.8)])
+    ```
+    """
+
+    def __init__(
+        self, recall, num_thresholds=200, class_id=None, name=None, dtype=None
+    ):
+        if recall < 0 or recall > 1:
+            raise ValueError(
+                "Argument `recall` must be in the range [0, 1]. "
+                f"Received: recall={recall}"
+            )
+        self.recall = recall
+        self.num_thresholds = num_thresholds
+        super().__init__(
+            value=recall,
+            num_thresholds=num_thresholds,
+            class_id=class_id,
+            name=name,
+            dtype=dtype,
+        )
+
+    def result(self):
+        recalls = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_negatives + backend.epsilon(),
+        )
+        precisions = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_positives + backend.epsilon(),
+        )
+        return self._find_max_under_constraint(
+            recalls, precisions, ops.greater_equal
+        )
+
+    def get_config(self):
+        config = {"num_thresholds": self.num_thresholds, "recall": self.recall}
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+
+@keras_core_export("keras_core.metrics.RecallAtPrecision")
+class RecallAtPrecision(SensitivitySpecificityBase):
+    """Computes best recall where precision is >= specified value.
+
+    For a given score-label-distribution the required precision might not
+    be achievable, in this case 0.0 is returned as recall.
+
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the recall at the given precision. The threshold for the given
+    precision value is computed and used to evaluate the corresponding recall.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
+
+    Args:
+        precision: A scalar value in range `[0, 1]`.
+            num_thresholds: (Optional) Defaults to 200. The number of thresholds
+            to use for matching the given precision.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Standalone usage:
+
+    >>> m = keras_core.metrics.RecallAtPrecision(0.8)
+    >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
+    >>> m.result()
+    0.5
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9],
+    ...                sample_weight=[1, 0, 0, 1])
+    >>> m.result()
+    1.0
+
+    Usage with `compile()` API:
+
+    ```python
+    model.compile(
+        optimizer='sgd',
+        loss='mse',
+        metrics=[keras_core.metrics.RecallAtPrecision(precision=0.8)])
+    ```
+    """
+
+    def __init__(
+        self,
+        precision,
+        num_thresholds=200,
+        class_id=None,
+        name=None,
+        dtype=None,
+    ):
+        if precision < 0 or precision > 1:
+            raise ValueError(
+                "Argument `precision` must be in the range [0, 1]. "
+                f"Received: precision={precision}"
+            )
+        self.precision = precision
+        self.num_thresholds = num_thresholds
+        super().__init__(
+            value=precision,
+            num_thresholds=num_thresholds,
+            class_id=class_id,
+            name=name,
+            dtype=dtype,
+        )
+
+    def result(self):
+        recalls = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_negatives + backend.epsilon(),
+        )
+        precisions = ops.divide(
+            self.true_positives,
+            self.true_positives + self.false_positives + backend.epsilon(),
+        )
+        return self._find_max_under_constraint(
+            precisions, recalls, ops.greater_equal
+        )
+
+    def get_config(self):
+        config = {
+            "num_thresholds": self.num_thresholds,
+            "precision": self.precision,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
