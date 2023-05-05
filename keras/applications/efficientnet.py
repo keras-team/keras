@@ -192,7 +192,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
 
   Args:
     include_top: Whether to include the fully-connected
-        layer at the top of the network. Defaults to True.
+        layer at the top of the network. Defaults to `True`.
     weights: One of `None` (random initialization),
           'imagenet' (pre-training on ImageNet),
           or the path to the weights file to be loaded. Defaults to 'imagenet'.
@@ -203,7 +203,7 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
         if `include_top` is False.
         It should have exactly 3 inputs channels.
     pooling: Optional pooling mode for feature extraction
-        when `include_top` is `False`. Defaults to None.
+        when `include_top` is `False`. Defaults to `None`.
         - `None` means that the output of the model will be
             the 4D tensor output of the
             last convolutional layer.
@@ -215,8 +215,8 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             be applied.
     classes: Optional number of classes to classify images
         into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified. Defaults to 1000 (number of
-        ImageNet classes).
+        if no `weights` argument is specified. 1000 is how many
+        ImageNet classes there are. Defaults to `1000`.
     classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.
@@ -852,10 +852,10 @@ def preprocess_input(x, data_format=None):
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
-      data_format: Optional data format of the image tensor/array. Defaults to
-        None, in which case the global setting
-        `tf.keras.backend.image_data_format()` is used (unless you changed it,
-        it defaults to "channels_last").{mode}
+      data_format: Optional data format of the image tensor/array. `None` means
+        the global setting `tf.keras.backend.image_data_format()` is used
+        (unless you changed it, it uses "channels_last").
+        Defaults to `None`.
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.
