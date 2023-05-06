@@ -7,10 +7,16 @@ import numpy as np
 from tensorflow import nest
 
 from keras_core import operations as ops
+from keras_core.utils import traceback_utils
 
 
 class TestCase(unittest.TestCase):
     maxDiff = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if traceback_utils.is_traceback_filtering_enabled():
+            traceback_utils.disable_traceback_filtering()
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
