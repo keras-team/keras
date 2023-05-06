@@ -48,6 +48,7 @@ from keras_core.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D
 from keras_core.layers.pooling.max_pooling1d import MaxPooling1D
 from keras_core.layers.pooling.max_pooling2d import MaxPooling2D
 from keras_core.layers.pooling.max_pooling3d import MaxPooling3D
+from keras_core.layers.preprocessing.center_crop import CenterCrop
 from keras_core.layers.preprocessing.normalization import Normalization
 from keras_core.layers.preprocessing.rescaling import Rescaling
 from keras_core.layers.preprocessing.resizing import Resizing

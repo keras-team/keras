@@ -22,7 +22,7 @@ def resize(
             "Argument `size` must be a tuple of two elements "
             f"(height, width). Received: size={size}"
         )
-
+    size = tuple(size)
     if data_format == "channels_first":
         if len(image.shape) == 4:
             image = tf.transpose(image, (0, 2, 3, 1))
