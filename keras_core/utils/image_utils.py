@@ -364,8 +364,8 @@ def smart_resize(
         data_format: `"channels_last"` or `"channels_first"`.
 
     Returns:
-        Array with shape `(size[0], size[1], channels)`. If the input image was a
-        NumPy array, the output is a NumPy array,
+        Array with shape `(size[0], size[1], channels)`.
+        If the input image was a NumPy array, the output is a NumPy array,
         and if it was a backend-native tensor,
         the output is a backend-native tensor.
     """
