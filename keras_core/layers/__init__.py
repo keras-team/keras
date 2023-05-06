@@ -1,4 +1,7 @@
 from keras_core.layers.activations.activation import Activation
+from keras_core.layers.convolutional.conv1d import Conv1D
+from keras_core.layers.convolutional.conv2d import Conv2D
+from keras_core.layers.convolutional.conv3d import Conv3D
 from keras_core.layers.core.dense import Dense
 from keras_core.layers.core.einsum_dense import EinsumDense
 from keras_core.layers.core.embedding import Embedding

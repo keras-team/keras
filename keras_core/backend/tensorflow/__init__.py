@@ -63,6 +63,10 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
     def numpy(self):  # noqa: F811
         return self.value.numpy()
 
+    @property
+    def shape(self):
+        return tf.TensorShape(super().shape)
+
     # Overload native accessor.
     def __tf_tensor__(self, dtype=None, name=None):
         return tf.convert_to_tensor(self.value, dtype=dtype, name=name)

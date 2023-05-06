@@ -203,22 +203,32 @@ def conv(
     data_format="channel_last",
     dilation_rate=1,
 ):
-    """General N-D convolution function.
+    def _conv():
+        tf_data_format = _convert_data_format(data_format, len(inputs.shape))
+        return tf.nn.convolution(
+            inputs,
+            kernel,
+            strides,
+            padding.upper(),
+            data_format=tf_data_format,
+            dilations=dilation_rate,
+        )
 
-    Arg:
-    """
+    # Reason for making this function is in Tensorflow, `groups > 1` does not
+    # work on CPU for `tf.nn.convolution`, but wrapping it by XLA works.
+    @tf.function(jit_compile=True)
+    def _conv_xla():
+        return _conv()
 
-    data_format = _convert_data_format(data_format, len(inputs.shape))
-    padding = padding.upper()
-
-    return tf.nn.convolution(
-        inputs,
-        kernel,
-        strides,
-        padding,
-        data_format=data_format,
-        dilations=dilation_rate,
-    )
+    if data_format == "channels_last":
+        channels = inputs.shape[-1]
+    else:
+        channels = inputs.shape[1]
+    if channels != kernel.shape[-2]:
+        # If kernel's in_channel does not match input's channels,  it indicates
+        # convolution is broken down into groups.
+        return _conv_xla()
+    return _conv()
 
 
 def depthwise_conv(

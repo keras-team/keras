@@ -213,7 +213,7 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channel_last",
+    data_format="channels_last",
     dilation_rate=1,
 ):
     num_spatial_dims = inputs.ndim - 2
@@ -234,6 +234,18 @@ def conv(
         data_format,
         include_batch_and_channels=False,
     )
+    if data_format == "channels_last":
+        channels = inputs.shape[-1]
+    else:
+        channels = inputs.shape[1]
+    kernel_in_channels = kernel.shape[-2]
+    if channels % kernel_in_channels > 0:
+        raise ValueError(
+            "The number of input channels must be evenly divisible by "
+            f"kernel's in_channels. Received input channels {channels} and "
+            f"kernel in_channels {kernel_in_channels}. "
+        )
+    feature_group_count = channels // kernel_in_channels
     return jax.lax.conv_general_dilated(
         inputs,
         kernel,
@@ -241,6 +253,7 @@ def conv(
         padding,
         rhs_dilation=dilation_rate,
         dimension_numbers=dimension_numbers,
+        feature_group_count=feature_group_count,
     )
 
 
@@ -249,7 +262,7 @@ def depthwise_conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channel_last",
+    data_format="channels_last",
     dilation_rate=1,
 ):
     num_spatial_dims = inputs.ndim - 2
