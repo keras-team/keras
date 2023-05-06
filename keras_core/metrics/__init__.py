@@ -5,6 +5,7 @@ from keras_core.metrics.accuracy_metrics import CategoricalAccuracy
 from keras_core.metrics.accuracy_metrics import SparseCategoricalAccuracy
 from keras_core.metrics.accuracy_metrics import SparseTopKCategoricalAccuracy
 from keras_core.metrics.accuracy_metrics import TopKCategoricalAccuracy
+from keras_core.metrics.confusion_metrics import AUC
 from keras_core.metrics.confusion_metrics import FalseNegatives
 from keras_core.metrics.confusion_metrics import FalsePositives
 from keras_core.metrics.confusion_metrics import Precision
@@ -41,6 +42,7 @@ ALL_OBJECTS = {
     # Regression
     MeanSquaredError,
     # Classification
+    AUC,
     FalseNegatives,
     FalsePositives,
     Precision,
