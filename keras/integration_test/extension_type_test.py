@@ -1,5 +1,6 @@
 """Test Model inference and save/load with an ExtensionType."""
 
+import os
 import typing
 
 import tensorflow.compat.v2 as tf
@@ -88,6 +89,13 @@ class ExtensionTypeTest(tf.test.TestCase):
             self.assertEqual(
                 serving_fn(args_0=mt.values, args_0_1=mt.mask)["lambda"], mt
             )
+
+        with self.subTest("keras v3"):
+            path = os.path.join(self.create_tempdir().full_path, "model.keras")
+            model.save(path)
+            loaded_model = load_model(path, safe_mode=False)
+            self.assertEqual(loaded_model.input.type_spec, mt_spec)
+            self.assertEqual(loaded_model(mt), mt)
 
 
 if __name__ == "__main__":
