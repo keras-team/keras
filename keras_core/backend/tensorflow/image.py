@@ -38,7 +38,7 @@ def resize(
     resized = tf.image.resize(image, size, method=method, antialias=antialias)
     if data_format == "channels_first":
         if len(image.shape) == 4:
-            resized = tf.transpose(image, (0, 3, 1, 2))
+            resized = tf.transpose(resized, (0, 3, 1, 2))
         elif len(image.shape) == 3:
-            image = tf.transpose(image, (2, 0, 1))
+            resized = tf.transpose(resized, (2, 0, 1))
     return resized

@@ -34,35 +34,60 @@ class ImageOpsStaticShapeTest(testing.TestCase):
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters(
         [
-            ("bilinear", True),
-            ("nearest", True),
-            ("lanczos3", True),
-            ("lanczos5", True),
-            ("bicubic", True),
-            ("bilinear", False),
-            ("nearest", False),
-            ("lanczos3", False),
-            ("lanczos5", False),
-            ("bicubic", False),
+            ("bilinear", True, "channels_last"),
+            ("nearest", True, "channels_last"),
+            ("lanczos3", True, "channels_last"),
+            ("lanczos5", True, "channels_last"),
+            ("bicubic", True, "channels_last"),
+            ("bilinear", False, "channels_last"),
+            ("nearest", False, "channels_last"),
+            ("lanczos3", False, "channels_last"),
+            ("lanczos5", False, "channels_last"),
+            ("bicubic", False, "channels_last"),
+            ("bilinear", True, "channels_first"),
         ]
     )
-    def test_resize(self, method, antialias):
-        x = np.random.random((50, 50, 3)) * 255
+    def test_resize(self, method, antialias, data_format):
+        # Unbatched case
+        if data_format == "channels_first":
+            x = np.random.random((3, 50, 50)) * 255
+        else:
+            x = np.random.random((50, 50, 3)) * 255
         out = kimage.resize(
-            x, size=(25, 25), method=method, antialias=antialias
+            x,
+            size=(25, 25),
+            method=method,
+            antialias=antialias,
+            data_format=data_format,
         )
+        if data_format == "channels_first":
+            x = np.transpose(x, (1, 2, 0))
         ref_out = tf.image.resize(
             x, size=(25, 25), method=method, antialias=antialias
         )
+        if data_format == "channels_first":
+            ref_out = np.transpose(ref_out, (2, 0, 1))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=0.3)
 
-        x = np.random.random((2, 50, 50, 3)) * 255
+        # Batched case
+        if data_format == "channels_first":
+            x = np.random.random((2, 3, 50, 50)) * 255
+        else:
+            x = np.random.random((2, 50, 50, 3)) * 255
         out = kimage.resize(
-            x, size=(25, 25), method=method, antialias=antialias
+            x,
+            size=(25, 25),
+            method=method,
+            antialias=antialias,
+            data_format=data_format,
         )
+        if data_format == "channels_first":
+            x = np.transpose(x, (0, 2, 3, 1))
         ref_out = tf.image.resize(
             x, size=(25, 25), method=method, antialias=antialias
         )
+        if data_format == "channels_first":
+            ref_out = np.transpose(ref_out, (0, 3, 1, 2))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=0.3)

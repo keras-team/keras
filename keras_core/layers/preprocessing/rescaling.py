@@ -25,7 +25,7 @@ class Rescaling(Layer):
     Args:
         scale: Float, the scale to apply to the inputs.
         offset: Float, the offset to apply to the inputs.
-        **kwargs: Base layer keyword arguments, such as `name` and `dtype.
+        **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 
     def __init__(self, scale, offset=0.0, **kwargs):
