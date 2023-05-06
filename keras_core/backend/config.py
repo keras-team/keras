@@ -1,6 +1,8 @@
 import json
 import os
 
+from keras_core.api_export import keras_core_export
+
 # The type of float to use throughout a session.
 _FLOATX = "float32"
 
@@ -14,6 +16,7 @@ _IMAGE_DATA_FORMAT = "channels_last"
 _BACKEND = "tensorflow"
 
 
+@keras_core_export(["keras_core.config.floatx", "keras_core.backend.floatx"])
 def floatx():
     """Return the default float type, as a string.
 
@@ -23,32 +26,34 @@ def floatx():
         String, the current default float type.
 
     Example:
-    >>> keras_core.backend.floatx()
+    >>> keras_core.config.floatx()
     'float32'
     """
     return _FLOATX
 
 
+@keras_core_export(
+    ["keras_core.config.set_floatx", "keras_core.backend.set_floatx"]
+)
 def set_floatx(value):
-    """Set the default float type.
+    """Set the default float dtype.
 
-    Note: It is not recommended to set this to float16 for training, as this
-    will likely cause numeric stability issues. Instead, mixed precision, which
-    is using a mix of float16 and float32, can be used by calling
-    `keras_core.mixed_precision.set_global_policy('mixed_float16')`. See the
-    [mixed precision guide](
-      https://www.tensorflow.org/guide/keras/mixed_precision) for details.
+    Note: It is not recommended to set this to `"float16"` for training,
+    as this will likely cause numeric stability issues.
+    Instead, mixed precision, which leverages
+    a mix of `float16` and `float32`. It can be configured by calling
+    `keras_core.mixed_precision.set_global_policy('mixed_float16')`.
 
     Args:
         value: String; `'float16'`, `'float32'`, or `'float64'`.
 
     Example:
-    >>> keras_core.backend.floatx()
+    >>> keras_core.config.floatx()
     'float32'
-    >>> keras_core.backend.set_floatx('float64')
-    >>> keras_core.backend.floatx()
+    >>> keras_core.config.set_floatx('float64')
+    >>> keras_core.config.floatx()
     'float64'
-    >>> keras_core.backend.set_floatx('float32')
+    >>> keras_core.config.set_floatx('float32')
 
     Raises:
         ValueError: In case of invalid value.
@@ -63,6 +68,7 @@ def set_floatx(value):
     _FLOATX = str(value)
 
 
+@keras_core_export(["keras_core.config.epsilon", "keras_core.backend.epsilon"])
 def epsilon():
     """Return the value of the fuzz factor used in numeric expressions.
 
@@ -70,12 +76,15 @@ def epsilon():
         A float.
 
     Example:
-    >>> keras_core.backend.epsilon()
+    >>> keras_core.config.epsilon()
     1e-07
     """
     return _EPSILON
 
 
+@keras_core_export(
+    ["keras_core.config.set_epsilon", "keras_core.backend.set_epsilon"]
+)
 def set_epsilon(value):
     """Set the value of the fuzz factor used in numeric expressions.
 
@@ -83,30 +92,42 @@ def set_epsilon(value):
         value: float. New value of epsilon.
 
     Example:
-    >>> keras_core.backend.epsilon()
+    >>> keras_core.config.epsilon()
     1e-07
-    >>> keras_core.backend.set_epsilon(1e-5)
-    >>> keras_core.backend.epsilon()
+    >>> keras_core.config.set_epsilon(1e-5)
+    >>> keras_core.config.epsilon()
     1e-05
-     >>> keras_core.backend.set_epsilon(1e-7)
+     >>> keras_core.config.set_epsilon(1e-7)
     """
     global _EPSILON
     _EPSILON = value
 
 
+@keras_core_export(
+    [
+        "keras_core.config.image_data_format",
+        "keras_core.backend.image_data_format",
+    ]
+)
 def image_data_format():
     """Return the default image data format convention.
 
     Returns:
-        A string, either `'channels_first'` or `'channels_last'`
+        A string, either `'channels_first'` or `'channels_last'`.
 
     Example:
-    >>> keras_core.backend.image_data_format()
+    >>> keras_core.config.image_data_format()
     'channels_last'
     """
     return _IMAGE_DATA_FORMAT
 
 
+@keras_core_export(
+    [
+        "keras_core.config.set_image_data_format",
+        "keras_core.backend.set_image_data_format",
+    ]
+)
 def set_image_data_format(data_format):
     """Set the value of the image data format convention.
 
@@ -114,15 +135,12 @@ def set_image_data_format(data_format):
         data_format: string. `'channels_first'` or `'channels_last'`.
 
     Example:
-    >>> keras_core.backend.image_data_format()
+    >>> keras_core.config.image_data_format()
     'channels_last'
-    >>> keras_core.backend.set_image_data_format('channels_first')
-    >>> keras_core.backend.image_data_format()
+    >>> keras_core.config.set_image_data_format('channels_first')
+    >>> keras_core.config.image_data_format()
     'channels_first'
-    >>> keras_core.backend.set_image_data_format('channels_last')
-
-    Raises:
-        ValueError: In case of invalid `data_format` value.
+    >>> keras_core.config.set_image_data_format('channels_last')
     """
     global _IMAGE_DATA_FORMAT
     accepted_formats = {"channels_last", "channels_first"}
@@ -196,6 +214,7 @@ if "KERAS_BACKEND" in os.environ:
         _BACKEND = _backend
 
 
+@keras_core_export("keras_core.backend.backend")
 def backend():
     """Publicly accessible method for determining the current backend.
 

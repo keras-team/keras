@@ -8,6 +8,7 @@ from keras_core.backend.common.keras_tensor import any_symbolic_tensors
 from keras_core.operations.node import Node
 from keras_core.saving import serialization_lib
 from keras_core.utils import python_utils
+from keras_core.utils import traceback_utils
 from keras_core.utils.naming import auto_name
 
 
@@ -24,7 +25,21 @@ class Operation:
         self._inbound_nodes = []
         self._outbound_nodes = []
 
+    @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        if traceback_utils.is_traceback_filtering_enabled():
+            # Wrap self.call to provide helpful info in case of exception
+            if any_symbolic_tensors(args, kwargs):
+                call_fn = self.symbolic_call
+            else:
+                call_fn = self.call
+            call_fn = traceback_utils.inject_argument_info_in_traceback(
+                call_fn,
+                object_name=(f"{self.__class__.__name__}.call()"),
+            )
+            return call_fn(*args, **kwargs)
+
+        # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
         return self.call(*args, **kwargs)
@@ -50,13 +65,15 @@ class Operation:
         try:
             return backend.compute_output_spec(self.call, *args, **kwargs)
         except Exception as e:
-            raise RuntimeError(
+            new_e = RuntimeError(
                 "Could not automatically infer the output shape / dtype of "
-                f"operation '{self.name}'. "
-                "Please implement the `compute_output_spec()` method "
-                f"on your object ({self.__class__.__name__}). "
-                f"Error encountered: {e}"
+                f"'{self.name}' (of type {self.__class__.__name__}). "
+                f"Either the `{self.__class__.__name__}.call()` method "
+                f"is incorrect, or you need to implement the "
+                f"`{self.__class__.__name__}.compute_output_spec()` method. "
+                f"Error encountered:\n\n{e}"
             )
+            raise new_e.with_traceback(e.__traceback__) from None
 
     def __new__(cls, *args, **kwargs):
         """We override __new__ to saving serializable constructor arguments.

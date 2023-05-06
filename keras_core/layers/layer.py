@@ -34,6 +34,7 @@ from keras_core.layers import input_spec
 from keras_core.metrics.metric import Metric
 from keras_core.operations.operation import Operation
 from keras_core.utils import summary_utils
+from keras_core.utils import traceback_utils
 from keras_core.utils.tracking import Tracker
 
 
@@ -277,6 +278,7 @@ class Layer(Operation):
     def compute_mask(self, inputs, previous_mask):
         return previous_mask
 
+    @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
 
@@ -414,6 +416,7 @@ class Layer(Operation):
     def call(self, *args, **kwargs):
         raise NotImplementedError
 
+    @traceback_utils.filter_traceback
     def stateless_call(
         self,
         trainable_variables,
@@ -659,8 +662,8 @@ class Layer(Operation):
         if not self.built:
             raise ValueError(
                 "You tried to call `count_params` "
-                f"on layer '{self.name}'"
-                ", but the layer isn't built. "
+                f"on layer '{self.name}', "
+                "but the layer isn't built. "
                 "You can build it manually via: "
                 f"`layer.build(input_shape)`."
             )
@@ -714,7 +717,9 @@ class Layer(Operation):
                                 "then the build signature should be "
                                 "`def build(self, x1_shape, x2_shape)`. "
                                 "Keras will not build this layer automatically "
-                                "since it does not conform to this."
+                                "since it does not conform to this. "
+                                "Expected the following build keys: "
+                                f"{list(shapes_dict.keys())}"
                             )
             if failure:
                 raise ValueError(

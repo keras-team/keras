@@ -6,7 +6,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.backend.common import global_state
 
 
-@keras_core_export("keras_core.utils.enable_interactive_logging")
+@keras_core_export("keras_core.config.enable_interactive_logging")
 def enable_interactive_logging():
     """Turn on interactive logging.
 
@@ -17,7 +17,7 @@ def enable_interactive_logging():
     global_state.set_global_setting("interactive_logging", True)
 
 
-@keras_core_export("keras_core.utils.disable_interactive_logging")
+@keras_core_export("keras_core.config.disable_interactive_logging")
 def disable_interactive_logging():
     """Turn off interactive logging.
 
@@ -28,16 +28,17 @@ def disable_interactive_logging():
     global_state.set_global_setting("interactive_logging", False)
 
 
-@keras_core_export("keras_core.utils.is_interactive_logging_enabled")
+@keras_core_export("keras_core.config.is_interactive_logging_enabled")
 def is_interactive_logging_enabled():
     """Check if interactive logging is enabled.
 
     To switch between writing logs to stdout and `absl.logging`, you may use
-    `keras.utils.enable_interactive_logging()` and
-    `keras.utils.disable_interactie_logging()`.
+    `keras.config.enable_interactive_logging()` and
+    `keras.config.disable_interactie_logging()`.
 
     Returns:
-        Boolean (True if interactive logging is enabled and False otherwise).
+        Boolean, `True` if interactive logging is enabled,
+        and `False` otherwise.
     """
     return global_state.get_global_setting("interactive_logging", True)
 
