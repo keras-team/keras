@@ -38,6 +38,59 @@ class ConfusionMatrix(Enum):
     FALSE_NEGATIVES = "fn"
 
 
+class AUCCurve(Enum):
+    """Type of AUC Curve (ROC or PR)."""
+
+    ROC = "ROC"
+    PR = "PR"
+
+    @staticmethod
+    def from_str(key):
+        if key in ("pr", "PR"):
+            return AUCCurve.PR
+        elif key in ("roc", "ROC"):
+            return AUCCurve.ROC
+        else:
+            raise ValueError(
+                f'Invalid AUC curve value: "{key}". '
+                'Expected values are ["PR", "ROC"]'
+            )
+
+
+class AUCSummationMethod(Enum):
+    """Type of AUC summation method.
+
+    https://en.wikipedia.org/wiki/Riemann_sum)
+
+    Contains the following values:
+    * 'interpolation': Applies mid-point summation scheme for `ROC` curve. For
+      `PR` curve, interpolates (true/false) positives but not the ratio that is
+      precision (see Davis & Goadrich 2006 for details).
+    * 'minoring': Applies left summation for increasing intervals and right
+      summation for decreasing intervals.
+    * 'majoring': Applies right summation for increasing intervals and left
+      summation for decreasing intervals.
+    """
+
+    INTERPOLATION = "interpolation"
+    MAJORING = "majoring"
+    MINORING = "minoring"
+
+    @staticmethod
+    def from_str(key):
+        if key in ("interpolation", "Interpolation"):
+            return AUCSummationMethod.INTERPOLATION
+        elif key in ("majoring", "Majoring"):
+            return AUCSummationMethod.MAJORING
+        elif key in ("minoring", "Minoring"):
+            return AUCSummationMethod.MINORING
+        else:
+            raise ValueError(
+                f'Invalid AUC summation method value: "{key}". '
+                'Expected values are ["interpolation", "majoring", "minoring"]'
+            )
+
+
 def _update_confusion_matrix_variables_optimized(
     variables_to_update,
     y_true,
@@ -203,14 +256,15 @@ def _update_confusion_matrix_variables_optimized(
                 num_segments=num_thresholds,
             )
 
-        tp_bucket_v = ops.vectorized_map(
-            gather_bucket, (true_labels, bucket_indices), warn=False
+        tp_bucket_v = backend.vectorized_map(
+            gather_bucket,
+            (true_labels, bucket_indices),
         )
-        fp_bucket_v = ops.vectorized_map(
-            gather_bucket, (false_labels, bucket_indices), warn=False
+        fp_bucket_v = backend.vectorized_map(
+            gather_bucket, (false_labels, bucket_indices)
         )
-        tp = ops.transpose(ops.cumsum(ops.flip(tp_bucket_v), axis=1))
-        fp = ops.transpose(ops.cumsum(ops.flip(fp_bucket_v), axis=1))
+        tp = ops.transpose(ops.flip(ops.cumsum(ops.flip(tp_bucket_v), axis=1)))
+        fp = ops.transpose(ops.flip(ops.cumsum(ops.flip(fp_bucket_v), axis=1)))
     else:
         tp_bucket_v = ops.segment_sum(
             data=true_labels,
@@ -222,8 +276,8 @@ def _update_confusion_matrix_variables_optimized(
             segment_ids=bucket_indices,
             num_segments=num_thresholds,
         )
-        tp = ops.cumsum(ops.flip(tp_bucket_v))
-        fp = ops.cumsum(ops.flip(fp_bucket_v))
+        tp = ops.flip(ops.cumsum(ops.flip(tp_bucket_v)))
+        fp = ops.flip(ops.cumsum(ops.flip(fp_bucket_v)))
 
     # fn = sum(true_labels) - tp
     # tn = sum(false_labels) - fp
@@ -383,7 +437,6 @@ def update_confusion_matrix_variables(
         one_thresh = ops.equal(
             ops.cast(1, dtype="int32"),
             thresholds.ndim,
-            name="one_set_of_thresholds_cond",
         )
     else:
         one_thresh = ops.cast(True, dtype="bool")
