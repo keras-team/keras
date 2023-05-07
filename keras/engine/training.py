@@ -4387,7 +4387,7 @@ def _validate_softmax_output(model_instance):
 
     """
 
-    if isinstance(model_instance, tf.keras.Sequential):
+    if model_instance.__class__.__name__.lower() == "sequential":
         output = model_instance.layers[-1]
         check_sequential_output_activation(output)
 
