@@ -5000,6 +5000,58 @@ class TestVariableObjectPathMapping(test_combinations.TestCase):
         )
 
 
+class TestCheckLastLayerActivation(test_combinations.TestCase):
+    def test_sequential_model_output(self):
+
+        for activation in ["softmax", tf.nn.softmax, layers_module.Softmax()]:
+            model = sequential.Sequential(
+                [
+                    layers_module.InputLayer(input_shape=(10,)),
+                    layers_module.Dense(1, activation=activation),
+                ]
+            )
+            self.assertRaisesWarning(
+                training_module._check_last_layer_activation(model)
+            )
+            self.assertRaisesWarning(model.compile())
+            del model
+
+    def test_functional_model_output(self):
+        inputs = input_layer.Input(shape=(10,))
+        for activation in ["softmax", tf.nn.softmax, layers_module.Softmax()]:
+            x = layers_module.Dense(1, activation=activation)(inputs)
+            model = training_module.Model(inputs, x)
+            self.assertRaisesWarning(
+                training_module._check_last_layer_activation(model)
+            )
+            self.assertRaisesWarning(model.compile())
+            del model
+
+    def test_multi_output_model(self):
+        inputs = input_layer.Input(shape=(10,))
+        for activation in ["softmax", tf.nn.softmax, layers_module.Softmax()]:
+            x = layers_module.Dense(1, activation=activation)(inputs)
+            y = layers_module.Dense(1, activation=activation)(inputs)
+            model = training_module.Model(inputs, [x, y])
+            self.assertRaisesWarning(
+                training_module._check_last_layer_activation(model)
+            )
+            self.assertRaisesWarning(model.compile())
+            del model
+
+    def test_multi_input_output_model(self):
+        inputs = [input_layer.Input(shape=(10,)),
+                  input_layer.Input(shape=(10,))]
+        for activation in ["softmax", tf.nn.softmax, layers_module.Softmax()]:
+            x = layers_module.Dense(1, activation=activation)(inputs[0])
+            y = layers_module.Dense(1, activation=activation)(inputs[1])
+            model = training_module.Model(inputs, [x, y])
+            self.assertRaisesWarning(
+                training_module._check_last_layer_activation(model)
+            )
+            self.assertRaisesWarning(model.compile())
+            del model
+
 def _is_oss():
     """Returns whether the test is run under OSS."""
     return len(sys.argv) >= 1 and "bazel" in sys.argv[0]
