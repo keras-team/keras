@@ -31,6 +31,7 @@ from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import compile_utils
 from keras.engine import data_adapter
+from keras.engine import functional
 from keras.engine import input_layer as input_layer_module
 from keras.engine import training_utils
 from keras.metrics import base_metric
@@ -191,8 +192,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Signature detection
         if is_functional_model_init_params(args, kwargs) and cls == Model:
             # Functional model
-            from keras.engine import functional
-
             return functional.Functional(skip_init=True, *args, **kwargs)
         else:
             return super(Model, cls).__new__(cls, *args, **kwargs)
@@ -724,7 +723,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
 
-        _check_output_activations(self.outputs)
+        _validate_softmax_output(self)
 
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
             jit_compile = False
@@ -4379,16 +4378,74 @@ def is_functional_model_init_params(args, kwargs):
     return False
 
 
-def _check_output_activations(outputs):
+def _validate_softmax_output(model_instance):
     """
-    Checks if the output activation is softmax and the output shape is 1.
+    Calls the related function for checking the output activations
 
     Args:
-        outputs: List of outputs of the model, instance of KerasTensor.
+        model_instance: A `Model` instance, either functional or sequential.
+
+    """
+
+    if isinstance(model_instance, tf.keras.Sequential):
+        output = model_instance.layers[-1]
+        check_sequential_output_activation(output)
+
+    elif isinstance(model_instance, functional.Functional):
+        outputs = model_instance.outputs
+        check_functional_output_activation(outputs)
+
+    else: # model is a subclassed/custom model, so we don't apply any checks
+        return
+
+
+def check_sequential_output_activation(last_layer):
+    """
+    Checks if the last layer of a sequential model has a softmax activation
+    and a single unit output.
+
+    Args:
+        last_layer: The last layer of a sequential model. Instance of `Layer`.
 
     Raises:
-        Warning: If the last axis of the output shape is 1 and the activation
-            is softmax.
+        Warning: If the last layer has a softmax activation and a
+            single unit output.
+    """
+    try:
+        # Check if model had an input layer, if not we can't check the output
+        # shape of the layer, and it is difficult determine. So we just skip
+        # this check if this try-catch fails.
+        output_shape_last_axis = last_layer.output_shape[-1]
+    except AttributeError:
+        return
+
+    activation = last_layer.activation
+
+    if "softmax" in str(activation) and output_shape_last_axis == 1:
+        warnings.warn(
+            "Found a layer with softmax activation and single unit output. "
+            "This is most likely an error as this will produce a model "
+            "which outputs ones (1) all the time. Ensure you are using "
+            "the correct activation function. "
+            f"Found activation: {activation} at "
+            f"{last_layer.name} with output shape: {last_layer.output_shape}. "
+            "If you don't apply softmax on the last axis, you can ignore "
+            "this warning."
+        )
+
+
+def check_functional_output_activation(outputs):
+    """
+    Checks if the last layer(s) of a functional model has a softmax activation
+    and a single unit output.
+
+    Args:
+        outputs: The output(s) of a functional model. List of `KerasTensor`.
+
+    Raises:
+        Warning: If the last layer has a softmax activation and a
+            single unit output.
+
     """
     for output in outputs:
         # Outputs are instance of KerasTensor. The activation is stored in
