@@ -723,6 +723,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               Defaults to `0`.
             **kwargs: Arguments supported for backwards compatibility only.
         """
+
+        _check_output_activations(self.outputs)
+
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
             jit_compile = False
         base_layer.keras_api_gauge.get_cell("compile").set(True)
@@ -788,6 +791,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 )
             else:
                 self._jit_compile = jit_compile
+
 
     def _get_optimizer(self, optimizer):
         """Wraps `optimizer` in `LossScaleOptimizer` if necessary."""
@@ -4373,3 +4377,36 @@ def is_functional_model_init_params(args, kwargs):
     if "inputs" in kwargs and "outputs" in kwargs:
         return True
     return False
+
+
+def _check_output_activations(outputs):
+    """
+    Checks if the output activation is softmax and the output shape is 1.
+
+    Args:
+        outputs: List of outputs of the model, instance of KerasTensor.
+
+    Raises:
+        Warning: If the last axis of the output shape is 1 and the activation
+            is softmax.
+    """
+    for output in outputs:
+        # Outputs are instance of KerasTensor. The activation is stored in
+        # the name of the tensor. Ex: dense_12/Softmax:0
+        layer_name_and_act = output.name.split("/")
+        output_act = layer_name_and_act[1].lower()
+
+        # Softmax is applied on the last axis of logits.
+        output_shape_last_axis = output.shape[-1]
+
+        if "softmax" in output_act and output_shape_last_axis == 1:
+            warnings.warn(
+                "Found a layer with softmax activation and single unit output. "
+                "This is most likely an error as this will produce a model "
+                "which outputs ones (1) all the time. Ensure you are using "
+                "the correct activation function. "
+                f"Found activation: {output_act} at "
+                f"{layer_name_and_act[0]} with output shape: {output.shape}."
+                "If you don't apply softmax on the last axis, you can ignore "
+                "this warning."
+            )
