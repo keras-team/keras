@@ -1,5 +1,3 @@
-import math
-
 import numpy as np
 
 
@@ -113,51 +111,3 @@ def compute_conv_output_shape(
     else:
         output_shape = (input_shape[0], kernel_shape[-1]) + output_spatial_shape
     return output_shape
-
-
-def compute_reshape_output_shape(input_shape, new_shape, new_shape_arg_name):
-    """Converts `-1` in `new_shape` to either an actual dimension or `None`.
-
-    This utility does not special case the 0th dimension (batch size).
-    """
-    unknown_dim_count = new_shape.count(-1)
-    if unknown_dim_count > 1:
-        raise ValueError(
-            "There must be at most one unknown dimension (-1) in "
-            f"{new_shape_arg_name}. Received: {new_shape_arg_name}={new_shape}."
-        )
-
-    # If there is a None in input_shape, we can't infer what the -1 is
-    if None in input_shape:
-        return tuple(dim if dim != -1 else None for dim in new_shape)
-
-    input_size = math.prod(input_shape)
-    # If the new_shape fully defined, return it
-    if unknown_dim_count == 0:
-        if input_size != math.prod(new_shape):
-            raise ValueError(
-                "The total size of the tensor must be unchanged. Received: "
-                f"input_shape={input_shape}, {new_shape_arg_name}={new_shape}"
-            )
-        return new_shape
-
-    # We have one -1 in new_shape, compute the actual value
-    known_output_size = 1
-    unknown_dim_index = None
-    for index, dim in enumerate(new_shape):
-        if dim == -1:
-            unknown_dim_index = index
-        else:
-            known_output_size *= dim
-
-    if known_output_size == 0 or input_size % known_output_size != 0:
-        raise ValueError(
-            "The total size of the tensor must be unchanged, however, the "
-            "input size cannot by divided by the specified dimensions in "
-            f"{new_shape_arg_name}. Received: input_shape={input_shape}, "
-            f"{new_shape_arg_name}={new_shape}"
-        )
-
-    output_shape = list(new_shape)
-    output_shape[unknown_dim_index] = input_size // known_output_size
-    return tuple(output_shape)
