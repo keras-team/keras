@@ -189,12 +189,11 @@ def model_to_dot(
         show_dtype: whether to display layer dtypes.
         show_layer_names: whether to display layer names.
         rankdir: `rankdir` argument passed to PyDot,
-            a string specifying the format of the plot:
-            `"TB"` creates a vertical plot;
-            `"LR"` creates a horizontal plot.
+            a string specifying the format of the plot: `"TB"`
+            creates a vertical plot; `"LR"` creates a horizontal plot.
         expand_nested: whether to expand nested Functional models
             into clusters.
-        dpi: Dots per inch.
+        dpi: Image resolution in dots per inch.
         subgraph: whether to return a `pydot.Cluster` instance.
         show_layer_activations: Display layer activations (only for layers that
             have an `activation` property).
@@ -372,11 +371,11 @@ def plot_model(
         show_dtype: whether to display layer dtypes.
         show_layer_names: whether to display layer names.
         rankdir: `rankdir` argument passed to PyDot,
-            a string specifying the format of the plot: 'TB' creates a vertical
-                plot; 'LR' creates a horizontal plot.
+            a string specifying the format of the plot: `"TB"`
+            creates a vertical plot; `"LR"` creates a horizontal plot.
         expand_nested: whether to expand nested Functional models
             into clusters.
-        dpi: Dots per inch.
+        dpi: Image resolution in dots per inch.
         show_layer_activations: Display layer activations (only for layers that
             have an `activation` property).
         show_trainable: whether to display if a layer is trainable.
