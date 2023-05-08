@@ -121,7 +121,7 @@ def make_layer_label(layer, **kwargs):
     if show_dtype:
         dtype = None
         try:
-            shape = layer.output.dtype
+            dtype = layer.output.dtype
         except ValueError:
             pass
         cols.append(
