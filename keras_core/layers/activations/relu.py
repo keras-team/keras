@@ -41,17 +41,17 @@ class ReLU(Layer):
         if max_value is not None and max_value < 0.0:
             raise ValueError(
                 "max_value of a ReLU layer cannot be a negative "
-                f"value. Received max_value: {max_value}"
+                f"value. Received: max_value={max_value}"
             )
         if negative_slope is None or negative_slope < 0.0:
             raise ValueError(
                 "negative_slope of a ReLU layer cannot be a negative "
-                f"value. Received negative_slope: {negative_slope}"
+                f"value. Received: negative_slope={negative_slope}"
             )
         if threshold is None or threshold < 0.0:
             raise ValueError(
                 "threshold of a ReLU layer cannot be a negative "
-                f"value. Received threshold: {threshold}"
+                f"value. Received: threshold={threshold}"
             )
 
         self.supports_masking = True
