@@ -496,7 +496,7 @@ class R2Score(reduction_metrics.Metric):
 
         sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
 
-        if sample_weight.shape.rank == 1:
+        if len(sample_weight.shape) == 1:
             # Make sure there's a features dimension
             sample_weight = ops.expand_dims(sample_weight, axis=1)
 

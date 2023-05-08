@@ -311,7 +311,7 @@ class R2ScoreTest(parameterized.TestCase, testing.TestCase):
     ):
         r2 = metrics.R2Score(class_aggregation, num_regressors, dtype="float32")
         r2.update_state(y_true, y_pred, sample_weights)
-        result = r2.result().numpy()
+        result = r2.result()
         self.assertAllClose(result, reference_result, atol=1e-6)
 
     def test_config(self):
