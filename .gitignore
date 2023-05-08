@@ -7,6 +7,7 @@ __pycache__
 **/.vscode-smoke/**
 **/.venv*/
 bin/**
+build/**
 obj/**
 .pytest_cache
 tmp/**

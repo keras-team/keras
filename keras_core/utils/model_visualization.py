@@ -58,9 +58,7 @@ def get_layer_activation_name(layer):
 
 
 def make_layer_label(layer, **kwargs):
-    layer_name = layer.name
     class_name = layer.__class__.__name__
-    label = class_name
 
     show_layer_names = kwargs.pop("show_layer_names")
     show_layer_activations = kwargs.pop("show_layer_activations")
