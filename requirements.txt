@@ -7,3 +7,4 @@ isort
 pytest
 pandas
 absl-py
+requests
