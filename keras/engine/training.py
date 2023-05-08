@@ -205,8 +205,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Special case for Subclassed Functional Model, which we couldn't detect
         # when __new__ is called. We only realize it is a functional model when
         # it calls super.__init__ with input and output tensor.
-        from keras.engine import functional
-
         if is_functional_model_init_params(args, kwargs) and not isinstance(
             self, functional.Functional
         ):
@@ -4393,7 +4391,6 @@ def _validate_softmax_output(model_instance):
                 and output.__class__.__name__ == "KerasTensor"
             ):
                 check_output_activation(output)
-                break
 
     else:  # model is a subclassed/custom model, so we don't apply any checks
         return
@@ -4428,7 +4425,9 @@ def check_output_activation(output):
             "which outputs ones (1) all the time. Ensure you are using "
             "the correct activation function. "
             f"Found activation: {output_act} at "
-            f"{layer_name_and_act[0]} with output shape: {output.shape}."
+            f"{layer_name_and_act[0]} with output shape: {output.shape}. "
             "If you don't apply softmax on the last axis, you can ignore "
-            "this warning."
+            "this warning.",
+            SyntaxWarning,
+            stacklevel=2,
         )

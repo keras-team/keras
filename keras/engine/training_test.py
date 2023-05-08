@@ -14,11 +14,11 @@
 # ==============================================================================
 """Tests for training routines."""
 
-
 import collections
 import io
 import sys
 import tempfile
+import warnings
 
 import numpy as np
 import tensorflow.compat.v2 as tf
@@ -5010,7 +5010,15 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
                     layers_module.Dense(1, activation=activation),
                 ]
             )
-            self.assertRaises(Warning)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                model.compile()
+                self.assertIs(w[-1].category, SyntaxWarning)
+                self.assertIn(
+                    "Found a layer with softmax activation and single unit "
+                    "output",
+                    str(w[-1].message),
+                )
             del model
 
     def test_functional_model_output(self):
@@ -5018,7 +5026,15 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
         for activation in ["softmax", tf.nn.softmax, layers_module.Softmax()]:
             x = layers_module.Dense(1, activation=activation)(inputs)
             model = training_module.Model(inputs, x)
-            self.assertRaises(Warning)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                model.compile()
+                self.assertIs(w[-1].category, SyntaxWarning)
+                self.assertIn(
+                    "Found a layer with softmax activation and single unit "
+                    "output",
+                    str(w[-1].message),
+                )
             del model
 
     def test_multi_output_model(self):
@@ -5027,7 +5043,15 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
             x = layers_module.Dense(1, activation=activation)(inputs)
             y = layers_module.Dense(1, activation=activation)(inputs)
             model = training_module.Model(inputs, [x, y])
-            self.assertRaises(Warning)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                model.compile()
+                self.assertIs(w[-1].category, SyntaxWarning)
+                self.assertIn(
+                    "Found a layer with softmax activation and single unit "
+                    "output",
+                    str(w[-1].message),
+                )
             del model
 
     def test_multi_input_output_model(self):
@@ -5039,7 +5063,15 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
             x = layers_module.Dense(1, activation=activation)(inputs[0])
             y = layers_module.Dense(1, activation=activation)(inputs[1])
             model = training_module.Model(inputs, [x, y])
-            self.assertRaises(Warning)
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                model.compile()
+                self.assertIs(w[-1].category, SyntaxWarning)
+                self.assertIn(
+                    "Found a layer with softmax activation and single unit "
+                    "output",
+                    str(w[-1].message),
+                )
             del model
 
 
