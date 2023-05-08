@@ -65,6 +65,7 @@ class Layer(Operation):
         self._trainable_variables = []
         self._non_trainable_variables = []
         self._supports_masking = not utils.is_default(self.compute_mask)
+        self._allow_non_tensor_positional_args = False
         self._build_shapes_dict = None
         self._call_signature_parameters = [
             p.name for p in inspect.signature(self.call).parameters.values()
@@ -333,14 +334,17 @@ class Layer(Operation):
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
-        for arg in nest.flatten(args):
-            if not isinstance(arg, KerasTensor) and not backend.is_tensor(arg):
-                raise ValueError(
-                    "Only input tensors may be passed as "
-                    "positional arguments. The following argument value "
-                    f"should be passed as a keyword argument: {arg} "
-                    f"(of type {type(arg)})"
-                )
+        if not self._allow_non_tensor_positional_args:
+            for arg in nest.flatten(args):
+                if not isinstance(arg, KerasTensor) and not backend.is_tensor(
+                    arg
+                ):
+                    raise ValueError(
+                        "Only input tensors may be passed as "
+                        "positional arguments. The following argument value "
+                        f"should be passed as a keyword argument: {arg} "
+                        f"(of type {type(arg)})"
+                    )
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(self.call, args, kwargs)

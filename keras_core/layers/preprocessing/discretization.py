@@ -141,23 +141,24 @@ class Discretization(Layer):
 
         Arguments:
           data: The data to train on. It can be passed either as a
-              `tf.data.Dataset`, or as a numpy array.
-          batch_size: Integer or `None`.
-              Number of samples per state update.
-              If unspecified, `batch_size` will default to 32.
-              Do not specify the `batch_size` if your data is in the
-              form of datasets, generators, or `keras.utils.Sequence` instances
-              (since they generate batches).
-          steps: Integer or `None`.
-              Total number of steps (batches of samples)
-              When training with input tensors such as
-              TensorFlow data tensors, the default `None` is equal to
-              the number of samples in your dataset divided by
-              the batch size, or 1 if that cannot be determined. If x is a
-              `tf.data.Dataset`, and `steps` is `None`, the epoch will run until
-              the input dataset is exhausted. When passing an infinitely
-              repeating dataset, you must specify the `steps` argument. This
-              argument is not supported with array inputs.
+                batched `tf.data.Dataset`, or as a numpy array.
+            batch_size: Integer or `None`.
+                Number of samples per state update.
+                If unspecified, `batch_size` will default to 32.
+                Do not specify the `batch_size` if your data is in the
+                form of a `tf.data.Dataset`
+                (it is expected to be already batched).
+            steps: Integer or `None`.
+                Total number of steps (batches of samples)
+                When training with input tensors such as
+                the default `None` is equal to
+                the number of samples in your dataset divided by
+                the batch size, or 1 if that cannot be determined.
+                If `data` is a `tf.data.Dataset`, and `steps` is `None`,
+                the epoch will run until the input dataset is exhausted.
+                When passing an infinitely
+                repeating dataset, you must specify the `steps` argument. This
+                argument is not supported with array inputs.
         """
         self.layer.adapt(data, batch_size=batch_size, steps=steps)
 

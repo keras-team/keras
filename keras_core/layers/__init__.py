@@ -57,6 +57,7 @@ from keras_core.layers.preprocessing.discretization import Discretization
 from keras_core.layers.preprocessing.normalization import Normalization
 from keras_core.layers.preprocessing.rescaling import Rescaling
 from keras_core.layers.preprocessing.resizing import Resizing
+from keras_core.layers.preprocessing.text_vectorization import TextVectorization
 from keras_core.layers.regularization.activity_regularization import (
     ActivityRegularization,
 )
