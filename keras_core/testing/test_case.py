@@ -26,6 +26,17 @@ class TestCase(unittest.TestCase):
     def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol)
 
+    def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+        try:
+            self.assertAllClose(x1, x2, atol=atol, rtol=rtol, msg=msg)
+        except AssertionError:
+            return
+        msg = msg or ""
+        raise AssertionError(
+            f"The two values are close at all elements. \n"
+            f"{msg}.\n"
+            f"Values: {x1}")
+
     def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
         np.testing.assert_almost_equal(x1, x2, decimal=decimal)
 
