@@ -21,21 +21,14 @@ class Reshape(Layer):
 
     Example:
 
-    >>> # as first layer in a Sequential model
-    >>> model = keras_core.Sequential()
-    >>> model.add(keras_core.layers.Reshape((3, 4), input_shape=(12,)))
-    >>> # model.output_shape == (None, 3, 4), `None` is the batch size.
-    >>> model.output_shape
+    >>> x = keras_core.Input(shape=(12,))
+    >>> y = keras_core.layers.Reshape((3, 4))(x)
+    >>> y.shape
     (None, 3, 4)
 
-    >>> # as intermediate layer in a Sequential model
-    >>> model.add(keras_core.layers.Reshape((6, 2)))
-    >>> model.output_shape
-    (None, 6, 2)
-
     >>> # also supports shape inference using `-1` as dimension
-    >>> model.add(keras_core.layers.Reshape((-1, 2, 2)))
-    >>> model.output_shape
+    >>> y = keras_core.layers.Reshape((-1, 2, 2))(x)
+    >>> y.shape
     (None, 3, 2, 2)
     """
 

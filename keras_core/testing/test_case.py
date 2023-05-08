@@ -70,7 +70,7 @@ class TestCase(unittest.TestCase):
         self,
         layer_cls,
         init_kwargs,
-        input_shape,
+        input_shape=None,
         input_dtype="float32",
         input_data=None,
         call_kwargs=None,
