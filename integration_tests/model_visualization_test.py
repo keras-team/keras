@@ -68,6 +68,7 @@ def plot_functional_model():
     x = keras_core.layers.Dense(4, activation="relu")(x)
     x = keras_core.layers.Dense(4, activation="relu")(x)
     x += residual
+    residual = x
     x = keras_core.layers.Dense(4, activation="relu")(x)
     x = keras_core.layers.Dense(4, activation="relu")(x)
     x = keras_core.layers.Dense(4, activation="relu")(x)

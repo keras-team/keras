@@ -232,6 +232,7 @@ def model_to_dot(
         dot.set("rankdir", rankdir)
         dot.set("concentrate", True)
         dot.set("dpi", dpi)
+        dot.set("splines", "ortho")
         dot.set_node_defaults(shape="record")
 
     if kwargs.pop("layer_range", None) is not None:
