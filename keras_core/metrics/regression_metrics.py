@@ -349,14 +349,16 @@ class R2Score(reduction_metrics.Metric):
     """Computes R2 score.
 
     Formula:
+
     ```python
     sum_squares_residuals = sum((y_true - y_pred) ** 2)
     sum_squares = sum((y_true - mean(y_true)) ** 2)
     R2 = 1 - sum_squares_residuals / sum_squares
     ```
+
     This is also called the
-    [coefficient of
-    determination](https://en.wikipedia.org/wiki/Coefficient_of_determination).
+    [coefficient of determination](
+    https://en.wikipedia.org/wiki/Coefficient_of_determination).
 
     It indicates how close the fitted regression line
     is to ground-truth data.
