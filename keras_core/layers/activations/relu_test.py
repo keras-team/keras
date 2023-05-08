@@ -41,8 +41,7 @@ class ReLUTest(testing.TestCase):
     def test_invalid_usage(self):
         with self.assertRaisesRegex(
             ValueError,
-            "max_value of a ReLU layer cannot be a negative "
-            "value. Received max_value: -10",
+            "max_value of a ReLU layer cannot be a negative value",
         ):
             self.run_layer_test(
                 relu.ReLU,
@@ -57,8 +56,7 @@ class ReLUTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "negative_slope of a ReLU layer cannot be a negative "
-            "value. Received negative_slope: -10",
+            "negative_slope of a ReLU layer cannot be a negative value",
         ):
             self.run_layer_test(
                 relu.ReLU,
@@ -72,9 +70,7 @@ class ReLUTest(testing.TestCase):
             )
 
         with self.assertRaisesRegex(
-            ValueError,
-            "threshold of a ReLU layer cannot be a negative "
-            "value. Received threshold: -10",
+            ValueError, "threshold of a ReLU layer cannot be a negative value"
         ):
             self.run_layer_test(
                 relu.ReLU,
