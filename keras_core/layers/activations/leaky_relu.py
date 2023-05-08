@@ -7,15 +7,17 @@ from keras_core.layers.layer import Layer
 class LeakyReLU(Layer):
     """Leaky version of a Rectified Linear Unit activation layer.
 
-    The layer allows a small gradient when the unit is not active.
+    This layer allows a small gradient when the unit is not active.
 
     Formula:
+
     ``` python
     f(x) = alpha * x if x < 0
     f(x) = x if x >= 0
     ```
 
     Example:
+
     ``` python
     leaky_relu_layer = LeakyReLU(negative_slope=0.5)
     input = np.array([-10, -5, 0.0, 5, 10])
@@ -36,8 +38,8 @@ class LeakyReLU(Layer):
         if negative_slope is None:
             raise ValueError(
                 "The negative_slope value of a Leaky ReLU layer "
-                "cannot be None, Expecting a float. Received "
-                f"negative_slope: {negative_slope}"
+                "cannot be None, Expecting a float. Received: "
+                f"negative_slope={negative_slope}"
             )
         self.supports_masking = True
         self.negative_slope = negative_slope

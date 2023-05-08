@@ -25,8 +25,7 @@ class LeakyReLUTest(testing.TestCase):
     def test_invalid_usage(self):
         with self.assertRaisesRegex(
             ValueError,
-            "The negative_slope value of a Leaky ReLU layer cannot be None, "
-            "Expecting a float. Received negative_slope: None",
+            "The negative_slope value of a Leaky ReLU layer cannot be None",
         ):
             self.run_layer_test(
                 leaky_relu.LeakyReLU,
