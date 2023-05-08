@@ -13,23 +13,19 @@ class Flatten(Layer):
     flattening adds an extra channel dimension and output shape is `(batch, 1)`.
 
     Args:
-        data_format: A string, one of `'channels_last'` (default) or
-            `'channels_first'`. The ordering of the dimensions in the inputs.
-            '`channels_last`' corresponds to inputs with shape
-            `(batch, ..., channels)` while `'channels_first'` corresponds to
+        data_format: A string, one of `"channels_last"` (default) or
+            `"channels_first"`. The ordering of the dimensions in the inputs.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, ..., channels)` while `"channels_first"` corresponds to
             inputs with shape `(batch, channels, ...)`.
             When unspecified, uses `image_data_format` value found in your Keras
             config file at `~/.keras/keras.json` (if exists). Defaults to
-            `'channels_last'`.
+            `"channels_last"`.
 
     Example:
 
-    >>> x = keras_core.Input(shape=(3, 32, 32))
-    >>> y = keras_core.layers.Conv2D(64, 3, 3)(x)
-    >>> y.shape
-    (None, 1, 10, 64)
-
-    >>> y = keras_core.layers.Flatten()(y)
+    >>> x = keras_core.Input(shape=(10, 64))
+    >>> y = keras_core.layers.Flatten()(x)
     >>> y.shape
     (None, 640)
     """

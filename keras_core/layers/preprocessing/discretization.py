@@ -2,9 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 from keras_core import backend
+from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 
 
+@keras_core_export("keras_core.layers.Discretization")
 class Discretization(Layer):
     """A preprocessing layer which buckets continuous features by ranges.
 
@@ -94,10 +96,14 @@ class Discretization(Layer):
         output_mode="int",
         sparse=False,
         name=None,
+        **kwargs,
     ):
         super().__init__(name=name)
         if sparse and backend.backend() != "tensorflow":
-            raise ValueError()
+            raise ValueError(
+                "`sparse` can only be set to True with the "
+                "TensorFlow backend."
+            )
         self.layer = tf.keras.layers.Discretization(
             bin_boundaries=bin_boundaries,
             num_bins=num_bins,
@@ -105,6 +111,7 @@ class Discretization(Layer):
             output_mode=output_mode,
             sparse=sparse,
             name=name,
+            **kwargs,
         )
         self.bin_boundaries = (
             bin_boundaries if bin_boundaries is not None else []
