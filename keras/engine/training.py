@@ -791,7 +791,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             else:
                 self._jit_compile = jit_compile
 
-
     def _get_optimizer(self, optimizer):
         """Wraps `optimizer` in `LossScaleOptimizer` if necessary."""
 
@@ -4386,84 +4385,50 @@ def _validate_softmax_output(model_instance):
         model_instance: A `Model` instance, either functional or sequential.
 
     """
+    outputs = model_instance.outputs
+    if outputs is not None:
+        for output in outputs:
+            if (
+                "softmax" in str(output.name.lower())
+                and output.__class__.__name__ == "KerasTensor"
+            ):
+                check_output_activation(output)
+                break
 
-    if model_instance.__class__.__name__.lower() == "sequential":
-        output = model_instance.layers[-1]
-        check_sequential_output_activation(output)
-
-    elif isinstance(model_instance, functional.Functional):
-        outputs = model_instance.outputs
-        check_functional_output_activation(outputs)
-
-    else: # model is a subclassed/custom model, so we don't apply any checks
+    else:  # model is a subclassed/custom model, so we don't apply any checks
         return
 
 
-def check_sequential_output_activation(last_layer):
-    """
-    Checks if the last layer of a sequential model has a softmax activation
-    and a single unit output.
-
-    Args:
-        last_layer: The last layer of a sequential model. Instance of `Layer`.
-
-    Raises:
-        Warning: If the last layer has a softmax activation and a
-            single unit output.
-    """
-    try:
-        # Check if model had an input layer, if not we can't check the output
-        # shape of the layer, and it is difficult determine. So we just skip
-        # this check if this try-catch fails.
-        output_shape_last_axis = last_layer.output_shape[-1]
-    except AttributeError:
-        return
-
-    activation = last_layer.activation
-
-    if "softmax" in str(activation) and output_shape_last_axis == 1:
-        warnings.warn(
-            "Found a layer with softmax activation and single unit output. "
-            "This is most likely an error as this will produce a model "
-            "which outputs ones (1) all the time. Ensure you are using "
-            "the correct activation function. "
-            f"Found activation: {activation} at "
-            f"{last_layer.name} with output shape: {last_layer.output_shape}. "
-            "If you don't apply softmax on the last axis, you can ignore "
-            "this warning."
-        )
-
-
-def check_functional_output_activation(outputs):
+def check_output_activation(output):
     """
     Checks if the last layer(s) of a functional model has a softmax activation
     and a single unit output.
 
     Args:
-        outputs: The output(s) of a functional model. List of `KerasTensor`.
+        output: The output of a Keras (either Functional or Sequential) model.
+            List of `KerasTensor`.
 
     Raises:
         Warning: If the last layer has a softmax activation and a
             single unit output.
 
     """
-    for output in outputs:
-        # Outputs are instance of KerasTensor. The activation is stored in
-        # the name of the tensor. Ex: dense_12/Softmax:0
-        layer_name_and_act = output.name.split("/")
-        output_act = layer_name_and_act[1].lower()
+    # Outputs are instance of KerasTensor. The activation is stored in
+    # the name of the tensor. Ex: dense_12/Softmax:0
+    layer_name_and_act = output.name.split("/")
+    output_act = layer_name_and_act[-1].lower()
 
-        # Softmax is applied on the last axis of logits.
-        output_shape_last_axis = output.shape[-1]
+    # Softmax is applied on the last axis of logits.
+    output_shape_last_axis = output.shape[-1]
 
-        if "softmax" in output_act and output_shape_last_axis == 1:
-            warnings.warn(
-                "Found a layer with softmax activation and single unit output. "
-                "This is most likely an error as this will produce a model "
-                "which outputs ones (1) all the time. Ensure you are using "
-                "the correct activation function. "
-                f"Found activation: {output_act} at "
-                f"{layer_name_and_act[0]} with output shape: {output.shape}."
-                "If you don't apply softmax on the last axis, you can ignore "
-                "this warning."
-            )
+    if "softmax" in output_act and output_shape_last_axis == 1:
+        warnings.warn(
+            "Found a layer with softmax activation and single unit output. "
+            "This is most likely an error as this will produce a model "
+            "which outputs ones (1) all the time. Ensure you are using "
+            "the correct activation function. "
+            f"Found activation: {output_act} at "
+            f"{layer_name_and_act[0]} with output shape: {output.shape}."
+            "If you don't apply softmax on the last axis, you can ignore "
+            "this warning."
+        )
