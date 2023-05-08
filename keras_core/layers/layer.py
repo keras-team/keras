@@ -202,12 +202,24 @@ class Layer(Operation):
 
     @property
     def variables(self):
-        # Includes weights, seed generator state, and metric variables.
-        variables = self.weights[:]
+        # Return only weights/rng state/metric variables
+        # of all Layers, recursively.
+        # Also deduplicate them.
+        variables = []
+        seen_ids = set()
+        for v in self._trainable_variables + self._non_trainable_variables:
+            if id(v) not in seen_ids:
+                variables.append(v)
+                seen_ids.add(id(v))
         for m in self._metrics:
             variables.extend(m.variables)
         for sg in self._seed_generators:
             variables.append(sg.state)
+        for layer in self._layers:
+            for v in layer.variables:
+                if id(v) not in seen_ids:
+                    variables.append(v)
+                    seen_ids.add(id(v))
         return variables
 
     @property
@@ -962,6 +974,9 @@ def get_shapes_dict(call_spec):
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask" or k.startswith("mask_"):
             # Do not include mask tensors in shapes dict
+            continue
+        if k == "kwargs" or k == "args":
+            # Do not include catch-alls in shapes dict
             continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = nest.map_structure(

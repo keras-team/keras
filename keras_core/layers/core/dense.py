@@ -70,7 +70,7 @@ class Dense(Layer):
         bias_constraint=None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units
         self.activation = activations.get(activation)
         self.use_bias = use_bias

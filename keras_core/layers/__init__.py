@@ -9,6 +9,7 @@ from keras_core.layers.core.identity import Identity
 from keras_core.layers.core.input_layer import Input
 from keras_core.layers.core.input_layer import InputLayer
 from keras_core.layers.core.masking import Masking
+from keras_core.layers.core.wrapper import Wrapper
 from keras_core.layers.layer import Layer
 from keras_core.layers.merging.add import Add
 from keras_core.layers.merging.add import add
