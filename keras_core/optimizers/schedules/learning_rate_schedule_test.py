@@ -6,13 +6,13 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import testing
-from keras_core.optimizers.schedules import learning_rate_schedule
+from keras_core.optimizers import schedules
 
 
 class ExponentialDecayTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.ExponentialDecay(
+            schedules.ExponentialDecay(
                 initial_learning_rate=0.05,
                 decay_steps=10,
                 decay_rate=0.96,
@@ -23,15 +23,13 @@ class ExponentialDecayTest(testing.TestCase):
 
     def test_continuous(self):
         step = 5
-        decayed_lr = learning_rate_schedule.ExponentialDecay(0.05, 10, 0.96)
+        decayed_lr = schedules.ExponentialDecay(0.05, 10, 0.96)
         expected = 0.05 * 0.96 ** (5.0 / 10.0)
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
     def test_staircase(self):
         step = backend.Variable(1)
-        decayed_lr = learning_rate_schedule.ExponentialDecay(
-            0.1, 3, 0.96, staircase=True
-        )
+        decayed_lr = schedules.ExponentialDecay(0.1, 3, 0.96, staircase=True)
 
         # No change to learning rate due to staircase
         expected = 0.1
@@ -48,9 +46,7 @@ class ExponentialDecayTest(testing.TestCase):
 
     def test_variables(self):
         step = backend.Variable(1)
-        decayed_lr = learning_rate_schedule.ExponentialDecay(
-            0.1, 3, 0.96, staircase=True
-        )
+        decayed_lr = schedules.ExponentialDecay(0.1, 3, 0.96, staircase=True)
 
         # No change to learning rate
         step.assign(1)
@@ -66,14 +62,14 @@ class ExponentialDecayTest(testing.TestCase):
 class PiecewiseConstantDecayTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.PiecewiseConstantDecay(
+            schedules.PiecewiseConstantDecay(
                 boundaries=[10, 20], values=[1, 2, 3], name="my_pcd"
             )
         )
 
     def test_piecewise_values(self):
         x = backend.Variable(-999)
-        decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
+        decayed_lr = schedules.PiecewiseConstantDecay(
             [100, 110, 120], [1.0, 0.1, 0.01, 0.001]
         )
 
@@ -93,9 +89,7 @@ class PiecewiseConstantDecayTest(testing.TestCase):
         # Test casting boundaries from int32 to int64.
         x_int64 = backend.Variable(0, dtype="int64")
         boundaries, values = [1, 2, 3], [0.4, 0.5, 0.6, 0.7]
-        decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
-            boundaries, values
-        )
+        decayed_lr = schedules.PiecewiseConstantDecay(boundaries, values)
 
         self.assertAllClose(decayed_lr(x_int64), 0.4, 1e-6)
         x_int64.assign(1)
@@ -111,7 +105,7 @@ class PiecewiseConstantDecayTest(testing.TestCase):
 class LinearDecayTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.PolynomialDecay(
+            schedules.PolynomialDecay(
                 initial_learning_rate=0.1,
                 decay_steps=100,
                 end_learning_rate=0.005,
@@ -125,7 +119,7 @@ class LinearDecayTest(testing.TestCase):
         step = 5
         lr = 0.05
         end_lr = 0.0
-        decayed_lr = learning_rate_schedule.PolynomialDecay(lr, 10, end_lr)
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr)
         expected = lr * 0.5
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -133,7 +127,7 @@ class LinearDecayTest(testing.TestCase):
         step = 10
         lr = 0.05
         end_lr = 0.001
-        decayed_lr = learning_rate_schedule.PolynomialDecay(lr, 10, end_lr)
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr)
         expected = end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -141,7 +135,7 @@ class LinearDecayTest(testing.TestCase):
         step = 5
         lr = 0.05
         end_lr = 0.001
-        decayed_lr = learning_rate_schedule.PolynomialDecay(lr, 10, end_lr)
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr)
         expected = (lr + end_lr) * 0.5
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -149,7 +143,7 @@ class LinearDecayTest(testing.TestCase):
         step = 15
         lr = 0.05
         end_lr = 0.001
-        decayed_lr = learning_rate_schedule.PolynomialDecay(lr, 10, end_lr)
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr)
         expected = end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -157,9 +151,7 @@ class LinearDecayTest(testing.TestCase):
         step = 15
         lr = 0.05
         end_lr = 0.001
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, 10, end_lr, cycle=True
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr, cycle=True)
         expected = (lr - end_lr) * 0.25 + end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -170,9 +162,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.05
         end_lr = 0.0
         power = 0.5
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, 10, end_lr, power=power
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr, power=power)
         expected = lr * 0.5**power
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -181,9 +171,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.05
         end_lr = 0.001
         power = 0.5
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, 10, end_lr, power=power
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr, power=power)
         expected = end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -192,9 +180,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.05
         end_lr = 0.001
         power = 0.5
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, 10, end_lr, power=power
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr, power=power)
         expected = (lr - end_lr) * 0.5**power + end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -203,9 +189,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.05
         end_lr = 0.001
         power = 0.5
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, 10, end_lr, power=power
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, 10, end_lr, power=power)
         expected = end_lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -214,7 +198,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.05
         end_lr = 0.001
         power = 0.5
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
+        decayed_lr = schedules.PolynomialDecay(
             lr, 10, end_lr, power=power, cycle=True
         )
         expected = (lr - end_lr) * 0.25**power + end_lr
@@ -224,9 +208,7 @@ class SqrtDecayTest(testing.TestCase):
         lr = 0.001
         decay_steps = 10
         step = 0
-        decayed_lr = learning_rate_schedule.PolynomialDecay(
-            lr, decay_steps, cycle=True
-        )
+        decayed_lr = schedules.PolynomialDecay(lr, decay_steps, cycle=True)
         expected = lr
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -234,7 +216,7 @@ class SqrtDecayTest(testing.TestCase):
 class InverseTimeDecayTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.InverseTimeDecay(
+            schedules.InverseTimeDecay(
                 initial_learning_rate=0.05,
                 decay_steps=10,
                 decay_rate=0.96,
@@ -248,9 +230,7 @@ class InverseTimeDecayTest(testing.TestCase):
         k = 10
         decay_rate = 0.96
         step = backend.Variable(0)
-        decayed_lr = learning_rate_schedule.InverseTimeDecay(
-            initial_lr, k, decay_rate
-        )
+        decayed_lr = schedules.InverseTimeDecay(initial_lr, k, decay_rate)
 
         for i in range(k + 1):
             expected = initial_lr / (1 + i / k * decay_rate)
@@ -262,7 +242,7 @@ class InverseTimeDecayTest(testing.TestCase):
         k = 10
         decay_rate = 0.96
         step = backend.Variable(0)
-        decayed_lr = learning_rate_schedule.InverseTimeDecay(
+        decayed_lr = schedules.InverseTimeDecay(
             initial_lr, k, decay_rate, staircase=True
         )
 
@@ -275,7 +255,7 @@ class InverseTimeDecayTest(testing.TestCase):
 class CosineDecayTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.CosineDecay(
+            schedules.CosineDecay(
                 initial_learning_rate=0.05,
                 decay_steps=10,
                 alpha=0.1,
@@ -295,9 +275,7 @@ class CosineDecayTest(testing.TestCase):
         num_training_steps = 1000
         initial_lr = 1.0
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecay(
-                initial_lr, num_training_steps
-            )
+            decayed_lr = schedules.CosineDecay(initial_lr, num_training_steps)
             expected = self.np_cosine_decay(step, num_training_steps)
             self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -311,7 +289,7 @@ class CosineDecayTest(testing.TestCase):
         initial_lr = 0.0
         target_lr = 10.0
         for step in range(0, 1500, 250):
-            lr = learning_rate_schedule.CosineDecay(
+            lr = schedules.CosineDecay(
                 initial_lr,
                 0,
                 warmup_target=target_lr,
@@ -327,7 +305,7 @@ class CosineDecayTest(testing.TestCase):
         initial_lr = 1.0
         alpha = 0.1
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecay(
+            decayed_lr = schedules.CosineDecay(
                 initial_lr, num_training_steps, alpha
             )
             expected = self.np_cosine_decay(step, num_training_steps, alpha)
@@ -337,9 +315,7 @@ class CosineDecayTest(testing.TestCase):
         num_training_steps = 1000
         initial_lr = np.float64(1.0)
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecay(
-                initial_lr, num_training_steps
-            )
+            decayed_lr = schedules.CosineDecay(initial_lr, num_training_steps)
             expected = self.np_cosine_decay(step, num_training_steps)
             self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
@@ -349,7 +325,7 @@ class CosineDecayTest(testing.TestCase):
         initial_lr = 0.0
         target_lr = 10.0
         for step in range(0, 3000, 250):
-            lr = learning_rate_schedule.CosineDecay(
+            lr = schedules.CosineDecay(
                 initial_lr,
                 decay_steps,
                 warmup_target=target_lr,
@@ -369,7 +345,7 @@ class CosineDecayTest(testing.TestCase):
 class CosineDecayRestartsTest(testing.TestCase):
     def test_config(self):
         self.run_class_serialization_test(
-            learning_rate_schedule.CosineDecayRestarts(
+            schedules.CosineDecayRestarts(
                 initial_learning_rate=0.05,
                 first_decay_steps=10,
                 alpha=0.1,
@@ -396,7 +372,7 @@ class CosineDecayRestartsTest(testing.TestCase):
         num_training_steps = 1000
         initial_lr = 1.0
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+            decayed_lr = schedules.CosineDecayRestarts(
                 initial_lr, num_training_steps
             )
             expected = self.np_cosine_decay_restarts(step, num_training_steps)
@@ -406,7 +382,7 @@ class CosineDecayRestartsTest(testing.TestCase):
         num_training_steps = 1000
         initial_lr = np.float64(1.0)
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+            decayed_lr = schedules.CosineDecayRestarts(
                 initial_lr, num_training_steps
             )
             expected = self.np_cosine_decay_restarts(step, num_training_steps)
@@ -417,7 +393,7 @@ class CosineDecayRestartsTest(testing.TestCase):
         initial_lr = 1.0
         alpha = 0.1
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+            decayed_lr = schedules.CosineDecayRestarts(
                 initial_lr, num_training_steps, alpha=alpha
             )
             expected = self.np_cosine_decay_restarts(
@@ -430,7 +406,7 @@ class CosineDecayRestartsTest(testing.TestCase):
         initial_lr = 1.0
         m_mul = 0.9
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+            decayed_lr = schedules.CosineDecayRestarts(
                 initial_lr, num_training_steps, m_mul=m_mul
             )
             expected = self.np_cosine_decay_restarts(
@@ -443,7 +419,7 @@ class CosineDecayRestartsTest(testing.TestCase):
         initial_lr = 1.0
         t_mul = 1.0
         for step in range(0, 1500, 250):
-            decayed_lr = learning_rate_schedule.CosineDecayRestarts(
+            decayed_lr = schedules.CosineDecayRestarts(
                 initial_lr, num_training_steps, t_mul=t_mul
             )
             expected = self.np_cosine_decay_restarts(
