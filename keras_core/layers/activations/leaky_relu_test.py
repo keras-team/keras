@@ -5,7 +5,7 @@ from keras_core.layers.activations import leaky_relu
 
 
 class LeakyReLUTest(testing.TestCase):
-    def test_relu(self):
+    def test_leaky_relu(self):
         self.run_layer_test(
             leaky_relu.LeakyReLU,
             init_kwargs={
