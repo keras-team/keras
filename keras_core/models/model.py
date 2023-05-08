@@ -5,6 +5,7 @@ from keras_core import backend
 from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.saving import saving_api
 from keras_core.saving import saving_lib
 from keras_core.utils import io_utils
 from keras_core.utils import summary_utils
@@ -191,21 +192,10 @@ class Model(Trainer, Layer):
                 return
         saving_lib.save_weights_only(self, filepath)
 
-    def load_weights(self, filepath, skip_mismatch=False):
-        if str(filepath).endswith(".keras"):
-            saving_lib.load_weights_only(
-                self, filepath, skip_mismatch=skip_mismatch
-            )
-        elif str(filepath).endswith(".weights.h5"):
-            saving_lib.load_weights_only(
-                self, filepath, skip_mismatch=skip_mismatch
-            )
-        else:
-            raise ValueError(
-                f"File format not supported: filepath={filepath}. "
-                "Keras Core only supports V3 `.keras` and `.weights.h5` "
-                "files."
-            )
+    def load_weights(self, filepath, skip_mismatch=False, **kwargs):
+        saving_api.load_weights(
+            self, filepath, skip_mismatch=skip_mismatch, **kwargs
+        )
 
     def build_from_config(self, config):
         if not config:

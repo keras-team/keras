@@ -62,7 +62,8 @@ class Layer(Operation):
         self._metrics = []
         self._seed_generators = []
         self._losses = []
-        self._variables = []
+        self._trainable_variables = []
+        self._non_trainable_variables = []
         self._supports_masking = not utils.is_default(self.compute_mask)
         self._build_shapes_dict = None
         self._call_signature_parameters = [
@@ -71,9 +72,14 @@ class Layer(Operation):
 
         self._tracker = Tracker(
             {
-                "variables": (
-                    lambda x: isinstance(x, backend.Variable),
-                    self._variables,
+                "trainable_variables": (
+                    lambda x: isinstance(x, backend.Variable) and x.trainable,
+                    self._trainable_variables,
+                ),
+                "non_trainable_variables": (
+                    lambda x: isinstance(x, backend.Variable)
+                    and not x.trainable,
+                    self._non_trainable_variables,
                 ),
                 "metrics": (lambda x: isinstance(x, Metric), self._metrics),
                 "layers": (
@@ -159,9 +165,16 @@ class Layer(Operation):
         # Will be added to layer.losses
         variable.regularizer = regularizer
         variable.constraint = constraint
-        self._variables.append(variable)
-        # Prevent double-tracking
-        self._tracker.stored_ids["variables"].add(id(variable))
+        if trainable:
+            self._trainable_variables.append(variable)
+            # Prevent double-tracking
+            self._tracker.stored_ids["trainable_variables"].add(id(variable))
+        else:
+            self._non_trainable_variables.append(variable)
+            # Prevent double-tracking
+            self._tracker.stored_ids["non_trainable_variables"].add(
+                id(variable)
+            )
         return variable
 
     def add_weight(self, *args, **kwargs):
@@ -211,7 +224,7 @@ class Layer(Operation):
         # Also deduplicate them.
         weights = []
         seen_ids = set()
-        for w in self._variables:
+        for w in self._trainable_variables + self._non_trainable_variables:
             if id(w) not in seen_ids:
                 weights.append(w)
                 seen_ids.add(id(w))
@@ -600,7 +613,7 @@ class Layer(Operation):
         Args:
             store: Dict where the state of the model will be saved.
         """
-        all_vars = self._variables
+        all_vars = self._trainable_variables + self._non_trainable_variables
         for i, v in enumerate(all_vars):
             store[f"{i}"] = np.array(v)
 
@@ -613,7 +626,7 @@ class Layer(Operation):
         Args:
             store: Dict from which the state of the model will be loaded.
         """
-        all_vars = self._variables
+        all_vars = self._trainable_variables + self._non_trainable_variables
         if len(store.keys()) != len(all_vars):
             if len(all_vars) == 0 and not self.built:
                 raise ValueError(

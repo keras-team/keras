@@ -6,7 +6,6 @@ from tensorflow import nest
 from keras_core import backend
 from keras_core.backend.common.keras_tensor import any_symbolic_tensors
 from keras_core.operations.node import Node
-from keras_core.saving import serialization_lib
 from keras_core.utils import python_utils
 from keras_core.utils import traceback_utils
 from keras_core.utils.naming import auto_name
@@ -101,6 +100,8 @@ class Operation:
             auto_config = False
         try:
             if auto_config:
+                from keras_core.saving import serialization_lib
+
                 instance._auto_config = serialization_lib.SerializableDict(
                     **kwargs
                 )

@@ -4,6 +4,13 @@ import zipfile
 from tensorflow.io import gfile
 
 from keras_core.api_export import keras_core_export
+from keras_core.saving import saving_lib
+from keras_core.saving.legacy import legacy_h5_format
+
+try:
+    import h5py
+except ImportError:
+    h5py = None
 
 
 @keras_core_export(
@@ -82,4 +89,42 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             "be a valid `.keras` model file. If it is a legacy "
             "`.h5` or SavedModel file, do note that these formats "
             "are not supported in Keras Core."
+        )
+
+
+def load_weights(model, filepath, skip_mismatch=False, **kwargs):
+    if str(filepath).endswith(".keras"):
+        if kwargs:
+            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
+    elif str(filepath).endswith(".weights.h5"):
+        if kwargs:
+            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
+    elif str(filepath).endswith(".h5") or str(filepath).endswith(".hdf5"):
+        by_name = kwargs.pop("by_name", False)
+        if kwargs:
+            raise ValueError(f"Invalid keyword arguments: {kwargs}")
+        if not h5py:
+            raise ImportError(
+                "Loading a H5 file requires `h5py` to be installed."
+            )
+        with h5py.File(filepath, "r") as f:
+            if "layer_names" not in f.attrs and "model_weights" in f:
+                f = f["model_weights"]
+            if by_name:
+                legacy_h5_format.load_weights_from_hdf5_group_by_name(
+                    f, model, skip_mismatch
+                )
+            else:
+                legacy_h5_format.load_weights_from_hdf5_group(f, model)
+    else:
+        raise ValueError(
+            f"File format not supported: filepath={filepath}. "
+            "Keras Core only supports V3 `.keras` and `.weights.h5` "
+            "files."
         )
