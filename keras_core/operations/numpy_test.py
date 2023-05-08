@@ -1016,6 +1016,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_reshape(self):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
+        self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, None))
 
     def test_roll(self):
         x = KerasTensor([None, 3])
@@ -1444,6 +1445,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_reshape(self):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
+        self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, 2))
+        self.assertEqual(knp.reshape(x, (6,)).shape, (6,))
+        self.assertEqual(knp.reshape(x, (-1,)).shape, (6,))
 
     def test_roll(self):
         x = KerasTensor([2, 3])

@@ -32,7 +32,7 @@ def get_functional_model(keras):
         moving_mean_initializer="uniform", gamma_initializer="uniform"
     )(x)
     x = keras.layers.Dense(4, activation="relu")(x)
-    x = keras.layers.add([x, residual])
+    x += residual
     outputs = keras.layers.Dense(5, activation="softmax")(x)
     return keras.Model(inputs, outputs)
 
