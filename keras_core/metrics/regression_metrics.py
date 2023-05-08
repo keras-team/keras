@@ -1,3 +1,6 @@
+import warnings
+
+from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import squeeze_to_same_rank
@@ -338,6 +341,228 @@ class LogCoshError(reduction_metrics.MeanMetricWrapper):
 
     def get_config(self):
         return {"name": self.name, "dtype": self.dtype}
+
+
+# Adapted from TF-Addons implementation (RSquare class).
+@keras_core_export("keras_core.metrics.R2Score")
+class R2Score(reduction_metrics.Metric):
+    """Computes R2 score.
+
+    Formula:
+    ```python
+    sum_squares_residuals = sum((y_true - y_pred) ** 2)
+    sum_squares = sum((y_true - mean(y_true)) ** 2)
+    R2 = 1 - sum_squares_residuals / sum_squares
+    ```
+    This is also called the
+    [coefficient of
+    determination](https://en.wikipedia.org/wiki/Coefficient_of_determination).
+
+    It indicates how close the fitted regression line
+    is to ground-truth data.
+
+    - The highest score possible is 1.0. It indicates that the predictors
+        perfectly accounts for variation in the target.
+    - A score of 0.0 indicates that the predictors do not
+        account for variation in the target.
+    - It can also be negative if the model is worse than random.
+
+    This metric can also compute the "Adjusted R2" score.
+
+    Args:
+        class_aggregation: Specifies how to aggregate scores corresponding to
+            different output classes (or target dimensions),
+            i.e. different dimensions on the last axis of the predictions.
+            Equivalent to `multioutput` argument in Scikit-Learn.
+            Should be one of
+            `None` (no aggregation), `"uniform_average"`,
+            `"variance_weighted_average"`.
+        num_regressors: Number of independent regressors used
+            ("Adjusted R2" score). 0 is the standard R2 score.
+            Defaults to `0`.
+        name: Optional. string name of the metric instance.
+        dtype: Optional. data type of the metric result.
+
+    Example:
+
+    >>> y_true = np.array([[1], [4], [3]], dtype=np.float32)
+    >>> y_pred = np.array([[2], [4], [4]], dtype=np.float32)
+    >>> metric = keras_core.metrics.R2Score()
+    >>> metric.update_state(y_true, y_pred)
+    >>> result = metric.result()
+    >>> result
+    0.57142854
+    """
+
+    def __init__(
+        self,
+        class_aggregation="uniform_average",
+        num_regressors=0,
+        name="r2_score",
+        dtype=None,
+    ):
+        super().__init__(name=name, dtype=dtype)
+
+        valid_class_aggregation_values = (
+            None,
+            "uniform_average",
+            "variance_weighted_average",
+        )
+        if class_aggregation not in valid_class_aggregation_values:
+            raise ValueError(
+                "Invalid value for argument `class_aggregation`. Expected "
+                f"one of {valid_class_aggregation_values}. "
+                f"Received: class_aggregation={class_aggregation}"
+            )
+        if num_regressors < 0:
+            raise ValueError(
+                "Invalid value for argument `num_regressors`. "
+                "Expected a value >= 0. "
+                f"Received: num_regressors={num_regressors}"
+            )
+        self.class_aggregation = class_aggregation
+        self.num_regressors = num_regressors
+        self.num_samples = self.add_variable(
+            shape=(),
+            initializer=initializers.Zeros(),
+            name="num_samples",
+            dtype="int32",
+        )
+        self._built = False
+
+    def _build(self, y_true_shape, y_pred_shape):
+        if len(y_pred_shape) != 2 or len(y_true_shape) != 2:
+            raise ValueError(
+                "R2Score expects 2D inputs with shape "
+                "(batch_size, output_dim). Received input "
+                f"shapes: y_pred.shape={y_pred_shape} and "
+                f"y_true.shape={y_true_shape}."
+            )
+        if y_pred_shape[-1] is None or y_true_shape[-1] is None:
+            raise ValueError(
+                "R2Score expects 2D inputs with shape "
+                "(batch_size, output_dim), with output_dim fully "
+                "defined (not None). Received input "
+                f"shapes: y_pred.shape={y_pred_shape} and "
+                f"y_true.shape={y_true_shape}."
+            )
+        num_classes = y_pred_shape[-1]
+        self.squared_sum = self.add_variable(
+            name="squared_sum",
+            shape=[num_classes],
+            initializer=initializers.Zeros(),
+        )
+        self.sum = self.add_variable(
+            name="sum",
+            shape=[num_classes],
+            initializer=initializers.Zeros(),
+        )
+        self.total_mse = self.add_variable(
+            name="residual",
+            shape=[num_classes],
+            initializer=initializers.Zeros(),
+        )
+        self.count = self.add_variable(
+            name="count",
+            shape=[num_classes],
+            initializer=initializers.Zeros(),
+        )
+        self._built = True
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates root mean squared error statistics.
+
+        Args:
+            y_true: The ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional weighting of each example. Can
+                be a `Tensor` whose rank is either 0, or the same rank as
+                `y_true`, and must be broadcastable to `y_true`.
+                Defaults to `1`.
+
+        Returns:
+            Update op.
+        """
+        y_true = ops.convert_to_tensor(y_true, dtype=self._dtype)
+        y_pred = ops.convert_to_tensor(y_pred, dtype=self._dtype)
+        y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
+        if not self._built:
+            self._build(y_true.shape, y_pred.shape)
+
+        if sample_weight is None:
+            sample_weight = 1
+
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype=self.dtype)
+
+        if sample_weight.shape.rank == 1:
+            # Make sure there's a features dimension
+            sample_weight = ops.expand_dims(sample_weight, axis=1)
+
+        sample_weight = ops.broadcast_to(sample_weight, y_true.shape)
+
+        weighted_y_true = y_true * sample_weight
+        self.sum.assign(self.sum + ops.sum(weighted_y_true, axis=0))
+        self.squared_sum.assign(
+            self.squared_sum + ops.sum(y_true * weighted_y_true, axis=0)
+        )
+        self.total_mse.assign(
+            self.total_mse
+            + ops.sum((y_true - y_pred) ** 2 * sample_weight, axis=0)
+        )
+        self.count.assign(self.count + ops.sum(sample_weight, axis=0))
+        self.num_samples.assign(self.num_samples + ops.size(y_true))
+
+    def result(self):
+        mean = self.sum / self.count
+        total = self.squared_sum - self.sum * mean
+        raw_scores = 1 - (self.total_mse / total)
+        raw_scores = ops.where(ops.isinf(raw_scores), 0.0, raw_scores)
+
+        if self.class_aggregation == "uniform_average":
+            r2_score = ops.mean(raw_scores)
+        elif self.class_aggregation == "variance_weighted_average":
+            weighted_sum = ops.sum(total * raw_scores)
+            sum_of_weights = ops.sum(total)
+            r2_score = weighted_sum / sum_of_weights
+        else:
+            r2_score = raw_scores
+
+        if self.num_regressors != 0:
+            if self.num_regressors > self.num_samples - 1:
+                warnings.warn(
+                    "More independent predictors than datapoints "
+                    "in adjusted R2 score. Falling back to standard R2 score.",
+                    stacklevel=2,
+                )
+            elif self.num_regressors == self.num_samples - 1:
+                warnings.warn(
+                    "Division by zero in Adjusted R2 score. "
+                    "Falling back to standard R2 score.",
+                    stacklevel=2,
+                )
+            else:
+                n = ops.convert_to_tensor(self.num_samples, dtype="float32")
+                p = ops.convert_to_tensor(self.num_regressors, dtype="float32")
+                num = ops.multiply(
+                    ops.subtract(1.0, r2_score), ops.subtract(n, 1.0)
+                )
+                den = ops.subtract(ops.subtract(n, p), 1.0)
+                r2_score = ops.subtract(1.0, ops.divide(num, den))
+        return r2_score
+
+    def reset_state(self):
+        for v in self.variables:
+            v.assign(ops.zeros(v.shape))
+
+    def get_config(self):
+        config = {
+            "name": self.name,
+            "dtype": self.dtype,
+            "class_aggregation": self.class_aggregation,
+            "num_regressors": self.num_regressors,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
 
 
 def cosine_similarity(y_true, y_pred, axis=-1):
