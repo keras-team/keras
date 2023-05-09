@@ -121,6 +121,19 @@ py_library(
 )
 
 cuda_py_test(
+    name = "model_checkpoint_test",
+    srcs = ["model_checkpoint_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":multi_worker_testing_utils",
+        ":worker_training_state",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+cuda_py_test(
     name = "worker_training_state_test",
     srcs = ["worker_training_state_test.py"],
     python_version = "PY3",
