@@ -140,8 +140,9 @@ class Discretization(Layer):
         be controlled via the `epsilon` argument.
 
         Arguments:
-          data: The data to train on. It can be passed either as a
-                batched `tf.data.Dataset`, or as a numpy array.
+            data: The data to train on. It can be passed either as a
+                batched `tf.data.Dataset`,
+                or as a NumPy array.
             batch_size: Integer or `None`.
                 Number of samples per state update.
                 If unspecified, `batch_size` will default to 32.
@@ -155,10 +156,10 @@ class Discretization(Layer):
                 the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
-                the epoch will run until the input dataset is exhausted.
+                `adapt()` will run until the input dataset is exhausted.
                 When passing an infinitely
                 repeating dataset, you must specify the `steps` argument. This
-                argument is not supported with array inputs.
+                argument is not supported with array inputs or list inputs.
         """
         self.layer.adapt(data, batch_size=batch_size, steps=steps)
 

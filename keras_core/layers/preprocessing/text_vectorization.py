@@ -275,7 +275,7 @@ class TextVectorization(Layer):
                 the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
-                the epoch will run until the input dataset is exhausted.
+                `adapt()` will run until the input dataset is exhausted.
                 When passing an infinitely
                 repeating dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
@@ -333,7 +333,7 @@ class TextVectorization(Layer):
     def set_vocabulary(self, vocabulary, idf_weights=None):
         """Sets vocabulary (and optionally document frequency) for this layer.
 
-        This method sets the vocabulary and idf weights for this layer directly,
+        This method sets the vocabulary and IDF weights for this layer directly,
         instead of analyzing a dataset through `adapt()`. It should be used
         whenever the vocab (and optionally document frequency) information is
         already known. If vocabulary data is already present in the layer, this
