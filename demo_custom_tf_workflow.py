@@ -74,9 +74,7 @@ def train_step(data):
     with tf.GradientTape() as tape:
         y_pred = model(x)
         loss = loss_fn(y, y_pred)
-    gradients = tape.gradient(
-        loss, model.trainable_variables
-    )
+    gradients = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
     return loss
 

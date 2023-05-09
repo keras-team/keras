@@ -959,7 +959,9 @@ class CallSpec:
         self.tensor_arguments_names = tensor_arg_names
         self.nested_tensor_argument_names = nested_tensor_arg_names
         self.first_arg = arg_dict[arg_names[0]]
-        if all(backend.is_tensor(x) for x in self.tensor_arguments_dict.values()):
+        if all(
+            backend.is_tensor(x) for x in self.tensor_arguments_dict.values()
+        ):
             self.eager = True
         else:
             self.eager = False
