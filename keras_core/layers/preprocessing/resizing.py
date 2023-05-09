@@ -62,7 +62,7 @@ class Resizing(Layer):
         self.height = height
         self.width = width
         self.interpolation = interpolation
-        self.data_format = data_format or backend.image_data_format()
+        self.data_format = backend.standardize_data_format(data_format)
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
 
     def call(self, inputs):

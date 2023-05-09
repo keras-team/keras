@@ -5,7 +5,7 @@ from keras_core import constraints
 from keras_core import initializers
 from keras_core import operations as ops
 from keras_core import regularizers
-from keras_core.backend import image_data_format
+from keras_core.backend import standardize_data_format
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.operations.operation_utils import compute_conv_output_shape
@@ -117,9 +117,7 @@ class BaseConv(Layer):
         self.dilation_rate = dilation_rate
 
         self.padding = padding
-        self.data_format = (
-            image_data_format() if data_format is None else data_format
-        )
+        self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)

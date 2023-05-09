@@ -66,8 +66,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
         A PIL Image instance.
     """
 
-    if data_format is None:
-        data_format = backend.image_data_format()
+    data_format = backend.standardize_data_format(data_format)
     if dtype is None:
         dtype = backend.floatx()
     if pil_image is None:
@@ -81,9 +80,6 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
             "Expected image array to have rank 3 (single image). "
             f"Got array with shape: {x.shape}"
         )
-
-    if data_format not in {"channels_first", "channels_last"}:
-        raise ValueError(f"Invalid data_format: {data_format}")
 
     # Original NumPy array x has format (height, width, channel)
     # or (channel, height, width)
@@ -144,12 +140,9 @@ def img_to_array(img, data_format=None, dtype=None):
         A 3D NumPy array.
     """
 
-    if data_format is None:
-        data_format = backend.image_data_format()
+    data_format = backend.standardize_data_format(data_format)
     if dtype is None:
         dtype = backend.floatx()
-    if data_format not in {"channels_first", "channels_last"}:
-        raise ValueError(f"Unknown data_format: {data_format}")
     # NumPy array x has format (height, width, channel)
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
@@ -184,8 +177,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
         scale: Whether to rescale image values to be within `[0, 255]`.
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
-    if data_format is None:
-        data_format = backend.image_data_format()
+    data_format = backend.standardize_data_format(data_format)
     img = array_to_img(x, data_format=data_format, scale=scale)
     if img.mode == "RGBA" and (file_format == "jpg" or file_format == "jpeg"):
         warnings.warn(

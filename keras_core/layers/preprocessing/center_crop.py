@@ -46,7 +46,7 @@ class CenterCrop(Layer):
         super().__init__(**kwargs)
         self.height = height
         self.width = width
-        self.data_format = data_format or backend.image_data_format()
+        self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, inputs):
         if self.data_format == "channels_first":

@@ -32,9 +32,7 @@ class Flatten(Layer):
 
     def __init__(self, data_format=None, name=None, dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.data_format = (
-            backend.image_data_format() if data_format is None else data_format
-        )
+        self.data_format = backend.standardize_data_format(data_format)
         self.input_spec = InputSpec(min_ndim=1)
         self._channels_first = self.data_format == "channels_first"
 

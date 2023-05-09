@@ -19,6 +19,7 @@ from keras_core.backend.config import image_data_format
 from keras_core.backend.config import set_epsilon
 from keras_core.backend.config import set_floatx
 from keras_core.backend.config import set_image_data_format
+from keras_core.backend.config import standardize_data_format
 from keras_core.utils.io_utils import print_msg
 
 # Import backend functions.

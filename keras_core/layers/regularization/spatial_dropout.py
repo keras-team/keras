@@ -112,13 +112,7 @@ class SpatialDropout2D(BaseSpatialDropout):
         self, rate, data_format=None, seed=None, name=None, dtype=None
     ):
         super().__init__(rate, seed=seed, name=name, dtype=dtype)
-        data_format = data_format or backend.image_data_format()
-        if data_format not in {"channels_last", "channels_first"}:
-            raise ValueError(
-                '`data_format` must be "channels_last" or "channels_first". '
-                f"Received: data_format={data_format}."
-            )
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
@@ -180,13 +174,7 @@ class SpatialDropout3D(BaseSpatialDropout):
         self, rate, data_format=None, seed=None, name=None, dtype=None
     ):
         super().__init__(rate, seed=seed, name=name, dtype=dtype)
-        data_format = data_format or backend.image_data_format()
-        if data_format not in {"channels_last", "channels_first"}:
-            raise ValueError(
-                '`data_format` must be "channels_last" or "channels_first". '
-                f"Received: data_format={data_format}."
-            )
-        self.data_format = data_format
+        self.data_format = backend.standardize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):

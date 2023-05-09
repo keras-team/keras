@@ -152,6 +152,18 @@ def set_image_data_format(data_format):
     _IMAGE_DATA_FORMAT = str(data_format)
 
 
+def standardize_data_format(data_format):
+    if data_format is None:
+        return image_data_format()
+    data_format = data_format.lower()
+    if data_format not in {"channels_first", "channels_last"}:
+        raise ValueError(
+            "The `data_format` argument must be one of "
+            f"'channels_first', 'channels_last'. Received: {data_format}"
+        )
+    return data_format
+
+
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
 # Otherwise either ~/.keras or /tmp.
 if "KERAS_HOME" in os.environ:
