@@ -69,5 +69,6 @@ from keras_core.layers.regularization.spatial_dropout import SpatialDropout1D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout2D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout3D
 from keras_core.layers.reshaping.flatten import Flatten
+from keras_core.layers.reshaping.repeat_vector import RepeatVector
 from keras_core.layers.reshaping.reshape import Reshape
 from keras_core.layers.reshaping.up_sampling1d import UpSampling1D
