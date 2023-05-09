@@ -433,6 +433,8 @@ class Layer(Operation):
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)
+                if not self.built:
+                    self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in nest.flatten(outputs):
@@ -763,6 +765,9 @@ class Layer(Operation):
                                 f"{list(shapes_dict.keys())}"
                             )
             if failure:
+                if call_spec.eager:
+                    # Will let the actual eager call do the state-building
+                    return
                 raise ValueError(
                     f"Layer '{self.name}' looks like it has "
                     "unbuilt state, but Keras is not able to "
@@ -797,11 +802,7 @@ class Layer(Operation):
         try:
             backend.compute_output_spec(self.call, input_tensors)
             return True
-        except Exception as e:
-            warnings.warn(
-                "Error when attempting to automatically build "
-                f"the layer by tracing it: {e}"
-            )
+        except:
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
@@ -816,11 +817,7 @@ class Layer(Operation):
             try:
                 backend.compute_output_spec(self.call, **input_tensors)
                 return True
-            except Exception as e:
-                warnings.warn(
-                    "Error when attempting to automatically build "
-                    f"the layer by tracing it: {e}"
-                )
+            except:
                 return False
         else:
             # Not supported: nested input keyword arguments.
@@ -962,6 +959,10 @@ class CallSpec:
         self.tensor_arguments_names = tensor_arg_names
         self.nested_tensor_argument_names = nested_tensor_arg_names
         self.first_arg = arg_dict[arg_names[0]]
+        if all(backend.is_tensor(x) for x in self.tensor_arguments_dict.values()):
+            self.eager = True
+        else:
+            self.eager = False
 
 
 def get_arguments_dict(fn, args, kwargs):

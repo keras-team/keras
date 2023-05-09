@@ -19,6 +19,12 @@ DYNAMIC_SHAPES_OK = True
 
 
 class Variable(KerasVariable, tf.__internal__.types.Tensor):
+    _should_act_as_resource_variable = True
+
+    @property
+    def handle(self):
+        return self.value.handle
+
     def _initialize(self, value):
         self._value = tf.Variable(
             value, dtype=self._dtype, trainable=self.trainable
