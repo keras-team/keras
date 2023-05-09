@@ -399,10 +399,10 @@ class AutocastScope:
         self.original_scope = None
 
     def maybe_cast(self, value):
-        from keras_core import operations as ops
+        from keras_core import backend
 
         if is_float_dtype(value.dtype):
-            return ops.cast(value, dtype=self.dtype)
+            return backend.cast(value, dtype=self.dtype)
         return value
 
     def __enter__(self):

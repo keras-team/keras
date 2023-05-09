@@ -151,7 +151,14 @@ def softmax(x, axis=-1):
         x : Input tensor.
         axis: Integer, axis along which the softmax is applied.
     """
-    return ops.softmax(x, axis=axis)
+    output = ops.softmax(x, axis=axis)
+    # Cache the logits to use for crossentropy loss.
+    try:
+        output._keras_logits = x
+    except AttributeError:
+        # We're dealing with a C-type.
+        pass
+    return output
 
 
 @keras_core_export("keras_core.activations.elu")
@@ -324,7 +331,11 @@ def sigmoid(x):
     """
     output = ops.sigmoid(x)
     # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x
+    try:
+        output._keras_logits = x
+    except AttributeError:
+        # We're dealing with a C-type.
+        pass
     return output
 
 

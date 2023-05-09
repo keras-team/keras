@@ -190,7 +190,7 @@ class BatchNormalization(Layer):
 
     def call(self, inputs, training=None, mask=None):
         # TODO: support masking during stats computation.
-        if training:
+        if training and self.trainable:
             mean = ops.mean(inputs, axis=self._reduction_axes)
             variance = ops.var(inputs, axis=self._reduction_axes)
             outputs = (inputs - mean) / ops.sqrt(variance + self.epsilon)

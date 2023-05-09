@@ -52,12 +52,8 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
             # This is fine because it's only ever used
             # during shape inference in a scratch graph
             # (anything else would be a bug, to be fixed.)
-            return self._maybe_autocast(
-                tf.constant(
-                    self._initializer(self._shape, dtype=self._dtype),
-                    dtype=self._dtype,
-                )
-            )
+            init_val = self._initializer(self._shape, dtype=self._dtype)
+            return self._maybe_autocast(init_val)
         return self._maybe_autocast(self._value)
 
     def numpy(self):  # noqa: F811
@@ -109,9 +105,9 @@ def vectorized_map(function, elements):
 
 
 def compute_output_spec(fn, *args, **kwargs):
-    graph_name = auto_name("scratch_graph")
-    with tf.__internal__.FuncGraph(graph_name).as_default():
-        with StatelessScope():
+    with StatelessScope():
+        graph_name = auto_name("scratch_graph")
+        with tf.__internal__.FuncGraph(graph_name).as_default():
 
             def convert_keras_tensor_to_tf(x):
                 if isinstance(x, KerasTensor):
@@ -130,21 +126,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     return KerasTensor(x.shape, x.dtype)
                 return x
 
-            return tf.nest.map_structure(convert_tf_to_keras_tensor, tf_out)
-
-
-def traceable_tensor(shape, dtype=None):
-    """Create a "traceable tensor".
-
-    That's a tensor that can be passed as input
-    to a stateful backend-native function to
-    create state during the trace.
-
-    TODO: get rid of this.
-    """
-    shape = list(shape)
-    dtype = dtype or "float32"
-    for i, x in enumerate(shape):
-        if x is None:
-            shape[i] = 1
-    return tf.ones(shape, dtype=dtype)
+            output_shape = tf.nest.map_structure(
+                convert_tf_to_keras_tensor, tf_out
+            )
+    return output_shape
