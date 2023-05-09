@@ -1,45 +1,76 @@
 from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import Loss
+from keras_core.losses.losses import BinaryCrossentropy
+from keras_core.losses.losses import CategoricalCrossentropy
 from keras_core.losses.losses import CategoricalHinge
+from keras_core.losses.losses import CosineSimilarity
 from keras_core.losses.losses import Hinge
+from keras_core.losses.losses import Huber
 from keras_core.losses.losses import KLDivergence
+from keras_core.losses.losses import LogCosh
 from keras_core.losses.losses import LossFunctionWrapper
 from keras_core.losses.losses import MeanAbsoluteError
 from keras_core.losses.losses import MeanAbsolutePercentageError
 from keras_core.losses.losses import MeanSquaredError
 from keras_core.losses.losses import MeanSquaredLogarithmicError
 from keras_core.losses.losses import Poisson
+from keras_core.losses.losses import SparseCategoricalCrossentropy
 from keras_core.losses.losses import SquaredHinge
+from keras_core.losses.losses import binary_crossentropy
+from keras_core.losses.losses import categorical_crossentropy
 from keras_core.losses.losses import categorical_hinge
+from keras_core.losses.losses import cosine_similarity
 from keras_core.losses.losses import hinge
+from keras_core.losses.losses import huber
 from keras_core.losses.losses import kl_divergence
+from keras_core.losses.losses import log_cosh
 from keras_core.losses.losses import mean_absolute_error
 from keras_core.losses.losses import mean_absolute_percentage_error
 from keras_core.losses.losses import mean_squared_error
 from keras_core.losses.losses import mean_squared_logarithmic_error
 from keras_core.losses.losses import poisson
+from keras_core.losses.losses import sparse_categorical_crossentropy
 from keras_core.losses.losses import squared_hinge
 from keras_core.saving import serialization_lib
 
 ALL_OBJECTS = {
+    # Base
     Loss,
     LossFunctionWrapper,
+    # Probabilistic
     KLDivergence,
+    Poisson,
+    BinaryCrossentropy,
+    CategoricalCrossentropy,
+    SparseCategoricalCrossentropy,
+    # Regression
     MeanSquaredError,
     MeanAbsoluteError,
     MeanAbsolutePercentageError,
     MeanSquaredLogarithmicError,
+    CosineSimilarity,
+    LogCosh,
+    Huber,
+    # Hinge
     Hinge,
-    Poisson,
     SquaredHinge,
     CategoricalHinge,
+    # Probabilistic
     kl_divergence,
+    poisson,
+    binary_crossentropy,
+    categorical_crossentropy,
+    sparse_categorical_crossentropy,
+    # Regression
     mean_squared_error,
     mean_absolute_error,
     mean_absolute_percentage_error,
     mean_squared_logarithmic_error,
+    cosine_similarity,
+    log_cosh,
+    huber,
+    # Hinge
     hinge,
-    poisson,
     squared_hinge,
     categorical_hinge,
 }

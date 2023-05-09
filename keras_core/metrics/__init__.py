@@ -16,6 +16,8 @@ from keras_core.metrics.confusion_metrics import SensitivityAtSpecificity
 from keras_core.metrics.confusion_metrics import SpecificityAtSensitivity
 from keras_core.metrics.confusion_metrics import TrueNegatives
 from keras_core.metrics.confusion_metrics import TruePositives
+from keras_core.metrics.f_score_metrics import F1Score
+from keras_core.metrics.f_score_metrics import FBetaScore
 from keras_core.metrics.hinge_metrics import CategoricalHinge
 from keras_core.metrics.hinge_metrics import Hinge
 from keras_core.metrics.hinge_metrics import SquaredHinge
@@ -30,7 +32,14 @@ from keras_core.metrics.probabilistic_metrics import (
 from keras_core.metrics.reduction_metrics import Mean
 from keras_core.metrics.reduction_metrics import MeanMetricWrapper
 from keras_core.metrics.reduction_metrics import Sum
+from keras_core.metrics.regression_metrics import CosineSimilarity
+from keras_core.metrics.regression_metrics import LogCoshError
+from keras_core.metrics.regression_metrics import MeanAbsoluteError
+from keras_core.metrics.regression_metrics import MeanAbsolutePercentageError
 from keras_core.metrics.regression_metrics import MeanSquaredError
+from keras_core.metrics.regression_metrics import MeanSquaredLogarithmicError
+from keras_core.metrics.regression_metrics import R2Score
+from keras_core.metrics.regression_metrics import RootMeanSquaredError
 from keras_core.saving import serialization_lib
 
 ALL_OBJECTS = {
@@ -41,6 +50,13 @@ ALL_OBJECTS = {
     MeanMetricWrapper,
     # Regression
     MeanSquaredError,
+    RootMeanSquaredError,
+    MeanAbsoluteError,
+    MeanAbsolutePercentageError,
+    MeanSquaredLogarithmicError,
+    CosineSimilarity,
+    LogCoshError,
+    R2Score,
     # Classification
     AUC,
     FalseNegatives,
@@ -70,6 +86,9 @@ ALL_OBJECTS = {
     SparseCategoricalAccuracy,
     TopKCategoricalAccuracy,
     SparseTopKCategoricalAccuracy,
+    # F-Score
+    F1Score,
+    FBetaScore,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
