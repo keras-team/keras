@@ -30,8 +30,14 @@ from keras_core.layers.merging.subtract import subtract
 from keras_core.layers.normalization.batch_normalization import (
     BatchNormalization,
 )
+from keras_core.layers.normalization.group_normalization import (
+    GroupNormalization,
+)
 from keras_core.layers.normalization.layer_normalization import (
     LayerNormalization,
+)
+from keras_core.layers.normalization.spectral_normalization import (
+    SpectralNormalization,
 )
 from keras_core.layers.normalization.unit_normalization import UnitNormalization
 from keras_core.layers.pooling.average_pooling1d import AveragePooling1D
