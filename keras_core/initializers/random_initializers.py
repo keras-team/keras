@@ -34,7 +34,7 @@ class RandomNormal(Initializer):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -87,7 +87,7 @@ class TruncatedNormal(Initializer):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -137,7 +137,7 @@ class RandomUniform(Initializer):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -199,7 +199,7 @@ class VarianceScaling(Initializer):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -298,7 +298,7 @@ class GlorotUniform(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -341,7 +341,7 @@ class GlorotNormal(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -390,7 +390,7 @@ class LecunNormal(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -432,7 +432,7 @@ class LecunUniform(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -474,7 +474,7 @@ class HeNormal(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
@@ -516,7 +516,7 @@ class HeUniform(VarianceScaling):
             `keras_core.backend.SeedGenerator`.
             Used to make the behavior of the initializer
             deterministic. Note that an initializer seeded with an integer
-            or None (unseeded) will produce the same random values
+            or `None` (unseeded) will produce the same random values
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras_core.backend.SeedGenerator`.
