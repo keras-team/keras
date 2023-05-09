@@ -143,23 +143,25 @@ def set_image_data_format(data_format):
     >>> keras_core.config.set_image_data_format('channels_last')
     """
     global _IMAGE_DATA_FORMAT
-    accepted_formats = {"channels_last", "channels_first"}
-    if data_format not in accepted_formats:
+    data_format = str(data_format).lower()
+    if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(
-            f"Unknown `data_format`: {data_format}. "
-            f"Expected one of {accepted_formats}"
+            "The `data_format` argument must be one of "
+            "{'channels_first', 'channels_last'}. "
+            f"Received: data_format={data_format}"
         )
-    _IMAGE_DATA_FORMAT = str(data_format)
+    _IMAGE_DATA_FORMAT = data_format
 
 
 def standardize_data_format(data_format):
     if data_format is None:
         return image_data_format()
-    data_format = data_format.lower()
+    data_format = str(data_format).lower()
     if data_format not in {"channels_first", "channels_last"}:
         raise ValueError(
             "The `data_format` argument must be one of "
-            f"'channels_first', 'channels_last'. Received: {data_format}"
+            "{'channels_first', 'channels_last'}. "
+            f"Received: data_format={data_format}"
         )
     return data_format
 
