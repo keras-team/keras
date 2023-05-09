@@ -6,5 +6,6 @@ from keras_core.callbacks.history import History
 from keras_core.callbacks.lambda_callback import LambdaCallback
 from keras_core.callbacks.learning_rate_scheduler import LearningRateScheduler
 from keras_core.callbacks.progbar_logger import ProgbarLogger
+from keras_core.callbacks.reduce_lr_on_plateau import ReduceLROnPlateau
 from keras_core.callbacks.remote_monitor import RemoteMonitor
 from keras_core.callbacks.terminate_on_nan import TerminateOnNaN

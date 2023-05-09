@@ -1,6 +1,5 @@
 import numpy as np
 
-from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
 from keras_core.utils import io_utils
@@ -54,9 +53,7 @@ class LearningRateScheduler(Callback):
             raise ValueError('Optimizer must have a "learning_rate" attribute.')
 
         try:  # new API
-            learning_rate = backend.Variable(
-                self.model.optimizer.learning_rate
-            ).numpy()
+            learning_rate = float(np.array(self.model.optimizer.learning_rate))
             learning_rate = self.schedule(epoch, learning_rate)
         except TypeError:  # Support for old API for backward compatibility
             learning_rate = self.schedule(epoch)
