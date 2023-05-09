@@ -1,8 +1,10 @@
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.operations import operation_utils
 
 
+@keras_core_export("keras_core.layers.Reshape")
 class Reshape(Layer):
     """Layer that reshapes inputs into the given shape.
 

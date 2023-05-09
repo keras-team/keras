@@ -1,8 +1,10 @@
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 
 
+@keras_core_export("keras_core.layers.RepeatVector")
 class RepeatVector(Layer):
     """Repeats the input n times.
 
@@ -15,10 +17,12 @@ class RepeatVector(Layer):
 
     Args:
         n: Integer, repetition factor.
+
     Input shape:
-        2D tensor of shape `(batch_size, features)`.
+        2D tensor with shape `(batch_size, features)`.
+
     Output shape:
-        3D tensor of shape `(batch_size, n, features)`.
+        3D tensor with shape `(batch_size, n, features)`.
     """
 
     def __init__(self, n, name=None, dtype=None):

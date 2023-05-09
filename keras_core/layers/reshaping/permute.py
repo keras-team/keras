@@ -1,8 +1,10 @@
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 
 
+@keras_core_export("keras_core.layers.Permute")
 class Permute(Layer):
     """Permutes the dimensions of the input according to a given pattern.
 
@@ -13,8 +15,10 @@ class Permute(Layer):
             batch dimension. Indexing starts at 1.
             For instance, `(2, 1)` permutes the first and second dimensions
             of the input.
+
     Input shape:
         Arbitrary.
+
     Output shape:
         Same as the input shape, but with the dimensions re-ordered according
         to the specified pattern.
