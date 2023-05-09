@@ -1,4 +1,5 @@
 import jax
+import jax.numpy as jnp
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
@@ -20,3 +21,12 @@ def in_top_k(targets, predictions, k):
     targets = targets[..., None]
     mask = targets == topk_indices
     return jax.numpy.any(mask, axis=1)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    max_x = jnp.max(x, axis=axis, keepdims=True)
+    result = (
+        jnp.log(jnp.sum(jnp.exp(x - max_x), axis=axis, keepdims=keepdims))
+        + max_x
+    )
+    return jnp.squeeze(result) if not keepdims else result

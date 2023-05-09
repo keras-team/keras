@@ -18,6 +18,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(values.shape, (None, 2, 1))
         self.assertEqual(indices.shape, (None, 2, 1))
 
+    def test_logsumexp(self):
+        x = KerasTensor([None, 2, 3], dtype="float32")
+        result = kmath.logsumexp(x)
+        self.assertEqual(result.shape, ())
+
 
 class MathOpsStaticShapeTest(testing.TestCase):
     def test_topk(self):
@@ -26,6 +31,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(values.shape, (1, 2, 1))
         self.assertEqual(indices.shape, (1, 2, 1))
 
+    def test_logsumexp(self):
+        x = KerasTensor([1, 2, 3], dtype="float32")
+        result = kmath.logsumexp(x)
+        self.assertEqual(result.shape, ())
+
 
 class MathOpsCorrectnessTest(testing.TestCase):
     def test_topk(self):
@@ -33,3 +43,9 @@ class MathOpsCorrectnessTest(testing.TestCase):
         values, indices = kmath.top_k(x, k=2)
         self.assertAllClose(values, [4, 3])
         self.assertAllClose(indices, [1, 4])
+
+    def test_logsumexp(self):
+        x_np = np.random.rand(5, 5)
+        y_tf_np = kmath.logsumexp(x_np)
+        y_np = np.log(np.sum(np.exp(x_np)))
+        self.assertAllClose(y_tf_np, y_np)
