@@ -203,7 +203,7 @@ class RootMeanSquaredError(reduction_metrics.Mean):
     >>> m.reset_state()
     >>> m.update_state([[0, 1], [0, 0]], [[1, 1], [0, 0]],
     ...                sample_weight=[1, 0])
-    >>> m.result().numpy()
+    >>> m.result()
     0.70710677
 
     Usage with `compile()` API:
