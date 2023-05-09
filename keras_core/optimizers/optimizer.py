@@ -281,6 +281,27 @@ class Optimizer:
     def learning_rate(self):
         return self._get_current_learning_rate()
 
+    @learning_rate.setter
+    def learning_rate(self, learning_rate):
+        if isinstance(
+            learning_rate, learning_rate_schedule.LearningRateSchedule
+        ):
+            self._learning_rate = learning_rate
+        elif callable(learning_rate):
+            self._learning_rate = learning_rate
+        else:
+            if isinstance(
+                self._learning_rate, learning_rate_schedule.LearningRateSchedule
+            ):
+                raise TypeError(
+                    "This optimizer was created with a `LearningRateSchedule`"
+                    " object as its `learning_rate` constructor argument, "
+                    "hence its learning rate is not settable. If you need the"
+                    " learning rate to be settable, you should instantiate "
+                    "the optimizer with a float `learning_rate` argument."
+                )
+            self._learning_rate.assign(learning_rate)
+
     def save_own_variables(self, store):
         """Get the state of this optimizer object."""
         for i, variable in enumerate(self.variables):
