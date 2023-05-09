@@ -278,6 +278,8 @@ class LayerTest(testing.TestCase):
         x._keras_mask = backend.numpy.ones((4,))
         layer(x)
 
+        layer(backend.numpy.ones((4, 4)), mask=backend.numpy.ones((4,)))
+
         class NestedInputMaskedLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
@@ -296,6 +298,11 @@ class LayerTest(testing.TestCase):
         x2 = backend.numpy.ones((4, 4))
         x2._keras_mask = backend.numpy.ones((4,))
         layer([x1, x2])
+
+        layer(
+            [backend.numpy.ones((4, 4)), backend.numpy.ones((4, 4))],
+            mask=[backend.numpy.ones((4,)), backend.numpy.ones((4,))],
+        )
 
         class PositionalInputsMaskedLayer(layers.Layer):
             def __init__(self):
