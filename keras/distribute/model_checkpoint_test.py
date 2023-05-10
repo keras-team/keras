@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests of `worker_training_state.py` utilities."""
+"""Tests of ModelCheckpoint callback."""
 
 import os
 import sys
@@ -24,28 +24,35 @@ from keras import callbacks
 from keras.distribute import multi_worker_testing_utils
 
 
-class WorkerTrainingStateTest(tf.test.TestCase, parameterized.TestCase):
+class ModelCheckpointTest(tf.test.TestCase, parameterized.TestCase):
     @tf.__internal__.distribute.combinations.generate(
-        tf.__internal__.test.combinations.combine(mode=["eager"])
+        tf.__internal__.test.combinations.combine(
+            mode=["eager"],
+            file_format=["h5", "tf"],
+            save_weights_only=[True, False],
+        )
     )
-    def testCheckpointExists(self):
+    def testCheckpointExists(self, file_format, save_weights_only):
         train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(64, 2)
         model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
         saving_dir = self.get_temp_dir()
+        saving_filepath = os.path.join(saving_dir, "checkpoint." + file_format)
         callbacks_list = [
-            callbacks.BackupAndRestore(
-                backup_dir=saving_dir, delete_checkpoint=False
+            callbacks.ModelCheckpoint(
+                filepath=saving_filepath, save_weights_only=save_weights_only
             )
         ]
-        self.assertLen(tf.io.gfile.glob(os.path.join(saving_dir, "*")), 0)
+        self.assertFalse(tf.io.gfile.exists(saving_filepath))
         model.fit(
             x=train_ds, epochs=2, steps_per_epoch=2, callbacks=callbacks_list
         )
-        # By default worker_training_state only keeps the results from one
-        # checkpoint. Even though the test is expected to checkpoint twice, it
-        # only keeps the checkpoint files from the second checkpoint.
-        checkpoint_path = os.path.join(saving_dir, "chief", "ckpt-2.index")
-        self.assertLen(tf.io.gfile.glob(checkpoint_path), 1)
+        tf_saved_model_exists = tf.io.gfile.exists(saving_filepath)
+        tf_weights_only_checkpoint_exists = tf.io.gfile.exists(
+            saving_filepath + ".index"
+        )
+        self.assertTrue(
+            tf_saved_model_exists or tf_weights_only_checkpoint_exists
+        )
 
 
 if __name__ == "__main__":
