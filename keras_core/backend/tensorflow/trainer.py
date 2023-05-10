@@ -243,6 +243,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             steps_per_epoch=steps_per_epoch,
             shuffle=shuffle,
             class_weight=class_weight,
+            distribute_strategy=self.distribute_strategy,
         )
 
         # Container that configures and calls callbacks.
@@ -285,6 +286,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
+                        distribute_strategy=self.distribute_strategy,
                     )
                 val_logs = self.evaluate(
                     x=val_x,
@@ -346,6 +348,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 batch_size=batch_size,
                 steps_per_epoch=steps,
                 shuffle=False,
+                distribute_strategy=self.distribute_strategy,
             )
 
         # Container that configures and calls callbacks.
@@ -385,6 +388,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             batch_size=batch_size,
             steps_per_epoch=steps,
             shuffle=False,
+            distribute_strategy=self.distribute_strategy,
         )
 
         # Container that configures and calls callbacks.
@@ -428,20 +432,23 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
 
 class TFEpochIterator(EpochIterator):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, distribute_strategy=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._distribute_strategy = distribute_strategy
         self._steps_seen = 0
 
     def enumerate_epoch(self):
         if self.steps_per_epoch:
             if not self._current_iterator:
                 self._current_iterator = iter(
-                    self.data_adapter.get_tf_dataset()
-                )
+                    self._distribute_strategy.experimental_distribute_dataset(
+                        self.data_adapter.get_tf_dataset()))
             for step in range(self.steps_per_epoch):
                 yield step, self._current_iterator
         else:
-            iterator = iter(self.data_adapter.get_tf_dataset())
+            iterator = iter(
+                self._distribute_strategy.experimental_distribute_dataset(
+                    self.data_adapter.get_tf_dataset()))
             if self.num_batches:
                 for step in range(self.num_batches):
                     yield step, iterator
