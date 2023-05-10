@@ -34,7 +34,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
     def test_reduces_lr_with_model_fit(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
-            patience=1, factor=0.1, monitor="val_loss", min_delta=10
+            patience=1, factor=0.1, monitor="val_loss", min_delta=100
         )
 
         self.model.fit(
@@ -49,7 +49,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
     def test_throws_when_optimizer_has_schedule(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
-            patience=1, factor=0.1, monitor="val_loss", min_delta=10
+            patience=1, factor=0.1, monitor="val_loss", min_delta=100
         )
 
         self.model.compile(
@@ -75,7 +75,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
     def test_verbose_logging(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
-            patience=1, factor=0.1, monitor="val_loss", min_delta=10, verbose=1
+            patience=1, factor=0.1, monitor="val_loss", min_delta=100, verbose=1
         )
         io_utils.disable_interactive_logging()
 
@@ -111,7 +111,11 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
     def test_cooldown(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
-            patience=1, factor=0.1, monitor="val_loss", min_delta=10, cooldown=2
+            patience=1,
+            factor=0.1,
+            monitor="val_loss",
+            min_delta=100,
+            cooldown=2,
         )
 
         self.model.fit(
