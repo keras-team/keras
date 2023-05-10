@@ -105,10 +105,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
             """Runs a single training step given a Dataset iterator."""
             data = next(iterator)
             outputs = self.distribute_strategy.run(
-                one_step_on_data, args=(data,))
+                one_step_on_data, args=(data,)
+            )
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy,
-                reduction=self.distribute_reduction_method
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -138,10 +140,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
             """Runs a single test step given a Dataset iterator."""
             data = next(iterator)
             outputs = self.distribute_strategy.run(
-                one_step_on_data, args=(data,))
+                one_step_on_data, args=(data,)
+            )
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy,
-                reduction=self.distribute_reduction_method
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -171,10 +175,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
             """Runs a single predict step given a Dataset iterator."""
             data = next(iterator)
             outputs = self.distribute_strategy.run(
-                one_step_on_data, args=(data,))
+                one_step_on_data, args=(data,)
+            )
             outputs = reduce_per_replica(
-                outputs, self.distribute_strategy,
-                reduction=self.distribute_reduction_method
+                outputs,
+                self.distribute_strategy,
+                reduction=self.distribute_reduction_method,
             )
             return outputs
 
@@ -636,6 +642,7 @@ def _is_tpu_strategy(strategy):
 def _is_tpu_strategy_class(clz):
     def is_tpu_strat(k):
         return k.__name__.startswith("TPUStrategy")
+
     if is_tpu_strat(clz):
         return True
     return any(map(_is_tpu_strategy_class, clz.__bases__))
