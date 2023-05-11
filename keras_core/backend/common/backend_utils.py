@@ -33,17 +33,16 @@ def _compute_conv_transpose_output_length(
 
 
 def compute_conv_transpose_output_shape(
-    input_shape,
-    kernel_size,
-    filters,
+    inputs,
+    kernel,
     strides,
     padding,
     output_padding=None,
     data_format="channels_last",
     dilation_rate=1,
 ):
-    num_spatial_dims = len(input_shape) - 2
-    kernel_spatial_shape = kernel_size
+    num_spatial_dims = len(inputs.shape) - 2
+    kernel_spatial_shape = kernel.shape[:-2]
 
     if isinstance(output_padding, int):
         output_padding = (output_padding,) * len(kernel_spatial_shape)
@@ -53,9 +52,9 @@ def compute_conv_transpose_output_shape(
         dilation_rate = (dilation_rate,) * num_spatial_dims
 
     if data_format == "channels_last":
-        input_spatial_shape = input_shape[1:-1]
+        inputs_spatial_shape = inputs.shape[1:-1]
     else:
-        input_spatial_shape = input_shape[2:]
+        inputs_spatial_shape = inputs.shape[2:]
 
     output_shape = []
     for i in range(num_spatial_dims):
@@ -64,7 +63,7 @@ def compute_conv_transpose_output_shape(
         )
         output_shape.append(
             _compute_conv_transpose_output_length(
-                input_spatial_shape[i],
+                inputs_spatial_shape[i],
                 kernel_spatial_shape[i],
                 padding=padding,
                 output_padding=current_output_padding,
@@ -74,7 +73,7 @@ def compute_conv_transpose_output_shape(
         )
 
     if data_format == "channels_last":
-        output_shape = [input_shape[0]] + output_shape + [filters]
+        output_shape = [inputs.shape[0]] + output_shape + [kernel.shape[-2]]
     else:
-        output_shape = [input_shape[0], filters] + output_shape
+        output_shape = [inputs.shape[0], kernel.shape[-1]] + output_shape
     return output_shape

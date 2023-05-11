@@ -80,7 +80,7 @@ class Conv2D(BaseConv):
 
     Examples:
 
-    >>> x = np.random.rand(4, 10, 10, 128)
+    >>> x = np.random.normal(4, 10, 10, 128)
     >>> y = keras_core.layers.Conv2D(32, 3, activation='relu')(x)
     >>> print(y.shape)
     (4, 8, 8, 32)
