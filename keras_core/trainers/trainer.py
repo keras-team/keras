@@ -12,6 +12,7 @@ from keras_core.utils import tracking
 
 class Trainer:
     def __init__(self):
+        self._lock = False
         self._run_eagerly = False
         self._jit_compile = True
         self.compiled = False

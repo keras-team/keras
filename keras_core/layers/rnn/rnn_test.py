@@ -9,9 +9,9 @@ from keras_core import testing
 
 class OneStateRNNCell(layers.Layer):
     def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.state_size = units
-        super().__init__(**kwargs)
 
     def build(self, input_shape):
         self.kernel = self.add_weight(
@@ -35,10 +35,10 @@ class OneStateRNNCell(layers.Layer):
 
 class TwoStatesRNNCell(layers.Layer):
     def __init__(self, units, **kwargs):
+        super().__init__(**kwargs)
         self.units = units
         self.state_size = [units, units]
         self.output_size = units
-        super().__init__(**kwargs)
 
     def build(self, input_shape):
         self.kernel = self.add_weight(

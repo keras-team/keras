@@ -99,6 +99,7 @@ class Operation:
         except TypeError:
             auto_config = False
         try:
+            instance._lock = False
             if auto_config:
                 from keras_core.saving import serialization_lib
 
@@ -107,6 +108,7 @@ class Operation:
                 )
             else:
                 instance._auto_config = None
+            instance._lock = True
         except RecursionError:
             # Setting an instance attribute in __new__ has the potential
             # to trigger an infinite recursion if a subclass overrides

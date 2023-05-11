@@ -4,12 +4,9 @@ from keras_core import backend
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras_core.saving import serialization_lib
 from keras_core.utils import tracking
-
-
-class StackedRNNCells:
-    pass
 
 
 class DropoutRNNCellMixin:
@@ -147,9 +144,9 @@ class RNN(Layer):
     class MinimalRNNCell(keras_core.layers.Layer):
 
         def __init__(self, units, **kwargs):
+            super().__init__(**kwargs)
             self.units = units
             self.state_size = units
-            super(MinimalRNNCell, self).__init__(**kwargs)
 
         def build(self, input_shape):
             self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
@@ -210,9 +207,10 @@ class RNN(Layer):
         # If True, the output for masked timestep will be zeros, whereas in the
         # False case, output from previous timestep is returned for masked
         # timestep.
-        self.zero_output_for_mask = kwargs.pop("zero_output_for_mask", False)
-
+        zero_output_for_mask = kwargs.pop("zero_output_for_mask", False)
         super().__init__(**kwargs)
+
+        self.zero_output_for_mask = zero_output_for_mask
         self.cell = cell
         self.return_sequences = return_sequences
         self.return_state = return_state
@@ -298,9 +296,7 @@ class RNN(Layer):
     def get_initial_state(self, batch_size):
         get_initial_state_fn = getattr(self.cell, "get_initial_state", None)
         if get_initial_state_fn:
-            init_state = get_initial_state_fn(
-                batch_size=batch_size, dtype=self.compute_dtype
-            )
+            init_state = get_initial_state_fn(batch_size=batch_size)
         else:
             return [
                 ops.zeros((batch_size, d), dtype=self.compute_dtype)
@@ -364,6 +360,13 @@ class RNN(Layer):
                 initial_state = [initial_state]
             initial_state = list(initial_state)
 
+        # Cast states to compute dtype.
+        # Note that states may be deeply nested
+        # (e.g. in the stacked cells case).
+        initial_state = nest.map_structure(
+            lambda x: ops.cast(x, dtype=self.compute_dtype), initial_state
+        )
+
         def step(inputs, states):
             output, new_states = self.cell(inputs, states, **cell_kwargs)
             if not nest.is_nested(new_states):
@@ -405,9 +408,9 @@ class RNN(Layer):
         if isinstance(cell, DropoutRNNCellMixin):
             cell.reset_dropout_mask()
             cell.reset_recurrent_dropout_mask()
-        if isinstance(self.cell, StackedRNNCells):
-            for cell in self.cell.cells:
-                self._maybe_reset_cell_dropout_mask(cell)
+        if isinstance(cell, StackedRNNCells):
+            for c in cell.cells:
+                self._maybe_reset_cell_dropout_mask(c)
 
     def get_config(self):
         config = {
