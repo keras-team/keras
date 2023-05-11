@@ -73,6 +73,48 @@ class TwoStatesRNNCell(layers.Layer):
     reason="Only implemented for TF for now.",
 )
 class RNNTest(testing.TestCase):
+    def test_basics(self):
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={"cell": OneStateRNNCell(5)},
+            input_shape=(3, 2, 4),
+            expected_output_shape=(3, 5),
+            expected_num_trainable_weights=2,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={"cell": OneStateRNNCell(5), "return_sequences": True},
+            input_shape=(3, 2, 4),
+            expected_output_shape=(3, 2, 5),
+            expected_num_trainable_weights=2,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={"cell": TwoStatesRNNCell(5)},
+            input_shape=(3, 2, 4),
+            expected_output_shape=(3, 5),
+            expected_num_trainable_weights=3,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={"cell": TwoStatesRNNCell(5), "return_sequences": True},
+            input_shape=(3, 2, 4),
+            expected_output_shape=(3, 2, 5),
+            expected_num_trainable_weights=3,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+
     def test_compute_output_shape_single_state(self):
         sequence = np.ones((3, 4, 5))
         layer = layers.RNN(OneStateRNNCell(8), return_sequences=False)
@@ -112,16 +154,68 @@ class RNNTest(testing.TestCase):
         )
         output_shape = layer.compute_output_shape(sequence.shape)
         self.assertEqual(output_shape[0], (3, 8))
-        self.assertEqual(output_shape[1][0], (3, 8))
-        self.assertEqual(output_shape[1][1], (3, 8))
+        self.assertEqual(output_shape[1], (3, 8))
+        self.assertEqual(output_shape[2], (3, 8))
 
         layer = layers.RNN(
             TwoStatesRNNCell(8), return_sequences=True, return_state=True
         )
         output_shape = layer.compute_output_shape(sequence.shape)
         self.assertEqual(output_shape[0], (3, 4, 8))
-        self.assertEqual(output_shape[1][0], (3, 8))
-        self.assertEqual(output_shape[1][1], (3, 8))
+        self.assertEqual(output_shape[1], (3, 8))
+        self.assertEqual(output_shape[2], (3, 8))
+
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
+    def test_dynamic_shapes(self):
+        sequence_shape = (None, None, 3)
+        layer = layers.RNN(OneStateRNNCell(8), return_sequences=False)
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape, (None, 8))
+
+        layer = layers.RNN(OneStateRNNCell(8), return_sequences=True)
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape, (None, None, 8))
+
+        layer = layers.RNN(
+            OneStateRNNCell(8), return_sequences=False, return_state=True
+        )
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape[0], (None, 8))
+        self.assertEqual(output_shape[1], (None, 8))
+
+        layer = layers.RNN(
+            OneStateRNNCell(8), return_sequences=True, return_state=True
+        )
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape[0], (None, None, 8))
+        self.assertEqual(output_shape[1], (None, 8))
+
+        layer = layers.RNN(TwoStatesRNNCell(8), return_sequences=False)
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape, (None, 8))
+
+        layer = layers.RNN(TwoStatesRNNCell(8), return_sequences=True)
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape, (None, None, 8))
+
+        layer = layers.RNN(
+            TwoStatesRNNCell(8), return_sequences=False, return_state=True
+        )
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape[0], (None, 8))
+        self.assertEqual(output_shape[1], (None, 8))
+        self.assertEqual(output_shape[2], (None, 8))
+
+        layer = layers.RNN(
+            TwoStatesRNNCell(8), return_sequences=True, return_state=True
+        )
+        output_shape = layer.compute_output_shape(sequence_shape)
+        self.assertEqual(output_shape[0], (None, None, 8))
+        self.assertEqual(output_shape[1], (None, 8))
+        self.assertEqual(output_shape[2], (None, 8))
 
     def test_forward_pass_single_state(self):
         sequence = np.ones((1, 2, 3))

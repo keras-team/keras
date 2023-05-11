@@ -84,21 +84,16 @@ class RNN(Layer):
             This is for use with cells that use dropout.
 
     Input shape:
-        N-D tensor with shape `[batch_size, timesteps, ...]` or
-        `[timesteps, batch_size, ...]` when time_major is True.
+        3-D tensor with shape `(batch_size, timesteps, features)`.
 
     Output shape:
 
     - If `return_state`: a list of tensors. The first tensor is
     the output. The remaining tensors are the last states,
-    each with shape `[batch_size, state_size]`, where `state_size` could
+    each with shape `(batch_size, state_size)`, where `state_size` could
     be a high dimension tensor shape.
-    - If `return_sequences`: N-D tensor with shape
-    `[batch_size, timesteps, output_size]`, where `output_size` could
-    be a high dimension tensor shape, or
-    `[timesteps, batch_size, output_size]` when `time_major` is True.
-    - Else, N-D tensor with shape `[batch_size, output_size]`, where
-    `output_size` could be a high dimension tensor shape.
+    - If `return_sequences`: 3D tensor with shape
+    `(batch_size, timesteps, output_size)`.
 
     Masking:
 
@@ -247,14 +242,7 @@ class RNN(Layer):
             self.single_state = False
 
     def compute_output_shape(self, sequence_shape, initial_state_shape=None):
-        if self.single_state:
-            # Single state case.
-            state_shape = (sequence_shape[0], self.state_size[0])
-        else:
-            # Multiple states case.
-            state_shape = [(sequence_shape[0], d) for d in self.state_size]
-
-        # There can only be one output.
+        state_shape = [(sequence_shape[0], d) for d in self.state_size]
         output_size = getattr(self.cell, "output_size", None)
         if output_size is None:
             output_size = self.state_size[0]
@@ -265,7 +253,7 @@ class RNN(Layer):
         else:
             output_shape = (sequence_shape[0], output_size)
         if self.return_state:
-            return output_shape, state_shape
+            return output_shape, *state_shape
         return output_shape
 
     def compute_mask(self, _, mask):
@@ -303,25 +291,20 @@ class RNN(Layer):
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
         self.states = [
-            self.add_variable(
-                initializer="zeros", shape=(batch_size, d), trainable=False
-            )
-            for d in self.state_size
+            backend.Variable(value, trainable=False, dtype=self.variable_dtype)
+            for value in self.get_initial_state(batch_size)
         ]
 
-    def get_initial_state(self, sequence):
-        input_shape = ops.shape(sequence)
-        batch_size = input_shape[0]
-        dtype = sequence.dtype
-
+    def get_initial_state(self, batch_size):
         get_initial_state_fn = getattr(self.cell, "get_initial_state", None)
         if get_initial_state_fn:
             init_state = get_initial_state_fn(
-                batch_size=batch_size, dtype=dtype
+                batch_size=batch_size, dtype=self.compute_dtype
             )
         else:
             return [
-                ops.zeros((batch_size, d), dtype=dtype) for d in self.state_size
+                ops.zeros((batch_size, d), dtype=self.compute_dtype)
+                for d in self.state_size
             ]
 
         # RNN expect the states in a list, even if single state.
@@ -372,7 +355,9 @@ class RNN(Layer):
             if self.stateful:
                 initial_state = self.states
             else:
-                initial_state = self.get_initial_state(sequence)
+                initial_state = self.get_initial_state(
+                    batch_size=ops.shape(sequence)[0]
+                )
         else:
             # RNN expect the states in a list, even if single state.
             if not nest.is_nested(initial_state):
