@@ -384,7 +384,6 @@ class RNN(Layer):
             zero_output_for_mask=self.zero_output_for_mask,
             return_all_outputs=self.return_sequences,
         )
-        assert isinstance(states, (list, tuple))
 
         if self.stateful:
             for self_state, state in zip(

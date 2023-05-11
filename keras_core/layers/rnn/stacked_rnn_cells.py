@@ -70,15 +70,19 @@ class StackedRNNCells(Layer):
                 )
             else:
                 if isinstance(cell.state_size, int):
-                    state_size = [cell.state_size]
+                    initial_states.append(
+                        ops.zeros(
+                            (batch_size, cell.state_size),
+                            dtype=self.compute_dtype,
+                        )
+                    )
                 else:
-                    state_size = cell.state_size
-                initial_states.append(
-                    [
-                        ops.zeros((batch_size, d), dtype=self.compute_dtype)
-                        for d in state_size
-                    ]
-                )
+                    initial_states.append(
+                        [
+                            ops.zeros((batch_size, d), dtype=self.compute_dtype)
+                            for d in cell.state_size
+                        ]
+                    )
         return initial_states
 
     def call(self, inputs, states, training=False, **kwargs):
@@ -91,19 +95,20 @@ class StackedRNNCells(Layer):
             else:
                 kwargs.pop("training", None)
             cell_call_fn = cell.__call__ if callable(cell) else cell.call
-            print("call", cell.__class__, "with", states)
             inputs, states = cell_call_fn(inputs, states, **kwargs)
+            if len(states) == 1:
+                states = states[0]
             new_states.append(states)
+
+        if len(new_states) == 1:
+            new_states = new_states[0]
         return inputs, new_states
 
     def build(self, input_shape):
-        print("build called")
         for cell in self.cells:
             if isinstance(cell, Layer) and not cell.built:
-                print("build cell", cell)
                 cell.build(input_shape)
                 cell.built = True
-                print(cell, len(cell.trainable_weights))
             if getattr(cell, "output_size", None) is not None:
                 output_dim = cell.output_size
             elif isinstance(cell.state_size, (list, tuple)):
@@ -113,7 +118,6 @@ class StackedRNNCells(Layer):
             batch_size = nest.flatten(input_shape)[0]
             input_shape = (batch_size, output_dim)
         self.built = True
-        print(self, len(self.trainable_weights))
 
     def get_config(self):
         cells = []
