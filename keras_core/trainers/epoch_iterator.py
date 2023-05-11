@@ -64,6 +64,7 @@ class EpochIterator:
         self.steps_per_epoch = steps_per_epoch
         if steps_per_epoch:
             self._current_iterator = None
+            self._insufficient_data = False
         if isinstance(x, data_adapter_utils.ARRAY_TYPES):
             self.data_adapter = array_data_adapter.ArrayDataAdapter(
                 x,
@@ -144,7 +145,10 @@ class EpochIterator:
         if self.steps_per_epoch:
             if not self._current_iterator:
                 self._current_iterator = self._get_iterator(return_type)
+                self._insufficient_data = False
             for step in range(self.steps_per_epoch):
+                if self._insufficient_data:
+                    break
                 try:
                     data = next(self._current_iterator)
                     yield step, data
@@ -158,6 +162,7 @@ class EpochIterator:
                         stacklevel=2,
                     )
                     self._current_iterator = None
+                    self._insufficient_data = True
         else:
             for step, data in enumerate(self._get_iterator(return_type)):
                 yield step, data
