@@ -14,13 +14,13 @@ class UpSampling1D(Layer):
 
     >>> input_shape = (2, 2, 3)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)
-    >>> print(x)
+    >>> x
     [[[ 0  1  2]
       [ 3  4  5]]
      [[ 6  7  8]
       [ 9 10 11]]]
     >>> y = keras_core.layers.UpSampling1D(size=2)(x)
-    >>> print(y)
+    >>> y
     [[[ 0.  1.  2.]
       [ 0.  1.  2.]
       [ 3.  4.  5.]

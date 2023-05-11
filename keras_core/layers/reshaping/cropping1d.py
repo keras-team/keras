@@ -13,7 +13,7 @@ class Cropping1D(Layer):
 
     >>> input_shape = (2, 3, 2)
     >>> x = np.arange(np.prod(input_shape)).reshape(input_shape)
-    >>> print(x)
+    >>> x
     [[[ 0  1]
       [ 2  3]
       [ 4  5]]
@@ -21,7 +21,7 @@ class Cropping1D(Layer):
       [ 8  9]
       [10 11]]]
     >>> y = keras_core.layers.Cropping1D(cropping=1)(x)
-    >>> print(y)
+    >>> y
     [[[2 3]]
      [[8 9]]]
 
