@@ -1,4 +1,5 @@
 from keras_core.layers.activations.activation import Activation
+from keras_core.layers.attention.additive_attention import AdditiveAttention
 from keras_core.layers.attention.attention import Attention
 from keras_core.layers.convolutional.conv1d import Conv1D
 from keras_core.layers.convolutional.conv1d_transpose import Conv1DTranspose

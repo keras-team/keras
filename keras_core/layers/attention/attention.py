@@ -9,17 +9,17 @@ class Attention(Layer):
     """Dot-product attention layer, a.k.a. Luong-style attention.
 
     Inputs are a list with 2 or 3 elements:
-    1. A query tensor of shape `(batch_size, Tq, dim)`.
-    2. A value tensor of shape `(batch_size, Tv, dim)`.
-    3. A optional key tensor of shape `(batch_size, Tv, dim)`. If none supplied,
-        the value tensor will be used as a key.
+    1. A `query` tensor of shape `(batch_size, Tq, dim)`.
+    2. A `value` tensor of shape `(batch_size, Tv, dim)`.
+    3. A optional `key` tensor of shape `(batch_size, Tv, dim)`. If none
+        supplied, `value` will be used as a `key`.
 
     The calculation follows the steps:
-    1. Calculate attention scores using query and key with shape
+    1. Calculate attention scores using `query` and `key` with shape
         `(batch_size, Tq, Tv)`.
     2. Use scores to calculate a softmax distribution with shape
         `(batch_size, Tq, Tv)`.
-    3. Use the softmax distribution to create a linear combination of value
+    3. Use the softmax distribution to create a linear combination of `value`
         with shape `(batch_size, Tq, dim)`.
 
     Args:
@@ -30,20 +30,20 @@ class Attention(Layer):
         score_mode: Function to use to compute attention scores, one of
             `{"dot", "concat"}`. `"dot"` refers to the dot product between the
             query and key vectors. `"concat"` refers to the hyperbolic tangent
-            of the concatenation of the query and key vectors.
+            of the concatenation of the `query` and `key` vectors.
 
     Call Args:
         inputs: List of the following tensors:
-            - query: Query `Tensor` of shape `(batch_size, Tq, dim)`.
-            - value: Value `Tensor` of shape `(batch_size, Tv, dim)`.
-            - key: Optional key `Tensor` of shape `(batch_size, Tv, dim)`. If
+            - `query`: Query tensor of shape `(batch_size, Tq, dim)`.
+            - `value`: Value tensor of shape `(batch_size, Tv, dim)`.
+            - `key`: Optional key tensor of shape `(batch_size, Tv, dim)`. If
                 not given, will use `value` for both `key` and `value`, which is
                 the most common case.
         mask: List of the following tensors:
-            - query_mask: A boolean mask `Tensor` of shape `(batch_size, Tq)`.
+            - `query_mask`: A boolean mask tensor of shape `(batch_size, Tq)`.
                 If given, the output will be zero at the positions where
                 `mask==False`.
-            - value_mask: A boolean mask `Tensor` of shape `(batch_size, Tv)`.
+            - `value_mask`: A boolean mask tensor of shape `(batch_size, Tv)`.
                 If given, will apply the mask such that values at positions
                  where `mask==False` do not contribute to the result.
         return_attention_scores: bool, it `True`, returns the attention scores
@@ -80,6 +80,7 @@ class Attention(Layer):
             )
 
     def build(self, input_shape):
+        self._validate_inputs(input_shape)
         self.scale = None
         self.concat_score_weight = None
         if self.use_scale:
@@ -147,7 +148,7 @@ class Attention(Layer):
         Args:
             scores: Scores float tensor of shape `(batch_size, Tq, Tv)`.
             value: Value tensor of shape `(batch_size, Tv, dim)`.
-            scores_mask: A boolean mask `Tensor` of shape `(batch_size, 1, Tv)`
+            scores_mask: A boolean mask tensor of shape `(batch_size, 1, Tv)`
                 or `(batch_size, Tq, Tv)`. If given, scores at positions where
                 `scores_mask==False` do not contribute to the result. It must
                 contain at least one `True` value in each line along the last
@@ -208,7 +209,7 @@ class Attention(Layer):
         return_attention_scores=False,
         use_causal_mask=False,
     ):
-        self._validate_call_args(inputs=inputs, mask=mask)
+        self._validate_inputs(inputs=inputs, mask=mask)
         q = inputs[0]
         v = inputs[1]
         k = inputs[2] if len(inputs) > 2 else v
@@ -230,7 +231,7 @@ class Attention(Layer):
         return result
 
     def compute_mask(self, inputs, mask=None):
-        self._validate_call_args(inputs=inputs, mask=mask)
+        self._validate_inputs(inputs=inputs, mask=mask)
         if mask is None or mask[0] is None:
             return None
         return ops.convert_to_tensor(mask[0])
@@ -238,7 +239,7 @@ class Attention(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape[0]
 
-    def _validate_call_args(self, inputs, mask):
+    def _validate_inputs(self, inputs, mask=None):
         """Validates arguments of the call method."""
         class_name = self.__class__.__name__
         if not isinstance(inputs, list):
