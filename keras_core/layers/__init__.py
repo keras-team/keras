@@ -81,6 +81,7 @@ from keras_core.layers.regularization.gaussian_noise import GaussianNoise
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout1D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout2D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout3D
+from keras_core.layers.reshaping.cropping1d import Cropping1D
 from keras_core.layers.reshaping.flatten import Flatten
 from keras_core.layers.reshaping.permute import Permute
 from keras_core.layers.reshaping.repeat_vector import RepeatVector
