@@ -288,10 +288,12 @@ class RNN(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
-        self.states = [
-            backend.Variable(value, trainable=False, dtype=self.variable_dtype)
-            for value in self.get_initial_state(batch_size)
-        ]
+        self.states = nest.map_structure(
+            lambda value: backend.Variable(
+                value, trainable=False, dtype=self.variable_dtype
+            ),
+            self.get_initial_state(batch_size),
+        )
 
     def get_initial_state(self, batch_size):
         get_initial_state_fn = getattr(self.cell, "get_initial_state", None)
@@ -354,11 +356,10 @@ class RNN(Layer):
                 initial_state = self.get_initial_state(
                     batch_size=ops.shape(sequence)[0]
                 )
-        else:
-            # RNN expect the states in a list, even if single state.
-            if not nest.is_nested(initial_state):
-                initial_state = [initial_state]
-            initial_state = list(initial_state)
+        # RNN expect the states in a list, even if single state.
+        if not nest.is_nested(initial_state):
+            initial_state = [initial_state]
+        initial_state = list(initial_state)
 
         # Cast states to compute dtype.
         # Note that states may be deeply nested

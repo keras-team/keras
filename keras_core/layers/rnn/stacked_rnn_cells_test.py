@@ -186,3 +186,25 @@ class StackedRNNTest(testing.TestCase):
         self.assertAllClose(
             np.array([[1572.0, 1572.0], [8772.0, 8772.0]]), state_2[1]
         )
+
+    def test_statefullness_single_state_stack(self):
+        sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
+        layer = layers.RNN(
+            [OneStateRNNCell(3), OneStateRNNCell(2)], stateful=True
+        )
+        layer(sequence)
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array([[34092.0, 34092.0], [173196.0, 173196.0]]), output
+        )
+
+    def test_statefullness_two_states_stack(self):
+        sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
+        layer = layers.RNN(
+            [TwoStatesRNNCell(3), TwoStatesRNNCell(2)], stateful=True
+        )
+        layer(sequence)
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array([[136368.0, 136368.0], [692784.0, 692784.0]]), output
+        )
