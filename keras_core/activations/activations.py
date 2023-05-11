@@ -420,10 +420,15 @@ def mish(x):
 
 
 @keras_core_export("keras_core.activations.log_softmax")
-def log_softmax(x):
+def log_softmax(x, axis=-1):
     """Log-Softmax activation function.
 
+    Each input vector is handled independently.
+    The `axis` argument sets which axis of the input the function
+    is applied along.
+
     Args:
-        x: Input tensor.
+        x : Input tensor.
+        axis: Integer, axis along which the softmax is applied.
     """
-    return ops.log_softmax(x)
+    return ops.log_softmax(x, axis=axis)

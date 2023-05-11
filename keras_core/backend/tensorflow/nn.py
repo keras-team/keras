@@ -70,12 +70,24 @@ def gelu(x, approximate=True):
 
 def softmax(x, axis=None):
     logits = x
-    output = tf.nn.softmax(x, axis=axis)
+    if axis is None:
+        # Unlike numpy, tf will handle axis=None as axis=-1.
+        # We need this workaround for the reduction on every dim.
+        logits_exp = tf.exp(logits)
+        output = logits_exp / tf.reduce_sum(logits_exp, keepdims=True)
+    else:
+        output = tf.nn.softmax(x, axis=axis)
     output._keras_logits = logits
     return output
 
 
 def log_softmax(x, axis=None):
+    if axis is None:
+        # Unlike numpy, tf will handle axis=None as axis=-1.
+        # We need this workaround for the reduction on every dim.
+        logits = x
+        logits_exp = tf.exp(logits)
+        return logits - tf.math.log(tf.reduce_sum(logits_exp, keepdims=True))
     return tf.nn.log_softmax(x, axis=axis)
 
 

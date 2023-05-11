@@ -653,33 +653,45 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_softmax(self):
-        x = np.array([1, 2, 3], dtype=np.float32)
+        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
             knn.softmax(x),
-            [0.09003057, 0.24472848, 0.66524094],
+            [[0.045015, 0.122364, 0.33262], [0.045015, 0.122364, 0.33262]],
         )
         self.assertAllClose(
             knn.softmax(x, axis=0),
-            [0.09003057, 0.24472848, 0.66524094],
+            [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5]],
         )
         self.assertAllClose(
             knn.softmax(x, axis=-1),
-            [0.09003057, 0.24472848, 0.66524094],
+            [
+                [0.09003057, 0.24472848, 0.66524094],
+                [0.09003057, 0.24472848, 0.66524094],
+            ],
         )
 
     def test_log_softmax(self):
-        x = np.array([1, 2, 3], dtype=np.float32)
+        x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
             knn.log_softmax(x),
-            [-2.407606, -1.4076059, -0.4076059],
+            [
+                [-3.100753, -2.100753, -1.100753],
+                [-3.100753, -2.100753, -1.100753],
+            ],
         )
         self.assertAllClose(
             knn.log_softmax(x, axis=0),
-            [-2.407606, -1.4076059, -0.4076059],
+            [
+                [-0.693147, -0.693147, -0.693147],
+                [-0.693147, -0.693147, -0.693147],
+            ],
         )
         self.assertAllClose(
             knn.log_softmax(x, axis=-1),
-            [-2.407606, -1.4076059, -0.4076059],
+            [
+                [-2.407606, -1.407606, -0.407606],
+                [-2.407606, -1.407606, -0.407606],
+            ],
         )
 
     def test_max_pool(self):
