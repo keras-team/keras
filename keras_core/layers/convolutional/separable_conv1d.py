@@ -48,10 +48,10 @@ class SeparableConv1D(BaseSeparableConv):
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         depthwise_initializer: An initializer for the depthwise convolution
-            kernel. If None, then the default initializer ('"glorot_uniform"')
+            kernel. If None, then the default initializer (`"glorot_uniform"`)
             will be used.
         pointwise_initializer: An initializer for the pointwise convolution
-            kernel. If None, then the default initializer ('"glorot_uniform"')
+            kernel. If None, then the default initializer (`"glorot_uniform"`)
             will be used.
         bias_initializer: An initializer for the bias vector. If None, the
             default initializer ('"zeros"') will be used.
