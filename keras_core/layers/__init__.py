@@ -67,6 +67,8 @@ from keras_core.layers.preprocessing.discretization import Discretization
 from keras_core.layers.preprocessing.hashing import Hashing
 from keras_core.layers.preprocessing.integer_lookup import IntegerLookup
 from keras_core.layers.preprocessing.normalization import Normalization
+from keras_core.layers.preprocessing.random_brightness import RandomBrightness
+from keras_core.layers.preprocessing.random_contrast import RandomContrast
 from keras_core.layers.preprocessing.random_crop import RandomCrop
 from keras_core.layers.preprocessing.rescaling import Rescaling
 from keras_core.layers.preprocessing.resizing import Resizing
@@ -87,4 +89,3 @@ from keras_core.layers.reshaping.permute import Permute
 from keras_core.layers.reshaping.repeat_vector import RepeatVector
 from keras_core.layers.reshaping.reshape import Reshape
 from keras_core.layers.reshaping.up_sampling1d import UpSampling1D
-from keras_core.layers.rnn.rnn import RNN
