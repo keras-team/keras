@@ -6,6 +6,8 @@ from keras_core.layers.convolutional.conv2d import Conv2D
 from keras_core.layers.convolutional.conv2d_transpose import Conv2DTranspose
 from keras_core.layers.convolutional.conv3d import Conv3D
 from keras_core.layers.convolutional.conv3d_transpose import Conv3DTranspose
+from keras_core.layers.convolutional.depthwise_conv1d import DepthwiseConv1D
+from keras_core.layers.convolutional.depthwise_conv2d import DepthwiseConv2D
 from keras_core.layers.core.dense import Dense
 from keras_core.layers.core.einsum_dense import EinsumDense
 from keras_core.layers.core.embedding import Embedding

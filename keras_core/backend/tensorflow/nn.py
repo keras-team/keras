@@ -245,7 +245,9 @@ def depthwise_conv(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
             "{inputs.ndim}."
         )
-    tf_data_format = _convert_data_format(data_format, len(inputs.shape))
+    # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
+    # `tf_data_format` using 2D conv format.
+    tf_data_format = _convert_data_format(data_format, 4)
     padding = padding.upper()
     if isinstance(strides, int):
         strides = (strides,) * num_spatial_dims

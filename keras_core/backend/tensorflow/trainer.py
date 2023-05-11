@@ -442,13 +442,17 @@ class TFEpochIterator(EpochIterator):
             if not self._current_iterator:
                 self._current_iterator = iter(
                     self._distribute_strategy.experimental_distribute_dataset(
-                        self.data_adapter.get_tf_dataset()))
+                        self.data_adapter.get_tf_dataset()
+                    )
+                )
             for step in range(self.steps_per_epoch):
                 yield step, self._current_iterator
         else:
             iterator = iter(
                 self._distribute_strategy.experimental_distribute_dataset(
-                    self.data_adapter.get_tf_dataset()))
+                    self.data_adapter.get_tf_dataset()
+                )
+            )
             if self.num_batches:
                 for step in range(self.num_batches):
                     yield step, iterator

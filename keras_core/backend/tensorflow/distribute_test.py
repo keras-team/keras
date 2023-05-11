@@ -6,18 +6,17 @@ import tensorflow as tf
 from tensorflow.python.eager import context
 
 from keras_core import backend
-from keras_core.backend.tensorflow import trainer as tf_trainer
 from keras_core import layers
 from keras_core import models
 from keras_core import testing
+from keras_core.backend.tensorflow import trainer as tf_trainer
 
 
 @pytest.mark.skipif(
-    backend.backend() != 'tensorflow',
-    reason='The distribute test can only run with TF backend.',
+    backend.backend() != "tensorflow",
+    reason="The distribute test can only run with TF backend.",
 )
 class DistributeTest(testing.TestCase):
-
     def setUp(self):
         super().setUp()
         # Need at least 2 devices for distribution related tests.
@@ -32,22 +31,23 @@ class DistributeTest(testing.TestCase):
         )
 
     def test_variable_creation(self):
-        strategy = tf.distribute.MirroredStrategy(['CPU:0', 'CPU:1'])
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
         with strategy.scope():
             dense = layers.Dense(2)
             dense.build([4, 2])
 
         self.assertIsInstance(dense.kernel, backend.KerasVariable)
-        self.assertIsInstance(dense.kernel.value,
-                              tf.distribute.DistributedValues)
-        self.assertIn('MirroredVariable', dense.kernel.value.__class__.__name__)
+        self.assertIsInstance(
+            dense.kernel.value, tf.distribute.DistributedValues
+        )
+        self.assertIn("MirroredVariable", dense.kernel.value.__class__.__name__)
 
         self.assertIsInstance(dense.kernel, backend.KerasVariable)
         self.assertIsInstance(dense.bias.value, tf.distribute.DistributedValues)
-        self.assertIn('MirroredVariable', dense.bias.value.__class__.__name__)
+        self.assertIn("MirroredVariable", dense.bias.value.__class__.__name__)
 
     def test_strategy_run(self):
-        strategy = tf.distribute.MirroredStrategy(['CPU:0', 'CPU:1'])
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
 
         with strategy.scope():
             inputs = layers.Input(shape=[4])
@@ -56,8 +56,9 @@ class DistributeTest(testing.TestCase):
             model = models.Functional(inputs, output)
 
         self.assertIsInstance(dense.kernel, backend.KerasVariable)
-        self.assertIsInstance(dense.kernel.value,
-                              tf.distribute.DistributedValues)
+        self.assertIsInstance(
+            dense.kernel.value, tf.distribute.DistributedValues
+        )
 
         def input_fn(ctx):
             if ctx.replica_id_in_sync_group == 1:
@@ -65,8 +66,9 @@ class DistributeTest(testing.TestCase):
             else:
                 return tf.zeros([8, 4])
 
-        distributed_inputs = strategy.\
-            experimental_distribute_values_from_function(input_fn)
+        distributed_inputs = (
+            strategy.experimental_distribute_values_from_function(input_fn)
+        )
 
         @tf.function
         def run_fn(data):
@@ -74,8 +76,9 @@ class DistributeTest(testing.TestCase):
 
         result = strategy.run(run_fn, args=(distributed_inputs,))
 
-        self.assertIsInstance(result,
-                              tf.types.experimental.distributed.PerReplica)
+        self.assertIsInstance(
+            result, tf.types.experimental.distributed.PerReplica
+        )
         self.assertLen(result.values, 2)
         self.assertEqual(result.values[0].shape, [8, 2])
         self.assertEqual(result.values[1].shape, [8, 2])
@@ -89,7 +92,7 @@ class DistributeTest(testing.TestCase):
         batch_size = 16
         shuffle = True
 
-        strategy = tf.distribute.MirroredStrategy(['CPU:0', 'CPU:1'])
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
 
         epoch_iterator = tf_trainer.TFEpochIterator(
             x=x,
@@ -97,7 +100,7 @@ class DistributeTest(testing.TestCase):
             sample_weight=sample_weight,
             batch_size=batch_size,
             shuffle=shuffle,
-            distribute_strategy=strategy
+            distribute_strategy=strategy,
         )
         steps_seen = []
         for step, data_iterator in epoch_iterator.enumerate_epoch():
@@ -106,8 +109,8 @@ class DistributeTest(testing.TestCase):
             self.assertEqual(len(batch), 3)
             x, y, sample_weight = batch
             self.assertTrue(
-                isinstance(x,
-                           tf.types.experimental.distributed.PerReplica))
+                isinstance(x, tf.types.experimental.distributed.PerReplica)
+            )
             # Make sure the local batch size is 8
             if step < 6:
                 self.assertEqual(x.values[0].shape, [8, 16])
