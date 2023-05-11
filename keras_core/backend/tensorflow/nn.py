@@ -360,9 +360,12 @@ def conv_transpose(
     dilation_rate=1,
 ):
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
+    kernel_size = kernel.shape[:-2]
+    filters = kernel.shape[-2]
     output_shape = compute_conv_transpose_output_shape(
-        inputs,
-        kernel,
+        inputs.shape,
+        kernel_size,
+        filters,
         strides,
         padding,
         output_padding,

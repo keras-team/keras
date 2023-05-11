@@ -1,27 +1,32 @@
 from keras_core.api_export import keras_core_export
-from keras_core.layers.convolutional.base_conv import BaseConv
+from keras_core.layers.convolutional.base_conv_transpose import (
+    BaseConvTranspose,
+)
 
 
 @keras_core_export(
-    ["keras_core.layers.Conv1D", "keras_core.layers.Convolution1D"]
+    [
+        "keras_core.layers.Conv1DTranspose",
+        "keras_core.layers.Convolution1DTranspose",
+    ]
 )
-class Conv1D(BaseConv):
-    """1D convolution layer (e.g. temporal convolution).
+class Conv1DTranspose(BaseConvTranspose):
+    """1D transposed convolution layer.
 
-    This layer creates a convolution kernel that is convolved with the layer
-    input over a single spatial (or temporal) dimension to produce a tensor of
-    outputs. If `use_bias` is True, a bias vector is created and added to the
-    outputs. Finally, if `activation` is not `None`, it is applied to the
-    outputs as well.
+    The need for transposed convolutions generally arise from the desire to use
+    a transformation going in the opposite direction of a normal convolution,
+    i.e., from something that has the shape of the output of some convolution
+    to something that has the shape of its input while maintaining a
+    connectivity pattern that is compatible with said convolution.
 
     Args:
         filters: int, the dimension of the output space (the number of filters
-            in the convolution).
+            in the transpose convolution).
         kernel_size: int or tuple/list of 1 integer, specifying the size of the
-            convolution window.
+            transposed convolution window.
         strides: int or tuple/list of 1 integer, specifying the stride length
-            of the convolution. `stride value != 1` is incompatible with
-            `dilation_rate != 1`.
+            of the transposed convolution. `stride value != 1` is incompatible
+            with `dilation_rate != 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -34,7 +39,7 @@ class Conv1D(BaseConv):
             value found in your Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be `"channels_last"`.
         dilation_rate: int or tuple/list of 1 integers, specifying the dilation
-            rate to use for dilated convolution.
+            rate to use for dilated transposed convolution.
         groups: A positive int specifying the number of groups in which the
             input is split along the channel axis. Each group is convolved
             separately with `filters // groups` filters. The output is the
@@ -71,19 +76,24 @@ class Conv1D(BaseConv):
         A 3D tensor with shape: `(batch_shape, channels, new_steps)`
 
     Returns:
-        A 3D tensor representing `activation(conv1d(inputs, kernel) + bias)`.
+        A 3D tensor representing
+        `activation(conv1d_transpose(inputs, kernel) + bias)`.
 
     Raises:
         ValueError: when both `strides > 1` and `dilation_rate > 1`.
 
+    References:
+    - [A guide to convolution arithmetic for deep learning](
+        https://arxiv.org/abs/1603.07285v1)
+    - [Deconvolutional Networks](
+        https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
+
     Examples:
 
-    >>> # The inputs are 128-length vectors with 10 timesteps, and the
-    >>> # batch size is 4.
     >>> x = np.random.rand(4, 10, 128)
-    >>> y = keras_core.layers.Conv1D(32, 3, activation='relu')(x)
+    >>> y = keras_core.layers.Conv1DTranspose(32, 3, 2, activation='relu')(x)
     >>> print(y.shape)
-    (4, 8, 32)
+    (4, 21, 32)
     """
 
     def __init__(
@@ -94,7 +104,6 @@ class Conv1D(BaseConv):
         padding="valid",
         data_format="channels_last",
         dilation_rate=1,
-        groups=1,
         activation=None,
         use_bias=True,
         kernel_initializer="glorot_uniform",
@@ -114,7 +123,6 @@ class Conv1D(BaseConv):
             padding=padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
-            groups=groups,
             activation=activation,
             use_bias=use_bias,
             kernel_initializer=kernel_initializer,

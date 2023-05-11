@@ -1,45 +1,47 @@
 from keras_core.api_export import keras_core_export
-from keras_core.layers.convolutional.base_conv import BaseConv
+from keras_core.layers.convolutional.base_conv_transpose import (
+    BaseConvTranspose,
+)
 
 
 @keras_core_export(
-    ["keras_core.layers.Conv1D", "keras_core.layers.Convolution1D"]
+    [
+        "keras_core.layers.Conv2DTranspose",
+        "keras_core.layers.Convolution2DTranspose",
+    ]
 )
-class Conv1D(BaseConv):
-    """1D convolution layer (e.g. temporal convolution).
+class Conv2DTranspose(BaseConvTranspose):
+    """2D transposed convolution layer.
 
-    This layer creates a convolution kernel that is convolved with the layer
-    input over a single spatial (or temporal) dimension to produce a tensor of
-    outputs. If `use_bias` is True, a bias vector is created and added to the
-    outputs. Finally, if `activation` is not `None`, it is applied to the
-    outputs as well.
+    The need for transposed convolutions generally arise from the desire to use
+    a transformation going in the opposite direction of a normal convolution,
+    i.e., from something that has the shape of the output of some convolution
+    to something that has the shape of its input while maintaining a
+    connectivity pattern that is compatible with said convolution.
 
     Args:
         filters: int, the dimension of the output space (the number of filters
-            in the convolution).
+            in the transposed convolution).
         kernel_size: int or tuple/list of 1 integer, specifying the size of the
-            convolution window.
+            transposed convolution window.
         strides: int or tuple/list of 1 integer, specifying the stride length
-            of the convolution. `stride value != 1` is incompatible with
-            `dilation_rate != 1`.
+            of the transposed convolution. `stride value != 1` is incompatible
+            with `dilation_rate != 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
             height/width dimension as the input.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape `(batch, steps, features)`
+            corresponds to inputs with shape
+            `(batch_size, channels, height, width)`
             while `"channels_first"` corresponds to inputs with shape
-            `(batch, features, steps)`. It defaults to the `image_data_format`
-            value found in your Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be `"channels_last"`.
+            `(batch_size, channels, height, width)`. It defaults to the
+            `image_data_format` value found in your Keras config file at
+            `~/.keras/keras.json`. If you never set it, then it will be
+            `"channels_last"`.
         dilation_rate: int or tuple/list of 1 integers, specifying the dilation
-            rate to use for dilated convolution.
-        groups: A positive int specifying the number of groups in which the
-            input is split along the channel axis. Each group is convolved
-            separately with `filters // groups` filters. The output is the
-            concatenation of all the `groups` results along the channel axis.
-            Input channels and `filters` must both be divisible by `groups`.
+            rate to use for dilated transposed convolution.
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         kernel_initializer: Initializer for the convolution kernel. If `None`,
@@ -60,30 +62,35 @@ class Conv1D(BaseConv):
 
     Input shape:
     - If `data_format="channels_last"`:
-        A 3D tensor with shape: `(batch_shape, steps, channels)`
+        A 4D tensor with shape: `(batch_size, height, width, channels)`
     - If `data_format="channels_first"`:
-        A 3D tensor with shape: `(batch_shape, channels, steps)`
+        A 4D tensor with shape: `(batch_size, channels, height, width)`
 
     Output shape:
     - If `data_format="channels_last"`:
-        A 3D tensor with shape: `(batch_shape, new_steps, channels)`
+        A 4D tensor with shape: `(batch_size, new_height, new_width filters)`
     - If `data_format="channels_first"`:
-        A 3D tensor with shape: `(batch_shape, channels, new_steps)`
+        A 4D tensor with shape: `(batch_size, filters, new_height, new_width)`
 
     Returns:
-        A 3D tensor representing `activation(conv1d(inputs, kernel) + bias)`.
+        A 4D tensor representing
+        `activation(conv2d_transpose(inputs, kernel) + bias)`.
 
     Raises:
         ValueError: when both `strides > 1` and `dilation_rate > 1`.
 
+    References:
+    - [A guide to convolution arithmetic for deep learning](
+        https://arxiv.org/abs/1603.07285v1)
+    - [Deconvolutional Networks](
+        https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
+
     Examples:
 
-    >>> # The inputs are 128-length vectors with 10 timesteps, and the
-    >>> # batch size is 4.
-    >>> x = np.random.rand(4, 10, 128)
-    >>> y = keras_core.layers.Conv1D(32, 3, activation='relu')(x)
+    >>> x = np.random.rand(4, 10, 8, 128)
+    >>> y = keras_core.layers.Conv2DTranspose(32, 2, 2, activation='relu')(x)
     >>> print(y.shape)
-    (4, 8, 32)
+    (4, 20, 16, 32)
     """
 
     def __init__(
@@ -94,7 +101,6 @@ class Conv1D(BaseConv):
         padding="valid",
         data_format="channels_last",
         dilation_rate=1,
-        groups=1,
         activation=None,
         use_bias=True,
         kernel_initializer="glorot_uniform",
@@ -107,14 +113,13 @@ class Conv1D(BaseConv):
         **kwargs
     ):
         super().__init__(
-            rank=1,
+            rank=2,
             filters=filters,
             kernel_size=kernel_size,
             strides=strides,
             padding=padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
-            groups=groups,
             activation=activation,
             use_bias=use_bias,
             kernel_initializer=kernel_initializer,

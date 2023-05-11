@@ -1,10 +1,12 @@
 """Tests for tf.distribute related functionality under tf implementation."""
 
+import numpy as np
 import pytest
 import tensorflow as tf
 from tensorflow.python.eager import context
 
 from keras_core import backend
+from keras_core.backend.tensorflow import trainer as tf_trainer
 from keras_core import layers
 from keras_core import models
 from keras_core import testing
@@ -79,3 +81,41 @@ class DistributeTest(testing.TestCase):
         self.assertEqual(result.values[1].shape, [8, 2])
         self.assertNotAllClose(result.values[0], result.values[1])
         self.assertAllClose(result.values[0], tf.zeros([8, 2]))
+
+    def test_epoch_iterator(self):
+        x = np.random.random((100, 16))
+        y = np.random.random((100, 4))
+        sample_weight = np.random.random((100,))
+        batch_size = 16
+        shuffle = True
+
+        strategy = tf.distribute.MirroredStrategy(['CPU:0', 'CPU:1'])
+
+        epoch_iterator = tf_trainer.TFEpochIterator(
+            x=x,
+            y=y,
+            sample_weight=sample_weight,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            distribute_strategy=strategy
+        )
+        steps_seen = []
+        for step, data_iterator in epoch_iterator.enumerate_epoch():
+            steps_seen.append(step)
+            batch = next(data_iterator)
+            self.assertEqual(len(batch), 3)
+            x, y, sample_weight = batch
+            self.assertTrue(
+                isinstance(x,
+                           tf.types.experimental.distributed.PerReplica))
+            # Make sure the local batch size is 8
+            if step < 6:
+                self.assertEqual(x.values[0].shape, [8, 16])
+                self.assertEqual(y.values[0].shape, [8, 4])
+                self.assertEqual(sample_weight.values[0].shape, [8])
+            else:
+                # Last partial batch
+                self.assertEqual(x.values[0].shape, [2, 16])
+                self.assertEqual(y.values[0].shape, [2, 4])
+                self.assertEqual(sample_weight.values[0].shape, [2])
+        self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])

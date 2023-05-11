@@ -831,9 +831,12 @@ class ConvTranspose(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        kernel_size = kernel.shape[:-2]
+        filters = kernel.shape[-2]
         output_shape = compute_conv_transpose_output_shape(
-            inputs,
-            kernel,
+            inputs.shape,
+            kernel_size,
+            filters,
             self.strides,
             self.padding,
             self.output_padding,
