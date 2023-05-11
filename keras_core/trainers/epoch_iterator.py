@@ -94,7 +94,7 @@ class EpochIterator:
             #     "(via `.shuffle(tf.data.AUTOTUNE)`)"
             # )
         elif isinstance(x, py_dataset_adapter.PyDataset):
-            self.data_adapter = tf_dataset_adapter.PyDatasetAdapter(
+            self.data_adapter = py_dataset_adapter.PyDatasetAdapter(
                 x, class_weight=class_weight, shuffle=shuffle
             )
             if y is not None:
