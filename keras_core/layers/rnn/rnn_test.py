@@ -96,6 +96,20 @@ class RNNTest(testing.TestCase):
         )
         self.run_layer_test(
             layers.RNN,
+            init_kwargs={
+                "cell": OneStateRNNCell(5),
+                "go_backwards": True,
+                "unroll": True,
+            },
+            input_shape=(3, 2, 4),
+            expected_output_shape=(3, 5),
+            expected_num_trainable_weights=2,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
             init_kwargs={"cell": TwoStatesRNNCell(5)},
             input_shape=(3, 2, 4),
             expected_output_shape=(3, 5),
@@ -324,6 +338,21 @@ class RNNTest(testing.TestCase):
         self.assertAllClose(np.array([[90.0, 90.0]]), output)
         self.assertAllClose(np.array([[45.0, 45.0]]), state_1)
         self.assertAllClose(np.array([[45.0, 45.0]]), state_2)
+
+    def test_go_backwards(self):
+        sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
+        layer = layers.RNN(OneStateRNNCell(2), go_backwards=True)
+        layer(sequence)
+        output = layer(sequence)
+        self.assertAllClose(np.array([[202.0, 202.0], [538.0, 538.0]]), output)
+
+        layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
+        layer(sequence)
+        output, state = layer(sequence)
+        self.assertAllClose(
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]), output
+        )
+        self.assertAllClose(np.array([[954.0, 954.0], [3978.0, 3978.0]]), state)
 
     def test_serialization(self):
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)

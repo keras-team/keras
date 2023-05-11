@@ -32,7 +32,7 @@ class RNN(Layer):
             state. This can also be a list of integers
             (one size per state).
             - A `output_size` attribute, a single integer.
-            - A `get_initial_state(batch_size=None, dtype=None)`
+            - A `get_initial_state(batch_size=None)`
             method that creates a tensor meant to be fed to `call()` as the
             initial state, if the user didn't specify any initial state
             via other means. The returned initial state should have
