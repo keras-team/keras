@@ -1859,9 +1859,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         def step_function(batch):
             def run_step(data):
                 # TODO(b/272050910): Use sample_weight for weighted metrics.
-                x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
+                x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
+                    data
+                )
                 y_pred = self(x, training=False)
-                return x, y, y_pred
+                return x, y, y_pred, sample_weight
 
             if self._jit_compile:
                 run_step = tf.function(
@@ -1877,21 +1879,45 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             return outputs
 
         def shard_test_function(dataset, total_shards, shard_idx):
-            local_metrics = []
+            # Copy loss and metric variables to the worker and work with them
+            # locally. This ensures each shard function is atomic: if a worker
+            # is preempted, the intermediate progress is discarded and that
+            # shard is retried. This in turn guarantees exactly-once visitation.
+            local_unweighted_metrics, local_weighted_metrics = [], []
             with tf_utils.with_metric_local_vars_scope():
-                for metric in self.compiled_metrics.metrics:
-                    local_metrics.append(base_metric.clone_metric(metric))
-                for metric in self.compiled_loss.metrics:
-                    local_metrics.append(base_metric.clone_metric(metric))
+                # TODO(jmullenbach): implement and use a clone for
+                # `MetricsContainer` and use its `update_state` method directly.
+                for metric in self.compiled_metrics.unweighted_metrics:
+                    if metric is not None:
+                        local_unweighted_metrics.append(
+                            base_metric.clone_metric(metric)
+                        )
+                for metric in self.compiled_metrics.weighted_metrics:
+                    if metric is not None:
+                        local_weighted_metrics.append(
+                            base_metric.clone_metric(metric)
+                        )
+                local_loss = compile_utils.LossesContainer.from_config(
+                    self.compiled_loss.get_config()
+                )
+
             dataset = input_ops.auto_shard_dataset(
                 dataset, total_shards, shard_idx
             )
             iterator = iter(dataset)
             with distribute_utils.cache_variable_reads():
                 for batch in iterator:
-                    x, y, y_pred = step_function(batch)
-                    for local_metric in local_metrics:
-                        local_metric.update_state(y, y_pred)
+                    x, y, y_pred, sample_weight = step_function(batch)
+                    for weighted_metric in local_weighted_metrics:
+                        weighted_metric.update_state(y, y_pred, sample_weight)
+                    for unweighted_metric in local_unweighted_metrics:
+                        unweighted_metric.update_state(y, y_pred)
+                    local_loss(y, y_pred, sample_weight)
+            local_metrics = (
+                local_unweighted_metrics
+                + local_weighted_metrics
+                + local_loss.metrics
+            )
             outputs = {metric.name: metric.weights for metric in local_metrics}
             with tf.control_dependencies(_minimum_control_deps(outputs)):
                 self._test_counter.assign_add(1)
