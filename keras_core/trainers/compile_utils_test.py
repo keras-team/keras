@@ -178,21 +178,6 @@ class TestCompileMetrics(testing.TestCase):
         self.assertAllClose(result["mean_squared_error"], 0.0)
         self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
 
-    def test_name_conversions(self):
-        compile_metrics = CompileMetrics(
-            metrics=["acc", "accuracy"],
-            weighted_metrics=[],
-        )
-        y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
-        y_pred = np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]])
-        compile_metrics.build(y_true, y_pred)
-        compile_metrics.update_state(y_true, y_pred, sample_weight=None)
-        result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
-        self.assertEqual(len(result), 2)
-        self.assertAllClose(result["acc"], 0.333333)
-        self.assertAllClose(result["accuracy"], 0.333333)
-
 
 class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):

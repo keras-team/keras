@@ -67,15 +67,11 @@ def get_metric(identifier, y_true, y_pred):
             y_true, y_pred
         )
         if is_binary:
-            metric_obj = metrics_module.BinaryAccuracy(name=str(identifier))
+            metric_obj = metrics_module.binary_accuracy
         elif is_sparse_categorical:
-            metric_obj = metrics_module.SparseCategoricalAccuracy(
-                name=str(identifier)
-            )
+            metric_obj = metrics_module.sparse_categorical_accuracy
         else:
-            metric_obj = metrics_module.CategoricalAccuracy(
-                name=str(identifier)
-            )
+            metric_obj = metrics_module.categorical_accuracy
 
     if not isinstance(metric_obj, metrics_module.Metric):
         if isinstance(identifier, str):
