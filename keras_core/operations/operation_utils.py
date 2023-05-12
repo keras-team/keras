@@ -103,7 +103,7 @@ def compute_conv_output_shape(
                 f"`kernel shape={kernel_shape}`, "
                 f"`dilation_rate={dilation_rate}`."
             )
-    elif padding == "same":
+    elif padding == "same" or padding == "causal":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
     output_spatial_shape = tuple([int(i) for i in output_spatial_shape])
     if data_format == "channels_last":
