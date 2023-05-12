@@ -328,8 +328,6 @@ class RNN(Layer):
         mask=None,
         training=False,
     ):
-        self._maybe_reset_cell_dropout_mask(self.cell)
-
         timesteps = sequence.shape[1]
         if self.unroll and timesteps is None:
             raise ValueError(
@@ -385,6 +383,7 @@ class RNN(Layer):
             zero_output_for_mask=self.zero_output_for_mask,
             return_all_outputs=self.return_sequences,
         )
+        self._maybe_reset_dropout_masks(self.cell)
 
         if self.stateful:
             for self_state, state in zip(
@@ -404,13 +403,13 @@ class RNN(Layer):
             return output, *states
         return output
 
-    def _maybe_reset_cell_dropout_mask(self, cell):
+    def _maybe_reset_dropout_masks(self, cell):
         if isinstance(cell, DropoutRNNCellMixin):
             cell.reset_dropout_mask()
             cell.reset_recurrent_dropout_mask()
         if isinstance(cell, StackedRNNCells):
             for c in cell.cells:
-                self._maybe_reset_cell_dropout_mask(c)
+                self._maybe_reset_dropout_masks(c)
 
     def get_config(self):
         config = {

@@ -573,6 +573,8 @@ class Layer(Operation):
             else:
                 # More than one shape: pass them by name.
                 output_shape = self.compute_output_shape(**shapes_dict)
+
+            print("output_shape", output_shape)
             if (
                 isinstance(output_shape, list)
                 and output_shape
@@ -596,9 +598,22 @@ class Layer(Operation):
                 and isinstance(output_shape[0], (int, type(None)))
             ):
                 return KerasTensor(output_shape, dtype=self.compute_dtype)
-            return nest.map_structure(
-                lambda s: KerasTensor(s, dtype=self.compute_dtype), output_shape
-            )
+            # Case: nested. Could be a tuple/list of shapes, or a dict of shapes.
+            if isinstance(output_shape, list):
+                return [
+                    KerasTensor(s, dtype=self.compute_dtype)
+                    for s in output_shape
+                ]
+            if isinstance(output_shape, tuple):
+                return tuple(
+                    KerasTensor(s, dtype=self.compute_dtype)
+                    for s in output_shape
+                )
+            if isinstance(output_shape, dict):
+                return {
+                    name: KerasTensor(s, dtype=self.compute_dtype)
+                    for name, s in output_shape.items()
+                }
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):

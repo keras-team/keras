@@ -403,6 +403,10 @@ def ones_like(x, dtype=None):
     return tfnp.ones_like(x, dtype=dtype)
 
 
+def zeros_like(x, dtype=None):
+    return tf.zeros_like(x, dtype=dtype)
+
+
 def outer(x1, x2):
     return tfnp.outer(x1, x2)
 

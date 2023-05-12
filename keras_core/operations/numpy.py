@@ -2135,6 +2135,8 @@ class OnesLike(Operation):
         return backend.numpy.ones_like(x, dtype=dtype)
 
     def compute_output_spec(self, x, dtype=None):
+        if dtype is None:
+            dtype = x.dtype
         return KerasTensor(x.shape, dtype=dtype)
 
 
@@ -2142,6 +2144,22 @@ def ones_like(x, dtype=None):
     if any_symbolic_tensors((x,)):
         return OnesLike().symbolic_call(x, dtype=dtype)
     return backend.numpy.ones_like(x, dtype=dtype)
+
+
+class ZerosLike(Operation):
+    def call(self, x, dtype=None):
+        return backend.numpy.zeros_like(x, dtype=dtype)
+
+    def compute_output_spec(self, x, dtype=None):
+        if dtype is None:
+            dtype = x.dtype
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+def zeros_like(x, dtype=None):
+    if any_symbolic_tensors((x,)):
+        return ZerosLike().symbolic_call(x, dtype=dtype)
+    return backend.numpy.zeros_like(x, dtype=dtype)
 
 
 class Outer(Operation):

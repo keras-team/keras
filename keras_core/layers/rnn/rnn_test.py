@@ -361,8 +361,4 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
 
-    # def test_dropout(self):
-    #     pass
-
-    # def test_cell_stacking(self):
-    #     pass
+    # TODO: test masking

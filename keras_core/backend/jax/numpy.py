@@ -363,6 +363,10 @@ def ones_like(x, dtype=None):
     return jnp.ones_like(x, dtype=dtype)
 
 
+def zeros_like(x, dtype=None):
+    return jnp.zeros_like(x, dtype=dtype)
+
+
 def outer(x1, x2):
     return jnp.outer(x1, x2)
 

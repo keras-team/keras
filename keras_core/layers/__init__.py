@@ -100,4 +100,5 @@ from keras_core.layers.reshaping.repeat_vector import RepeatVector
 from keras_core.layers.reshaping.reshape import Reshape
 from keras_core.layers.reshaping.up_sampling1d import UpSampling1D
 from keras_core.layers.rnn.rnn import RNN
+from keras_core.layers.rnn.simple_rnn import SimpleRNN
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
