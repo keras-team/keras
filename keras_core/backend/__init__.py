@@ -29,8 +29,5 @@ if backend() == "tensorflow":
 elif backend() == "jax":
     print_msg("Using JAX backend.")
     from keras_core.backend.jax import *  # noqa: F403
-elif backend() == "pytorch":
-    print_msg("Using PyTorch backend.")
-    from keras_core.backend.pytorch import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
