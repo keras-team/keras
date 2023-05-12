@@ -49,11 +49,12 @@ class RandomCrop(Layer):
     """
 
     def __init__(self, height, width, seed=None, name=None, **kwargs):
-        super().__init__()
+        super().__init__(name=name, **kwargs)
+        self.seed = seed or backend.random.make_default_seed()
         self.layer = tf.keras.layers.RandomCrop(
             height=height,
             width=width,
-            seed=seed,
+            seed=self.seed,
             name=name,
         )
         self.supports_masking = False
@@ -70,4 +71,6 @@ class RandomCrop(Layer):
         return tuple(self.layer.compute_output_shape(input_shape))
 
     def get_config(self):
-        return self.layer.get_config()
+        config = self.layer.get_config()
+        config.update({"seed": self.seed})
+        return config
