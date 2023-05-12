@@ -39,17 +39,18 @@ def test_model_fit():
     batch_size = 32
     epochs = 5
 
-    model.compile(
-        optimizer=optimizers.SGD(learning_rate=0.001),
-        loss=losses.MeanSquaredError(),
-        metrics=[metrics.MeanSquaredError()],
-        # TODO(scottzhu): Find out where is the variable that is not created eagerly
-        # and break the usage of XLA.
-        jit_compile=False,
-    )
-    history = model.fit(
-        x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
-    )
+    with strategy.scope():
+        model.compile(
+            optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.01),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            # TODO(scottzhu): Find out where is the variable that is not created eagerly
+            # and break the usage of XLA.
+            jit_compile=False,
+        )
+        history = model.fit(
+            x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
+        )
 
     print("History:")
     print(history.history)
