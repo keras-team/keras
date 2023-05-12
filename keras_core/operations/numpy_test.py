@@ -1416,8 +1416,8 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.ones_like(x).dtype, x.dtype)
 
     def test_zeros_like(self):
-        x = KerasTensor([None, 3])
-        self.assertEqual(knp.zeros_like(x).shape, (None, 3))
+        x = KerasTensor([2, 3])
+        self.assertEqual(knp.zeros_like(x).shape, (2, 3))
         self.assertEqual(knp.zeros_like(x).dtype, x.dtype)
 
     def test_pad(self):
