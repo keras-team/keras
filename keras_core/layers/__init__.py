@@ -75,8 +75,8 @@ from keras_core.layers.preprocessing.normalization import Normalization
 from keras_core.layers.preprocessing.random_brightness import RandomBrightness
 from keras_core.layers.preprocessing.random_contrast import RandomContrast
 from keras_core.layers.preprocessing.random_crop import RandomCrop
-from keras_core.layers.preprocessing.random_rotation import RandomRotation
 from keras_core.layers.preprocessing.random_flip import RandomFlip
+from keras_core.layers.preprocessing.random_rotation import RandomRotation
 from keras_core.layers.preprocessing.random_translation import RandomTranslation
 from keras_core.layers.preprocessing.random_zoom import RandomZoom
 from keras_core.layers.preprocessing.rescaling import Rescaling

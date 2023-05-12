@@ -17,6 +17,14 @@ class RandomZoom(Layer):
     of integer or floating point dtype.
     By default, the layer will output floats.
 
+    **Note:** This layer wraps `tf.keras.layers.RandomZoom`. It cannot
+    be used as part of the compiled computation graph of a model with
+    any backend other than TensorFlow.
+    It can however be used with any backend when running eagerly.
+    It can also always be used as part of an input preprocessing pipeline
+    with any backend (outside the model itself), which is how we recommend
+    to use this layer.
+
     Args:
         height_factor: a float represented as fraction of value,
             or a tuple of size 2 representing lower and upper bound
