@@ -25,8 +25,8 @@ class Conv1DTranspose(BaseConvTranspose):
         kernel_size: int or tuple/list of 1 integer, specifying the size of the
             transposed convolution window.
         strides: int or tuple/list of 1 integer, specifying the stride length
-            of the transposed convolution. `stride value != 1` is incompatible
-            with `dilation_rate != 1`.
+            of the transposed convolution. `strides > 1` is incompatible with
+            `dilation_rate > 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -40,11 +40,6 @@ class Conv1DTranspose(BaseConvTranspose):
             If you never set it, then it will be `"channels_last"`.
         dilation_rate: int or tuple/list of 1 integers, specifying the dilation
             rate to use for dilated transposed convolution.
-        groups: A positive int specifying the number of groups in which the
-            input is split along the channel axis. Each group is convolved
-            separately with `filters // groups` filters. The output is the
-            concatenation of all the `groups` results along the channel axis.
-            Input channels and `filters` must both be divisible by `groups`.
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         kernel_initializer: Initializer for the convolution kernel. If `None`,
@@ -71,9 +66,9 @@ class Conv1DTranspose(BaseConvTranspose):
 
     Output shape:
     - If `data_format="channels_last"`:
-        A 3D tensor with shape: `(batch_shape, new_steps, channels)`
+        A 3D tensor with shape: `(batch_shape, new_steps, filters)`
     - If `data_format="channels_first"`:
-        A 3D tensor with shape: `(batch_shape, channels, new_steps)`
+        A 3D tensor with shape: `(batch_shape, filters, new_steps)`
 
     Returns:
         A 3D tensor representing

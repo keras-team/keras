@@ -26,6 +26,7 @@ class Trainer:
         metrics=None,
         weighted_metrics=None,
         run_eagerly=False,
+        steps_per_execution=1,
         jit_compile=True,
     ):
         self.optimizer = optimizers.get(optimizer)
@@ -49,6 +50,7 @@ class Trainer:
         self.stop_training = False
         self.compiled = True
         self._loss_tracker = metrics_module.Mean(name="loss")
+        self.steps_per_execution = steps_per_execution
 
         self._compile_config = serialization_lib.SerializableDict(
             optimizer=optimizer,
@@ -57,6 +59,7 @@ class Trainer:
             metrics=metrics,
             weighted_metrics=weighted_metrics,
             run_eagerly=run_eagerly,
+            steps_per_execution=steps_per_execution,
             jit_compile=jit_compile,
         )
 

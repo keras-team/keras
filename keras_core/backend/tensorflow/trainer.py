@@ -114,12 +114,15 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
             return outputs
 
+        def train_function(iterator):
+            """Runs a training execution with multiple steps."""
+            for _ in tf.range(self.steps_per_execution):
+                outputs = one_step_on_iterator(iterator)
+            return outputs
+
         if not self.run_eagerly:
-            train_function = tf.function(
-                one_step_on_iterator, reduce_retracing=True
-            )
-        else:
-            train_function = one_step_on_iterator
+            train_function = tf.function(train_function, reduce_retracing=True)
+
         self.train_function = train_function
 
     def make_test_function(self, force=False):
@@ -244,6 +247,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             shuffle=shuffle,
             class_weight=class_weight,
             distribute_strategy=self.distribute_strategy,
+            steps_per_execution=self.steps_per_execution,
         )
 
         # Container that configures and calls callbacks.
@@ -445,7 +449,9 @@ class TFEpochIterator(EpochIterator):
                         self.data_adapter.get_tf_dataset()
                     )
                 )
-            for step in range(self.steps_per_epoch):
+            for step in range(
+                0, self.steps_per_epoch, self.steps_per_execution
+            ):
                 yield step, self._current_iterator
         else:
             iterator = iter(
@@ -454,12 +460,14 @@ class TFEpochIterator(EpochIterator):
                 )
             )
             if self.num_batches:
-                for step in range(self.num_batches):
+                for step in range(
+                    0, self.num_batches, self.steps_per_execution
+                ):
                     yield step, iterator
             else:
                 step = -1
                 while True:
-                    step += 1
+                    step += self.steps_per_execution
                     self._steps_seen = step + 1
                     yield step, iterator
         self.data_adapter.on_epoch_end()
