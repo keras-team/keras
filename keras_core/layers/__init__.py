@@ -77,6 +77,7 @@ from keras_core.layers.preprocessing.random_contrast import RandomContrast
 from keras_core.layers.preprocessing.random_crop import RandomCrop
 from keras_core.layers.preprocessing.random_flip import RandomFlip
 from keras_core.layers.preprocessing.random_translation import RandomTranslation
+from keras_core.layers.preprocessing.random_zoom import RandomZoom
 from keras_core.layers.preprocessing.rescaling import Rescaling
 from keras_core.layers.preprocessing.resizing import Resizing
 from keras_core.layers.preprocessing.string_lookup import StringLookup
