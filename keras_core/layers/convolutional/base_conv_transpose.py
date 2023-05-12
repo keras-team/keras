@@ -14,25 +14,26 @@ from keras_core.layers.layer import Layer
 
 
 class BaseConvTranspose(Layer):
-    """Abstract N-D transposed convolution layer.
+    """Abstract N-D transpose convolution layer.
 
-    The need for transposed convolutions generally arises from the desire to use
-    a transformation going in the opposite direction of a normal convolution,
-    i.e., from something that has the shape of the output of some convolution to
-    something that has the shape of its input while maintaining a connectivity
-    pattern that is compatible with said convolution.
+    The need for transposed convolutions generally arises
+    from the desire to use a transformation going in the opposite direction
+    of a normal convolution, i.e., from something that has the shape of the
+    output of some convolution to something that has the shape of its input
+    while maintaining a connectivity pattern that is compatible with
+    said convolution.
 
     Args:
         rank: int, the rank of the transposed convolution, e.g. 2 for 2D
             transposed convolution.
         filters: int, the dimension of the output space (the number of filters
             in the transposed convolution).
-        kernel_size: int or tuple/list of `rank` integers, specifying the size
-            of the transposed convolution window.
-        strides: int or tuple/list of `rank` integers, specifying the stride
-            length of the transposed convolution. If only one int is specified,
-            the same stride size will be used for all dimensions.
-            `strides > 1` is incompatible with `dilation_rate > 1`.
+        kernel_size: int or tuple/list of N integers (N=`rank`), specifying the
+            size of the transposed convolution window.
+        strides: int or tuple/list of N integers, specifying the stride length
+            of the transposed convolution. If only one int is specified, the
+            same stride size will be used for all dimensions.
+            `stride value != 1` is incompatible with `dilation_rate != 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -44,9 +45,9 @@ class BaseConvTranspose(Layer):
             `(batch, features, steps)`. It defaults to the `image_data_format`
             value found in your Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be `"channels_last"`.
-        dilation_rate: int or tuple/list of `rank` integers, specifying the
-            dilation rate to use for dilated convolution. If only one int is
-            specified, the same dilation rate will be used for all dimensions.
+        dilation_rate: int or tuple/list of N integers, specifying the dilation
+            rate to use for dilated convolution. If only one int is specified,
+            the same dilation rate will be used for all dimensions.
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         kernel_initializer: Initializer for the convolution kernel. If `None`,
@@ -130,14 +131,14 @@ class BaseConvTranspose(Layer):
 
         if not all(self.kernel_size):
             raise ValueError(
-                "The argument `kernel_size` cannot contain 0. Received "
-                f"kernel_size={self.kernel_size}."
+                "The argument `kernel_size` cannot contain 0. Received: "
+                f"{self.kernel_size}"
             )
 
         if not all(self.strides):
             raise ValueError(
-                "The argument `strides` cannot contains 0. Received "
-                f"strides={self.strides}."
+                "The argument `strides` cannot contains 0. Received: "
+                f"{self.strides}"
             )
 
         if max(self.strides) > 1 and max(self.dilation_rate) > 1:

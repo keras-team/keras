@@ -25,8 +25,8 @@ class Conv3DTranspose(BaseConvTranspose):
         kernel_size: int or tuple/list of 1 integer, specifying the size of the
             transposed convolution window.
         strides: int or tuple/list of 1 integer, specifying the stride length
-            of the transposed convolution. `strides > 1` is incompatible with
-            `dilation_rate > 1`.
+            of the transposed convolution. `stride value != 1` is incompatible
+            with `dilation_rate != 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -72,10 +72,10 @@ class Conv3DTranspose(BaseConvTranspose):
     - If `data_format="channels_last"`:
         5D tensor with shape:
         `(batch_size, new_spatial_dim1, new_spatial_dim2, new_spatial_dim3,
-        filters)`
+        channels)`
     - If `data_format="channels_first"`:
         5D tensor with shape:
-        `(batch_size, filters, new_spatial_dim1, new_spatial_dim2,
+        `(batch_size, channels, new_spatial_dim1, new_spatial_dim2,
         new_spatial_dim3)`
 
     Returns:

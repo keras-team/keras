@@ -21,8 +21,8 @@ class Conv1D(BaseConv):
         kernel_size: int or tuple/list of 1 integer, specifying the size of the
             convolution window.
         strides: int or tuple/list of 1 integer, specifying the stride length
-            of the convolution. `strides > 1` is incompatible with
-            `dilation_rate > 1`.
+            of the convolution. `stride value != 1` is incompatible with
+            `dilation_rate != 1`.
         padding: string, `"valid"`, `"same"` or `"causal"`(case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -72,9 +72,9 @@ class Conv1D(BaseConv):
 
     Output shape:
     - If `data_format="channels_last"`:
-        A 3D tensor with shape: `(batch_shape, new_steps, filters)`
+        A 3D tensor with shape: `(batch_shape, new_steps, channels)`
     - If `data_format="channels_first"`:
-        A 3D tensor with shape: `(batch_shape, filters, new_steps)`
+        A 3D tensor with shape: `(batch_shape, channels, new_steps)`
 
     Returns:
         A 3D tensor representing `activation(conv1d(inputs, kernel) + bias)`.

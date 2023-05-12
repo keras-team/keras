@@ -29,8 +29,8 @@ class SeparableConv1D(BaseSeparableConv):
             depthwise convolution window.
         strides: int or tuple/list of 1 integers, specifying the stride length
             of the depthwise convolution. If only one int is specified, the same
-            stride size will be used for all dimensions. `strides > 1` is
-            incompatible with `dilation_rate > 1`.
+            stride size will be used for all dimensions. `stride value != 1` is
+            incompatible with `dilation_rate != 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
