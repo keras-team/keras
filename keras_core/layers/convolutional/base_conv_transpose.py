@@ -11,6 +11,7 @@ from keras_core.backend.common.backend_utils import (
 )
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
+from keras_core.utils.argument_validation import normalize_tuple
 
 
 class BaseConvTranspose(Layer):
@@ -96,19 +97,11 @@ class BaseConvTranspose(Layer):
         )
         self.rank = rank
         self.filters = filters
-
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size,) * self.rank
-        self.kernel_size = kernel_size
-
-        if isinstance(strides, int):
-            strides = (strides,) * self.rank
-        self.strides = strides
-
-        if isinstance(dilation_rate, int):
-            dilation_rate = (dilation_rate,) * self.rank
-        self.dilation_rate = dilation_rate
-
+        self.kernel_size = normalize_tuple(kernel_size, rank, "kernel_size")
+        self.strides = normalize_tuple(strides, rank, "strides")
+        self.dilation_rate = normalize_tuple(
+            dilation_rate, rank, "dilation_rate"
+        )
         self.padding = padding
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
