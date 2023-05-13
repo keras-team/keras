@@ -14,7 +14,7 @@ def normalize_tuple(value, n, name, allow_zero=False):
     """
     error_msg = (
         f"The `{name}` argument must be a tuple of {n} integers. "
-        f"Received `{name}`={value}"
+        f"Received {name}={value}"
     )
 
     if isinstance(value, int):
@@ -45,8 +45,8 @@ def normalize_tuple(value, n, name, allow_zero=False):
 
     if unqualified_values:
         error_msg += (
-            f" including {unqualified_values}"
-            f" that does not satisfy the requirement `{req_msg}`."
+            f", including values {unqualified_values}"
+            f" that do not satisfy `value {req_msg}`"
         )
         raise ValueError(error_msg)
 
