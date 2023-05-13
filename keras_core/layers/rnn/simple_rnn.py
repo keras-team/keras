@@ -51,7 +51,7 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             for the linear transformation of the recurrent state. Default: 0.
 
     Call arguments:
-        inputs: A 2D tensor, with shape `(batch, features)`.
+        inputs: A 2D tensor, with shape `(batch, feature)`.
         states: A 2D tensor with shape `(batch, units)`, which is the state
             from the previous time step.
         training: Python boolean indicating whether the layer should behave in
@@ -334,7 +334,7 @@ class SimpleRNN(RNN):
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
             seed=seed,
-            dtype=kwargs.get("dtype", None),
+            dtype=kwargs.get("dtype"),
             trainable=kwargs.get("trainable", True),
             name="simple_rnn_cell",
         )
@@ -347,9 +347,10 @@ class SimpleRNN(RNN):
             unroll=unroll,
             **kwargs,
         )
+        self.activity_regularizer = regularizers.get(activity_regularizer)
         self.input_spec = [InputSpec(ndim=3)]
 
-    def call(self, inputs, initial_state=None, mask=None, training=None):
+    def call(self, inputs, mask=None, training=None, initial_state=None):
         return super().call(
             inputs, mask=mask, training=training, initial_state=initial_state
         )

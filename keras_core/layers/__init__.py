@@ -94,14 +94,11 @@ from keras_core.layers.regularization.spatial_dropout import SpatialDropout2D
 from keras_core.layers.regularization.spatial_dropout import SpatialDropout3D
 from keras_core.layers.reshaping.cropping1d import Cropping1D
 from keras_core.layers.reshaping.cropping2d import Cropping2D
-from keras_core.layers.reshaping.cropping3d import Cropping3D
 from keras_core.layers.reshaping.flatten import Flatten
 from keras_core.layers.reshaping.permute import Permute
 from keras_core.layers.reshaping.repeat_vector import RepeatVector
 from keras_core.layers.reshaping.reshape import Reshape
 from keras_core.layers.reshaping.up_sampling1d import UpSampling1D
-from keras_core.layers.rnn.gru import GRU
-from keras_core.layers.rnn.lstm import LSTM
 from keras_core.layers.rnn.rnn import RNN
 from keras_core.layers.rnn.simple_rnn import SimpleRNN
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells

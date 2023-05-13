@@ -417,4 +417,4 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         tf_keras_layer.bias.assign(bias_weights)
         outputs = layer(inputs)
         expected = tf_keras_layer(inputs)
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(outputs, expected)

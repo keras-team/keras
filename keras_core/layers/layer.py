@@ -574,6 +574,7 @@ class Layer(Operation):
                 # More than one shape: pass them by name.
                 output_shape = self.compute_output_shape(**shapes_dict)
 
+            print("output_shape", output_shape)
             if (
                 isinstance(output_shape, list)
                 and output_shape

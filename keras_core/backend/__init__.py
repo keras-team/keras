@@ -1,6 +1,9 @@
 import json
 import os
 
+import numpy as np
+import torch
+
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.keras_tensor import any_symbolic_tensors
 from keras_core.backend.common.keras_tensor import is_keras_tensor
@@ -29,5 +32,8 @@ if backend() == "tensorflow":
 elif backend() == "jax":
     print_msg("Using JAX backend.")
     from keras_core.backend.jax import *  # noqa: F403
+elif backend() == "pytorch":
+    print_msg("Using PyTorch backend.")
+    from keras_core.backend.pytorch import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

@@ -321,32 +321,6 @@ class RNN(Layer):
             for v in self.states:
                 v.assign(ops.zeros_like(v))
 
-    def inner_loop(self, sequence, initial_state, mask, training=False):
-        cell_kwargs = {}
-        if isinstance(self.cell, Layer) and self.cell._call_has_training_arg():
-            cell_kwargs["training"] = training
-
-        def step(inputs, states):
-            output, new_states = self.cell(inputs, states, **cell_kwargs)
-            if not nest.is_nested(new_states):
-                new_states = [new_states]
-            return output, new_states
-
-        if not nest.is_nested(initial_state):
-            initial_state = [initial_state]
-
-        return backend.rnn(
-            step,
-            sequence,
-            initial_state,
-            go_backwards=self.go_backwards,
-            mask=mask,
-            unroll=self.unroll,
-            input_length=sequence.shape[1],
-            zero_output_for_mask=self.zero_output_for_mask,
-            return_all_outputs=self.return_sequences,
-        )
-
     def call(
         self,
         sequence,
@@ -361,12 +335,18 @@ class RNN(Layer):
                 "time dimension is undefined. \n"
                 "- If using a Sequential model, "
                 "specify the time dimension by passing "
-                "an `Input()` as your first layer.\n"
+                "an `input_shape` or `batch_input_shape` "
+                "argument to your first layer. If your "
+                "first layer is an Embedding, you can "
+                "also use the `input_length` argument.\n"
                 "- If using the functional API, specify "
                 "the time dimension by passing a `shape` "
-                "or `batch_shape` argument to your `Input()`."
+                "or `batch_shape` argument to your Input layer."
             )
 
+        cell_kwargs = {}
+        if isinstance(self.cell, Layer) and self.cell._call_has_training_arg():
+            cell_kwargs["training"] = training
         if initial_state is None:
             if self.stateful:
                 initial_state = self.states
@@ -386,11 +366,22 @@ class RNN(Layer):
             lambda x: ops.cast(x, dtype=self.compute_dtype), initial_state
         )
 
-        last_output, outputs, states = self.inner_loop(
-            sequence=sequence,
-            initial_state=initial_state,
+        def step(inputs, states):
+            output, new_states = self.cell(inputs, states, **cell_kwargs)
+            if not nest.is_nested(new_states):
+                new_states = [new_states]
+            return output, new_states
+
+        last_output, outputs, states = backend.nn.rnn(
+            step,
+            sequence,
+            initial_state,
+            go_backwards=self.go_backwards,
             mask=mask,
-            training=training,
+            unroll=self.unroll,
+            input_length=timesteps,
+            zero_output_for_mask=self.zero_output_for_mask,
+            return_all_outputs=self.return_sequences,
         )
         self._maybe_reset_dropout_masks(self.cell)
 
