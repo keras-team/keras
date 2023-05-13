@@ -25,13 +25,15 @@ class TFOptimizer(base_optimizer.Optimizer):
             colocate_var = reference_variable
 
         with self._distribution_strategy.extended.colocate_vars_with(
-                colocate_var):
+            colocate_var
+        ):
             return super().add_variable_from_reference(
-                reference_variable, name=name)
+                reference_variable, name=name
+            )
 
     def _var_key(self, variable):
         if isinstance(variable, backend.Variable):
-            variable = variable.value   # Convert to tf.Variable
+            variable = variable.value  # Convert to tf.Variable
         if hasattr(variable, "_distributed_container"):
             variable = variable._distributed_container()
         elif (
@@ -74,7 +76,8 @@ class TFOptimizer(base_optimizer.Optimizer):
         )
 
     def _distributed_apply_gradients_fn(
-            self, distribution, grads_and_vars, **kwargs):
+        self, distribution, grads_and_vars, **kwargs
+    ):
         """`apply_gradients` using a `DistributionStrategy`."""
 
         def apply_grad_to_update_var(var, grad):
@@ -117,4 +120,5 @@ class TFOptimizer(base_optimizer.Optimizer):
             var_list, self._model_variables_moving_average
         ):
             strategy.extended.update(
-                var, lambda a, b: a.assign(b), args=(average_var,))
+                var, lambda a, b: a.assign(b), args=(average_var,)
+            )

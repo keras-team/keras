@@ -31,8 +31,7 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
 
     def _initialize(self, value):
         self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable,
-            name=self.name
+            value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
 
     def assign(self, value):

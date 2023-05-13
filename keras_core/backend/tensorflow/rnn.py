@@ -506,6 +506,9 @@ def gru(
     except tf.errors.InvalidArgumentError:
         # cuDNN op not found.
         raise NotImplementedError
+    except tf.errors.NotFoundError:
+        # alternative error: device not found for op
+        raise NotImplementedError
 
 
 def _do_gru_arguments_support_cudnn(
@@ -525,6 +528,24 @@ def _do_gru_arguments_support_cudnn(
         and not unroll
         and bias is not None
         and reset_after
+    )
+
+
+def _do_lstm_arguments_support_cudnn(
+    activation,
+    recurrent_activation,
+    unroll,
+    bias,
+):
+    from keras_core import activations
+    from keras_core import operations as ops
+
+    return (
+        activation in (activations.tanh, tf.tanh, ops.tanh)
+        and recurrent_activation
+        in (activations.sigmoid, tf.sigmoid, ops.sigmoid)
+        and not unroll
+        and bias is not None
     )
 
 
@@ -759,5 +780,178 @@ def _cudnn_gru(
     )
 
 
-def lstm():
-    pass
+def lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    time_major=False,
+):
+    args_supported = _do_lstm_arguments_support_cudnn(
+        activation=activation,
+        recurrent_activation=recurrent_activation,
+        unroll=unroll,
+        bias=bias,
+    )
+    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
+    if not args_supported or not inputs_supported:
+        raise NotImplementedError
+
+    from keras_core.backend.tensorflow import Variable
+
+    if isinstance(kernel, Variable):
+        kernel = kernel.value
+    if isinstance(recurrent_kernel, Variable):
+        recurrent_kernel = recurrent_kernel.value
+    if isinstance(bias, Variable):
+        bias = bias.value
+
+    try:
+        return _cudnn_lstm(
+            inputs,
+            initial_state_h,
+            initial_state_c,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            time_major,
+            go_backwards,
+            return_sequences,
+        )
+    except tf.errors.InvalidArgumentError:
+        # cuDNN op not found.
+        raise NotImplementedError
+    except tf.errors.NotFoundError:
+        # alternative error: device not found for op
+        raise NotImplementedError
+
+
+def _cudnn_lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    kernel,
+    recurrent_kernel,
+    bias,
+    mask,
+    time_major,
+    go_backwards,
+    return_sequences,
+):
+    if mask is not None:
+        sequence_lengths = _compute_sequence_length_from_mask(mask, time_major)
+    else:
+        sequence_lengths = None
+
+    if not time_major and sequence_lengths is None:
+        inputs = tf.transpose(inputs, perm=(1, 0, 2))
+        seq_axis, batch_axis = (0, 1)
+    else:
+        seq_axis, batch_axis = (0, 1) if time_major else (1, 0)
+    # For init_h and init_c, cuDNN expects one more dim of num_layers before or
+    # after batch dim for time major or batch major inputs respectively
+    init_h = tf.expand_dims(initial_state_h, axis=seq_axis)
+    init_c = tf.expand_dims(initial_state_c, axis=seq_axis)
+
+    weights = tf.split(kernel, 4, axis=1)
+    weights += tf.split(recurrent_kernel, 4, axis=1)
+    # cuDNN has an extra set of bias for inputs, we disable them (setting to 0),
+    # so that mathematically it is same as the canonical LSTM implementation.
+    full_bias = tf.concat((tf.zeros_like(bias), bias), 0)
+
+    if tf.sysconfig.get_build_info()["is_rocm_build"]:
+        # ROCm MIOpen's weight sequence for LSTM is different from both
+        # canonical and Cudnn format
+        # MIOpen: [i, f, o, c] Cudnn/Canonical: [i, f, c, o]
+        # i is input gate weights.
+        # f is forget gate weights.
+        # o is output gate weights.
+        # c is cell gate weights.
+        weights = [weights[x] for x in (0, 1, 3, 2, 4, 5, 7, 6)]
+        # full_bias is a tensor of shape (8*n,)
+        full_bias = tf.split(full_bias, 8, axis=0)
+        full_bias = [full_bias[x] for x in (0, 1, 3, 2, 4, 5, 7, 6)]
+
+    params = _standardize_cudnn_weights(
+        weights=weights,
+        biases=tf.split(full_bias, 8),
+        shape=tf.constant([-1]),
+        transpose_weights=True,
+    )
+
+    if sequence_lengths is not None:
+        if go_backwards:
+            # Three reversals are required. E.g.,
+            # normal input = [1, 2, 3, 0, 0]  # where 0 need to be masked
+            # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
+            # output_from_cudnn = [6, 5, 4, 0, 0]
+            # expected_output = [0, 0, 6, 5 ,4]
+            inputs = tf.reverse_sequence(
+                inputs,
+                sequence_lengths,
+                seq_axis=seq_axis,
+                batch_axis=batch_axis,
+            )
+        outputs, h, c, _, _ = tf.raw_ops.CudnnRNNV3(
+            input=inputs,
+            input_h=init_h,
+            input_c=init_c,
+            params=params,
+            is_training=True,
+            rnn_mode="lstm",
+            sequence_lengths=sequence_lengths,
+            time_major=time_major,
+        )
+        if go_backwards:
+            outputs = tf.reverse_sequence(
+                outputs,
+                sequence_lengths,
+                seq_axis=seq_axis,
+                batch_axis=batch_axis,
+            )
+            outputs = tf.reverse(outputs, axis=[seq_axis])
+    else:
+        # # Fill the array with shape [batch] with value of max timesteps.
+        # sequence_length = array_ops.fill([array_ops.shape(inputs)[1]],
+        #                                  array_ops.shape(inputs)[0])
+        if go_backwards:
+            # Reverse axis 0 since the input is already convert to time major.
+            inputs = tf.reverse(inputs, axis=[0])
+        outputs, h, c, _ = tf.raw_ops.CudnnRNN(
+            input=inputs,
+            input_h=init_h,
+            input_c=init_c,
+            params=params,
+            is_training=True,
+            rnn_mode="lstm",
+        )
+
+    last_output = outputs[-1]
+    if not time_major and sequence_lengths is None and return_sequences:
+        outputs = tf.transpose(outputs, perm=[1, 0, 2])
+    h = tf.squeeze(h, axis=seq_axis)
+    c = tf.squeeze(c, axis=seq_axis)
+
+    # In the case of variable length input, the cudnn kernel will fill zeros for
+    # the output, whereas the default keras behavior is to bring over the
+    # previous output for t-1, so that in the return_sequence=False case, user
+    # can quickly get the final effect output instead just 0s at the last
+    # timestep.  In order to mimic the default keras behavior, we copy the final
+    # h state as the last_output, since it is numerically same as the output.
+    if sequence_lengths is not None:
+        last_output = h
+
+    # Match CPU return format
+    if not return_sequences:
+        outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
+
+    return (last_output, outputs, [h, c])

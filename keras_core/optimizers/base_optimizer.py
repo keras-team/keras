@@ -218,7 +218,8 @@ class Optimizer:
 
             # Apply gradient updates.
             self._internal_apply_gradients(
-                list(zip(grads, trainable_variables)))
+                list(zip(grads, trainable_variables))
+            )
 
             # Apply variable constraints after applying gradients.
             for variable in trainable_variables:

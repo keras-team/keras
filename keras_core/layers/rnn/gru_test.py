@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import initializers
@@ -11,7 +12,7 @@ from keras_core import testing
     backend.backend() != "tensorflow",
     reason="Only implemented for TF for now.",
 )
-class GRUTest(testing.TestCase):
+class GRUTest(testing.TestCase, parameterized.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.GRU,
@@ -40,7 +41,8 @@ class GRUTest(testing.TestCase):
             supports_masking=True,
         )
 
-    def test_correctness(self):
+    @parameterized.parameters([1, 2])
+    def test_correctness(self, implementation):
         sequence = np.arange(72).reshape((3, 6, 4)).astype("float32")
         layer = layers.GRU(
             3,

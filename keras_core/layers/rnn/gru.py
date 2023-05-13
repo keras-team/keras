@@ -109,7 +109,9 @@ class GRUCell(Layer, DropoutRNNCell):
                 "Received an invalid value for argument `units`, "
                 f"expected a positive integer, got {units}."
             )
+        implementation = kwargs.pop("implementation", 2)
         super().__init__(**kwargs)
+        self.implementation = implementation
         self.units = units
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
@@ -193,52 +195,94 @@ class GRUCell(Layer, DropoutRNNCell):
 
         if training and 0.0 < self.dropout < 1.0:
             inputs *= dp_mask
-        inputs_z = inputs
-        inputs_r = inputs
-        inputs_h = inputs
-
-        x_z = ops.matmul(inputs_z, self.kernel[:, : self.units])
-        x_r = ops.matmul(inputs_r, self.kernel[:, self.units : self.units * 2])
-        x_h = ops.matmul(inputs_h, self.kernel[:, self.units * 2 :])
-
-        if self.use_bias:
-            x_z += input_bias[: self.units]
-            x_r += input_bias[self.units : self.units * 2]
-            x_h += input_bias[self.units * 2 :]
-
         if training and 0.0 < self.recurrent_dropout < 1.0:
             h_tm1 *= rec_dp_mask
-        h_tm1_z = h_tm1
-        h_tm1_r = h_tm1
-        h_tm1_h = h_tm1
 
-        recurrent_z = ops.matmul(
-            h_tm1_z, self.recurrent_kernel[:, : self.units]
-        )
-        recurrent_r = ops.matmul(
-            h_tm1_r, self.recurrent_kernel[:, self.units : self.units * 2]
-        )
-        if self.reset_after and self.use_bias:
-            recurrent_z += recurrent_bias[: self.units]
-            recurrent_r += recurrent_bias[self.units : self.units * 2]
+        if self.implementation == 1:
+            inputs_z = inputs
+            inputs_r = inputs
+            inputs_h = inputs
 
-        z = self.recurrent_activation(x_z + recurrent_z)
-        r = self.recurrent_activation(x_r + recurrent_r)
-
-        # reset gate applied after/before matrix multiplication
-        if self.reset_after:
-            recurrent_h = ops.matmul(
-                h_tm1_h, self.recurrent_kernel[:, self.units * 2 :]
+            x_z = ops.matmul(inputs_z, self.kernel[:, : self.units])
+            x_r = ops.matmul(
+                inputs_r, self.kernel[:, self.units : self.units * 2]
             )
+            x_h = ops.matmul(inputs_h, self.kernel[:, self.units * 2 :])
+
             if self.use_bias:
-                recurrent_h += recurrent_bias[self.units * 2 :]
-            recurrent_h = r * recurrent_h
-        else:
-            recurrent_h = ops.matmul(
-                r * h_tm1_h, self.recurrent_kernel[:, self.units * 2 :]
-            )
+                x_z += input_bias[: self.units]
+                x_r += input_bias[self.units : self.units * 2]
+                x_h += input_bias[self.units * 2 :]
 
-        hh = self.activation(x_h + recurrent_h)
+            h_tm1_z = h_tm1
+            h_tm1_r = h_tm1
+            h_tm1_h = h_tm1
+
+            recurrent_z = ops.matmul(
+                h_tm1_z, self.recurrent_kernel[:, : self.units]
+            )
+            recurrent_r = ops.matmul(
+                h_tm1_r, self.recurrent_kernel[:, self.units : self.units * 2]
+            )
+            if self.reset_after and self.use_bias:
+                recurrent_z += recurrent_bias[: self.units]
+                recurrent_r += recurrent_bias[self.units : self.units * 2]
+
+            z = self.recurrent_activation(x_z + recurrent_z)
+            r = self.recurrent_activation(x_r + recurrent_r)
+
+            # reset gate applied after/before matrix multiplication
+            if self.reset_after:
+                recurrent_h = ops.matmul(
+                    h_tm1_h, self.recurrent_kernel[:, self.units * 2 :]
+                )
+                if self.use_bias:
+                    recurrent_h += recurrent_bias[self.units * 2 :]
+                recurrent_h = r * recurrent_h
+            else:
+                recurrent_h = ops.matmul(
+                    r * h_tm1_h, self.recurrent_kernel[:, self.units * 2 :]
+                )
+
+            hh = self.activation(x_h + recurrent_h)
+        else:
+            if 0.0 < self.dropout < 1.0:
+                inputs = inputs * dp_mask[0]
+
+            # inputs projected by all gate matrices at once
+            matrix_x = ops.matmul(inputs, self.kernel)
+            if self.use_bias:
+                # biases: bias_z_i, bias_r_i, bias_h_i
+                matrix_x += input_bias
+
+            x_z, x_r, x_h = ops.split(matrix_x, 3, axis=-1)
+
+            if self.reset_after:
+                # hidden state projected by all gate matrices at once
+                matrix_inner = ops.matmul(h_tm1, self.recurrent_kernel)
+                if self.use_bias:
+                    matrix_inner += recurrent_bias
+            else:
+                # hidden state projected separately for update/reset and new
+                matrix_inner = ops.matmul(
+                    h_tm1, self.recurrent_kernel[:, : 2 * self.units]
+                )
+
+            recurrent_z = matrix_inner[:, : self.units]
+            recurrent_r = matrix_inner[:, self.units : self.units * 2]
+            recurrent_h = matrix_inner[:, self.units * 2 :]
+
+            z = self.recurrent_activation(x_z + recurrent_z)
+            r = self.recurrent_activation(x_r + recurrent_r)
+
+            if self.reset_after:
+                recurrent_h = r * recurrent_h
+            else:
+                recurrent_h = ops.matmul(
+                    r * h_tm1, self.recurrent_kernel[:, 2 * self.units :]
+                )
+
+            hh = self.activation(x_h + recurrent_h)
 
         # previous and candidate state mixed by update gate
         h = z * h_tm1 + (1 - z) * hh
@@ -299,7 +343,7 @@ class GRU(RNN):
 
     1. `activation` == `tanh`
     2. `recurrent_activation` == `sigmoid`
-    3. `recurrent_dropout` == 0
+    3. `dropout` == 0 and `recurrent_dropout` == 0
     4. `unroll` is `False`
     5. `use_bias` is `True`
     6. `reset_after` is `True`
@@ -471,29 +515,31 @@ class GRU(RNN):
         if nest.is_nested(mask):
             mask = mask[0]
 
-        try:
-            # Backends are allowed to specify (optionally) optimized
-            # implementation of the inner GRU loop. In the case of
-            # TF for instance, it will leverage cuDNN when feasible, and
-            # it will raise NotImplementedError otherwise.
-            return backend.gru(
-                sequence,
-                initial_state,
-                mask,
-                kernel=self.cell.kernel,
-                recurrent_kernel=self.cell.recurrent_kernel,
-                bias=self.cell.bias,
-                activation=self.cell.activation,
-                recurrent_activation=self.cell.recurrent_activation,
-                return_sequences=self.return_sequences,
-                go_backwards=self.go_backwards,
-                unroll=self.unroll,
-                reset_after=self.cell.reset_after,
-            )
-        except NotImplementedError:
-            return super().inner_loop(
-                sequence, initial_state, mask=mask, training=training
-            )
+        if not self.dropout and not self.recurrent_dropout:
+            try:
+                # Backends are allowed to specify (optionally) optimized
+                # implementation of the inner GRU loop. In the case of
+                # TF for instance, it will leverage cuDNN when feasible, and
+                # it will raise NotImplementedError otherwise.
+                return backend.gru(
+                    sequence,
+                    initial_state,
+                    mask,
+                    kernel=self.cell.kernel,
+                    recurrent_kernel=self.cell.recurrent_kernel,
+                    bias=self.cell.bias,
+                    activation=self.cell.activation,
+                    recurrent_activation=self.cell.recurrent_activation,
+                    return_sequences=self.return_sequences,
+                    go_backwards=self.go_backwards,
+                    unroll=self.unroll,
+                    reset_after=self.cell.reset_after,
+                )
+            except NotImplementedError:
+                pass
+        return super().inner_loop(
+            sequence, initial_state, mask=mask, training=training
+        )
 
     def call(self, sequence, initial_state=None, mask=None, training=None):
         return super().call(
