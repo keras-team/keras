@@ -1,14 +1,6 @@
-"""
+from keras_core import backend
 
-MANIFEST:
-
-normal
-uniform
-truncated_normal
-dropout
-"""
-
-from keras_core.backend.random import dropout
-from keras_core.backend.random import normal
-from keras_core.backend.random import truncated_normal
-from keras_core.backend.random import uniform
+dropout = backend.random.dropout
+normal = backend.random.normal
+truncated_normal = backend.random.truncated_normal
+uniform = backend.random.uniform
