@@ -41,6 +41,14 @@ class TestCase(unittest.TestCase):
     def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
         np.testing.assert_almost_equal(x1, x2, decimal=decimal)
 
+    def assertAllEqual(self, x1, x2, msg=None):
+        self.assertEqual(len(x1), len(x2), msg=msg)
+        for e1, e2 in zip(x1, x2):
+            if isinstance(e1, (list, tuple)) or isinstance(e2, (list, tuple)):
+                self.assertAllEqual(e1, e2, msg=msg)
+            else:
+                self.assertEqual(e1, e2, msg=msg)
+
     def assertLen(self, iterable, expected_len, msg=None):
         self.assertEqual(len(iterable), expected_len, msg=msg)
 
