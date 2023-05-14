@@ -74,8 +74,8 @@ class MaxPooling1D(BasePooling):
 
     def __init__(
         self,
-        pool_size,
-        strides,
+        pool_size=2,
+        strides=None,
         padding="valid",
         data_format=None,
         name=None,

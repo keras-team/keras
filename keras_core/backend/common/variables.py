@@ -360,7 +360,9 @@ def standardize_shape(shape, fully_defined=False):
         if not isinstance(e, int):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'"
+                f"Found invalid entry '{e}'. Only "
+                "fully-defined shapes are allowed with the "
+                f"{config.backend()} backend."
             )
         if e < 0:
             raise ValueError(
