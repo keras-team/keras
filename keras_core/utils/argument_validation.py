@@ -1,4 +1,4 @@
-def normalize_tuple(value, n, name, allow_zero=False):
+def standardize_tuple(value, n, name, allow_zero=False):
     """Transforms non-negative/positive integer/integers into an integer tuple.
 
     Args:

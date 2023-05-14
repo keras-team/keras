@@ -126,7 +126,6 @@ class CategoryEncoding(Layer):
         return {**base_config, **config}
 
     def call(self, inputs, count_weights=None):
-
         if count_weights is not None:
             if self.output_mode != "count":
                 raise ValueError(
@@ -163,7 +162,6 @@ class CategoryEncoding(Layer):
         depth,
         count_weights=None,
     ):
-
         # In all cases, we should uprank scalar input to a single sample.
         if len(inputs.shape) == 0:
             inputs = ops.expand_dims(inputs, -1)
