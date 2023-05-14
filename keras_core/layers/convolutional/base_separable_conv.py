@@ -10,6 +10,7 @@ from keras_core.backend import standardize_data_format
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.operations.operation_utils import compute_conv_output_shape
+from keras_core.utils.argument_validation import normalize_tuple
 
 
 class BaseSeparableConv(Layer):
@@ -109,19 +110,11 @@ class BaseSeparableConv(Layer):
         self.rank = rank
         self.depth_multiplier = depth_multiplier
         self.filters = filters
-
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size,) * self.rank
-        self.kernel_size = kernel_size
-
-        if isinstance(strides, int):
-            strides = (strides,) * self.rank
-        self.strides = strides
-
-        if isinstance(dilation_rate, int):
-            dilation_rate = (dilation_rate,) * self.rank
-        self.dilation_rate = dilation_rate
-
+        self.kernel_size = normalize_tuple(kernel_size, rank, "kernel_size")
+        self.strides = normalize_tuple(strides, rank, "strides")
+        self.dilation_rate = normalize_tuple(
+            dilation_rate, rank, "dilation_rate"
+        )
         self.padding = padding
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)

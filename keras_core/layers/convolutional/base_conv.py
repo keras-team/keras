@@ -9,16 +9,17 @@ from keras_core.backend import standardize_data_format
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.operations.operation_utils import compute_conv_output_shape
+from keras_core.utils.argument_validation import normalize_tuple
 
 
 class BaseConv(Layer):
     """Abstract N-D convolution layer (private, used as implementation base).
 
-    This layer creates a convolution kernel that is convolved
-    (actually cross-correlated) with the layer input to produce a tensor of
-    outputs. If `use_bias` is True (and a `bias_initializer` is provided),
-    a bias vector is created and added to the outputs. Finally, if
-    `activation` is not `None`, it is applied to the outputs as well.
+    This layer creates a convolution kernel that is convolved (actually
+    cross-correlated) with the layer input to produce a tensor of outputs. If
+    `use_bias` is True (and a `bias_initializer` is provided), a bias vector is
+    created and added to the outputs. Finally, if `activation` is not `None`, it
+    is applied to the outputs as well.
 
     Note: layer attributes cannot be modified after the layer has been called
     once (except the `trainable` attribute).
@@ -27,12 +28,12 @@ class BaseConv(Layer):
         rank: int, the rank of the convolution, e.g. 2 for 2D convolution.
         filters: int, the dimension of the output space (the number of filters
             in the convolution).
-        kernel_size: int or tuple/list of N integers (N=`rank`), specifying the
-            size of the convolution window.
-        strides: int or tuple/list of N integers, specifying the stride length
-            of the convolution. If only one int is specified, the same stride
-            size will be used for all dimensions. `stride value != 1` is
-            incompatible with `dilation_rate != 1`.
+        kernel_size: int or tuple/list of `rank` integers, specifying the size
+            of the convolution window.
+        strides: int or tuple/list of `rank` integers, specifying the stride
+            length of the convolution. If only one int is specified, the same
+            stride size will be used for all dimensions. `strides > 1` is
+            incompatible with `dilation_rate > 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
@@ -44,9 +45,9 @@ class BaseConv(Layer):
             `(batch, features, steps)`. It defaults to the `image_data_format`
             value found in your Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be `"channels_last"`.
-        dilation_rate: int or tuple/list of N integers, specifying the dilation
-            rate to use for dilated convolution. If only one int is specified,
-            the same dilation rate will be used for all dimensions.
+        dilation_rate: int or tuple/list of `rank` integers, specifying the
+            dilation rate to use for dilated convolution. If only one int is
+            specified, the same dilation rate will be used for all dimensions.
         groups: A positive int specifying the number of groups in which the
             input is split along the channel axis. Each group is convolved
             separately with `filters // groups` filters. The output is the
@@ -97,25 +98,17 @@ class BaseConv(Layer):
         super().__init__(
             trainable=trainable,
             name=name,
-            activity_regularizer=regularizers.get(activity_regularizer),
+            activity_regularizer=activity_regularizer,
             **kwargs,
         )
         self.rank = rank
         self.filters = filters
         self.groups = groups or 1
-
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size,) * self.rank
-        self.kernel_size = kernel_size
-
-        if isinstance(strides, int):
-            strides = (strides,) * self.rank
-        self.strides = strides
-
-        if isinstance(dilation_rate, int):
-            dilation_rate = (dilation_rate,) * self.rank
-        self.dilation_rate = dilation_rate
-
+        self.kernel_size = normalize_tuple(kernel_size, rank, "kernel_size")
+        self.strides = normalize_tuple(strides, rank, "strides")
+        self.dilation_rate = normalize_tuple(
+            dilation_rate, rank, "dilation_rate"
+        )
         self.padding = padding
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
@@ -144,14 +137,14 @@ class BaseConv(Layer):
 
         if not all(self.kernel_size):
             raise ValueError(
-                "The argument `kernel_size` cannot contain 0(s). Received: "
-                f"{self.kernel_size}"
+                "The argument `kernel_size` cannot contain 0. Received "
+                f"kernel_size={self.kernel_size}."
             )
 
         if not all(self.strides):
             raise ValueError(
-                "The argument `strides` cannot contains 0(s). Received: "
-                f"{self.strides}"
+                "The argument `strides` cannot contains 0. Received "
+                f"strides={self.strides}"
             )
 
         if max(self.strides) > 1 and max(self.dilation_rate) > 1:

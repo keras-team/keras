@@ -60,8 +60,10 @@ class EpochIterator:
         steps_per_epoch=None,
         shuffle=False,
         class_weight=None,
+        steps_per_execution=1,
     ):
         self.steps_per_epoch = steps_per_epoch
+        self.steps_per_execution = steps_per_execution
         if steps_per_epoch:
             self._current_iterator = None
             self._insufficient_data = False

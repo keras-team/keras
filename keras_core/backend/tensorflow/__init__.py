@@ -8,11 +8,15 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope
+from keras_core.backend.tensorflow import core
 from keras_core.backend.tensorflow import image
 from keras_core.backend.tensorflow import math
 from keras_core.backend.tensorflow import nn
 from keras_core.backend.tensorflow import numpy
 from keras_core.backend.tensorflow import random
+from keras_core.backend.tensorflow.rnn import gru
+from keras_core.backend.tensorflow.rnn import lstm
+from keras_core.backend.tensorflow.rnn import rnn
 from keras_core.utils.naming import auto_name
 
 DYNAMIC_SHAPES_OK = True
@@ -27,7 +31,7 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
 
     def _initialize(self, value):
         self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable
+            value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
 
     def assign(self, value):

@@ -1,5 +1,4 @@
 tensorflow
-torch
 jax[cpu]
 namex
 black>=22

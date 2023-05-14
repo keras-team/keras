@@ -18,6 +18,7 @@ argmin
 argsort
 array
 average
+bincount
 broadcast_to
 ceil
 clip
@@ -631,6 +632,28 @@ def average(x, axis=None, weights=None):
     if any_symbolic_tensors((x,)):
         return Average(axis=axis).symbolic_call(x, weights=weights)
     return backend.numpy.average(x, weights=weights, axis=axis)
+
+
+class Bincount(Operation):
+    def __init__(self, weights=None, minlength=0):
+        super().__init__()
+        self.weights = weights
+        self.minlength = minlength
+
+    def call(self, x):
+        return backend.numpy.bincount(
+            x, weights=self.weights, minlength=self.minlength
+        )
+
+    def compute_output_spec(self, x):
+        out_shape = backend.numpy.amax(x) + 1
+        return KerasTensor(out_shape, dtype=x.dtype)
+
+
+def bincount(x, weights=None, minlength=0):
+    if any_symbolic_tensors((x,)):
+        return Bincount(weights=weights, minlength=minlength).symbolic_call(x)
+    return backend.numpy.bincount(x, weights=weights, minlength=minlength)
 
 
 class BroadcastTo(Operation):
