@@ -27,6 +27,7 @@ build_directory = "tmp_build_dir"
 dist_directory = "dist"
 to_copy = [
     "setup.py",
+    "README.md"
 ]
 
 
