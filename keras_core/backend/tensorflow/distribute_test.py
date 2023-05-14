@@ -36,13 +36,13 @@ class DistributeTest(testing.TestCase):
             dense = layers.Dense(2)
             dense.build([4, 2])
 
-        self.assertIsInstance(dense.kernel, backend.KerasVariable)
+        self.assertIsInstance(dense.kernel, backend.Variable)
         self.assertIsInstance(
             dense.kernel.value, tf.distribute.DistributedValues
         )
         self.assertIn("MirroredVariable", dense.kernel.value.__class__.__name__)
 
-        self.assertIsInstance(dense.kernel, backend.KerasVariable)
+        self.assertIsInstance(dense.kernel, backend.Variable)
         self.assertIsInstance(dense.bias.value, tf.distribute.DistributedValues)
         self.assertIn("MirroredVariable", dense.bias.value.__class__.__name__)
 
@@ -55,7 +55,7 @@ class DistributeTest(testing.TestCase):
             output = dense(inputs)
             model = models.Functional(inputs, output)
 
-        self.assertIsInstance(dense.kernel, backend.KerasVariable)
+        self.assertIsInstance(dense.kernel, backend.Variable)
         self.assertIsInstance(
             dense.kernel.value, tf.distribute.DistributedValues
         )
