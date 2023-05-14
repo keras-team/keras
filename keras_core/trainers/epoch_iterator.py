@@ -142,16 +142,21 @@ class EpochIterator:
         return iterator
 
     def enumerate_epoch(self, return_type="np"):
+        buffer = []
         if self.steps_per_epoch:
             if not self._current_iterator:
                 self._current_iterator = self._get_iterator(return_type)
                 self._insufficient_data = False
+
             for step in range(self.steps_per_epoch):
                 if self._insufficient_data:
                     break
                 try:
                     data = next(self._current_iterator)
-                    yield step, data
+                    buffer.append(data)
+                    if len(buffer) == self.steps_per_execution:
+                        yield step - len(buffer) + 1, buffer
+                        buffer = []
                 except (StopIteration, tf.errors.OutOfRangeError):
                     warnings.warn(
                         "Your input ran out of data; interrupting epoch. "
@@ -163,9 +168,16 @@ class EpochIterator:
                     )
                     self._current_iterator = None
                     self._insufficient_data = True
+            if buffer:
+                yield step - len(buffer) + 1, buffer
         else:
             for step, data in enumerate(self._get_iterator(return_type)):
-                yield step, data
+                buffer.append(data)
+                if len(buffer) == self.steps_per_execution:
+                    yield step - len(buffer) + 1, buffer
+                    buffer = []
+            if buffer:
+                yield step - len(buffer) + 1, buffer
             if not self._num_batches:
                 # Infer the number of batches returned by the data_adater.
                 # Assumed static.

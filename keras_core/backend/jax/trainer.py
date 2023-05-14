@@ -74,6 +74,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_epoch=steps_per_epoch,
             shuffle=shuffle,
             class_weight=class_weight,
+            steps_per_execution=self.steps_per_execution,
         )
 
         compile_metrics_unbuilt = (
@@ -83,6 +84,7 @@ class JAXTrainer(base_trainer.Trainer):
         if not self.built or compile_metrics_unbuilt:
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+                data = data[0]
                 (
                     x,
                     y,
@@ -168,14 +170,21 @@ class JAXTrainer(base_trainer.Trainer):
             )
             return logs, state
 
+        def _train_multi_step(state, data):
+            for single_step_data in data:
+                logs, state = _train_step(state, single_step_data)
+            return logs, state
+
         if not self.run_eagerly and self.jit_compile:
 
             @jax.jit
             def train_step(state, data):
-                return _train_step(state, data)
+                if self.steps_per_execution > 1:
+                    return _train_multi_step(state, data)
+                return _train_step(state, data[0])
 
         else:
-            train_step = _train_step
+            train_step = _train_multi_step
 
         self.stop_training = False
         callbacks.on_train_begin()
@@ -239,6 +248,7 @@ class JAXTrainer(base_trainer.Trainer):
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
+                        steps_per_execution=self.steps_per_execution,
                     )
                 val_logs = self.evaluate(
                     x=val_x,
@@ -300,11 +310,13 @@ class JAXTrainer(base_trainer.Trainer):
                 batch_size=batch_size,
                 steps_per_epoch=steps,
                 shuffle=False,
+                steps_per_execution=self.steps_per_execution,
             )
 
         if not self.built:
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+                data = data[0]
                 (
                     x,
                     y,
@@ -374,14 +386,21 @@ class JAXTrainer(base_trainer.Trainer):
             )
             return logs, state
 
+        def _test_multi_step(state, data):
+            for single_step_data in data:
+                logs, state = _test_step(state, single_step_data)
+            return logs, state
+
         if not self.run_eagerly and self.jit_compile:
 
             @jax.jit
             def test_step(state, data):
-                return _test_step(state, data)
+                if self.steps_per_execution > 1:
+                    return _test_multi_step(state, data)
+                return _test_step(state, data[0])
 
         else:
-            test_step = _test_step
+            test_step = _test_multi_step
 
         callbacks.on_test_begin()
         logs = None
@@ -430,13 +449,14 @@ class JAXTrainer(base_trainer.Trainer):
             batch_size=batch_size,
             steps_per_epoch=steps,
             shuffle=False,
+            steps_per_execution=self.steps_per_execution,
         )
 
         if not self.built:
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Build model
-                self(data)
+                self(data[0])
                 break
 
         # Container that configures and calls callbacks.
@@ -451,18 +471,36 @@ class JAXTrainer(base_trainer.Trainer):
                 model=self,
             )
 
+        def _predict_multi_step(
+            trainable_variables, non_trainable_variables, data
+        ):
+            return [
+                self.stateless_call(
+                    trainable_variables,
+                    non_trainable_variables,
+                    single_step_data,
+                )
+                for single_step_data in data
+            ]
+
         if not self.run_eagerly and self.jit_compile:
 
             @jax.jit
             def predict_step(
                 trainable_variables, non_trainable_variables, data
             ):
-                return self.stateless_call(
-                    trainable_variables, non_trainable_variables, data
-                )
+                if self.steps_per_execution > 1:
+                    return _predict_multi_step(
+                        trainable_variables, non_trainable_variables, data
+                    )
+                return [
+                    self.stateless_call(
+                        trainable_variables, non_trainable_variables, data[0]
+                    )
+                ]
 
         else:
-            predict_step = self.stateless_call
+            predict_step = _predict_multi_step
 
         callbacks.on_predict_begin()
 
@@ -471,21 +509,24 @@ class JAXTrainer(base_trainer.Trainer):
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_predict_batch_begin(step)
-            batch_outputs, non_trainable_variables = predict_step(
+            multi_step_return_values = predict_step(
                 trainable_variables, non_trainable_variables, x
             )
-            if outputs is None:
-                outputs = tf.nest.map_structure(
-                    lambda batch_output: [batch_output],
-                    batch_outputs,
-                )
-            else:
-                tf.__internal__.nest.map_structure_up_to(
-                    batch_outputs,
-                    lambda output, batch_output: output.append(batch_output),
-                    outputs,
-                    batch_outputs,
-                )
+            for batch_outputs, _ in multi_step_return_values:
+                if outputs is None:
+                    outputs = tf.nest.map_structure(
+                        lambda batch_output: [batch_output],
+                        batch_outputs,
+                    )
+                else:
+                    tf.__internal__.nest.map_structure_up_to(
+                        batch_outputs,
+                        lambda output, batch_output: output.append(
+                            batch_output
+                        ),
+                        outputs,
+                        batch_outputs,
+                    )
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
         return tf.__internal__.nest.map_structure_up_to(

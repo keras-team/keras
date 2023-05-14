@@ -16,6 +16,7 @@ class Trainer:
         self._run_eagerly = False
         self._jit_compile = True
         self.compiled = False
+        self.steps_per_execution = 1
 
     @tracking.no_automatic_dependency_tracking
     def compile(

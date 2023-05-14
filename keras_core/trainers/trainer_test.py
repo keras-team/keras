@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras_core import backend
 from keras_core import initializers
@@ -216,11 +215,6 @@ class TestTrainer(testing.TestCase):
     def test_predict_flow_jit(self):
         self._test_predict_flow(run_eagerly=False, jit_compile=True)
 
-    # TODO: Remove the skipif when implemented steps_per_execution for JAX.
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="JAX does not support steps_per_execution yet",
-    )
     def test_steps_per_execution_steps_count(self):
         class StepCount(Callback):
             def __init__(self):
@@ -235,12 +229,16 @@ class TestTrainer(testing.TestCase):
         x = np.ones((100, 4))
         y = np.ones((100, 1))
         model = ExampleModel(units=1)
-        model.compile(loss="mse", optimizer="adam", steps_per_execution=3)
+        model.compile(
+            loss="mse",
+            optimizer="adam",
+            steps_per_execution=3,
+        )
         step_count = StepCount()
-        model.fit(x=x, y=y, batch_size=16, callbacks=[step_count])
+        model.fit(x=x, y=y, batch_size=16, callbacks=[step_count], verbose=0)
         self.assertEqual(step_count.count, 3)
 
         model_2 = ExampleModel(units=1)
         model_2.compile(loss="mse", optimizer="adam", steps_per_execution=1)
-        model_2.fit(x=x, y=y, batch_size=16)
+        model_2.fit(x=x, y=y, batch_size=16, verbose=0)
         self.assertAllClose(model.get_weights(), model_2.get_weights())

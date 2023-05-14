@@ -22,6 +22,7 @@ class TestEpochIterator(testing.TestCase):
         )
         steps_seen = []
         for step, batch in iterator.enumerate_epoch(return_type=return_type):
+            batch = batch[0]
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
             if return_type == "np":
