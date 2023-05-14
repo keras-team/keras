@@ -5,6 +5,7 @@ from jax import lax
 from jax import nn as jnn
 
 from keras_core.backend.config import epsilon
+from keras_core.backend.jax.core import convert_to_tensor
 
 
 def relu(x):
@@ -247,8 +248,8 @@ def conv(
         )
     feature_group_count = channels // kernel_in_channels
     return jax.lax.conv_general_dilated(
-        inputs,
-        kernel,
+        convert_to_tensor(inputs),
+        convert_to_tensor(kernel),
         strides,
         padding,
         rhs_dilation=dilation_rate,

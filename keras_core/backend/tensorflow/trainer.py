@@ -92,6 +92,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if self.train_function is not None and not force:
             return self.train_function
 
+        @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
             """Runs a single training step on a batch of data."""
             return self.train_step(data)
