@@ -472,7 +472,8 @@ class Layer(Operation):
 
         Args:
             trainable_variables: List of trainable variables of the model.
-            non_trainable_variables: List of non-trainable variables of the model.
+            non_trainable_variables: List of non-trainable variables of the
+                model.
             *args: Positional argumets to be passed to `call()`.
             return_losses: If `True`, `stateless_call()` will return the list of
                 losses created during `call()` as part of its return values.
@@ -504,7 +505,9 @@ class Layer(Operation):
         )
         # Attach the updated state to the model
         # (until you do this, the model is still in its pre-call state).
-        for ref_var, value in zip(model.non_trainable_variables, non_trainable_variables):
+        for ref_var, value in zip(
+            model.non_trainable_variables, non_trainable_variables
+        ):
             ref_var.assign(value)
         ```
         """
@@ -597,7 +600,8 @@ class Layer(Operation):
                 and isinstance(output_shape[0], (int, type(None)))
             ):
                 return KerasTensor(output_shape, dtype=self.compute_dtype)
-            # Case: nested. Could be a tuple/list of shapes, or a dict of shapes.
+            # Case: nested. Could be a tuple/list of shapes, or a dict of
+            # shapes.
             if isinstance(output_shape, list):
                 return [
                     KerasTensor(s, dtype=self.compute_dtype)
@@ -770,7 +774,8 @@ class Layer(Operation):
                                 "In a layer with multiple tensor arguments "
                                 "in call(), the build() method should accept "
                                 "corresponding `*_shape` arguments, e.g. "
-                                "if the call signature is `def call(self, x1, x2)` "
+                                "if the call signature is "
+                                "`def call(self, x1, x2)` "
                                 "then the build signature should be "
                                 "`def build(self, x1_shape, x2_shape)`. "
                                 "Keras will not build this layer automatically "

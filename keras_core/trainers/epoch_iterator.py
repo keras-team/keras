@@ -115,8 +115,8 @@ class EpochIterator:
                 )
             if class_weight is not None:
                 raise ValueError(
-                    "Argument `class_weight` is not supported for Python generator "
-                    f"inputs. Received: class_weight={class_weight}"
+                    "Argument `class_weight` is not supported for Python "
+                    f"generator inputs. Received: class_weight={class_weight}"
                 )
             if shuffle:
                 raise ValueError(
