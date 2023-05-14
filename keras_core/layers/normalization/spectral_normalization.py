@@ -1,8 +1,10 @@
+from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers import Wrapper
 from keras_core.layers.input_spec import InputSpec
+from keras_core.utils.numerical_utils import normalize
 
 
 @keras_core_export("keras_core.layers.SpectralNormalization")
@@ -96,10 +98,10 @@ class SpectralNormalization(Wrapper):
         # check for zeroes weights
         if not all([w == 0.0 for w in weights]):
             for _ in range(self.power_iterations):
-                vector_v = self._l2_normalize(
-                    ops.matmul(vector_u, ops.transpose(weights))
+                vector_v = normalize(
+                    ops.matmul(vector_u, ops.transpose(weights)), axis=None
                 )
-                vector_u = self._l2_normalize(ops.matmul(vector_v, weights))
+                vector_u = normalize(ops.matmul(vector_v, weights), axis=None)
             # vector_u = tf.stop_gradient(vector_u)
             # vector_v = tf.stop_gradient(vector_v)
             sigma = ops.matmul(
@@ -112,11 +114,6 @@ class SpectralNormalization(Wrapper):
                     self.kernel.dtype,
                 )
             )
-
-    def _l2_normalize(self, x):
-        square_sum = ops.sum(ops.square(x), keepdims=True)
-        x_inv_norm = 1 / ops.sqrt(ops.maximum(square_sum, 1e-12))
-        return ops.multiply(x, x_inv_norm)
 
     def get_config(self):
         config = {"power_iterations": self.power_iterations}

@@ -25,10 +25,7 @@ import namex
 package = "keras_core"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
-to_copy = [
-    "setup.py",
-    "README.md"
-]
+to_copy = ["setup.py", "README.md"]
 
 
 def ignore_files(_, filenames):
