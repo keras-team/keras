@@ -1031,7 +1031,7 @@ class Optimizer(_BaseOptimizer):
 
     This optimizer class is `tf.distribute.Strategy` aware, which means it
     automatically sums gradients across all replicas. To aggregate gradients
-    yourself, call `apply_gradients` with `skip_aggregate_gradients` set to
+    yourself, call `apply_gradients` with `skip_gradients_aggregation` set to
     True.  This is useful if you need to process aggregated gradients.
 
     ```python
@@ -1046,7 +1046,7 @@ class Optimizer(_BaseOptimizer):
       # Custom logic to aggregate gradients.
       gradients = strategy.reduce("SUM", gradients, axis=None)
       opt.apply_gradients(zip(gradients, model.trainable_variables),
-          skip_aggregate_gradients=True)
+          skip_gradients_aggregation=True)
     ```
 
     ### Creating a custom optimizer
