@@ -1560,20 +1560,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     @property
     def metrics(self):
-        """List of metrics added using the `add_metric()` API.
-
-        Example:
-
-        >>> input = tf.keras.layers.Input(shape=(3,))
-        >>> d = tf.keras.layers.Dense(2)
-        >>> output = d(input)
-        >>> d.add_metric(tf.reduce_max(output), name='max')
-        >>> d.add_metric(tf.reduce_min(output), name='min')
-        >>> [m.name for m in d.metrics]
-        ['max', 'min']
+        """List of metrics attached to the layer.
 
         Returns:
-          A list of `Metric` objects.
+            A list of `Metric` objects.
         """
         collected_metrics = []
         for layer in self._flatten_layers():
@@ -1583,6 +1573,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 collected_metrics.extend(layer._metrics)
         return collected_metrics
 
+    @doc_controls.do_not_generate_docs
     def add_metric(self, value, name=None, **kwargs):
         """Adds metric tensor to the layer.
 
