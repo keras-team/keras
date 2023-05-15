@@ -8,6 +8,27 @@ from keras_core.backend.common.stateless_scope import in_stateless_scope
 
 DYNAMIC_SHAPES_OK = True
 
+TORCH_DTYPES = {
+    "float16": torch.float16,
+    "float32": torch.float32,
+    "float64": torch.float64,
+    "uint8": torch.uint8,
+    "int8": torch.int8,
+    "int16": torch.int16,
+    "int32": torch.int32,
+    "int64": torch.int64,
+    "bfloat16": torch.bfloat16,
+    "bool": torch.bool,
+}
+
+
+def to_torch_dtype(dtype):
+    dtype = standardize_dtype(dtype)
+    dtype = TORCH_DTYPES.get(dtype, None)
+    if dtype is None:
+        raise ValueError(f"Unsupported dtype for PyTorch: {dtype}")
+    return dtype
+
 
 class Variable(KerasVariable):
     def _initialize(self, value):
@@ -63,15 +84,11 @@ class Variable(KerasVariable):
 
 def convert_to_tensor(x, dtype=None):
     # TODO: Need to address device placement arg of `as_tensor`
-    if dtype is not None:
-        dtype = standardize_dtype(dtype)
+    dtype = to_torch_dtype(dtype)
     if isinstance(x, Variable):
         if dtype and dtype != x.dtype:
-            # TODO: fix below
-            return x.value.astype(dtype)
+            return x.value.to(dtype)
         return x.value
-    if dtype == "float32":
-        dtype = torch.float32
     return torch.as_tensor(x, dtype=dtype)
 
 
@@ -84,6 +101,7 @@ def shape(x):
 
 
 def cast(x, dtype):
+    dtype = to_torch_dtype(dtype)
     return x.to(dtype)
 
 

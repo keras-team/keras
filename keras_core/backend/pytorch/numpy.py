@@ -1,6 +1,9 @@
+import torch
+from keras_core.backend.pytorch.core import to_torch_dtype
+
+
 def add(x1, x2):
-    pass
-    # return tfnp.add(x1, x2)
+    return x1 + x2
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -9,8 +12,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    pass
-    # return tfnp.subtract(x1, x2)
+    return x1 - x2
 
 
 def matmul(x1, x2):
@@ -19,17 +21,16 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    pass
-    # return tfnp.multiply(x1, x2)
+    return x1 * x2
 
 
 def mean(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.mean(x, axis=axis, keepdims=keepdims)
+    return torch.mean(x, dim=axis, keepdim=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    pass
+    # TODO: handle initial
+    return torch.max(x, dim=axis, keepdim=keepdims)
     # The TensorFlow numpy API implementation doesn't support `initial` so we
     # handle it manually here.
     # if initial is not None:
@@ -49,13 +50,13 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype="float32"):
-    pass
-    # return tf.ones(shape, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    torch.ones(*shape, dtype=dtype)
 
 
 def zeros(shape, dtype="float32"):
-    pass
-    # return tf.zeros(shape, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    torch.zeros(*shape, dtype=dtype)
 
 
 def absolute(x):
