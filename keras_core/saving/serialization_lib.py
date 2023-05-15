@@ -52,6 +52,7 @@ class SafeModeScope:
         global_state.set_global_setting("safe_mode_saving", self.original_value)
 
 
+@keras_core_export("keras_core.config.enable_unsafe_deserialization")
 def enable_unsafe_deserialization():
     """Disables safe mode globally, allowing deserialization of lambdas."""
     global_state.set_global_setting("safe_mode_saving", False)
@@ -600,7 +601,8 @@ def deserialize_keras_object(
                 "This carries a potential risk of arbitrary code execution "
                 "and thus it is disallowed by default. If you trust the "
                 "source of the saved model, you can pass `safe_mode=False` to "
-                "the loading function in order to allow `lambda` loading."
+                "the loading function in order to allow `lambda` loading, "
+                "or call `keras_core.config.enable_unsafe_deserialization()`."
             )
         return python_utils.func_load(inner_config["value"])
     if config["class_name"] == "__typespec__":

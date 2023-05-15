@@ -117,10 +117,10 @@ def compute_output_spec(fn, *args, **kwargs):
                     return KerasTensor(x.shape, x.dtype)
                 return x
 
-            output_shape = tf.nest.map_structure(
+            output_spec = tf.nest.map_structure(
                 convert_tf_to_keras_tensor, tf_out
             )
-    return output_shape
+    return output_spec
 
 
 def cond(pred, true_fn, false_fn):

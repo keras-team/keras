@@ -17,6 +17,7 @@ from keras_core.layers.core.embedding import Embedding
 from keras_core.layers.core.identity import Identity
 from keras_core.layers.core.input_layer import Input
 from keras_core.layers.core.input_layer import InputLayer
+from keras_core.layers.core.lambda_layer import Lambda
 from keras_core.layers.core.masking import Masking
 from keras_core.layers.core.wrapper import Wrapper
 from keras_core.layers.layer import Layer
