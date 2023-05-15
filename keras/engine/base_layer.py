@@ -2494,7 +2494,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 keras_tensor.keras_tensor_to_placeholder, input_masks
             )
 
-            with backend.name_scope(self._name_scope()):
+            with backend.name_scope(self._get_unnested_name_scope()):
                 with autocast_variable.enable_auto_cast_variables(
                     self._compute_dtype_object
                 ):
