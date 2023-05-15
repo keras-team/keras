@@ -2,7 +2,12 @@ import json
 import os
 
 import numpy as np
-import torch
+
+from keras_core.backend.config import backend
+
+if backend() == "pytorch":
+    # TODO: comment explanation
+    import torch
 
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.keras_tensor import any_symbolic_tensors
@@ -15,7 +20,6 @@ from keras_core.backend.common.variables import get_autocast_scope
 from keras_core.backend.common.variables import is_float_dtype
 from keras_core.backend.common.variables import standardize_dtype
 from keras_core.backend.common.variables import standardize_shape
-from keras_core.backend.config import backend
 from keras_core.backend.config import epsilon
 from keras_core.backend.config import floatx
 from keras_core.backend.config import image_data_format

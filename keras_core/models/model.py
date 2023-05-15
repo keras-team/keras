@@ -16,8 +16,10 @@ if backend.backend() == "tensorflow":
     )
 elif backend.backend() == "jax":
     from keras_core.backend.jax.trainer import JAXTrainer as Trainer
+elif backend.backend() == "pytorch":
+    from keras_core.backend.pytorch.trainer import PyTorchTrainer as Trainer
 else:
-    Trainer = None
+    raise RuntimeError(f"Backend '{backend.backend()}' must implement the Trainer class.")
 
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])
