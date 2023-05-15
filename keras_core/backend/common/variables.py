@@ -33,11 +33,18 @@ class KerasVariable:
                     "You are attempting to create a variable "
                     "while in a stateless scope. This is disallowed. "
                     "Make sure that all variables are created "
-                    "before you start using your layer/model objects. "
-                    "Most of this time, this means you need to "
+                    "before you start using your layer/model objects.\n\n"
+                    "In some cases, you might be seeing this error "
+                    "because you need to "
                     "implement a `def build(self, input_shape)` method "
                     "on your layer/model, which will "
-                    "create its variables."
+                    "create its variables.\n\n"
+                    "In some other cases, you might be seeing this error "
+                    "because you are instantiating a `Variable` and "
+                    "assigning it to a layer without going through "
+                    "self.add_variable()/self.add_weight(). Always prefer "
+                    "using these methods "
+                    "(with a `shape` and `initializer` argument)."
                 )
         else:
             if callable(initializer):

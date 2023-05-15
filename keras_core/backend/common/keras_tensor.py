@@ -4,6 +4,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.utils.naming import auto_name
 
 
+@keras_core_export("keras_core.KerasTensor")
 class KerasTensor:
     def __init__(self, shape, dtype="float32", record_history=True, name=None):
         from keras_core import backend

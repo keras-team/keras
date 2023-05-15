@@ -2,10 +2,12 @@ import collections
 
 from tensorflow import nest
 
+from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.operations.operation import Operation
 
 
+@keras_core_export("keras_core.Function")
 class Function(Operation):
     def __init__(self, inputs, outputs, name=None):
         super().__init__(name=name)

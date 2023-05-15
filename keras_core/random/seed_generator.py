@@ -1,6 +1,9 @@
 import random as python_random
 
+from keras_core.api_export import keras_core_export
 
+
+@keras_core_export("keras_core.random.SeedGenerator")
 class SeedGenerator:
     def __init__(self, seed):
         from keras_core.backend import Variable
