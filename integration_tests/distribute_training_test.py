@@ -10,7 +10,6 @@ from keras_core.utils import rng_utils
 
 
 def test_model_fit():
-
     cpus = tf.config.list_physical_devices("CPU")
     tf.config.set_logical_device_configuration(
         cpus[0],
@@ -22,7 +21,7 @@ def test_model_fit():
 
     rng_utils.set_random_seed(1337)
 
-    strategy = tf.distribute.MirroredStrategy(['CPU:0', 'CPU:1'])
+    strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
     with strategy.scope():
         inputs = layers.Input((100,), batch_size=32)
         x = layers.Dense(256, activation="relu")(inputs)
@@ -54,6 +53,7 @@ def test_model_fit():
 
     print("History:")
     print(history.history)
+
 
 if __name__ == "__main__":
     test_model_fit()

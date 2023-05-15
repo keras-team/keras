@@ -23,20 +23,23 @@ def build_mnist_data(num_classes):
     print("x_train shape:", x_train.shape)
     print(x_train.shape[0], "train samples")
     print(x_test.shape[0], "test samples")
-    
+
     return x_train, y_train, x_test, y_test
 
 
 def build_keras_model(keras_module, num_classes):
-
     input_shape = (28, 28, 1)
 
     model = keras_module.Sequential(
         [
             keras_module.Input(shape=input_shape),
-            keras_module.layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+            keras_module.layers.Conv2D(
+                32, kernel_size=(3, 3), activation="relu"
+            ),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
-            keras_module.layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+            keras_module.layers.Conv2D(
+                64, kernel_size=(3, 3), activation="relu"
+            ),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Flatten(),
             keras_module.layers.Dropout(0.5),
@@ -52,9 +55,13 @@ def train_model(model, x, y):
     batch_size = 128
     epochs = 1
 
-    model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+    model.compile(
+        loss="mse", optimizer="adam", metrics=["accuracy"], jit_compile=False
+    )
 
-    return model.fit(x, y, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+    return model.fit(
+        x, y, batch_size=batch_size, epochs=epochs, validation_split=0.1
+    )
 
 
 def eval_model(model, x, y):
@@ -78,11 +85,15 @@ def numerical_test():
     keras_history = train_model(keras_model, x_train, y_train)
     keras_core_history = train_model(keras_core_model, x_train, y_train)
 
-    for h, ch in zip(keras_history.history.items(), keras_core_history.history.items()):
+    for h, ch in zip(
+        keras_history.history.items(), keras_core_history.history.items()
+    ):
         # They are not exactly equal at the moment.
         print(h)
         print(ch)
 
 
 if __name__ == "__main__":
+    keras.utils.set_random_seed(1337)
+    keras_core.utils.set_random_seed(1337)
     numerical_test()

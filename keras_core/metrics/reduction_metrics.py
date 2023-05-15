@@ -138,7 +138,9 @@ class Mean(Metric):
 
     def result(self):
         return self.total / (
-            ops.cast(self.count, dtype=self.dtype) + backend.epsilon()
+            ops.maximum(
+                ops.cast(self.count, dtype=self.dtype), backend.epsilon()
+            )
         )
 
 
