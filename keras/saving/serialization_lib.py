@@ -222,7 +222,7 @@ def serialize_keras_object(obj):
         )
         spec_name = obj.__class__.__name__
         registered_name = None
-        if hasattr(obj, "_tf_extension_type_fields"):
+        if isinstance(obj, tf.experimental.ExtensionTypeSpec):
             # Special casing for ExtensionType
             ts_config = tf.experimental.extension_type.as_dict(obj)
             ts_config = serialize_dict(ts_config)
@@ -401,6 +401,15 @@ def _get_class_or_fn_config(obj):
 
 def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
+
+
+def deserialize_dict(config, custom_objects=None, safe_mode=True):
+    return {
+        key: deserialize_keras_object(
+            value, custom_objects=custom_objects, safe_mode=safe_mode
+        )
+        for key, value in config.items()
+    }
 
 
 @keras_export(
@@ -619,12 +628,7 @@ def deserialize_keras_object(
         raise TypeError(f"Could not parse config: {config}")
 
     if "class_name" not in config or "config" not in config:
-        return {
-            key: deserialize_keras_object(
-                value, custom_objects=custom_objects, safe_mode=safe_mode
-            )
-            for key, value in config.items()
-        }
+        return deserialize_dict(config, custom_objects, safe_mode)
 
     class_name = config["class_name"]
     inner_config = config["config"] or {}
@@ -659,13 +663,10 @@ def deserialize_keras_object(
         )
 
         # Special casing for ExtensionType.Spec
-        if hasattr(cls, "_tf_extension_type_fields"):
-            inner_config = {
-                key: deserialize_keras_object(
-                    value, custom_objects=custom_objects, safe_mode=safe_mode
-                )
-                for key, value in inner_config.items()
-            }  # Deserialization of dict created by ExtensionType.as_dict()
+        if isinstance(cls, tf.experimental.ExtensionTypeSpec):
+            inner_config = deserialize_dict(
+                inner_config, custom_objects, safe_mode
+            )  # Deserialization of dict created by ExtensionType.as_dict()
             return cls(**inner_config)  # Instantiate ExtensionType.Spec
 
         if config["registered_name"] is not None:
