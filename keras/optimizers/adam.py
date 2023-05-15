@@ -160,8 +160,6 @@ class Adam(optimizer.Optimizer):
 
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
-        beta_1_power = None
-        beta_2_power = None
         lr = tf.cast(self.learning_rate, variable.dtype)
         local_step = tf.cast(self.iterations + 1, variable.dtype)
         beta_1_power = tf.pow(tf.cast(self.beta_1, variable.dtype), local_step)
