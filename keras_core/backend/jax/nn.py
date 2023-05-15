@@ -4,6 +4,9 @@ import numpy as np
 from jax import lax
 from jax import nn as jnn
 
+from keras_core.backend.common.backend_utils import (
+    compute_conv_transpose_output_length,
+)
 from keras_core.backend.config import epsilon
 from keras_core.backend.jax.core import convert_to_tensor
 
@@ -329,6 +332,81 @@ def separable_conv(
     )
 
 
+def _compute_padding_value_one_dim(
+    input_length,
+    output_length,
+    kernel_size,
+    stride,
+    padding,
+    dilation_rate,
+):
+    """Computes adjusted padding for `conv_transpose` in one dim."""
+    kernel_size = (kernel_size - 1) * dilation_rate + 1
+    if padding == "valid":
+        padding_before = 0
+    else:
+        # padding == "same".
+        padding_needed = max(
+            0, (input_length - 1) * stride + kernel_size - output_length
+        )
+        padding_before = padding_needed // 2
+
+    expanded_input_length = (input_length - 1) * stride + 1
+    padded_out_length = output_length + kernel_size - 1
+    pad_before = kernel_size - 1 - padding_before
+    pad_after = padded_out_length - expanded_input_length - pad_before
+    return (pad_before, pad_after)
+
+
+def _compute_padding_values(
+    input_shape,
+    kernel_shape,
+    strides=1,
+    padding="valid",
+    output_padding=None,
+    data_format="channels_last",
+    dilation_rate=1,
+):
+    """Computes adjusted padding for `conv_transpose`."""
+    num_spatial_dims = len(input_shape) - 2
+    if isinstance(output_padding, int):
+        output_padding = (output_padding,) * num_spatial_dims
+    if isinstance(strides, int):
+        strides = (strides,) * num_spatial_dims
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * num_spatial_dims
+
+    kernel_spatial_shape = kernel_shape[:-2]
+    if data_format == "channels_last":
+        input_spatial_shape = input_shape[1:-1]
+    else:
+        input_spatial_shape = input_shape[2:]
+    padding_values = []
+    for i in range(num_spatial_dims):
+        input_length = input_spatial_shape[i]
+        current_output_padding = (
+            None if output_padding is None else output_padding[i]
+        )
+        output_length = compute_conv_transpose_output_length(
+            input_spatial_shape[i],
+            kernel_spatial_shape[i],
+            padding=padding,
+            output_padding=current_output_padding,
+            stride=strides[i],
+            dilation=dilation_rate[i],
+        )
+        padding_value = _compute_padding_value_one_dim(
+            input_length,
+            output_length,
+            kernel_spatial_shape[i],
+            strides[i],
+            padding=padding,
+            dilation_rate=dilation_rate[i],
+        )
+        padding_values.append(padding_value)
+    return padding_values
+
+
 def conv_transpose(
     inputs,
     kernel,
@@ -339,6 +417,15 @@ def conv_transpose(
     dilation_rate=1,
 ):
     num_spatial_dims = inputs.ndim - 2
+    padding_values = _compute_padding_values(
+        inputs.shape,
+        kernel.shape,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
+    )
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
         data_format,
@@ -357,17 +444,11 @@ def conv_transpose(
         include_batch_and_channels=False,
     )
 
-    if output_padding is not None:
-        raise ValueError(
-            "Custom `output_padding` is not supported yet, please set "
-            "`output_padding=None`."
-        )
-    padding = padding.upper()
     return jax.lax.conv_transpose(
         inputs,
         kernel,
         strides,
-        padding,
+        padding=padding_values,
         rhs_dilation=dilation_rate,
         dimension_numbers=dimension_numbers,
         transpose_kernel=True,

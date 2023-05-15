@@ -1,4 +1,4 @@
-def _compute_conv_transpose_output_length(
+def compute_conv_transpose_output_length(
     input_length,
     kernel_size,
     padding,
@@ -63,13 +63,13 @@ def compute_conv_transpose_output_shape(
             None if output_padding is None else output_padding[i]
         )
         output_shape.append(
-            _compute_conv_transpose_output_length(
+            compute_conv_transpose_output_length(
                 input_spatial_shape[i],
                 kernel_spatial_shape[i],
                 padding=padding,
                 output_padding=current_output_padding,
                 stride=strides[i],
-                dilation=dilation_rate[0],
+                dilation=dilation_rate[i],
             )
         )
 

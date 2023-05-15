@@ -74,6 +74,7 @@ class BaseConvTranspose(Layer):
         kernel_size,
         strides=1,
         padding="valid",
+        output_padding=None,
         data_format=None,
         dilation_rate=1,
         activation=None,
@@ -103,6 +104,14 @@ class BaseConvTranspose(Layer):
             dilation_rate, rank, "dilation_rate"
         )
         self.padding = padding
+        if output_padding is None:
+            self.output_padding = None
+        else:
+            self.output_padding = standardize_tuple(
+                output_padding,
+                rank,
+                "output_padding",
+            )
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -184,6 +193,7 @@ class BaseConvTranspose(Layer):
             self.kernel,
             strides=list(self.strides),
             padding=self.padding,
+            output_padding=self.output_padding,
             dilation_rate=self.dilation_rate,
             data_format=self.data_format,
         )
@@ -207,6 +217,7 @@ class BaseConvTranspose(Layer):
             self.filters,
             strides=self.strides,
             padding=self.padding,
+            output_padding=self.output_padding,
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
