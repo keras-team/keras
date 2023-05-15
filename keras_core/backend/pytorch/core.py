@@ -2,12 +2,9 @@ import numpy as np
 import torch
 
 from keras_core.backend.common import KerasVariable
-from keras_core.backend.common import get_autocast_scope
 from keras_core.backend.common import standardize_dtype
-from keras_core.backend.common import standardize_shape
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope
-
 
 DYNAMIC_SHAPES_OK = True
 

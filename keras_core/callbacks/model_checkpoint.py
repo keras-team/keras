@@ -69,15 +69,15 @@ class ModelCheckpoint(Callback):
     ```
 
     Args:
-        filepath: string or `PathLike`, path to save the model file. e.g.
-            filepath = os.path.join(working_dir, 'ckpt', file_name). `filepath`
-            can contain named formatting options, which will be filled the
-            value of `epoch` and keys in `logs` (passed in `on_epoch_end`).
+        filepath: string or `PathLike`, path to save the model file.
+            `filepath` can contain named formatting options,
+            which will be filled the value of `epoch` and keys in `logs`
+            (passed in `on_epoch_end`).
             The `filepath` name needs to end with `".weights.h5"` when
             `save_weights_only=True` or should end with `".keras"` when
-            checkpoint saving the whole model (default)".
+            checkpoint saving the whole model (default).
             For example:
-            if `filepath` is `{epoch:02d}-{val_loss:.2f}.keras`, then the
+            if `filepath` is `"{epoch:02d}-{val_loss:.2f}.keras"`, then the
             model checkpoints will be saved with the epoch number and the
             validation loss in the filename. The directory of the filepath
             should not be reused by any other callbacks to avoid conflicts.
@@ -322,16 +322,17 @@ class ModelCheckpoint(Callback):
         This utility function is best demonstrated via an example:
 
         ```python
-        file_pattern = 'f.batch{batch:02d}epoch{epoch:02d}.keras'
+        file_pattern = 'batch{batch:02d}epoch{epoch:02d}.keras'
         test_dir = self.get_temp_dir()
         path_pattern = os.path.join(test_dir, file_pattern)
         file_paths = [
             os.path.join(test_dir, file_name) for file_name in
-            ['f.batch03epoch02.keras',
-             'f.batch02epoch02.keras', 'f.batch01epoch01.keras']
+            ['batch03epoch02.keras',
+             'batch02epoch02.keras', 'batch01epoch01.keras']
         ]
         for file_path in file_paths:
             # Write something to each of the files
+            ...
         self.assertEqual(
             _get_most_recently_modified_file_matching_pattern(path_pattern),
             file_paths[-1])
