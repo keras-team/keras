@@ -64,8 +64,8 @@ class AdamW(optimizer.Optimizer):
             "epsilon hat" in the Kingma and Ba paper (in the formula just before
             Section 2.1), not the epsilon in Algorithm 1 of the paper.
             Defaults to 1e-7.
-        amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm from
-            the paper "On the Convergence of Adam and beyond".
+        amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm
+            from the paper "On the Convergence of Adam and beyond".
             Defaults to `False`.
         {{base_optimizer_keyword_args}}
 
