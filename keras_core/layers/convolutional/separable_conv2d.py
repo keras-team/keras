@@ -20,9 +20,6 @@ class SeparableConv2D(BaseSeparableConv):
     activation function to produce the final output.
 
     Args:
-        depth_multiplier: The number of depthwise convolution output channels
-            for each input channel. The total number of depthwise convolution
-            output channels will be equal to `input_channel * depth_multiplier`.
         filters: int, the dimensionality of the output space (i.e. the number
             of filters in the pointwise convolution).
         kernel_size: int or tuple/list of 2 integers, specifying the size of the
@@ -45,6 +42,9 @@ class SeparableConv2D(BaseSeparableConv):
         dilation_rate: int or tuple/list of 2 integers, specifying the dilation
             rate to use for dilated convolution. If only one int is specified,
             the same dilation rate will be used for all dimensions.
+        depth_multiplier: The number of depthwise convolution output channels
+            for each input channel. The total number of depthwise convolution
+            output channels will be equal to `input_channel * depth_multiplier`.
         activation: Activation function. If `None`, no activation is applied.
         use_bias: bool, if `True`, bias will be added to the output.
         depthwise_initializer: An initializer for the depthwise convolution
@@ -97,13 +97,13 @@ class SeparableConv2D(BaseSeparableConv):
 
     def __init__(
         self,
-        depth_multiplier,
         filters,
         kernel_size,
-        strides=1,
+        strides=(1, 1),
         padding="valid",
         data_format=None,
-        dilation_rate=1,
+        dilation_rate=(1, 1),
+        depth_multiplier=1,
         activation=None,
         use_bias=True,
         depthwise_initializer="glorot_uniform",

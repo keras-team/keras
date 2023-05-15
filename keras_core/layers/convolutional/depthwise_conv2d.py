@@ -28,9 +28,6 @@ class DepthwiseConv2D(BaseDepthwiseConv):
     are generated per input channel in the depthwise step.
 
     Args:
-        depth_multiplier: The number of depthwise convolution output channels
-            for each input channel. The total number of depthwise convolution
-            output channels will be equal to `input_channel * depth_multiplier`.
         kernel_size: int or tuple/list of 2 integer, specifying the size of the
             depthwise convolution window.
         strides: int or tuple/list of 2 integer, specifying the stride length
@@ -40,6 +37,9 @@ class DepthwiseConv2D(BaseDepthwiseConv):
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input such that output has the same
             height/width dimension as the input.
+        depth_multiplier: The number of depthwise convolution output channels
+            for each input channel. The total number of depthwise convolution
+            output channels will be equal to `input_channel * depth_multiplier`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, steps, features)`
@@ -98,12 +98,12 @@ class DepthwiseConv2D(BaseDepthwiseConv):
 
     def __init__(
         self,
-        depth_multiplier,
         kernel_size,
-        strides=1,
+        strides=(1, 1),
         padding="valid",
-        data_format="channels_last",
-        dilation_rate=1,
+        depth_multiplier=1,
+        data_format=None,
+        dilation_rate=(1, 1),
         activation=None,
         use_bias=True,
         kernel_initializer="glorot_uniform",

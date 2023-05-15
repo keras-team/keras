@@ -98,7 +98,7 @@ class Conv1D(BaseConv):
         kernel_size,
         strides=1,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
         dilation_rate=1,
         groups=1,
         activation=None,
