@@ -1,13 +1,9 @@
-import json
-import os
-
-import numpy as np
-
 from keras_core.backend.config import backend
 
-if backend() == "pytorch":
-    # torch needs to be imported first, otherwise it will
-    # segfault upon import.
+if backend() == "torch":
+    # When using the torch backend,
+    # torch needs to be imported first, otherwise it will segfault
+    # upon import.
     import torch
 
 from keras_core.backend.common.keras_tensor import KerasTensor
@@ -37,8 +33,8 @@ if backend() == "tensorflow":
 elif backend() == "jax":
     print_msg("Using JAX backend.")
     from keras_core.backend.jax import *  # noqa: F403
-elif backend() == "pytorch":
+elif backend() == "torch":
     print_msg("Using PyTorch backend.")
-    from keras_core.backend.pytorch import *  # noqa: F403
+    from keras_core.backend.torch import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

@@ -1,6 +1,6 @@
 import torch
 
-from keras_core.backend.pytorch.core import to_torch_dtype
+from keras_core.backend.torch.core import to_torch_dtype
 
 
 def add(x1, x2):
