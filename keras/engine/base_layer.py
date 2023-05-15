@@ -1113,7 +1113,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             build_graph=not eager,
             training=training_mode,
         ):
-
             input_spec.assert_input_compatibility(
                 self.input_spec, inputs, self.name
             )

@@ -466,7 +466,6 @@ class BaseLayerTest(test_combinations.TestCase):
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_composite_variable_assignment(self):
         class Spec(tf.TypeSpec):
-
             value_type = property(lambda self: CompositeVariable)
 
             def _component_specs(self):
@@ -1649,7 +1648,6 @@ class NameScopingTest(test_combinations.TestCase):
 )
 class AutographControlFlowTest(test_combinations.TestCase):
     def test_disabling_in_context_is_matched(self):
-
         test_obj = self
 
         class MyLayer(base_layer.Layer):
