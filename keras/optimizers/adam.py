@@ -44,29 +44,31 @@ class Adam(optimizer.Optimizer):
     data/parameters*".
 
     Args:
-      learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
-        `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
-        that takes no arguments and returns the actual value to use. The
-        learning rate. Defaults to `0.001`.
-      beta_1: A float value or a constant float tensor, or a callable
-        that takes no arguments and returns the actual value to use. The
-        exponential decay rate for the 1st moment estimates. Defaults to `0.9`.
-      beta_2: A float value or a constant float tensor, or a callable
-        that takes no arguments and returns the actual value to use. The
-        exponential decay rate for the 2nd moment estimates. Defaults to
-        `0.999`.
-      epsilon: A small constant for numerical stability. This epsilon is
-        "epsilon hat" in the Kingma and Ba paper (in the formula just before
-        Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults to
-        `1e-7`.
-      amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm from
-        the paper "On the Convergence of Adam and beyond". Defaults to `False`.
-      {{base_optimizer_keyword_args}}
+        learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
+            `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
+            that takes no arguments and returns the actual value to use. The
+            learning rate. Defaults to `0.001`.
+        beta_1: A float value or a constant float tensor, or a callable
+            that takes no arguments and returns the actual value to use. The
+            exponential decay rate for the 1st moment estimates.
+            Defaults to `0.9`.
+        beta_2: A float value or a constant float tensor, or a callable
+            that takes no arguments and returns the actual value to use. The
+            exponential decay rate for the 2nd moment estimates.
+            Defaults to `0.999`.
+        epsilon: A small constant for numerical stability. This epsilon is
+            "epsilon hat" in the Kingma and Ba paper (in the formula just before
+            Section 2.1), not the epsilon in Algorithm 1 of the paper.
+            Defaults to `1e-7`.
+        amsgrad: Boolean. Whether to apply AMSGrad variant of this algorithm
+            from the paper "On the Convergence of Adam and beyond".
+            Defaults to `False`.
+        {{base_optimizer_keyword_args}}
 
     Reference:
-      - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
-      - [Reddi et al., 2018](
-          https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
+        - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
+        - [Reddi et al., 2018](
+            https://openreview.net/pdf?id=ryQu7f-RZ) for `amsgrad`.
 
     Notes:
 
@@ -130,7 +132,7 @@ class Adam(optimizer.Optimizer):
         velocity_hat (only set when amsgrad is applied),
 
         Args:
-          var_list: list of model variables to build Adam variables on.
+            var_list: list of model variables to build Adam variables on.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
