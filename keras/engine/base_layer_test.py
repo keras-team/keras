@@ -1430,12 +1430,31 @@ class NameScopingTest(test_combinations.TestCase):
         self.assertEqual(layer.bias.name, "MyName/bias:0")
         self.assertEqual(layer.kernel.name, "MyName/kernel:0")
 
+    def test_name_scope_layer_with_tf_name_scope(self):
+        x = backend.placeholder(shape=(10, 10))
+        base_layer._apply_name_scope_on_model_declaration(True)
+        with tf.name_scope("RootName") as _:
+            layer = layers.Dense(10, name="MyName")
+            layer(x)
+        self.assertEqual(layer.bias.name, "RootName/MyName/bias:0")
+        self.assertEqual(layer.kernel.name, "RootName/MyName/kernel:0")
+        base_layer._apply_name_scope_on_model_declaration(False)
+
     def test_name_scope_functional_api(self):
         inputs = input_layer.Input((3,))
         layer = layers.Dense(10, name="MyName")
         _ = layer(inputs)
         self.assertEqual(layer.bias.name, "MyName/bias:0")
         self.assertEqual(layer.kernel.name, "MyName/kernel:0")
+
+    def test_name_scope_functional_api_with_tf_name_scope(self):
+        base_layer._apply_name_scope_on_model_declaration(True)
+        inputs = input_layer.Input((3,))
+        with tf.name_scope("RootName") as _:
+            layer = layers.Dense(10, name="MyName")
+            _ = layer(inputs)
+        self.assertEqual(layer.bias.name, "RootName/MyName/bias:0")
+        self.assertEqual(layer.kernel.name, "RootName/MyName/kernel:0")
 
     def test_name_scope_functional_api_nested(self):
         class NestedLayer(base_layer.Layer):
@@ -1468,6 +1487,24 @@ class NameScopingTest(test_combinations.TestCase):
         self.assertEqual(layer.kernel.name, "MyName2/kernel:0")
         self.assertEqual(sublayer.active_name_scope, "MyName2/Sublayer")
 
+    def test_name_scope_sublayer_with_tf_name_scope(self):
+        class NameScopeTracker(base_layer.Layer):
+            def call(self, inputs):
+                self.active_name_scope = tf.__internal__.get_name_scope()
+                return inputs
+
+        base_layer._apply_name_scope_on_model_declaration(True)
+        x = backend.placeholder(shape=(10, 10))
+        sublayer = NameScopeTracker(name="Sublayer")
+        with tf.name_scope("RootName") as _:
+            layer = layers.Dense(10, activation=sublayer, name="MyName2")
+            layer(x)
+        self.assertEqual(layer.bias.name, "RootName/MyName2/bias:0")
+        self.assertEqual(layer.kernel.name, "RootName/MyName2/kernel:0")
+        self.assertEqual(
+            sublayer.active_name_scope, "RootName/MyName2/Sublayer"
+        )
+
     def test_name_scope_tf_tensor(self):
         x = tf.convert_to_tensor(np.ones((10, 10)))
         layer = layers.Dense(
@@ -1476,6 +1513,17 @@ class NameScopingTest(test_combinations.TestCase):
         layer(x)
         self.assertEqual(layer.bias.name, "MyName3/bias:0")
         self.assertEqual(layer.kernel.name, "MyName3/kernel:0")
+
+    def test_name_scope_tf_tensor_with_tf_name_scope(self):
+        base_layer._apply_name_scope_on_model_declaration(True)
+        x = tf.convert_to_tensor(np.ones((10, 10)))
+        with tf.name_scope("RootName") as _:
+            layer = layers.Dense(
+                10, activation=layers.ReLU(name="MyAct"), name="MyName3"
+            )
+            layer(x)
+        self.assertEqual(layer.bias.name, "RootName/MyName3/bias:0")
+        self.assertEqual(layer.kernel.name, "RootName/MyName3/kernel:0")
 
     @test_utils.run_v2_only
     def test_apply_name_scope_on_model_declaration(self):
