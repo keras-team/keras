@@ -155,7 +155,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
             #   = sum(loss * sample_weight) / valid
             total = ops.cast(ops.shape(mask)[0], dtype=dtype)
             valid = ops.sum(mask)  # May be 0!
-            mask *= total / ops.maximum(valid, backend.epsilon())
+            mask *= total / (valid + backend.epsilon())
 
         if sample_weight is not None:
             sample_weight = ops.cast(sample_weight, dtype=dtype)

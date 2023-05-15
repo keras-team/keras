@@ -42,7 +42,6 @@ def build_keras_model(keras_module, num_classes):
             ),
             keras_module.layers.MaxPooling2D(pool_size=(2, 2)),
             keras_module.layers.Flatten(),
-            keras_module.layers.Dropout(0.5),
             keras_module.layers.Dense(num_classes, activation="softmax"),
         ]
     )
@@ -52,7 +51,7 @@ def build_keras_model(keras_module, num_classes):
 
 
 def train_model(model, x, y):
-    batch_size = 128
+    batch_size = 256
     epochs = 1
 
     model.compile(
@@ -60,7 +59,12 @@ def train_model(model, x, y):
     )
 
     return model.fit(
-        x, y, batch_size=batch_size, epochs=epochs, validation_split=0.1
+        x,
+        y,
+        batch_size=batch_size,
+        epochs=epochs,
+        validation_split=0.1,
+        shuffle=False,
     )
 
 
@@ -85,12 +89,12 @@ def numerical_test():
     keras_history = train_model(keras_model, x_train, y_train)
     keras_core_history = train_model(keras_core_model, x_train, y_train)
 
-    for h, ch in zip(
-        keras_history.history.items(), keras_core_history.history.items()
-    ):
-        # They are not exactly equal at the moment.
-        print(h)
-        print(ch)
+    for key in keras_history.history.keys():
+        np.testing.assert_allclose(
+            keras_history.history[key],
+            keras_core_history.history[key],
+            atol=1e-3,
+        )
 
 
 if __name__ == "__main__":
