@@ -40,22 +40,22 @@ class Lion(optimizer.Optimizer):
     similar strength (lr * wd).
 
     Args:
-      learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
-        `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
-        that takes no arguments and returns the actual value to use. The
-        learning rate. Defaults to 0.0001.
-      beta_1: A float value or a constant float tensor, or a callable
-        that takes no arguments and returns the actual value to use. The rate
-        to combine the current gradient and the 1st moment estimate.
-      beta_2: A float value or a constant float tensor, or a callable
-        that takes no arguments and returns the actual value to use. The
-        exponential decay rate for the 1st moment estimate.
-      {{base_optimizer_keyword_args}}
+        learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
+            `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
+            that takes no arguments and returns the actual value to use. The
+            learning rate. Defaults to 0.0001.
+        beta_1: A float value or a constant float tensor, or a callable
+            that takes no arguments and returns the actual value to use. The
+            rate to combine the current gradient and the 1st moment estimate.
+        beta_2: A float value or a constant float tensor, or a callable
+            that takes no arguments and returns the actual value to use. The
+            exponential decay rate for the 1st moment estimate.
+        {{base_optimizer_keyword_args}}
 
     References:
-      - [Chen et al., 2023](http://arxiv.org/abs/2302.06675)
-      - [Authors' implementation](
-          http://github.com/google/automl/tree/master/lion)
+        - [Chen et al., 2023](http://arxiv.org/abs/2302.06675)
+        - [Authors' implementation](
+            http://github.com/google/automl/tree/master/lion)
 
     """
 
@@ -102,7 +102,7 @@ class Lion(optimizer.Optimizer):
         Lion optimizer has one variable `momentums`.
 
         Args:
-          var_list: list of model variables to build Lion variables on.
+            var_list: list of model variables to build Lion variables on.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:
