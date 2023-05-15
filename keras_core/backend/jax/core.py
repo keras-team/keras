@@ -10,7 +10,7 @@ from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope
 
-DYNAMIC_SHAPES_OK = True  # Dynamic shapes NG
+DYNAMIC_SHAPES_OK = False  # Dynamic shapes NG
 
 
 class Variable(KerasVariable):
