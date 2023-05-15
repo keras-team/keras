@@ -969,7 +969,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             return tf.nest.map_structure(
                 lambda s, d: tf.TensorSpec(dtype=d, shape=s),
                 output_shape,
-                dtype
+                dtype,
             )
         except AttributeError:
             dtype = self._compute_dtype
