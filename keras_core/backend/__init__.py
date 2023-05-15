@@ -6,7 +6,8 @@ import numpy as np
 from keras_core.backend.config import backend
 
 if backend() == "pytorch":
-    # TODO: comment explanation
+    # torch needs to be imported first, otherwise it will
+    # segfault upon import.
     import torch
 
 from keras_core.backend.common.keras_tensor import KerasTensor
