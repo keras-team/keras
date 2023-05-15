@@ -34,6 +34,7 @@ from keras_core.metrics.metric import Metric
 from keras_core.operations.operation import Operation
 from keras_core.utils import summary_utils
 from keras_core.utils import traceback_utils
+from keras_core.utils.shape_utils import map_shape_structure
 from keras_core.utils.tracking import Tracker
 
 
@@ -601,22 +602,10 @@ class Layer(Operation):
             ):
                 return KerasTensor(output_shape, dtype=self.compute_dtype)
             # Case: nested. Could be a tuple/list of shapes, or a dict of
-            # shapes.
-            if isinstance(output_shape, list):
-                return [
-                    KerasTensor(s, dtype=self.compute_dtype)
-                    for s in output_shape
-                ]
-            if isinstance(output_shape, tuple):
-                return tuple(
-                    KerasTensor(s, dtype=self.compute_dtype)
-                    for s in output_shape
-                )
-            if isinstance(output_shape, dict):
-                return {
-                    name: KerasTensor(s, dtype=self.compute_dtype)
-                    for name, s in output_shape.items()
-                }
+            # shapes. Could be deeply nested.
+            return map_shape_structure(
+                lambda s: KerasTensor(s, dtype=self.compute_dtype), output_shape
+            )
 
     @utils.default
     def compute_output_shape(self, *args, **kwargs):

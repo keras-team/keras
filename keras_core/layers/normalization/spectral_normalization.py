@@ -1,4 +1,3 @@
-from keras_core import backend
 from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export

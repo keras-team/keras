@@ -8,6 +8,115 @@ from keras_core import testing
 
 
 class LayerTest(testing.TestCase):
+    def test_compute_output_spec(self):
+        # Test that implementing compute_output_shape
+        # is enough to make compute_output_spec work.
+
+        # Case: single output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return input_shape
+
+        layer = TestLayer()
+        self.assertEqual(
+            layer.compute_output_spec(backend.KerasTensor((2, 3))).shape, (2, 3)
+        )
+
+        # Case: tuple output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return (input_shape, input_shape)
+
+        layer = TestLayer()
+        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        self.assertTrue(isinstance(out, tuple))
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0].shape, (2, 3))
+        self.assertEqual(out[1].shape, (2, 3))
+
+        # Case: list output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return [input_shape, input_shape]
+
+        layer = TestLayer()
+        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        self.assertTrue(isinstance(out, list))
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0].shape, (2, 3))
+        self.assertEqual(out[1].shape, (2, 3))
+
+        # Case: dict output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return {"1": input_shape, "2": input_shape}
+
+        layer = TestLayer()
+        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        self.assertTrue(isinstance(out, dict))
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out["1"].shape, (2, 3))
+        self.assertEqual(out["2"].shape, (2, 3))
+
+        # Case: nested tuple output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return (
+                    input_shape,
+                    (input_shape, input_shape),
+                    (input_shape, input_shape),
+                )
+
+        layer = TestLayer()
+        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        self.assertTrue(isinstance(out, tuple))
+        self.assertEqual(len(out), 3)
+        self.assertEqual(out[0].shape, (2, 3))
+        self.assertTrue(isinstance(out[1], tuple))
+        self.assertEqual(len(out[1]), 2)
+        self.assertEqual(out[1][0].shape, (2, 3))
+        self.assertEqual(out[1][1].shape, (2, 3))
+        self.assertTrue(isinstance(out[2], tuple))
+        self.assertEqual(len(out[2]), 2)
+        self.assertEqual(out[2][0].shape, (2, 3))
+        self.assertEqual(out[2][1].shape, (2, 3))
+
+        # Case: nested dict output
+        class TestLayer(layers.Layer):
+            def call(self, x):
+                assert False  # Should never be called.
+
+            def compute_output_shape(self, input_shape):
+                return {
+                    "1": input_shape,
+                    "2": {"11": input_shape, "22": input_shape},
+                }
+
+        layer = TestLayer()
+        out = layer.compute_output_spec(backend.KerasTensor((2, 3)))
+        self.assertTrue(isinstance(out, dict))
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out["1"].shape, (2, 3))
+        self.assertTrue(isinstance(out["2"], dict))
+        self.assertEqual(len(out["2"]), 2)
+        self.assertEqual(out["2"]["11"].shape, (2, 3))
+        self.assertEqual(out["2"]["22"].shape, (2, 3))
+
     def test_positional_arg_error(self):
         class SomeLayer(layers.Layer):
             def call(self, x, bool_arg):
