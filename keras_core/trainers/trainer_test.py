@@ -241,4 +241,7 @@ class TestTrainer(testing.TestCase):
         model_2 = ExampleModel(units=1)
         model_2.compile(loss="mse", optimizer="adam", steps_per_execution=1)
         model_2.fit(x=x, y=y, batch_size=16, verbose=0)
+
         self.assertAllClose(model.get_weights(), model_2.get_weights())
+        self.assertAllClose(model.predict(x), model_2.predict(x))
+        self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))

@@ -115,11 +115,15 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
             return outputs
 
-        def train_function(iterator):
-            """Runs a training execution with multiple steps."""
+        def mutli_step_on_iterator(iterator):
             for _ in tf.range(self.steps_per_execution):
                 outputs = one_step_on_iterator(iterator)
             return outputs
+
+        if self.steps_per_execution > 1:
+            train_function = mutli_step_on_iterator
+        else:
+            train_function = one_step_on_iterator
 
         if not self.run_eagerly:
             train_function = tf.function(train_function, reduce_retracing=True)
@@ -153,12 +157,19 @@ class TensorFlowTrainer(base_trainer.Trainer):
             )
             return outputs
 
-        if not self.run_eagerly:
-            test_function = tf.function(
-                one_step_on_iterator, reduce_retracing=True
-            )
+        def mutli_step_on_iterator(iterator):
+            for _ in tf.range(self.steps_per_execution):
+                outputs = one_step_on_iterator(iterator)
+            return outputs
+
+        if self.steps_per_execution > 1:
+            test_function = mutli_step_on_iterator
         else:
             test_function = one_step_on_iterator
+
+        if not self.run_eagerly:
+            test_function = tf.function(test_function, reduce_retracing=True)
+
         self.test_function = test_function
 
     def make_predict_function(self, force=False):
@@ -186,14 +197,26 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 self.distribute_strategy,
                 reduction=self.distribute_reduction_method,
             )
+            return [outputs]
+
+        def mutli_step_on_iterator(iterator):
+            outputs = []
+            for _ in tf.range(self.steps_per_execution):
+                outputs += one_step_on_iterator(iterator)
             return outputs
+
+        if self.steps_per_execution > 1:
+            # TODO(haifengj): Use multi_step_on_iterator.
+            # predict_function = mutli_step_on_iterator
+            predict_function = one_step_on_iterator
+        else:
+            predict_function = one_step_on_iterator
 
         if not self.run_eagerly:
             predict_function = tf.function(
-                one_step_on_iterator, reduce_retracing=True
+                predict_function, reduce_retracing=True
             )
-        else:
-            predict_function = one_step_on_iterator
+
         self.predict_function = predict_function
 
     def fit(
@@ -414,21 +437,22 @@ class TensorFlowTrainer(base_trainer.Trainer):
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator.enumerate_epoch():
                 callbacks.on_predict_batch_begin(step)
-                batch_outputs = self.predict_function(iterator)
-                if outputs is None:
-                    outputs = tf.nest.map_structure(
-                        lambda batch_output: [batch_output],
-                        batch_outputs,
-                    )
-                else:
-                    tf.__internal__.nest.map_structure_up_to(
-                        batch_outputs,
-                        lambda output, batch_output: output.append(
-                            batch_output
-                        ),
-                        outputs,
-                        batch_outputs,
-                    )
+                multi_batch_outputs = self.predict_function(iterator)
+                for batch_outputs in multi_batch_outputs:
+                    if outputs is None:
+                        outputs = tf.nest.map_structure(
+                            lambda batch_output: [batch_output],
+                            batch_outputs,
+                        )
+                    else:
+                        tf.__internal__.nest.map_structure_up_to(
+                            batch_outputs,
+                            lambda output, batch_output: output.append(
+                                batch_output
+                            ),
+                            outputs,
+                            batch_outputs,
+                        )
                 callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
         return tf.__internal__.nest.map_structure_up_to(
