@@ -84,12 +84,12 @@ def rnn(
     if not time_major:
         inputs = tf.nest.map_structure(swap_batch_timestep, inputs)
 
-    flatted_inputs = tf.nest.flatten(inputs)
-    time_steps = flatted_inputs[0].shape[0]
-    batch = flatted_inputs[0].shape[1]
-    time_steps_t = tf.shape(flatted_inputs[0])[0]
+    flattened_inputs = tf.nest.flatten(inputs)
+    time_steps = flattened_inputs[0].shape[0]
+    batch = flattened_inputs[0].shape[1]
+    time_steps_t = tf.shape(flattened_inputs[0])[0]
 
-    for input_ in flatted_inputs:
+    for input_ in flattened_inputs:
         input_.shape.with_rank_at_least(3)
 
     if mask is not None:
@@ -236,20 +236,20 @@ def rnn(
                 size=time_steps_t,
                 tensor_array_name=f"input_ta_{i}",
             )
-            for i, inp in enumerate(flatted_inputs)
+            for i, inp in enumerate(flattened_inputs)
         )
         input_ta = tuple(
             ta.unstack(input_)
             if not go_backwards
             else ta.unstack(tf.reverse(input_, [0]))
-            for ta, input_ in zip(input_ta, flatted_inputs)
+            for ta, input_ in zip(input_ta, flattened_inputs)
         )
 
         # Get the time(0) input and compute the output for that, the output will
         # be used to determine the dtype of output tensor array. Don't read from
         # input_ta due to TensorArray clear_after_read default to True.
         input_time_zero = tf.nest.pack_sequence_as(
-            inputs, [inp[0] for inp in flatted_inputs]
+            inputs, [inp[0] for inp in flattened_inputs]
         )
         # output_time_zero is used to determine the cell output shape and its
         # dtype.  the value is discarded.

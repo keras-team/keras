@@ -1,5 +1,3 @@
-import pytest
-
 from keras_core import backend
 from keras_core import layers
 from keras_core import operations as ops
@@ -45,10 +43,6 @@ class RNNCellWithDropout(layers.Layer, DropoutRNNCell):
         return output, [output]
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Only implemented for TF for now.",
-)
 class DropoutRNNCellTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(

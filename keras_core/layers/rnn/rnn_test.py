@@ -68,10 +68,6 @@ class TwoStatesRNNCell(layers.Layer):
         return output, [output_1, output_2]
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Only implemented for TF for now.",
-)
 class RNNTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(

@@ -1,16 +1,10 @@
 import numpy as np
-import pytest
 
-from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
 from keras_core import testing
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Only implemented for TF for now.",
-)
 class SimpleRNNTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
@@ -54,6 +48,59 @@ class SimpleRNNTest(testing.TestCase):
                 [
                     [0.405432, 0.405432, 0.405432, 0.405432],
                     [0.73605347, 0.73605347, 0.73605347, 0.73605347],
+                ]
+            ),
+            output,
+        )
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            unroll=True,
+        )
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.405432, 0.405432, 0.405432, 0.405432],
+                    [0.73605347, 0.73605347, 0.73605347, 0.73605347],
+                ]
+            ),
+            output,
+        )
+
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+        )
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.11144729, 0.11144729, 0.11144729, 0.11144729],
+                    [0.5528889, 0.5528889, 0.5528889, 0.5528889],
+                ]
+            ),
+            output,
+        )
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+            unroll=True,
+        )
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.11144729, 0.11144729, 0.11144729, 0.11144729],
+                    [0.5528889, 0.5528889, 0.5528889, 0.5528889],
                 ]
             ),
             output,

@@ -1,17 +1,11 @@
 import numpy as np
-import pytest
 
-from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 from keras_core.layers.rnn.rnn_test import OneStateRNNCell
 from keras_core.layers.rnn.rnn_test import TwoStatesRNNCell
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Only implemented for TF for now.",
-)
 class StackedRNNTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(

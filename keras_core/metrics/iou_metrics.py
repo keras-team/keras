@@ -377,7 +377,6 @@ class BinaryIoU(IoU):
         name=None,
         dtype=None,
     ):
-
         super().__init__(
             num_classes=2,
             target_class_ids=target_class_ids,

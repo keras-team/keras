@@ -1,17 +1,11 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
-from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
 from keras_core import testing
 
 
-@pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Only implemented for TF for now.",
-)
 class GRUTest(testing.TestCase, parameterized.TestCase):
     def test_basics(self):
         self.run_layer_test(
