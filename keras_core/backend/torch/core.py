@@ -13,6 +13,7 @@ TORCH_DTYPES = {
     "float32": torch.float32,
     "float64": torch.float64,
     "uint8": torch.uint8,
+    "uint32": torch.int64,  # TODO: Torch doesn't have `uint32` dtype.
     "int8": torch.int8,
     "int16": torch.int16,
     "int32": torch.int32,
@@ -23,6 +24,8 @@ TORCH_DTYPES = {
 
 
 def to_torch_dtype(dtype):
+    if isinstance(dtype, torch.dtype):
+        return dtype
     dtype = standardize_dtype(dtype)
     dtype = TORCH_DTYPES.get(dtype, None)
     if dtype is None:
