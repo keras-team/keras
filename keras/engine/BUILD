@@ -41,6 +41,7 @@ py_library(
         ":input_spec",
         ":keras_tensor",
         ":node",
+        ":steps_per_execution_tuning",
         "//:expect_h5py_installed",
         "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
@@ -199,6 +200,26 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/utils:tf_utils",
+    ],
+)
+
+py_library(
+    name = "steps_per_execution_tuning",
+    srcs = ["steps_per_execution_tuning.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+    ],
+)
+
+tf_py_test(
+    name = "steps_per_execution_tuning_test",
+    srcs = ["steps_per_execution_tuning_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":steps_per_execution_tuning",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
     ],
 )
 
