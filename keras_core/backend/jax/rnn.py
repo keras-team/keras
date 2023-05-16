@@ -152,10 +152,8 @@ def rnn(
                 output_t, new_states = step_function(current_input, states)
                 return lax.cond(
                     is_masked,
-                    lambda: states,
-                    current_input,
-                    lambda: new_states,
-                    output_t,
+                    lambda: (states, current_input),
+                    lambda: (new_states, output_t),
                 )
 
             scan_xs = (inputs, mask)
