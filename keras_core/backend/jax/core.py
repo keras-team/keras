@@ -156,4 +156,4 @@ def vectorized_map(function, elements):
 def scatter(indices, values, shape):
     zeros = jnp.zeros(shape, values.dtype)
     key = tuple(jnp.moveaxis(indices, -1, 0))
-    return zeros.at[key].set(values)
+    return zeros.at[key].add(values)

@@ -21,6 +21,11 @@ from keras_core.metrics.f_score_metrics import FBetaScore
 from keras_core.metrics.hinge_metrics import CategoricalHinge
 from keras_core.metrics.hinge_metrics import Hinge
 from keras_core.metrics.hinge_metrics import SquaredHinge
+from keras_core.metrics.iou_metrics import BinaryIoU
+from keras_core.metrics.iou_metrics import IoU
+from keras_core.metrics.iou_metrics import MeanIoU
+from keras_core.metrics.iou_metrics import OneHotIoU
+from keras_core.metrics.iou_metrics import OneHotMeanIoU
 from keras_core.metrics.metric import Metric
 from keras_core.metrics.probabilistic_metrics import BinaryCrossentropy
 from keras_core.metrics.probabilistic_metrics import CategoricalCrossentropy
@@ -89,6 +94,12 @@ ALL_OBJECTS = {
     # F-Score
     F1Score,
     FBetaScore,
+    # IoU
+    IoU,
+    BinaryIoU,
+    MeanIoU,
+    OneHotIoU,
+    OneHotMeanIoU,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
