@@ -24,7 +24,9 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
             across multiple calls, use as seed an instance
             of `keras_core.random.SeedGenerator`.
     """
-    return normal(shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed)
+    return backend.random.normal(
+        shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed
+    )
 
 
 @keras_core_export("keras_core.random.uniform")
