@@ -165,4 +165,122 @@ class GRUTest(testing.TestCase, parameterized.TestCase):
             output,
         )
 
-    # TODO: test masking
+    def test_pass_initial_state(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        initial_state = np.arange(4).reshape((2, 2)).astype("float32")
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+        )
+        output = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array([[0.23774096, 0.33508456], [0.83659905, 1.0227708]]),
+            output,
+        )
+
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+        )
+        output = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array([[0.13486053, 0.23261218], [0.78257304, 0.9691353]]),
+            output,
+        )
+
+    def test_masking(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, False, True], [True, False, False, True]])
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            unroll=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array([[0.19393763, 0.19393763], [0.30818558, 0.30818558]]),
+            output,
+        )
+
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_sequences=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.03606692, 0.03606692],
+                    [0.09497581, 0.09497581],
+                    [0.09497581, 0.09497581],
+                    [0.19393763, 0.19393763],
+                ],
+            ),
+            output[0],
+        )
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.16051409, 0.16051409],
+                    [0.16051409, 0.16051409],
+                    [0.16051409, 0.16051409],
+                    [0.30818558, 0.30818558],
+                ],
+            ),
+            output[1],
+        )
+
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_sequences=True,
+            zero_output_for_mask=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.03606692, 0.03606692],
+                    [0.09497581, 0.09497581],
+                    [0.0, 0.0],
+                    [0.19393763, 0.19393763],
+                ],
+            ),
+            output[0],
+        )
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.16051409, 0.16051409],
+                    [0.0, 0.0],
+                    [0.0, 0.0],
+                    [0.30818558, 0.30818558],
+                ],
+            ),
+            output[1],
+        )
+
+        layer = layers.GRU(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array([[0.11669192, 0.11669192], [0.28380975, 0.28380975]]),
+            output,
+        )
