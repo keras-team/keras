@@ -86,7 +86,6 @@ def rnn(
 
     flattened_inputs = tf.nest.flatten(inputs)
     time_steps = flattened_inputs[0].shape[0]
-    batch = flattened_inputs[0].shape[1]
     time_steps_t = tf.shape(flattened_inputs[0])[0]
 
     for input_ in flattened_inputs:
@@ -435,20 +434,6 @@ def rnn(
 
         outputs = tf.nest.pack_sequence_as(output_time_zero, outputs)
         last_output = tf.nest.pack_sequence_as(output_time_zero, last_output)
-
-    # static shape inference
-    def set_shape(output_):
-        if isinstance(output_, tf.Tensor):
-            shape = output_.shape.as_list()
-            if return_all_outputs:
-                shape[0] = time_steps
-            else:
-                shape[0] = 1
-            shape[1] = batch
-            output_.set_shape(shape)
-        return output_
-
-    outputs = tf.nest.map_structure(set_shape, outputs)
 
     if not time_major:
         outputs = tf.nest.map_structure(swap_batch_timestep, outputs)

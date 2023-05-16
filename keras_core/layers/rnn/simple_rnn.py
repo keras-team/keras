@@ -349,9 +349,9 @@ class SimpleRNN(RNN):
         )
         self.input_spec = [InputSpec(ndim=3)]
 
-    def call(self, inputs, initial_state=None, mask=None, training=None):
+    def call(self, sequence, initial_state=None, mask=None, training=None):
         return super().call(
-            inputs, mask=mask, training=training, initial_state=initial_state
+            sequence, mask=mask, training=training, initial_state=initial_state
         )
 
     @property

@@ -188,6 +188,7 @@ class RNN(Layer):
         go_backwards=False,
         stateful=False,
         unroll=False,
+        zero_output_for_mask=False,
         **kwargs,
     ):
         if isinstance(cell, (list, tuple)):
@@ -204,12 +205,11 @@ class RNN(Layer):
                 "one integer per RNN state). "
                 f"Received: cell={cell}"
             )
+        super().__init__(**kwargs)
+
         # If True, the output for masked timestep will be zeros, whereas in the
         # False case, output from previous timestep is returned for masked
         # timestep.
-        zero_output_for_mask = kwargs.pop("zero_output_for_mask", False)
-        super().__init__(**kwargs)
-
         self.zero_output_for_mask = zero_output_for_mask
         self.cell = cell
         self.return_sequences = return_sequences

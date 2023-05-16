@@ -51,7 +51,7 @@ def rnn(
         rank_diff = len(input_t.shape) - len(mask_t.shape)
         for _ in range(rank_diff):
             mask_t = jnp.expand_dims(mask_t, -1)
-        multiples = [1] * fixed_dim + input_t.shape[fixed_dim:]
+        multiples = [1] * fixed_dim + list(input_t.shape[fixed_dim:])
         return jnp.tile(mask_t, multiples)
 
     if unroll:
@@ -147,14 +147,26 @@ def rnn(
 
             def _step(states, current_input):
                 current_input, current_mask = current_input
-                is_masked = jnp.all(jnp.logical_not(current_mask))
+                is_masked = jnp.all(
+                    jnp.logical_not(current_mask), axis=-1, keepdims=True
+                )
 
                 output_t, new_states = step_function(current_input, states)
-                return lax.cond(
-                    is_masked,
-                    lambda: (states, current_input),
-                    lambda: (new_states, output_t),
-                )
+
+                if zero_output_for_mask:
+                    masked_outs = jnp.where(
+                        is_masked, jnp.zeros_like(output_t), output_t
+                    )
+                else:
+                    # Assume the first state is the previous output.
+                    output_tm1 = states[0]
+                    masked_outs = jnp.where(is_masked, output_tm1, output_t)
+
+                new_states = [
+                    jnp.where(is_masked, s, ns)
+                    for s, ns in zip(states, new_states)
+                ]
+                return (new_states, masked_outs)
 
             scan_xs = (inputs, mask)
 
@@ -175,18 +187,6 @@ def rnn(
         if go_backwards:
             outputs = jnp.flip(outputs, axis=0)
         last_output = outputs[-1]
-
-    if zero_output_for_mask:
-        last_output = jnp.where(
-            _expand_mask(mask_list[-1], last_output),
-            last_output,
-            jnp.zeros_like(last_output),
-        )
-        outputs = jnp.where(
-            _expand_mask(mask, outputs, fixed_dim=2),
-            outputs,
-            jnp.zeros_like(outputs),
-        )
 
     if not time_major:
         outputs = nest.map_structure(swap_batch_timestep, outputs)

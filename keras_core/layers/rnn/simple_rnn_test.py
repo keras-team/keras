@@ -139,4 +139,142 @@ class SimpleRNNTest(testing.TestCase):
             output,
         )
 
-    # TODO: test masking
+    def test_pass_initial_state(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        initial_state = np.arange(8).reshape((2, 4)).astype("float32")
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+        )
+        output = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.33621645, 0.33621645, 0.33621645, 0.33621645],
+                    [0.6262637, 0.6262637, 0.6262637, 0.6262637],
+                ]
+            ),
+            output,
+        )
+
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+        )
+        output = layer(sequence, initial_state=initial_state)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.07344437, 0.07344437, 0.07344437, 0.07344437],
+                    [0.43043602, 0.43043602, 0.43043602, 0.43043602],
+                ]
+            ),
+            output,
+        )
+
+    def test_masking(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, False, True], [True, False, False, True]])
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            unroll=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.32951632, 0.32951632, 0.32951632, 0.32951632],
+                    [0.61799484, 0.61799484, 0.61799484, 0.61799484],
+                ]
+            ),
+            output,
+        )
+
+        layer = layers.SimpleRNN(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_sequences=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.0599281, 0.0599281],
+                    [0.15122814, 0.15122814],
+                    [0.15122814, 0.15122814],
+                    [0.32394567, 0.32394567],
+                ],
+            ),
+            output[0],
+        )
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.3969304, 0.3969304],
+                    [0.3969304, 0.3969304],
+                    [0.3969304, 0.3969304],
+                    [0.608085, 0.608085],
+                ],
+            ),
+            output[1],
+        )
+
+        layer = layers.SimpleRNN(
+            2,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            return_sequences=True,
+            zero_output_for_mask=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.0599281, 0.0599281],
+                    [0.15122814, 0.15122814],
+                    [0.0, 0.0],
+                    [0.32394567, 0.32394567],
+                ],
+            ),
+            output[0],
+        )
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.3969304, 0.3969304],
+                    [0.0, 0.0],
+                    [0.0, 0.0],
+                    [0.608085, 0.608085],
+                ],
+            ),
+            output[1],
+        )
+
+        layer = layers.SimpleRNN(
+            4,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+            go_backwards=True,
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            np.array(
+                [
+                    [0.07376196, 0.07376196, 0.07376196, 0.07376196],
+                    [0.43645123, 0.43645123, 0.43645123, 0.43645123],
+                ]
+            ),
+            output,
+        )
