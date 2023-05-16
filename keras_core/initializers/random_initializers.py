@@ -7,6 +7,7 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.backend import random
 from keras_core.initializers.initializer import Initializer
+from keras_core.saving import serialization_lib
 
 
 @keras_core_export("keras_core.initializers.RandomNormal")
@@ -43,6 +44,7 @@ class RandomNormal(Initializer):
     def __init__(self, mean=0.0, stddev=1.0, seed=None):
         self.mean = mean
         self.stddev = stddev
+        self._init_seed = seed
         self.seed = seed or random.make_default_seed()
         super().__init__()
 
@@ -56,7 +58,8 @@ class RandomNormal(Initializer):
         )
 
     def get_config(self):
-        return {"mean": self.mean, "stddev": self.stddev, "seed": self.seed}
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
+        return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
 
 
 @keras_core_export("keras_core.initializers.TruncatedNormal")
@@ -96,6 +99,7 @@ class TruncatedNormal(Initializer):
     def __init__(self, mean=0.0, stddev=1.0, seed=None):
         self.mean = mean
         self.stddev = stddev
+        self._init_seed = seed
         self.seed = seed or random.make_default_seed()
         super().__init__()
 
@@ -109,7 +113,8 @@ class TruncatedNormal(Initializer):
         )
 
     def get_config(self):
-        return {"mean": self.mean, "stddev": self.stddev, "seed": self.seed}
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
+        return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
 
 
 @keras_core_export("keras_core.initializers.RandomUniform")
@@ -146,6 +151,7 @@ class RandomUniform(Initializer):
     def __init__(self, minval=0.0, maxval=1.0, seed=None):
         self.minval = minval
         self.maxval = maxval
+        self._init_seed = seed
         self.seed = seed or random.make_default_seed()
         super().__init__()
 
@@ -159,7 +165,12 @@ class RandomUniform(Initializer):
         )
 
     def get_config(self):
-        return {"minval": self.minval, "maxval": self.maxval, "seed": self.seed}
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
+        return {
+            "minval": self.minval,
+            "maxval": self.maxval,
+            "seed": seed_config,
+        }
 
 
 @keras_core_export("keras_core.initializers.VarianceScaling")
@@ -239,6 +250,7 @@ class VarianceScaling(Initializer):
         self.scale = scale
         self.mode = mode
         self.distribution = distribution
+        self._init_seed = seed
         self.seed = seed or random.make_default_seed()
 
     def __call__(self, shape, dtype=None):
@@ -267,11 +279,12 @@ class VarianceScaling(Initializer):
             )
 
     def get_config(self):
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
         return {
             "scale": self.scale,
             "mode": self.mode,
             "distribution": self.distribution,
-            "seed": self.seed,
+            "seed": seed_config,
         }
 
 
@@ -314,7 +327,9 @@ class GlorotUniform(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 @keras_core_export("keras_core.initializers.GlorotNormal")
@@ -360,7 +375,9 @@ class GlorotNormal(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 @keras_core_export("keras_core.initializers.LecunNormal")
@@ -406,7 +423,9 @@ class LecunNormal(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 @keras_core_export("keras_core.initializers.LecunUniform")
@@ -448,7 +467,9 @@ class LecunUniform(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 @keras_core_export("keras_core.initializers.HeNormal")
@@ -490,7 +511,9 @@ class HeNormal(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 @keras_core_export("keras_core.initializers.HeUniform")
@@ -532,7 +555,9 @@ class HeUniform(VarianceScaling):
         )
 
     def get_config(self):
-        return {"seed": self.seed}
+        return {
+            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+        }
 
 
 def compute_fans(shape):
@@ -605,6 +630,7 @@ class OrthogonalInitializer(Initializer):
 
     def __init__(self, gain=1.0, seed=None):
         self.gain = gain
+        self._init_seed = seed
         self.seed = seed or random.make_default_seed()
 
     def __call__(self, shape, dtype=None):
@@ -636,4 +662,5 @@ class OrthogonalInitializer(Initializer):
         return self.gain * ops.reshape(q, shape)
 
     def get_config(self):
-        return {"gain": self.gain, "seed": self.seed}
+        seed_config = serialization_lib.serialize_keras_object(self._init_seed)
+        return {"gain": self.gain, "seed": seed_config}
