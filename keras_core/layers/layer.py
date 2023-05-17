@@ -571,7 +571,9 @@ class Layer(Operation):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(self.call, args, kwargs)
-            shapes_dict = get_shapes_dict(self.compute_output_shape, call_spec)
+            shapes_dict = get_shapes_dict(
+                self.compute_output_shape, call_spec, self.__class__
+            )
             if len(shapes_dict) == 1:
                 # Single arg: pass it positionally
                 input_shape = tuple(shapes_dict.values())[0]
@@ -723,7 +725,7 @@ class Layer(Operation):
 
     def _maybe_build(self, call_spec):
         if not self.built:
-            shapes_dict = get_shapes_dict(self.build, call_spec)
+            shapes_dict = get_shapes_dict(self.build, call_spec, self.__class__)
             self._build_shapes_dict = shapes_dict
             failure = False
             if len(shapes_dict) == 1:
@@ -967,17 +969,17 @@ def get_arguments_dict(fn, args, kwargs):
     return arg_dict
 
 
-def get_shapes_dict(target_fn, call_spec):
+def get_shapes_dict(target_fn, call_spec, cls):
     """Convert the call() arguments dict into a dict of input shape arguments.
 
     Example:
 
     ```
-    >>> get_shapes_dict(self.build, call_spec)
+    >>> get_shapes_dict(self.build, call_spec, cls)
     {"input_a_shape": (2, 3)}
     ```
     """
-    expected_names = check_shapes_signature(target_fn, call_spec)
+    expected_names = check_shapes_signature(target_fn, call_spec, cls)
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask" or k.startswith("mask_"):
@@ -997,7 +999,7 @@ def get_shapes_dict(target_fn, call_spec):
     return shapes_dict
 
 
-def check_shapes_signature(target_fn, call_spec):
+def check_shapes_signature(target_fn, call_spec, cls):
     """Asserts that the argument names in `target_fn` match arguments in `call`.
 
     We use this to check that `build()` and `compute_output_shape()` arguments
@@ -1037,13 +1039,15 @@ def check_shapes_signature(target_fn, call_spec):
         )
         if not name.endswith("_shape"):
             raise ValueError(
-                f"{error_preamble} Received `{method_name}()` argument "
+                f"{error_preamble} For layer '{cls.__name__}', "
+                f"Received `{method_name}()` argument "
                 f"`{name}`, which does not end in `_shape`."
             )
         expected_call_arg = name.removesuffix("_shape")
         if expected_call_arg not in call_spec.arguments_dict:
             raise ValueError(
-                f"{error_preamble} Received `{method_name}()` argument "
+                f"{error_preamble} For layer '{cls.__name__}', "
+                f"received `{method_name}()` argument "
                 f"`{name}`, but `call()` does not have argument "
                 f"`{expected_call_arg}`."
             )

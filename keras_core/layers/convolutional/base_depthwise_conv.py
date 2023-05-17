@@ -9,6 +9,7 @@ from keras_core.backend import standardize_data_format
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.operations.operation_utils import compute_conv_output_shape
+from keras_core.utils.argument_validation import standardize_padding
 from keras_core.utils.argument_validation import standardize_tuple
 
 
@@ -114,7 +115,7 @@ class BaseDepthwiseConv(Layer):
         self.dilation_rate = standardize_tuple(
             dilation_rate, rank, "dilation_rate"
         )
-        self.padding = padding
+        self.padding = standardize_padding(padding)
         self.data_format = standardize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias

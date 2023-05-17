@@ -11,6 +11,7 @@ from keras_core.backend.common.backend_utils import (
 )
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
+from keras_core.utils.argument_validation import standardize_padding
 from keras_core.utils.argument_validation import standardize_tuple
 
 
@@ -103,7 +104,7 @@ class BaseConvTranspose(Layer):
         self.dilation_rate = standardize_tuple(
             dilation_rate, rank, "dilation_rate"
         )
-        self.padding = padding
+        self.padding = standardize_padding(padding)
         if output_padding is None:
             self.output_padding = None
         else:

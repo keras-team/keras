@@ -56,6 +56,7 @@ class GRUCell(Layer, DropoutRNNCell):
         reset_after: GRU convention (whether to apply reset gate after or
             before matrix multiplication). False = "before",
             True = "after" (default and cuDNN compatible).
+        seed: Random seed for dropout.
 
     Call arguments:
         inputs: A 2D tensor, with shape `(batch, features)`.
@@ -176,7 +177,7 @@ class GRUCell(Layer, DropoutRNNCell):
             self.bias = None
         self.built = True
 
-    def call(self, inputs, states, training=None):
+    def call(self, inputs, states, training=False):
         h_tm1 = (
             states[0] if nest.is_nested(states) else states
         )  # previous state
@@ -319,6 +320,7 @@ class GRUCell(Layer, DropoutRNNCell):
             "dropout": self.dropout,
             "recurrent_dropout": self.recurrent_dropout,
             "reset_after": self.reset_after,
+            "seed": self.seed,
         }
         base_config = super().get_config()
         return {**base_config, **config}
@@ -412,6 +414,7 @@ class GRU(RNN):
             linear transformation of the inputs. Default: 0.
         recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
             for the linear transformation of the recurrent state. Default: 0.
+        seed: Random seed for dropout.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence. Default: `False`.
         return_state: Boolean. Whether to return the last state in addition
@@ -419,10 +422,10 @@ class GRU(RNN):
         go_backwards: Boolean (default `False`).
             If `True`, process the input sequence backwards and return the
             reversed sequence.
-        stateful: Boolean (default False). If `True`, the last state
+        stateful: Boolean (default: `False`). If `True`, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
-        unroll: Boolean (default False).
+        unroll: Boolean (default: `False`).
             If `True`, the network will be unrolled,
             else a symbolic loop will be used.
             Unrolling can speed-up a RNN,
@@ -466,13 +469,13 @@ class GRU(RNN):
         bias_constraint=None,
         dropout=0.0,
         recurrent_dropout=0.0,
+        seed=None,
         return_sequences=False,
         return_state=False,
         go_backwards=False,
         stateful=False,
         unroll=False,
         reset_after=True,
-        seed=None,
         **kwargs,
     ):
         cell = GRUCell(
@@ -509,7 +512,7 @@ class GRU(RNN):
         )
         self.input_spec = InputSpec(ndim=3)
 
-    def inner_loop(self, sequence, initial_state, mask, training=False):
+    def inner_loop(self, sequences, initial_state, mask, training=False):
         if nest.is_nested(initial_state):
             initial_state = initial_state[0]
         if nest.is_nested(mask):
@@ -522,7 +525,7 @@ class GRU(RNN):
                 # TF for instance, it will leverage cuDNN when feasible, and
                 # it will raise NotImplementedError otherwise.
                 return backend.gru(
-                    sequence,
+                    sequences,
                     initial_state,
                     mask,
                     kernel=self.cell.kernel,
@@ -538,12 +541,12 @@ class GRU(RNN):
             except NotImplementedError:
                 pass
         return super().inner_loop(
-            sequence, initial_state, mask=mask, training=training
+            sequences, initial_state, mask=mask, training=training
         )
 
-    def call(self, sequence, initial_state=None, mask=None, training=None):
+    def call(self, sequences, initial_state=None, mask=None, training=False):
         return super().call(
-            sequence, mask=mask, training=training, initial_state=initial_state
+            sequences, mask=mask, training=training, initial_state=initial_state
         )
 
     @property
@@ -643,6 +646,7 @@ class GRU(RNN):
             "dropout": self.dropout,
             "recurrent_dropout": self.recurrent_dropout,
             "reset_after": self.reset_after,
+            "seed": self.cell.seed,
         }
         base_config = super().get_config()
         del base_config["cell"]

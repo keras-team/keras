@@ -49,6 +49,7 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             linear transformation of the inputs. Default: 0.
         recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
             for the linear transformation of the recurrent state. Default: 0.
+        seed: Random seed for dropout.
 
     Call arguments:
         sequence: A 2D tensor, with shape `(batch, features)`.
@@ -349,9 +350,9 @@ class SimpleRNN(RNN):
         )
         self.input_spec = [InputSpec(ndim=3)]
 
-    def call(self, sequence, initial_state=None, mask=None, training=None):
+    def call(self, sequences, initial_state=None, mask=None, training=False):
         return super().call(
-            sequence, mask=mask, training=training, initial_state=initial_state
+            sequences, mask=mask, training=training, initial_state=initial_state
         )
 
     @property

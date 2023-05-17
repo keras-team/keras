@@ -52,10 +52,9 @@ class Ftrl(optimizer.Optimizer):
     is replaced with a gradient with shrinkage.
 
     Args:
-        learning_rate: A float, a
-            `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
-            a callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.001.
+        learning_rate: A floating point value, or a callable that
+            takes no arguments and returns the actual value to use. The learning
+            rate.  Defaults to `0.001`.
         learning_rate_power: A float value, must be less or equal to zero.
             Controls how the learning rate decreases during training. Use zero
             for a fixed learning rate.

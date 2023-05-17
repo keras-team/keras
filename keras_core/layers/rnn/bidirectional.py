@@ -170,8 +170,8 @@ class Bidirectional(Wrapper):
                     f'"{backward_value}" for backward layer'
                 )
 
-    def compute_output_shape(self, sequence_shape, initial_state_shape=None):
-        output_shape = self.forward_layer.compute_output_shape(sequence_shape)
+    def compute_output_shape(self, sequences_shape, initial_state_shape=None):
+        output_shape = self.forward_layer.compute_output_shape(sequences_shape)
 
         if self.return_state:
             output_shape, state_shape = output_shape[0], output_shape[1:]
@@ -191,7 +191,7 @@ class Bidirectional(Wrapper):
 
     def call(
         self,
-        sequence,
+        sequences,
         initial_state=None,
         mask=None,
         training=None,
@@ -207,12 +207,12 @@ class Bidirectional(Wrapper):
             # array.  They are only passed in from kwarg initial_state, and
             # should be passed to forward/backward layer via kwarg
             # initial_state as well.
-            forward_inputs, backward_inputs = sequence, sequence
+            forward_inputs, backward_inputs = sequences, sequences
             half = len(initial_state) // 2
             forward_state = initial_state[:half]
             backward_state = initial_state[half:]
         else:
-            forward_inputs, backward_inputs = sequence, sequence
+            forward_inputs, backward_inputs = sequences, sequences
             forward_state, backward_state = None, None
 
         y = self.forward_layer(
@@ -261,12 +261,12 @@ class Bidirectional(Wrapper):
         self.forward_layer.reset_state()
         self.backward_layer.reset_state()
 
-    def build(self, sequence_shape, initial_state_shape=None):
-        self.forward_layer.build(sequence_shape)
-        self.backward_layer.build(sequence_shape)
+    def build(self, sequences_shape, initial_state_shape=None):
+        self.forward_layer.build(sequences_shape)
+        self.backward_layer.build(sequences_shape)
         self.built = True
 
-    def compute_mask(self, sequence, mask):
+    def compute_mask(self, _, mask):
         if isinstance(mask, list):
             mask = mask[0]
         if self.return_sequences:

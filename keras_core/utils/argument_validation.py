@@ -51,3 +51,20 @@ def standardize_tuple(value, n, name, allow_zero=False):
         raise ValueError(error_msg)
 
     return value_tuple
+
+
+def standardize_padding(value, allow_causal=False):
+    if isinstance(value, (list, tuple)):
+        return value
+    padding = value.lower()
+    if allow_causal:
+        allowed_values = {"valid", "same", "causal"}
+    else:
+        allowed_values = {"valid", "same"}
+    if padding not in allowed_values:
+        raise ValueError(
+            "The `padding` argument must be a list/tuple or one of "
+            f"{allowed_values}. "
+            f"Received: {padding}"
+        )
+    return padding

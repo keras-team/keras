@@ -1,7 +1,11 @@
 import jax.numpy as jnp
 
+from keras_core.backend.jax.core import convert_to_tensor
+
 
 def add(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.add(x1, x2)
 
 
@@ -20,14 +24,20 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.subtract(x1, x2)
 
 
 def matmul(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.matmul(x1, x2)
 
 
 def multiply(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.multiply(x1, x2)
 
 
@@ -498,6 +508,8 @@ def where(condition, x1, x2):
 
 
 def divide(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.divide(x1, x2)
 
 

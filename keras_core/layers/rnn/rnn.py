@@ -239,17 +239,17 @@ class RNN(Layer):
             self.state_size = state_size
             self.single_state = False
 
-    def compute_output_shape(self, sequence_shape, initial_state_shape=None):
-        state_shape = [(sequence_shape[0], d) for d in self.state_size]
+    def compute_output_shape(self, sequences_shape, initial_state_shape=None):
+        state_shape = [(sequences_shape[0], d) for d in self.state_size]
         output_size = getattr(self.cell, "output_size", None)
         if output_size is None:
             output_size = self.state_size[0]
         if not isinstance(output_size, int):
             raise ValueError("output_size must be an integer.")
         if self.return_sequences:
-            output_shape = (sequence_shape[0], sequence_shape[1], output_size)
+            output_shape = (sequences_shape[0], sequences_shape[1], output_size)
         else:
-            output_shape = (sequence_shape[0], output_size)
+            output_shape = (sequences_shape[0], output_size)
         if self.return_state:
             return output_shape, *state_shape
         return output_shape
@@ -267,9 +267,9 @@ class RNN(Layer):
         else:
             return output_mask
 
-    def build(self, sequence_shape, initial_state_shape=None):
+    def build(self, sequences_shape, initial_state_shape=None):
         # Build cell (if layer).
-        step_input_shape = (sequence_shape[0],) + sequence_shape[2:]
+        step_input_shape = (sequences_shape[0],) + sequences_shape[2:]
         if isinstance(self.cell, Layer) and not self.cell.built:
             self.cell.build(step_input_shape)
             self.cell.built = True
@@ -277,13 +277,13 @@ class RNN(Layer):
             if self.states is not None:
                 self.reset_state()
             else:
-                if sequence_shape[0] is None:
+                if sequences_shape[0] is None:
                     raise ValueError(
                         "When using `stateful=True` in a RNN, the "
                         "batch size must be static. Found dynamic "
-                        f"batch size: sequence.shape={sequence_shape}"
+                        f"batch size: sequence.shape={sequences_shape}"
                     )
-                self._create_state_variables(sequence_shape[0])
+                self._create_state_variables(sequences_shape[0])
         self.built = True
 
     @tracking.no_automatic_dependency_tracking
@@ -321,7 +321,7 @@ class RNN(Layer):
             for v in self.states:
                 v.assign(ops.zeros_like(v))
 
-    def inner_loop(self, sequence, initial_state, mask, training=False):
+    def inner_loop(self, sequences, initial_state, mask, training=False):
         cell_kwargs = {}
         if isinstance(self.cell, Layer) and self.cell._call_has_training_arg():
             cell_kwargs["training"] = training
@@ -337,24 +337,24 @@ class RNN(Layer):
 
         return backend.rnn(
             step,
-            sequence,
+            sequences,
             initial_state,
             go_backwards=self.go_backwards,
             mask=mask,
             unroll=self.unroll,
-            input_length=sequence.shape[1],
+            input_length=sequences.shape[1],
             zero_output_for_mask=self.zero_output_for_mask,
             return_all_outputs=self.return_sequences,
         )
 
     def call(
         self,
-        sequence,
+        sequences,
         initial_state=None,
         mask=None,
         training=False,
     ):
-        timesteps = sequence.shape[1]
+        timesteps = sequences.shape[1]
         if self.unroll and timesteps is None:
             raise ValueError(
                 "Cannot unroll a RNN if the "
@@ -372,7 +372,7 @@ class RNN(Layer):
                 initial_state = self.states
             else:
                 initial_state = self.get_initial_state(
-                    batch_size=ops.shape(sequence)[0]
+                    batch_size=ops.shape(sequences)[0]
                 )
         # RNN expect the states in a list, even if single state.
         if not nest.is_nested(initial_state):
@@ -387,7 +387,7 @@ class RNN(Layer):
         )
 
         last_output, outputs, states = self.inner_loop(
-            sequence=sequence,
+            sequences=sequences,
             initial_state=initial_state,
             mask=mask,
             training=training,
