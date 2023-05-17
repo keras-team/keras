@@ -59,6 +59,7 @@ class ConvLSTM1D(ConvLSTM):
             linear transformation of the inputs.
         recurrent_dropout: Float between 0 and 1. Fraction of the units to drop
             for the linear transformation of the recurrent state.
+        seed: Random seed for dropout.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence. Default: `False`.
         return_state: Boolean. Whether to return the last state in addition
@@ -143,6 +144,7 @@ class ConvLSTM1D(ConvLSTM):
         bias_constraint=None,
         dropout=0.0,
         recurrent_dropout=0.0,
+        seed=None,
         return_sequences=False,
         return_state=False,
         go_backwards=False,
@@ -177,5 +179,6 @@ class ConvLSTM1D(ConvLSTM):
             stateful=stateful,
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
+            seed=seed,
             **kwargs
         )

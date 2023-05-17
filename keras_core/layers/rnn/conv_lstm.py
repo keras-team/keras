@@ -438,6 +438,13 @@ class ConvLSTM(RNN):
         recurrent_constraint: Constraint function applied to
             the `recurrent_kernel` weights matrix.
         bias_constraint: Constraint function applied to the bias vector.
+        dropout: Float between 0 and 1.
+            Fraction of the units to drop for
+            the linear transformation of the inputs.
+        recurrent_dropout: Float between 0 and 1.
+            Fraction of the units to drop for
+            the linear transformation of the recurrent state.
+        seed: Random seed for dropout.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence. (default False)
         return_state: Boolean Whether to return the last state
@@ -447,12 +454,6 @@ class ConvLSTM(RNN):
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
-        dropout: Float between 0 and 1.
-            Fraction of the units to drop for
-            the linear transformation of the inputs.
-        recurrent_dropout: Float between 0 and 1.
-            Fraction of the units to drop for
-            the linear transformation of the recurrent state.
     """
 
     def __init__(

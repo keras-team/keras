@@ -2,9 +2,9 @@ from keras_core.api_export import keras_core_export
 from keras_core.layers.rnn.conv_lstm import ConvLSTM
 
 
-@keras_core_export("keras_core.layers.ConvLSTM2D")
-class ConvLSTM2D(ConvLSTM):
-    """2D Convolutional LSTM.
+@keras_core_export("keras_core.layers.ConvLSTM3D")
+class ConvLSTM3D(ConvLSTM):
+    """3D Convolutional LSTM.
 
     Similar to an LSTM layer, but the input transformations
     and recurrent transformations are both convolutional.
@@ -12,9 +12,9 @@ class ConvLSTM2D(ConvLSTM):
     Args:
         filters: int, the dimension of the output space (the number of filters
             in the convolution).
-        kernel_size: int or tuple/list of 2 integers, specifying the size of the
+        kernel_size: int or tuple/list of 3 integers, specifying the size of the
             convolution window.
-        strides: int or tuple/list of 2 integers, specifying the stride length
+        strides: int or tuple/list of 3 integers, specifying the stride length
             of the convolution. `strides > 1` is incompatible with
             `dilation_rate > 1`.
         padding: string, `"valid"` or `"same"` (case-insensitive).
@@ -28,7 +28,7 @@ class ConvLSTM2D(ConvLSTM):
             `(batch, features, steps)`. It defaults to the `image_data_format`
             value found in your Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be `"channels_last"`.
-        dilation_rate: int or tuple/list of 2 integers, specifying the dilation
+        dilation_rate: int or tuple/list of 3 integers, specifying the dilation
             rate to use for dilated convolution.
         activation: Activation function to use. By default hyperbolic tangent
             activation function is applied (`tanh(x)`).
@@ -79,7 +79,7 @@ class ConvLSTM2D(ConvLSTM):
 
 
     Call arguments:
-        inputs: A 5D tensor.
+        inputs: A 6D tensor.
         mask: Binary tensor of shape `(samples, timesteps)` indicating whether a
             given timestep should be masked.
         training: Python boolean indicating whether the layer should behave in
@@ -91,26 +91,25 @@ class ConvLSTM2D(ConvLSTM):
     Input shape:
 
     - If `data_format='channels_first'`:
-        5D tensor with shape: `(samples, time, channels, rows, cols)`
+        5D tensor with shape: `(samples, time, channels, *spatial_dims)`
     - If `data_format='channels_last'`:
-        5D tensor with shape: `(samples, time, rows, cols, channels)`
+        5D tensor with shape: `(samples, time, *spatial_dims, channels)`
 
     Output shape:
 
     - If `return_state`: a list of tensors. The first tensor is the output.
         The remaining tensors are the last states,
-        each 4D tensor with shape: `(samples, filters, new_rows, new_cols)` if
+        each 4D tensor with shape: `(samples, filters, *spatial_dims)` if
         `data_format='channels_first'`
-        or shape: `(samples, new_rows, new_cols, filters)` if
-        `data_format='channels_last'`. `rows` and `cols` values might have
-        changed due to padding.
-    - If `return_sequences`: 5D tensor with shape: `(samples, timesteps,
-        filters, new_rows, new_cols)` if data_format='channels_first'
-        or shape: `(samples, timesteps, new_rows, new_cols, filters)` if
+        or shape: `(samples, *spatial_dims, filters)` if
         `data_format='channels_last'`.
-    - Else, 4D tensor with shape: `(samples, filters, new_rows, new_cols)` if
+    - If `return_sequences`: 5D tensor with shape: `(samples, timesteps,
+        filters, *spatial_dims)` if data_format='channels_first'
+        or shape: `(samples, timesteps, *spatial_dims, filters)` if
+        `data_format='channels_last'`.
+    - Else, 4D tensor with shape: `(samples, filters, *spatial_dims)` if
         `data_format='channels_first'`
-        or shape: `(samples, new_rows, new_cols, filters)` if
+        or shape: `(samples, *spatial_dims, filters)` if
         `data_format='channels_last'`.
 
     References:
@@ -152,7 +151,7 @@ class ConvLSTM2D(ConvLSTM):
         **kwargs
     ):
         super().__init__(
-            rank=2,
+            rank=3,
             filters=filters,
             kernel_size=kernel_size,
             strides=strides,
