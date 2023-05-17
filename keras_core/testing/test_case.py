@@ -255,13 +255,21 @@ class TestCase(unittest.TestCase):
         # Build test.
         if input_shape is not None:
             layer = layer_cls(**init_kwargs)
-            layer.build(input_shape)
+            if isinstance(input_shape, dict):
+                layer.build(**input_shape)
+            else:
+                layer.build(input_shape)
             run_build_asserts(layer)
 
             # Symbolic call test.
             keras_tensor_inputs = create_keras_tensors(input_shape, input_dtype)
             layer = layer_cls(**init_kwargs)
-            keras_tensor_outputs = layer(keras_tensor_inputs, **call_kwargs)
+            if isinstance(keras_tensor_inputs, dict):
+                keras_tensor_outputs = layer(
+                    **keras_tensor_inputs, **call_kwargs
+                )
+            else:
+                keras_tensor_outputs = layer(keras_tensor_inputs, **call_kwargs)
             run_build_asserts(layer)
             run_output_asserts(layer, keras_tensor_outputs, eager=False)
 
@@ -274,7 +282,10 @@ class TestCase(unittest.TestCase):
             if input_data is None:
                 input_data = create_eager_tensors(input_shape, input_dtype)
             layer = layer_cls(**init_kwargs)
-            output_data = layer(input_data, **call_kwargs)
+            if isinstance(input_data, dict):
+                output_data = layer(**input_data, **call_kwargs)
+            else:
+                output_data = layer(input_data, **call_kwargs)
             run_output_asserts(layer, output_data, eager=True)
 
 
@@ -287,7 +298,7 @@ def create_keras_tensors(input_shape, dtype):
         return [keras_tensor.KerasTensor(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
-            k: keras_tensor.KerasTensor(v, dtype=dtype)
+            k.removesuffix("_shape"): keras_tensor.KerasTensor(v, dtype=dtype)
             for k, v in input_shape.items()
         }
 
@@ -320,4 +331,7 @@ def create_eager_tensors(input_shape, dtype):
     if isinstance(input_shape, list):
         return [create_fn(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
-        return {k: create_fn(v, dtype=dtype) for k, v in input_shape.items()}
+        return {
+            k.removesuffix("_shape"): create_fn(v, dtype=dtype)
+            for k, v in input_shape.items()
+        }

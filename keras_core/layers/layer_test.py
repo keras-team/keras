@@ -588,3 +588,41 @@ class LayerTest(testing.TestCase):
         self.assertEqual(len(layer.trainable_variables), 2)
         self.assertEqual(len(layer.non_trainable_weights), 2)
         self.assertEqual(len(layer.non_trainable_variables), 3)
+
+    def test_build_signature_errors(self):
+        class NoShapeSuffix(layers.Layer):
+            def build(self, foo_shape, bar):
+                self._built = True
+
+            def call(self, foo, bar):
+                return foo + bar
+
+        class NonMatchingArgument(layers.Layer):
+            def build(self, foo_shape, baz_shape):
+                self._built = True
+
+            def call(self, foo, bar):
+                return foo + bar
+
+        class MatchingArguments(layers.Layer):
+            def build(self, foo_shape, bar_shape):
+                self._built = True
+
+            def call(self, foo, bar):
+                return foo + bar
+
+        foo = backend.numpy.ones((4, 4))
+        bar = backend.numpy.ones((4, 4))
+        with self.assertRaisesRegex(
+            ValueError,
+            r"argument `bar`, which does not end in `_shape`",
+        ):
+            NoShapeSuffix()(foo, bar)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`baz_shape`, but `call\(\)` does not have argument `baz`",
+        ):
+            NonMatchingArgument()(foo, bar)
+
+        MatchingArguments()(foo, bar)

@@ -1,10 +1,10 @@
 from keras_core import backend
-from keras_core import layers
 from keras_core.api_export import keras_core_export
+from keras_core.layers.layer import Layer
 
 
 @keras_core_export("keras_core.layers.Dropout")
-class Dropout(layers.Layer):
+class Dropout(Layer):
     """Applies dropout to the input.
 
     The `Dropout` layer randomly sets input units to 0 with a frequency of

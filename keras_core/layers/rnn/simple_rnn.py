@@ -51,7 +51,7 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             for the linear transformation of the recurrent state. Default: 0.
 
     Call arguments:
-        inputs: A 2D tensor, with shape `(batch, features)`.
+        sequence: A 2D tensor, with shape `(batch, features)`.
         states: A 2D tensor with shape `(batch, units)`, which is the state
             from the previous time step.
         training: Python boolean indicating whether the layer should behave in
@@ -151,14 +151,14 @@ class SimpleRNNCell(Layer, DropoutRNNCell):
             self.bias = None
         self.built = True
 
-    def call(self, inputs, states, training=False):
+    def call(self, sequence, states, training=False):
         prev_output = states[0] if isinstance(states, (list, tuple)) else states
-        dp_mask = self.get_dropout_mask(inputs)
+        dp_mask = self.get_dropout_mask(sequence)
         rec_dp_mask = self.get_recurrent_dropout_mask(prev_output)
 
         if training and dp_mask is not None:
-            inputs *= dp_mask
-        h = ops.matmul(inputs, self.kernel)
+            sequence *= dp_mask
+        h = ops.matmul(sequence, self.kernel)
         if self.bias is not None:
             h += self.bias
 
@@ -265,7 +265,7 @@ class SimpleRNN(RNN):
             Unrolling is only suitable for short sequences.
 
     Call arguments:
-        inputs: A 3D tensor, with shape `[batch, timesteps, feature]`.
+        sequence: A 3D tensor, with shape `[batch, timesteps, feature]`.
         mask: Binary tensor of shape `[batch, timesteps]` indicating whether
             a given timestep should be masked. An individual `True` entry
             indicates that the corresponding timestep should be utilized,
