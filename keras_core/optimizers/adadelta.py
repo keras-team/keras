@@ -21,15 +21,15 @@ class Adadelta(optimizer.Optimizer):
     learning rate can be set, as in most other Keras optimizers.
 
     Args:
-        learning_rate: Initial value for the learning rate: a floating
-            point value, Defaults to 0.001. Note that `Adadelta` tends
-            to benefit from higher initial learning rate values compared to
-            other optimizers.
-            To match the exact form in the original paper, use 1.0.
+        learning_rate: A float, a
+            `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
+            a callable that takes no arguments and returns the actual value to
+            use. The learning rate. Defaults to 0.001. Note that `Adadelta`
+            tends to benefit from higher initial learning rate values compared
+            to other optimizers. To match the exact form in the original paper,
+            use 1.0.
         rho: A floating point value. The decay rate. Defaults to 0.95.
-        epsilon: Small floating point value used to maintain numerical
-            stability.
-            Defaults to 1e-7.
+        epsilon: Small floating point value for maintaining numerical stability.
         {{base_optimizer_keyword_args}}
 
     Reference:

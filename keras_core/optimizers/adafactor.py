@@ -17,8 +17,10 @@ class Adafactor(optimizer.Optimizer):
     last 2 dimensions separately in its accumulator variables.
 
     Args:
-        learning_rate: Initial value for the learning rate:
-            a floating point value, Defaults to 0.001.
+        learning_rate: A float, a
+            `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
+            a callable that takes no arguments and returns the actual value to
+            use. The learning rate. Defaults to 0.001.
         beta_2_decay: float, defaults to -0.8. The decay rate of `beta_2`.
         epsilon_1: float, defaults to 1e-30. A small offset to keep demoninator
             away from 0.
@@ -129,9 +131,7 @@ class Adafactor(optimizer.Optimizer):
         epsilon_2 = ops.cast(self.epsilon_2, variable.dtype)
         one = ops.cast(1.0, variable.dtype)
         local_step = ops.cast(self.iterations + 1, variable.dtype)
-        if self.relative_step:  # TODO: add learning_rate_schedule logic
-            # If `relative_step=True` and learning rate is a constant, we
-            # apply the relative step algorithm.
+        if not callable(self._learning_rate) and self.relative_step:
             lr = ops.minimum(lr, 1 / ops.sqrt(local_step))
 
         r = self._r[self._get_variable_index(variable)]
