@@ -95,7 +95,7 @@ class ZeroPadding3D(Layer):
                 "((left_dim1_pad, right_dim1_pad),"
                 " (left_dim2_pad, right_dim2_pad),"
                 " (left_dim3_pad, right_dim2_pad)). "
-                f"Received: {padding}."
+                f"Received: padding={padding}."
             )
         self.input_spec = InputSpec(ndim=5)
 
