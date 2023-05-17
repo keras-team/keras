@@ -3,6 +3,7 @@ scatter
 """
 
 from keras_core import backend
+from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
 from keras_core.operations.operation import Operation
@@ -16,6 +17,7 @@ class Scatter(Operation):
         return KerasTensor(shape, dtype=values.dtype)
 
 
+@keras_core_export("keras_core.operations.scatter")
 def scatter(indices, values, shape):
     if any_symbolic_tensors((indices, values, shape)):
         return Scatter().symbolic_call(indices, values, shape)
