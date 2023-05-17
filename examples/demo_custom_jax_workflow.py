@@ -58,18 +58,17 @@ def loss_fn(y_true, y_pred):
 
 model = MyModel(hidden_dim=256, output_dim=4)
 
-optimizer = optimizers.SGD(learning_rate=0.0001)
+optimizer = optimizers.SGD(learning_rate=0.001)
 dataset = Dataset()
 
-
-######### Custom JAX workflow ###############
-
-
 # Build model
-x = ops.convert_to_tensor(np.random.random((1, 128)))
+x = np.random.random((1, 128))
 model(x)
 # Build optimizer
 optimizer.build(model.trainable_variables)
+
+
+######### Custom JAX workflow ###############
 
 
 def compute_loss_and_updates(

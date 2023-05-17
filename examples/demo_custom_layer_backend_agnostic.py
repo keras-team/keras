@@ -1,5 +1,6 @@
 import numpy as np
 
+import keras_core
 from keras_core import Model
 from keras_core import backend
 from keras_core import initializers
@@ -42,11 +43,11 @@ class MyDropout(layers.Layer):
         # Use seed_generator for managing RNG state.
         # It is a state element and its seed variable is
         # tracked as part of `layer.variables`.
-        self.seed_generator = backend.random.SeedGenerator(1337)
+        self.seed_generator = keras_core.random.SeedGenerator(1337)
 
     def call(self, inputs):
-        # Use `backend.random` for random ops.
-        return backend.random.dropout(
+        # Use `keras_core.random` for random ops.
+        return keras_core.random.dropout(
             inputs, self.rate, seed=self.seed_generator
         )
 
