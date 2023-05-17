@@ -481,21 +481,27 @@ class JAXTrainer(base_trainer.Trainer):
             )
 
         def _predict_step(trainable_variables, non_trainable_variables, data):
-            return [
-                self.stateless_call(
-                    trainable_variables, non_trainable_variables, data[0]
-                )
-            ]
+            outputs, _ = self.stateless_call(
+                trainable_variables, non_trainable_variables, data[0]
+            )
+            return outputs
 
         def _predict_multi_step(
             trainable_variables, non_trainable_variables, data
         ):
-            outputs = []
-            for single_step_data in data:
-                outputs += _predict_step(
+            outputs = _predict_step(
+                trainable_variables, non_trainable_variables, data[:1]
+            )
+            for single_step_data in data[1:]:
+                step_outputs = _predict_step(
                     trainable_variables,
                     non_trainable_variables,
                     [single_step_data],
+                )
+                outputs = tf.nest.map_structure(
+                    lambda t1, t2: jax.numpy.concatenate([t1, t2]),
+                    outputs,
+                    step_outputs,
                 )
             return outputs
 
@@ -519,29 +525,30 @@ class JAXTrainer(base_trainer.Trainer):
 
         callbacks.on_predict_begin()
 
+        def append_to_outputs(batch_outputs, outputs):
+            if outputs is None:
+                outputs = tf.nest.map_structure(
+                    lambda batch_output: [batch_output],
+                    batch_outputs,
+                )
+            else:
+                tf.__internal__.nest.map_structure_up_to(
+                    batch_outputs,
+                    lambda output, batch_output: output.append(batch_output),
+                    outputs,
+                    batch_outputs,
+                )
+            return outputs
+
         trainable_variables = self.trainable_variables
         non_trainable_variables = self.non_trainable_variables
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_predict_batch_begin(step)
-            multi_step_return_values = predict_step(
+            batch_outputs = predict_step(
                 trainable_variables, non_trainable_variables, x
             )
-            for batch_outputs, _ in multi_step_return_values:
-                if outputs is None:
-                    outputs = tf.nest.map_structure(
-                        lambda batch_output: [batch_output],
-                        batch_outputs,
-                    )
-                else:
-                    tf.__internal__.nest.map_structure_up_to(
-                        batch_outputs,
-                        lambda output, batch_output: output.append(
-                            batch_output
-                        ),
-                        outputs,
-                        batch_outputs,
-                    )
+            outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
         return tf.__internal__.nest.map_structure_up_to(
