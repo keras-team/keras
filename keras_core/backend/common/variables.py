@@ -336,6 +336,7 @@ ALLOWED_DTYPES = {
     "int64",
     "bfloat16",
     "bool",
+    "string",
 }
 
 
