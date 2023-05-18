@@ -38,9 +38,9 @@ ONE_HOT = utils.ONE_HOT
 class HashedCrossing(base_layer.Layer):
     """A preprocessing layer which crosses features using the "hashing trick".
 
-    This layer performs crosses of categorical features using the "hasing
-    trick".  Conceptually, the transformation can be thought of as:
-    hash(concatenation of features) % `num_bins`.
+    This layer performs crosses of categorical features using the "hashing
+    trick". Conceptually, the transformation can be thought of as:
+    `hash(concatenate(features)) % num_bins`.
 
     This layer currently only performs crosses of scalar inputs and batches of
     scalar inputs. Valid input shapes are `(batch_size, 1)`, `(batch_size,)` and
@@ -50,17 +50,17 @@ class HashedCrossing(base_layer.Layer):
     [guide](https://www.tensorflow.org/guide/keras/preprocessing_layers).
 
     Args:
-      num_bins: Number of hash bins.
-      output_mode: Specification for the output of the layer. Values can be
-        `"int"`, or `"one_hot"` configuring the layer as follows:
-          - `"int"`: Return the integer bin indices directly.
-          - `"one_hot"`: Encodes each individual element in the input into an
-            array the same size as `num_bins`, containing a 1 at the input's bin
-            index.
-        Defaults to `"int"`.
-      sparse: Boolean. Only applicable to `"one_hot"` mode. If True, returns a
-        `SparseTensor` instead of a dense `Tensor`. Defaults to `False`.
-      **kwargs: Keyword arguments to construct a layer.
+        num_bins: Number of hash bins.
+        output_mode: Specification for the output of the layer. Values can be
+            `"int"`, or `"one_hot"` configuring the layer as follows:
+            - `"int"`: Return the integer bin indices directly.
+            - `"one_hot"`: Encodes each individual element in the input into an
+                array the same size as `num_bins`, containing a 1 at the input's
+                bin index. Defaults to `"int"`.
+        sparse: Boolean. Only applicable to `"one_hot"` mode. If `True`,
+            returns a `SparseTensor` instead of a dense `Tensor`.
+            Defaults to `False`.
+        **kwargs: Keyword arguments to construct a layer.
 
     Examples:
 
