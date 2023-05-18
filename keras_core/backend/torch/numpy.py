@@ -1,93 +1,109 @@
 import torch
 
+from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import to_torch_dtype
 
 
 def add(x1, x2):
-    return x1 + x2
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.add(x1, x2)
 
 
 def einsum(subscripts, *operands, **kwargs):
-    pass
-    # return tfnp.einsum(subscripts, *operands, **kwargs)
+    operands = [convert_to_tensor(operand) for operand in operands]
+    return torch.einsum(subscripts, *operands)
 
 
 def subtract(x1, x2):
-    return x1 - x2
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.subtract(x1, x2)
 
 
 def matmul(x1, x2):
-    pass
-    # return tfnp.matmul(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.matmul(x1, x2)
 
 
 def multiply(x1, x2):
-    return x1 * x2
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.multiply(x1, x2)
 
 
 def mean(x, axis=None, keepdims=False):
-    return torch.mean(x, dim=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    return torch.mean(x, axis=axis, keepdims=keepdims)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    # TODO: handle initial
-    return torch.max(x, dim=axis, keepdim=keepdims)
-    # The TensorFlow numpy API implementation doesn't support `initial` so we
-    # handle it manually here.
-    # if initial is not None:
-    #    return tf.math.maximum(
-    #        tfnp.max(x, axis=axis, keepdims=keepdims), initial
-    #    )
+    x = convert_to_tensor(x)
+    if axis is None:
+        result = torch.max(x)
+    else:
+        if isinstance(axis, list):
+            axis = axis[-1]
+        result = torch.max(x, dim=axis, keepdim=keepdims)
 
-    # TensorFlow returns -inf by default for an empty list, but for consistency
-    # with other backends and the numpy API we want to throw in this case.
-    # tf.assert_greater(
-    #    size(x),
-    #    tf.constant(0, dtype=tf.int64),
-    #    message="Cannot compute the max of an empty tensor.",
-    # )
+    if isinstance(getattr(result, "values", None), torch.Tensor):
+        result = result.values
 
-    # return tfnp.max(x, axis=axis, keepdims=keepdims)
+    if initial is not None:
+        return torch.maximum(result, initial)
+    return result
 
 
 def ones(shape, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    torch.ones(*shape, dtype=dtype)
+    return torch.ones(*shape, dtype=dtype)
 
 
 def zeros(shape, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    torch.zeros(*shape, dtype=dtype)
+    return torch.zeros(*shape, dtype=dtype)
 
 
 def absolute(x):
-    pass
-    # return tfnp.absolute(x)
+    return abs(x)
 
 
 def abs(x):
-    pass
-    # return absolute(x)
+    x = convert_to_tensor(x)
+    return torch.abs(x)
 
 
 def all(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.all(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        if isinstance(axis, list):
+            axis = axis[-1]
+        return torch.all(x, dim=axis, keepdim=keepdims)
+    else:
+        return torch.all(x)
 
 
 def any(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.any(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        if isinstance(axis, list):
+            axis = axis[-1]
+        return torch.any(x, dim=axis, keepdim=keepdims)
+    else:
+        return torch.any(x)
 
 
 def amax(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.amax(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return torch.amax(x, dim=axis, keepdim=keepdims)
+    else:
+        return torch.amax(x)
 
 
 def amin(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.amin(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return torch.amin(x, dim=axis, keepdim=keepdims)
+    else:
+        return torch.amin(x)
 
 
 def append(
@@ -95,594 +111,694 @@ def append(
     x2,
     axis=None,
 ):
-    pass
-    # return tfnp.append(x1, x2, axis=axis)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    if axis is None:
+        return torch.cat((x1.flatten(), x2.flatten()))
+    return torch.cat((x1, x2), dim=axis)
 
 
 def arange(start, stop=None, step=None, dtype=None):
-    pass
-    # return tfnp.arange(start, stop, step=step, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    if stop is None:
+        return torch.arange(start, step=step, dtype=dtype)
+    step = step or 1
+    return torch.arange(start, stop, step=step, dtype=dtype)
 
 
 def arccos(x):
-    pass
-    # return tfnp.arccos(x)
+    x = convert_to_tensor(x)
+    return torch.arccos(x)
 
 
 def arcsin(x):
-    pass
-    # return tfnp.arcsin(x)
+    x = convert_to_tensor(x)
+    return torch.arcsin(x)
 
 
 def arctan(x):
-    pass
-    # return tfnp.arctan(x)
+    x = convert_to_tensor(x)
+    return torch.arctan(x)
 
 
 def arctan2(x1, x2):
-    pass
-    # return tfnp.arctan2(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.arctan2(x1, x2)
 
 
 def argmax(x, axis=None):
-    pass
-    # return tfnp.argmax(x, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.argmax(x, dim=axis)
 
 
 def argmin(x, axis=None):
-    pass
-    # return tfnp.argmin(x, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.argmin(x, dim=axis)
 
 
 def argsort(x, axis=-1):
-    pass
-    # return tfnp.argsort(x, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        axis = -1
+        x = x.reshape(-1)
+    return torch.argsort(x, dim=axis)
 
 
 def array(x, dtype=None):
-    pass
-    # return tfnp.array(x, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    if not isinstance(x, torch.Tensor):
+        return x
+    return x.numpy()
 
 
 def average(x, axis=None, weights=None):
-    pass
-    # return tfnp.average(x, weights=weights, axis=axis)
+    x = convert_to_tensor(x)
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
+            weights, dim=-1
+        )
+    return torch.mean(x, axis)
+
+
+def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x, dtype=int)
+    weights = convert_to_tensor(weights)
+    return torch.bincount(x, weights, minlength)
 
 
 def broadcast_to(x, shape):
-    pass
-    # return tfnp.broadcast_to(x, shape)
+    x = convert_to_tensor(x)
+    return torch.broadcast_to(x, shape)
 
 
 def ceil(x):
-    pass
-    # return tfnp.ceil(x)
+    x = convert_to_tensor(x)
+    return torch.ceil(x)
 
 
 def clip(x, x_min, x_max):
-    pass
-    # return tfnp.clip(x, x_min, x_max)
+    x = convert_to_tensor(x)
+    x_min, x_max = convert_to_tensor(x_min), convert_to_tensor(x_max)
+    return torch.clip(x, min=x_min, max=x_max)
 
 
 def concatenate(xs, axis=0):
-    pass
-    # return tfnp.concatenate(xs, axis=axis)
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.cat(xs, dim=axis)
 
 
 def conjugate(x):
-    pass
-    # return tfnp.conjugate(x)
+    if not isinstance(x, torch.Tensor):
+        x = torch.from_numpy(x)  # needed for complex type conversion
+    return torch.conj(x).resolve_conj()
 
 
 def conj(x):
-    pass
-    # return conjugate(x)
+    if not isinstance(x, torch.Tensor):
+        x = torch.from_numpy(x)  # needed for complex type conversion
+    return torch.conj(x).resolve_conj()
 
 
 def copy(x):
-    pass
-    # return tfnp.copy(x)
+    x = convert_to_tensor(x)
+    return torch.clone(x)
 
 
 def cos(x):
-    pass
-    # return tfnp.cos(x)
+    x = convert_to_tensor(x)
+    return torch.cos(x)
 
 
 def count_nonzero(x, axis=None):
-    pass
-    # return tfnp.count_nonzero(x, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.count_nonzero(x, dim=axis).T
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    pass
-    # return tfnp.cross(
-    #    x1,
-    #    x2,
-    #    axisa=axisa,
-    #    axisb=axisb,
-    #    axisc=axisc,
-    #    axis=axis,
-    # )
+    # TODO: There is API divergence between np.cross and torch.cross,
+    # preventing `axisa`, `axisb`, and `axisc` parameters from
+    # being used.
+    # https://github.com/pytorch/pytorch/issues/50273
+    if axisa != -1 or axisb != -1 or axisc != -1:
+        raise NotImplementedError(
+            "Due to API divergence between `torch.cross()` and "
+            "`np.cross`, the following arguments are not supported: "
+            f"axisa={axisa}, axisb={axisb}, axisc={axisc}"
+        )
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.cross(x1, x2, dim=axis)
 
 
 def cumprod(x, axis=None):
-    pass
-    # return tfnp.cumprod(x, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
+    return torch.cumprod(x, dim=axis)
 
 
 def cumsum(x, axis=None):
-    pass
-    # return tfnp.cumsum(x, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
+    return torch.cumsum(x, dim=axis)
 
 
 def diag(x, k=0):
-    pass
-    # return tfnp.diag(x, k=k)
+    x = convert_to_tensor(x)
+    return torch.diag(x, diagonal=k)
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    pass
-    # return tfnp.diagonal(
-    #    x,
-    #    offset=offset,
-    #    axis1=axis1,
-    #    axis2=axis2,
-    # )
+    x = convert_to_tensor(x)
+    return torch.diagonal(
+        x,
+        offset=offset,
+        dim1=axis1,
+        dim2=axis2,
+    )
 
 
 def dot(x, y):
-    pass
-    # return tfnp.dot(x, y)
+    x, y = convert_to_tensor(x), convert_to_tensor(y)
+    if len(x.shape) == 0 or len(y.shape) == 0:
+        return torch.multiply(x, y)
+    return torch.matmul(x, y)
 
 
 def empty(shape, dtype="float32"):
-    pass
-    # return tfnp.empty(shape, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    return torch.empty(size=shape, dtype=dtype)
 
 
 def equal(x1, x2):
-    pass
-    # return tfnp.equal(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.equal(x1, x2)
 
 
 def exp(x):
-    pass
-    # return tfnp.exp(x)
+    x = convert_to_tensor(x)
+    return torch.exp(x)
 
 
 def expand_dims(x, axis):
-    pass
-    # return tfnp.expand_dims(x, axis)
+    x = convert_to_tensor(x)
+    return torch.unsqueeze(x, dim=axis)
 
 
 def expm1(x):
-    pass
-    # return tfnp.expm1(x)
+    x = convert_to_tensor(x)
+    return torch.expm1(x)
 
 
 def flip(x, axis=None):
-    pass
-    # return tfnp.flip(x, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        axis = tuple(range(len(x.shape)))
+    if isinstance(axis, int):
+        axis = (axis,)
+    return torch.flip(x, dims=axis)
 
 
 def floor(x):
-    pass
-    # return tfnp.floor(x)
+    x = convert_to_tensor(x)
+    return torch.floor(x)
 
 
 def full(shape, fill_value, dtype=None):
-    pass
-    # return tfnp.full(shape, fill_value, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    if hasattr(fill_value, "__len__"):
+        raise NotImplementedError(
+            "`torch.full()` only accepts scalars for `fill_value`. "
+            f"Received: fill_value={fill_value}"
+        )
+        # TODO: implement conversion of shape into repetitions for `torch.tile``
+        # return torch.tile(fill_value, reps)
+    return torch.full(size=shape, fill_value=fill_value, dtype=dtype)
 
 
 def full_like(x, fill_value, dtype=None):
-    pass
-    # return tfnp.full_like(x, fill_value, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    if hasattr(fill_value, "__len__"):
+        raise NotImplementedError(
+            "`torch.full()` only accepts scalars for `fill_value`."
+        )
+        # TODO: implement conversion of shape into repetitions for `torch.tile``
+        # return torch.tile(fill_value, reps)
+    x = convert_to_tensor(x)
+    return torch.full_like(input=x, fill_value=fill_value, dtype=dtype)
 
 
 def greater(x1, x2):
-    pass
-    # return tfnp.greater(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.greater(x1, x2)
 
 
 def greater_equal(x1, x2):
-    pass
-    # return tfnp.greater_equal(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.greater_equal(x1, x2)
 
 
 def hstack(xs):
-    pass
-    # return tfnp.hstack(xs)
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.hstack(xs)
 
 
 def identity(n, dtype="float32"):
-    pass
-    # return tfnp.identity(n, dtype=dtype)
+    dtype = to_torch_dtype(dtype)
+    return torch.eye(n, dtype=dtype)
 
 
 def imag(x):
-    pass
-    # return tfnp.imag(x)
+    if not isinstance(x, torch.Tensor):
+        x = torch.from_numpy(x)  # needed for complex type conversion
+    return torch.imag(x)
 
 
 def isclose(x1, x2):
-    pass
-    # return tfnp.isclose(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.isclose(x1, x2)
 
 
 def isfinite(x):
-    pass
-    # return tfnp.isfinite(x)
+    x = convert_to_tensor(x)
+    return torch.isfinite(x)
 
 
 def isinf(x):
-    pass
-    # return tfnp.isinf(x)
+    x = convert_to_tensor(x)
+    return torch.isinf(x)
 
 
 def isnan(x):
-    pass
-    # return tfnp.isnan(x)
+    x = convert_to_tensor(x)
+    return torch.isnan(x)
 
 
 def less(x1, x2):
-    pass
-    # return tfnp.less(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.less(x1, x2)
 
 
 def less_equal(x1, x2):
-    pass
-    # return tfnp.less_equal(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.less_equal(x1, x2)
 
 
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    pass
-    # return tfnp.linspace(
-    #    start,
-    #    stop,
-    #    num=num,
-    #    endpoint=endpoint,
-    #    retstep=retstep,
-    #    dtype=dtype,
-    #    axis=axis,
-    # )
+    if axis != 0:
+        raise ValueError(
+            "torch.linspace does not support an `axis` argument. "
+            f"Received axis={axis}"
+        )
+        dtype = to_torch_dtype(dtype)
+    if endpoint is False:
+        stop = stop - ((stop - start) / num)
+    linspace = torch.linspace(
+        start=start,
+        end=stop,
+        steps=num,
+        dtype=dtype,
+    )
+    if retstep is True:
+        return (linspace, num)
+    return linspace
 
 
 def log(x):
-    pass
-    # return tfnp.log(x)
+    x = convert_to_tensor(x)
+    return torch.log(x)
 
 
 def log10(x):
-    pass
-    # return tfnp.log10(x)
+    x = convert_to_tensor(x)
+    return torch.log10(x)
 
 
 def log1p(x):
-    pass
-    # return tfnp.log1p(x)
+    x = convert_to_tensor(x)
+    return torch.log1p(x)
 
 
 def log2(x):
-    pass
-    # return tfnp.log2(x)
+    x = convert_to_tensor(x)
+    return torch.log2(x)
 
 
 def logaddexp(x1, x2):
-    pass
-    # return tfnp.logaddexp(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.logaddexp(x1, x2)
 
 
 def logical_and(x1, x2):
-    pass
-    # return tfnp.logical_and(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.logical_and(x1, x2)
 
 
 def logical_not(x):
-    pass
-    # return tfnp.logical_not(x)
+    x = convert_to_tensor(x)
+    return torch.logical_not(x)
 
 
 def logical_or(x1, x2):
-    pass
-    # return tfnp.logical_or(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.logical_or(x1, x2)
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    pass
-    # return tfnp.logspace(
-    #    start,
-    #    stop,
-    #    num=num,
-    #    endpoint=endpoint,
-    #    base=base,
-    #    dtype=dtype,
-    #    axis=axis,
-    # )
+    if axis != 0:
+        raise ValueError(
+            "torch.logspace does not support an `axis` argument. "
+            f"Received axis={axis}"
+        )
+    dtype = to_torch_dtype(dtype)
+    if endpoint is False:
+        stop = stop - ((stop - start) / num)
+    logspace = torch.logspace(
+        start=start,
+        end=stop,
+        steps=num,
+        base=base,
+        dtype=dtype,
+    )
+    return logspace
 
 
 def maximum(x1, x2):
-    pass
-    # return tfnp.maximum(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.maximum(x1, x2)
 
 
 def meshgrid(*x, indexing="xy"):
-    pass
-    # return tfnp.meshgrid(*x, indexing=indexing)
+    x = [convert_to_tensor(sc_tensor) for sc_tensor in x]
+    result = torch.meshgrid(x, indexing=indexing)
+    return [arr.numpy() for arr in result]
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    pass
-    ## The TensorFlow numpy API implementation doesn't support `initial` so we
-    ## handle it manually here.
-    # if initial is not None:
-    #    return tf.math.minimum(
-    #        tfnp.min(x, axis=axis, keepdims=keepdims), initial
-    #    )
+    x = convert_to_tensor(x)
+    if axis is None:
+        result = torch.min(x)
+    else:
+        if isinstance(axis, list):
+            axis = axis[-1]
+        result = torch.min(x, dim=axis, keepdim=keepdims)
 
-    ## TensorFlow returns inf by default for an empty list, but for consistency
-    ## with other backends and the numpy API we want to throw in this case.
-    # tf.assert_greater(
-    #    size(x),
-    #    tf.constant(0, dtype=tf.int64),
-    #    message="Cannot compute the min of an empty tensor.",
-    # )
+    if isinstance(getattr(result, "values", None), torch.Tensor):
+        result = result.values
 
-    # return tfnp.min(x, axis=axis, keepdims=keepdims)
+    if initial is not None:
+        return torch.minimum(result, initial)
+    return result
 
 
 def minimum(x1, x2):
-    pass
-    # return tfnp.minimum(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.minimum(x1, x2)
 
 
 def mod(x1, x2):
-    pass
-    # return tfnp.mod(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.remainder(x1, x2)
 
 
 def moveaxis(x, source, destination):
-    pass
-    # return tfnp.moveaxis(x, source=source, destination=destination)
+    x = convert_to_tensor(x)
+    return torch.moveaxis(x, source=source, destination=destination)
 
 
 def nan_to_num(x):
-    pass
-    ## Replace NaN with 0
-    # x = tf.where(tf.math.is_nan(x), 0, x)
-
-    ## Replace positive infinitiy with dtype.max
-    # x = tf.where(tf.math.is_inf(x) & (x > 0), x.dtype.max, x)
-
-    ## Replace negative infinity with dtype.min
-    # x = tf.where(tf.math.is_inf(x) & (x < 0), x.dtype.min, x)
-
-    # return x
+    x = convert_to_tensor(x)
+    return torch.nan_to_num(x)
 
 
 def ndim(x):
-    pass
-    # return tfnp.ndim(x)
+    x = convert_to_tensor(x)
+    return x.ndim
 
 
 def nonzero(x):
-    pass
-    # return tfnp.nonzero(x)
+    x = convert_to_tensor(x)
+    return torch.nonzero(x).T
 
 
 def not_equal(x1, x2):
-    pass
-    # return tfnp.not_equal(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.not_equal(x1, x2)
 
 
 def ones_like(x, dtype=None):
-    pass
-    # return tfnp.ones_like(x, dtype=dtype)
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype)
+    return torch.ones_like(x, dtype=dtype)
 
 
 def outer(x1, x2):
-    pass
-    # return tfnp.outer(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.outer(x1.flatten(), x2.flatten())
 
 
 def pad(x, pad_width, mode="constant"):
-    pass
-    # return tfnp.pad(x, pad_width, mode=mode)
+    x = convert_to_tensor(x)
+    pad_sum = ()
+    for pad in pad_width:
+        pad_sum += pad
+    return torch.nn.functional.pad(x, pad=pad_sum, mode=mode)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    pass
-    # return tfnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype)
+    if axis is None:
+        return torch.prod(x, dtype=dtype)
+    elif isinstance(axis, list):
+        axis = axis[-1]
+    return torch.prod(x, dim=axis, keepdim=keepdims, dtype=dtype)
 
 
 def ravel(x):
-    pass
-    # return tfnp.ravel(x)
+    x = convert_to_tensor(x)
+    return torch.ravel(x)
 
 
 def real(x):
-    pass
-    # return tfnp.real(x)
+    x = convert_to_tensor(x)
+    return torch.real(x)
 
 
 def reciprocal(x):
-    pass
-    # return tfnp.reciprocal(x)
+    x = convert_to_tensor(x)
+    return torch.reciprocal(x)
 
 
 def repeat(x, repeats, axis=None):
-    pass
-    # return tfnp.repeat(x, repeats, axis=axis)
+    x = convert_to_tensor(x)
+    repeats = convert_to_tensor(repeats, dtype=int)
+    return torch.repeat_interleave(x, repeats, dim=axis)
 
 
 def reshape(x, new_shape):
-    pass
-    # return tfnp.reshape(x, new_shape)
+    x = convert_to_tensor(x)
+    return torch.reshape(x, new_shape)
 
 
 def roll(x, shift, axis=None):
-    pass
-    # return tfnp.roll(x, shift, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.roll(x, shift, dims=axis)
 
 
 def sign(x):
-    pass
-    # return tfnp.sign(x)
+    x = convert_to_tensor(x)
+    return torch.sign(x)
 
 
 def sin(x):
-    pass
-    # return tfnp.sin(x)
+    x = convert_to_tensor(x)
+    return torch.sin(x)
 
 
 def size(x):
-    pass
-    # return tfnp.size(x)
+    x_shape = convert_to_tensor(tuple(x.shape))
+    return torch.prod(x_shape)
 
 
 def sort(x, axis=-1):
-    pass
-    # return tfnp.sort(x, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.sort(x, dim=axis).values
 
 
 def split(x, indices_or_sections, axis=0):
-    pass
-    # return tfnp.split(x, indices_or_sections, axis=axis)
+    x = convert_to_tensor(x)
+    return torch.split(
+        tensor=x,
+        split_size_or_sections=indices_or_sections,
+        dim=axis,
+    )
 
 
 def stack(x, axis=0):
-    pass
-    # return tfnp.stack(x, axis=axis)
+    x = [convert_to_tensor(elem) for elem in x]
+    return torch.stack(x, dim=axis)
 
 
 def std(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.std(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    # Remove Bessel correction to align with numpy
+    return torch.std(x, dim=axis, keepdim=keepdims, unbiased=False)
 
 
 def swapaxes(x, axis1, axis2):
-    pass
-    # return tfnp.swapaxes(x, axis1=axis1, axis2=axis2)
+    x = convert_to_tensor(x)
+    return torch.swapaxes(x, axis0=axis1, axis1=axis2)
 
 
 def take(x, indices, axis=None):
-    pass
-    # return tfnp.take(x, indices, axis=axis)
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices).long()
+    if axis is not None:
+        return torch.index_select(x, dim=axis, index=indices)
+    return torch.take(x, index=indices)
 
 
 def take_along_axis(x, indices, axis=None):
-    pass
-    # return tfnp.take_along_axis(x, indices, axis=axis)
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices).long()
+    return torch.take_along_dim(x, indices, dim=axis)
 
 
 def tan(x):
-    pass
-    # return tfnp.tan(x)
+    x = convert_to_tensor(x)
+    return torch.tan(x)
 
 
 def tensordot(x1, x2, axes=2):
-    pass
-    # return tfnp.tensordot(x1, x2, axes=axes)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.tensordot(x1, x2, dims=axes)
 
 
 def round(x, decimals=0):
-    pass
-    # return tfnp.round(x, decimals=decimals)
+    x = convert_to_tensor(x)
+    return torch.round(x, decimals=decimals)
 
 
 def tile(x, repeats):
-    pass
-    # return tfnp.tile(x, repeats)
+    x = convert_to_tensor(x)
+    return torch.tile(x, dims=repeats)
 
 
-def trace(x, offset=0, axis1=0, axis2=1):
-    pass
-    # return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
+def trace(x, offset=None, axis1=None, axis2=None):
+    x = convert_to_tensor(x)
+    # TODO: implement support for these arguments
+    # API divergence between `np.trace()` and `torch.trace()`
+    if offset or axis1 or axis2:
+        raise NotImplementedError(
+            "Arguments not supported by `torch.trace: "
+            f"offset={offset}, axis1={axis1}, axis2={axis2}"
+        )
+    return torch.trace(x)
 
 
 def tri(N, M=None, k=0, dtype="float32"):
+    dtype = to_torch_dtype(dtype)
     pass
-    # return tfnp.tri(N, M=M, k=k, dtype=dtype)
 
 
 def tril(x, k=0):
-    pass
-    # return tfnp.tril(x, k=k)
+    x = convert_to_tensor(x)
+    return torch.tril(x, diagonal=k)
 
 
 def triu(x, k=0):
-    pass
-    # return tfnp.triu(x, k=k)
+    x = convert_to_tensor(x)
+    return torch.triu(x, diagonal=k)
 
 
 def vdot(x1, x2):
-    pass
-    # return tfnp.vdot(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.vdot(x1, x2)
 
 
 def vstack(xs):
-    pass
-    # return tfnp.vstack(xs)
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.vstack(xs)
 
 
 def where(condition, x1, x2):
-    pass
-    # return tfnp.where(condition, x1, x2)
+    condition = convert_to_tensor(condition, dtype=bool)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.where(condition, x1, x2)
 
 
 def divide(x1, x2):
-    pass
-    # return tfnp.divide(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.divide(x1, x2)
 
 
 def true_divide(x1, x2):
-    pass
-    # return tfnp.true_divide(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.true_divide(x1, x2)
 
 
 def power(x1, x2):
-    pass
-    # return tfnp.power(x1, x2)
+    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    return torch.pow(x1, x2)
 
 
 def negative(x):
-    pass
-    # return tfnp.negative(x)
+    x = convert_to_tensor(x)
+    return torch.negative(x)
 
 
 def square(x):
-    pass
-    # return tfnp.square(x)
+    x = convert_to_tensor(x)
+    return torch.square(x)
 
 
 def sqrt(x):
-    pass
-    # return tfnp.sqrt(x)
+    x = convert_to_tensor(x)
+    return torch.sqrt(x)
 
 
 def squeeze(x, axis=None):
-    pass
-    # return tfnp.squeeze(x, axis=axis)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return torch.squeeze(x, dim=axis)
+    return torch.squeeze(x)
 
 
 def transpose(x, axes=None):
-    pass
-    # return tfnp.transpose(x, axes=axes)
+    x = convert_to_tensor(x)
+    if axes is not None:
+        return torch.permute(x, dims=axes)
+    return x.T
 
 
 def var(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.var(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    # Bessel correction removed for numpy compatibility
+    return torch.var(x, dim=axis, keepdim=keepdims, correction=0)
 
 
 def sum(x, axis=None, keepdims=False):
-    pass
-    # return tfnp.sum(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    if axis is not None:
+        return torch.sum(x, axis=axis, keepdim=keepdims)
+    return torch.sum(x)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
-    pass
-    # return tfnp.eye(N, M=M, k=k, dtype=dtype)
+def eye(N, M=None, k=None, dtype="float32"):
+    # TODO: implement support for `k` diagonal arg,
+    # does not exist in torch.eye()
+    if k is not None:
+        raise NotImplementedError(
+            "Due to API divergence bewtween `torch.eye` "
+            "and `np.eye`, the argument k is not supported: "
+            f"Received: k={k}"
+        )
+    dtype = to_torch_dtype(dtype)
+    if M is not None:
+        return torch.eye(n=N, m=M, dtype=dtype)
+    return torch.eye(n=N, dtype=dtype)
