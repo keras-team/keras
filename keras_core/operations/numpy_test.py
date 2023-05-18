@@ -1849,7 +1849,6 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         reason="`torch.linspace` has no support for array start/stop.",
     )
     def test_linspace_without_torch(self):
-
         start = np.zeros([2, 3, 4])
         stop = np.ones([2, 3, 4])
         self.assertAllClose(

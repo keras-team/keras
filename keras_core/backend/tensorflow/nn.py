@@ -2,6 +2,7 @@ import warnings
 
 import tensorflow as tf
 
+from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -126,8 +127,9 @@ def max_pool(
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -153,8 +155,9 @@ def average_pool(
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = standardize_data_format(data_format)
     strides = pool_size if strides is None else strides
     padding = padding.upper()
     tf_data_format = _convert_data_format("channels_last", len(inputs.shape))
@@ -212,7 +215,7 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channel_last",
+    data_format=None,
     dilation_rate=1,
 ):
     def _conv():
@@ -232,6 +235,7 @@ def conv(
     def _conv_xla():
         return _conv()
 
+    data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
@@ -248,9 +252,10 @@ def depthwise_conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
@@ -310,9 +315,10 @@ def separable_conv(
     pointwise_kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
@@ -372,9 +378,10 @@ def conv_transpose(
     strides=1,
     padding="valid",
     output_padding=None,
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
     kernel_size = kernel.shape[:-2]
     filters = kernel.shape[-2]

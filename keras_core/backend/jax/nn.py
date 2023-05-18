@@ -4,6 +4,7 @@ import numpy as np
 from jax import lax
 from jax import nn as jnn
 
+from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_output_length,
 )
@@ -135,8 +136,9 @@ def max_pool(
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -153,8 +155,9 @@ def average_pool(
     pool_size,
     strides,
     padding,
-    data_format="channels_last",
+    data_format=None,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     pool_size = _convert_to_spatial_operand(
         pool_size, num_spatial_dims, data_format
@@ -217,9 +220,10 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -266,9 +270,10 @@ def depthwise_conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -311,9 +316,10 @@ def separable_conv(
     pointwise_kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -413,9 +419,10 @@ def conv_transpose(
     strides=1,
     padding="valid",
     output_padding=None,
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
+    data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = _compute_padding_values(
         inputs.shape,

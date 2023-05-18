@@ -33,6 +33,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
+from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -343,7 +344,7 @@ class MaxPool(Operation):
         pool_size,
         strides=None,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.pool_size = pool_size
@@ -379,7 +380,7 @@ def max_pool(
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     """Max pooling operation.
 
@@ -413,6 +414,7 @@ def max_pool(
     Returns:
         A tensor of rank N+2, the result of the max pooling operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return MaxPool(
             pool_size,
@@ -429,7 +431,7 @@ class AveragePool(Operation):
         pool_size,
         strides=None,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
     ):
         super().__init__()
         self.pool_size = pool_size
@@ -468,7 +470,7 @@ def average_pool(
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
     """Average pooling operation.
 
@@ -502,6 +504,7 @@ def average_pool(
     Returns:
         A tensor of rank N+2, the result of the average pooling operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return AveragePool(
             pool_size,
@@ -519,7 +522,7 @@ class Conv(Operation):
         self,
         strides=1,
         padding="valid",
-        data_format="channel_last",
+        data_format=None,
         dilation_rate=1,
     ):
         super().__init__()
@@ -559,7 +562,7 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
     """General N-D convolution.
@@ -599,6 +602,7 @@ def conv(
     Returns:
         A tensor of rank N+2, the result of the conv operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return Conv(strides, padding, data_format, dilation_rate).symbolic_call(
             inputs, kernel
@@ -613,7 +617,7 @@ class DepthwiseConv(Operation):
         self,
         strides=1,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
         dilation_rate=1,
     ):
         super().__init__()
@@ -656,7 +660,7 @@ def depthwise_conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
     """General N-D depthwise convolution.
@@ -696,6 +700,7 @@ def depthwise_conv(
     Returns:
         A tensor of rank N+2, the result of the depthwise conv operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
@@ -715,7 +720,7 @@ class SeparableConv(Operation):
         self,
         strides=1,
         padding="valid",
-        data_format="channels_last",
+        data_format=None,
         dilation_rate=1,
     ):
         super().__init__()
@@ -765,7 +770,7 @@ def separable_conv(
     pointwise_kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
     """General N-D separable convolution.
@@ -809,6 +814,7 @@ def separable_conv(
     Returns:
         A tensor of rank N+2, the result of the depthwise conv operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return SeparableConv(
             strides,
@@ -833,7 +839,7 @@ class ConvTranspose(Operation):
         strides,
         padding="valid",
         output_padding=None,
-        data_format="channels_last",
+        data_format=None,
         dilation_rate=1,
     ):
         super().__init__()
@@ -886,7 +892,7 @@ def conv_transpose(
     strides,
     padding="valid",
     output_padding=None,
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
     """General N-D convolution transpose.
@@ -933,6 +939,7 @@ def conv_transpose(
     Returns:
         A tensor of rank N+2, the result of the conv operation.
     """
+    data_format = standardize_data_format(data_format)
     if any_symbolic_tensors((inputs,)):
         return ConvTranspose(
             strides, padding, output_padding, data_format, dilation_rate
