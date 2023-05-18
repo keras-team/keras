@@ -25,7 +25,7 @@ class Cropping3D(Layer):
               `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints: interpreted as
               `((left_dim1_crop, right_dim1_crop), (left_dim2_crop,
-              right_dim2_crop), (left_dim3_crop, right_dim3_crop))`
+              right_dim2_crop), (left_dim3_crop, right_dim3_crop))`.
         data_format: A string, one of `"channels_last"` (default) or
             `"channels_first"`. The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape

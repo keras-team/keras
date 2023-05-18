@@ -26,7 +26,7 @@ class Cropping2D(Layer):
               cropping values for height and width:
               `(symmetric_height_crop, symmetric_width_crop)`.
             - If tuple of 2 tuples of 2 ints: interpreted as
-              `((top_crop, bottom_crop), (left_crop, right_crop))`
+              `((top_crop, bottom_crop), (left_crop, right_crop))`.
         data_format: A string, one of `"channels_last"` (default) or
             `"channels_first"`. The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape

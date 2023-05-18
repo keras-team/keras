@@ -26,7 +26,7 @@ class ZeroPadding3D(Layer):
               `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints: interpreted as
               `((left_dim1_pad, right_dim1_pad), (left_dim2_pad,
-              right_dim2_pad), (left_dim3_pad, right_dim3_pad))`
+              right_dim2_pad), (left_dim3_pad, right_dim3_pad))`.
         data_format: A string, one of `"channels_last"` (default) or
             `"channels_first"`. The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape

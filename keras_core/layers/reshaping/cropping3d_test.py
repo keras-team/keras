@@ -8,7 +8,7 @@ from keras_core import operations as ops
 from keras_core import testing
 
 
-class CroppingTest(testing.TestCase, parameterized.TestCase):
+class Cropping3DTest(testing.TestCase, parameterized.TestCase):
     @parameterized.product(
         (
             {"dim1_cropping": (1, 2), "dim1_expected": (1, 5)},  # both
@@ -125,10 +125,10 @@ class CroppingTest(testing.TestCase, parameterized.TestCase):
         not backend.DYNAMIC_SHAPES_OK,
         reason="Backend does not support dynamic shapes",
     )
-    def test_cropping_3d_with_dynamic_batch_size(self):
-        input_layer = layers.Input(batch_shape=(None, 7, 9, 13, 5))
-        permuted = layers.Cropping3D(((1, 2), (3, 4), (5, 6)))(input_layer)
-        self.assertEqual(permuted.shape, (None, 4, 2, 2, 5))
+    def test_cropping_3d_with_dynamic_spatial_dim(self):
+        input_layer = layers.Input(batch_shape=(1, 7, None, 13, 5))
+        cropped = layers.Cropping3D(((1, 2), (3, 4), (5, 6)))(input_layer)
+        self.assertEqual(cropped.shape, (1, 4, None, 2, 5))
 
     @parameterized.product(
         (

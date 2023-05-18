@@ -7,7 +7,7 @@ from keras_core import layers
 from keras_core import testing
 
 
-class ZeroPaddingTest(testing.TestCase, parameterized.TestCase):
+class ZeroPadding3DTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("channels_first", "channels_first"), ("channels_last", "channels_last")
     )
@@ -68,10 +68,10 @@ class ZeroPaddingTest(testing.TestCase, parameterized.TestCase):
         not backend.DYNAMIC_BATCH_SIZE_OK,
         reason="Backend does not support dynamic batch sizes",
     )
-    def test_zero_padding_3d_with_dynamic_batch_size(self):
-        input_layer = layers.Input(batch_shape=(None, 2, 3, 4, 5))
-        permuted = layers.ZeroPadding3D(((1, 2), (3, 4), (5, 6)))(input_layer)
-        self.assertEqual(permuted.shape, (None, 5, 10, 15, 5))
+    def test_zero_padding_3d_with_dynamic_spatial_dim(self):
+        input_layer = layers.Input(batch_shape=(1, 2, None, 4, 5))
+        padded = layers.ZeroPadding3D(((1, 2), (3, 4), (5, 6)))(input_layer)
+        self.assertEqual(padded.shape, (1, 5, None, 15, 5))
 
     def test_zero_padding_3d_errors_if_padding_argument_invalid(self):
         with self.assertRaises(ValueError):
