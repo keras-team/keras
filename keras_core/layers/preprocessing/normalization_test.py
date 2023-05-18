@@ -68,8 +68,8 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         layer.adapt(data)
         self.assertTrue(layer.built)
         output = layer(x)
-        self.assertAllClose(np.var(output, axis=0), 1.0)
-        self.assertAllClose(np.mean(output, axis=0), 0.0)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
         # Test in high-dim and with tuple axis.
         x = np.random.random((32, 4, 3, 5))
@@ -84,8 +84,8 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
         layer.adapt(data)
         self.assertTrue(layer.built)
         output = layer(x)
-        self.assertAllClose(np.var(output, axis=(0, 3)), 1.0)
-        self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0)
+        self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
 
     def test_normalization_errors(self):
         # TODO

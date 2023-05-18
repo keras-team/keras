@@ -236,6 +236,7 @@ class TextVectorization(Layer):
             name=name,
             **kwargs,
         )
+        self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
     def compute_output_shape(self, input_shape):

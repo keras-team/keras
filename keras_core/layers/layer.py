@@ -66,7 +66,11 @@ class Layer(Operation):
         self._trainable_variables = []
         self._non_trainable_variables = []
         self._supports_masking = not utils.is_default(self.compute_mask)
+        # Whether to automatically convert (+ auto-cast) inputs to `call()`.
+        self._convert_input_args = True
+        # Whether to allow non-tensors as positional arguments in `call()`.
         self._allow_non_tensor_positional_args = False
+        # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
         self._call_signature_parameters = [
             p.name for p in inspect.signature(self.call).parameters.values()
@@ -344,8 +348,9 @@ class Layer(Operation):
                 return backend.convert_to_tensor(x, dtype=self.compute_dtype)
             return x
 
-        args = nest.map_structure(maybe_convert, args)
-        kwargs = nest.map_structure(maybe_convert, kwargs)
+        if self._convert_input_args:
+            args = nest.map_structure(maybe_convert, args)
+            kwargs = nest.map_structure(maybe_convert, kwargs)
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.

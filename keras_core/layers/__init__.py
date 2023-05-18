@@ -72,6 +72,7 @@ from keras_core.layers.pooling.max_pooling3d import MaxPooling3D
 from keras_core.layers.preprocessing.category_encoding import CategoryEncoding
 from keras_core.layers.preprocessing.center_crop import CenterCrop
 from keras_core.layers.preprocessing.discretization import Discretization
+from keras_core.layers.preprocessing.hashed_crossing import HashedCrossing
 from keras_core.layers.preprocessing.hashing import Hashing
 from keras_core.layers.preprocessing.integer_lookup import IntegerLookup
 from keras_core.layers.preprocessing.normalization import Normalization

@@ -96,9 +96,10 @@ class Discretization(Layer):
         output_mode="int",
         sparse=False,
         name=None,
+        dtype=None,
         **kwargs,
     ):
-        super().__init__(name=name)
+        super().__init__(name=name, dtype=dtype)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
                 "`sparse` can only be set to True with the "
@@ -111,6 +112,7 @@ class Discretization(Layer):
             output_mode=output_mode,
             sparse=sparse,
             name=name,
+            dtype=dtype,
             **kwargs,
         )
         self.bin_boundaries = (
@@ -172,16 +174,6 @@ class Discretization(Layer):
     def reset_state(self):
         self.layer.reset_state()
 
-    def get_config(self):
-        return {
-            "bin_boundaries": self.bin_boundaries,
-            "num_bins": self.num_bins,
-            "epsilon": self.epsilon,
-            "output_mode": self.output_mode,
-            "sparse": self.sparse,
-            "name": self.name,
-        }
-
     def compute_output_shape(self, input_shape):
         return input_shape
 
@@ -192,3 +184,14 @@ class Discretization(Layer):
         if backend.backend() != "tensorflow":
             outputs = backend.convert_to_tensor(outputs)
         return outputs
+
+    def get_config(self):
+        return {
+            "bin_boundaries": self.bin_boundaries,
+            "num_bins": self.num_bins,
+            "epsilon": self.epsilon,
+            "output_mode": self.output_mode,
+            "sparse": self.sparse,
+            "name": self.name,
+            "dtype": self.dtype,
+        }

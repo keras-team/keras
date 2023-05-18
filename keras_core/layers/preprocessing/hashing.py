@@ -167,6 +167,7 @@ class Hashing(Layer):
                     "of 2 integers, or a single integer. "
                     f"Received: salt={salt}."
                 )
+        self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
     def call(self, inputs):
