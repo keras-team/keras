@@ -4389,14 +4389,22 @@ def _validate_softmax_output(model_instance):
 
     """
     outputs = model_instance.outputs
+
+    # `outputs` can be None in the case of subclassed models.
     if outputs is not None:
         for output in outputs:
-            if (
-                "softmax" in str(output.name.lower())
-                and output.__class__.__name__ == "KerasTensor"
-            ):
-                check_output_activation(output)
 
+            # if an output layer ends with a native tf_ops the name can be None,
+            # i.e using output layer: tf.cast(outputs, tf.float32)
+            output_name = str(output.name)
+            if output_name is not None:
+                if (
+                    "softmax" in str(output_name.lower())
+                    and output.__class__.__name__ == "KerasTensor"
+                ):
+                    check_output_activation(output)
+            else:
+                continue
     else:  # model is a subclassed/custom model, so we don't apply any checks
         return
 
