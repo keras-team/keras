@@ -42,10 +42,11 @@ class FunctionTest(testing.TestCase):
         self.assertAllClose(y_val[0], np.ones((2, 3)) * 6)
         self.assertAllClose(y_val[1], np.ones((2, 3)) * 4)
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_BATCH_SIZE_OK,
+        reason="Test only valid if dynamic batch sizes are supported",
+    )
     def test_dynamic_shape_inference(self):
-        if not backend.DYNAMIC_SHAPES_OK:
-            pytest.skip("Test only valid for dynamic shape backends")
-
         x = keras_tensor.KerasTensor((None, 3))
         y = x**2
         fn = function.Function(x, y)

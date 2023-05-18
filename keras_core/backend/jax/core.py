@@ -1,68 +1,29 @@
 import jax
 import jax.numpy as jnp
-import numpy as np
 from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
-from keras_core.backend.common.stateless_scope import get_stateless_scope
-from keras_core.backend.common.stateless_scope import in_stateless_scope
 
 DYNAMIC_SHAPES_OK = False  # Dynamic shapes NG
+DYNAMIC_BATCH_SIZE_OK = True
 
 
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = jnp.array(value, dtype=self._dtype)
 
-    def assign(self, value):
-        value = convert_to_tensor(value, dtype=self.dtype)
-        if value.shape != self.shape:
-            raise ValueError(
-                "The shape of the target variable and "
-                "the shape of the target value in "
-                "`variable.assign(value)` must match. "
-                f"Received: value.shape={value.shape}; "
-                f"variable.shape={self.value.shape}"
-            )
-        if in_stateless_scope():
-            scope = get_stateless_scope()
-            scope.add_update((self, value))
-        else:
-            if isinstance(value, jnp.ndarray) and value.dtype == self.dtype:
-                # Avoid a memory copy
-                self._value = value
-            else:
-                self._value = jnp.array(value, dtype=self.dtype)
+    def _direct_assign(self, value):
+        self._value = value
 
-    @property
-    def value(self):
-        if in_stateless_scope():
-            scope = get_stateless_scope()
-            value = scope.get_current_value(self)
-            if value is not None:
-                return self._maybe_autocast(value)
-        if self._value is None:
-            # Unitialized variable. Return a placeholder.
-            # This is fine because it's only ever used
-            # in during shape inference with JAX tracer objects
-            # (anything else would be a bug, to be fixed.)
-            return self._maybe_autocast(
-                self._initializer(self._shape, dtype=self._dtype)
-            )
-        return self._maybe_autocast(self._value)
-
-    def numpy(self):
-        return np.array(self.value)
+    def _convert_to_tensor(self, value, dtype=None):
+        return convert_to_tensor(value, dtype=dtype)
 
     # Overload native accessor.
     def __jax_array__(self):
         return self.value
-
-    def _convert_to_tensor(self, value, dtype=None):
-        return convert_to_tensor(value, dtype=dtype)
 
 
 def convert_to_tensor(x, dtype=None):
@@ -98,10 +59,22 @@ def name_scope(name):
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
+        dynamic_batch_map = {}
+        magic_number = 3
 
         def convert_keras_tensor_to_jax(x):
             if isinstance(x, KerasTensor):
-                return jax.ShapeDtypeStruct(x.shape, dtype=x.dtype)
+                shape = x.shape
+                if shape and x.shape[0] is None:
+                    shape = list(shape)
+                    shape[0] = magic_number
+                    dynamic_batch = True
+                else:
+                    dynamic_batch = False
+
+                jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
+                dynamic_batch_map[jax_tensor] = dynamic_batch
+                return jax_tensor
             return x
 
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
@@ -136,6 +109,17 @@ def compute_output_spec(fn, *args, **kwargs):
 
         def convert_jax_spec_to_keras_tensor(x):
             if isinstance(x, jax.ShapeDtypeStruct):
+                if dynamic_batch_map.get(x, False):
+                    shape = list(x.shape)
+                    if shape[0] != magic_number:
+                        raise ValueError(
+                            f"Function {fn} appears to change the "
+                            "batch size of its input. This is not "
+                            "allowed when used in conjunction with "
+                            "dynamic batch sizes. Consider using "
+                            "a static batch size here."
+                        )
+                    shape[0] = None
                 return KerasTensor(x.shape, x.dtype)
             return x
 

@@ -1,12 +1,11 @@
-import numpy as np
 import torch
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
-from keras_core.backend.common.stateless_scope import get_stateless_scope
-from keras_core.backend.common.stateless_scope import in_stateless_scope
 
 DYNAMIC_SHAPES_OK = True
+DYNAMIC_BATCH_SIZE_OK = True
+
 
 TORCH_DTYPES = {
     "float16": torch.float16,
@@ -37,52 +36,15 @@ class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = convert_to_tensor(value, dtype=self._dtype)
 
-    def assign(self, value):
-        value = convert_to_tensor(value, dtype=self.dtype)
-        if value.shape != self.shape:
-            raise ValueError(
-                "The shape of the target variable and "
-                "the shape of the target value in "
-                "`variable.assign(value)` must match. "
-                f"Received: value.shape={value.shape}; "
-                f"variable.shape={self.value.shape}"
-            )
-        if in_stateless_scope():
-            scope = get_stateless_scope()
-            scope.add_update((self, value))
-        else:
-            # torch `as_tensor` by default, doesn't copy if tensor is same type
-            self._value = convert_to_tensor(value, dtype=self.dtype)
-
-    @property
-    def value(self):
-        if in_stateless_scope():
-            scope = get_stateless_scope()
-            value = scope.get_current_value(self)
-            if value is not None:
-                return self._maybe_autocast(value)
-        if self._value is None:
-            # Unitialized variable. Return a placeholder.
-            # This is fine because it's only ever used
-            # during shape inference in a scratch graph
-            # (anything else would be a bug, to be fixed.)
-            return self._maybe_autocast(
-                convert_to_tensor(
-                    self._initializer(self._shape, dtype=self._dtype),
-                    dtype=self._dtype,
-                )
-            )
-        return self._maybe_autocast(self._value)
-
-    def numpy(self):
-        return np.array(self.value)
-
-    # Overload native accessor.
-    def __torch_function__(self, func, types, args=(), kwargs=None):
-        raise NotImplementedError
+    def _direct_assign(self, value):
+        self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
+
+    # Overload native accessor.
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        return func(self.value, *args, **kwargs)
 
 
 def convert_to_tensor(x, dtype=None):

@@ -65,8 +65,8 @@ class ZeroPaddingTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(outputs[:, 2:-2, 2:-2, 2:-2, :], inputs)
 
     @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
+        not backend.DYNAMIC_BATCH_SIZE_OK,
+        reason="Backend does not support dynamic batch sizes",
     )
     def test_zero_padding_3d_with_dynamic_batch_size(self):
         input_layer = layers.Input(batch_shape=(None, 2, 3, 4, 5))

@@ -1,13 +1,12 @@
 from keras_core.api_export import keras_core_export
 from keras_core.backend.common import global_state
-from keras_core.backend.common.variables import KerasVariable
-from keras_core.backend.common.variables import initialize_all_variables
 
 
 @keras_core_export("keras_core.StatelessScope")
 class StatelessScope:
     def __init__(self, state_mapping=None, collect_losses=False):
         from keras_core import backend
+        from keras_core.backend.common.variables import KerasVariable
 
         self.collect_losses = collect_losses
         self.losses = []
@@ -54,6 +53,10 @@ class StatelessScope:
             # We're back in eager scope;
             # if any variables were created within the stateless
             # scope, we initialize them here.
+            from keras_core.backend.common.variables import (
+                initialize_all_variables,
+            )
+
             initialize_all_variables()
 
 

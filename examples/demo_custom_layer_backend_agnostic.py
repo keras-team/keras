@@ -26,7 +26,7 @@ class MyDense(layers.Layer):
         # You can also use add_weight
         self.b = self.add_weight(
             shape=(self.units,),
-            initializer="zeros",
+            initializer=initializers.Zeros(),
             name="bias",
             trainable=True,
         )
