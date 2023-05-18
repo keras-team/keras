@@ -721,7 +721,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             **kwargs: Arguments supported for backwards compatibility only.
         """
 
-        _validate_softmax_output(self)
+        validate_softmax_activation = kwargs.pop(
+            "experimental_validate_softmax_activation", True
+        )
+        if validate_softmax_activation:
+            _validate_softmax_output(self)
 
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
             jit_compile = False
@@ -3769,6 +3773,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         kwargs.pop("cloning", None)  # Legacy DistStrat argument, never used.
         kwargs.pop("experimental_run_tf_function", None)  # Always `True`.
+        kwargs.pop("experimental_validate_softmax_activation", None)
         distribute_arg = kwargs.pop("distribute", None)
         if distribute_arg is not None:
             raise ValueError(
