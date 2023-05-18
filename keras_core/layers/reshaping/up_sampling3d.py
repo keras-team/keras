@@ -13,8 +13,7 @@ class UpSampling3D(Layer):
     Repeats the 1st, 2nd and 3rd dimensions
     of the data by `size[0]`, `size[1]` and `size[2]` respectively.
 
-    Example:
-
+    Examples:
     >>> input_shape = (2, 1, 2, 1, 3)
     >>> x = np.ones(input_shape)
     >>> y = keras_core.layers.UpSampling3D(size=(2, 2, 2))(x)
@@ -109,7 +108,6 @@ class UpSampling3D(Layer):
         self, x, depth_factor, height_factor, width_factor, data_format
     ):
         """Resizes the volume contained in a 5D tensor.
-
         Args:
             x: Tensor or variable to resize.
             depth_factor: Positive integer.
@@ -118,7 +116,11 @@ class UpSampling3D(Layer):
             data_format: One of `"channels_first"`, `"channels_last"`.
 
         Returns:
-            Resized tensor.
+            A tensor.
+
+        Raises:
+            ValueError: if `data_format` is neither
+                `channels_last` or `channels_first`.
         """
         if data_format == "channels_first":
             output = ops.repeat(x, depth_factor, axis=2)
@@ -131,4 +133,4 @@ class UpSampling3D(Layer):
             output = ops.repeat(output, width_factor, axis=3)
             return output
         else:
-            raise ValueError(f"Invalid data_format: {data_format}")
+            raise ValueError("Invalid data_format: " + str(data_format))
