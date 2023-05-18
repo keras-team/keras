@@ -1174,9 +1174,12 @@ class Optimizer(_BaseOptimizer):
           List of (gradient, variable) pairs.
         """
         if self._mesh or self._run_with_dtensor:
-            raise NotImplementedError(
-                "Dtensor doesn't need to manually aggregate gradients"
+            logging.warning(
+                "Calling aggregate_gradients is unnecessary when the model "
+                "is used with DTensor, which includes aggregation of "
+                "replicated gradients as part of backward pass."
             )
+            return grads_and_vars
         else:
             return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
