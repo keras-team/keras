@@ -114,3 +114,4 @@ from keras_core.layers.rnn.lstm import LSTM
 from keras_core.layers.rnn.rnn import RNN
 from keras_core.layers.rnn.simple_rnn import SimpleRNN
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
+from keras_core.layers.rnn.time_distributed import TimeDistributed
