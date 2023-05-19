@@ -273,7 +273,7 @@ class TestCase(unittest.TestCase):
                     return self.layer(x)
 
             model = TestModel(layer)
-            model.compile(optimizer="sgd", loss="mse", jit_compile=False)
+            model.compile(optimizer="sgd", loss="mse", jit_compile=True)
             input_data = nest.map_structure(lambda x: np.array(x), input_data)
             output_data = nest.map_structure(lambda x: np.array(x), output_data)
             model.fit(input_data, output_data, verbose=0)

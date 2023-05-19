@@ -58,7 +58,11 @@ class Masking(Layer):
         # Set masked outputs to 0
         outputs = inputs * backend.cast(boolean_mask, dtype=inputs.dtype)
         # Compute the mask and outputs simultaneously.
-        outputs._keras_mask = ops.squeeze(boolean_mask, axis=-1)
+        try:
+            outputs._keras_mask = ops.squeeze(boolean_mask, axis=-1)
+        except AttributeError:
+            # outputs in a C type.
+            pass
         return outputs
 
     def compute_output_shape(self, input_shape):

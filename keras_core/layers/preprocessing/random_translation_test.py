@@ -22,6 +22,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 4),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_up_numeric_reflect(self):
@@ -48,6 +49,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_up_numeric_constant(self):
@@ -78,6 +80,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_down_numeric_reflect(self):
@@ -105,6 +108,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_asymmetric_size_numeric_reflect(self):
@@ -135,6 +139,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_down_numeric_constant(self):
@@ -164,6 +169,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_left_numeric_reflect(self):
@@ -191,6 +197,7 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_translation_left_numeric_constant(self):
@@ -220,4 +227,5 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )

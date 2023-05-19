@@ -89,26 +89,27 @@ class TimeDistributed(Wrapper):
             axes = [1, 0, *range(2, len(data.shape))]
             return ops.transpose(data, axes=axes)
 
-        time_distributed_inputs = time_distributed_transpose(inputs)
-        if mask is None:
-            time_distributed_mask = None
-        else:
-            time_distributed_mask = time_distributed_transpose(mask)
+        inputs = time_distributed_transpose(inputs)
+        if mask is not None:
+            mask = time_distributed_transpose(mask)
 
-        def per_batch_function(batch):
+        def step_function(i):
             kwargs = {}
-            if self.layer._call_has_mask_arg():
-                kwargs["mask"] = (
-                    None
-                    if time_distributed_mask is None
-                    else time_distributed_mask[batch]
-                )
+            if self.layer._call_has_mask_arg() and mask is not None:
+                kwargs["mask"] = mask[i]
             if self.layer._call_has_training_arg():
                 kwargs["training"] = training
-            return self.layer.call(time_distributed_inputs[batch], **kwargs)
+            return self.layer.call(inputs[i], **kwargs)
 
-        outputs = backend.vectorized_map(
-            per_batch_function, ops.arange(timesteps)
-        )
+        # Implementation #1: is the time axis is static, use a Python for loop.
 
+        if inputs.shape[0] is not None:
+            outputs = ops.stack(
+                [step_function(i) for i in range(inputs.shape[0])]
+            )
+            return time_distributed_transpose(outputs)
+
+        # Implementation #2: use backend.vectorized_map.
+
+        outputs = backend.vectorized_map(step_function, ops.arange(timesteps))
         return time_distributed_transpose(outputs)

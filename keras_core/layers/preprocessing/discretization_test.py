@@ -19,6 +19,7 @@ class DicretizationTest(testing.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_adapt_flow(self):

@@ -155,13 +155,13 @@ class GroupNormalization(Layer):
     def _reshape_into_groups(self, inputs):
         input_shape = ops.shape(inputs)
         group_shape = list(inputs.shape)
-        for i, e in enumerate(group_shape):
+        group_shape[0] = -1
+        for i, e in enumerate(group_shape[1:]):
             if e is None:
-                group_shape[i] = input_shape[i]
+                group_shape[i + 1] = input_shape[i + 1]
 
         group_shape[self.axis] = input_shape[self.axis] // self.groups
         group_shape.insert(self.axis, self.groups)
-        group_shape = ops.stack(group_shape)
         reshaped_inputs = ops.reshape(inputs, group_shape)
         return reshaped_inputs
 

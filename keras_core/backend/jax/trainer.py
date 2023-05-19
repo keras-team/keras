@@ -328,9 +328,10 @@ class JAXTrainer(base_trainer.Trainer):
                     sample_weight,
                 ) = data_adapter_utils.unpack_x_y_sample_weight(data)
                 # Build model
-                y_pred = self(x)
-                # Build metrics
-                self.compute_metrics(x, y, y_pred, sample_weight)
+                with backend.StatelessScope():
+                    y_pred = self(x)
+                    # Build metrics
+                    self.compute_metrics(x, y, y_pred, sample_weight)
                 self.reset_metrics()
                 break
 
@@ -466,7 +467,8 @@ class JAXTrainer(base_trainer.Trainer):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Build model
-                self(data[0])
+                with backend.StatelessScope():
+                    self(data[0])
                 break
 
         # Container that configures and calls callbacks.

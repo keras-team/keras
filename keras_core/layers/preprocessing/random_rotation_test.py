@@ -21,6 +21,7 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 4),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_rotation_correctness(self):
@@ -46,4 +47,5 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
             input_data=input_image,
             expected_output=expected_output,
             supports_masking=False,
+            run_training_check=False,
         )

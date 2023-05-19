@@ -1,8 +1,8 @@
 import numpy as np
+import tensorflow as tf
 
 from keras_core import testing
 from keras_core.layers.activations import elu
-import tensorflow as tf
 
 
 class ELUTest(testing.TestCase):

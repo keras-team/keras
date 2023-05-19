@@ -22,6 +22,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 4),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_flip_horizontal(self):
@@ -35,6 +36,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             input_data=np.asarray([[[2, 3, 4], [5, 6, 7]]]),
             expected_output=backend.convert_to_tensor([[[5, 6, 7], [2, 3, 4]]]),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_flip_vertical(self):
@@ -50,4 +52,5 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
                 [[[5, 6, 7]], [[2, 3, 4]]]
             ),
             supports_masking=False,
+            run_training_check=False,
         )

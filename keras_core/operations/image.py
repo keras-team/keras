@@ -55,6 +55,7 @@ class Resize(Operation):
 def resize(
     image, size, method="bilinear", antialias=False, data_format="channels_last"
 ):
+    # TODO: add docstring
     if any_symbolic_tensors((image,)):
         return Resize(
             size, method=method, antialias=antialias, data_format=data_format

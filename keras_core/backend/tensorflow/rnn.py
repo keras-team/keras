@@ -74,6 +74,7 @@ def rnn(
             - `new_states`: list of tensors, latest states returned by
                 the step function, of shape `(samples, ...)`.
     """
+    input_length = input_length or inputs.shape[1]
 
     def swap_batch_timestep(input_t):
         # Swap the batch and timestep dim for the incoming tensor.
