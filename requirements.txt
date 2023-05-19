@@ -12,4 +12,3 @@ pandas
 absl-py
 requests
 h5py
-torch
