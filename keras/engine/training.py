@@ -777,17 +777,26 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._run_eagerly = run_eagerly
 
             self.optimizer = self._get_optimizer(optimizer)
+
+            mesh = None
+            if self._layout_map is not None:
+                mesh = self._layout_map.get_default_mesh()
+
             if isinstance(loss, compile_utils.LossesContainer):
                 self.compiled_loss = loss
             else:
                 self.compiled_loss = compile_utils.LossesContainer(
-                    loss, loss_weights, output_names=self.output_names
+                    loss,
+                    loss_weights,
+                    output_names=self.output_names,
+                    mesh=mesh,
                 )
             self.compiled_metrics = compile_utils.MetricsContainer(
                 metrics,
                 weighted_metrics,
                 output_names=self.output_names,
                 from_serialized=from_serialized,
+                mesh=mesh,
             )
 
             self._configure_steps_per_execution(steps_per_execution or 1)

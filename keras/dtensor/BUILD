@@ -118,6 +118,7 @@ tf_py_test(
 tf_py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
+    shard_count = 2,
     tags = [
         "requires-net:external",
     ],
