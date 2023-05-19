@@ -239,8 +239,12 @@ def hard_sigmoid(x):
 
 
 class Elu(Operation):
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+
     def call(self, x):
-        return backend.nn.elu(x)
+        return backend.nn.elu(x, alpha=self.alpha)
 
     def compute_output_spec(self, x):
         return KerasTensor(x.shape, dtype=x.dtype)
@@ -249,10 +253,10 @@ class Elu(Operation):
 @keras_core_export(
     ["keras_core.operations.elu", "keras_core.operations.nn.elu"]
 )
-def elu(x):
+def elu(x, alpha=1.0):
     if any_symbolic_tensors((x,)):
-        return Elu().symbolic_call(x)
-    return backend.nn.elu(x)
+        return Elu(alpha).symbolic_call(x)
+    return backend.nn.elu(x, alpha=alpha)
 
 
 class Selu(Operation):

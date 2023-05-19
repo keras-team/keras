@@ -2,6 +2,7 @@ import numpy as np
 
 from keras_core import testing
 from keras_core.layers.activations import elu
+import tensorflow as tf
 
 
 class ELUTest(testing.TestCase):
@@ -17,7 +18,12 @@ class ELUTest(testing.TestCase):
             supports_masking=True,
         )
 
-        x = np.random.random((2, 5))
+    def test_correctness(self):
+        x = np.random.random((2, 2, 5))
         elu_layer = elu.ELU()
-        result = elu_layer(x[np.newaxis, :])[0]
-        self.assertAllClose(result, x, rtol=1e-05)
+        tf_elu_layer = tf.keras.layers.ELU()
+        self.assertAllClose(elu_layer(x), tf_elu_layer(x))
+
+        elu_layer = elu.ELU(alpha=0.7)
+        tf_elu_layer = tf.keras.layers.ELU(alpha=0.7)
+        self.assertAllClose(elu_layer(x), tf_elu_layer(x))

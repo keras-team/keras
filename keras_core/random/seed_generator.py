@@ -19,11 +19,7 @@ class SeedGenerator:
             return [seed, 0]
 
         self.state = Variable(
-            seed_initializer,
-            shape=(2,),
-            dtype="uint32",
-            trainable=False,
-            name="seed_generator_state",
+            seed_initializer, shape=(2,), dtype="uint32", trainable=False
         )
 
 

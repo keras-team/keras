@@ -162,13 +162,13 @@ def softmax(x, axis=-1):
 
 
 @keras_core_export("keras_core.activations.elu")
-def elu(x):
+def elu(x, alpha=1.0):
     """Exponential Linear Unit.
 
     The exponential linear unit (ELU) with `alpha > 0` is define as:
 
     - `x` if `x > 0`
-    - `exp(x) - 1` if `x < 0`
+    - alpha * `exp(x) - 1` if `x < 0`
 
     ELUs have negative values which pushes the mean of the activations
     closer to zero.
@@ -186,7 +186,7 @@ def elu(x):
 
     - [Clevert et al., 2016](https://arxiv.org/abs/1511.07289)
     """
-    return ops.elu(x)
+    return ops.elu(x, alpha=alpha)
 
 
 @keras_core_export("keras_core.activations.selu")
