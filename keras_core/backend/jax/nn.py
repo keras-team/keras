@@ -56,8 +56,8 @@ def hard_sigmoid(x):
     return jnn.hard_sigmoid(x)
 
 
-def elu(x):
-    return jnn.elu(x)
+def elu(x, alpha=1.0):
+    return jnn.elu(x, alpha=alpha)
 
 
 def selu(x):
