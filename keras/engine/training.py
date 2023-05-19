@@ -26,6 +26,7 @@ import tensorflow.compat.v2 as tf
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers
+from keras.dtensor import dtensor_api
 from keras.dtensor import layout_map as layout_map_lib
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -320,6 +321,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         self._steps_per_execution = None
 
+        self._layout_map = layout_map_lib.get_current_layout_map()
+
         self._init_batch_counters()
         self._base_model_initialized = True
 
@@ -328,7 +331,25 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # `fit`, `evaluate`, and `predict`.
         self._jit_compile = None
 
-        self._layout_map = layout_map_lib.get_current_layout_map()
+    def _create_counter_variable(self, init_value):
+        """Helper function for counter variable creation.
+
+        For the DTensor use case with layout map, since the variable are not
+        tracked by model, they can't be visited by the layout map, and need to
+        be properly initialized as DVariable.
+        """
+        # This function should be removed after we move to the strategy based
+        # implementation for DTensor.
+        if self._layout_map is None:
+            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+            return tf.Variable(init_value, dtype="int64", aggregation=agg)
+        else:
+            layout = dtensor_api.Layout.replicated(
+                mesh=self._layout_map.get_default_mesh(), rank=0
+            )
+            return dtensor_api.DVariable(
+                init_value, dtype="int64", layout=layout
+            )
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _init_batch_counters(self):
@@ -340,12 +361,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # inside tf.function.
             # These variables are not connected to outputs so they have no
             # effect on graph generation anyway.
-            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-            self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-            self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-            self._predict_counter = tf.Variable(
-                0, dtype="int64", aggregation=agg
-            )
+
+            self._train_counter = self._create_counter_variable(0)
+            self._test_counter = self._create_counter_variable(0)
+            self._predict_counter = self._create_counter_variable(0)
 
     def __setattr__(self, name, value):
         if not getattr(self, "_self_setattr_tracking", True):
@@ -821,10 +840,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _configure_steps_per_execution(self, steps_per_execution):
-        self._steps_per_execution = tf.Variable(
-            steps_per_execution,
-            dtype="int64",
-            aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA,
+        self._steps_per_execution = self._create_counter_variable(
+            steps_per_execution
         )
 
     @property

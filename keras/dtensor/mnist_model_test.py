@@ -47,8 +47,15 @@ class MnistTest(test_util.DTensorBaseTest):
             integration_test_utils.get_all_replicated_layout_map(mesh)
         )
 
+        self.assertIsInstance(model._train_counter, dtensor.DVariable)
+        self.assertIsInstance(model._test_counter, dtensor.DVariable)
+        self.assertIsInstance(model._predict_counter, dtensor.DVariable)
+
         optimizer = adam.Adam(learning_rate=0.001, mesh=mesh)
         optimizer.build(model.trainable_variables)
+
+        model.compile(loss="CategoricalCrossentropy", optimizer=optimizer)
+        self.assertIsInstance(model._steps_per_execution, dtensor.DVariable)
 
         train_losses = integration_test_utils.train_mnist_model_batch_sharded(
             model,
