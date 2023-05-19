@@ -49,7 +49,7 @@ class Variable(KerasVariable):
 
 def convert_to_tensor(x, dtype=None):
     # TODO: Need to address device placement arg of `as_tensor`
-    dtype = to_torch_dtype(dtype or x.dtype)
+    dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
     if isinstance(x, Variable):
         if dtype and dtype != x.dtype:
             return x.value.to(dtype)

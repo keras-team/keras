@@ -142,14 +142,9 @@ from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
 from keras_core.operations import operation_utils
 from keras_core.operations.operation import Operation
+from keras_core.operations.operation_utils import reduce_shape
 
 
-@keras_core_export(
-    [
-        "keras_core.operations.broadcast_shapes",
-        "keras_core.operations.numpy.broadcast_shapes",
-    ]
-)
 def broadcast_shapes(shape1, shape2):
     # Broadcast input shapes to a unified shape.
     # Convert to list for mutability.
@@ -181,38 +176,6 @@ def broadcast_shapes(shape1, shape2):
     return output_shape
 
 
-@keras_core_export(
-    [
-        "keras_core.operations.reduce_shape",
-        "keras_core.operations.numpy.reduce_shape",
-    ]
-)
-def reduce_shape(shape, axis=None, keepdims=False):
-    shape = list(shape)
-    if axis is None:
-        if keepdims:
-            output_shape = [1 for _ in range(shape)]
-        else:
-            output_shape = []
-        return output_shape
-
-    if keepdims:
-        for ax in axis:
-            shape[ax] = 1
-        return shape
-    else:
-        for ax in axis:
-            shape[ax] = -1
-        output_shape = list(filter((-1).__ne__, shape))
-        return output_shape
-
-
-@keras_core_export(
-    [
-        "keras_core.operations.shape_equal",
-        "keras_core.operations.numpy.shape_equal",
-    ]
-)
 def shape_equal(shape1, shape2, axis=None, allow_none=True):
     """Check if two shapes are equal.
 

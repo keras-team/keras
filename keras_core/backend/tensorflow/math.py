@@ -5,6 +5,9 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     if sorted:
         return tf.math.segment_sum(data, segment_ids)
     else:
+        if num_segments is None:
+            unique_segment_ids, _ = tf.unique(segment_ids)
+            num_segments = tf.shape(unique_segment_ids)[0]
         return tf.math.unsorted_segment_sum(data, segment_ids, num_segments)
 
 
