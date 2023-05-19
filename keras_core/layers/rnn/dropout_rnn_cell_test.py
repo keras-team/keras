@@ -44,6 +44,12 @@ class RNNCellWithDropout(layers.Layer, DropoutRNNCell):
 
 
 class DropoutRNNCellTest(testing.TestCase):
+    def test_seed_tracking(self):
+        cell = RNNCellWithDropout(3, seed=1337)
+        self.assertEqual(len(cell.non_trainable_variables), 1)
+        layer = layers.RNN(cell)
+        self.assertEqual(len(layer.non_trainable_variables), 1)
+
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,
@@ -53,5 +59,6 @@ class DropoutRNNCellTest(testing.TestCase):
             expected_output_shape=(3, 5),
             expected_num_trainable_weights=2,
             expected_num_non_trainable_weights=0,
+            expected_num_non_trainable_variables=1,
             supports_masking=True,
         )

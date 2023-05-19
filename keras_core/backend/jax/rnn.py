@@ -2,6 +2,8 @@ from jax import lax
 from jax import numpy as jnp
 from tensorflow import nest
 
+from keras_core.backend.common.stateless_scope import StatelessScope
+
 
 def rnn(
     step_function,
@@ -178,12 +180,16 @@ def rnn(
 
             scan_xs = inputs
 
-        new_states, outputs = lax.scan(
-            f=_step,
-            init=initial_states,
-            xs=scan_xs,
-            reverse=go_backwards,
-        )
+        with StatelessScope():
+            # We must use a stateless scope because `scan` will involve
+            # JAX tracing -- any variable update at this stage would
+            # be a leak.
+            new_states, outputs = lax.scan(
+                f=_step,
+                init=initial_states,
+                xs=scan_xs,
+                reverse=go_backwards,
+            )
         if go_backwards:
             outputs = jnp.flip(outputs, axis=0)
         last_output = outputs[-1]
