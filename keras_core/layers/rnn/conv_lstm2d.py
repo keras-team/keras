@@ -129,7 +129,7 @@ class ConvLSTM2D(ConvLSTM):
         data_format=None,
         dilation_rate=1,
         activation="tanh",
-        recurrent_activation="hard_sigmoid",
+        recurrent_activation="sigmoid",
         use_bias=True,
         kernel_initializer="glorot_uniform",
         recurrent_initializer="orthogonal",

@@ -1,3 +1,6 @@
+import numpy as np
+
+from keras_core import initializers
 from keras_core import layers
 from keras_core import testing
 
@@ -43,25 +46,22 @@ class ConvLSTM1DTest(testing.TestCase):
             supports_masking=True,
         )
 
-    # TODO: correctness testing
-
-    # def test_correctness(self):
-    #     sequence = np.arange(120).reshape((2, 3, 4, 5)).astype("float32")
-    #     layer = layers.ConvLSTM1D(
-    #         filters=2,
-    #         kernel_size=3,
-    #         kernel_initializer=initializers.Constant(0.001),
-    #         recurrent_initializer=initializers.Constant(0.0),
-    #         bias_initializer=initializers.Constant(0.3),
-    #         use_bias=False,
-    #     )
-    #     output = layer(sequence)
-    #     self.assertAllClose(
-    #         np.array(
-    #             [
-    #                 [[0.49877906, 0.49877906], [0.5447451, 0.5447451]],
-    #                 [[0.94260275, 0.94260275], [0.95974874, 0.95974874]],
-    #             ]
-    #         ),
-    #         output,
-    #     )
+    def test_correctness(self):
+        sequence = np.arange(120).reshape((2, 3, 4, 5)).astype("float32") / 10
+        layer = layers.ConvLSTM1D(
+            filters=2,
+            kernel_size=3,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+        )
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [[0.40807986, 0.40807986], [0.46421072, 0.46421072]],
+                    [[0.80933154, 0.80933154], [0.8233646, 0.8233646]],
+                ]
+            ),
+            output,
+        )

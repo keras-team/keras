@@ -1,3 +1,6 @@
+import numpy as np
+
+from keras_core import initializers
 from keras_core import layers
 from keras_core import testing
 
@@ -43,30 +46,30 @@ class ConvLSTM2DTest(testing.TestCase):
             supports_masking=True,
         )
 
-    # TODO: correctness testing
-
-    # def test_correctness(self):
-    #     sequence = np.arange(480).reshape((2, 3, 4, 4, 5)).astype("float32")
-    #     layer = layers.ConvLSTM2D(
-    #         filters=2,
-    #         kernel_size=3,
-    #         kernel_initializer=initializers.Constant(0.0001),
-    #         recurrent_initializer=initializers.Constant(0.01),
-    #         bias_initializer=initializers.Constant(0.01),
-    #     )
-    #     output = layer(sequence)
-    #     self.assertAllClose(
-    #         np.array(
-    #             [
-    #                 [
-    #                     [[0.4320268, 0.4320268], [0.4475501, 0.4475501]],
-    #                     [[0.49229687, 0.49229687], [0.50656533, 0.50656533]],
-    #                 ],
-    #                 [
-    #                     [[0.8781725, 0.8781725], [0.88340145, 0.88340145]],
-    #                     [[0.8988858, 0.8988858], [0.9039862, 0.9039862]],
-    #                 ],
-    #             ]
-    #         ),
-    #         output,
-    #     )
+    def test_correctness(self):
+        sequence = (
+            np.arange(480).reshape((2, 3, 4, 4, 5)).astype("float32") / 100
+        )
+        layer = layers.ConvLSTM2D(
+            filters=2,
+            kernel_size=3,
+            kernel_initializer=initializers.Constant(0.01),
+            recurrent_initializer=initializers.Constant(0.02),
+            bias_initializer=initializers.Constant(0.03),
+        )
+        output = layer(sequence)
+        self.assertAllClose(
+            np.array(
+                [
+                    [
+                        [[0.48694518, 0.48694518], [0.50237733, 0.50237733]],
+                        [[0.5461202, 0.5461202], [0.5598283, 0.5598283]],
+                    ],
+                    [
+                        [[0.8661607, 0.8661607], [0.86909103, 0.86909103]],
+                        [[0.8774414, 0.8774414], [0.8800861, 0.8800861]],
+                    ],
+                ]
+            ),
+            output,
+        )

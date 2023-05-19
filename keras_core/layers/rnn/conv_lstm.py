@@ -93,7 +93,7 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         data_format=None,
         dilation_rate=1,
         activation="tanh",
-        recurrent_activation="hard_sigmoid",
+        recurrent_activation="sigmoid",
         use_bias=True,
         kernel_initializer="glorot_uniform",
         recurrent_initializer="orthogonal",
@@ -153,30 +153,30 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         self.input_spec = InputSpec(ndim=rank + 2)
         self.state_size = -1  # Custom, defined in methods
 
-    def build(self, input_shape):
+    def build(self, inputs_shape, states_shape=None):
         if self.data_format == "channels_first":
             channel_axis = 1
-            self.spatial_dims = input_shape[2:]
+            self.spatial_dims = inputs_shape[2:]
         else:
             channel_axis = -1
-            self.spatial_dims = input_shape[1:-1]
+            self.spatial_dims = inputs_shape[1:-1]
         if None in self.spatial_dims:
             raise ValueError(
                 "ConvLSTM layers only support static "
                 "input shapes for the spatial dimension. "
-                f"Received invalid input shape: input_shape={input_shape}"
+                f"Received invalid input shape: input_shape={inputs_shape}"
             )
-        if input_shape[channel_axis] is None:
+        if inputs_shape[channel_axis] is None:
             raise ValueError(
                 "The channel dimension of the inputs (last axis) should be "
                 "defined. Found None. Full input shape received: "
-                f"input_shape={input_shape}"
+                f"input_shape={inputs_shape}"
             )
         self.input_spec = InputSpec(
-            ndim=self.rank + 3, shape=(None,) + input_shape[1:]
+            ndim=self.rank + 3, shape=(None,) + inputs_shape[1:]
         )
 
-        input_dim = input_shape[channel_axis]
+        input_dim = inputs_shape[channel_axis]
         self.input_dim = input_dim
         self.kernel_shape = self.kernel_size + (input_dim, self.filters * 4)
         recurrent_kernel_shape = self.kernel_size + (
@@ -234,13 +234,13 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         h_tm1 = states[0]  # previous memory state
         c_tm1 = states[1]  # previous carry state
 
-        dp_mask = self.get_dropout_mask(inputs)
-        rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
+        # dp_mask = self.get_dropout_mask(inputs)
+        # rec_dp_mask = self.get_recurrent_dropout_mask(h_tm1)
 
-        if training and 0.0 < self.dropout < 1.0:
-            inputs *= dp_mask
-        if training and 0.0 < self.recurrent_dropout < 1.0:
-            h_tm1 *= rec_dp_mask
+        # if training and 0.0 < self.dropout < 1.0:
+        #     inputs *= dp_mask
+        # if training and 0.0 < self.recurrent_dropout < 1.0:
+        #     h_tm1 *= rec_dp_mask
 
         inputs_i = inputs
         inputs_f = inputs
@@ -466,7 +466,7 @@ class ConvLSTM(RNN):
         data_format=None,
         dilation_rate=1,
         activation="tanh",
-        recurrent_activation="hard_sigmoid",
+        recurrent_activation="sigmoid",
         use_bias=True,
         kernel_initializer="glorot_uniform",
         recurrent_initializer="orthogonal",
