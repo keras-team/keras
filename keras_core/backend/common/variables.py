@@ -372,6 +372,7 @@ PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int",  # TBD by backend
     float: "float32",
+    str: "string",
 }
 
 
