@@ -637,10 +637,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             knn.elu(x),
             [-0.63212055, 0, 1, 2, 3],
         )
-        self.assertAllClose(
-            knn.elu(x, alpha=0.5),
-            [-0.31606027, 0, 1, 2, 3],
-        )
 
     def test_selu(self):
         x = np.array([-1, 0, 1, 2, 3], dtype=np.float32)

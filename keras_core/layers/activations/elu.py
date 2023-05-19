@@ -10,22 +10,21 @@ class ELU(Layer):
     Formula:
 
     ```
-    f(x) = alpha * (exp(x) - 1.) for x < 0
+    f(x) = (exp(x) - 1.) for x < 0
     f(x) = x for x >= 0
     ```
 
     Args:
-        alpha: float, slope of negative section. Defaults to 1.0.
-        **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+        **kwargs: Base layer keyword arguments, such as
+            `name` and `dtype`.
     """
 
-    def __init__(self, alpha=1.0, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.alpha = alpha
         self.supports_masking = True
 
     def call(self, inputs):
-        return activations.elu(inputs, alpha=self.alpha)
+        return activations.elu(inputs)
 
     def compute_output_shape(self, input_shape):
         return input_shape

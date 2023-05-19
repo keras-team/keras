@@ -13,37 +13,46 @@ class PReLU(Layer):
 
     Formula:
     ``` python
-    f(x) = alpha * x for x < 0
+    f(x) = negative_slope * x for x < 0
     f(x) = x for x >= 0
     ```
-    where `alpha` is a learned array with the same shape as x.
+    where `negative_slope` is a learned array with the same shape as x.
 
     Args:
-        alpha_initializer: Initializer function for the weights.
-        alpha_regularizer: Regularizer for the weights.
-        alpha_constraint: Constraint for the weights.
-        shared_axes: The axes along which to share learnable parameters for the
-            activation function. For example, if the incoming feature maps are
-            from a 2D convolution with output shape
-            `(batch, height, width, channels)`, and you wish to share parameters
-            across space so that each filter only has one set of parameters,
+        negative_slope_initializer: Initializer function for the weights.
+        negative_slope_regularizer: Regularizer for the weights.
+        negative_slope_constraint: Constraint for the weights.
+        shared_axes: The axes along which to share learnable
+            parameters for the activation function.
+            For example, if the incoming feature maps
+            are from a 2D convolution
+            with output shape `(batch, height, width, channels)`,
+            and you wish to share parameters across space
+            so that each filter only has one set of parameters,
             set `shared_axes=[1, 2]`.
-        **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+        **kwargs: Base layer keyword arguments, such as
+            `name` and `dtype`.
     """
 
     def __init__(
         self,
-        alpha_initializer="Zeros",
-        alpha_regularizer=None,
-        alpha_constraint=None,
+        negative_slope_initializer="Zeros",
+        negative_slope_regularizer=None,
+        negative_slope_constraint=None,
         shared_axes=None,
         **kwargs
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
-        self.alpha_initializer = initializers.get(alpha_initializer)
-        self.alpha_regularizer = regularizers.get(alpha_regularizer)
-        self.alpha_constraint = constraints.get(alpha_constraint)
+        self.negative_slope_initializer = initializers.get(
+            negative_slope_initializer
+        )
+        self.negative_slope_regularizer = regularizers.get(
+            negative_slope_regularizer
+        )
+        self.negative_slope_constraint = constraints.get(
+            negative_slope_constraint
+        )
         if shared_axes is None:
             self.shared_axes = None
         elif not isinstance(shared_axes, (list, tuple)):
@@ -56,12 +65,12 @@ class PReLU(Layer):
         if self.shared_axes is not None:
             for i in self.shared_axes:
                 param_shape[i - 1] = 1
-        self.alpha = self.add_weight(
+        self.negative_slope = self.add_weight(
             shape=param_shape,
-            name="alpha",
-            initializer=self.alpha_initializer,
-            regularizer=self.alpha_regularizer,
-            constraint=self.alpha_constraint,
+            name="negative_slope",
+            initializer=self.negative_slope_initializer,
+            regularizer=self.negative_slope_regularizer,
+            constraint=self.negative_slope_constraint,
         )
         # Set input spec
         axes = {}
@@ -74,21 +83,21 @@ class PReLU(Layer):
 
     def call(self, inputs):
         pos = activations.relu(inputs)
-        neg = -self.alpha * activations.relu(-inputs)
+        neg = -self.negative_slope * activations.relu(-inputs)
         return pos + neg
 
     def get_config(self):
         config = super().get_config()
         config.update(
             {
-                "alpha_initializer": initializers.serialize(
-                    self.alpha_initializer
+                "negative_slope_initializer": initializers.serialize(
+                    self.negative_slope_initializer
                 ),
-                "alpha_regularizer": regularizers.serialize(
-                    self.alpha_regularizer
+                "negative_slope_regularizer": regularizers.serialize(
+                    self.negative_slope_regularizer
                 ),
-                "alpha_constraint": constraints.serialize(
-                    self.alpha_constraint
+                "negative_slope_constraint": constraints.serialize(
+                    self.negative_slope_constraint
                 ),
                 "shared_axes": self.shared_axes,
             }

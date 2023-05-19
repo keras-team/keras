@@ -262,8 +262,6 @@ class LSTMCell(Layer, DropoutRNNCell):
             h_tm1 = (h_tm1_i, h_tm1_f, h_tm1_c, h_tm1_o)
             c, o = self._compute_carry_and_output(x, h_tm1, c_tm1)
         else:
-            if 0.0 < self.dropout < 1.0:
-                inputs = inputs * dp_mask[0]
             z = ops.matmul(inputs, self.kernel)
 
             z += ops.matmul(h_tm1, self.recurrent_kernel)

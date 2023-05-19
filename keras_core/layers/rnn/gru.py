@@ -247,9 +247,6 @@ class GRUCell(Layer, DropoutRNNCell):
 
             hh = self.activation(x_h + recurrent_h)
         else:
-            if 0.0 < self.dropout < 1.0:
-                inputs = inputs * dp_mask[0]
-
             # inputs projected by all gate matrices at once
             matrix_x = ops.matmul(inputs, self.kernel)
             if self.use_bias:

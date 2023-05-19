@@ -106,6 +106,7 @@ class TestCase(unittest.TestCase):
         supports_masking=None,
         expected_mask_shape=None,
         custom_objects=None,
+        run_training_check=True,
     ):
         """Run basic checks on a layer.
 
@@ -140,6 +141,8 @@ class TestCase(unittest.TestCase):
                 returned by compute_mask() (only supports 1 shape).
             custom_objects: Dict of any custom objects to be
                 considered during deserialization.
+            run_training_check: Whether to attempt to train the layer
+                (if an input shape or input data was provided).
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
@@ -271,7 +274,9 @@ class TestCase(unittest.TestCase):
 
             model = TestModel(layer)
             model.compile(optimizer="sgd", loss="mse", jit_compile=False)
-            model.fit(np.array(input_data), np.array(output_data))
+            input_data = nest.map_structure(lambda x: np.array(x), input_data)
+            output_data = nest.map_structure(lambda x: np.array(x), output_data)
+            model.fit(input_data, output_data, verbose=0)
 
         # Build test.
         if input_shape is not None:
@@ -309,8 +314,8 @@ class TestCase(unittest.TestCase):
                 output_data = layer(input_data, **call_kwargs)
             run_output_asserts(layer, output_data, eager=True)
 
-            # # Compiled training step - TODO
-            # run_training_step(layer, input_data, output_data)
+            if run_training_check:
+                run_training_step(layer, input_data, output_data)
 
 
 def create_keras_tensors(input_shape, dtype):

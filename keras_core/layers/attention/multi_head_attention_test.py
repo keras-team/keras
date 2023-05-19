@@ -21,6 +21,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            run_training_check=False,
         )
 
         self.run_layer_test(
@@ -39,6 +40,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            run_training_check=False,
         )
 
     @parameterized.named_parameters(
@@ -78,6 +80,7 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             expected_num_seed_generators=0,
             expected_num_losses=0,
             supports_masking=True,
+            run_training_check=False,
         )
 
     @parameterized.named_parameters(

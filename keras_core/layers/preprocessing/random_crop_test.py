@@ -14,6 +14,7 @@ class RandomCropTest(testing.TestCase):
             },
             input_shape=(2, 3, 4),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_random_crop_full(self):
@@ -34,6 +35,7 @@ class RandomCropTest(testing.TestCase):
             input_shape=(12, 8, 16, 3),
             expected_output_shape=(12, 8, 8, 3),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_predicting_with_longer_height(self):
@@ -46,6 +48,7 @@ class RandomCropTest(testing.TestCase):
             input_shape=(12, 8, 16, 3),
             expected_output_shape=(12, 10, 8, 3),
             supports_masking=False,
+            run_training_check=False,
         )
 
     def test_predicting_with_longer_width(self):
@@ -58,4 +61,5 @@ class RandomCropTest(testing.TestCase):
             input_shape=(12, 8, 16, 3),
             expected_output_shape=(12, 8, 18, 3),
             supports_masking=False,
+            run_training_check=False,
         )

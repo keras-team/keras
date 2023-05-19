@@ -49,8 +49,8 @@ def batch_dot(x, y, axes=None):
         rank is 1, we reshape it to `(batch_size, 1)`.
     """
 
-    x_shape = tuple(ops.shape(x))
-    y_shape = tuple(ops.shape(y))
+    x_shape = x.shape
+    y_shape = y.shape
 
     x_ndim = len(x_shape)
     y_ndim = len(y_shape)
@@ -301,8 +301,8 @@ class Dot(Merge):
         if isinstance(self.axes, int):
             if self.axes < 0:
                 axes = [
-                    self.axes % x1.ndim,
-                    self.axes % x2.ndim,
+                    self.axes % len(x1.shape),
+                    self.axes % len(x2.shape),
                 ]
             else:
                 axes = [self.axes] * 2
@@ -310,7 +310,7 @@ class Dot(Merge):
             axes = []
             for i in range(len(self.axes)):
                 if self.axes[i] < 0:
-                    axes.append(self.axes[i] % inputs[i].ndim)
+                    axes.append(self.axes[i] % len(inputs[i].shape))
                 else:
                     axes.append(self.axes[i])
 

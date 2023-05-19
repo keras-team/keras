@@ -24,8 +24,8 @@ class LambdaTest(testing.TestCase):
         self.run_layer_test(
             layers.Lambda,
             init_kwargs={"function": ops.square, "mask": ops.ones((2, 3))},
-            input_shape=(2, 3),
-            expected_output_shape=(2, 3),
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 4),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,

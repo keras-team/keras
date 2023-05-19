@@ -706,7 +706,9 @@ class Layer(Operation):
                 for x in scope.losses:
                     if x in self._losses:
                         scope.losses.remove(x)
-        self._losses = []
+        self._losses.clear()
+        for layer in self._layers:
+            layer._clear_losses()
 
     def add_metric(self):
         # Permanently disabled

@@ -215,7 +215,7 @@ class LayerNormalization(Layer):
         outputs = ops.cast(outputs, input_dtype)
 
         # If some components of the shape got lost due to adjustments, fix that.
-        outputs = ops.reshape(outputs, input_shape)
+        outputs = ops.reshape(outputs, ops.shape(inputs))
 
         return outputs
 

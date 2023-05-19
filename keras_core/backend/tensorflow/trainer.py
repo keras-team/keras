@@ -55,7 +55,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self._loss_tracker.update_state(loss)
 
         # Compute gradients
-        # TODO: move value conversion to TF
         if self.trainable_weights:
             trainable_weights = [v.value for v in self.trainable_weights]
             gradients = tape.gradient(loss, trainable_weights)
@@ -88,7 +87,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return y_pred
 
     def make_train_function(self, force=False):
-        # TODO: support tf.distribute and steps_per_execution.
         if self.train_function is not None and not force:
             return self.train_function
 
@@ -131,10 +129,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.train_function = train_function
 
     def make_test_function(self, force=False):
-        # TODO: support tf.distribute and steps_per_execution.
         if self.test_function is not None and not force:
             return self.test_function
 
+        @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
             """Runs a single test step on a batch of data."""
             return self.test_step(data)
@@ -173,10 +171,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.test_function = test_function
 
     def make_predict_function(self, force=False):
-        # TODO: support tf.distribute and steps_per_execution.
         if self.predict_function is not None and not force:
             return self.predict_function
 
+        @tf.autograph.experimental.do_not_convert
         def one_step_on_data(data):
             """Runs a predict test step on a batch of data."""
             return self.predict_step(data)

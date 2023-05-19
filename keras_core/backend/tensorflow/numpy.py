@@ -42,9 +42,10 @@ def max(x, axis=None, keepdims=False, initial=None):
 
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
+    size_x = size(x)
     tf.assert_greater(
-        size(x),
-        tf.constant(0, dtype=tf.int64),
+        size_x,
+        tf.constant(0, dtype=size_x.dtype),
         message="Cannot compute the max of an empty tensor.",
     )
 

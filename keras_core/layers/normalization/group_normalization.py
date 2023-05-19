@@ -146,19 +146,18 @@ class GroupNormalization(Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        input_shape = inputs.shape
-
         reshaped_inputs = self._reshape_into_groups(inputs)
-
         normalized_inputs = self._apply_normalization(
-            reshaped_inputs, input_shape
+            reshaped_inputs, inputs.shape
         )
-
-        return ops.reshape(normalized_inputs, input_shape)
+        return ops.reshape(normalized_inputs, ops.shape(inputs))
 
     def _reshape_into_groups(self, inputs):
-        input_shape = inputs.shape
-        group_shape = [input_shape[i] for i in range(len(input_shape))]
+        input_shape = ops.shape(inputs)
+        group_shape = list(inputs.shape)
+        for i, e in enumerate(group_shape):
+            if e is None:
+                group_shape[i] = input_shape[i]
 
         group_shape[self.axis] = input_shape[self.axis] // self.groups
         group_shape.insert(self.axis, self.groups)

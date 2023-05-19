@@ -15,7 +15,7 @@ class Softmax(Layer):
     ```
 
     Example:
-    >>>softmax_layer = keras_core.layers.activations.Softmax()
+    >>>softmax_layer = Softmax()
     >>>input = np.array([1.0, 2.0, 1.0])
     >>>result = softmax_layer(input)
     [0.21194157, 0.5761169, 0.21194157]
@@ -24,10 +24,11 @@ class Softmax(Layer):
     Args:
         axis: Integer, or list of Integers, axis along which the softmax
             normalization is applied.
-        **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+        **kwargs: Base layer keyword arguments, such as
+            `name` and `dtype`.
 
     Call arguments:
-        inputs: The inputs (logits) to the softmax layer.
+        inputs: The inputs, or logits to the softmax layer.
         mask: A boolean mask of the same shape as `inputs`. The mask
             specifies 1 to keep and 0 to mask. Defaults to `None`.
 
