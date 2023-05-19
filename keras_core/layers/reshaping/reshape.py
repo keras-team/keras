@@ -47,7 +47,7 @@ class Reshape(Layer):
         )
 
     def call(self, inputs):
-        return ops.reshape(inputs, (inputs.shape[0],) + self.target_shape)
+        return ops.reshape(inputs, (ops.shape(inputs)[0],) + self.target_shape)
 
     def get_config(self):
         config = {"target_shape": self.target_shape}

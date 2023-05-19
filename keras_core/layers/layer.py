@@ -908,7 +908,11 @@ class Layer(Operation):
         flat_masks = nest.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
             if getattr(tensor, "_keras_mask", None) is None:
-                tensor._keras_mask = mask
+                try:
+                    tensor._keras_mask = mask
+                except AttributeError:
+                    # It's a C type.
+                    pass
 
 
 def is_backend_tensor_or_symbolic(x):

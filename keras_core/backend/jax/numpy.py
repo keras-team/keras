@@ -20,6 +20,7 @@ def bincount(x, weights=None, minlength=0):
 
 
 def einsum(subscripts, *operands, **kwargs):
+    operands = [convert_to_tensor(x) for x in operands]
     return jnp.einsum(subscripts, *operands, **kwargs)
 
 
@@ -546,6 +547,7 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
     return jnp.sum(x, axis=axis, keepdims=keepdims)
 
 

@@ -385,8 +385,13 @@ def conv_transpose(
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
     kernel_size = kernel.shape[:-2]
     filters = kernel.shape[-2]
+    input_shape = list(inputs.shape)
+    symbolic_shape = tf.shape(inputs)
+    for i, e in enumerate(input_shape):
+        if e is None:
+            input_shape[i] = symbolic_shape[i]
     output_shape = compute_conv_transpose_output_shape(
-        inputs.shape,
+        input_shape,
         kernel_size,
         filters,
         strides,

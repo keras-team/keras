@@ -464,7 +464,7 @@ def gru(
         reset_after=reset_after,
     )
     inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    if not args_supported or not inputs_supported:
+    if not args_supported or not inputs_supported or not _is_gpu_available():
         raise NotImplementedError
 
     from keras_core.backend.tensorflow import Variable
@@ -650,6 +650,10 @@ def _compute_sequence_length_from_mask(mask, time_major):
     return tf.reduce_sum(tf.cast(mask, tf.int32), axis=timestep_index)
 
 
+def _is_gpu_available():
+    return bool(tf.config.list_logical_devices("GPU"))
+
+
 @tf.function(autograph=False)
 def _cudnn_gru(
     inputs,
@@ -794,7 +798,7 @@ def lstm(
         bias=bias,
     )
     inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    if not args_supported or not inputs_supported:
+    if not args_supported or not inputs_supported or not _is_gpu_available():
         raise NotImplementedError
 
     from keras_core.backend.tensorflow import Variable

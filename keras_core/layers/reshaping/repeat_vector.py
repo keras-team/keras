@@ -38,7 +38,7 @@ class RepeatVector(Layer):
         return (input_shape[0], self.n, input_shape[1])
 
     def call(self, inputs):
-        input_shape = inputs.shape
+        input_shape = ops.shape(inputs)
         reshaped = ops.reshape(inputs, (input_shape[0], 1, input_shape[1]))
         return ops.repeat(reshaped, self.n, axis=1)
 

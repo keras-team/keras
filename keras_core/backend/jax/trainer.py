@@ -91,12 +91,13 @@ class JAXTrainer(base_trainer.Trainer):
                     sample_weight,
                 ) = data_adapter_utils.unpack_x_y_sample_weight(data)
                 # Build model
-                y_pred = self(x)
-                if compile_metrics_unbuilt:
-                    # Build metrics
-                    self.compute_metrics(
-                        x, y, y_pred, sample_weight=sample_weight
-                    )
+                with backend.StatelessScope():
+                    y_pred = self(x)
+                    if compile_metrics_unbuilt:
+                        # Build metrics
+                        self.compute_metrics(
+                            x, y, y_pred, sample_weight=sample_weight
+                        )
                 break
         if not self.optimizer.built:
             # Build optimizer

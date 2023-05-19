@@ -7,6 +7,7 @@ import numpy as np
 from tensorflow import nest
 
 from keras_core import operations as ops
+from keras_core.models import Model
 from keras_core.utils import traceback_utils
 
 
@@ -99,6 +100,7 @@ class TestCase(unittest.TestCase):
         expected_output=None,
         expected_num_trainable_weights=None,
         expected_num_non_trainable_weights=None,
+        expected_num_non_trainable_variables=None,
         expected_num_seed_generators=None,
         expected_num_losses=None,
         supports_masking=None,
@@ -188,6 +190,12 @@ class TestCase(unittest.TestCase):
                     expected_num_non_trainable_weights,
                     msg="Unexpected number of non_trainable_weights",
                 )
+            if expected_num_non_trainable_variables is not None:
+                self.assertLen(
+                    layer.non_trainable_variables,
+                    expected_num_non_trainable_variables,
+                    msg="Unexpected number of non_trainable_variables",
+                )
             if expected_num_seed_generators is not None:
                 self.assertLen(
                     layer._seed_generators,
@@ -252,6 +260,19 @@ class TestCase(unittest.TestCase):
                 if expected_num_losses is not None:
                     self.assertLen(layer.losses, expected_num_losses)
 
+        def run_training_step(layer, input_data, output_data):
+            class TestModel(Model):
+                def __init__(self, layer):
+                    super().__init__()
+                    self.layer = layer
+
+                def call(self, x):
+                    return self.layer(x)
+
+            model = TestModel(layer)
+            model.compile(optimizer="sgd", loss="mse", jit_compile=False)
+            model.fit(np.array(input_data), np.array(output_data))
+
         # Build test.
         if input_shape is not None:
             layer = layer_cls(**init_kwargs)
@@ -277,7 +298,7 @@ class TestCase(unittest.TestCase):
                 output_mask = layer.compute_mask(keras_tensor_inputs)
                 self.assertEqual(expected_mask_shape, output_mask.shape)
 
-        # Eager call test.
+        # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
             if input_data is None:
                 input_data = create_eager_tensors(input_shape, input_dtype)
@@ -287,6 +308,9 @@ class TestCase(unittest.TestCase):
             else:
                 output_data = layer(input_data, **call_kwargs)
             run_output_asserts(layer, output_data, eager=True)
+
+            # # Compiled training step - TODO
+            # run_training_step(layer, input_data, output_data)
 
 
 def create_keras_tensors(input_shape, dtype):
