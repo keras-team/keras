@@ -4,6 +4,7 @@ from keras_core.backend.torch import math
 from keras_core.backend.torch import nn
 from keras_core.backend.torch import numpy
 from keras_core.backend.torch import random
+from keras_core.backend.torch.core import DYNAMIC_BATCH_SIZE_OK
 from keras_core.backend.torch.core import DYNAMIC_SHAPES_OK
 from keras_core.backend.torch.core import Variable
 from keras_core.backend.torch.core import cast
