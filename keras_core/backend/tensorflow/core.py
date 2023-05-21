@@ -7,7 +7,6 @@ from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.utils.naming import auto_name
 
 DYNAMIC_SHAPES_OK = True
-DYNAMIC_BATCH_SIZE_OK = True
 
 
 class Variable(KerasVariable, tf.__internal__.types.Tensor):

@@ -11,7 +11,6 @@ class KerasTensor:
 
         shape = backend.standardize_shape(
             shape,
-            allow_dynamic_batch_size=backend.DYNAMIC_BATCH_SIZE_OK,
             allow_all_dynamic=backend.DYNAMIC_SHAPES_OK,
         )
         self.shape = shape

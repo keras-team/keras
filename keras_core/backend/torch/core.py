@@ -4,7 +4,6 @@ from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
 
 DYNAMIC_SHAPES_OK = True
-DYNAMIC_BATCH_SIZE_OK = True
 
 
 TORCH_DTYPES = {

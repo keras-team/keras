@@ -1,18 +1,12 @@
 import numpy as np
-import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
-from keras_core import backend
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.operations import image as kimage
 
 
-@pytest.mark.skipif(
-    not backend.DYNAMIC_SHAPES_OK,
-    reason="Backend does not support dynamic shapes",
-)
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def test_resize(self):
         x = KerasTensor([None, 20, 20, 3])

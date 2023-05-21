@@ -1,17 +1,7 @@
 import numpy as np
-import pytest
 
-from keras_core import backend
 from keras_core import testing
 from keras_core.operations import core
-
-
-@pytest.mark.skipif(
-    not backend.DYNAMIC_SHAPES_OK,
-    reason="Backend does not support dynamic shapes",
-)
-class CoreOpsDynamicShapeTest(testing.TestCase):
-    pass
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):

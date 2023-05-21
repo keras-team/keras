@@ -7,8 +7,7 @@ from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 
-DYNAMIC_SHAPES_OK = False  # Dynamic shapes NG
-DYNAMIC_BATCH_SIZE_OK = True
+DYNAMIC_SHAPES_OK = True
 
 
 class Variable(KerasVariable):
@@ -59,67 +58,115 @@ def name_scope(name):
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
-        dynamic_batch_map = {}
-        magic_number = 3
-
-        def convert_keras_tensor_to_jax(x):
-            if isinstance(x, KerasTensor):
-                shape = x.shape
-                if shape and x.shape[0] is None:
-                    shape = list(shape)
-                    shape[0] = magic_number
-                    dynamic_batch = True
-                else:
-                    dynamic_batch = False
-
-                jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
-                dynamic_batch_map[jax_tensor] = dynamic_batch
-                return jax_tensor
-            return x
-
+        all_input_ktensors = []
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
+
+        # First, separate symbolic args from other args
         static_args = []
         maybe_symbolic_args = []
+        static_kwargs = {}
+        maybe_symbolic_kwargs = {}
         for arg in args:
             if isinstance(arg, built_in_types):
                 static_args.append(arg)
             else:
                 maybe_symbolic_args.append(arg)
-        static_kwargs = {}
-        maybe_symbolic_kwargs = {}
-        for (
-            k,
-            arg,
-        ) in kwargs.items():
-            if isinstance(arg, built_in_types):
-                static_kwargs[k] = arg
+        for k, v in kwargs.items():
+            if isinstance(v, built_in_types):
+                static_kwargs[k] = v
             else:
-                maybe_symbolic_kwargs[k] = arg
+                maybe_symbolic_kwargs[k] = v
+
+        # Second, identify all ktensors
+        def index_all_ktensors(x):
+            if isinstance(x, KerasTensor):
+                all_input_ktensors.append(x)
+            return x
+
+        # Third, find out if there are dynamic shapes
+        maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
+            index_all_ktensors, (maybe_symbolic_args, maybe_symbolic_kwargs)
+        )
+        none_count = 0
+        for x in all_input_ktensors:
+            for d in x.shape:
+                if d is None:
+                    none_count += 1
+
+        def convert_keras_tensor_to_jax(x, fill_value=None):
+            if isinstance(x, KerasTensor):
+                shape = list(x.shape)
+                if fill_value:
+                    for i, e in enumerate(shape):
+                        if e is None:
+                            shape[i] = fill_value
+                jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
+                return jax_tensor
+            return x
 
         def wrapped_fn(*args, **kwargs):
             return fn(*args, *static_args, **kwargs, **static_kwargs)
 
-        maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
-            convert_keras_tensor_to_jax,
-            (maybe_symbolic_args, maybe_symbolic_kwargs),
-        )
-        _, jax_out = jax.make_jaxpr(wrapped_fn, return_shape=True)(
-            *maybe_symbolic_args, **maybe_symbolic_kwargs
-        )
+        jax_out = None
+        if none_count:
+            try:
+                ms_args_1, ms_kwargs_1 = nest.map_structure(
+                    lambda x: convert_keras_tensor_to_jax(x, fill_value=83),
+                    (maybe_symbolic_args, maybe_symbolic_kwargs),
+                )
+                _, jax_out_1 = jax.make_jaxpr(wrapped_fn, return_shape=True)(
+                    *ms_args_1, **ms_kwargs_1
+                )
+
+                ms_args_2, ms_kwargs_2 = nest.map_structure(
+                    lambda x: convert_keras_tensor_to_jax(x, fill_value=89),
+                    (maybe_symbolic_args, maybe_symbolic_kwargs),
+                )
+                _, jax_out_2 = jax.make_jaxpr(wrapped_fn, return_shape=True)(
+                    *ms_args_2, **ms_kwargs_2
+                )
+
+                flat_out_1 = nest.flatten(jax_out_1)
+                flat_out_2 = nest.flatten(jax_out_2)
+
+                flat_out = []
+                for x1, x2 in zip(flat_out_1, flat_out_2):
+                    if isinstance(x1, jax.ShapeDtypeStruct):
+                        if not isinstance(x2, jax.ShapeDtypeStruct):
+                            raise ValueError("Indeterministic output ordering.")
+                        shape = list(x1.shape)
+                        for i, e in enumerate(x2.shape):
+                            if e != shape[i]:
+                                shape[i] = None
+                        flat_out.append(
+                            jax.ShapeDtypeStruct(shape, dtype=x1.dtype)
+                        )
+                    else:
+                        flat_out.append(x1)
+                jax_out = nest.pack_sequence_as(jax_out_1, flat_out)
+            except:
+                # Errors can happen when the filled dimensions
+                # are not compatible with the function
+                # (or when the function contains a bug).
+                # In such cases we don't want to confuse users
+                # with random filled dimensions and the like,
+                # so we rerun a pass on the dynamic shapes,
+                # which will likely error out when JAX tries to
+                # validate shapes as fully static.
+                # The error message will be much easier to understand.
+                pass
+
+        if jax_out is None:
+            maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
+                convert_keras_tensor_to_jax,
+                (maybe_symbolic_args, maybe_symbolic_kwargs),
+            )
+            _, jax_out = jax.make_jaxpr(wrapped_fn, return_shape=True)(
+                *maybe_symbolic_args, **maybe_symbolic_kwargs
+            )
 
         def convert_jax_spec_to_keras_tensor(x):
             if isinstance(x, jax.ShapeDtypeStruct):
-                if dynamic_batch_map.get(x, False):
-                    shape = list(x.shape)
-                    if shape[0] != magic_number:
-                        raise ValueError(
-                            f"Function {fn} appears to change the "
-                            "batch size of its input. This is not "
-                            "allowed when used in conjunction with "
-                            "dynamic batch sizes. Consider using "
-                            "a static batch size here."
-                        )
-                    shape[0] = None
                 return KerasTensor(x.shape, x.dtype)
             return x
 

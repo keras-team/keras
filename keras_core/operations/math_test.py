@@ -8,10 +8,6 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.operations import math as kmath
 
 
-@pytest.mark.skipif(
-    not backend.DYNAMIC_SHAPES_OK,
-    reason="Backend does not support dynamic shapes",
-)
 class MathOpsDynamicShapeTest(testing.TestCase):
     def test_segment_sum(self):
         data = KerasTensor((None, 4), dtype="float32")

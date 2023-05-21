@@ -11,10 +11,6 @@ from keras_core.operations import numpy as knp
 np_config.enable_numpy_behavior()
 
 
-@pytest.mark.skipif(
-    not backend.DYNAMIC_SHAPES_OK,
-    reason="Backend does not support dynamic shapes",
-)
 class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
     def test_add(self):
         x = KerasTensor((None, 3))
@@ -623,10 +619,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
 
 
-@pytest.mark.skipif(
-    not backend.DYNAMIC_SHAPES_OK,
-    reason="Backend does not support dynamic shapes",
-)
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_mean(self):
         x = KerasTensor([None, 3])

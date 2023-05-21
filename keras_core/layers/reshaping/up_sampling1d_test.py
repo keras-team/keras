@@ -48,10 +48,6 @@ class UpSamplingTest(testing.TestCase):
             layers.UpSampling1D(size=3)(np.ones((2, 1, 5))), np.ones((2, 3, 5))
         )
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_BATCH_SIZE_OK,
-        reason="Backend does not support dynamic batch sizes",
-    )
     def test_upsampling_1d_with_dynamic_batch_size(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(layers.UpSampling1D(size=2)(x).shape, (None, 4, 3))

@@ -1,7 +1,5 @@
 import numpy as np
-import pytest
 
-from keras_core import backend
 from keras_core import layers
 from keras_core.testing import test_case
 
@@ -52,10 +50,6 @@ class SpatialDropoutTest(test_case.TestCase):
             input_shape=(2, 3, 4, 4, 5),
         )
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_spatial_dropout_1D_dynamic(self):
         inputs = layers.Input((3, 2))
         layer = layers.SpatialDropout1D(0.5)
@@ -67,10 +61,6 @@ class SpatialDropoutTest(test_case.TestCase):
         outputs = layer(inputs, training=True)
         self.assertAllClose(outputs[:, 0, :], outputs[:, 1, :])
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_spatial_dropout_2D_dynamic(self):
         inputs = layers.Input((3, 2, 4))
         layer = layers.SpatialDropout2D(0.5)
@@ -82,10 +72,6 @@ class SpatialDropoutTest(test_case.TestCase):
         outputs = layer(inputs, training=True)
         self.assertAllClose(outputs[:, 0, 0, :], outputs[:, 1, 1, :])
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_spatial_dropout_3D_dynamic(self):
         inputs = layers.Input((3, 2, 4, 2))
         layer = layers.SpatialDropout3D(0.5)

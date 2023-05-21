@@ -197,7 +197,7 @@ def one_hot(x, num_classes, axis=-1):
         new_axes_order = list(range(dims))
         new_axes_order[axis] = -1  # Shifts output to axis positon
         # Shift remaining axes with offset by 1 since output moved to `axis`.
-        for ax in range(axis+1, dims):
+        for ax in range(axis + 1, dims):
             new_axes_order[ax] -= 1
         output = output.permute(new_axes_order)
     return output
