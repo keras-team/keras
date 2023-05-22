@@ -19,17 +19,24 @@ def compute_pooling_output_shape(
         spatial_shape = input_shape[1:-1]
     else:
         spatial_shape = input_shape[2:]
+    none_dims = []
+    for i in range(len(spatial_shape)):
+        if spatial_shape[i] is None:
+            # Set `None` shape to a manual value so that we can run numpy
+            # computation on `spatial_shape`.
+            spatial_shape[i] = -1
+            none_dims.append(i)
     pool_size = np.array(pool_size)
     if padding == "valid":
         output_spatial_shape = (
             np.floor((spatial_shape - pool_size) / strides) + 1
         )
-        negative_in_shape = np.all(output_spatial_shape < 0)
-        if negative_in_shape:
-            raise ValueError(
-                "Computed output size would be negative. Received: "
-                f"`inputs.shape={input_shape}` and `pool_size={pool_size}`."
-            )
+        for i in range(len(output_spatial_shape)):
+            if i not in none_dims and output_spatial_shape[i] < 0:
+                raise ValueError(
+                    "Computed output size would be negative. Received: "
+                    f"`inputs.shape={input_shape}` and `pool_size={pool_size}`."
+                )
     elif padding == "same":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
     else:
@@ -37,7 +44,10 @@ def compute_pooling_output_shape(
             "`padding` must be either `'valid'` or `'same'`. Received "
             f"{padding}."
         )
-    output_spatial_shape = tuple([int(i) for i in output_spatial_shape])
+    output_spatial_shape = [int(i) for i in output_spatial_shape]
+    for i in none_dims:
+        output_spatial_shape[i] = None
+    output_spatial_shape = tuple(output_spatial_shape)
     if data_format == "channels_last":
         output_shape = (
             (input_shape_origin[0],)
@@ -85,7 +95,15 @@ def compute_conv_output_shape(
             f"`dilation_rate={dilation_rate}` and "
             f"input of shape {input_shape}."
         )
+    none_dims = []
     spatial_shape = np.array(spatial_shape)
+    for i in range(len(spatial_shape)):
+        if spatial_shape[i] is None:
+            # Set `None` shape to a manual value so that we can run numpy
+            # computation on `spatial_shape`.
+            spatial_shape[i] = -1
+            none_dims.append(i)
+
     kernel_spatial_shape = np.array(kernel_shape[:-2])
     dilation_rate = np.array(dilation_rate)
     if padding == "valid":
@@ -96,17 +114,20 @@ def compute_conv_output_shape(
             )
             + 1
         )
-        negative_in_shape = np.all(output_spatial_shape < 0)
-        if negative_in_shape:
-            raise ValueError(
-                "Computed output size would be negative. Received "
-                f"`inputs shape={input_shape}`, "
-                f"`kernel shape={kernel_shape}`, "
-                f"`dilation_rate={dilation_rate}`."
-            )
+        for i in range(len(output_spatial_shape)):
+            if i not in none_dims and output_spatial_shape[i] < 0:
+                raise ValueError(
+                    "Computed output size would be negative. Received "
+                    f"`inputs shape={input_shape}`, "
+                    f"`kernel shape={kernel_shape}`, "
+                    f"`dilation_rate={dilation_rate}`."
+                )
     elif padding == "same" or padding == "causal":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
-    output_spatial_shape = tuple([int(i) for i in output_spatial_shape])
+    output_spatial_shape = [int(i) for i in output_spatial_shape]
+    for i in none_dims:
+        output_spatial_shape[i] = None
+    output_spatial_shape = tuple(output_spatial_shape)
     if data_format == "channels_last":
         output_shape = (
             (input_shape[0],) + output_spatial_shape + (kernel_shape[-1],)
