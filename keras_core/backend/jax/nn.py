@@ -532,7 +532,9 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     if from_logits:
-        output = jnn.sigmoid(output)
+        log_logits = jax.nn.log_sigmoid(output)
+        log_neg_logits = jax.nn.log_sigmoid(-output)
+        return -1.0 * target * log_logits - (1.0 - target) * log_neg_logits
 
     output = jnp.clip(output, epsilon(), 1.0 - epsilon())
     bce = target * jnp.log(output)
