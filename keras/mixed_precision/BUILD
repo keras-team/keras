@@ -148,6 +148,7 @@ cuda_py_test(
     size = "small",
     srcs = ["mixed_precision_graph_rewrite_test.py"],
     python_version = "PY3",
+    tags = ["notap"],  # TODO(b/283771549)
     tfrt_enabled = True,
     deps = [
         ":loss_scale_optimizer",
