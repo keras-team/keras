@@ -4,6 +4,7 @@ from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import testing
+from keras_core.applications import densenet
 from keras_core.applications import efficientnet
 from keras_core.applications import efficientnet_v2
 from keras_core.applications import mobilenet
@@ -47,6 +48,10 @@ MODEL_LIST = [
     (efficientnet_v2.EfficientNetV2S, 1280, efficientnet_v2),
     (efficientnet_v2.EfficientNetV2M, 1280, efficientnet_v2),
     (efficientnet_v2.EfficientNetV2L, 1280, efficientnet_v2),
+    # densenet
+    (densenet.DenseNet121, 1024, densenet),
+    (densenet.DenseNet169, 1664, densenet),
+    (densenet.DenseNet201, 1920, densenet),
 ]
 # Add names for `named_parameters`.
 MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]

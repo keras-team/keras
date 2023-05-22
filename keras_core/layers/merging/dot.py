@@ -263,7 +263,6 @@ class Dot(Merge):
         self._reshape_required = False
 
     def build(self, input_shape):
-        super().build(input_shape)
         # Used purely for shape validation.
         if not isinstance(input_shape[0], tuple) or len(input_shape) != 2:
             raise ValueError(
@@ -288,6 +287,7 @@ class Dot(Merge):
                 f"{shape2[axes[1]]} (at axis {axes[1]}). "
                 f"Full input shapes: {shape1}, {shape2}"
             )
+        self.built = True
 
     def _merge_function(self, inputs):
         if len(inputs) != 2:
