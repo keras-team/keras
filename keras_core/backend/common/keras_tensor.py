@@ -6,6 +6,28 @@ from keras_core.utils.naming import auto_name
 
 @keras_core_export("keras_core.KerasTensor")
 class KerasTensor:
+    """Symbolic tensor -- encapsulates a shape and a dtype.
+
+    You can use `KerasTensor` instances to build computation
+    graphs of Keras operations, such as `keras_core.Function`
+    objects or Functional `keras_core.models.Model` objects.
+
+    Example:
+
+    >>> x = keras_core.KerasTensor(shape=(3, 4), dtype="float32")
+    >>> x.shape
+    (3, 4)
+    >>> x.dtype
+    float32
+
+    Calling a Keras operation (including a layer or a model)
+    on a `KerasTensor` instance will return another `KerasTensor`
+    instance with the appropriate shape and dtype. This is
+    called a "symbolic call" (since there is no actual data
+    involved). The computation of the correct output shape and
+    dtype is called "static shape inference".
+    """
+
     def __init__(self, shape, dtype="float32", record_history=True, name=None):
         from keras_core import backend
 

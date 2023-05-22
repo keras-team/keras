@@ -78,14 +78,14 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             knn.max_pool(x, 2, 2, padding="same").shape, (None, 4, 3)
         )
 
-        x = KerasTensor([None, 8, None, 3])
-        self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, None, 3))
+        x = KerasTensor([None, 8, 8, 3])
+        self.assertEqual(knn.max_pool(x, 2, 1).shape, (None, 7, 7, 3))
         self.assertEqual(
-            knn.max_pool(x, 2, 2, padding="same").shape, (None, 4, None, 3)
+            knn.max_pool(x, 2, 2, padding="same").shape, (None, 4, 4, 3)
         )
         self.assertEqual(
             knn.max_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3),
+            (None, 4, 4, 3),
         )
 
     def test_average_pool(self):
@@ -95,14 +95,14 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             knn.average_pool(x, 2, 2, padding="same").shape, (None, 4, 3)
         )
 
-        x = KerasTensor([None, 8, None, 3])
-        self.assertEqual(knn.average_pool(x, 2, 1).shape, (None, 7, None, 3))
+        x = KerasTensor([None, 8, 8, 3])
+        self.assertEqual(knn.average_pool(x, 2, 1).shape, (None, 7, 7, 3))
         self.assertEqual(
-            knn.average_pool(x, 2, 2, padding="same").shape, (None, 4, None, 3)
+            knn.average_pool(x, 2, 2, padding="same").shape, (None, 4, 4, 3)
         )
         self.assertEqual(
             knn.average_pool(x, (2, 2), (2, 2), padding="same").shape,
-            (None, 4, None, 3),
+            (None, 4, 4, 3),
         )
 
     def test_conv(self):
@@ -121,37 +121,37 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         )
 
         # Test 2D conv.
-        inputs_2d = KerasTensor([None, 10, None, 3])
+        inputs_2d = KerasTensor([None, 10, 10, 3])
         kernel = KerasTensor([2, 2, 3, 2])
         self.assertEqual(
             knn.conv(inputs_2d, kernel, 1, padding="valid").shape,
-            (None, 9, None, 2),
+            (None, 9, 9, 2),
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, 1, padding="same").shape,
-            (None, 10, None, 2),
+            (None, 10, 10, 2),
         )
         self.assertEqual(
             knn.conv(inputs_2d, kernel, (2, 1), dilation_rate=(2, 1)).shape,
-            (None, 4, None, 2),
+            (None, 4, 9, 2),
         )
 
         # Test 3D conv.
-        inputs_3d = KerasTensor([None, 8, None, 8, 3])
+        inputs_3d = KerasTensor([None, 8, 8, 8, 3])
         kernel = KerasTensor([3, 3, 3, 3, 2])
         self.assertEqual(
             knn.conv(inputs_3d, kernel, 1, padding="valid").shape,
-            (None, 6, None, 6, 2),
+            (None, 6, 6, 6, 2),
         )
         self.assertEqual(
             knn.conv(inputs_3d, kernel, (2, 1, 2), padding="same").shape,
-            (None, 4, None, 4, 2),
+            (None, 4, 8, 4, 2),
         )
         self.assertEqual(
             knn.conv(
                 inputs_3d, kernel, 1, padding="valid", dilation_rate=(1, 2, 2)
             ).shape,
-            (None, 6, None, 4, 2),
+            (None, 6, 4, 4, 2),
         )
 
     def test_depthwise_conv(self):

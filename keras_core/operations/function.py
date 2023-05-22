@@ -9,6 +9,39 @@ from keras_core.operations.operation import Operation
 
 @keras_core_export("keras_core.Function")
 class Function(Operation):
+    """Class that encapsulates a computation graph of Keras operations.
+
+    You can use a `Function` to capture the computation graph linking
+    some input tensors to some output tensors, and reapply the same
+    computation on new inputs.
+
+    A `Function` is similar to a Functional Model, with the difference
+    that it is stateless (it does not track state variables)
+    and does not implement the `Layer` API.
+
+    Example:
+
+    ```python
+    input_1 = keras_core.KerasTensor(shape=(None, 2, 3))
+    input_2 = keras_core.KerasTensor(shape=(None, 2, 3))
+    x = input_1 + input_2
+    output = keras_core.operations.sigmoid(x)
+    fn = keras_core.Function(inputs=[input_1, input_2], outputs=output)
+
+    input_1_val = np.random.random((4, 2, 3))
+    input_2_val = np.random.random((4, 2, 3))
+    output_val = fn([input_1_val, input_2_val])
+    ```
+
+    Args:
+        inputs: `KerasTensor` instance or nested structured of
+            `KerasTensor` instances.
+        outputs: `KerasTensor` instance or nested structured of
+            `KerasTensor` instances. They should be computable
+            given only the values of `inputs`.
+        name: String. The name of the function.
+    """
+
     def __init__(self, inputs, outputs, name=None):
         super().__init__(name=name)
 
