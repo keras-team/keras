@@ -1120,7 +1120,7 @@ class BaseLayerTest(test_combinations.TestCase):
     def test_model_compute_output_signature_dtype_single_output(self):
         with policy_scope("mixed_float16"):
             inputs = input_layer.Input((None, None, 3), dtype="uint8")
-            outputs = layers.Rescaling(scale=1.0 / 255, name="scale")(inputs)
+            outputs = layers.Rescaling(scale=1.0 / 255)(inputs)
             outputs = layers.Activation("softmax", dtype="float32")(outputs)
             model = training_lib.Model(inputs=inputs, outputs=outputs)
             signature = model.compute_output_signature(
@@ -1131,7 +1131,7 @@ class BaseLayerTest(test_combinations.TestCase):
     def test_model_compute_output_signature_dtype_multiple_outputs(self):
         with policy_scope("mixed_float16"):
             inputs = input_layer.Input((None, None, 3), dtype="uint8")
-            outputs = layers.Rescaling(scale=1.0 / 255, name="scale")(inputs)
+            outputs = layers.Rescaling(scale=1.0 / 255)(inputs)
             outputs0 = layers.Activation("softmax", dtype="float64")(outputs)
             outputs1 = layers.Activation("softmax", dtype="float32")(outputs)
             model = training_lib.Model(
