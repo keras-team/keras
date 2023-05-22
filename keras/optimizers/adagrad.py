@@ -50,7 +50,7 @@ class Adagrad(optimizer.Optimizer):
             Starting value for the accumulators (per-parameter momentum values).
             Must be non-negative.
         epsilon: Small floating point value used to maintain numerical
-        stability.
+            stability.
         {{base_optimizer_keyword_args}}
 
     Reference:
