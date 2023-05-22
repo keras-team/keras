@@ -111,6 +111,7 @@ from keras_core.layers.reshaping.reshape import Reshape
 from keras_core.layers.reshaping.up_sampling1d import UpSampling1D
 from keras_core.layers.reshaping.up_sampling2d import UpSampling2D
 from keras_core.layers.reshaping.up_sampling3d import UpSampling3D
+from keras_core.layers.reshaping.zero_padding1d import ZeroPadding1D
 from keras_core.layers.reshaping.zero_padding2d import ZeroPadding2D
 from keras_core.layers.reshaping.zero_padding3d import ZeroPadding3D
 from keras_core.layers.rnn.bidirectional import Bidirectional
