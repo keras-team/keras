@@ -27,6 +27,7 @@ from keras.engine import input_layer
 from keras.engine import sequential
 from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
+from keras.mixed_precision.policy import policy_scope
 from keras.optimizers.legacy import rmsprop
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -1116,6 +1117,33 @@ class BaseLayerTest(test_combinations.TestCase):
         with self.assertRaises(NotImplementedError):
             config = layer.get_config()
 
+    def test_model_compute_output_signature_dtype_single_output(self):
+        with policy_scope("mixed_float16"):
+            inputs = input_layer.Input((None, None, 3), dtype="uint8")
+            outputs = layers.Rescaling(scale=1.0 / 255, name="scale")(inputs)
+            outputs = layers.Activation("softmax", dtype="float32")(outputs)
+            model = training_lib.Model(inputs=inputs, outputs=outputs)
+            signature = model.compute_output_signature(
+                tf.TensorSpec(dtype="uint8", shape=[2, 16, 16, 3])
+            )
+            self.assertEqual(signature.dtype, "float32")
+
+    def test_model_compute_output_signature_dtype_multiple_outputs(self):
+        with policy_scope("mixed_float16"):
+            inputs = input_layer.Input((None, None, 3), dtype="uint8")
+            outputs = layers.Rescaling(scale=1.0 / 255, name="scale")(inputs)
+            outputs0 = layers.Activation("softmax", dtype="float64")(outputs)
+            outputs1 = layers.Activation("softmax", dtype="float32")(outputs)
+            model = training_lib.Model(
+                inputs=inputs, outputs=[outputs0, outputs1]
+            )
+            signature = model.compute_output_signature(
+                tf.TensorSpec(dtype="uint8", shape=[2, 16, 16, 3])
+            )
+            self.assertLen(signature, 2)
+            self.assertEqual(signature[0].dtype, "float64")
+            self.assertEqual(signature[1].dtype, "float32")
+
 
 @test_utils.run_v2_only
 class SymbolicSupportTest(test_combinations.TestCase):
@@ -1649,7 +1677,6 @@ class NameScopingTest(test_combinations.TestCase):
 )
 class AutographControlFlowTest(test_combinations.TestCase):
     def test_disabling_in_context_is_matched(self):
-
         test_obj = self
 
         class MyLayer(base_layer.Layer):
