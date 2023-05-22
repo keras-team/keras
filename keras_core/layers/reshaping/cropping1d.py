@@ -26,12 +26,10 @@ class Cropping1D(Layer):
      [[8 9]]]
 
     Args:
-        cropping: Int, or tuple of int (length 2), or dictionary.
-            - If int: how many units should be trimmed off at the beginning and
-              end of the cropping dimension (axis 1).
-            - If tuple of 2 ints: how many units should be trimmed off at the
-              beginning and end of the cropping dimension
-              (`(left_crop, right_crop)`).
+        cropping: Integer or tuple of integers of length 2.
+            How many units should be trimmed off at the beginning and end of
+            the cropping dimension (axis 1).
+            If a single int is provided, the same value will be used for both.
 
     Input shape:
         3D tensor with shape `(batch_size, axis_to_crop, features)`

@@ -4,6 +4,8 @@ from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import testing
+from keras_core.applications import efficientnet
+from keras_core.applications import efficientnet_v2
 from keras_core.applications import mobilenet
 from keras_core.applications import mobilenet_v2
 from keras_core.applications import mobilenet_v3
@@ -19,14 +21,32 @@ except ImportError:
     PIL = None
 
 MODEL_LIST = [
-    # cls, last_dim
+    # vgg
     (vgg16.VGG16, 512, vgg16),
     (vgg19.VGG19, 512, vgg19),
+    # xception
     (xception.Xception, 2048, xception),
+    # mobilnet
     (mobilenet.MobileNet, 1024, mobilenet),
     (mobilenet_v2.MobileNetV2, 1280, mobilenet_v2),
     (mobilenet_v3.MobileNetV3Small, 576, mobilenet_v3),
     (mobilenet_v3.MobileNetV3Large, 960, mobilenet_v3),
+    # efficientnet
+    (efficientnet.EfficientNetB0, 1280, efficientnet),
+    (efficientnet.EfficientNetB1, 1280, efficientnet),
+    (efficientnet.EfficientNetB2, 1408, efficientnet),
+    (efficientnet.EfficientNetB3, 1536, efficientnet),
+    (efficientnet.EfficientNetB4, 1792, efficientnet),
+    (efficientnet.EfficientNetB5, 2048, efficientnet),
+    (efficientnet.EfficientNetB6, 2304, efficientnet),
+    (efficientnet.EfficientNetB7, 2560, efficientnet),
+    (efficientnet_v2.EfficientNetV2B0, 1280, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2B1, 1280, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2B2, 1408, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2B3, 1536, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2S, 1280, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2M, 1280, efficientnet_v2),
+    (efficientnet_v2.EfficientNetV2L, 1280, efficientnet_v2),
 ]
 # Add names for `named_parameters`.
 MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]

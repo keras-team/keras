@@ -109,7 +109,7 @@ Args:
     include_top: Boolean, whether to include the fully-connected
         layer at the top of the network. Defaults to `True`.
     weights: String, one of `None` (random initialization),
-        'imagenet' (pre-training on ImageNet),
+        `"imagenet"` (pre-training on ImageNet),
         or the path to the weights file to be loaded.
     input_tensor: Optional Keras tensor (i.e. output of
         `layers.Input()`)
@@ -127,7 +127,7 @@ Args:
         - `max` means that global max pooling will
             be applied.
     classes: Integer, optional number of classes to classify images
-        into, only to be specified if `include_top` is True, and
+        into, only to be specified if `include_top` is `True`, and
         if no `weights` argument is specified.
     dropout_rate: fraction of the input units to drop on the last layer.
     classifier_activation: A `str` or callable. The activation function to use
@@ -176,7 +176,7 @@ def MobileNetV3(
 
     if weights == "imagenet" and include_top and classes != 1000:
         raise ValueError(
-            'If using `weights` as `"imagenet"` with `include_top` '
+            'If using `weights="imagenet"` with `include_top` '
             "as true, `classes` should be 1000.  "
             f"Received classes={classes}"
         )

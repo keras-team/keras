@@ -170,6 +170,14 @@ class Normalization(Layer):
                 initializer="ones",
                 trainable=False,
             )
+            # For backwards compatibility with older saved models.
+            self.count = self.add_weight(
+                name="count",
+                shape=(),
+                dtype="int",
+                initializer="zeros",
+                trainable=False,
+            )
             self.built = True
             self.finalize_state()
         else:
@@ -307,6 +315,6 @@ class Normalization(Layer):
         return config
 
     def load_own_variables(self, store):
-        # Ensure that we call finalize_state after variable loading.
         super().load_own_variables(store)
+        # Ensure that we call finalize_state after variable loading.
         self.finalize_state()

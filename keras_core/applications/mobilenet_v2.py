@@ -120,7 +120,7 @@ def MobileNetV2(
 
     if weights == "imagenet" and include_top and classes != 1000:
         raise ValueError(
-            'If using `weights` as `"imagenet"` with `include_top` '
+            'If using `weights="imagenet"` with `include_top` '
             f"as true, `classes` should be 1000. Received `classes={classes}`"
         )
 
