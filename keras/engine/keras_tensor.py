@@ -20,6 +20,7 @@ from keras.utils import object_identity
 
 # isort: off
 from tensorflow.python.data.util import structure
+from tensorflow.python.util.tf_export import keras_export
 
 
 # Tensorflow tensors have a maximum rank of 254
@@ -29,6 +30,7 @@ from tensorflow.python.data.util import structure
 _MAX_TENSOR_RANK = 254
 
 
+@keras_export("keras.__internal__.KerasTensor", v1=[])
 class KerasTensor:
     """A representation of a Keras in/output during Functional API construction.
 
@@ -451,6 +453,7 @@ class KerasTensor:
 KerasTensor._overload_all_operators(tf.Tensor)
 
 
+@keras_export("keras.__internal__.SparseKerasTensor", v1=[])
 class SparseKerasTensor(KerasTensor):
     """A specialized KerasTensor representation for `tf.sparse.SparseTensor`s.
 
@@ -471,6 +474,7 @@ class SparseKerasTensor(KerasTensor):
         )
 
 
+@keras_export("keras.__internal__.RaggedKerasTensor", v1=[])
 class RaggedKerasTensor(KerasTensor):
     """A specialized KerasTensor representation for `tf.RaggedTensor`s.
 

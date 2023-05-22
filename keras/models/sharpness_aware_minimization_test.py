@@ -109,12 +109,21 @@ class SharpnessAwareMinimizationTest(tf.test.TestCase, parameterized.TestCase):
 
         sam_model.fit(data, label)
 
-        path = os.path.join(self.get_temp_dir(), "model")
-        sam_model.save(path)
-        loaded_sam_model = keras.models.load_model(path)
-        loaded_sam_model.load_weights(path)
+        with self.subTest("savedmodel"):
+            path = os.path.join(self.get_temp_dir(), "model")
+            sam_model.save(path)
+            loaded_sam_model = keras.models.load_model(path)
+            loaded_sam_model.load_weights(path)
 
-        self.assertAllClose(sam_model(data), loaded_sam_model(data))
+            self.assertAllClose(sam_model(data), loaded_sam_model(data))
+
+        with self.subTest("keras_v3"):
+            path = os.path.join(self.get_temp_dir(), "model.keras")
+            sam_model.save(path)
+            loaded_sam_model = keras.models.load_model(path)
+            loaded_sam_model.load_weights(path)
+
+            self.assertAllClose(sam_model(data), loaded_sam_model(data))
 
     def test_checkpoint_sam(self):
         model = keras.Sequential(

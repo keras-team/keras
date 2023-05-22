@@ -268,6 +268,33 @@ class BatchNormalizationTest(test_combinations.TestCase):
         self.assertAllEqual(model.layers[2].moving_variance, [0.25, 0.0])
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_sync_batchnorm_with_mask(self):
+        padded_data = np.array(
+            [[[1, 5], [2, 5], [0, 0], [0, 0]] for _ in range(10)],
+            dtype="float32",
+        )  # Pad value of 0
+        strategy = tf.distribute.MirroredStrategy(["CPU:0"])
+        distributed_data = strategy.distribute_datasets_from_function(
+            dataset_fn=lambda _: tf.data.Dataset.from_tensors(
+                (padded_data, padded_data)
+            ).repeat(),
+            options=None,
+        )
+        with strategy.scope():
+            inputs = keras.layers.Input((None, 2))
+            masked = keras.layers.Masking()(inputs)
+            normed = keras.layers.BatchNormalization(
+                momentum=0.0, synchronized=True
+            )(masked)
+            model = keras.models.Model(inputs, normed)
+        # MirroredStrategy will be very slow when run eagerly.
+        model.compile("rmsprop", "mse", run_eagerly=False)
+        model.fit(distributed_data, steps_per_epoch=1, epochs=5)
+
+        self.assertAllEqual(model.layers[2].moving_mean, [1.5, 5.0])
+        self.assertAllEqual(model.layers[2].moving_variance, [0.25, 0.0])
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_eager_batchnorm_in_custom_model_call_with_tf_function(self):
         class MyModel(keras.Model):
             def __init__(self):

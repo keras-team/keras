@@ -46,20 +46,20 @@ class MemoryTest(tf.test.TestCase):
         if not memory_test_util.memory_profiler_is_available():
             self.skipTest("memory_profiler required to run this test")
 
-        inputs = tf.zeros([32, 100], tf.float32)
+        inputs = tf.zeros([1000, 1000], tf.float32)
         net = SingleLayerNet()
 
         def f():
             with tf.GradientTape():
                 net(inputs)
 
-        memory_test_util.assert_no_leak(f)
+        memory_test_util.assert_no_leak(f, num_iters=1000)
 
     def testMemoryLeakInSimpleModelForwardAndBackward(self):
         if not memory_test_util.memory_profiler_is_available():
             self.skipTest("memory_profiler required to run this test")
 
-        inputs = tf.zeros([32, 100], tf.float32)
+        inputs = tf.zeros([1000, 1000], tf.float32)
         net = SingleLayerNet()
 
         def f():
@@ -70,7 +70,7 @@ class MemoryTest(tf.test.TestCase):
 
             del tape
 
-        memory_test_util.assert_no_leak(f)
+        memory_test_util.assert_no_leak(f, num_iters=1000)
 
 
 if __name__ == "__main__":

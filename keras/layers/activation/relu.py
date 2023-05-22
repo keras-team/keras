@@ -32,9 +32,9 @@ class ReLU(Layer):
     Otherwise, it follows:
 
     ```
-      f(x) = max_value if x >= max_value
-      f(x) = x if threshold <= x < max_value
-      f(x) = negative_slope * (x - threshold) otherwise
+        f(x) = max_value if x >= max_value
+        f(x) = x if threshold <= x < max_value
+        f(x) = negative_slope * (x - threshold) otherwise
     ```
 
     Usage:
@@ -57,19 +57,20 @@ class ReLU(Layer):
     [0.0, 0.0, 0.0, 2.0]
 
     Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the batch axis)
-      when using this layer as the first layer in a model.
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the batch axis)
+        when using this layer as the first layer in a model.
 
     Output shape:
-      Same shape as the input.
+        Same shape as the input.
 
     Args:
-      max_value: Float >= 0. Maximum activation value. Default to None, which
-        means unlimited.
-      negative_slope: Float >= 0. Negative slope coefficient. Default to 0.
-      threshold: Float >= 0. Threshold value for thresholded activation. Default
-        to 0.
+        max_value: Float >= 0. Maximum activation value. None means unlimited.
+            Defaults to `None`.
+        negative_slope: Float >= 0. Negative slope coefficient.
+            Defaults to `0.`.
+        threshold: Float >= 0. Threshold value for thresholded activation.
+            Defaults to `0.`.
     """
 
     def __init__(

@@ -43,9 +43,10 @@ class Flatten(Layer):
         `channels_last` corresponds to inputs with shape
         `(batch, ..., channels)` while `channels_first` corresponds to
         inputs with shape `(batch, channels, ...)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
 
     Example:
 

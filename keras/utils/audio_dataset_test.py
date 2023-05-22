@@ -354,6 +354,21 @@ class AudioDatasetFromDirectoryTest(test_combinations.TestCase):
                 sampling_rate=1.2,
             )
 
+        # Only run this test case when we don't have tensorflow_io.
+        try:
+            import tensorflow_io  # noqa: F401
+        except ImportError:
+            with self.assertRaisesRegex(
+                ImportError,
+                "To use the argument `sampling_rate`.*tensorflow_io.*",
+            ):
+                _ = audio_dataset.audio_dataset_from_directory(
+                    directory,
+                    ragged=False,
+                    output_sequence_length=10,
+                    sampling_rate=44100,
+                )
+
         with self.assertRaisesRegex(
             ValueError, "Cannot set both `ragged` and `output_sequence_length`"
         ):

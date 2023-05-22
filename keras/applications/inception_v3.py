@@ -82,13 +82,13 @@ def InceptionV3(
 
     Args:
       include_top: Boolean, whether to include the fully-connected
-        layer at the top, as the last layer of the network. Default to `True`.
+        layer at the top, as the last layer of the network. Defaults to `True`.
       weights: One of `None` (random initialization),
         `imagenet` (pre-training on ImageNet),
-        or the path to the weights file to be loaded. Default to `imagenet`.
+        or the path to the weights file to be loaded. Defaults to `imagenet`.
       input_tensor: Optional Keras tensor (i.e. output of `layers.Input()`)
         to use as image input for the model. `input_tensor` is useful for
-        sharing inputs between multiple different networks. Default to None.
+        sharing inputs between multiple different networks. Defaults to `None`.
       input_shape: Optional shape tuple, only to be specified
         if `include_top` is False (otherwise the input shape
         has to be `(299, 299, 3)` (with `channels_last` data format)
@@ -108,7 +108,7 @@ def InceptionV3(
         - `max` means that global max pooling will be applied.
       classes: optional number of classes to classify images
         into, only to be specified if `include_top` is True, and
-        if no `weights` argument is specified. Default to 1000.
+        if no `weights` argument is specified. Defaults to 1000.
       classifier_activation: A `str` or callable. The activation function to use
         on the "top" layer. Ignored unless `include_top=True`. Set
         `classifier_activation=None` to return the logits of the "top" layer.

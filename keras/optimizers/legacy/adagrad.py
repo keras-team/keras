@@ -40,10 +40,10 @@ class Adagrad(optimizer_v2.OptimizerV2):
       learning_rate: Initial value for the learning rate:
         either a floating point value,
         or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
-        Defaults to 0.001.
         Note that `Adagrad` tends to benefit from higher initial learning rate
         values compared to other optimizers.
         To match the exact form in the original paper, use 1.0.
+        Defaults to `0.001`.
       initial_accumulator_value: Floating point value.
         Starting value for the accumulators (per-parameter momentum values).
         Must be non-negative.

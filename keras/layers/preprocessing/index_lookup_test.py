@@ -2211,6 +2211,7 @@ class IndexLookupSavingTest(
             ]
         )
         expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
+        vocab_file = self._write_to_temp_file("temp", vocab_data)
 
         # Build and validate a golden model.
         input_data = keras.Input(shape=(None,), dtype=tf.string)
@@ -2220,32 +2221,57 @@ class IndexLookupSavingTest(
             mask_token="",
             oov_token="[OOV]",
             vocabulary_dtype=tf.string,
+            vocabulary=vocab_file,
         )
-        layer.set_vocabulary(vocab_data)
         int_data = layer(input_data)
         model = keras.Model(inputs=input_data, outputs=int_data)
         output_dataset = model.predict(input_array)
         self.assertAllEqual(output_dataset, expected_output)
 
-        # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format="tf")
+        with self.subTest("keras_v3"):
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_model.keras"
+            )
+            model.save(output_path, save_format="keras_v3")
 
-        # Delete the session and graph to ensure that the loaded model is
-        # generated from scratch.
-        keras.backend.clear_session()
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
 
-        loaded_model = keras.models.load_model(
-            output_path,
-            custom_objects={"IndexLookup": index_lookup.IndexLookup},
-        )
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
 
-        # Ensure that the loaded model is unique (so that the save/load is real)
-        self.assertIsNot(model, loaded_model)
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
-        # Validate correctness of the new model.
-        new_output_dataset = loaded_model.predict(input_array)
-        self.assertAllEqual(new_output_dataset, expected_output)
+        with self.subTest("savedmodel"):
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model"
+            )
+            model.save(output_path, save_format="tf")
+
+            # Delete the session and graph to ensure that the loaded model is
+            # generated from scratch.
+            keras.backend.clear_session()
+            tf.io.gfile.remove(vocab_file)
+
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
+
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
+
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
     def test_vocabulary_persistence_file_across_cloning(self):
         vocab_data = ["earth", "wind", "and", "fire"]
@@ -2401,56 +2427,108 @@ class IndexLookupSavingTest(
         output_dataset = model.predict(input_array)
         self.assertAllEqual(output_dataset, expected_output)
 
-        # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format="tf")
+        with self.subTest("keras_v3"):
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_model.keras"
+            )
+            model.save(output_path, save_format="keras_v3")
 
-        # Delete the session and graph to ensure that the loaded model is
-        # generated from scratch.
-        keras.backend.clear_session()
-        tf.io.gfile.remove(vocab_file)
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
 
-        loaded_model = keras.models.load_model(
-            output_path,
-            custom_objects={"IndexLookup": index_lookup.IndexLookup},
-        )
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
 
-        # Ensure that the loaded model is unique (so that the save/load is real)
-        self.assertIsNot(model, loaded_model)
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
-        # Validate correctness of the new model.
-        new_output_dataset = loaded_model.predict(input_array)
-        self.assertAllEqual(new_output_dataset, expected_output)
+            # Try re-saving the layer. This simulates saving a layer
+            # contained at a hub Module.
+            input_data_2 = keras.Input(shape=(None,), dtype=tf.string)
+            output_2 = loaded_model(input_data_2)
+            model_2 = keras.Model(inputs=input_data_2, outputs=output_2)
+            new_output_dataset = model_2.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
-        # Try re-saving the layer. This simulates saving a layer contained at
-        # a hub Module.
-        input_data_2 = keras.Input(shape=(None,), dtype=tf.string)
-        output_2 = loaded_model(input_data_2)
-        model_2 = keras.Model(inputs=input_data_2, outputs=output_2)
-        new_output_dataset = model_2.predict(input_array)
-        self.assertAllEqual(new_output_dataset, expected_output)
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_model_2.keras"
+            )
+            model_2.save(output_path, save_format="keras_v3")
 
-        # Save the model to disk.
-        output_path = os.path.join(
-            self.get_temp_dir(), "tf_keras_saved_model_2"
-        )
-        model_2.save(output_path, save_format="tf")
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
 
-        # Delete the session and graph to ensure that the loaded model is
-        # generated from scratch.
-        keras.backend.clear_session()
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
 
-        loaded_model = keras.models.load_model(
-            output_path,
-            custom_objects={"IndexLookup": index_lookup.IndexLookup},
-        )
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
-        # Ensure that the loaded model is unique (so that the save/load is real)
-        self.assertIsNot(model, loaded_model)
+        with self.subTest("saved_model"):
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model"
+            )
+            model.save(output_path, save_format="tf")
 
-        # Validate correctness of the new model.
-        new_output_dataset = loaded_model.predict(input_array)
-        self.assertAllEqual(new_output_dataset, expected_output)
+            # Delete the session and graph to ensure that the loaded model is
+            # generated from scratch.
+            keras.backend.clear_session()
+            tf.io.gfile.remove(vocab_file)
+
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
+
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
+
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
+
+            # Try re-saving the layer. This simulates saving a layer
+            # contained at a hub Module.
+            input_data_2 = keras.Input(shape=(None,), dtype=tf.string)
+            output_2 = loaded_model(input_data_2)
+            model_2 = keras.Model(inputs=input_data_2, outputs=output_2)
+            new_output_dataset = model_2.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
+
+            # Save the model to disk.
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model_2"
+            )
+            model_2.save(output_path, save_format="tf")
+
+            # Delete the session and graph to ensure that the loaded model is
+            # generated from scratch.
+            keras.backend.clear_session()
+
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={"IndexLookup": index_lookup.IndexLookup},
+            )
+
+            # Ensure that the loaded model is unique
+            # (so that the save/load is real)
+            self.assertIsNot(model, loaded_model)
+
+            # Validate correctness of the new model.
+            new_output_dataset = loaded_model.predict(input_array)
+            self.assertAllEqual(new_output_dataset, expected_output)
 
     def test_persistence_file_vocab_keras_save_keras_load_tf_save_tf_load(self):
         vocab_data = ["earth", "wind", "and", "fire"]

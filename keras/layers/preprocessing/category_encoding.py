@@ -90,7 +90,7 @@ class CategoryEncoding(base_layer.Layer):
         inputs to the layer must integers in the range `0 <= value <
         num_tokens`, or an error will be thrown.
       output_mode: Specification for the output of the layer.
-        Defaults to `"multi_hot"`. Values can be `"one_hot"`, `"multi_hot"` or
+        Values can be `"one_hot"`, `"multi_hot"` or
         `"count"`, configuring the layer as follows:
           - `"one_hot"`: Encodes each individual element in the input into an
             array of `num_tokens` size, containing a 1 at the element index. If
@@ -105,6 +105,7 @@ class CategoryEncoding(base_layer.Layer):
           - `"count"`: Like `"multi_hot"`, but the int array contains a count of
             the number of times the token at that index appeared in the sample.
         For all output modes, currently only output up to rank 2 is supported.
+        Defaults to `"multi_hot"`.
       sparse: Boolean. If true, returns a `SparseTensor` instead of a dense
         `Tensor`. Defaults to `False`.
 

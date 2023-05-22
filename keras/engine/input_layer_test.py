@@ -14,15 +14,20 @@
 # ,============================================================================
 """Tests for InputLayer construction."""
 
+
 import tensorflow.compat.v2 as tf
 
+from keras import Sequential
 from keras import backend
+from keras import models
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_lib
+from keras.layers import Dense
 from keras.layers import core
 from keras.saving.legacy import model_config
 from keras.saving.serialization_lib import SafeModeScope
 from keras.testing_infra import test_combinations
+from keras.testing_infra import test_utils
 
 # isort: off
 from tensorflow.python.framework import type_spec
@@ -419,6 +424,42 @@ class InputLayerTest(test_combinations.TestCase):
         x = input_layer_lib.InputLayer(input_tensor=inp, dtype=tf.string)
         loaded = input_layer_lib.InputLayer.from_config(x.get_config())
         self.assertIsNone(loaded._batch_input_shape)
+
+    @test_utils.run_v2_only
+    def test_typespec_naming_propagation(self):
+        type_spec = tf.TensorSpec(name="test", shape=(None, None, 2))
+        input1 = input_layer_lib.Input(type_spec=type_spec)
+        self.assertEqual(input1.name, "test")
+
+    @test_utils.run_v2_only
+    def test_save_input_naming(self):
+        x = input_layer_lib.Input(shape=(10,), name="features")
+        y = Dense(1)(x)
+        model = functional.Functional(x, y)
+        self.assertEqual(model.layers[0].name, "features")
+        save_path = self.get_temp_dir() + "/basic_model.keras"
+        model.save(save_path)
+        reloaded_model = models.load_model(save_path)
+        self.assertEqual(reloaded_model.layers[0].name, "features")
+
+    @test_utils.run_v2_only
+    def test_export_input_naming(self):
+        model = Sequential(
+            layers=[
+                input_layer_lib.Input(shape=(8,), name="features"),
+                Dense(1),
+            ]
+        )
+        x = tf.random.normal((8, 8))
+        model(x)
+
+        export_path = self.get_temp_dir() + "test_model"
+        model.export(export_path)
+        reloaded_artifact = tf.saved_model.load(export_path)
+        self.assertEqual(
+            reloaded_artifact.signatures._signatures["serve"]._arg_keywords[-1],
+            "features",
+        )
 
 
 if __name__ == "__main__":

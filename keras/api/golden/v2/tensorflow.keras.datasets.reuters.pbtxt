@@ -1,6 +1,10 @@
 path: "tensorflow.keras.datasets.reuters"
 tf_module {
   member_method {
+    name: "get_label_names"
+    argspec: "args=[], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
     name: "get_word_index"
     argspec: "args=[\'path\'], varargs=None, keywords=None, defaults=[\'reuters_word_index.json\'], "
   }

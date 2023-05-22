@@ -363,3 +363,18 @@ tf_py_test(
         "//keras/testing_infra:test_combinations",
     ],
 )
+
+tf_py_test(
+    name = "extension_type_test",
+    size = "medium",
+    srcs = ["extension_type_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/api:keras_api",
+        "//keras/engine",
+        "//keras/engine:input_layer",
+        "//keras/saving",
+    ],
+)

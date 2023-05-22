@@ -33,7 +33,6 @@ from keras.utils import tf_contextlib
 # isort: off
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.util.tf_export import tf_export
 
 _KERAS_STYLE_SCOPE = False
 
@@ -41,7 +40,6 @@ _KERAS_STYLE_SCOPE = False
 @keras_export(
     v1=["keras.__internal__.legacy.layers.experimental.keras_style_scope"]
 )
-@tf_export(v1=["layers.experimental.keras_style_scope"])
 @tf_contextlib.contextmanager
 def keras_style_scope():
     """Use Keras-style variable management.
@@ -113,7 +111,6 @@ def keras_style_scope():
 @keras_export(
     v1=["keras.__internal__.legacy.layers.experimental.set_keras_style"]
 )
-@tf_export(v1=["layers.experimental.set_keras_style"])
 def set_keras_style():
     """Use Keras-style variable management.
 
@@ -157,7 +154,6 @@ def _is_in_keras_style_scope():
 
 
 @keras_export(v1=["keras.__internal__.legacy.layers.Layer"])
-@tf_export(v1=["layers.Layer"])
 class Layer(base_layer.Layer):
     """Base layer class.
 

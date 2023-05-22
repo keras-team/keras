@@ -543,8 +543,8 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
             # Mock Remote Path check to true to test gfile copy logic
             mock_re_match.return_value = True
             model._save_experimental(temp_filepath)
-            mock_re_match.assert_called_once()
-            mock_copy.assert_called_once()
+            mock_re_match.assert_called()
+            mock_copy.assert_called()
             self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
             self.assertIn(str(temp_filepath), mock_copy.call_args.args)
 
@@ -733,6 +733,134 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
         self.assertAllClose(ref_out, out, atol=1e-6)
+
+
+# This custom class lacks custom object registration.
+class CustomRNN(keras.layers.Layer):
+    def __init__(self, units):
+        super(CustomRNN, self).__init__()
+        self.units = units
+        self.projection_1 = keras.layers.Dense(units=units, activation="tanh")
+        self.projection_2 = keras.layers.Dense(units=units, activation="tanh")
+        self.classifier = keras.layers.Dense(1)
+
+    def call(self, inputs):
+        outputs = []
+        state = tf.zeros(shape=(inputs.shape[0], self.units))
+        for t in range(inputs.shape[1]):
+            x = inputs[:, t, :]
+            h = self.projection_1(x)
+            y = h + self.projection_2(state)
+            state = y
+            outputs.append(y)
+        features = tf.stack(outputs, axis=1)
+        return self.classifier(features)
+
+
+# This class is properly registered with a `get_config()` method.
+# However, since it does not subclass keras.layers.Layer, it lacks
+# `from_config()` for deserialization.
+@keras.utils.register_keras_serializable()
+class GrowthFactor:
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, inputs):
+        return inputs * self.factor
+
+    def get_config(self):
+        return {"factor": self.factor}
+
+
+@keras.utils.register_keras_serializable(package="Complex")
+class FactorLayer(keras.layers.Layer):
+    def __init__(self, factor):
+        super().__init__()
+        self.factor = factor
+
+    def call(self, x):
+        return x * self.factor
+
+    def get_config(self):
+        return {"factor": self.factor}
+
+
+# This custom model does not explicitly deserialize the layers it includes
+# in its `get_config`. Explicit deserialization in a `from_config` override
+# or `__init__` is needed here, or an error will be thrown at loading time.
+@keras.utils.register_keras_serializable(package="Complex")
+class ComplexModel(keras.layers.Layer):
+    def __init__(self, first_layer, second_layer=None, **kwargs):
+        super().__init__(**kwargs)
+        self.first_layer = first_layer
+        if second_layer is not None:
+            self.second_layer = second_layer
+        else:
+            self.second_layer = keras.layers.Dense(8)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "first_layer": self.first_layer,
+                "second_layer": self.second_layer,
+            }
+        )
+        return config
+
+    def call(self, inputs):
+        return self.first_layer(self.second_layer(inputs))
+
+
+@test_utils.run_v2_only
+class SavingV3BattleTest(tf.test.TestCase, parameterized.TestCase):
+    def test_custom_model_without_registration_error(self):
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "my_custom_model.keras"
+        )
+        timesteps = 10
+        input_dim = 5
+        batch_size = 16
+
+        inputs = keras.Input(batch_shape=(batch_size, timesteps, input_dim))
+        x = keras.layers.Conv1D(32, 3)(inputs)
+        outputs = CustomRNN(32)(x)
+
+        model = keras.Model(inputs, outputs)
+
+        with self.assertRaisesRegex(
+            TypeError, "is a custom class, please register it"
+        ):
+            model.save(temp_filepath)
+            _ = keras.models.load_model(temp_filepath)
+
+    def test_custom_object_without_from_config(self):
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "custom_fn_model.keras"
+        )
+
+        inputs = keras.Input(shape=(4, 4))
+        outputs = keras.layers.Dense(1, activation=GrowthFactor(0.5))(inputs)
+        model = keras.Model(inputs, outputs)
+
+        model.save(temp_filepath)
+
+        with self.assertRaisesRegex(
+            TypeError, "Unable to reconstruct an instance"
+        ):
+            _ = keras.models.load_model(temp_filepath)
+
+    def test_complex_model_without_explicit_deserialization(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "complex_model.keras")
+
+        inputs = keras.Input((32,))
+        outputs = ComplexModel(first_layer=FactorLayer(0.5))(inputs)
+        model = keras.Model(inputs, outputs)
+
+        model.save(temp_filepath)
+
+        with self.assertRaisesRegex(TypeError, "are explicitly deserialized"):
+            _ = keras.models.load_model(temp_filepath)
 
 
 if __name__ == "__main__":

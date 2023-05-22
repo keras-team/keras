@@ -56,10 +56,10 @@ PREPROCESS_INPUT_DOC = """
       The preprocessed data are written over the input data
       if the data types are compatible. To avoid this
       behaviour, `numpy.copy(x)` can be used.
-    data_format: Optional data format of the image tensor/array. Defaults to
-      None, in which case the global setting
-      `tf.keras.backend.image_data_format()` is used (unless you changed it,
-      it defaults to "channels_last").{mode}
+    data_format: Optional data format of the image tensor/array. None, means
+      the global setting `tf.keras.backend.image_data_format()` is used
+      (unless you changed it, it uses "channels_last").{mode}
+      Defaults to `None`.
 
   Returns:
       Preprocessed `numpy.array` or a `tf.Tensor` with type `float32`.
@@ -70,7 +70,7 @@ PREPROCESS_INPUT_DOC = """
   """
 
 PREPROCESS_INPUT_MODE_DOC = """
-    mode: One of "caffe", "tf" or "torch". Defaults to "caffe".
+    mode: One of "caffe", "tf" or "torch".
       - caffe: will convert the images from RGB to BGR,
           then will zero-center each color channel with
           respect to the ImageNet dataset,
@@ -80,6 +80,7 @@ PREPROCESS_INPUT_MODE_DOC = """
       - torch: will scale pixels between 0 and 1 and then
           will normalize each channel with respect to the
           ImageNet dataset.
+      Defaults to "caffe".
   """
 
 PREPROCESS_INPUT_DEFAULT_ERROR_DOC = """

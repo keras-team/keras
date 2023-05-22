@@ -119,8 +119,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         with self.assertRaisesRegex(
             ValueError,
             "When using a `tf.keras.utils.experimental.DatasetCreator`, "
-            "`steps_per_epoch`, `validation_steps` or `steps` argument must be "
-            "provided in `Model.fit`, `Model.evaluate`, or `Model.predict`.",
+            "`steps_per_epoch`, `validation_steps`, `steps`, or "
+            "`pss_evaluation_shards` argument must be provided in "
+            "`Model.fit`, `Model.evaluate`, or `Model.predict`.",
         ):
             self._model_fit(strategy, steps_per_epoch=None)
 
@@ -162,8 +163,9 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
         with self.assertRaisesRegex(
             ValueError,
             "When using a `tf.keras.utils.experimental.DatasetCreator`, "
-            "`steps_per_epoch`, `validation_steps` or `steps` argument must be "
-            "provided in `Model.fit`, `Model.evaluate`, or `Model.predict`.",
+            "`steps_per_epoch`, `validation_steps`, `steps`, or "
+            "`pss_evaluation_shards` argument must be provided in "
+            "`Model.fit`, `Model.evaluate`, or `Model.predict`.",
         ):
             self._model_evaluate(strategy, steps=None)
 

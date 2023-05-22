@@ -154,7 +154,7 @@ class HashedCrossingTest(test_combinations.TestCase):
             tf.sparse.to_dense(original_outputs),
         )
 
-    def test_saved_model_keras(self):
+    def test_saving_keras(self):
         string_in = keras.Input(shape=(1,), dtype=tf.string)
         int_in = keras.Input(shape=(1,), dtype=tf.int64)
         out = hashed_crossing.HashedCrossing(num_bins=10)((string_in, int_in))
@@ -167,17 +167,39 @@ class HashedCrossingTest(test_combinations.TestCase):
         output_data = model((string_data, int_data))
         self.assertAllClose(output_data, expected_output)
 
-        # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "saved_model")
-        model.save(output_path, save_format="tf")
-        loaded_model = keras.models.load_model(
-            output_path,
-            custom_objects={"HashedCrossing": hashed_crossing.HashedCrossing},
-        )
+        with self.subTest("savedmodel"):
+            # Save the model to disk.
+            output_path = os.path.join(self.get_temp_dir(), "saved_model")
+            model.save(output_path, save_format="tf")
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={
+                    "HashedCrossing": hashed_crossing.HashedCrossing
+                },
+            )
 
-        # Validate correctness of the new model.
-        new_output_data = loaded_model((string_data, int_data))
-        self.assertAllClose(new_output_data, expected_output)
+            # Validate correctness of the new model.
+            new_output_data = loaded_model((string_data, int_data))
+            self.assertAllClose(new_output_data, expected_output)
+
+        with self.subTest("keras_v3"):
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            # Save the model to disk.
+            output_path = os.path.join(self.get_temp_dir(), "model.keras")
+            model.save(output_path, save_format="keras_v3")
+            loaded_model = keras.models.load_model(
+                output_path,
+                custom_objects={
+                    "HashedCrossing": hashed_crossing.HashedCrossing
+                },
+            )
+
+            # Validate correctness of the new model.
+            new_output_data = loaded_model((string_data, int_data))
+            self.assertAllClose(new_output_data, expected_output)
 
 
 if __name__ == "__main__":

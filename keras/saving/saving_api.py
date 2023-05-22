@@ -119,20 +119,6 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     save_format = get_save_format(filepath, save_format)
 
     # Deprecation warnings
-    if save_format == "tf":
-        warnings.warn(
-            "You are saving your model as a TensorFlow SavedModel via "
-            "`model.save()`. This is no longer a recommended workflow.\n\n"
-            "* If you intend to be able to reload the exact same model in a "
-            "Python runtime, we recommend using the native Keras format, "
-            "e.g. `model.save('my_model.keras')`.\n\n"
-            "* If you intend to export a SavedModel artifact for inference "
-            "(e.g. via TF-Serving), we recommend using "
-            "`model.export('my_export_artifact')`. If you want to further "
-            "customize SavedModel serving endpoints you can also use the "
-            "low-level `keras.export.ExportArchive` class.",
-            stacklevel=2,
-        )
     if save_format == "h5":
         warnings.warn(
             "You are saving your model as an HDF5 file via `model.save()`. "
@@ -213,7 +199,29 @@ def load_model(
     It is recommended that you use layer attributes to
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
-    if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
+    is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
+        filepath
+    )
+
+    # Support for remote zip files
+    if (
+        saving_lib.is_remote_path(filepath)
+        and not tf.io.gfile.isdir(filepath)
+        and not is_keras_zip
+    ):
+        local_path = os.path.join(
+            saving_lib.get_temp_dir(), os.path.basename(filepath)
+        )
+
+        # Copy from remote to temporary local directory
+        tf.io.gfile.copy(filepath, local_path, overwrite=True)
+
+        # Switch filepath to local zipfile for loading model
+        if zipfile.is_zipfile(local_path):
+            filepath = local_path
+            is_keras_zip = True
+
+    if is_keras_zip:
         if kwargs:
             raise ValueError(
                 "The following argument(s) are not supported "

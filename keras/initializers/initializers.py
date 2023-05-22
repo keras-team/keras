@@ -36,42 +36,41 @@ _ALLOWED_INITIALIZER_KWARGS = [_PARTITION_SHAPE, _PARTITION_OFFSET, _LAYOUT]
 class Initializer:
     """Initializer base class: all Keras initializers inherit from this class.
 
-    Initializers should implement a `__call__` method with the following
+    Initializers should implement a `__call__()` method with the following
     signature:
 
     ```python
     def __call__(self, shape, dtype=None, **kwargs):
-      # returns a tensor of shape `shape` and dtype `dtype`
-      # containing values drawn from a distribution of your choice.
+        # returns a tensor of shape `shape` and dtype `dtype`
+        # containing values drawn from a distribution of your choice.
+        return tf.random.uniform(shape=shape, dtype=dtype)
     ```
 
-    Optionally, you an also implement the method `get_config` and the class
-    method `from_config` in order to support serialization -- just like with
+    Optionally, you an also implement the method `get_config()` and the class
+    method `from_config()` in order to support serialization -- just like with
     any Keras object.
 
     Here's a simple example: a random normal initializer.
 
     ```python
-    import tensorflow as tf
+    class ExampleRandomNormal(Initializer):
+        def __init__(self, mean, stddev):
+            self.mean = mean
+            self.stddev = stddev
 
-    class ExampleRandomNormal(tf.keras.initializers.Initializer):
+        def __call__(self, shape, dtype=None, **kwargs):
+            return tf.random.normal(
+                shape, mean=self.mean, stddev=self.stddev, dtype=dtype
+            )
 
-      def __init__(self, mean, stddev):
-        self.mean = mean
-        self.stddev = stddev
-
-      def __call__(self, shape, dtype=None, **kwargs):
-        return tf.random.normal(
-            shape, mean=self.mean, stddev=self.stddev, dtype=dtype)
-
-      def get_config(self):  # To support serialization
-        return {"mean": self.mean, "stddev": self.stddev}
+        def get_config(self):  # To support serialization
+            return {"mean": self.mean, "stddev": self.stddev}
     ```
 
-    Note that we don't have to implement `from_config` in the example above
+    Note that we don't have to implement `from_config()` in the example above
     since the constructor arguments of the class the keys in the config returned
-    by `get_config` are the same. In this case, the default `from_config` works
-    fine.
+    by `get_config` are the same. In this case, the default `from_config()`
+    works fine.
     """
 
     def __call__(self, shape, dtype=None, **kwargs):
@@ -90,7 +89,7 @@ class Initializer:
         """Returns the initializer's configuration as a JSON-serializable dict.
 
         Returns:
-          A JSON-serializable Python dict.
+            A JSON-serializable Python dict.
         """
         return {}
 
@@ -107,10 +106,10 @@ class Initializer:
         ```
 
         Args:
-          config: A Python dictionary, the output of `get_config`.
+            config: A Python dictionary, the output of `get_config()`.
 
         Returns:
-          A `tf.keras.initializers.Initializer` instance.
+            An `Initializer` instance.
         """
         config.pop("dtype", None)
         return cls(**config)
@@ -151,12 +150,12 @@ class Zeros(Initializer):
         """Returns a tensor object initialized as specified by the initializer.
 
         Args:
-          shape: Shape of the tensor.
-          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-            are supported. If not specified, `tf.keras.backend.floatx()` is
-            used, which default to `float32` unless you configured it otherwise
-            (via `tf.keras.backend.set_floatx(float_dtype)`).
-          **kwargs: Additional keyword arguments.
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
+                are supported. If not specified, `keras.backend.floatx()` is
+                used, which defaults to `float32` unless you configured it
+                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+            **kwargs: Additional keyword arguments.
         """
         _validate_kwargs(self.__class__.__name__, kwargs)
         dtype = _get_dtype(dtype)
@@ -193,12 +192,12 @@ class Ones(Initializer):
         """Returns a tensor object initialized as specified by the initializer.
 
         Args:
-          shape: Shape of the tensor.
-          dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
-            are supported. If not specified, `tf.keras.backend.floatx()` is
-            used, which default to `float32` unless you configured it otherwise
-            (via `tf.keras.backend.set_floatx(float_dtype)`).
-          **kwargs: Additional keyword arguments.
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
+                are supported. If not specified, `keras.backend.floatx()` is
+                used, which defaults to `float32` unless you configured it
+                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+            **kwargs: Additional keyword arguments.
         """
         _validate_kwargs(self.__class__.__name__, kwargs)
         dtype = _get_dtype(dtype)
@@ -237,7 +236,7 @@ class Constant(Initializer):
     >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
     Args:
-      value: A Python scalar.
+        value: A Python scalar.
     """
 
     def __init__(self, value=0):
@@ -247,12 +246,12 @@ class Constant(Initializer):
         """Returns a tensor object initialized to `self.value`.
 
         Args:
-          shape: Shape of the tensor.
-          dtype: Optional dtype of the tensor. If not specified,
-           `tf.keras.backend.floatx()` is used,
-           which default to `float32` unless you configured it otherwise
-           (via `tf.keras.backend.set_floatx(float_dtype)`).
-          **kwargs: Additional keyword arguments.
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. If not specified,
+                `keras.backend.floatx()` is used,
+                which defaults to `float32` unless you configured it
+                otherwise (via `keras.backend.set_floatx(float_dtype)`).
+                **kwargs: Additional keyword arguments.
         """
         _validate_kwargs(self.__class__.__name__, kwargs)
         dtype = _get_dtype(dtype)
@@ -566,13 +565,13 @@ class VarianceScaling(Initializer):
     >>> layer = tf.keras.layers.Dense(3, kernel_initializer=initializer)
 
     Args:
-      scale: Scaling factor (positive float).
-      mode: One of "fan_in", "fan_out", "fan_avg".
-      distribution: Random distribution to use. One of "truncated_normal",
-        "untruncated_normal" and  "uniform".
-      seed: A Python integer. Used to make the behavior of the initializer
-        deterministic. Note that a seeded initializer will produce the same
-        random values across multiple calls.
+        scale: Scaling factor (positive float).
+        mode: One of `"fan_in"`, `"fan_out"`, `"fan_avg"`.
+        distribution: Random distribution to use. One of `"truncated_normal"`,
+            `"untruncated_normal"`, or `"uniform"`.
+        seed: A Python integer. Used to make the behavior of the initializer
+            deterministic. Note that a seeded initializer will produce the same
+            random values across multiple calls.
     """
 
     def __init__(

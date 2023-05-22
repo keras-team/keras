@@ -42,6 +42,10 @@ try:
 except ImportError:
     h5py = None
 
+keras_saving_gauge = tf.__internal__.monitoring.BoolGauge(
+    "/tensorflow/api/keras/saving", "keras saving usage", "method"
+)
+
 # isort: off
 
 _CONFIG_FILENAME = "config.json"
@@ -127,6 +131,10 @@ def save_model(model, filepath, weights_format="h5"):
     container (list, tuple, or dict), and the container is referenced via a
     layer attribute.
     """
+
+    # API usage tracking for Keras V3 saving
+    keras_saving_gauge.get_cell("save_model_v3").set(True)
+
     filepath = str(filepath)
     if not filepath.endswith(".keras"):
         raise ValueError(
@@ -157,12 +165,10 @@ def save_model(model, filepath, weights_format="h5"):
         }
     )
     # TODO(rameshsampath): Need a better logic for local vs remote path
-    if re.match(r"^(/cns|/cfs|.*://).*$", filepath):
+    if is_remote_path(filepath):
         # Remote path. Zip to local drive and copy to remote
-        is_remote_path = True
-        zip_filepath = os.path.join(_get_temp_dir(), "tmp_model.keras")
+        zip_filepath = os.path.join(get_temp_dir(), "tmp_model.keras")
     else:
-        is_remote_path = False
         zip_filepath = filepath
     try:
         with zipfile.ZipFile(zip_filepath, "w") as zf:
@@ -199,7 +205,7 @@ def save_model(model, filepath, weights_format="h5"):
             weights_store.close()
             asset_store.close()
 
-        if is_remote_path:
+        if is_remote_path(filepath):
             # Using tf.io.gfile context manager doesn't close zip file when
             # writing to GCS. Hence writing to local and copying to filepath.
             tf.io.gfile.copy(zip_filepath, filepath, overwrite=True)
@@ -288,6 +294,10 @@ def save_weights_only(model, filepath):
     """
     # TODO: if h5 filepath is remote, create the file in a temporary directory
     # then upload it
+
+    # API usage tracking for Keras V3 saving
+    keras_saving_gauge.get_cell("save_weights_v3").set(True)
+
     filepath = str(filepath)
     if not filepath.endswith(".weights.h5"):
         raise ValueError(
@@ -335,6 +345,12 @@ def load_weights_only(model, filepath, skip_mismatch=False):
         tf.io.gfile.rmtree(temp_dir)
     if archive:
         archive.close()
+
+
+def is_remote_path(filepath):
+    if re.match(r"^(/cns|/cfs|/gcs|.*://).*$", str(filepath)):
+        return True
+    return False
 
 
 def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
@@ -532,7 +548,7 @@ class DiskIOStore:
         self.archive = archive
         self.tmp_dir = None
         if self.archive:
-            self.tmp_dir = _get_temp_dir()
+            self.tmp_dir = get_temp_dir()
             if self.mode == "r":
                 self.archive.extractall(path=self.tmp_dir)
             self.working_dir = tf.io.gfile.join(self.tmp_dir, self.root_path)
@@ -542,7 +558,7 @@ class DiskIOStore:
             if mode == "r":
                 self.working_dir = root_path
             else:
-                self.tmp_dir = _get_temp_dir()
+                self.tmp_dir = get_temp_dir()
                 self.working_dir = tf.io.gfile.join(
                     self.tmp_dir, self.root_path
                 )
@@ -667,7 +683,7 @@ class NpzIOStore:
         self.f.close()
 
 
-def _get_temp_dir():
+def get_temp_dir():
     temp_dir = tempfile.mkdtemp()
     testfile = tempfile.TemporaryFile(dir=temp_dir)
     testfile.close()

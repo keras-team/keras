@@ -1,0 +1,47 @@
+name: Close inactive issues
+on:
+  schedule:
+    - cron: "30 1 * * *"
+
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Awaiting response issues
+        uses: actions/stale@v5
+        with:
+          days-before-issue-stale: 14
+          days-before-issue-close: 14
+          stale-issue-label: "stale"
+          # reason for closed the issue default value is not_planned
+          close-issue-reason: completed
+          only-labels: "stat:awaiting response from contributor"
+          stale-issue-message: > 
+            This issue is stale because it has been open for 14 days with no activity.
+            It will be closed if no further activity occurs. Thank you.
+          close-issue-message: >
+            This issue was closed because it has been inactive for 28 days.
+            Please reopen if you'd like to work on this further.
+          days-before-pr-stale: 14
+          days-before-pr-close: 14
+          stale-pr-message: "This PR is stale because it has been open for 14 days with no activity. It will be closed if no further activity occurs. Thank you."
+          close-pr-message: "This PR was closed because it has been inactive for 28 days. Please reopen if you'd like to work on this further."
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Contribution issues
+        uses: actions/stale@v5
+        with:
+          days-before-issue-stale: 180
+          days-before-issue-close: 365
+          stale-issue-label: "stale"
+          # reason for closed the issue default value is not_planned
+          close-issue-reason: not_planned
+          any-of-labels: "stat:contributions welcome,good first issue"
+          stale-issue-message: > 
+            This issue is stale because it has been open for 180 days with no activity.
+            It will be closed if no further activity occurs. Thank you.
+          close-issue-message: >
+            This issue was closed because it has been inactive for more than 1 year.
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

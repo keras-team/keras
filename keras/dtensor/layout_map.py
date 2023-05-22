@@ -27,7 +27,6 @@ from keras.dtensor import utils
 from keras.engine import base_layer
 
 # isort: off
-from tensorflow.python.util.deprecation import deprecated
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -235,10 +234,6 @@ class LayoutMap(collections.abc.MutableMapping):
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
-@keras_export("keras.dtensor.experimental.layout_map_scope", v1=[])
-@deprecated(
-    None, "use tf.keras.dtensor.experimental.LayoutMap.scope() instead."
-)
 @contextlib.contextmanager
 def layout_map_scope(layout_map):
     """Apply the layout to all the tf.Variables created under the scope.
@@ -465,7 +460,7 @@ def _init_state_variable_for_rng(model, layout_map):
             # When the keras_generator is not built yet. Call the init function
             # with DTensor device to init all the variable with default
             # replicated layout.
-            with dtensor.run_on(layout_map.get_default_mesh()):
+            with dtensor.default_mesh(layout_map.get_default_mesh()):
                 keras_generator._maybe_init()
 
 

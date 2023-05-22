@@ -32,10 +32,10 @@ def _large_compatible_negative(tensor_type):
     in this module (-1e9) cannot be represented using tf.float16
 
     Args:
-      tensor_type: a dtype to determine the type.
+        tensor_type: a dtype to determine the type.
 
     Returns:
-      a large negative number.
+        a large negative number.
     """
     # In case of dtype=float16 (e.g., for mixed-precision), the largest
     # negative number (dtypes.float16.min) is divided by 2, in order to
@@ -60,23 +60,24 @@ class Softmax(Layer):
     array([0.5, 0. , 0.5], dtype=float32)
 
     Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the samples axis)
-      when using this layer as the first layer in a model.
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
     Output shape:
-      Same shape as the input.
+        Same shape as the input.
 
     Args:
-      axis: Integer, or list of Integers, axis along which the softmax
-        normalization is applied.
+        axis: Integer, or list of Integers, axis along which the softmax
+            normalization is applied.
     Call arguments:
-      inputs: The inputs, or logits to the softmax layer.
-      mask: A boolean mask of the same shape as `inputs`. Defaults to `None`.
-        The mask specifies 1 to keep and 0 to mask.
+        inputs: The inputs, or logits to the softmax layer.
+        mask: A boolean mask of the same shape as `inputs`. The mask
+            specifies 1 to keep and 0 to mask. Defaults to `None`.
+
 
     Returns:
-      softmaxed output with the same shape as `inputs`.
+        Softmaxed output with the same shape as `inputs`.
     """
 
     def __init__(self, axis=-1, **kwargs):

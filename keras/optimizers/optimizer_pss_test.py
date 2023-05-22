@@ -10,6 +10,7 @@ from keras.optimizers import adam
 from keras.optimizers import adamax
 from keras.optimizers import adamw
 from keras.optimizers import ftrl
+from keras.optimizers import lion
 from keras.optimizers import nadam
 from keras.optimizers import rmsprop
 from keras.optimizers import sgd
@@ -44,6 +45,9 @@ adamw_fn = tf.__internal__.test.combinations.NamedObject(
 ftrl_fn = tf.__internal__.test.combinations.NamedObject(
     "ftrl", lambda: ftrl.Ftrl(0.002)
 )
+lion_fn = tf.__internal__.test.combinations.NamedObject(
+    "lion", lambda: lion.Lion(0.002)
+)
 nadam_fn = tf.__internal__.test.combinations.NamedObject(
     "experimentnadam", lambda: nadam.Nadam(0.002)
 )
@@ -62,6 +66,7 @@ OPTIMIZER_FN = [
     adamax_fn,
     adamw_fn,
     ftrl_fn,
+    lion_fn,
     nadam_fn,
     rmsprop_fn,
     sgd_fn,

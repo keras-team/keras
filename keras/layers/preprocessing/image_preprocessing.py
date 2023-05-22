@@ -65,9 +65,9 @@ class Resizing(base_layer.Layer):
         height: Integer, the height of the output shape.
         width: Integer, the width of the output shape.
         interpolation: String, the interpolation method.
-            Defaults to `"bilinear"`.
             Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
             `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+            Defaults to `"bilinear"`.
         crop_to_aspect_ratio: If True, resize the images without aspect
             ratio distortion. When the original aspect ratio differs
             from the target aspect ratio, the output image will be
@@ -420,9 +420,9 @@ class RandomFlip(base_layer.BaseRandomLayer):
 
     Args:
         mode: String indicating which flip mode to use. Can be `"horizontal"`,
-            `"vertical"`, or `"horizontal_and_vertical"`. Defaults to
-            `"horizontal_and_vertical"`. `"horizontal"` is a left-right flip and
-            `"vertical"` is a top-bottom flip.
+            `"vertical"`, or `"horizontal_and_vertical"`. `"horizontal"` is a
+            left-right flip and `"vertical"` is a top-bottom flip. Defaults to
+            `"horizontal_and_vertical"`
         seed: Integer. Used to create a random seed.
     """
 
@@ -1055,9 +1055,9 @@ class RandomZoom(base_layer.BaseRandomLayer):
             result in an output
             zooming out between 20% to 30%.
             `width_factor=(-0.3, -0.2)` result in an
-            output zooming in between 20% to 30%. Defaults to `None`,
+            output zooming in between 20% to 30%. `None` means
             i.e., zooming vertical and horizontal directions
-            by preserving the aspect ratio.
+            by preserving the aspect ratio. Defaults to `None`.
         fill_mode: Points outside the boundaries of the input are
             filled according to the given mode
             (one of `{"constant", "reflect", "wrap", "nearest"}`).
@@ -1377,9 +1377,9 @@ class RandomBrightness(base_layer.BaseRandomLayer):
             will be used for upper bound.
         value_range: Optional list/tuple of 2 floats
             for the lower and upper limit
-            of the values of the input data. Defaults to [0.0, 255.0].
-            Can be changed to e.g. [0.0, 1.0] if the image input
-            has been scaled before this layer.
+            of the values of the input data.
+            To make no change, use [0.0, 1.0], e.g., if the image input
+            has been scaled before this layer. Defaults to [0.0, 255.0].
             The brightness adjustment will be scaled to this range, and the
             output values will be clipped to this range.
         seed: optional integer, for fixed RNG behavior.
@@ -1539,9 +1539,9 @@ class RandomHeight(base_layer.BaseRandomLayer):
             `factor=0.2` results in an output with
             height changed by a random amount in the range `[-20%, +20%]`.
         interpolation: String, the interpolation method.
-            Defaults to `"bilinear"`.
             Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
             `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+            Defaults to `"bilinear"`.
         seed: Integer. Used to create a random seed.
 
     Input shape:
@@ -1661,9 +1661,9 @@ class RandomWidth(base_layer.BaseRandomLayer):
             `factor=0.2` results in an output with width changed
             by a random amount in the range `[-20%, +20%]`.
         interpolation: String, the interpolation method.
-            Defaults to `bilinear`.
             Supports `"bilinear"`, `"nearest"`, `"bicubic"`, `"area"`,
             `"lanczos3"`, `"lanczos5"`, `"gaussian"`, `"mitchellcubic"`.
+            Defaults to `bilinear`.
         seed: Integer. Used to create a random seed.
 
     Input shape:

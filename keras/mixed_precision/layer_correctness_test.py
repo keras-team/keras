@@ -49,6 +49,8 @@ from keras.testing_infra import test_utils
 def create_mirrored_strategy():
     # The test creates two virtual CPUs, and we use both of them to test with
     # multiple devices.
+    # pylint: disable=protected-access
+    tf.distribute.MirroredStrategy._collective_key_base += 1
     return tf.distribute.MirroredStrategy(["cpu:0", "cpu:1"])
 
 

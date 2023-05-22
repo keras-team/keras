@@ -234,7 +234,7 @@ tf_class {
   }
   member_method {
     name: "reset_states"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'states\'], varargs=None, keywords=None, defaults=[\'None\'], "
   }
   member_method {
     name: "save_own_variables"

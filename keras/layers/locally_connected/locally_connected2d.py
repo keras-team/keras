@@ -74,10 +74,10 @@ class LocallyConnected2D(Layer):
           `channels_last` corresponds to inputs with shape `(batch, height,
             width, channels)` while `channels_first` corresponds to inputs with
             shape
-          `(batch, channels, height, width)`. It defaults to the
+          `(batch, channels, height, width)`. When unspecified, uses
           `image_data_format` value found in your Keras config file at
-          `~/.keras/keras.json`. If you never set it, then it will be
-          "channels_last".
+          `~/.keras/keras.json` (if exists) else 'channels_last'.
+          Defaults to 'channels_last'.
         activation: Activation function to use. If you don't specify anything,
           no activation is applied (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.

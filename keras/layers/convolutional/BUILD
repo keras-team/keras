@@ -4,12 +4,13 @@
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:__subpackages__",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/keras:__subpackages__",
-        "//third_party/tensorflow/python/training/tracking:__pkg__",
+        "//third_party/tensorflow/python/trackable:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
         "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],

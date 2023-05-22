@@ -77,16 +77,16 @@ class Ftrl(optimizer.Optimizer):
       learning_rate: A `Tensor`, floating point value, a schedule that is a
         `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable that
         takes no arguments and returns the actual value to use. The learning
-        rate.  Defaults to 0.001.
+        rate.  Defaults to `0.001`.
       learning_rate_power: A float value, must be less or equal to zero.
         Controls how the learning rate decreases during training. Use zero for a
         fixed learning rate.
       initial_accumulator_value: The starting value for accumulators. Only zero
         or positive values are allowed.
       l1_regularization_strength: A float value, must be greater than or equal
-        to zero. Defaults to 0.0.
+        to zero. Defaults to `0.0`.
       l2_regularization_strength: A float value, must be greater than or equal
-        to zero. Defaults to 0.0.
+        to zero. Defaults to `0.0`.
       l2_shrinkage_regularization_strength: A float value, must be greater than
         or equal to zero. This differs from L2 above in that the L2 above is a
         stabilization penalty, whereas this L2 shrinkage is a magnitude penalty.

@@ -84,9 +84,9 @@ class MeanRelativeError(base_metric.Mean):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -138,8 +138,8 @@ class CosineSimilarity(base_metric.MeanMetricWrapper):
     Args:
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
-      axis: (Optional) Defaults to -1. The dimension along which the cosine
-        similarity is computed.
+      axis: (Optional) The dimension along which the cosine
+        similarity is computed. Defaults to `-1`.
 
     Standalone usage:
 
@@ -357,9 +357,9 @@ class RootMeanSquaredError(base_metric.Mean):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -443,7 +443,8 @@ class R2Score(base_metric.Metric):
             `None` (no aggregation), `"uniform_average"`,
             `"variance_weighted_average"`.
         num_regressors: Number of independent regressors used
-            ("Adjusted R2" score). Defaults to 0 (standard R2 score).
+            ("Adjusted R2" score). 0 is the standard R2 score.
+            Defaults to `0`.
         name: Optional. string name of the metric instance.
         dtype: Optional. data type of the metric result.
 
@@ -614,8 +615,8 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     Args:
       y_true: The ground truth values.
       y_pred: The prediction values.
-      axis: (Optional) Defaults to -1. The dimension along which the cosine
-        similarity is computed.
+      axis: (Optional) -1 is the dimension along which the cosine
+        similarity is computed. Defaults to `-1`.
 
     Returns:
       Cosine similarity value.

@@ -18,6 +18,7 @@ import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras import optimizers
+from keras.dtensor import utils as dtensor_utils
 from keras.optimizers import optimizer
 from keras.optimizers import utils as optimizer_utils
 from keras.optimizers.legacy import optimizer_v2
@@ -49,8 +50,14 @@ class _UnwrapPreventer:
 def _is_all_finite(grads):
     """Returns a scalar boolean tensor indicating if all gradients are
     finite."""
+
+    def raw_values(g):
+        return g.values if isinstance(g, tf.IndexedSlices) else g
+
     is_finite_per_grad = [
-        tf.reduce_all(tf.math.is_finite(g)) for g in grads if g is not None
+        tf.reduce_all(tf.math.is_finite(raw_values(g)))
+        for g in grads
+        if g is not None
     ]
     return tf.reduce_all(is_finite_per_grad)
 
@@ -400,14 +407,14 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
     Args:
       inner_optimizer: The `tf.keras.optimizers.Optimizer` or
         `tf.keras.optimizers.experimental.Optimizer` instance to wrap.
-      dynamic: Bool indicating whether dynamic loss scaling is used. Defaults to
-        True. If True, the loss scale will be dynamically updated over time
-        using an algorithm that keeps the loss scale at approximately its
-        optimal value.  If False, a single fixed loss scale is used and
-        `initial_scale` must be specified, which is used as the loss scale.
+      dynamic: Bool indicating whether dynamic loss scaling is used. If `True`,
+        the loss scale will be dynamically updated over time using an algorithm
+        that keeps the loss scale at approximately its optimal value. If False,
+        a single fixed loss scale is used and  `initial_scale` must be
+        specified, which is used as the loss scale.
         Recommended to keep as True, as choosing a fixed loss scale can be
         tricky. Currently, there is a small performance overhead to dynamic loss
-        scaling compared to fixed loss scaling.
+        scaling compared to fixed loss scaling. Defaults to `True`.
       initial_scale: The initial loss scale. If `dynamic` is True, this defaults
         to `2 ** 15`. If `dynamic` is False, this must be specified and acts as
         the sole loss scale, as the loss scale does not change over time. When
@@ -416,11 +423,11 @@ class BaseLossScaleOptimizer(metaclass=LossScaleOptimizerMetaclass):
         quickly than a loss scale that is too low gets raised.
       dynamic_growth_steps: With dynamic loss scaling, every
         `dynamic_growth_steps` steps with finite gradients, the loss scale is
-        doubled. Defaults to 2000. If a nonfinite gradient is encountered, the
+        doubled. If a nonfinite gradient is encountered, the
         count is reset back to zero, gradients are skipped that step, and the
         loss scale is halved. The count can be queried with
         `LossScaleOptimizer.dynamic_counter`. This argument can only be
-        specified if `dynamic` is True.
+        specified if `dynamic` is True. Defaults to `2000`.
 
     `LossScaleOptimizer` will occasionally skip applying gradients to the
     variables, in which case the trainable variables will not change that step.
@@ -1257,6 +1264,12 @@ class LossScaleOptimizerV3(
     def apply_gradients(
         self, grads_and_vars, skip_gradients_aggregation=False, **kwargs
     ):
+        grads_and_vars = list(grads_and_vars)
+        grads, trainable_variables = zip(*grads_and_vars)
+        with tf.init_scope():
+            # Lift variable creation to init scope to avoid environment
+            # issues.
+            self.build(trainable_variables)
         if tf.distribute.in_cross_replica_context():
             raise ValueError(
                 "apply_gradients() must be called in a replica context."
@@ -1276,7 +1289,19 @@ class LossScaleOptimizerV3(
         experimental_aggregate_gradients = kwargs.pop(
             "experimental_aggregate_gradients", True
         )
-        if not skip_gradients_aggregation and experimental_aggregate_gradients:
+        run_with_dtensor = (
+            # `_run_with_dtensor` is for dtensor based strategy scope, and
+            # `_mesh` is when user explicitly specify the mesh setting for
+            # optimizer.
+            self._optimizer._run_with_dtensor
+            or self._optimizer._mesh
+        )
+
+        if (
+            not skip_gradients_aggregation
+            and experimental_aggregate_gradients
+            and not run_with_dtensor
+        ):
             # We must aggregate the gradients here instead of in
             # self.optimizer.apply_gradients, so that any NaN or Inf gradients
             # are propagated to each replica. If any replica has a NaN or Inf
@@ -1543,16 +1568,19 @@ def strategy_supports_loss_scaling():
     # variable replica for each compute replica, this works fine, but otherwise
     # issues will occur.
     # TODO(reedwm): Support all strategies.
-    return isinstance(
-        strategy,
-        (
-            tf.distribute.MultiWorkerMirroredStrategy,
-            tf.compat.v1.distribute.experimental.MultiWorkerMirroredStrategy,
-            tf.distribute.OneDeviceStrategy,
-            tf.compat.v1.distribute.OneDeviceStrategy,
-            tf.distribute.MirroredStrategy,
-            tf.compat.v1.distribute.MirroredStrategy,
-        ),
+    return (
+        isinstance(
+            strategy,
+            (
+                tf.distribute.MultiWorkerMirroredStrategy,
+                tf.compat.v1.distribute.experimental.MultiWorkerMirroredStrategy,  # noqa: E501
+                tf.distribute.OneDeviceStrategy,
+                tf.compat.v1.distribute.OneDeviceStrategy,
+                tf.distribute.MirroredStrategy,
+                tf.compat.v1.distribute.MirroredStrategy,
+            ),
+        )
+        or dtensor_utils.running_with_dtensor_strategy()
     )
 
 

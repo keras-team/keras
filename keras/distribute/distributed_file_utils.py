@@ -84,7 +84,7 @@ def write_dirpath(dirpath, strategy):
       The writing dir path that should be used to save with distribution.
     """
     if strategy is None:
-        # Infer strategy from `distribution_strategy_context` if not given.
+        # Infer strategy from `tf.distribute` if not given.
         strategy = tf.distribute.get_strategy()
     if strategy is None:
         # If strategy is still not available, this is not in distributed
@@ -107,7 +107,7 @@ def remove_temp_dirpath(dirpath, strategy):
       strategy: The tf.distribute strategy object currently used.
     """
     if strategy is None:
-        # Infer strategy from `distribution_strategy_context` if not given.
+        # Infer strategy from `tf.distribute` if not given.
         strategy = tf.distribute.get_strategy()
     if strategy is None:
         # If strategy is still not available, this is not in distributed

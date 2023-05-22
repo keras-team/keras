@@ -151,11 +151,6 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
         model.fit(
             np.random.randn(batch_size, 32), np.random.randn(batch_size, 16)
         )
-        # Test for model saving
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format="tf")
-        loaded_model = models.load_model(output_path)
-        self.assertEqual(model.summary(), loaded_model.summary())
 
         # Also make sure the original inputs and y can still be used to build
         # model
@@ -166,6 +161,27 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
         self.assertLen(new_model.layers, 3)
         self.assertIs(new_model.layers[1], layer1)
         self.assertIs(new_model.layers[2], layer2)
+
+        # Test for model saving
+        with self.subTest("savedmodel"):
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model"
+            )
+            model.save(output_path, save_format="tf")
+            loaded_model = models.load_model(output_path)
+            self.assertEqual(model.summary(), loaded_model.summary())
+
+        with self.subTest("keras_v3"):
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_v3_model.keras"
+            )
+            model.save(output_path, save_format="keras_v3")
+            loaded_model = models.load_model(output_path)
+            self.assertEqual(model.summary(), loaded_model.summary())
 
     def test_build_model_from_intermediate_tensor_with_complicated_model(self):
         # The topology is like below:
@@ -212,10 +228,6 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
             ],
             np.random.randn(batch_size, 8),
         )
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
-        model.save(output_path, save_format="tf")
-        loaded_model = models.load_model(output_path)
-        self.assertEqual(model.summary(), loaded_model.summary())
 
         model2 = models.Model([a, b], d)
         # 2 input layers and 2 Add layer.
@@ -229,6 +241,26 @@ class FunctionalModelSlideTest(test_combinations.TestCase):
             [np.random.randn(batch_size, 8), np.random.randn(batch_size, 8)],
             np.random.randn(batch_size, 8),
         )
+
+        with self.subTest("savedmodel"):
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_saved_model"
+            )
+            model.save(output_path, save_format="tf")
+            loaded_model = models.load_model(output_path)
+            self.assertEqual(model.summary(), loaded_model.summary())
+
+        with self.subTest("keras_v3"):
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            output_path = os.path.join(
+                self.get_temp_dir(), "tf_keras_v3_model.keras"
+            )
+            model.save(output_path, save_format="keras_v3")
+            loaded_model = models.load_model(output_path)
+            self.assertEqual(model.summary(), loaded_model.summary())
 
 
 if __name__ == "__main__":

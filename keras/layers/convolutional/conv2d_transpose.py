@@ -82,9 +82,9 @@ class Conv2DTranspose(Conv2D):
         `(batch_size, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
         `(batch_size, channels, height, width)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses `image_data_format` value found in your Keras
+        config file at `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to "channels_last".
       dilation_rate: an integer, specifying the dilation rate for all spatial
         dimensions for dilated convolution. Specifying different dilation rates
         for different dimensions is not supported.

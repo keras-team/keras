@@ -282,8 +282,8 @@ def model_to_dot(
                 return (
                     str(shape)
                     .replace(str(None), "None")
-                    .replace("{", "\{")
-                    .replace("}", "\}")
+                    .replace("{", r"\{")
+                    .replace("}", r"\}")
                 )
 
             try:

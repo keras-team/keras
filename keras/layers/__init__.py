@@ -14,6 +14,7 @@
 # ==============================================================================
 """Keras layers API."""
 
+# isort: off
 import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
@@ -106,6 +107,9 @@ from keras.layers.normalization.batch_normalization import (
 from keras.layers.normalization.group_normalization import GroupNormalization
 from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.unit_normalization import UnitNormalization
+from keras.layers.normalization.spectral_normalization import (
+    SpectralNormalization,
+)  # noqa: E501
 
 # Preprocessing layers.
 from keras.layers.preprocessing.category_encoding import CategoryEncoding

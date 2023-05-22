@@ -121,6 +121,19 @@ py_library(
 )
 
 cuda_py_test(
+    name = "model_checkpoint_test",
+    srcs = ["model_checkpoint_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":multi_worker_testing_utils",
+        ":worker_training_state",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+cuda_py_test(
     name = "worker_training_state_test",
     srcs = ["worker_training_state_test.py"],
     python_version = "PY3",
@@ -471,6 +484,7 @@ distribute_py_test(
     shard_count = 31,
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/277925387)
         "no_rocm",  # Would require size large, but that effectively disables the test for presubmits.
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
@@ -747,6 +761,27 @@ distribute_py_test(
     srcs = ["parameter_server_evaluation_test.py"],
     python_version = "PY3",
     shard_count = 1,
+    tags = [
+        "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/186361027)
+        "no_oss",  # TODO(b/186248973)
+        "no_tfrt",
+        "nomultivm",  # TODO(b/170502145)
+        "notpu",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/testing_infra:test_utils",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
+    name = "parameter_server_exact_evaluation_test",
+    srcs = ["parameter_server_exact_evaluation_test.py"],
+    python_version = "PY3",
+    shard_count = 29,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)

@@ -23,7 +23,7 @@ from keras.layers.pooling.base_pooling3d import Pooling3D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.MaxPool3D", "keras.layers.MaxPooling3D")
+@keras_export("keras.layers.MaxPooling3D", "keras.layers.MaxPool3D")
 class MaxPooling3D(Pooling3D):
     """Max pooling operation for 3D data (spatial or spatio-temporal).
 

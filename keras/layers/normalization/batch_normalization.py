@@ -550,6 +550,11 @@ class BatchNormalizationBase(Layer):
         # Determine a boolean value for `training`: could be True, False, or
         # None.
         training_value = control_flow_util.constant_value(training)
+        _raise_for_non_sync_bn_with_renorm_and_dtensor_strategy(
+            synchronized=self.synchronized,
+            training=training,
+            renorm=self.renorm,
+        )
 
         if self.virtual_batch_size is not None:
             # Virtual batches (aka ghost batches) can be simulated by reshaping
@@ -640,6 +645,8 @@ class BatchNormalizationBase(Layer):
         if training_value == False:  # noqa: E712
             mean, variance = self.moving_mean, self.moving_variance
         else:
+            # The following long block are handling mean/variance update during
+            # the training stage in various of different settings.
             if self.adjustment:
                 adj_scale, adj_bias = self.adjustment(tf.shape(inputs))
                 # Adjust only during training.
@@ -690,7 +697,16 @@ class BatchNormalizationBase(Layer):
                 new_mean = tf.reduce_mean(mean, axis=1, keepdims=True)
                 new_variance = tf.reduce_mean(variance, axis=1, keepdims=True)
             else:
-                new_mean, new_variance = mean, variance
+                if (
+                    utils.running_with_dtensor_strategy()
+                    and not self.synchronized
+                ):
+                    new_mean = tf.math.reduce_mean(mean, axis=reduction_axes)
+                    new_variance = tf.math.reduce_mean(
+                        variance, axis=reduction_axes
+                    )
+                else:
+                    new_mean, new_variance = mean, variance
 
             if self._support_zero_size_input():
                 # Keras assumes that batch dimension is the first dimension for
@@ -761,6 +777,7 @@ class BatchNormalizationBase(Layer):
 
             self.add_update(mean_update)
             self.add_update(variance_update)
+            # End of handling mean/variance calculation and update.
 
         mean = tf.cast(mean, inputs.dtype)
         variance = tf.cast(variance, inputs.dtype)
@@ -1131,7 +1148,9 @@ class BatchNormalizationBase(Layer):
                 keepdims=keep_dims,
             )
 
-    def _sync_calculate_mean_and_var(self, x, axes, keep_dims, mask=None):
+    def _sync_calculate_mean_and_var(
+        self, x, reduction_axes, keep_dims, mask=None
+    ):
         with backend.name_scope("moments"):
             # The dynamic range of fp16 is too limited to support the collection
             # of sufficient statistics. As a workaround we simply perform the
@@ -1142,22 +1161,29 @@ class BatchNormalizationBase(Layer):
 
             if not replica_ctx:
                 return self._no_sync_calculate_mean_and_var(
-                    x, axes, keep_dims, mask=mask
+                    x, reduction_axes, keep_dims, mask=mask
                 )
 
             if mask is not None:
-                mask_weights = tf.cast(mask, tf.float32, name="mask_weights")
+                mask_weights = tf.cast(mask, y.dtype, name="mask_weights")
                 mask_weights = tf.expand_dims(
                     mask_weights, axis=-1, name="mask_weights_broadcasted"
                 )
                 y *= mask_weights
+                local_count = tf.broadcast_to(
+                    mask_weights, tf.shape(y), name="count"
+                )
+            else:
+                local_count = tf.ones_like(y, name="count")
 
-            local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+            local_sum = tf.reduce_sum(y, axis=reduction_axes, keepdims=True)
             local_squared_sum = tf.reduce_sum(
-                tf.square(y), axis=axes, keepdims=True
+                tf.square(y), axis=reduction_axes, keepdims=True
+            )
+            local_count = tf.reduce_sum(
+                local_count, axis=reduction_axes, keepdims=True
             )
 
-            batch_size = tf.cast(tf.shape(y)[axes[0]], tf.float32)
             # TODO(b/163099951): batch the all-reduces once we sort out the
             # ordering issue for NCCL. We don't have a mechanism to launch
             # NCCL in the same order in each replica nowadays, so we limit
@@ -1168,21 +1194,17 @@ class BatchNormalizationBase(Layer):
             y_squared_sum = replica_ctx.all_reduce(
                 tf.distribute.ReduceOp.SUM, local_squared_sum
             )
-            global_batch_size = replica_ctx.all_reduce(
-                tf.distribute.ReduceOp.SUM, batch_size
+            count_sum = replica_ctx.all_reduce(
+                tf.distribute.ReduceOp.SUM, local_count
             )
 
-            axes_vals = [(tf.shape(y))[axes[i]] for i in range(1, len(axes))]
-            multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-            multiplier = multiplier * global_batch_size
-
-            mean = y_sum / multiplier
-            y_squared_mean = y_squared_sum / multiplier
+            mean = y_sum / count_sum
+            y_squared_mean = y_squared_sum / count_sum
             # var = E(x^2) - E(x)^2
             variance = y_squared_mean - tf.square(mean)
             if not keep_dims:
-                mean = tf.squeeze(mean, axes)
-                variance = tf.squeeze(variance, axes)
+                mean = tf.squeeze(mean, reduction_axes)
+                variance = tf.squeeze(variance, reduction_axes)
             if x.dtype == tf.float16:
                 return (
                     tf.cast(mean, tf.float16),
@@ -1191,10 +1213,86 @@ class BatchNormalizationBase(Layer):
             else:
                 return (mean, variance)
 
-    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
-        mean, variance = self._calculate_mean_and_var(
+    def _dtensor_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        if self.synchronized:
+            return self._dtensor_sync_calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
+        return self._dtensor_no_sync_calculate_mean_and_var(
             inputs, reduction_axes, keep_dims, mask=mask
         )
+
+    def _dtensor_no_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        replica_tensor = _expand_tensor_with_local_replica_group(inputs)
+        local_batch_size = tf.shape(replica_tensor)[1]
+
+        # Since we added a new axis in the beginning, all the value in
+        # reduction_axes need to be incremented by 1.
+        updated_reduction_axes = [n + 1 for n in reduction_axes]
+
+        if mask is None:
+            mean, var = tf.nn.moments(
+                replica_tensor, updated_reduction_axes, keepdims=keep_dims
+            )
+        else:
+            mask_weights = tf.cast(
+                mask, self.compute_dtype, name="mask_weights"
+            )
+            mask_weights = tf.expand_dims(
+                mask_weights, axis=-1, name="mask_weights_broadcasted"
+            )
+            mask_weights = _expand_tensor_with_local_replica_group(mask_weights)
+            mean, var = tf.nn.weighted_moments(
+                replica_tensor,
+                axes=updated_reduction_axes,
+                frequency_weights=mask_weights,
+                keepdims=keep_dims,
+            )
+        # Also note that the mean/var we have here will have an extra dim in
+        # axis 0, which is represented for num local replica. Down the
+        # stream, the mean/var will be used to update the moving_mean/var
+        # and also normalize the inputs. To make the shape match, we will
+        # expand the tensor shape from [num_replica, x, y] to
+        # [batch_size, x, y] so that it can be properly used for
+        # normalization. When it reaches the mean/var update, a separate
+        # logic will be there to reduce_mean the value based on the batch
+        # dim.
+        mean = tf.repeat(mean, local_batch_size, axis=0)
+        var = tf.repeat(var, local_batch_size, axis=0)
+        if not keep_dims:
+            # We need to fill the reduced dims so that the mean/var can be
+            # properly broadcast to the input shapes. In the example above,
+            # the original reduction_axes is [0, 1]. We ignore the first 0
+            # (batch dim) here since we already expand and use it as num_replica
+            for dim in reduction_axes[1:]:
+                mean = tf.expand_dims(mean, axis=dim)
+                var = tf.expand_dims(var, axis=dim)
+        return mean, var
+
+    def _dtensor_sync_calculate_mean_and_var(
+        self, inputs, reduction_axes, keep_dims, mask=None
+    ):
+        # In the DTensor sync BN, since the input tensor is already in global
+        # context, we just need to use the normal moments/weighted_moments
+        # to calculate mean/var, which is same as the non-sync BN in the normal
+        # mode.
+        return self._no_sync_calculate_mean_and_var(
+            inputs, reduction_axes, keep_dims, mask
+        )
+
+    def _moments(self, inputs, reduction_axes, keep_dims, mask=None):
+        if utils.running_with_dtensor_strategy():
+            mean, variance = self._dtensor_calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
+        else:
+            mean, variance = self._calculate_mean_and_var(
+                inputs, reduction_axes, keep_dims, mask=mask
+            )
         # TODO(b/129279393): Support zero batch input in non
         # DistributionStrategy code as well.
         if self._support_zero_size_input():
@@ -1450,19 +1548,49 @@ class SyncBatchNormalization(BatchNormalizationBase):
         )
 
 
-def _running_with_dtensor_strategy():
-    """Check whether running with a `Strategy` that is backed by DTensor.
+def _expand_tensor_with_local_replica_group(inputs):
+    """Reshape the input tensor to have an extra dimension of replica group.
 
-    In the DTensor based training, all the tensors are in global context, which
-    means the existing way of calculating the mean/var will switch from local
-    context to global context, effectively changing from BN to sync BN.
+    Under the DTensor usage, the normal batch norm still need to perform on
+    a local batch size, which mean we can't directly do mean/var on a global
+    tensor. In order to do a local mean/var, we have to add a new dimention to
+    the tensor, so that the ops will not cross the replica boundary. E.g,
+    a global tensor with shape [8, x, y] and has 2 local replica, the output of
+    this will be [2, 4, x, y], where the first dim is for num of replica, and
+    the second dim is for the local batch size. The follow ops can do reduces
+    among the local batch dimension.
 
-    To keep the status quo, a check of the DTensor context is needed, and
-    ops behavior need to be switched back.
+    Note that this function should only be used under DTensor based strategy,
+    and it will use the current strategy in the context to get the number of
+    replica.
+
+    Args:
+        inputs: Tensor with shape [global_batch_size, ...]
+
+    Returns:
+        Tensor with shape [num_replica, local_batch_size, ...]
     """
-    if not tf.distribute.has_strategy():
-        return False
-    strategy = tf.distribute.get_strategy()
-    # TODO(scottzhu): Finalize the strategy API to check if a strategy is backed
-    # by DTensor.
-    return getattr(strategy, "_mesh", None) is not None
+    # TODO(b/272382109): Implement this an an Op.
+    input_shape = tf.shape(inputs)
+    global_batch_size = input_shape[0]
+    num_replica = tf.distribute.get_strategy().num_replicas_in_sync
+    local_batch_size = global_batch_size // num_replica
+    replica_shape = tf.stack([num_replica, local_batch_size])
+    replica_shape = tf.concat([replica_shape, input_shape[1:]], axis=0)
+    return tf.reshape(inputs, replica_shape)
+
+
+def _raise_for_non_sync_bn_with_renorm_and_dtensor_strategy(
+    synchronized, training, renorm
+):
+    if (
+        utils.running_with_dtensor_strategy()
+        and not synchronized
+        and training == True
+        and renorm
+    ):
+        raise NotImplementedError(
+            "Renorm for BatchNormalization under DTensor based distribution "
+            "strategy is not supported at the moment. Please file a feature "
+            "request if this is blocking your adoption."
+        )

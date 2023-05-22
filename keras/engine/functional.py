@@ -1555,8 +1555,11 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
     """
     config = config or {}
     serialize_obj_fn = serialization_lib.serialize_keras_object
-    if "module" not in config:
+    set_layers_legacy = False
+    # To be removed after full affected g3 user migration to Keras V3 Saving.
+    if getattr(network, "use_legacy_config", False):
         serialize_obj_fn = serialization.serialize_keras_object
+        set_layers_legacy = True
     serialize_layer_fn = serialize_layer_fn or serialize_obj_fn
     config["name"] = network.name
     node_conversion_map = {}
@@ -1582,6 +1585,8 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
                     )
                     filtered_inbound_nodes.append(node_data)
 
+            if isinstance(layer, Functional) and set_layers_legacy:
+                layer.use_legacy_config = True
             layer_config = serialize_layer_fn(layer)
             layer_config["name"] = layer.name
             layer_config["inbound_nodes"] = filtered_inbound_nodes
@@ -1647,8 +1652,8 @@ class ModuleWrapper(base_layer.Layer):
         Args:
           module: The `tf.Module` instance to be wrapped.
           method_name: (Optional) str. The name of the method to use as the
-            forward pass of the module. If not set, defaults to '__call__' if
-            defined, or 'call'.
+            forward pass of the module. If not set, becomes '__call__' if
+            defined, or 'call'. Defaults to `None`.
           **kwargs: Additional keywrod arguments. See `tf.keras.layers.Layer`.
 
         Raises:
