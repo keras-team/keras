@@ -165,6 +165,22 @@ class Sequential(Model):
             inputs = outputs
         return outputs
 
+    @property
+    def input_shape(self):
+        if self._functional:
+            return self._functional.input_shape
+        raise ValueError(
+            f"Sequential model '{self.name}' has no defined input shape yet."
+        )
+
+    @property
+    def output_shape(self):
+        if self._functional:
+            return self._functional.output_shape
+        raise ValueError(
+            f"Sequential model '{self.name}' has no defined output shape yet."
+        )
+
     def _is_layer_name_unique(self, layer):
         for ref_layer in self._layers:
             if layer.name == ref_layer.name and ref_layer is not layer:
