@@ -419,7 +419,7 @@ def correct_pad(inputs, kernel_size):
       A tuple.
     """
     img_dim = 2 if backend.image_data_format() == "channels_first" else 1
-    input_size = backend.int_shape(inputs)[img_dim : (img_dim + 2)]
+    input_size = inputs.shape[img_dim : (img_dim + 2)]
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if input_size[0] is None:

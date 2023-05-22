@@ -1,20 +1,35 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import testing
+from keras_core.applications import mobilenet
+from keras_core.applications import mobilenet_v2
+from keras_core.applications import mobilenet_v3
 from keras_core.applications import vgg16
 from keras_core.applications import vgg19
 from keras_core.applications import xception
 from keras_core.utils import file_utils
 from keras_core.utils import image_utils
 
+try:
+    import PIL
+except ImportError:
+    PIL = None
+
 MODEL_LIST = [
     # cls, last_dim
     (vgg16.VGG16, 512, vgg16),
     (vgg19.VGG19, 512, vgg19),
     (xception.Xception, 2048, xception),
+    (mobilenet.MobileNet, 1024, mobilenet),
+    (mobilenet_v2.MobileNetV2, 1280, mobilenet_v2),
+    (mobilenet_v3.MobileNetV3Small, 576, mobilenet_v3),
+    (mobilenet_v3.MobileNetV3Large, 960, mobilenet_v3),
 ]
+# Add names for `named_parameters`.
+MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]
 
 
 def _get_elephant(target_size):
@@ -36,7 +51,7 @@ def _get_elephant(target_size):
 
 
 class ApplicationsTest(testing.TestCase, parameterized.TestCase):
-    @parameterized.parameters(MODEL_LIST)
+    @parameterized.named_parameters(MODEL_LIST)
     def test_application_notop_variable_input_channels(self, app, last_dim, _):
         # Test compatibility with 1 channel
         if backend.image_data_format() == "channels_first":
@@ -56,7 +71,8 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape, [None, None, None, last_dim])
 
-    @parameterized.parameters(MODEL_LIST)
+    @parameterized.named_parameters(MODEL_LIST)
+    @pytest.mark.skipif(PIL is None, reason="Requires PIL.")
     def test_application_base(self, app, _, app_module):
         # Can be instantiated with default arguments
         model = app(weights="imagenet")
@@ -74,19 +90,19 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
         reconstructed_model = model.__class__.from_config(config)
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
 
-    @parameterized.parameters(MODEL_LIST)
+    @parameterized.named_parameters(MODEL_LIST)
     def test_application_notop_custom_input_shape(self, app, last_dim, _):
         model = app(weights=None, include_top=False, input_shape=(123, 123, 3))
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape[-1], last_dim)
 
-    @parameterized.parameters(MODEL_LIST)
+    @parameterized.named_parameters(MODEL_LIST)
     def test_application_pooling(self, app, last_dim, _):
         model = app(weights=None, include_top=False, pooling="max")
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape, [None, last_dim])
 
-    @parameterized.parameters(MODEL_LIST)
+    @parameterized.named_parameters(MODEL_LIST)
     def test_application_classifier_activation(self, app, *_):
         model = app(
             weights=None, include_top=True, classifier_activation="softmax"

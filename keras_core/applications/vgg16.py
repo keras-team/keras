@@ -88,8 +88,8 @@ def VGG16(
         classifier_activation: A `str` or callable. The activation function to
             use on the "top" layer. Ignored unless `include_top=True`. Set
             `classifier_activation=None` to return the logits of the "top"
-            layer.  When loading pretrained weights, `classifier_activation` can
-            only be `None` or `"softmax"`.
+            layer.  When loading pretrained weights, `classifier_activation`
+            can only be `None` or `"softmax"`.
 
     Returns:
         A model instance.
@@ -97,7 +97,7 @@ def VGG16(
     if not (weights in {"imagenet", None} or gfile.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
-            "`None` (random initialization), `imagenet` "
+            "`None` (random initialization), 'imagenet' "
             "(pre-training on ImageNet), "
             "or the path to the weights file to be loaded.  Received: "
             f"weights={weights}"
@@ -105,10 +105,11 @@ def VGG16(
 
     if weights == "imagenet" and include_top and classes != 1000:
         raise ValueError(
-            'If using `weights` as `"imagenet"` with `include_top` '
-            "as true, `classes` should be 1000.  "
-            f"Received `classes={classes}`"
+            "If using `weights='imagenet'` with `include_top=True`, "
+            "`classes` should be 1000.  "
+            f"Received classes={classes}"
         )
+
     # Determine proper input shape
     input_shape = imagenet_utils.obtain_input_shape(
         input_shape,
