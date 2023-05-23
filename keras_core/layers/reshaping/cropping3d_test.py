@@ -159,3 +159,9 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
             layers.Cropping3D(cropping=(1, 2, 3, 4))
         with self.assertRaises(ValueError):
             layers.Cropping3D(cropping="1")
+        with self.assertRaises(ValueError):
+            layers.Cropping3D(cropping=((1, 2), (3, 4), (5, 6, 7)))
+        with self.assertRaises(ValueError):
+            layers.Cropping3D(cropping=((1, 2), (3, 4), (5, -6)))
+        with self.assertRaises(ValueError):
+            layers.Cropping3D(cropping=((1, 2), (3, 4), "5"))

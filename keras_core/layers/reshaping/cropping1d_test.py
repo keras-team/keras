@@ -56,6 +56,14 @@ class Cropping1DTest(testing.TestCase):
         cropped = layers.Cropping1D((1, 2))(input_layer)
         self.assertEqual(cropped.shape, (1, None, 7))
 
+    def test_cropping_1d_errors_if_cropping_argument_invalid(self):
+        with self.assertRaises(ValueError):
+            layers.Cropping1D(cropping=(1,))
+        with self.assertRaises(ValueError):
+            layers.Cropping1D(cropping=(1, 2, 3))
+        with self.assertRaises(ValueError):
+            layers.Cropping1D(cropping="1")
+
     def test_cropping_1d_errors_if_cropping_more_than_available(self):
         with self.assertRaises(ValueError):
             input_layer = layers.Input(batch_shape=(3, 5, 7))
