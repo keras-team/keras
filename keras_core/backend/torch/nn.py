@@ -157,8 +157,9 @@ def _transpose_spatial_inputs(inputs):
         inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
     else:
         raise ValueError(
-            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
-            f"and 3D inputs. But received shape: {inputs.shape}."
+            "Inputs must have ndim=3, 4 or 5, "
+            "corresponding to 1D, 2D and 3D inputs. "
+            f"Received input shape: {inputs.shape}."
         )
     return inputs
 
@@ -222,8 +223,9 @@ def max_pool(
         outputs = tnn.max_pool3d(inputs, kernel_size=pool_size, stride=strides)
     else:
         raise ValueError(
-            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
-            f"and 3D inputs. But received shape: {inputs.shape}."
+            "Inputs to pooling op must have ndim=3, 4 or 5, "
+            "corresponding to 1D, 2D and 3D inputs. "
+            f"Received input shape: {inputs.shape}."
         )
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -264,8 +266,9 @@ def average_pool(
         outputs = tnn.avg_pool3d(inputs, kernel_size=pool_size, stride=strides)
     else:
         raise ValueError(
-            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
-            f"and 3D inputs. But received shape: {inputs.shape}."
+            "Inputs to pooling op must have ndim=3, 4 or 5, "
+            "corresponding to 1D, 2D and 3D inputs. "
+            f"Received input shape: {inputs.shape}."
         )
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -303,8 +306,8 @@ def conv(
     if channels % kernel_in_channels > 0:
         raise ValueError(
             "The number of input channels must be evenly divisible by "
-            f"kernel's in_channels. Received input shape {inputs.shape} and "
-            f"kernel shape {kernel.shape}. "
+            f"kernel.shape[1]. Received: inputs.shape={inputs.shape}, "
+            f"kernel.shape={kernel.shape}"
         )
     groups = channels // kernel_in_channels
     if num_spatial_dims == 1:
