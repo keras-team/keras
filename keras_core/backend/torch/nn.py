@@ -3,6 +3,9 @@ import torch
 import torch.nn.functional as tnn
 
 from keras_core.backend import standardize_data_format
+from keras_core.backend.common.backend_utils import (
+    compute_conv_transpose_padding,
+)
 from keras_core.backend.config import epsilon
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.utils.argument_validation import standardize_tuple
@@ -101,23 +104,45 @@ def log_softmax(x, axis=None):
     return tnn.log_softmax(logits, dim=axis)
 
 
-def _compute_padding_length(kernel_length):
+def _compute_padding_length(
+    input_length, kernel_length, stride, dilation_rate=1
+):
     """Compute padding length along one dimension."""
-    total_padding_length = kernel_length - 1
+    if (input_length - 1) % stride == 0:
+        total_padding_length = dilation_rate * (kernel_length - 1)
+    else:
+        total_padding_length = (
+            dilation_rate * (kernel_length - 1) - (input_length - 1) % stride
+        )
     left_padding = int(np.floor(total_padding_length / 2))
     right_padding = int(np.ceil(total_padding_length / 2))
     return (left_padding, right_padding)
 
 
-def _apply_same_padding(inputs, kernel_size):
+def _apply_same_padding(
+    inputs, kernel_size, strides, operation_type, dilation_rate=1
+):
     spatial_shape = inputs.shape[2:]
     num_spatial_dims = len(spatial_shape)
     padding = ()
+
     for i in range(num_spatial_dims):
-        padding_size = _compute_padding_length(kernel_size[i])
+        if operation_type == "pooling":
+            padding_size = _compute_padding_length(
+                spatial_shape[i], kernel_size[i], strides[i]
+            )
+            mode = "replicate"
+        else:
+            dilation_rate = standardize_tuple(
+                dilation_rate, num_spatial_dims, "dilation_rate"
+            )
+            padding_size = _compute_padding_length(
+                spatial_shape[i], kernel_size[i], strides[i], dilation_rate[i]
+            )
+            mode = "constant"
         padding = padding_size + padding
 
-    return tnn.pad(inputs, padding, mode="replicate")
+    return tnn.pad(inputs, padding, mode=mode)
 
 
 def _transpose_spatial_inputs(inputs):
@@ -150,6 +175,19 @@ def _transpose_spatial_outputs(outputs):
     return outputs
 
 
+def _transpose_conv_kernel(kernel):
+    # Torch requires conv kernel of format
+    # `(out_channels, in_channels, spatial_dims)`, we need to transpose.
+    num_spatial_dims = len(kernel.shape) - 2
+    if num_spatial_dims == 1:
+        kernel = torch.permute(kernel, (2, 1, 0))
+    elif num_spatial_dims == 2:
+        kernel = torch.permute(kernel, (3, 2, 0, 1))
+    elif num_spatial_dims == 3:
+        kernel = torch.permute(kernel, (4, 3, 0, 1, 2))
+    return kernel
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -172,7 +210,9 @@ def max_pool(
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
-        inputs = _apply_same_padding(inputs, pool_size)
+        inputs = _apply_same_padding(
+            inputs, pool_size, strides, operation_type="pooling"
+        )
 
     if num_spatial_dims == 1:
         outputs = tnn.max_pool1d(inputs, kernel_size=pool_size, stride=strides)
@@ -182,9 +222,8 @@ def max_pool(
         outputs = tnn.max_pool3d(inputs, kernel_size=pool_size, stride=strides)
     else:
         raise ValueError(
-            "Inputs to pooling operation must have ndim=3, 4, or 5 "
-            "corresponding to 1D, 2D and 3D inputs. Received: "
-            f"inputs.shape={inputs.shape}."
+            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
+            f"and 3D inputs. But received shape: {inputs.shape}."
         )
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -213,7 +252,9 @@ def average_pool(
     if padding == "same":
         # Torch does not natively support `"same"` padding, we need to manually
         # apply the right amount of padding to `inputs`.
-        inputs = _apply_same_padding(inputs, pool_size)
+        inputs = _apply_same_padding(
+            inputs, pool_size, strides, operation_type="pooling"
+        )
 
     if num_spatial_dims == 1:
         outputs = tnn.avg_pool1d(inputs, kernel_size=pool_size, stride=strides)
@@ -223,9 +264,8 @@ def average_pool(
         outputs = tnn.avg_pool3d(inputs, kernel_size=pool_size, stride=strides)
     else:
         raise ValueError(
-            "Inputs to pooling operation must have ndim=3, 4, or 5 "
-            "corresponding to 1D, 2D and 3D inputs. Received: "
-            f"inputs.shape={inputs.shape}."
+            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
+            f"and 3D inputs. But received shape: {inputs.shape}."
         )
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
@@ -237,10 +277,70 @@ def conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError("`conv` not yet implemented for PyTorch Backend")
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    num_spatial_dims = inputs.ndim - 2
+    strides = standardize_tuple(strides, num_spatial_dims, "strides")
+
+    data_format = standardize_data_format(data_format)
+    if data_format == "channels_last":
+        inputs = _transpose_spatial_inputs(inputs)
+    # Transpose kernel from keras format to torch format.
+    kernel = _transpose_conv_kernel(kernel)
+    if padding == "same":
+        inputs = _apply_same_padding(
+            inputs,
+            kernel.shape[2:],
+            strides,
+            operation_type="conv",
+            dilation_rate=dilation_rate,
+        )
+    channels = inputs.shape[1]
+    kernel_in_channels = kernel.shape[1]
+    if channels % kernel_in_channels > 0:
+        raise ValueError(
+            "The number of input channels must be evenly divisible by "
+            f"kernel's in_channels. Received input shape {inputs.shape} and "
+            f"kernel shape {kernel.shape}. "
+        )
+    groups = channels // kernel_in_channels
+    if num_spatial_dims == 1:
+        outputs = tnn.conv1d(
+            inputs,
+            kernel,
+            stride=strides,
+            dilation=dilation_rate,
+            groups=groups,
+        )
+    elif num_spatial_dims == 2:
+        outputs = tnn.conv2d(
+            inputs,
+            kernel,
+            stride=strides,
+            dilation=dilation_rate,
+            groups=groups,
+        )
+    elif num_spatial_dims == 3:
+        outputs = tnn.conv3d(
+            inputs,
+            kernel,
+            stride=strides,
+            dilation=dilation_rate,
+            groups=groups,
+        )
+    else:
+        raise ValueError(
+            "Inputs to conv operation should have ndim=3, 4, or 5,"
+            "corresponding to 1D, 2D and 3D inputs. Received input "
+            f"shape: {inputs.shape}."
+        )
+
+    if data_format == "channels_last":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def depthwise_conv(
@@ -248,12 +348,14 @@ def depthwise_conv(
     kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`depthwise_conv` not yet implemented for PyTorch Backend"
+    kernel = convert_to_tensor(kernel)
+    kernel = torch.reshape(
+        kernel, kernel.shape[:-2] + (1, kernel.shape[-2] * kernel.shape[-1])
     )
+    return conv(inputs, kernel, strides, padding, data_format, dilation_rate)
 
 
 def separable_conv(
@@ -262,7 +364,7 @@ def separable_conv(
     pointwise_kernel,
     strides=1,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
     depthwise_conv_output = depthwise_conv(
@@ -289,12 +391,77 @@ def conv_transpose(
     strides=1,
     padding="valid",
     output_padding=None,
-    data_format="channels_last",
+    data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`conv_transpose` not yet implemented for PyTorch backend"
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    num_spatial_dims = inputs.ndim - 2
+    strides = standardize_tuple(strides, num_spatial_dims, "strides")
+
+    data_format = standardize_data_format(data_format)
+    padding_values = compute_conv_transpose_padding(
+        inputs.shape,
+        kernel.shape,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
     )
+    if data_format == "channels_last":
+        inputs = _transpose_spatial_inputs(inputs)
+    # Transpose kernel from keras format to torch format.
+    kernel = _transpose_conv_kernel(kernel)
+    kernel_spatial_shape = kernel.shape[2:]
+    padding_arg = []
+    output_padding_arg = []
+    for i, value in enumerate(padding_values):
+        total_padding = value[0] + value[1]
+        padding_arg.append(
+            dilation_rate * (kernel_spatial_shape[i] - 1) - total_padding // 2
+        )
+        if total_padding % 2 == 0:
+            output_padding_arg.append(0)
+        else:
+            output_padding_arg.append(1)
+
+    if num_spatial_dims == 1:
+        outputs = tnn.conv_transpose1d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
+            dilation=dilation_rate,
+        )
+    elif num_spatial_dims == 2:
+        outputs = tnn.conv_transpose2d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
+            dilation=dilation_rate,
+        )
+    elif num_spatial_dims == 3:
+        outputs = tnn.conv_transpose3d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
+            dilation=dilation_rate,
+        )
+    else:
+        raise ValueError(
+            "Inputs to conv transpose operation should have ndim=3, 4, or 5,"
+            "corresponding to 1D, 2D and 3D inputs. Received input "
+            f"shape: {inputs.shape}."
+        )
+    if data_format == "channels_last":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def one_hot(x, num_classes, axis=-1):

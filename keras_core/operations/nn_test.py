@@ -771,15 +771,22 @@ class NNOpsCorrectnessTest(testing.TestCase):
         expected = tf.nn.conv2d(inputs_2d, kernel, (1, 2), padding="VALID")
         self.assertAllClose(outputs, expected)
 
+        outputs = knn.conv(inputs_2d, kernel, (1, 2), padding="same")
+        expected = tf.nn.conv2d(inputs_2d, kernel, (1, 2), padding="SAME")
+        self.assertAllClose(outputs, expected)
+
         outputs = knn.conv(inputs_2d, kernel, 2, padding="same")
         expected = tf.nn.conv2d(inputs_2d, kernel, 2, padding="SAME")
         self.assertAllClose(outputs, expected)
 
+        # Test group > 1.
+        inputs_2d = np.ones([2, 10, 10, 4])
+        kernel = np.ones([2, 2, 2, 6])
         outputs = knn.conv(
-            inputs_2d, kernel, 1, padding="same", dilation_rate=2
+            inputs_2d, kernel, 2, padding="same", dilation_rate=1
         )
         expected = tf.nn.conv2d(
-            inputs_2d, kernel, 1, padding="SAME", dilations=2
+            inputs_2d, kernel, 2, padding="SAME", dilations=1
         )
         self.assertAllClose(outputs, expected)
 
@@ -822,6 +829,12 @@ class NNOpsCorrectnessTest(testing.TestCase):
             (1, 1, 1, 1, 1),
             padding="VALID",
             dilations=(1, 1, 1, 1, 1),
+        )
+        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+
+        outputs = knn.conv(inputs_3d, kernel, 2, padding="valid")
+        expected = tf.nn.conv3d(
+            inputs_3d, kernel, (1, 2, 2, 2, 1), padding="VALID"
         )
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
