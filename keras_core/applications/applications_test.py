@@ -14,6 +14,7 @@ from keras_core.applications import mobilenet
 from keras_core.applications import mobilenet_v2
 from keras_core.applications import mobilenet_v3
 from keras_core.applications import nasnet
+from keras_core.applications import resnet
 from keras_core.applications import vgg16
 from keras_core.applications import vgg19
 from keras_core.applications import xception
@@ -69,6 +70,8 @@ MODEL_LIST = [
     # nasnet
     (nasnet.NASNetMobile, 1056, nasnet),
     (nasnet.NASNetLarge, 4032, nasnet),
+    # resnet
+    (resnet.ResNet50, 2048, resnet),
 ]
 # Add names for `named_parameters`.
 MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]
