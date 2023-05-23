@@ -74,6 +74,12 @@ class GroupNormalization(Layer):
         default.  Input shape: Arbitrary. Use the keyword argument `input_shape`
         (tuple of integers, does not include the samples axis) when using this
         layer as the first layer in a model.  Output shape: Same shape as input.
+
+    Call arguments:
+      inputs: Input tensor (of any rank).
+      mask: The mask parameter is a tensor that indicates the weight for each
+        position in the input tensor when computing the mean and variance.
+
     Reference: - [Yuxin Wu & Kaiming He, 2018](https://arxiv.org/abs/1803.08494)
     """
 
@@ -160,13 +166,19 @@ class GroupNormalization(Layer):
 
         super().build(input_shape)
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         input_shape = tf.shape(inputs)
 
+        if mask is None:
+            mask = tf.ones_like(inputs)
+
         reshaped_inputs = self._reshape_into_groups(inputs)
+        reshaped_mask = self._reshape_into_groups(mask)
 
         normalized_inputs = self._apply_normalization(
-            reshaped_inputs, input_shape
+            reshaped_inputs=reshaped_inputs,
+            input_shape=input_shape,
+            reshaped_mask=reshaped_mask,
         )
 
         return tf.reshape(normalized_inputs, input_shape)
@@ -181,14 +193,25 @@ class GroupNormalization(Layer):
         reshaped_inputs = tf.reshape(inputs, group_shape)
         return reshaped_inputs
 
-    def _apply_normalization(self, reshaped_inputs, input_shape):
+    def _apply_normalization(
+        self,
+        *,
+        reshaped_inputs,
+        reshaped_mask,
+        input_shape,
+    ):
         group_reduction_axes = list(range(1, reshaped_inputs.shape.rank))
 
-        axis = -2 if self.axis == -1 else self.axis - 1
+        axis = self.axis - 1
         group_reduction_axes.pop(axis)
 
-        mean, variance = tf.nn.moments(
-            reshaped_inputs, group_reduction_axes, keepdims=True
+        mask_weights = tf.cast(reshaped_mask, reshaped_inputs.dtype)
+
+        mean, variance = tf.nn.weighted_moments(
+            reshaped_inputs,
+            axes=group_reduction_axes,
+            frequency_weights=mask_weights,
+            keepdims=True,
         )
 
         gamma, beta = self._get_reshaped_weights(input_shape)

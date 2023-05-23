@@ -106,6 +106,72 @@ class GroupNormalizationTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes
+    def test_correctness_1d_with_mask(self):
+        layer_with_1_group = GroupNormalization(
+            groups=1, axis=-1, input_shape=(8,), scale=False, center=False
+        )
+        layer_with_2_groups = GroupNormalization(
+            groups=2, axis=1, input_shape=(8,), scale=False, center=False
+        )
+
+        inputs = tf.constant(
+            [-1.0, -1.0, 1.0, 1.0, 2.0, 2.0, 0, -2.0], shape=(1, 8)
+        )
+
+        mask1 = tf.constant(
+            [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], shape=(1, 8)
+        )
+        mask2 = tf.constant(
+            [1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0], shape=(1, 8)
+        )
+
+        expected_output_1_group = tf.constant(
+            [-0.706, -0.706, 1.413, 1.413, 2.473, 2.473, 0.353, -1.766],
+            shape=(1, 8),
+        )
+        self.assertAllClose(
+            _build_group_normalization_model(layer_with_1_group)(
+                inputs, mask=mask1
+            ),
+            expected_output_1_group,
+            atol=1e-3,
+        )
+
+        expected_output_2_groups = tf.constant(
+            [-1.0, -1.0, 1.0, 1.0, 0.999, 0.999, 0.0, -0.999], shape=(1, 8)
+        )
+        self.assertAllClose(
+            _build_group_normalization_model(layer_with_2_groups)(
+                inputs, mask=mask2
+            ),
+            expected_output_2_groups,
+            atol=1e-3,
+        )
+
+    @test_combinations.run_all_keras_modes
+    def test_correctness_1d_with_non_binary_mask(self):
+        norm = GroupNormalization(
+            groups=1, axis=-1, input_shape=(8,), scale=False, center=False
+        )
+        inputs = tf.constant(
+            [-1.0, -1.0, 1.0, 1.0, 2.0, 2.0, 0, -2.0], shape=(1, 8)
+        )
+
+        mask = tf.constant(
+            [0.5, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], shape=(1, 8)
+        )
+
+        expected_output = tf.constant(
+            [-0.999, -0.999, 0.999, 0.999, 1.999, 1.999, 0.0, -1.999],
+            shape=(1, 8),
+        )
+        self.assertAllClose(
+            _build_group_normalization_model(norm)(inputs, mask=mask),
+            expected_output,
+            atol=1e-3,
+        )
+
+    @test_combinations.run_all_keras_modes
     def test_correctness_2d(self):
         layer_with_1_group = GroupNormalization(
             groups=1, axis=-1, input_shape=(2, 4), scale=False, center=False
@@ -134,6 +200,68 @@ class GroupNormalizationTest(test_combinations.TestCase):
         )
         self.assertAllClose(
             _build_group_normalization_model(layer_with_2_groups)(inputs),
+            expected_output_2_groups,
+            atol=1e-3,
+        )
+
+    @test_combinations.run_all_keras_modes
+    def test_correctness_2d_with_mask(self):
+        layer_with_1_group = GroupNormalization(
+            groups=1, axis=-1, input_shape=(2, 4), scale=False, center=False
+        )
+        layer_with_2_groups = GroupNormalization(
+            groups=2, axis=2, input_shape=(2, 4), scale=False, center=False
+        )
+
+        inputs = tf.constant(
+            [[-1.0, -1.0, 2.0, 2.0], [1.0, 1.0, 0, -2.0]], shape=(1, 2, 4)
+        )
+
+        mask1 = tf.constant(
+            [
+                [
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                ],
+                [1.0, 0.0, 0.0, 0.0],
+            ],
+            shape=(1, 2, 4),
+        )
+        mask2 = tf.constant(
+            [
+                [
+                    1.0,
+                    1.0,
+                    0.0,
+                    1.0,
+                ],
+                [1.0, 1.0, 0.0, 1.0],
+            ],
+            shape=(1, 2, 4),
+        )
+
+        expected_output_1_group = tf.constant(
+            [[-0.706, -0.706, 2.473, 2.473], [1.413, 1.413, 0.353, -1.766]],
+            shape=(1, 2, 4),
+        )
+        self.assertAllClose(
+            _build_group_normalization_model(layer_with_1_group)(
+                inputs, mask=mask1
+            ),
+            expected_output_1_group,
+            atol=1e-3,
+        )
+
+        expected_output_2_groups = tf.constant(
+            [[-1.0, -1.0, 0.999, 0.999], [1.0, 1.0, 0.0, -0.999]],
+            shape=(1, 2, 4),
+        )
+        self.assertAllClose(
+            _build_group_normalization_model(layer_with_2_groups)(
+                inputs, mask=mask2
+            ),
             expected_output_2_groups,
             atol=1e-3,
         )
