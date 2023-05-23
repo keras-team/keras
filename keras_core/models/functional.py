@@ -540,7 +540,7 @@ def deserialize_node(node_data, created_layers):
             if layer is None:
                 raise ValueError(f"Unknown layer: {history[0]}")
             inbound_node_index = history[1]
-            inbound_tensor_index = history[1]
+            inbound_tensor_index = history[2]
             if len(layer._inbound_nodes) <= inbound_node_index:
                 raise ValueError(
                     "Layer node index out of bounds.\n"

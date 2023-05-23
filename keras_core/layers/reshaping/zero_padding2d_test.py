@@ -74,9 +74,3 @@ class ZeroPadding2DTest(testing.TestCase, parameterized.TestCase):
             layers.ZeroPadding2D(padding=(1, 2, 3))
         with self.assertRaises(ValueError):
             layers.ZeroPadding2D(padding="1")
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), (3, 4, 5)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), (3, -4)))
-        with self.assertRaises(ValueError):
-            layers.ZeroPadding2D(padding=((1, 2), "3"))

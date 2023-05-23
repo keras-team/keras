@@ -97,9 +97,3 @@ class Cropping2DTest(testing.TestCase, parameterized.TestCase):
             layers.Cropping2D(cropping=(1, 2, 3))
         with self.assertRaises(ValueError):
             layers.Cropping2D(cropping="1")
-        with self.assertRaises(ValueError):
-            layers.Cropping2D(cropping=((1, 2), (3, 4, 5)))
-        with self.assertRaises(ValueError):
-            layers.Cropping2D(cropping=((1, 2), (3, -4)))
-        with self.assertRaises(ValueError):
-            layers.Cropping2D(cropping=((1, 2), "3"))

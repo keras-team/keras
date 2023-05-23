@@ -3,7 +3,6 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
-from keras_core.utils import argument_validation
 
 
 @keras_core_export("keras_core.layers.ZeroPadding3D")
@@ -77,15 +76,16 @@ class ZeroPadding3D(Layer):
                 raise ValueError(
                     f"`padding` should have 3 elements. Received: {padding}."
                 )
-            dim1_padding = argument_validation.standardize_tuple(
-                padding[0], 2, "1st entry of padding", allow_zero=True
-            )
-            dim2_padding = argument_validation.standardize_tuple(
-                padding[1], 2, "2nd entry of padding", allow_zero=True
-            )
-            dim3_padding = argument_validation.standardize_tuple(
-                padding[2], 2, "3rd entry of padding", allow_zero=True
-            )
+            dim1_padding = padding[0]
+            if isinstance(dim1_padding, int):
+                dim1_padding = (dim1_padding, dim1_padding)
+            dim2_padding = padding[1]
+            if isinstance(dim2_padding, int):
+                dim2_padding = (dim2_padding, dim2_padding)
+            dim3_padding = padding[2]
+            if isinstance(dim3_padding, int):
+                dim3_padding = (dim3_padding, dim3_padding)
+            self.padding = (dim1_padding, dim2_padding, dim3_padding)
             self.padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
             raise ValueError(

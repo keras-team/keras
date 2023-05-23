@@ -2,7 +2,6 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
-from keras_core.utils import argument_validation
 
 
 @keras_core_export("keras_core.layers.ZeroPadding1D")
@@ -49,9 +48,9 @@ class ZeroPadding1D(Layer):
 
     def __init__(self, padding=1, name=None, dtype=None):
         super().__init__(name=name, dtype=dtype)
-        self.padding = argument_validation.standardize_tuple(
-            padding, 2, "padding", allow_zero=True
-        )
+        if isinstance(padding, int):
+            padding = (padding, padding)
+        self.padding = padding
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):

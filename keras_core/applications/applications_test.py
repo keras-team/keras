@@ -4,15 +4,19 @@ from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import testing
+from keras_core.applications import convnext
 from keras_core.applications import densenet
 from keras_core.applications import efficientnet
 from keras_core.applications import efficientnet_v2
+from keras_core.applications import inception_resnet_v2
+from keras_core.applications import inception_v3
 from keras_core.applications import mobilenet
 from keras_core.applications import mobilenet_v2
 from keras_core.applications import mobilenet_v3
 from keras_core.applications import vgg16
 from keras_core.applications import vgg19
 from keras_core.applications import xception
+from keras_core.saving import serialization_lib
 from keras_core.utils import file_utils
 from keras_core.utils import image_utils
 
@@ -27,7 +31,10 @@ MODEL_LIST = [
     (vgg19.VGG19, 512, vgg19),
     # xception
     (xception.Xception, 2048, xception),
-    # mobilnet
+    # inception
+    (inception_v3.InceptionV3, 2048, inception_v3),
+    (inception_resnet_v2.InceptionResNetV2, 1536, inception_resnet_v2),
+    # mobilenet
     (mobilenet.MobileNet, 1024, mobilenet),
     (mobilenet_v2.MobileNetV2, 1280, mobilenet_v2),
     (mobilenet_v3.MobileNetV3Small, 576, mobilenet_v3),
@@ -52,6 +59,12 @@ MODEL_LIST = [
     (densenet.DenseNet121, 1024, densenet),
     (densenet.DenseNet169, 1664, densenet),
     (densenet.DenseNet201, 1920, densenet),
+    # convnext
+    (convnext.ConvNeXtTiny, 768, convnext),
+    (convnext.ConvNeXtSmall, 768, convnext),
+    (convnext.ConvNeXtBase, 1024, convnext),
+    (convnext.ConvNeXtLarge, 1536, convnext),
+    (convnext.ConvNeXtXLarge, 2048, convnext),
 ]
 # Add names for `named_parameters`.
 MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]
@@ -111,8 +124,8 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("African_elephant", names[:3])
 
         # Can be serialized and deserialized
-        config = model.get_config()
-        reconstructed_model = model.__class__.from_config(config)
+        config = serialization_lib.serialize_keras_object(model)
+        reconstructed_model = serialization_lib.deserialize_keras_object(config)
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
 
     @parameterized.named_parameters(MODEL_LIST)

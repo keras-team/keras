@@ -112,11 +112,6 @@ class Sequential(Model):
         self._functional = Functional(inputs=inputs, outputs=outputs)
         self.built = True
 
-    def __call__(self, inputs, training=None, mask=None):
-        if self._functional:
-            return self._functional(inputs, training=training, mask=mask)
-        return super().__call__(inputs, training=training, mask=mask)
-
     def call(self, inputs, training=None, mask=None):
         if self._functional:
             return self._functional.call(inputs, training=training, mask=mask)
