@@ -16,34 +16,6 @@ WEIGHTS_HASHES = {
         "2cb95161c43110f7111970584f804107",
         "4d473c1dd8becc155b73f8504c6f6626",
     ),
-    "resnet101": (
-        "f1aeb4b969a6efcfb50fad2f0c20cfc5",
-        "88cf7a10940856eca736dc7b7e228a21",
-    ),
-    "resnet152": (
-        "100835be76be38e30d865e96f2aaae62",
-        "ee4c566cf9a93f14d82f913c2dc6dd0c",
-    ),
-    "resnet50v2": (
-        "3ef43a0b657b3be2300d5770ece849e0",
-        "fac2f116257151a9d068a22e544a4917",
-    ),
-    "resnet101v2": (
-        "6343647c601c52e1368623803854d971",
-        "c0ed64b8031c3730f411d2eb4eea35b5",
-    ),
-    "resnet152v2": (
-        "a49b44d1979771252814e80f8ec446f9",
-        "ed17cf2e0169df9d443503ef94b23b33",
-    ),
-    "resnext50": (
-        "67a5b30d522ed92f75a1f16eef299d1a",
-        "62527c363bdd9ec598bed41947b379fc",
-    ),
-    "resnext101": (
-        "34fb605428fcc7aa4d62f44404c11509",
-        "0f678c91647380debd923963594981b3",
-    ),
 }
 
 
@@ -94,8 +66,8 @@ def ResNet(
             - `max` means that global max pooling will
                 be applied.
         classes: optional number of classes to classify images
-          into, only to be specified if `include_top` is `True`,
-          and if no `weights` argument is specified.
+            into, only to be specified if `include_top` is `True`,
+            and if no `weights` argument is specified.
         classifier_activation: A `str` or callable. The activation
             function to use on the "top" layer. Ignored unless
             `include_top=True`. Set `classifier_activation=None` to
@@ -295,92 +267,6 @@ def stack_residual_blocks_v1(x, filters, blocks, stride1=2, name=None):
     return x
 
 
-def residual_block_v2(
-    x, filters, kernel_size=3, stride=1, conv_shortcut=False, name=None
-):
-    """A residual block for ResNet*_v2.
-
-    Args:
-        x: Input tensor.
-        filters: No of filters in the bottleneck layer.
-        kernel_size: Kernel size of the bottleneck layer. Defaults to 3
-        stride: Stride of the first layer. Defaults to 1
-        conv_shortcut: Use convolution shortcut if `True`, otherwise
-            use identity shortcut. Defaults to `True`
-        name(optional): Name of the block
-
-    Returns:
-        Output tensor for the residual block.
-    """
-
-    if backend.image_data_format() == "channels_last":
-        bn_axis = 3
-    else:
-        bn_axis = 1
-
-    preact = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_preact_bn"
-    )(x)
-    preact = layers.Activation("relu", name=name + "_preact_relu")(preact)
-
-    if conv_shortcut:
-        shortcut = layers.Conv2D(
-            4 * filters, 1, strides=stride, name=name + "_0_conv"
-        )(preact)
-    else:
-        shortcut = (
-            layers.MaxPooling2D(1, strides=stride)(x) if stride > 1 else x
-        )
-
-    x = layers.Conv2D(
-        filters, 1, strides=1, use_bias=False, name=name + "_1_conv"
-    )(preact)
-    x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_1_bn"
-    )(x)
-    x = layers.Activation("relu", name=name + "_1_relu")(x)
-
-    x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + "_2_pad")(x)
-    x = layers.Conv2D(
-        filters,
-        kernel_size,
-        strides=stride,
-        use_bias=False,
-        name=name + "_2_conv",
-    )(x)
-    x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name=name + "_2_bn"
-    )(x)
-    x = layers.Activation("relu", name=name + "_2_relu")(x)
-
-    x = layers.Conv2D(4 * filters, 1, name=name + "_3_conv")(x)
-    x = layers.Add(name=name + "_out")([shortcut, x])
-    return x
-
-
-def stack_residual_blocks_v2(x, filters, blocks, stride1=2, name=None):
-    """A set of stacked residual blocks.
-
-    Args:
-        x: Input tensor.
-        filters: Number of filters in the bottleneck layer in a block.
-        blocks: Number of blocks in the stacked blocks.
-        stride1: Stride of the first layer in the first block. Defaults to 2.
-        name: Stack label.
-
-    Returns:
-        Output tensor for the stacked blocks.
-    """
-
-    x = residual_block_v2(x, filters, conv_shortcut=True, name=name + "_block1")
-    for i in range(2, blocks):
-        x = residual_block_v2(x, filters, name=name + "_block" + str(i))
-    x = residual_block_v2(
-        x, filters, stride=stride1, name=name + "_block" + str(blocks)
-    )
-    return x
-
-
 @keras_core_export(
     [
         "keras_core.applications.resnet50.ResNet50",
@@ -410,82 +296,6 @@ def ResNet50(
         False,
         True,
         "resnet50",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
-        classifier_activation=classifier_activation,
-    )
-
-
-@keras_core_export(
-    [
-        "keras_core.applications.resnet.ResNet101",
-        "keras_core.applications.ResNet101",
-    ]
-)
-def ResNet101(
-    include_top=True,
-    weights="imagenet",
-    input_tensor=None,
-    input_shape=None,
-    pooling=None,
-    classes=1000,
-    classifier_activation="softmax",
-):
-    """Instantiates the ResNet101 architecture."""
-
-    def stack_fn(x):
-        x = stack_residual_blocks_v1(x, 64, 3, stride1=1, name="conv2")
-        x = stack_residual_blocks_v1(x, 128, 4, name="conv3")
-        x = stack_residual_blocks_v1(x, 256, 23, name="conv4")
-        return stack_residual_blocks_v1(x, 512, 3, name="conv5")
-
-    return ResNet(
-        stack_fn,
-        False,
-        True,
-        "resnet101",
-        include_top,
-        weights,
-        input_tensor,
-        input_shape,
-        pooling,
-        classes,
-        classifier_activation=classifier_activation,
-    )
-
-
-@keras_core_export(
-    [
-        "keras_core.applications.resnet.ResNet152",
-        "keras_core.applications.ResNet152",
-    ]
-)
-def ResNet152(
-    include_top=True,
-    weights="imagenet",
-    input_tensor=None,
-    input_shape=None,
-    pooling=None,
-    classes=1000,
-    classifier_activation="softmax",
-):
-    """Instantiates the ResNet152 architecture."""
-
-    def stack_fn(x):
-        x = stack_residual_blocks_v1(x, 64, 3, stride1=1, name="conv2")
-        x = stack_residual_blocks_v1(x, 128, 8, name="conv3")
-        x = stack_residual_blocks_v1(x, 256, 36, name="conv4")
-        return stack_residual_blocks_v1(x, 512, 3, name="conv5")
-
-    return ResNet(
-        stack_fn,
-        False,
-        True,
-        "resnet152",
         include_top,
         weights,
         input_tensor,
@@ -580,5 +390,3 @@ Returns:
 """
 
 setattr(ResNet50, "__doc__", ResNet50.__doc__ + DOC)
-setattr(ResNet101, "__doc__", ResNet101.__doc__ + DOC)
-setattr(ResNet152, "__doc__", ResNet152.__doc__ + DOC)
