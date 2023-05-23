@@ -1,8 +1,11 @@
+import numpy as np
 import torch
 import torch.nn.functional as tnn
 
+from keras_core.backend import standardize_data_format
 from keras_core.backend.config import epsilon
 from keras_core.backend.torch.core import convert_to_tensor
+from keras_core.utils.argument_validation import standardize_tuple
 
 
 def relu(x):
@@ -98,28 +101,135 @@ def log_softmax(x, axis=None):
     return tnn.log_softmax(logits, dim=axis)
 
 
+def _compute_padding_length(kernel_length):
+    """Compute padding length along one dimension."""
+    total_padding_length = kernel_length - 1
+    left_padding = int(np.floor(total_padding_length / 2))
+    right_padding = int(np.ceil(total_padding_length / 2))
+    return (left_padding, right_padding)
+
+
+def _apply_same_padding(inputs, kernel_size):
+    spatial_shape = inputs.shape[2:]
+    num_spatial_dims = len(spatial_shape)
+    padding = ()
+    for i in range(num_spatial_dims):
+        padding_size = _compute_padding_length(kernel_size[i])
+        padding = padding_size + padding
+
+    return tnn.pad(inputs, padding, mode="replicate")
+
+
+def _transpose_spatial_inputs(inputs):
+    num_spatial_dims = inputs.ndim - 2
+    # Torch pooling does not support `channels_last` format, so
+    # we need to transpose to `channels_first` format.
+    if num_spatial_dims == 1:
+        inputs = torch.permute(inputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        inputs = torch.permute(inputs, (0, 3, 1, 2))
+    elif num_spatial_dims == 3:
+        inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
+    else:
+        raise ValueError(
+            "Pooling inputs's shape must be 3, 4 or 5, corresponding to 1D, 2D "
+            f"and 3D inputs. But received shape: {inputs.shape}."
+        )
+    return inputs
+
+
+def _transpose_spatial_outputs(outputs):
+    # Undo the tranpose in `_transpose_spatial_inputs`.
+    num_spatial_dims = len(outputs.shape) - 2
+    if num_spatial_dims == 1:
+        outputs = torch.permute(outputs, (0, 2, 1))
+    elif num_spatial_dims == 2:
+        outputs = torch.permute(outputs, (0, 2, 3, 1))
+    elif num_spatial_dims == 3:
+        outputs = torch.permute(outputs, (0, 2, 3, 4, 1))
+    return outputs
+
+
 def max_pool(
     inputs,
     pool_size,
     strides=None,
     padding="valid",
-    data_format="channels_last",
+    data_format=None,
 ):
-    raise NotImplementedError(
-        "`max_pool` not yet implemented for PyTorch Backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    num_spatial_dims = inputs.ndim - 2
+    pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
+    if strides is None:
+        strides = pool_size
+    else:
+        strides = standardize_tuple(strides, num_spatial_dims, "strides")
+
+    data_format = standardize_data_format(data_format)
+    if data_format == "channels_last":
+        inputs = _transpose_spatial_inputs(inputs)
+
+    if padding == "same":
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
+        inputs = _apply_same_padding(inputs, pool_size)
+
+    if num_spatial_dims == 1:
+        outputs = tnn.max_pool1d(inputs, kernel_size=pool_size, stride=strides)
+    elif num_spatial_dims == 2:
+        outputs = tnn.max_pool2d(inputs, kernel_size=pool_size, stride=strides)
+    elif num_spatial_dims == 3:
+        outputs = tnn.max_pool3d(inputs, kernel_size=pool_size, stride=strides)
+    else:
+        raise ValueError(
+            "Inputs to pooling operation must have ndim=3, 4, or 5 "
+            "corresponding to 1D, 2D and 3D inputs. Received: "
+            f"inputs.shape={inputs.shape}."
+        )
+    if data_format == "channels_last":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def average_pool(
     inputs,
     pool_size,
-    strides,
-    padding,
-    data_format="channels_last",
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
-    raise NotImplementedError(
-        "`average_pool` not yet implemented for PyTorch Backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    num_spatial_dims = inputs.ndim - 2
+    pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
+    if strides is None:
+        strides = pool_size
+    else:
+        strides = standardize_tuple(strides, num_spatial_dims, "strides")
+
+    data_format = standardize_data_format(data_format)
+    if data_format == "channels_last":
+        inputs = _transpose_spatial_inputs(inputs)
+
+    if padding == "same":
+        # Torch does not natively support `"same"` padding, we need to manually
+        # apply the right amount of padding to `inputs`.
+        inputs = _apply_same_padding(inputs, pool_size)
+
+    if num_spatial_dims == 1:
+        outputs = tnn.avg_pool1d(inputs, kernel_size=pool_size, stride=strides)
+    elif num_spatial_dims == 2:
+        outputs = tnn.avg_pool2d(inputs, kernel_size=pool_size, stride=strides)
+    elif num_spatial_dims == 3:
+        outputs = tnn.avg_pool3d(inputs, kernel_size=pool_size, stride=strides)
+    else:
+        raise ValueError(
+            "Inputs to pooling operation must have ndim=3, 4, or 5 "
+            "corresponding to 1D, 2D and 3D inputs. Received: "
+            f"inputs.shape={inputs.shape}."
+        )
+    if data_format == "channels_last":
+        outputs = _transpose_spatial_outputs(outputs)
+    return outputs
 
 
 def conv(
