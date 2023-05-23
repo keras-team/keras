@@ -75,7 +75,7 @@ class Conv1D(Conv):
         any `dilation_rate` value != 1.
       padding: One of `"valid"`, `"same"` or `"causal"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding with zeros
-        evenly to the left/right or up/down of the input. When `padding="same"` 
+        evenly to the left/right or up/down of the input.When padding="same"` 
         and `strides=1`, the output has the same size as the input.
         `"causal"` results in causal (dilated) convolutions, e.g. `output[t]`
         does not depend on `input[t+1:]`. Useful when modeling temporal data
