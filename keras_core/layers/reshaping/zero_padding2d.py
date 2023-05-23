@@ -3,6 +3,7 @@ from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
+from keras_core.utils import argument_validation
 
 
 @keras_core_export("keras_core.layers.ZeroPadding2D")
@@ -78,12 +79,12 @@ class ZeroPadding2D(Layer):
                     "`padding` should have two elements. "
                     f"Received: padding={padding}."
                 )
-            height_padding = padding[0]
-            if isinstance(height_padding, int):
-                height_padding = (height_padding, height_padding)
-            width_padding = padding[1]
-            if isinstance(width_padding, int):
-                width_padding = (width_padding, width_padding)
+            height_padding = argument_validation.standardize_tuple(
+                padding[0], 2, "1st entry of padding", allow_zero=True
+            )
+            width_padding = argument_validation.standardize_tuple(
+                padding[1], 2, "2nd entry of padding", allow_zero=True
+            )
             self.padding = (height_padding, width_padding)
         else:
             raise ValueError(

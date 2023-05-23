@@ -2,6 +2,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
+from keras_core.utils import argument_validation
 
 
 @keras_core_export("keras_core.layers.Cropping3D")
@@ -75,15 +76,15 @@ class Cropping3D(Layer):
                 raise ValueError(
                     f"`cropping` should have 3 elements. Received: {cropping}."
                 )
-            dim1_cropping = cropping[0]
-            if isinstance(dim1_cropping, int):
-                dim1_cropping = (dim1_cropping, dim1_cropping)
-            dim2_cropping = cropping[1]
-            if isinstance(dim2_cropping, int):
-                dim2_cropping = (dim2_cropping, dim2_cropping)
-            dim3_cropping = cropping[2]
-            if isinstance(dim3_cropping, int):
-                dim3_cropping = (dim3_cropping, dim3_cropping)
+            dim1_cropping = argument_validation.standardize_tuple(
+                cropping[0], 2, "1st entry of cropping", allow_zero=True
+            )
+            dim2_cropping = argument_validation.standardize_tuple(
+                cropping[1], 2, "2nd entry of cropping", allow_zero=True
+            )
+            dim3_cropping = argument_validation.standardize_tuple(
+                cropping[2], 2, "3rd entry of cropping", allow_zero=True
+            )
             self.cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
         else:
             raise ValueError(
