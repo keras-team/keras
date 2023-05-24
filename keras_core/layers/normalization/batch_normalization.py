@@ -75,8 +75,8 @@ class BatchNormalization(Layer):
             - `training=True`: The layer will normalize its inputs using
             the mean and variance of the current batch of inputs.
             - `training=False`: The layer will normalize its inputs using
-            the mean and variance of its moving statistics,
-            learned during training.
+            the mean and variance of its moving statistics, learned during
+            training.
 
     Reference:
 
@@ -102,12 +102,11 @@ class BatchNormalization(Layer):
 
     Note that:
 
-    - Setting `trainable` on an model containing other layers will
-    recursively set the `trainable` value of all inner layers.
-    - If the value of the `trainable`
-    attribute is changed after calling `compile()` on a model,
-    the new value doesn't take effect for this model
-    until `compile()` is called again.
+    - Setting `trainable` on an model containing other layers will recursively
+        set the `trainable` value of all inner layers.
+    - If the value of the `trainable` attribute is changed after calling
+        `compile()` on a model, the new value doesn't take effect for this model
+        until `compile()` is called again.
     """
 
     def __init__(
@@ -189,26 +188,29 @@ class BatchNormalization(Layer):
         return input_shape
 
     def call(self, inputs, training=None, mask=None):
-        # TODO: support masking during stats computation.
+        broadcast_shape = [1] * len(inputs.shape)
+        broadcast_shape[self.axis] = inputs.shape[self.axis]
         if training and self.trainable:
-            mean = ops.mean(inputs, axis=self._reduction_axes)
-            variance = ops.var(inputs, axis=self._reduction_axes)
+            mean = ops.mean(inputs, axis=self._reduction_axes, keepdims=True)
+            variance = ops.var(inputs, axis=self._reduction_axes, keepdims=True)
             outputs = (inputs - mean) / ops.sqrt(variance + self.epsilon)
-            self.moving_variance.assign(
-                self.moving_variance * self.momentum
-                + variance * (1.0 - self.momentum)
-            )
+            mean = ops.squeeze(mean, self._reduction_axes)
+            variance = ops.squeeze(variance, self._reduction_axes)
             self.moving_mean.assign(
                 self.moving_mean * self.momentum + mean * (1.0 - self.momentum)
             )
         else:
-            outputs = (inputs - self.moving_mean) / ops.sqrt(
-                self.moving_variance + self.epsilon
+            moving_mean = ops.reshape(self.moving_mean, broadcast_shape)
+            moving_variance = ops.reshape(self.moving_variance, broadcast_shape)
+            outputs = (inputs - moving_mean) / ops.sqrt(
+                moving_variance + self.epsilon
             )
         if self.scale:
-            outputs = outputs * self.gamma
+            gamma = ops.reshape(self.gamma, broadcast_shape)
+            outputs = outputs * gamma
         if self.center:
-            outputs = outputs + self.beta
+            beta = ops.reshape(self.beta, broadcast_shape)
+            outputs = outputs + beta
         return outputs
 
     def get_config(self):
