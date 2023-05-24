@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -101,6 +103,10 @@ def _get_elephant(target_size):
     return np.expand_dims(x, axis=0)
 
 
+@pytest.mark.skipif(
+    os.environ.get("SKIP_APPLICATIONS_TESTS"),
+    reason="Env variable set to skip.",
+)
 class ApplicationsTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(MODEL_LIST)
     def test_application_notop_variable_input_channels(self, app, last_dim, _):
