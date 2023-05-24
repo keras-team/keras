@@ -375,12 +375,6 @@ PYTHON_DTYPES_MAP = {
     str: "string",
 }
 
-PYTHON_DTYPES_MAP = {
-    bool: "bool",
-    int: "int",  # TBD by backend
-    float: "float32",
-}
-
 
 def standardize_dtype(dtype):
     if dtype is None:

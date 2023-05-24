@@ -21,7 +21,7 @@ class Trainer:
     @tracking.no_automatic_dependency_tracking
     def compile(
         self,
-        optimizer,
+        optimizer="rmsprop",
         loss=None,
         loss_weights=None,
         metrics=None,
