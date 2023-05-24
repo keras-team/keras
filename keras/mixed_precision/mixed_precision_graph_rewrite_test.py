@@ -39,7 +39,7 @@ class MixedPrecisionTest(test_combinations.TestCase):
         os.environ[self.IGNORE_PERF_VAR] = "1"
 
     def tearDown(self):
-        # Set the IGNORE_PERF_VAR variable back to it's original value.
+        # Set the IGNORE_PERF_VAR variable back to its original value.
         if self._original_ignore_perf_value is not None:
             os.environ[self.IGNORE_PERF_VAR] = self._original_ignore_perf_value
         else:
