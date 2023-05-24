@@ -5,8 +5,40 @@ import math
 import numpy as np
 
 from keras_core import backend
+from keras_core import callbacks
+from keras_core import layers
+from keras_core import optimizers
 from keras_core import testing
+from keras_core.models import Sequential
 from keras_core.optimizers import schedules
+
+
+class TestFitLRSchedulesFlow(testing.TestCase):
+    def test_fit_lr_correctness(self):
+        model = Sequential([layers.Dense(3)])
+        optimizer = optimizers.Adam(
+            learning_rate=schedules.ExponentialDecay(
+                initial_learning_rate=0.05, decay_steps=1, decay_rate=0.9
+            )
+        )
+        self.assertEqual(len(optimizer.variables), 1)
+        self.assertEqual(optimizer.variables[0], 0)
+
+        class LRTracker(callbacks.Callback):
+            def __init__(self, optimizer):
+                self.optimizer = optimizer
+                self.logs = []
+
+            def on_batch_end(self, *args, **kwargs):
+                self.logs.append(float(self.optimizer.learning_rate))
+
+        model.compile(optimizer=optimizer, loss="mse")
+        x = np.random.random((16, 2))
+        y = np.random.random((16, 3))
+        tracker = LRTracker(optimizer)
+        model.fit(x, y, epochs=1, batch_size=4, callbacks=[tracker])
+        self.assertEqual(optimizer.variables[0], 4)
+        self.assertAllClose(tracker.logs, [0.045, 0.0405, 0.03645, 0.032805])
 
 
 class ExponentialDecayTest(testing.TestCase):

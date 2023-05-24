@@ -106,8 +106,9 @@ class KerasVariable:
                 "The shape of the target variable and "
                 "the shape of the target value in "
                 "`variable.assign(value)` must match. "
-                f"Received: value.shape={value.shape}; "
-                f"variable.shape={self.value.shape}"
+                f"variable.shape={self.value.shape}, "
+                f"Received: value.shape={value.shape}. "
+                f"Target variable: {self}"
             )
         if in_stateless_scope():
             scope = get_stateless_scope()

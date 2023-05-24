@@ -20,10 +20,15 @@ class SGDTest(testing.TestCase):
 
     def test_single_step(self):
         optimizer = SGD(learning_rate=0.5)
+        self.assertEqual(len(optimizer.variables), 2)
         grads = np.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
+        optimizer.build([vars])
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(vars, [0.5, -1.0, -0.5, 3.0], rtol=1e-4, atol=1e-4)
+        self.assertEqual(len(optimizer.variables), 2)
+        self.assertEqual(optimizer.variables[0], 1)
+        self.assertEqual(optimizer.variables[1], 0.5)
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (

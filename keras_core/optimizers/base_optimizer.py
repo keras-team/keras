@@ -8,8 +8,8 @@ from keras_core import initializers
 from keras_core import operations as ops
 from keras_core.optimizers.schedules import learning_rate_schedule
 from keras_core.saving import serialization_lib
+from keras_core.utils import tracking
 from keras_core.utils.naming import auto_name
-from keras_core.utils.tracking import Tracker
 
 
 class Optimizer:
@@ -25,6 +25,8 @@ class Optimizer:
         ema_overwrite_frequency=None,
         name=None,
     ):
+        self._lock = False
+
         self.name = name
         self.weight_decay = weight_decay
         self.clipnorm = clipnorm
@@ -57,13 +59,31 @@ class Optimizer:
                 f"be set. Received: clipnorm={self.clipnorm}, "
                 f"global_clipnorm={self.global_clipnorm}"
             )
-
         self.built = False
+
+        # Set up variable tracking.
+        self._variables = []
+        self._trainable_variables = []
+        self._tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    self._variables,
+                ),
+            }
+        )
+        self._trainable_variables_indices = {}
+
+        # Create iteration variable
         # Note: dtype="int" will resolve to int32 in JAX
         # (since int64 is disallowed in JAX) and to int64 in TF.
-        self.iterations = backend.Variable(
+        iterations = backend.Variable(
             0, name="iteration", dtype="int", trainable=False
         )
+        self._track_variable(iterations)
+        self.iterations = iterations
+
+        # Create learning rate (schedule or variable)
         if isinstance(
             learning_rate, learning_rate_schedule.LearningRateSchedule
         ):
@@ -79,24 +99,21 @@ class Optimizer:
                     "and returns the corresponding learning rate value). "
                     f"Received instead: learning_rate={learning_rate}"
                 )
-            self._learning_rate = backend.Variable(
+            learning_rate = backend.Variable(
                 learning_rate,
                 name="learning_rate",
                 dtype=backend.floatx(),
                 trainable=False,
             )
-        self._variables = []
-        self._trainable_variables = []
-        self._tracker = Tracker(
-            {
-                "variables": (
-                    lambda x: isinstance(x, backend.Variable),
-                    self._variables,
-                ),
-            }
-        )
-        self._trainable_variables_indices = {}
+            self._track_variable(learning_rate)
+            self._learning_rate = learning_rate
 
+    def _track_variable(self, variable):
+        self._variables.append(variable)
+        # Prevent double-tracking
+        self._tracker.stored_ids["variables"].add(id(variable))
+
+    @tracking.no_automatic_dependency_tracking
     def build(self, variables):
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
@@ -121,6 +138,7 @@ class Optimizer:
         dtype=None,
         name=None,
     ):
+        print("add variable", shape)
         self._check_super_called()
         initializer = initializers.get(initializer)
         variable = backend.Variable(
@@ -130,9 +148,7 @@ class Optimizer:
             trainable=False,
             name=name,
         )
-        self._variables.append(variable)
-        # Prevent double-tracking
-        self._tracker.stored_ids["variables"].add(self._var_key(variable))
+        self._track_variable(variable)
         return variable
 
     def add_variable_from_reference(self, reference_variable, name=None):
@@ -436,10 +452,11 @@ class Optimizer:
                 variable.assign(variable - variable * wd * lr)
 
     def _check_super_called(self):
-        if not hasattr(self, "_tracker"):
+        if not hasattr(self, "_lock"):
             raise RuntimeError(
                 f"In optimizer '{self.__class__.__name__}', you forgot to call "
-                "`super().__init__()` in the `__init__()` method. "
+                "`super().__init__()` as the first statement "
+                "in the `__init__()` method. "
                 "Go add it!"
             )
 
@@ -553,6 +570,17 @@ class Optimizer:
                     config["learning_rate"], custom_objects=custom_objects
                 )
         return cls(**config)
+
+    def __setattr__(self, name, value):
+        # Prevent users from attaching state to the
+        # layer before `super()` is called -- since that
+        # state would silently not be tracked.
+        if name != "_lock":
+            self._check_super_called()
+        # Track Variables.
+        if hasattr(self, "_tracker"):
+            value = self._tracker.track(value)
+        return super().__setattr__(name, value)
 
 
 base_optimizer_keyword_args = """name: String. The name to use

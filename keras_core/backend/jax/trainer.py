@@ -222,24 +222,27 @@ class JAXTrainer(base_trainer.Trainer):
                     metrics_variables,
                 ) = state
 
+                # Update `iterations` var (necessary to make LR schedules work)
+                # It's always the first variable tracked by the optimizer.
+                self.optimizer.iterations.assign(optimizer_variables[0])
+                # Setting _jax_state enables callbacks to force a state sync
+                # if they need to.
+                self._jax_state = {
+                    "trainable_variables": trainable_variables,
+                    "non_trainable_variables": non_trainable_variables,
+                    "optimizer_variables": optimizer_variables,
+                    "metrics_variables": metrics_variables,
+                }
+
                 # Callbacks
                 callbacks.on_train_batch_end(step, logs)
                 if self.stop_training:
                     break
 
-            # Update variable values
+            # Reattach state to model variables.
             # NOTE: doing this after each step would be a big performance
             # bottleneck.
-            for ref_v, v in zip(self.trainable_variables, trainable_variables):
-                ref_v.assign(v)
-            for ref_v, v in zip(
-                self.non_trainable_variables, non_trainable_variables
-            ):
-                ref_v.assign(v)
-            for ref_v, v in zip(self.optimizer.variables, optimizer_variables):
-                ref_v.assign(v)
-            for ref_v, v in zip(self.metrics_variables, metrics_variables):
-                ref_v.assign(v)
+            self.jax_state_sync()
 
             # Override with model metrics instead of last step logs
             epoch_logs = self._pythonify_logs(self.get_metrics_result())
@@ -434,16 +437,19 @@ class JAXTrainer(base_trainer.Trainer):
             # immutable here.
             _, non_trainable_variables, metrics_variables = state
 
+            # Setting _jax_state enables callbacks to force a state sync
+            # if they need to.
+            self._jax_state = {
+                # I wouldn't recommend modifying non-trainable model state
+                # during evaluate(), but it's allowed.
+                "non_trainable_variables": non_trainable_variables,
+                "metrics_variables": metrics_variables,
+            }
             callbacks.on_test_batch_end(step, logs)
 
-        for ref_v, v in zip(
-            self.non_trainable_variables, non_trainable_variables
-        ):
-            # I wouldn't recommend modifying non-trainable model state
-            # during evaluate(), but it's allowed.
-            ref_v.assign(v)
-        for ref_v, v in zip(self.metrics_variables, metrics_variables):
-            ref_v.assign(v)
+        # Reattach state back to model.
+        self.jax_state_sync()
+
         logs = self._pythonify_logs(self.get_metrics_result())
         callbacks.on_test_end(logs)
 
@@ -557,3 +563,28 @@ class JAXTrainer(base_trainer.Trainer):
         return tf.__internal__.nest.map_structure_up_to(
             batch_outputs, np.concatenate, outputs
         )
+
+    def jax_state_sync(self):
+        if not hasattr(self, "_jax_state"):
+            return
+
+        trainable_variables = self._jax_state.get("trainable_variables", None)
+        non_trainable_variables = self._jax_state.get(
+            "non_trainable_variables", None
+        )
+        optimizer_variables = self._jax_state.get("optimizer_variables", None)
+        metrics_variables = self._jax_state.get("metrics_variables", None)
+        if trainable_variables:
+            for ref_v, v in zip(self.trainable_variables, trainable_variables):
+                ref_v.assign(v)
+        if non_trainable_variables:
+            for ref_v, v in zip(
+                self.non_trainable_variables, non_trainable_variables
+            ):
+                ref_v.assign(v)
+        if optimizer_variables:
+            for ref_v, v in zip(self.optimizer.variables, optimizer_variables):
+                ref_v.assign(v)
+        if metrics_variables:
+            for ref_v, v in zip(self.metrics_variables, metrics_variables):
+                ref_v.assign(v)

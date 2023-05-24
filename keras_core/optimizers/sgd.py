@@ -83,22 +83,24 @@ class SGD(optimizer.Optimizer):
             return
         super().build(variables)
         self.momentums = []
-        for variable in variables:
-            self.momentums.append(
-                self.add_variable_from_reference(
-                    reference_variable=variable, name="m"
+        if self.momentum != 0:
+            for variable in variables:
+                self.momentums.append(
+                    self.add_variable_from_reference(
+                        reference_variable=variable, name="m"
+                    )
                 )
-            )
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
         learning_rate = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
         m = None
-        momentum = ops.cast(self.momentum, variable.dtype)
-        m = self.momentums[self._get_variable_index(variable)]
+        if self.momentum != 0:
+            m = self.momentums[self._get_variable_index(variable)]
 
         if m is not None:
+            momentum = ops.cast(self.momentum, variable.dtype)
             m.assign(-gradient * learning_rate + m * momentum)
             if self.nesterov:
                 variable.assign(
