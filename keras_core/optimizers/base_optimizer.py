@@ -138,7 +138,6 @@ class Optimizer:
         dtype=None,
         name=None,
     ):
-        print("add variable", shape)
         self._check_super_called()
         initializer = initializers.get(initializer)
         variable = backend.Variable(

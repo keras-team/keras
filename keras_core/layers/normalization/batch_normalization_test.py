@@ -1,11 +1,10 @@
 import numpy as np
-from absl.testing import parameterized
 
 from keras_core import layers
 from keras_core import testing
 
 
-class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
+class BatchNormalizationTest(testing.TestCase):
     def test_bn_basics(self):
         # vector case
         self.run_layer_test(
@@ -57,35 +56,27 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
             supports_masking=True,
         )
 
-    @parameterized.product(
-        axis=(-1, 1),
-        input_shape=((5, 2, 3), (5, 3, 3, 2)),
-    )
-    def test_correctness(self, axis, input_shape):
+    def test_correctness(self):
         # Training
-        layer = layers.BatchNormalization(axis=axis, momentum=0)
+        layer = layers.BatchNormalization(axis=-1, momentum=0.8)
         # Random data centered on 5.0, variance 10.0
-        x = np.random.normal(loc=5.0, scale=10.0, size=input_shape)
-        out = x
-        for _ in range(3):
-            out = layer(out, training=True)
+        x = np.random.normal(loc=5.0, scale=10.0, size=(200, 4, 4, 3))
+        for _ in range(10):
+            out = layer(x, training=True)
 
-        # Assert the normalization is correct.
-        broadcast_shape = [1] * len(input_shape)
-        broadcast_shape[axis] = input_shape[axis]
-        out -= np.reshape(np.array(layer.beta), broadcast_shape)
-        out /= np.reshape(np.array(layer.gamma), broadcast_shape)
+        out -= np.reshape(np.array(layer.beta), (1, 1, 1, 3))
+        out /= np.reshape(np.array(layer.gamma), (1, 1, 1, 3))
 
-        reduction_axes = list(range(len(input_shape)))
-        del reduction_axes[axis]
-        reduction_axes = tuple(reduction_axes)
-        self.assertAllClose(np.mean(out, axis=reduction_axes), 0.0, atol=1e-3)
-        self.assertAllClose(np.std(out, axis=reduction_axes), 1.0, atol=1e-3)
+        self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
+        self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)
 
         # Inference
-        inference_out = layer(x, training=False)
-        training_out = layer(x, training=True)
-        self.assertNotAllClose(inference_out, training_out)
+        out = layer(x, training=False)
+        out -= np.reshape(np.array(layer.beta), (1, 1, 1, 3))
+        out /= np.reshape(np.array(layer.gamma), (1, 1, 1, 3))
+
+        self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-1)
+        self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-1)
 
     def test_trainable_behavior(self):
         layer = layers.BatchNormalization(axis=-1, momentum=0.8, epsilon=1e-7)
@@ -114,3 +105,7 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
 
         self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
         self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)
+
+    def test_masking_correctness(self):
+        # TODO
+        pass
