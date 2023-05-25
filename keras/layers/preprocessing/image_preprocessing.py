@@ -1651,7 +1651,7 @@ class RandomWidth(base_layer.BaseRandomLayer):
     Args:
         factor: A positive float (fraction of original width),
             or a tuple of size 2 representing lower and upper bound
-            for resizing vertically. When represented as a single float,
+            for resizing horizontally. When represented as a single float,
             this value is used for both the upper and
             lower bound. For instance, `factor=(0.2, 0.3)`
             results in an output with
