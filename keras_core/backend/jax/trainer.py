@@ -222,9 +222,6 @@ class JAXTrainer(base_trainer.Trainer):
                     metrics_variables,
                 ) = state
 
-                # Update `iterations` var (necessary to make LR schedules work)
-                # It's always the first variable tracked by the optimizer.
-                self.optimizer.iterations.assign(optimizer_variables[0])
                 # Setting _jax_state enables callbacks to force a state sync
                 # if they need to.
                 self._jax_state = {
