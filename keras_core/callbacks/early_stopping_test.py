@@ -54,7 +54,7 @@ class EarlyStoppingTest(testing.TestCase):
 
         for patience in cases:
             stopper = callbacks.EarlyStopping(monitor="loss", patience=patience)
-            stopper.model = models.Sequential()
+            stopper.set_model(models.Sequential())
             stopper.model.compile(loss="mse", optimizer="sgd")
             stopper.on_train_begin()
 
@@ -130,7 +130,7 @@ class EarlyStoppingTest(testing.TestCase):
         early_stop = callbacks.EarlyStopping(
             monitor="val_loss", patience=2, restore_best_weights=True
         )
-        early_stop.model = DummyModel()
+        early_stop.set_model(DummyModel())
         losses = [0.2, 0.15, 0.1, 0.11, 0.12]
         # The best configuration is in the epoch 2 (loss = 0.1000).
         epochs_trained = 0
@@ -153,7 +153,7 @@ class EarlyStoppingTest(testing.TestCase):
             baseline=0.5,
             restore_best_weights=True,
         )
-        early_stop.model = DummyModel()
+        early_stop.set_model(DummyModel())
         losses = [0.9, 0.8, 0.7, 0.71, 0.72, 0.73]
         # The best configuration is in the epoch 2 (loss = 0.7000).
         epochs_trained = 0

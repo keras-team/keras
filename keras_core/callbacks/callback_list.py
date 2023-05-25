@@ -70,7 +70,7 @@ class CallbackList(Callback):
             callback.set_params(params)
 
     def set_model(self, model):
-        self.model = model
+        super().set_model(model)
         if self._history:
             model.history = self._history
         for callback in self.callbacks:

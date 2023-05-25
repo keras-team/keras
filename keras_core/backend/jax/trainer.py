@@ -288,6 +288,7 @@ class JAXTrainer(base_trainer.Trainer):
         if getattr(self, "_eval_epoch_iterator", None) is not None:
             del self._eval_epoch_iterator
         callbacks.on_train_end(logs=training_logs)
+        self._jax_state = None
         return self.history
 
     def evaluate(
@@ -452,7 +453,7 @@ class JAXTrainer(base_trainer.Trainer):
 
         logs = self._pythonify_logs(self.get_metrics_result())
         callbacks.on_test_end(logs)
-
+        self._jax_state = None
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -565,7 +566,7 @@ class JAXTrainer(base_trainer.Trainer):
         )
 
     def jax_state_sync(self):
-        if not hasattr(self, "_jax_state"):
+        if not getattr(self, "_jax_state", None):
             return
 
         trainable_variables = self._jax_state.get("trainable_variables", None)

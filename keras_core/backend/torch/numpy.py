@@ -294,7 +294,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 def dot(x, y):
     x, y = convert_to_tensor(x), convert_to_tensor(y)
-    if x.ndim == 0 or y.ndim == 0:
+    if len(x.shape) == 0 or len(y.shape) == 0:
         return torch.multiply(x, y)
     return torch.matmul(x, y)
 
@@ -327,7 +327,7 @@ def expm1(x):
 def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
-        axis = tuple(range(x.ndim))
+        axis = tuple(range(len(x.shape)))
     if isinstance(axis, int):
         axis = (axis,)
     return torch.flip(x, dims=axis)
@@ -341,21 +341,23 @@ def floor(x):
 def full(shape, fill_value, dtype=None):
     dtype = to_torch_dtype(dtype)
     if hasattr(fill_value, "__len__"):
-        fill_value = convert_to_tensor(fill_value)
-        reps = shape[-1] // fill_value.shape[-1]  # channels-last reduction
-        reps_by_dim = (*shape[:-1], reps)
-        return torch.tile(fill_value, reps_by_dim)
+        raise NotImplementedError(
+            "`torch.full()` only accepts scalars for `fill_value`. "
+            f"Received: fill_value={fill_value}"
+        )
+        # TODO: implement conversion of shape into repetitions for `torch.tile``
+        # return torch.tile(fill_value, reps)
     return torch.full(size=shape, fill_value=fill_value, dtype=dtype)
 
 
 def full_like(x, fill_value, dtype=None):
     dtype = to_torch_dtype(dtype)
     if hasattr(fill_value, "__len__"):
-        fill_value = convert_to_tensor(fill_value)
-        reps_by_dim = tuple(
-            [x.shape[i] // fill_value.shape[i] for i in range(x.ndim)]
+        raise NotImplementedError(
+            "`torch.full()` only accepts scalars for `fill_value`."
         )
-        return torch.tile(fill_value, reps_by_dim)
+        # TODO: implement conversion of shape into repetitions for `torch.tile``
+        # return torch.tile(fill_value, reps)
     x = convert_to_tensor(x)
     return torch.full_like(input=x, fill_value=fill_value, dtype=dtype)
 
@@ -428,27 +430,15 @@ def linspace(
             "torch.linspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
-    dtype = to_torch_dtype(dtype)
+        dtype = to_torch_dtype(dtype)
     if endpoint is False:
         stop = stop - ((stop - start) / num)
-    if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
-        steps = torch.arange(num, dtype=dtype) / (num - 1)
-
-        # reshape `steps` to allow for broadcasting
-        for i in range(start.ndim):
-            steps = steps.unsqueeze(-1)
-
-        # increments from `start` to `stop` in each dimension
-        linspace = start[None] + steps * (stop - start)[None]
-    else:
-        linspace = torch.linspace(
-            start=start,
-            end=stop,
-            steps=num,
-            dtype=dtype,
-        )
+    linspace = torch.linspace(
+        start=start,
+        end=stop,
+        steps=num,
+        dtype=dtype,
+    )
     if retstep is True:
         return (linspace, num)
     return linspace
@@ -505,26 +495,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     dtype = to_torch_dtype(dtype)
     if endpoint is False:
         stop = stop - ((stop - start) / num)
-    if hasattr(start, "__len__") and hasattr(stop, "__len__"):
-        start, stop = convert_to_tensor(start), convert_to_tensor(stop)
-        stop = cast(stop, dtype) if endpoint is False and dtype else stop
-        steps = torch.arange(num, dtype=dtype) / (num - 1)
-
-        # reshape `steps` to allow for broadcasting
-        for i in range(start.ndim):
-            steps = steps.unsqueeze(-1)
-
-        # increments from `start` to `stop` in each dimension
-        linspace = start[None] + steps * (stop - start)[None]
-        logspace = base**linspace
-    else:
-        logspace = torch.logspace(
-            start=start,
-            end=stop,
-            steps=num,
-            base=base,
-            dtype=dtype,
-        )
+    logspace = torch.logspace(
+        start=start,
+        end=stop,
+        steps=num,
+        base=base,
+        dtype=dtype,
+    )
     return logspace
 
 
@@ -738,7 +715,14 @@ def tile(x, repeats):
 
 def trace(x, offset=None, axis1=None, axis2=None):
     x = convert_to_tensor(x)
-    return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
+    # TODO: implement support for these arguments
+    # API divergence between `np.trace()` and `torch.trace()`
+    if offset or axis1 or axis2:
+        raise NotImplementedError(
+            "Arguments not supported by `torch.trace: "
+            f"offset={offset}, axis1={axis1}, axis2={axis2}"
+        )
+    return torch.trace(x)
 
 
 def tri(N, M=None, k=0, dtype="float32"):
