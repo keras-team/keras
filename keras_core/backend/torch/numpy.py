@@ -343,7 +343,6 @@ def full(shape, fill_value, dtype=None):
         expand_size = len(shape) - len(fill_value.shape)
         tile_shape = tuple(shape[:expand_size]) + (1,) * len(fill_value.shape)
         return torch.tile(fill_value, tile_shape)
-
     return torch.full(size=shape, fill_value=fill_value, dtype=dtype)
 
 
@@ -596,8 +595,16 @@ def outer(x1, x2):
 def pad(x, pad_width, mode="constant"):
     x = convert_to_tensor(x)
     pad_sum = ()
+    pad_width = list(pad_width)[::-1]  # torch uses reverse order
     for pad in pad_width:
         pad_sum += pad
+    if mode == "symmetric":
+        mode = "replicate"
+    if mode != "constant" and x.ndim < 3:
+        new_dims = [1] * (3 - x.ndim)
+        x = cast(x, torch.float32) if x.dtype == torch.int else x
+        x = x.view(*new_dims, *x.shape)
+        return torch.nn.functional.pad(x, pad=pad_sum, mode=mode).squeeze()
     return torch.nn.functional.pad(x, pad=pad_sum, mode=mode)
 
 
@@ -665,9 +672,20 @@ def sort(x, axis=-1):
 
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
+    if isinstance(indices_or_sections, list):
+        idxs = convert_to_tensor(indices_or_sections)
+        start_size = indices_or_sections[0]
+        end_size = x.shape[axis] - indices_or_sections[-1]
+        chunk_sizes = (
+            [start_size]
+            + torch.diff(idxs).type(torch.int).tolist()
+            + [end_size]
+        )
+    else:
+        chunk_sizes = x.shape[axis] // indices_or_sections
     return torch.split(
         tensor=x,
-        split_size_or_sections=indices_or_sections,
+        split_size_or_sections=chunk_sizes,
         dim=axis,
     )
 
@@ -694,7 +712,7 @@ def take(x, indices, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
     if axis is not None:
-        return torch.index_select(x, dim=axis, index=indices)
+        return torch.index_select(x, dim=axis, index=indices).squeeze(axis)
     return torch.take(x, index=indices)
 
 
@@ -734,7 +752,9 @@ def trace(x, offset=None, axis1=None, axis2=None):
 
 def tri(N, M=None, k=0, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    pass
+    M = M or N
+    x = torch.ones((N, M), dtype=dtype)
+    return torch.tril(x, diagonal=k)
 
 
 def tril(x, k=0):

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow.python.ops.numpy_ops import np_config
 
 from keras_core import backend
@@ -2003,11 +2002,6 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.outer(x, y)), np.outer(x, y))
         self.assertAllClose(np.array(knp.Outer()(x, y)), np.outer(x, y))
 
-    # TODO: Fix numpy compatibility (squeeze by one dimension only)
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`torch.take` and `np.take` have return shape divergence.",
-    )
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         indices = np.array([0, 1])
@@ -2780,14 +2774,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.pad(x, ((1, 1), (1, 1))),
         )
 
-    # TODO: implement padding with non-constant padding,
-    # bypass NotImplementedError for PyTorch
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="padding not implemented for non-constant use case",
-    )
-    def test_pad_without_torch(self):
-        x = np.array([[1, 2], [3, 4]])
         self.assertAllClose(
             np.array(knp.pad(x, ((1, 1), (1, 1)), mode="reflect")),
             np.pad(x, ((1, 1), (1, 1)), mode="reflect"),
@@ -2919,24 +2905,34 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.sort(x, axis=0)), np.sort(x, axis=0))
         self.assertAllClose(np.array(knp.Sort(axis=0)(x)), np.sort(x, axis=0))
 
-    # TODO: implement split for `torch` with support for conversion
-    # of numpy.split args.
-    @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`torch.split` and `np.split` have return arg divergence.",
-    )
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.split(x, 2)), np.split(x, 2))
-        self.assertAllClose(np.array(knp.Split(2)(x)), np.split(x, 2))
-        self.assertAllClose(
-            np.array(knp.split(x, [1, 2], axis=1)),
-            np.split(x, [1, 2], axis=1),
-        )
-        self.assertAllClose(
-            np.array(knp.Split([1, 2], axis=1)(x)),
-            np.split(x, [1, 2], axis=1),
-        )
+        if backend.backend() == "torch":
+            self.assertAllClose(
+                [t.numpy() for t in knp.split(x, 2)], np.split(x, 2)
+            )
+            self.assertAllClose(
+                [t.numpy() for t in knp.Split(2)(x)], np.split(x, 2)
+            )
+            self.assertAllClose(
+                [t.numpy() for t in knp.split(x, [1, 2], axis=1)],
+                np.split(x, [1, 2], axis=1),
+            )
+            self.assertAllClose(
+                [t.numpy() for t in knp.Split([1, 2], axis=1)(x)],
+                np.split(x, [1, 2], axis=1),
+            )
+        else:
+            self.assertAllClose(np.array(knp.split(x, 2)), np.split(x, 2))
+            self.assertAllClose(np.array(knp.Split(2)(x)), np.split(x, 2))
+            self.assertAllClose(
+                np.array(knp.split(x, [1, 2], axis=1)),
+                np.split(x, [1, 2], axis=1),
+            )
+            self.assertAllClose(
+                np.array(knp.Split([1, 2], axis=1)(x)),
+                np.split(x, [1, 2], axis=1),
+            )
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]])
@@ -3073,11 +3069,7 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.array(knp.identity(3)), np.identity(3))
         self.assertAllClose(np.array(knp.Identity()(3)), np.identity(3))
 
-    @pytest.mark.skipif(
-        backend.backend() == "torch", reason="No torch equivalent for `np.tri`"
-    )
     def test_tri(self):
-        # TODO: create a manual implementation, as PyTorch has no equivalent
         self.assertAllClose(np.array(knp.tri(3)), np.tri(3))
         self.assertAllClose(np.array(knp.tri(3, 4)), np.tri(3, 4))
         self.assertAllClose(np.array(knp.tri(3, 4, 1)), np.tri(3, 4, 1))
