@@ -37,8 +37,16 @@ class MeanSquaredErrorTest(testing.TestCase):
         self.assertAlmostEqual(loss, 767.8 / 6)
 
     def test_timestep_weighted(self):
-        # TODO
-        pass
+        mse_obj = losses.MeanSquaredError()
+        y_true = np.asarray([1, 9, 2, -5, -2, 6]).reshape(2, 3, 1)
+        y_pred = np.asarray([4, 8, 12, 8, 1, 3]).reshape(2, 3, 1)
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3))
+        loss = mse_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        self.assertAlmostEqual(loss, 97.833336)
 
     def test_zero_weighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -46,10 +54,6 @@ class MeanSquaredErrorTest(testing.TestCase):
         y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
         loss = mse_obj(y_true, y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0)
-
-    def test_invalid_sample_weight(self):
-        # TODO
-        pass
 
     def test_no_reduction(self):
         mse_obj = losses.MeanSquaredError(reduction=None)
@@ -101,8 +105,16 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         self.assertAlmostEqual(loss, 81.4 / 6)
 
     def test_timestep_weighted(self):
-        # TODO
-        pass
+        mae_obj = losses.MeanAbsoluteError()
+        y_true = np.asarray([1, 9, 2, -5, -2, 6]).reshape(2, 3, 1)
+        y_pred = np.asarray([4, 8, 12, 8, 1, 3]).reshape(2, 3, 1)
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3))
+        loss = mae_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        self.assertAlmostEqual(loss, 13.833333)
 
     def test_zero_weighted(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -110,10 +122,6 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         y_pred = np.array([[4, 8, 12], [8, 1, 3]], dtype="float32")
         loss = mae_obj(y_true, y_pred, sample_weight=0)
         self.assertAlmostEqual(loss, 0.0)
-
-    def test_invalid_sample_weight(self):
-        # TODO
-        pass
 
     def test_no_reduction(self):
         mae_obj = losses.MeanAbsoluteError(reduction=None)
@@ -165,8 +173,16 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         self.assertAlmostEqual(loss, 422.8888, 3)
 
     def test_timestep_weighted(self):
-        # TODO
-        pass
+        mape_obj = losses.MeanAbsolutePercentageError()
+        y_true = np.asarray([1, 9, 2, -5, -2, 6]).reshape(2, 3, 1)
+        y_pred = np.asarray([4, 8, 12, 8, 1, 3]).reshape(2, 3, 1)
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3))
+        loss = mape_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        self.assertAlmostEqual(loss, 694.4444)
 
     def test_zero_weighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
@@ -212,8 +228,16 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         self.assertAlmostEqual(loss, 3.7856, 3)
 
     def test_timestep_weighted(self):
-        # TODO
-        pass
+        msle_obj = losses.MeanSquaredLogarithmicError()
+        y_true = np.asarray([1, 9, 2, -5, -2, 6]).reshape(2, 3, 1)
+        y_pred = np.asarray([4, 8, 12, 8, 1, 3]).reshape(2, 3, 1)
+        sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3))
+        loss = msle_obj(
+            y_true,
+            y_pred,
+            sample_weight=sample_weight,
+        )
+        self.assertAlmostEqual(loss, 2.647374)
 
     def test_zero_weighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()

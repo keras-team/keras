@@ -47,7 +47,7 @@ class MeanSquaredError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -73,7 +73,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -99,7 +99,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -129,7 +129,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -168,7 +168,7 @@ class CosineSimilarity(LossFunctionWrapper):
             (the features axis). Defaults to -1.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -257,7 +257,7 @@ class Hinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -284,7 +284,7 @@ class SquaredHinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -310,7 +310,7 @@ class CategoricalHinge(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -336,7 +336,7 @@ class KLDivergence(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -360,7 +360,7 @@ class Poisson(LossFunctionWrapper):
     Args:
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
     """
 
@@ -380,26 +380,25 @@ class BinaryCrossentropy(LossFunctionWrapper):
 
     - `y_true` (true label): This is either 0 or 1.
     - `y_pred` (predicted value): This is the model's prediction, i.e, a single
-      floating-point value which either represents a
-      [logit](https://en.wikipedia.org/wiki/Logit), (i.e, value in [-inf, inf]
-      when `from_logits=True`) or a probability (i.e, value in [0., 1.] when
-      `from_logits=False`).
+        floating-point value which either represents a
+        [logit](https://en.wikipedia.org/wiki/Logit), (i.e, value in [-inf, inf]
+        when `from_logits=True`) or a probability (i.e, value in [0., 1.] when
+        `from_logits=False`).
 
     Args:
         from_logits: Whether to interpret `y_pred` as a tensor of
             [logit](https://en.wikipedia.org/wiki/Logit) values. By default, we
-            assume that `y_pred` contains probabilities (i.e., values in [0,
-            1]).
+            assume that `y_pred` is probabilities (i.e., values in [0, 1]).
         label_smoothing: Float in range [0, 1]. When 0, no smoothing occurs.
             When > 0, we compute the loss between the predicted labels
             and a smoothed version of the true labels, where the smoothing
             squeezes the labels towards 0.5. Larger values of
             `label_smoothing` correspond to heavier smoothing.
-        axis: The axis along which to compute crossentropy (the features
-            axis).  Defaults to -1.
+        axis: The axis along which to compute crossentropy (the features axis).
+            Defaults to -1.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
 
     Examples:
@@ -493,10 +492,10 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
 
     - `y_true` (true label): This is either 0 or 1.
     - `y_pred` (predicted value): This is the model's prediction, i.e, a single
-      floating-point value which either represents a
-      [logit](https://en.wikipedia.org/wiki/Logit), (i.e, value in [-inf, inf]
-      when `from_logits=True`) or a probability (i.e, value in `[0., 1.]` when
-      `from_logits=False`).
+        floating-point value which either represents a
+        [logit](https://en.wikipedia.org/wiki/Logit), (i.e, value in [-inf, inf]
+        when `from_logits=True`) or a probability (i.e, value in `[0., 1.]` when
+        `from_logits=False`).
 
     According to [Lin et al., 2018](https://arxiv.org/pdf/1708.02002.pdf), it
     helps to apply a "focal factor" to down-weight easy examples and focus more
@@ -529,7 +528,7 @@ class BinaryFocalCrossentropy(LossFunctionWrapper):
             Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
 
     Examples:
@@ -665,11 +664,8 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     Use this crossentropy loss function when there are two or more label
     classes. We expect labels to be provided in a `one_hot` representation. If
     you want to provide labels as integers, please use
-    `SparseCategoricalCrossentropy` loss.  There should be `# classes` floating
-    point values per feature.
-
-    In the snippet below, there is `# classes` floating pointing values per
-    example. The shape of both `y_pred` and `y_true` are
+    `SparseCategoricalCrossentropy` loss. There should be `num_classes` floating
+    point values per feature, i.e., the shape of both `y_pred` and `y_true` are
     `[batch_size, num_classes]`.
 
     Args:
@@ -683,7 +679,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             axis). Defaults to -1.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
 
     Examples:
@@ -791,7 +787,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
     Extending this to multi-class case is straightforward:
     `FL(p_t) = alpha * (1 - p_t) ** gamma * CategoricalCE(y_true, y_pred)`
 
-    In the snippet below, there is `# classes` floating pointing values per
+    In the snippet below, there is `num_classes` floating pointing values per
     example. The shape of both `y_pred` and `y_true` are
     `(batch_size, num_classes)`.
 
@@ -814,7 +810,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             axis). Defaults to -1.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
 
     Examples:
@@ -903,16 +899,16 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     feature for `y_true`.
 
     In the snippet below, there is a single floating point value per example for
-    `y_true` and `# classes` floating pointing values per example for `y_pred`.
-    The shape of `y_true` is `[batch_size]` and the shape of `y_pred` is
-    `[batch_size, num_classes]`.
+    `y_true` and `num_classes` floating pointing values per example for
+    `y_pred`. The shape of `y_true` is `[batch_size]` and the shape of `y_pred`
+    is `[batch_size, num_classes]`.
 
     Args:
         from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
-            Suuported options are `"sum"`, `"sum_over_batch_size"` or `None`.
+            Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
         name: Optional name for the loss instance.
 
     Examples:
@@ -1729,8 +1725,8 @@ def binary_focal_crossentropy(
     helps to apply a focal factor to down-weight easy examples and focus more on
     hard examples. By default, the focal tensor is computed as follows:
 
-    `focal_factor = (1 - output)**gamma` for class 1
-    `focal_factor = output**gamma` for class 0
+    `focal_factor = (1 - output) ** gamma` for class 1
+    `focal_factor = output ** gamma` for class 0
     where `gamma` is a focusing parameter. When `gamma` = 0, there is no focal
     effect on the binary crossentropy loss.
 
