@@ -269,8 +269,6 @@ def image_dataset_from_directory(
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
         )
-        train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
-        val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
 
         if batch_size is not None:
             if shuffle:
@@ -285,6 +283,9 @@ def image_dataset_from_directory(
                 train_dataset = train_dataset.shuffle(
                     buffer_size=1024, seed=seed
                 )
+
+        train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+        val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
 
         # Users may need to reference `class_names`.
         train_dataset.class_names = class_names
@@ -314,7 +315,7 @@ def image_dataset_from_directory(
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
         )
-        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
         if batch_size is not None:
             if shuffle:
                 # Shuffle locally at each iteration
@@ -323,6 +324,8 @@ def image_dataset_from_directory(
         else:
             if shuffle:
                 dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
         # Users may need to reference `class_names`.
         dataset.class_names = class_names
