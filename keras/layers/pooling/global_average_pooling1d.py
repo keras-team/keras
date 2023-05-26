@@ -88,9 +88,11 @@ class GlobalAveragePooling1D(GlobalPooling1D):
                 mask, 2 if self.data_format == "channels_last" else 1
             )
             inputs *= mask
-            return backend.sum(
-                inputs, axis=steps_axis, keepdims=self.keepdims
-            ) / tf.reduce_sum(mask, axis=steps_axis, keepdims=self.keepdims)
+            return tf.math.divide_no_nan(
+                backend.sum(inputs, axis=steps_axis, keepdims=self.keepdims),
+                tf.reduce_sum(mask, axis=steps_axis, keepdims=self.keepdims),
+                name=None,
+            )
         else:
             return backend.mean(inputs, axis=steps_axis, keepdims=self.keepdims)
 
