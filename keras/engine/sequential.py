@@ -52,18 +52,11 @@ class Sequential(functional.Functional):
     Examples:
 
     ```python
-    # Optionally, the first layer can receive an `input_shape` argument:
-    model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
-    # Afterwards, we do automatic shape inference:
-    model.add(tf.keras.layers.Dense(4))
-
-    # This is identical to the following:
     model = tf.keras.Sequential()
     model.add(tf.keras.Input(shape=(16,)))
     model.add(tf.keras.layers.Dense(8))
 
-    # Note that you can also omit the `input_shape` argument.
+    # Note that you can also omit the initial `Input`.
     # In that case the model doesn't have any weights until the first call
     # to a training/evaluation method (since it isn't yet built):
     model = tf.keras.Sequential()
@@ -71,13 +64,13 @@ class Sequential(functional.Functional):
     model.add(tf.keras.layers.Dense(4))
     # model.weights not created yet
 
-    # Whereas if you specify the input shape, the model gets built
+    # Whereas if you specify an `Input`, the model gets built
     # continuously as you are adding layers:
     model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
+    model.add(tf.keras.Input(shape=(16,)))
     model.add(tf.keras.layers.Dense(4))
     len(model.weights)
-    # Returns "4"
+    # Returns "2"
 
     # When using the delayed-build pattern (no input shape specified), you can
     # choose to manually build your model by calling
