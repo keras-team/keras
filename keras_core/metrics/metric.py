@@ -59,7 +59,7 @@ class Metric:
             self.true_positives = self.add_variable(
                 shape=(),
                 initializer='zeros',
-                name='tp'
+                name='true_positives'
             )
 
         def update_state(self, y_true, y_pred, sample_weight=None):

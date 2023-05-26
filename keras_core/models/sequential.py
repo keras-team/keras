@@ -12,6 +12,51 @@ from keras_core.utils import tracking
 
 @keras_core_export(["keras_core.Sequential", "keras_core.models.Sequential"])
 class Sequential(Model):
+    """`Sequential` groups a linear stack of layers into a `Model`.
+
+    Examples:
+
+    ```python
+    model = keras_core.Sequential()
+    model.add(keras_core.Input(shape=(16,)))
+    model.add(keras_core.layers.Dense(8))
+
+    # Note that you can also omit the initial `Input`.
+    # In that case the model doesn't have any weights until the first call
+    # to a training/evaluation method (since it isn't yet built):
+    model = keras_core.Sequential()
+    model.add(keras_core.layers.Dense(8))
+    model.add(keras_core.layers.Dense(4))
+    # model.weights not created yet
+
+    # Whereas if you specify an `Input`, the model gets built
+    # continuously as you are adding layers:
+    model = keras_core.Sequential()
+    model.add(keras_core.Input(shape=(16,)))
+    model.add(keras_core.layers.Dense(8))
+    len(model.weights)  # Returns "2"
+
+    # When using the delayed-build pattern (no input shape specified), you can
+    # choose to manually build your model by calling
+    # `build(batch_input_shape)`:
+    model = keras_core.Sequential()
+    model.add(keras_core.layers.Dense(8))
+    model.add(keras_core.layers.Dense(4))
+    model.build((None, 16))
+    len(model.weights)  # Returns "4"
+
+    # Note that when using the delayed-build pattern (no input shape specified),
+    # the model gets built the first time you call `fit`, `eval`, or `predict`,
+    # or the first time you call the model on some input data.
+    model = keras_core.Sequential()
+    model.add(keras_core.layers.Dense(8))
+    model.add(keras_core.layers.Dense(1))
+    model.compile(optimizer='sgd', loss='mse')
+    # This builds the model for the first time:
+    model.fit(x, y, batch_size=32, epochs=10)
+    ```
+    """
+
     @tracking.no_automatic_dependency_tracking
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)

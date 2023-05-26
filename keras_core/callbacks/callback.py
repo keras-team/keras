@@ -10,9 +10,8 @@ class Callback:
     `predict()` in order to hook into the various stages of the model training,
     evaluation, and inference lifecycle.
 
-    To create a custom callback, subclass `keras.callbacks.Callback` and
-    override the method associated with the stage of interest. See
-    https://www.tensorflow.org/guide/keras/custom_callback for more information.
+    To create a custom callback, subclass `keras_core.callbacks.Callback` and
+    override the method associated with the stage of interest.
 
     Example:
 

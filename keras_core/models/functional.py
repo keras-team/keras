@@ -15,17 +15,75 @@ from keras_core.utils import tracking
 
 
 class Functional(Function, Model):
-    """
-    Add support for extra call arguments compared to Function:
-    training, masks
+    """A `Functional` model is a `Model` defined as a directed graph of layers.
 
-    Add support for arg standardization:
-    - list/dict duality
-    - upranking
+    Three types of `Model` exist: subclassed `Model`, `Functional` model,
+    and `Sequential` (a special case of `Functional`).
 
-    Override .layers
+    A `Functional` model can be instantiated by passing two arguments to
+    `__init__()`. The first argument is the `keras_core.Input` objects
+    that represent the inputs to the model.
+    The second argument specifies the output tensors that represent
+    the outputs of this model. Both arguments can be a nested structure
+    of tensors.
 
-    Symbolic add_loss
+    Example:
+
+    ```
+    inputs = {'x1': keras_core.Input(shape=(10,)),
+              'x2': keras_core.Input(shape=(1,))}
+    t = keras_core.layers.Dense(1, activation='relu')(inputs['x1'])
+    outputs = keras_core.layers.Add()([t, inputs['x2'])
+    model = keras_core.Model(inputs, outputs)
+    ```
+
+    A `Functional` model constructed using the Functional API can also
+    include raw Keras Core ops.
+
+    Example:
+
+    ```python
+    inputs = keras_core.Input(shape=(10,))
+    x = keras_core.layers.Dense(1)(inputs)
+    outputs = ops.nn.relu(x)
+    model = keras_core.Model(inputs, outputs)
+    ```
+
+    A new `Functional` model can also be created by using the
+    intermediate tensors. This enables you to quickly extract sub-components
+    of the model.
+
+    Example:
+
+    ```python
+    inputs = keras_core.Input(shape=(None, None, 3))
+    processed = keras_core.layers.RandomCrop(width=32, height=32)(inputs)
+    conv = keras_core.layers.Conv2D(filters=2, kernel_size=3)(processed)
+    pooling = keras_core.layers.GlobalAveragePooling2D()(conv)
+    feature = keras_core.layers.Dense(10)(pooling)
+
+    full_model = keras_core.Model(inputs, feature)
+    backbone = keras_core.Model(processed, conv)
+    activations = keras_core.Model(conv, feature)
+    ```
+
+    Note that the `backbone` and `activations` models are not
+    created with `keras_core.Input` objects, but with the tensors
+    that are originated from `keras_core.Input` objects.
+    Under the hood, the layers and weights will
+    be shared across these models, so that user can train the `full_model`, and
+    use `backbone` or `activations` to do feature extraction.
+    The inputs and outputs of the model can be nested structures of tensors as
+    well, and the created models are standard `Functional` model that support
+    all the existing API.
+
+    Args:
+        inputs: List of input tensors (must be created via `keras_core.Input()`
+            or originated from `keras_core.Input()`).
+        outputs: List of output tensors.
+        name: String, optional. Name of the model.
+        trainable: Boolean, optional. If the model's variables should be
+            trainable.
     """
 
     @tracking.no_automatic_dependency_tracking

@@ -26,19 +26,108 @@ else:
 
 @keras_core_export(["keras_core.Model", "keras_core.models.Model"])
 class Model(Trainer, Layer):
-    """
+    """A model grouping layers into an object with training/inference features.
 
-    Combination of a Layer and Trainer. Adds:
+    There are three ways to instantiate a `Model`:
 
-    - layer surfacing
-    - saving
-    - export
-    - summary
+    ## With the "Functional API"
 
-    Limitations:
+    You start from `Input`,
+    you chain layer calls to specify the model's forward pass,
+    and finally you create your model from inputs and outputs:
 
-    - call must have a single inputs argument
-    - no masking support
+    ```python
+    inputs = keras_core.Input(shape=(37,))
+    x = keras_core.layers.Dense(32, activation="relu")(inputs)
+    outputs = keras_core.layers.Dense(5, activation="softmax")(x)
+    model = keras_core.Model(inputs=inputs, outputs=outputs)
+    ```
+
+    Note: Only dicts, lists, and tuples of input tensors are supported. Nested
+    inputs are not supported (e.g. lists of list or dicts of dict).
+
+    A new Functional API model can also be created by using the
+    intermediate tensors. This enables you to quickly extract sub-components
+    of the model.
+
+    Example:
+
+    ```python
+    inputs = keras_core.Input(shape=(None, None, 3))
+    processed = keras_core.layers.RandomCrop(width=128, height=128)(inputs)
+    conv = keras_core.layers.Conv2D(filters=32, kernel_size=3)(processed)
+    pooling = keras_core.layers.GlobalAveragePooling2D()(conv)
+    feature = keras_core.layers.Dense(10)(pooling)
+
+    full_model = keras_core.Model(inputs, feature)
+    backbone = keras_core.Model(processed, conv)
+    activations = keras_core.Model(conv, feature)
+    ```
+
+    Note that the `backbone` and `activations` models are not
+    created with `keras_core.Input` objects, but with the tensors that originate
+    from `keras_core.Input` objects. Under the hood, the layers and weights will
+    be shared across these models, so that user can train the `full_model`, and
+    use `backbone` or `activations` to do feature extraction.
+    The inputs and outputs of the model can be nested structures of tensors as
+    well, and the created models are standard Functional API models that support
+    all the existing APIs.
+
+    ## By subclassing the `Model` class
+
+    In that case, you should define your
+    layers in `__init__()` and you should implement the model's forward pass
+    in `call()`.
+
+    ```python
+    class MyModel(keras_core.Model):
+        def __init__(self):
+            super().__init__()
+            self.dense1 = keras_core.layers.Dense(32, activation="relu")
+            self.dense2 = keras_core.layers.Dense(5, activation="softmax")
+
+        def call(self, inputs):
+            x = self.dense1(inputs)
+            return self.dense2(x)
+
+    model = MyModel()
+    ```
+
+    If you subclass `Model`, you can optionally have
+    a `training` argument (boolean) in `call()`, which you can use to specify
+    a different behavior in training and inference:
+
+    ```python
+    class MyModel(keras_core.Model):
+        def __init__(self):
+            super().__init__()
+            self.dense1 = keras_core.layers.Dense(32, activation="relu")
+            self.dense2 = keras_core.layers.Dense(5, activation="softmax")
+            self.dropout = keras_core.layers.Dropout(0.5)
+
+        def call(self, inputs, training=False):
+            x = self.dense1(inputs)
+            x = self.dropout(x, training=training)
+            return self.dense2(x)
+
+    model = MyModel()
+    ```
+
+    Once the model is created, you can config the model with losses and metrics
+    with `model.compile()`, train the model with `model.fit()`, or use the model
+    to do prediction with `model.predict()`.
+
+    ## With the `Sequential` class
+
+    In addition, `keras_core.Sequential` is a special case of model where
+    the model is purely a stack of single-input, single-output layers.
+
+    ```python
+    model = keras_core.Sequential([
+        keras_core.Input(shape=(None, None, 3)),
+        keras_core.layers.Conv2D(filters=32, kernel_size=3),
+    ])
+    ```
     """
 
     def __new__(cls, *args, **kwargs):

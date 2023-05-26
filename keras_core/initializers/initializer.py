@@ -7,13 +7,13 @@ from keras_core.api_export import keras_core_export
 class Initializer:
     """Initializer base class: all Keras initializers inherit from this class.
 
-    Initializers should implement a `__call__` method with the following
+    Initializers should implement a `__call__()` method with the following
     signature:
 
     ```python
     def __call__(self, shape, dtype=None, **kwargs):
-      # returns a tensor of shape `shape` and dtype `dtype`
-      # containing values drawn from a distribution of your choice.
+        # returns a tensor of shape `shape` and dtype `dtype`
+        # containing values drawn from a distribution of your choice.
     ```
 
     Optionally, you an also implement the method `get_config()` and the class
@@ -29,7 +29,7 @@ class Initializer:
             self.stddev = stddev
 
         def __call__(self, shape, dtype=None, **kwargs):
-            return knp.random.normal(
+            return keras_core.random.normal(
                 shape, mean=self.mean, stddev=self.stddev, dtype=dtype
             )
 

@@ -9,6 +9,22 @@ from keras_core.utils.naming import auto_name
 
 @keras_core_export(["keras_core.Loss", "keras_core.losses.Loss"])
 class Loss:
+    """Loss base class.
+
+    To be implemented by subclasses:
+
+    * `call()`: Contains the logic for loss calculation using `y_true`,
+        `y_pred`.
+
+    Example subclass implementation:
+
+    ```python
+    class MeanSquaredError(Loss):
+        def call(self, y_true, y_pred):
+            return ops.mean(ops.square(y_pred - y_true), axis=-1)
+    ```
+    """
+
     def __init__(self, name=None, reduction="sum_over_batch_size"):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
