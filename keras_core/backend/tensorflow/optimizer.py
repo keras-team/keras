@@ -4,7 +4,7 @@ from keras_core import backend
 from keras_core.optimizers import base_optimizer
 
 
-class TFOptimizer(base_optimizer.Optimizer):
+class TFOptimizer(base_optimizer.BaseOptimizer):
     """A class for Tensorflow specific optimizer logic.
 
     The major behavior change for this class is for tf.distribute.

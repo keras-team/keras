@@ -7,7 +7,7 @@ if backend.backend() == "tensorflow":
 
     BackendOptimizer = tf_optimizer.TFOptimizer
 else:
-    BackendOptimizer = base_optimizer.Optimizer
+    BackendOptimizer = base_optimizer.BaseOptimizer
 
 
 keras_core_export(["keras_core.Optimizer", "keras_core.optimizers.Optimizer"])

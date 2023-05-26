@@ -12,7 +12,7 @@ from keras_core.utils import tracking
 from keras_core.utils.naming import auto_name
 
 
-class Optimizer:
+class BaseOptimizer:
     def __init__(
         self,
         learning_rate,
