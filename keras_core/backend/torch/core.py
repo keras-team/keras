@@ -104,3 +104,27 @@ def scatter(indices, values, shape):
         index = indices[i]
         zeros[tuple(index)] += values[i]
     return zeros
+
+
+def scatter_update(inputs, indices, updates):
+    inputs = convert_to_tensor(inputs)
+    indices = convert_to_tensor(indices, dtype="int64")
+    updates = convert_to_tensor(updates)
+    indices = torch.transpose(indices, 0, 1)
+
+    inputs[tuple(indices)] = updates
+    return inputs
+
+
+def block_update(inputs, start_indices, updates):
+    inputs = convert_to_tensor(inputs)
+    start_indices = convert_to_tensor(start_indices, dtype="int64")
+    updates = convert_to_tensor(updates)
+
+    update_shape = updates.shape
+    slices = [
+        slice(start_index, start_index + update_length)
+        for start_index, update_length in zip(start_indices, update_shape)
+    ]
+    inputs[slices] = updates
+    return inputs

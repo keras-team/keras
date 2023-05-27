@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
@@ -102,3 +103,11 @@ def vectorized_map(function, elements):
 
 def scatter(indices, values, shape):
     return tf.scatter_nd(indices, values, shape)
+
+
+def scatter_update(inputs, indices, updates):
+    return tf.tensor_scatter_nd_update(inputs, indices, updates)
+
+
+def block_update(inputs, start_indices, updates):
+    return dynamic_update_slice(inputs, updates, start_indices)
