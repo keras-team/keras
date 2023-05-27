@@ -17,6 +17,7 @@ And some more magic:
 """
 import collections
 import inspect
+import warnings
 
 import numpy as np
 from tensorflow import nest
@@ -200,10 +201,30 @@ class Layer(Operation):
         dtype=None,
         autocast=True,
         name=None,
+        **kwargs,
     ):
         self._lock = False
         super().__init__(name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
+        input_dim_arg = kwargs.pop("input_dim", None)
+        if input_dim_arg is not None:
+            input_shape_arg = (input_dim_arg,)
+        else:
+            input_shape_arg = kwargs.pop("input_shape", None)
+        if input_shape_arg is not None:
+            warnings.warn(
+                "Do not pass an `input_shape`/`input_dim` argument to "
+                "a layer. When using Sequential models, "
+                "prefer using an `Input(shape)` object as the "
+                "first layer in the model instead.",
+                stacklevel=2,
+            )
+            self._input_shape_arg = input_shape_arg
+        if kwargs:
+            raise ValueError(
+                "Unrecognized keyword arguments "
+                f"passed to {self.__class__.__name__}: {kwargs}"
+            )
 
         self.built = False
         self.dtype_policy = mixed_precision.resolve_policy(dtype)

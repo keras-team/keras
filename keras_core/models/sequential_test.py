@@ -58,6 +58,36 @@ class SequentialTest(testing.TestCase):
         y = model(x)
         self.assertEqual(y.shape, (3, 4))
 
+    def test_legacy_flow_with_input_shape(self):
+        model = Sequential(name="seq")
+        model.add(layers.Dense(4, input_shape=(2,)))
+        model.add(layers.Dense(5))
+
+        self.assertEqual(len(model.layers), 2)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 4)
+        self.assertEqual(type(model._functional), Functional)
+
+        # Input_dim works too
+        model = Sequential(name="seq")
+        model.add(layers.Dense(4, input_dim=2))
+        model.add(layers.Dense(5))
+
+        self.assertEqual(len(model.layers), 2)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 4)
+        self.assertEqual(type(model._functional), Functional)
+
+        # Subsequent input_shapes are ignored
+        model = Sequential(name="seq")
+        model.add(layers.Dense(4, input_shape=(2,)))
+        model.add(layers.Dense(5, input_shape=(3, 4)))
+
+        self.assertEqual(len(model.layers), 2)
+        self.assertTrue(model.built)
+        self.assertEqual(len(model.weights), 4)
+        self.assertEqual(type(model._functional), Functional)
+
     def test_basic_flow_deferred(self):
         model = Sequential(name="seq")
         model.add(layers.Dense(4))

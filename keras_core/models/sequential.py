@@ -68,6 +68,12 @@ class Sequential(Model):
             self._maybe_rebuild()
 
     def add(self, layer, rebuild=True):
+        # Legacy case: if the first layer has an input_shape arg,
+        # use it to build an InputLayer.
+        if not self._layers:
+            if getattr(layer, "_input_shape_arg", None) is not None:
+                self.add(InputLayer(shape=layer._input_shape_arg))
+
         # If we are passed a Keras tensor created by keras.Input(), we
         # extract the input layer from its keras history and use that.
         if hasattr(layer, "_keras_history"):

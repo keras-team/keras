@@ -65,10 +65,11 @@ def get(identifier):
     if isinstance(identifier, Optimizer):
         return identifier
     elif isinstance(identifier, dict):
-        return deserialize(identifier)
+        opt = deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": identifier, "config": {}}
         opt = deserialize(config)
-        if isinstance(opt, Optimizer):
-            return opt
+
+    if isinstance(opt, Optimizer):
+        return opt
     raise ValueError(f"Could not interpret optimizer identifier: {identifier}")
