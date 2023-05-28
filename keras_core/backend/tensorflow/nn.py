@@ -496,18 +496,25 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
-    if target.shape != output.shape:
-        raise ValueError(
-            "Arguments `target` and `output` must have the same shape. "
-            "Received: "
-            f"target.shape={target.shape}, output.shape={output.shape}"
-        )
     if len(target.shape) < 1:
         raise ValueError(
             "Arguments `target` and `output` must be at least rank 1. "
             "Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+    if len(target.shape) != len(output.shape):
+        raise ValueError(
+            "Arguments `target` and `output` must have the same rank "
+            "(ndim). Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    for e1, e2 in zip(target.shape, output.shape):
+        if e1 is not None and e2 is not None and e1 != e2:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
 
     output, from_logits = _get_logits(
         output, from_logits, "Softmax", "categorical_crossentropy"
@@ -562,12 +569,19 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if target.shape != output.shape[:-1]:
+    if len(target.shape) != len(output.shape[:-1]):
         raise ValueError(
-            "Arguments `target` and `output` must have the same shape "
-            "up until the last dimension: "
+            "Argument `output` must have rank (ndim) `target.ndim - 1`. "
+            "Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+    for e1, e2 in zip(target.shape, output.shape[:-1]):
+        if e1 is not None and e2 is not None and e1 != e2:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape "
+                "up until the last dimension: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
 
     output, from_logits = _get_logits(
         output, from_logits, "Softmax", "sparse_categorical_crossentropy"
@@ -598,12 +612,19 @@ def binary_crossentropy(target, output, from_logits=False):
     target = tf.convert_to_tensor(target)
     output = tf.convert_to_tensor(output)
 
-    if target.shape != output.shape:
+    if len(target.shape) != len(output.shape):
         raise ValueError(
-            "Arguments `target` and `output` must have the same shape. "
-            "Received: "
+            "Arguments `target` and `output` must have the same rank "
+            "(ndim). Received: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
+    for e1, e2 in zip(target.shape, output.shape):
+        if e1 is not None and e2 is not None and e1 != e2:
+            raise ValueError(
+                "Arguments `target` and `output` must have the same shape. "
+                "Received: "
+                f"target.shape={target.shape}, output.shape={output.shape}"
+            )
 
     output, from_logits = _get_logits(
         output, from_logits, "Sigmoid", "binary_crossentropy"

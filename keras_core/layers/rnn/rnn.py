@@ -269,7 +269,7 @@ class RNN(Layer):
 
     def build(self, sequences_shape, initial_state_shape=None):
         # Build cell (if layer).
-        step_input_shape = (sequences_shape[0],) + sequences_shape[2:]
+        step_input_shape = (sequences_shape[0],) + tuple(sequences_shape[2:])
         if isinstance(self.cell, Layer) and not self.cell.built:
             self.cell.build(step_input_shape)
             self.cell.built = True

@@ -328,6 +328,7 @@ class GRUCell(Layer, DropoutRNNCell):
         ]
 
 
+@keras_core_export("keras_core.layers.GRU")
 class GRU(RNN):
     """Gated Recurrent Unit - Cho et al. 2014.
 

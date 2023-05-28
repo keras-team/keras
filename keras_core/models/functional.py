@@ -258,6 +258,17 @@ class Functional(Function, Model):
         flat_inputs = self._flatten_to_reference_inputs(inputs)
         return self._adjust_input_rank(flat_inputs)
 
+    @property
+    def input(self):
+        # For backwards compatibility,
+        # override `input` to retrieve the used-provided
+        # constructor inputs
+        return self._inputs_struct
+
+    @property
+    def output(self):
+        return self._outputs_struct
+
     def add_loss(self, loss):
         # Symbolic only. TODO
         raise NotImplementedError

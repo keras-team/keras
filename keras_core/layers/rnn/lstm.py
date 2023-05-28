@@ -316,6 +316,7 @@ class LSTMCell(Layer, DropoutRNNCell):
         ]
 
 
+@keras_core_export("keras_core.layers.LSTM")
 class LSTM(RNN):
     """Long Short-Term Memory layer - Hochreiter 1997.
 

@@ -188,6 +188,8 @@ class EpochIterator:
 
     @property
     def num_batches(self):
+        if self.steps_per_epoch:
+            return self.steps_per_epoch
         # Either copied from the data_adapter, or
         # inferred at the end of an iteration.
         return self._num_batches
