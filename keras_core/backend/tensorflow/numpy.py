@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 
+from keras_core.backend.tensorflow.core import convert_to_tensor
+
 
 def add(x1, x2):
     return tfnp.add(x1, x2)
@@ -503,7 +505,22 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
-    return tfnp.tile(x, repeats)
+    # The TFNP implementation is buggy, we roll our own.
+    x = convert_to_tensor(x)
+    repeats = tf.reshape(convert_to_tensor(repeats, dtype="int32"), [-1])
+    repeats_size = tf.size(repeats)
+    repeats = tf.pad(
+        repeats,
+        [[tf.maximum(x.shape.rank - repeats_size, 0), 0]],
+        constant_values=1,
+    )
+    x_shape = tf.pad(
+        tf.shape(x),
+        [[tf.maximum(repeats_size - x.shape.rank, 0), 0]],
+        constant_values=1,
+    )
+    x = tf.reshape(x, x_shape)
+    return tf.tile(x, repeats)
 
 
 def trace(x, offset=0, axis1=0, axis2=1):

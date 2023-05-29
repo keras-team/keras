@@ -1,5 +1,6 @@
 from keras_core import backend
 from keras_core import initializers
+from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.utils.naming import auto_name
 from keras_core.utils.tracking import Tracker
@@ -102,7 +103,7 @@ class Metric:
         when a metric is evaluated during training.
         """
         for v in self.variables:
-            v.assign(0)
+            v.assign(ops.zeros(v.shape, dtype=v.dtype))
 
     def update_state(self, *args, **kwargs):
         """Accumulate statistics for the metric."""

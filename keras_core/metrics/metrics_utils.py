@@ -436,7 +436,7 @@ def update_confusion_matrix_variables(
     if multi_label:
         one_thresh = ops.equal(
             ops.cast(1, dtype="int32"),
-            thresholds.ndim,
+            len(thresholds.shape),
         )
     else:
         one_thresh = ops.cast(True, dtype="bool")
@@ -478,7 +478,7 @@ def update_confusion_matrix_variables(
 
     pred_shape = ops.shape(y_pred)
     num_predictions = pred_shape[0]
-    if y_pred.ndim == 1:
+    if len(y_pred.shape) == 1:
         num_labels = 1
     else:
         num_labels = ops.cast(
