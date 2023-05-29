@@ -328,6 +328,7 @@ class IntegerLookup(Layer):
             **kwargs,
         )
         self._allow_non_tensor_positional_args = True
+        self.supports_jit = False
 
     def adapt(self, data, batch_size=None, steps=None):
         """Computes a vocabulary of interger terms from tokens in a dataset.

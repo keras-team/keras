@@ -41,7 +41,9 @@ import tensorflow as tf
 import keras_core as keras
 from keras_core.applications import inception_v3
 
-base_image_path = keras.utils.get_file("sky.jpg", "https://i.imgur.com/aGBdQyK.jpg")
+base_image_path = keras.utils.get_file(
+    "sky.jpg", "https://i.imgur.com/aGBdQyK.jpg"
+)
 result_prefix = "sky_dream"
 
 # These are the names of the layers
@@ -134,7 +136,11 @@ def compute_loss(input_image):
         activation = features[name]
         # We avoid border artifacts by only involving non-border pixels in the loss.
         scaling = tf.reduce_prod(tf.cast(tf.shape(activation), "float32"))
-        loss += coeff * tf.reduce_sum(tf.square(activation[:, 2:-2, 2:-2, :])) / scaling
+        loss += (
+            coeff
+            * tf.reduce_sum(tf.square(activation[:, 2:-2, 2:-2, :]))
+            / scaling
+        )
     return loss
 
 

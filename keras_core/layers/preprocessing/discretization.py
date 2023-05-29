@@ -122,6 +122,7 @@ class Discretization(Layer):
         self.epsilon = epsilon
         self.output_mode = output_mode
         self.sparse = sparse
+        self.supports_jit = False
 
     def build(self, input_shape):
         self.layer.build(input_shape)

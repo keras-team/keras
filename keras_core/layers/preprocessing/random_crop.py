@@ -58,6 +58,7 @@ class RandomCrop(Layer):
             name=name,
         )
         self.supports_masking = False
+        self.supports_jit = False
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):

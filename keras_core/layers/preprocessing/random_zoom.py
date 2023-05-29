@@ -106,6 +106,7 @@ class RandomZoom(Layer):
             fill_value=fill_value,
             **kwargs,
         )
+        self.supports_jit = False
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):

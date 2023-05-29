@@ -163,11 +163,17 @@ def convert_to_arrays(arrays, dtype=None):
         if isinstance(x, (tf.Tensor, tf.Variable)):
             x = x.numpy()
         if not isinstance(x, np.ndarray):
-            raise ValueError(
-                "Expected a NumPy array, tf.Tensor, Pandas Dataframe or Pandas "
-                f"Series. Received invalid input: {x} (of type {type(x)})"
-            )
-        if not str(x.dtype) == str(dtype):
+            if hasattr(x, "__array__"):
+                x = np.array(x, dtype=dtype)
+            else:
+                raise ValueError(
+                    "Expected a NumPy array, tf.Tensor, "
+                    "Pandas Dataframe, or Pandas Series. "
+                    f"Received invalid input: {x} (of type {type(x)})"
+                )
+        if x.dtype == object:
+            return x
+        if not x.dtype == dtype:
             x = x.astype(dtype)
         return x
 

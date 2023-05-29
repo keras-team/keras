@@ -5,9 +5,11 @@ import tensorflow as tf
 
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 
 
+@keras_core_export("keras_core.layers.Normalization")
 class Normalization(Layer):
     """A preprocessing layer that normalizes continuous features.
 
@@ -290,6 +292,7 @@ class Normalization(Layer):
         self.variance = ops.cast(self.variance, self.compute_dtype)
 
     def call(self, inputs):
+        inputs = backend.convert_to_tensor(inputs, dtype=self.compute_dtype)
         if self.invert:
             return self.mean + (
                 inputs * ops.maximum(ops.sqrt(self.variance), backend.epsilon())

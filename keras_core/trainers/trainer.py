@@ -28,7 +28,7 @@ class Trainer:
         weighted_metrics=None,
         run_eagerly=False,
         steps_per_execution=1,
-        jit_compile=True,
+        jit_compile="auto",
     ):
         self.optimizer = optimizers.get(optimizer)
         if loss is not None:
@@ -39,6 +39,11 @@ class Trainer:
             self._compile_metrics = CompileMetrics(metrics, weighted_metrics)
         else:
             self._compile_metrics = None
+        if jit_compile == "auto":
+            if all(x.supports_jit for x in self._flatten_layers()):
+                jit_compile = True
+            else:
+                jit_compile = False
         if jit_compile and run_eagerly:
             jit_compile = False
             warnings.warn(

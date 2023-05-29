@@ -230,6 +230,7 @@ class Layer(Operation):
         self.dtype_policy = mixed_precision.resolve_policy(dtype)
         self.autocast = autocast
         self.input_spec = None
+        self.supports_jit = True
 
         self._trainable = trainable
         self._layers = []

@@ -238,6 +238,7 @@ class TextVectorization(Layer):
         )
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
+        self.supports_jit = False
 
     def compute_output_shape(self, input_shape):
         return tuple(self.layer.compute_output_shape(input_shape))

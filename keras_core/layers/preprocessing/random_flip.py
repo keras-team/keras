@@ -50,6 +50,7 @@ class RandomFlip(Layer):
             seed=self.seed,
             **kwargs,
         )
+        self.supports_jit = False
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
