@@ -113,10 +113,14 @@ metrics = [
 ]
 
 model.compile(
-    optimizer=keras.optimizers.Adam(1e-2), loss="binary_crossentropy", metrics=metrics
+    optimizer=keras.optimizers.Adam(1e-2),
+    loss="binary_crossentropy",
+    metrics=metrics,
 )
 
-callbacks = [keras.callbacks.ModelCheckpoint("fraud_model_at_epoch_{epoch}.keras")]
+callbacks = [
+    keras.callbacks.ModelCheckpoint("fraud_model_at_epoch_{epoch}.keras")
+]
 class_weight = {0: weight_for_0, 1: weight_for_1}
 
 model.fit(

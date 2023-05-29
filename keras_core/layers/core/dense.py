@@ -103,7 +103,9 @@ class Dense(Layer):
         x = ops.matmul(inputs, self.kernel)
         if self.use_bias:
             x = x + self.bias
-        return self.activation(x)
+        if self.activation:
+            x = self.activation(x)
+        return x
 
     def compute_output_shape(self, input_shape):
         output_shape = list(input_shape)

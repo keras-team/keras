@@ -54,7 +54,9 @@ Index| Features      |Format             |Description
 from zipfile import ZipFile
 
 uri = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/jena_climate_2009_2016.csv.zip"
-zip_path = keras.utils.get_file(origin=uri, fname="jena_climate_2009_2016.csv.zip")
+zip_path = keras.utils.get_file(
+    origin=uri, fname="jena_climate_2009_2016.csv.zip"
+)
 zip_file = ZipFile(zip_path)
 zip_file.extractall()
 csv_path = "jena_climate_2009_2016.csv"
@@ -294,7 +296,9 @@ lstm_out = keras.layers.LSTM(32)(inputs)
 outputs = keras.layers.Dense(1)(lstm_out)
 
 model = keras.Model(inputs=inputs, outputs=outputs)
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=learning_rate), loss="mse")
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=learning_rate), loss="mse"
+)
 model.summary()
 
 """
@@ -304,7 +308,9 @@ is not longer improving.
 """
 
 path_checkpoint = "model_checkpoint.weights.h5"
-es_callback = keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=5)
+es_callback = keras.callbacks.EarlyStopping(
+    monitor="val_loss", min_delta=0, patience=5
+)
 
 modelckpt_callback = keras.callbacks.ModelCheckpoint(
     monitor="val_loss",
@@ -363,9 +369,13 @@ def show_plot(plot_data, delta, title):
     plt.title(title)
     for i, val in enumerate(plot_data):
         if i:
-            plt.plot(future, plot_data[i], marker[i], markersize=10, label=labels[i])
+            plt.plot(
+                future, plot_data[i], marker[i], markersize=10, label=labels[i]
+            )
         else:
-            plt.plot(time_steps, plot_data[i].flatten(), marker[i], label=labels[i])
+            plt.plot(
+                time_steps, plot_data[i].flatten(), marker[i], label=labels[i]
+            )
     plt.legend()
     plt.xlim([time_steps[0], (future + 5) * 2])
     plt.xlabel("Time-Step")
