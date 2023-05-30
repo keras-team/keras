@@ -82,6 +82,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
 
         def apply_grad_to_update_var(var, grad):
             learning_rate = self._get_current_learning_rate()
+            grad = tf.convert_to_tensor(grad)
             return self.update_step(grad, var, learning_rate)
 
         for grad, var in grads_and_vars:
