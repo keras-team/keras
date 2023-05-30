@@ -41,7 +41,7 @@ class RandomNormal(Initializer):
             of `keras_core.backend.SeedGenerator`.
     """
 
-    def __init__(self, mean=0.0, stddev=1.0, seed=None):
+    def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
         self._init_seed = seed
@@ -96,7 +96,7 @@ class TruncatedNormal(Initializer):
             of `keras_core.backend.SeedGenerator`.
     """
 
-    def __init__(self, mean=0.0, stddev=1.0, seed=None):
+    def __init__(self, mean=0.0, stddev=0.05, seed=None):
         self.mean = mean
         self.stddev = stddev
         self._init_seed = seed
@@ -148,7 +148,7 @@ class RandomUniform(Initializer):
             of `keras_core.backend.SeedGenerator`.
     """
 
-    def __init__(self, minval=0.0, maxval=1.0, seed=None):
+    def __init__(self, minval=-0.05, maxval=0.05, seed=None):
         self.minval = minval
         self.maxval = maxval
         self._init_seed = seed
