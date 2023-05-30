@@ -106,6 +106,8 @@ ALL_OBJECTS_DICT.update(
     {
         "mse": MeanSquaredError,
         "MSE": MeanSquaredError,
+        "mae": MeanAbsoluteError,
+        "MAE": MeanAbsoluteError,
     }
 )
 
