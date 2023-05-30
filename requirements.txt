@@ -2,6 +2,7 @@ tensorflow
 # TODO: Use Torch CPU
 # Remove after resolving Cuda version differences with TF
 torch>=2.0.1+cpu
+torchvision>=0.15.1
 jax[cpu]
 namex
 black>=22
