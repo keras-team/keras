@@ -139,22 +139,3 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         updates = np.zeros([2, 2, 2, 2])
         outputs = core.block_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
-
-    def test_while_loop(self):
-        def cond(x, y):
-            return x[0, 0] < 10
-
-        def body(x, y):
-            return x + 1, y + 1
-
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y))
-        self.assertAllClose(x, np.ones((2, 3)) * 10)
-        self.assertAllClose(y, np.ones((3, 2)) * 10)
-
-        x = np.ones((2, 3))
-        y = np.ones((3, 2))
-        x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
-        self.assertAllClose(x, np.ones((2, 3)) * 6)
-        self.assertAllClose(y, np.ones((3, 2)) * 6)

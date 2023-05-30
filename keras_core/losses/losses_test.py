@@ -881,6 +881,14 @@ class BinaryCrossentropyTest(testing.TestCase):
         self.assertAlmostEqual(loss, 0.0)
 
     def test_unweighted(self):
+        y_true = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype="float32")
+        y_pred = np.array(
+            [[0.9, 0.1, 0.2], [0.3, 0.8, 0.1], [0.1, 0.2, 0.7]], dtype="float32"
+        )
+        bce_obj = losses.BinaryCrossentropy()
+        loss = bce_obj(y_true, y_pred)
+        self.assertAllClose(loss, 0.20046903)
+
         y_true = np.array([1, 0, 1, 0]).reshape([2, 2])
         y_pred = np.array([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
         bce_obj = losses.BinaryCrossentropy()
