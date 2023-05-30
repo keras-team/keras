@@ -119,10 +119,11 @@ class Nadam(optimizer.Optimizer):
             self._u_product_counter += 1
             return u_product_t
 
-        if self._u_product_counter == (self.iterations + 2):
-            u_product_t = get_cached_u_product()
-        else:
-            u_product_t = compute_new_u_product()
+        u_product_t = ops.cond(
+            ops.equal(self._u_product_counter, (self.iterations + 2)),
+            get_cached_u_product,
+            compute_new_u_product,
+        )
 
         u_product_t_1 = u_product_t * u_t_1
         beta_2_power = ops.power(beta_2, local_step)
