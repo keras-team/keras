@@ -111,3 +111,17 @@ def scatter_update(inputs, indices, updates):
 
 def block_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
+
+
+def while_loop(
+    cond,
+    body,
+    loop_vars,
+    maximum_iterations=None,
+):
+    return tf.while_loop(
+        cond,
+        body,
+        loop_vars,
+        maximum_iterations=maximum_iterations,
+    )

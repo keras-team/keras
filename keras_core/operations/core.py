@@ -126,3 +126,63 @@ def block_update(inputs, start_indices, updates):
     if any_symbolic_tensors((inputs, start_indices, updates)):
         return BlockUpdate().symbolic_call(inputs, start_indices, updates)
     return backend.core.block_update(inputs, start_indices, updates)
+
+
+class WhileLoop(Operation):
+    def __init__(self, cond, body, maximum_iterations):
+        super().__init__()
+        self.cond = cond
+        self.body = body
+        self.maximum_iterations = maximum_iterations
+
+    def call(self, loop_vars):
+        return backend.core.while_loop(
+            self.cond,
+            self.body,
+            loop_vars,
+            maximum_iterations=self.maximum_iterations,
+        )
+
+    def compute_output_spec(self, loop_vars):
+        return [KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars]
+
+
+@keras_core_export("keras_core.operations.while_loop")
+def while_loop(
+    cond,
+    body,
+    loop_vars,
+    maximum_iterations=None,
+):
+    """While loop implemetation.
+
+    Args:
+        cond: A callable that represents the termination condition of the loop.
+            Must have the same number of args as `loop_vars`, and return a bool.
+        body: A callable that represents the loop body. Must have the same
+            number of args as `loop_vars`, and return a list/tuple of the same
+            length, shape and dtype as `loop_vars`.
+        loop_vars: A list/tuple of tensors, the loop variables.
+        maximum_iterations: Optional maximum number of iterations of the while
+            loop to run. If provided, the `cond` output is AND-ed with an
+            additional condition ensuring the number of iterations executed is
+            no greater than `maximum_iterations`.
+
+    Returns:
+        A list/tuple of tensors, has the same shape and dtype as `inputs`.
+
+    Examples:
+
+    >>> i = 0
+    >>> cond = lambda i: i < 10
+    >>> body = lambda i: i + 1
+    >>> keras_core.operations.while_loop(cond, body, [i])[0]
+    10
+    """
+
+    return backend.core.while_loop(
+        cond,
+        body,
+        loop_vars,
+        maximum_iterations=maximum_iterations,
+    )
