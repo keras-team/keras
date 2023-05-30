@@ -60,6 +60,16 @@ class BinaryAccuracyTest(testing.TestCase):
         result = bin_acc_obj.result()
         self.assertAllClose(result, 0.75, atol=1e-3)
 
+        # Test broadcasting case
+        bin_acc_obj = accuracy_metrics.BinaryAccuracy(
+            name="binary_accuracy", dtype="float32"
+        )
+        y_true = np.array([1, 1, 0, 0])
+        y_pred = np.array([[0.98], [1], [0], [0.6]])
+        bin_acc_obj.update_state(y_true, y_pred)
+        result = bin_acc_obj.result()
+        self.assertAllClose(result, 0.75, atol=1e-3)
+
     def test_weighted(self):
         bin_acc_obj = accuracy_metrics.BinaryAccuracy(
             name="binary_accuracy", dtype="float32"
