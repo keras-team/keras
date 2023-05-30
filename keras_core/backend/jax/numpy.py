@@ -457,6 +457,8 @@ def swapaxes(x, axis1, axis2):
 
 
 def take(x, indices, axis=None):
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices)
     return jnp.take(x, indices, axis=axis)
 
 
