@@ -541,7 +541,7 @@ def index_directory(
         subdirs = []
         for subdir in sorted(tf.io.gfile.listdir(directory)):
             if (tf.io.gfile.isdir(tf.io.gfile.join(directory, subdir))
-            and not subdir.startswith(".")):
+                    and not subdir.startswith(".")):
                 if subdir.endswith("/"):
                     subdir = subdir[:-1]
                 subdirs.append(subdir)
