@@ -147,6 +147,23 @@ tf_py_test(
 )
 
 distribute_py_test(
+    name = "ctl_tutorial_test",
+    srcs = ["ctl_tutorial_test.py"],
+    main = "ctl_tutorial_test.py",
+    shard_count = 5,
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/distribute:strategy_combinations",
+    ],
+)
+
+distribute_py_test(
     name = "parameter_server_keras_preprocessing_test",
     srcs = ["parameter_server_keras_preprocessing_test.py"],
     python_version = "PY3",
