@@ -78,14 +78,16 @@ def get(identifier):
     Returns:
         A Keras Optimizer instance.
     """
-    if isinstance(identifier, Optimizer):
-        return identifier
+    if identifier is None:
+        return None
     elif isinstance(identifier, dict):
-        opt = deserialize(identifier)
+        obj = deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": identifier, "config": {}}
-        opt = deserialize(config)
+        obj = deserialize(config)
+    else:
+        obj = identifier
 
-    if isinstance(opt, Optimizer):
-        return opt
+    if isinstance(obj, Optimizer):
+        return obj
     raise ValueError(f"Could not interpret optimizer identifier: {identifier}")

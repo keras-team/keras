@@ -105,3 +105,13 @@ class InitializersTest(testing.TestCase):
         # TODO: test correctness
 
         self.run_class_serialization_test(initializer)
+
+    def test_get_method(self):
+        obj = initializers.get("glorot_normal")
+        self.assertTrue(obj, initializers.GlorotNormal)
+
+        obj = initializers.get(None)
+        self.assertEqual(obj, None)
+
+        with self.assertRaises(ValueError):
+            initializers.get("typo")

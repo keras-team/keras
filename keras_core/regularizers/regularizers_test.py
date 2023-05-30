@@ -32,3 +32,13 @@ class RegularizersTest(testing.TestCase):
         x = backend.Variable(value)
         regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")(x)
         # TODO
+
+    def test_get_method(self):
+        obj = regularizers.get("l1l2")
+        self.assertTrue(obj, regularizers.L1L2)
+
+        obj = regularizers.get(None)
+        self.assertEqual(obj, None)
+
+        with self.assertRaises(ValueError):
+            regularizers.get("typo")

@@ -172,3 +172,13 @@ class ActivationsTest(testing.TestCase):
     def test_linear(self):
         x = np.random.random((10, 5))
         self.assertAllClose(x, activations.linear(x))
+
+    def test_get_method(self):
+        obj = activations.get("relu")
+        self.assertEqual(obj, activations.relu)
+
+        obj = activations.get(None)
+        self.assertEqual(obj, activations.linear)
+
+        with self.assertRaises(ValueError):
+            activations.get("typo")

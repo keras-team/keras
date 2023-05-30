@@ -41,18 +41,20 @@ def deserialize(config, custom_objects=None):
 @keras_core_export("keras_core.regularizers.get")
 def get(identifier):
     """Retrieve a Keras regularizer object via an identifier."""
-
     if identifier is None:
         return None
     if isinstance(identifier, dict):
-        return deserialize(identifier)
+        obj = deserialize(identifier)
     elif isinstance(identifier, str):
         config = {"class_name": str(identifier), "config": {}}
-        return deserialize(config)
-    elif callable(identifier):
-        if inspect.isclass(identifier):
-            identifier = identifier()
-        return identifier
+        obj = deserialize(config)
+    else:
+        obj = identifier
+
+    if callable(obj):
+        if inspect.isclass(obj):
+            obj = obj()
+        return obj
     else:
         raise ValueError(
             f"Could not interpret regularizer identifier: {identifier}"

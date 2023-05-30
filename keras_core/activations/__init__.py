@@ -91,9 +91,11 @@ def get(identifier):
     if identifier is None:
         return linear
     if isinstance(identifier, (str, dict)):
-        identifier = deserialize(identifier)
-    if callable(identifier):
-        return identifier
-    raise TypeError(
+        obj = deserialize(identifier)
+    else:
+        obj = identifier
+    if callable(obj):
+        return obj
+    raise ValueError(
         f"Could not interpret activation function identifier: {identifier}"
     )

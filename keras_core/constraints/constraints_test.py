@@ -44,3 +44,13 @@ class ConstraintsTest(testing.TestCase):
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
         self.assertFalse(l2[l2 < 0.2])
         self.assertFalse(l2[l2 > 0.5 + 1e-6])
+
+    def test_get_method(self):
+        obj = constraints.get("unit_norm")
+        self.assertTrue(obj, constraints.UnitNorm)
+
+        obj = constraints.get(None)
+        self.assertEqual(obj, None)
+
+        with self.assertRaises(ValueError):
+            constraints.get("typo")

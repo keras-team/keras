@@ -14,3 +14,15 @@ class OptimizerTest(testing.TestCase):
         grad = backend.numpy.zeros((2, 2))
         optimizer.apply_gradients([(grad, v)])
         self.assertAlmostEqual(np.min(v), 0.0)
+
+    def test_get_method(self):
+        obj = optimizers.get("sgd")
+        self.assertTrue(isinstance(obj, optimizers.SGD))
+        obj = optimizers.get("adamw")
+        self.assertTrue(isinstance(obj, optimizers.AdamW))
+
+        obj = optimizers.get(None)
+        self.assertEqual(obj, None)
+
+        with self.assertRaises(ValueError):
+            optimizers.get("typo")

@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras_core import losses as losses_module
 from keras_core import operations as ops
 from keras_core import testing
 from keras_core.losses.loss import Loss
@@ -157,6 +158,12 @@ class LossTest(testing.TestCase):
             loss,
         )
 
-    def test_serialization(self):
-        # TODO
-        pass
+    def test_get_method(self):
+        loss = losses_module.get("mse")
+        self.assertEqual(loss, losses_module.mean_squared_error)
+
+        loss = losses_module.get(None)
+        self.assertEqual(loss, None)
+
+        with self.assertRaises(ValueError):
+            losses_module.get("typo")

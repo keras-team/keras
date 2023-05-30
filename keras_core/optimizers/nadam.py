@@ -80,9 +80,6 @@ class Nadam(optimizer.Optimizer):
         self._momentums = []
         self._velocities = []
         self._u_product = backend.Variable(1.0, dtype=var_list[0].dtype)
-        # Keep a counter on how many times of _u_product has been computed to
-        # avoid duplicated computations.
-        self._u_product_counter = 1
 
         for var in var_list:
             self._momentums.append(
@@ -110,20 +107,8 @@ class Nadam(optimizer.Optimizer):
         u_t = beta_1 * (1.0 - 0.5 * (ops.power(decay, local_step)))
         u_t_1 = beta_1 * (1.0 - 0.5 * (ops.power(decay, next_step)))
 
-        def get_cached_u_product():
-            return self._u_product
-
-        def compute_new_u_product():
-            u_product_t = self._u_product * u_t
-            self._u_product.assign(u_product_t)
-            self._u_product_counter += 1
-            return u_product_t
-
-        u_product_t = ops.cond(
-            ops.equal(self._u_product_counter, (self.iterations + 2)),
-            get_cached_u_product,
-            compute_new_u_product,
-        )
+        u_product_t = self._u_product * u_t
+        self._u_product.assign(u_product_t)
 
         u_product_t_1 = u_product_t * u_t_1
         beta_2_power = ops.power(beta_2, local_step)

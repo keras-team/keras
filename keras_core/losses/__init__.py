@@ -152,13 +152,14 @@ def get(identifier):
     """
     if identifier is None:
         return None
-    if isinstance(identifier, str):
-        identifier = str(identifier)
-        return deserialize(identifier)
     if isinstance(identifier, dict):
-        return deserialize(identifier)
-    if callable(identifier):
-        return identifier
-    raise ValueError(
-        f"Could not interpret loss function identifier: {identifier}"
-    )
+        obj = deserialize(identifier)
+    elif isinstance(identifier, str):
+        obj = deserialize(identifier)
+    else:
+        obj = identifier
+
+    if callable(obj):
+        return obj
+    else:
+        raise ValueError(f"Could not interpret loss identifier: {identifier}")

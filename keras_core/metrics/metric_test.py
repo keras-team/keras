@@ -2,6 +2,7 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import initializers
+from keras_core import metrics as metrics_module
 from keras_core import operations as ops
 from keras_core import testing
 from keras_core.metrics.metric import Metric
@@ -106,3 +107,13 @@ class MetricTest(testing.TestCase):
             ExampleMetric(name="mse"),
             custom_objects={"ExampleMetric": ExampleMetric},
         )
+
+    def test_get_method(self):
+        metric = metrics_module.get("mse")
+        self.assertTrue(isinstance(metric, metrics_module.MeanSquaredError))
+
+        metric = metrics_module.get(None)
+        self.assertEqual(metric, None)
+
+        with self.assertRaises(ValueError):
+            metrics_module.get("typo")
