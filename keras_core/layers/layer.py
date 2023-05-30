@@ -46,7 +46,7 @@ elif backend.backend() == "torch":
     from keras_core.backend.torch.layer import TorchLayer as BackendLayer
 else:
     raise RuntimeError(
-        f"Backend '{backend.backend()}' must implement the LayerMixin class."
+        f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
 
 

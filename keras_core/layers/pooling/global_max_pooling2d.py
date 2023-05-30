@@ -5,8 +5,8 @@ from keras_core.layers.pooling.base_global_pooling import BaseGlobalPooling
 
 @keras_core_export(
     [
-        "keras_core.layers.GlobalMaxPooling1D",
-        "keras_core.layers.GlobalMaxPool1D",
+        "keras_core.layers.GlobalMaxPooling2D",
+        "keras_core.layers.GlobalMaxPool2D",
     ]
 )
 class GlobalMaxPooling2D(BaseGlobalPooling):
