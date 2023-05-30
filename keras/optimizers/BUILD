@@ -64,6 +64,7 @@ py_library(
     name = "legacy_learning_rate_decay",
     srcs = ["legacy_learning_rate_decay.py"],
     srcs_version = "PY3",
+    visibility = ["//third_party/tensorflow/contrib/learn:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/optimizers/schedules:learning_rate_schedule",
