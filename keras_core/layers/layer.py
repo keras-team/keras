@@ -38,9 +38,20 @@ from keras_core.utils import traceback_utils
 from keras_core.utils.shape_utils import map_shape_structure
 from keras_core.utils.tracking import Tracker
 
+if backend.backend() == "tensorflow":
+    from keras_core.backend.tensorflow.layer import TFLayer as BackendLayer
+elif backend.backend() == "jax":
+    from keras_core.backend.jax.layer import JaxLayer as BackendLayer
+elif backend.backend() == "torch":
+    from keras_core.backend.torch.layer import TorchLayer as BackendLayer
+else:
+    raise RuntimeError(
+        f"Backend '{backend.backend()}' must implement the LayerMixin class."
+    )
+
 
 @keras_core_export(["keras_core.Layer", "keras_core.layers.Layer"])
-class Layer(Operation):
+class Layer(BackendLayer, Operation):
     """This is the class from which all layers inherit.
 
     A layer is a callable object that takes as input one or more tensors and
@@ -203,8 +214,9 @@ class Layer(Operation):
         name=None,
         **kwargs,
     ):
+        BackendLayer.__init__(self)
         self._lock = False
-        super().__init__(name=name)
+        Operation.__init__(self, name=name)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         input_dim_arg = kwargs.pop("input_dim", None)
         if input_dim_arg is not None:

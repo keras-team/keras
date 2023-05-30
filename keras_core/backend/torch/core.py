@@ -1,3 +1,5 @@
+import contextlib
+
 import torch
 
 from keras_core.backend.common import KerasVariable
@@ -70,7 +72,7 @@ def cast(x, dtype):
 
 
 def name_scope(name):
-    raise NotImplementedError
+    return contextlib.nullcontext()
 
 
 # Shape / dtype inference util
