@@ -84,22 +84,7 @@ def softmax(x, axis=-1):
     >>> layer = tf.keras.layers.Dense(32,
     ...                               activation=tf.keras.activations.softmax)
     """
-    if x.shape.rank <= 1:
-        raise ValueError(
-            f"Cannot apply softmax to a tensor that is 1D. Received input: {x}"
-        )
-
-    if isinstance(axis, int):
-        output = tf.nn.softmax(x, axis=axis)
-    else:
-        # nn.softmax does not support tuple axis.
-        numerator = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
-        denominator = tf.reduce_sum(numerator, axis=axis, keepdims=True)
-        output = numerator / denominator
-
-    # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x
-    return output
+    return backend.softmax(x, axis)
 
 
 @keras_export("keras.activations.elu")
@@ -412,10 +397,7 @@ def sigmoid(x):
     Returns:
         Tensor with the sigmoid activation: `1 / (1 + exp(-x))`.
     """
-    output = tf.sigmoid(x)
-    # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x
-    return output
+    return backend.sigmoid(x)
 
 
 @keras_export("keras.activations.exponential")
