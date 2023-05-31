@@ -38,6 +38,7 @@ setup(
         "absl-py",
         "numpy",
         "packaging",
+        "rich",
     ],
     # Supported Python versions
     python_requires=">=3.8",

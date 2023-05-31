@@ -1,12 +1,13 @@
 import math
 import re
+import shutil
 
+import rich
 from tensorflow import nest
 
 from keras_core import backend
 from keras_core.utils import dtype_utils
 from keras_core.utils import io_utils
-from keras_core.utils import text_rendering
 
 
 def count_params(weights):
@@ -46,19 +47,41 @@ def readable_memory_size(weight_memory_size):
     return "{:.2f} {}".format(weight_memory_size, units[-1])
 
 
+def highlight_number(x):
+    """Themes numbers in a summary using rich markup.
+
+    We use a separate color for `None`s, e.g. in a layer shape.
+    """
+    if x is None:
+        return f"[color(45)]{x}[/]"
+    else:
+        return f"[color(34)]{x}[/]"
+
+
+def highlight_symbol(x):
+    """Themes keras symbols in a summary using rich markup."""
+    return f"[color(33)]{x}[/]"
+
+
+def bold_text(x):
+    """Bolds text using rich markup."""
+    return f"[bold]{x}[/]"
+
+
 def format_layer_shape(layer):
     if not layer._inbound_nodes:
         return "?"
-    output_shapes = None
+
+    def format_shape(shape):
+        highlighted = [highlight_number(x) for x in shape]
+        return "(" + ", ".join(highlighted) + ")"
+
     for i in range(len(layer._inbound_nodes)):
-        shapes = nest.map_structure(
-            lambda x: tuple(x.shape), layer._inbound_nodes[i].output_tensors
+        outputs = layer._inbound_nodes[i].output_tensors
+        output_shapes = nest.map_structure(
+            lambda x: format_shape(x.shape), outputs
         )
-        if output_shapes is None:
-            output_shapes = shapes
-        elif output_shapes != shapes:
-            return "multiple"
-    if len(output_shapes) == 1 and isinstance(output_shapes[0], tuple):
+    if len(output_shapes) == 1:
         output_shapes = output_shapes[0]
     return str(output_shapes)
 
@@ -161,18 +184,45 @@ def print_summary(
         positions = [p * 0.86 for p in positions] + [1.0]
         header.append("Trainable")
 
+    # Compute columns widths
+    line_length = min(line_length, shutil.get_terminal_size().columns - 4)
+    column_widths = []
+    current = 0
+    for pos in positions:
+        width = int(pos * line_length) - current
+        if width < 4:
+            raise ValueError("Insufficient console width to print summary.")
+        column_widths.append(width)
+        current += width
+
+    # Render summary as a rich table.
+    columns = []
+    # Right align parameter counts.
+    alignment = ["left", "left", "right", "left", "left"]
+    for i, name in enumerate(header):
+        column = rich.table.Column(
+            name,
+            justify=alignment[i],
+            width=column_widths[i],
+        )
+        columns.append(column)
+    table = rich.table.Table(*columns, width=line_length, show_lines=True)
+
     def get_layer_fields(layer, prefix=""):
         output_shape = format_layer_shape(layer)
         name = prefix + layer.name
         cls_name = layer.__class__.__name__
-        if not hasattr(layer, "built"):
-            params = "0"
-        elif not layer.built:
-            params = "0 (unbuilt)"
-        else:
-            params = layer.count_params()
-        fields = [name + " (" + cls_name + ")", output_shape, str(params)]
+        name = rich.markup.escape(name)
+        name += f" ({highlight_symbol(rich.markup.escape(cls_name))})"
 
+        if not hasattr(layer, "built"):
+            params = highlight_number(0)
+        elif not layer.built:
+            params = highlight_number(0) + " (unbuilt)"
+        else:
+            params = highlight_number(f"{layer.count_params():,}")
+
+        fields = [name, output_shape, params]
         if show_trainable:
             fields.append("Y" if layer.trainable else "N")
         return fields
@@ -186,8 +236,8 @@ def print_summary(
             for kt in node.input_tensors:
                 keras_history = kt._keras_history
                 inbound_layer = keras_history.operation
-                node_index = keras_history.node_index
-                tensor_index = keras_history.tensor_index
+                node_index = highlight_number(keras_history.node_index)
+                tensor_index = highlight_number(keras_history.tensor_index)
                 if connections:
                     connections += ", "
                 connections += (
@@ -219,23 +269,11 @@ def print_summary(
                 )
         return rows
 
+    # Render all layers to the rich table.
     layer_range = get_layer_index_bound_by_layer_name(layers, layer_range)
-    print_fn(text_rendering.highlight_msg(f' Model: "{model.name}"'))
-    rows = []
     for layer in layers[layer_range[0] : layer_range[1]]:
-        rows.extend(print_layer(layer))
-
-    # Render summary as a table.
-    table = text_rendering.TextTable(
-        header=header,
-        rows=rows,
-        positions=positions,
-        # Left align layer name, center-align everything else
-        alignments=["left"] + ["center" for _ in range(len(header) - 1)],
-        max_line_length=line_length,
-    )
-    table_str = table.make()
-    print_fn(table_str)
+        for row in print_layer(layer):
+            table.add_row(*row)
 
     # After the table, append information about parameter count and size.
     if hasattr(model, "_collected_trainable_weights"):
@@ -250,24 +288,40 @@ def print_summary(
     non_trainable_count = count_params(model.non_trainable_weights)
     non_trainable_memory_size = weight_memory_size(model.non_trainable_weights)
 
+    total_count = trainable_count + non_trainable_count
     total_memory_size = trainable_memory_size + non_trainable_memory_size
 
-    print_fn(
-        text_rendering.highlight_msg(
-            f" Total params: {trainable_count + non_trainable_count}"
+    # Create a rich console for printing. Capture for non-interactive logging.
+    if io_utils.is_interactive_logging_enabled():
+        console = rich.console.Console(highlight=False)
+    else:
+        console = rich.console.Console(
+            highlight=False, force_terminal=False, color_system=None
         )
+        console.begin_capture()
+
+    # Print the to the console.
+    console.print(bold_text(f'Model: "{rich.markup.escape(model.name)}"'))
+    console.print(table)
+    console.print(
+        bold_text(" Total params: ")
+        + highlight_number(f"{total_count:,}")
         + f" ({readable_memory_size(total_memory_size)})"
     )
-    print_fn(
-        text_rendering.highlight_msg(f" Trainable params: {trainable_count}")
+    console.print(
+        bold_text(" Trainable params: ")
+        + highlight_number(f"{trainable_count:,}")
         + f" ({readable_memory_size(trainable_memory_size)})"
     )
-    print_fn(
-        text_rendering.highlight_msg(
-            f" Non-trainable params: {non_trainable_count}"
-        )
+    console.print(
+        bold_text(" Non-trainable params: ")
+        + highlight_number(f"{non_trainable_count:,}")
         + f" ({readable_memory_size(non_trainable_memory_size)})"
     )
+
+    # Output captured summary for non-interactive logging.
+    if not io_utils.is_interactive_logging_enabled():
+        io_utils.print_msg(console.end_capture(), line_break=False)
 
 
 def get_layer_index_bound_by_layer_name(layers, layer_range=None):
