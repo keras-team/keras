@@ -215,7 +215,7 @@ class _EagerVariableStore(tf.Module):
         Args:
           name: The name of the new or existing variable.
           shape: Shape of the new or existing variable.
-          dtype: Type of the new or existing variable (defaults to `DT_FLOAT`).
+          dtype: Type of the new or existing variable. Defaults to `DT_FLOAT`.
           initializer: Initializer for the variable.
           regularizer: A (Tensor -> Tensor or None) function; the result of
             applying it on a newly created variable will be added to the
@@ -226,16 +226,16 @@ class _EagerVariableStore(tf.Module):
             always forced to be False.
           trainable: If `True` also add the variable to the graph collection
             `GraphKeys.TRAINABLE_VARIABLES` (see `tf.Variable`). `trainable`
-            defaults to `True`, unless `synchronization` is set to `ON_READ`, in
-            which case it defaults to `False`.
+            becomes `True`, unless `synchronization` is set to `ON_READ`, in
+            which case it becomes `False`. Defaults to `True`.
           collections: List of graph collections keys to add the `Variable` to.
             Defaults to `[GraphKeys.GLOBAL_VARIABLES]` (see `tf.Variable`).
           caching_device: Optional device string or function describing where
-            the Variable should be cached for reading.  Defaults to the
+            the Variable should be cached for reading. `None` to use the
             Variable's device.  If not `None`, caches on another device.
             Typical use is to cache on the device where the Ops using the
             `Variable` reside, to deduplicate copying through `Switch` and other
-            conditional statements.
+            conditional statements. Defaults to `None`.
           partitioner: Optional callable that accepts a fully defined
             `TensorShape` and dtype of the `Variable` to be created, and returns
             a list of partitions for each axis (currently only one axis can be
@@ -245,8 +245,9 @@ class _EagerVariableStore(tf.Module):
             initial_value must be known.
           use_resource: If False, creates a regular Variable. If True, creates
             instead an experimental ResourceVariable which has well-defined
-            semantics. Defaults to False (will later change to True). When eager
-            execution is enabled this argument is always forced to be true.
+            semantics. When starting off as False it will later change to True.
+            When eager execution is enabled this argument always True.
+            Defaults to `False`.
           custom_getter: Callable that takes as a first argument the true
             getter, and allows overwriting the internal get_variable method. The
             signature of `custom_getter` should match that of this method, but
