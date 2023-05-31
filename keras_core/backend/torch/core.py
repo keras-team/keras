@@ -44,8 +44,18 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     # Overload native accessor.
-    def __torch_function__(self, func, types, args=(), kwargs=None):
-        return func(self.value, *args, **kwargs)
+    @classmethod
+    def __torch_function__(cls, func, types, args=(), kwargs=None):
+        args = [
+            arg.value if isinstance(arg, KerasVariable) else arg for arg in args
+        ]
+        if kwargs is None:
+            kwargs = {}
+        kwargs = {
+            key: value.value if isinstance(value, KerasVariable) else value
+            for key, value in kwargs.items()
+        }
+        return func(*args, **kwargs)
 
 
 def convert_to_tensor(x, dtype=None):
