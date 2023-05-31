@@ -53,10 +53,8 @@ class Cropping2D(Layer):
           `(batch_size, channels, cropped_height, cropped_width)`
     """
 
-    def __init__(
-        self, cropping=((0, 0), (0, 0)), data_format=None, name=None, dtype=None
-    ):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, cropping=((0, 0), (0, 0)), data_format=None, **kwargs):
+        super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(cropping, int):
             self.cropping = ((cropping, cropping), (cropping, cropping))

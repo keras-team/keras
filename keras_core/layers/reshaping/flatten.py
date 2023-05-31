@@ -32,8 +32,8 @@ class Flatten(Layer):
     (None, 640)
     """
 
-    def __init__(self, data_format=None, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, data_format=None, **kwargs):
+        super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         self.input_spec = InputSpec(min_ndim=1)
         self._channels_first = self.data_format == "channels_first"

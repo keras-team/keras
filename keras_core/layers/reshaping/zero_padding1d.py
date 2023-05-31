@@ -47,8 +47,8 @@ class ZeroPadding1D(Layer):
         3D tensor with shape `(batch_size, padded_axis, features)`
     """
 
-    def __init__(self, padding=1, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, padding=1, **kwargs):
+        super().__init__(**kwargs)
         self.padding = argument_validation.standardize_tuple(
             padding, 2, "padding", allow_zero=True
         )

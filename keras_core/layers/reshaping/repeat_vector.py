@@ -25,8 +25,8 @@ class RepeatVector(Layer):
         3D tensor with shape `(batch_size, n, features)`.
     """
 
-    def __init__(self, n, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, n, **kwargs):
+        super().__init__(**kwargs)
         self.n = n
         if not isinstance(n, int):
             raise TypeError(

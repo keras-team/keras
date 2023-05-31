@@ -41,8 +41,8 @@ class Cropping1D(Layer):
         3D tensor with shape `(batch_size, cropped_axis, features)`
     """
 
-    def __init__(self, cropping=(1, 1), name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, cropping=(1, 1), **kwargs):
+        super().__init__(**kwargs)
         self.cropping = argument_validation.standardize_tuple(
             cropping, 2, "cropping", allow_zero=True
         )

@@ -34,8 +34,8 @@ class Reshape(Layer):
     (None, 3, 2, 2)
     """
 
-    def __init__(self, target_shape, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, target_shape, **kwargs):
+        super().__init__(**kwargs)
         self.target_shape = tuple(target_shape)
 
     def compute_output_shape(self, input_shape):

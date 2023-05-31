@@ -10,7 +10,11 @@ from keras_core.utils.naming import auto_name
 DYNAMIC_SHAPES_OK = True
 
 
-class Variable(KerasVariable, tf.__internal__.types.Tensor):
+class Variable(
+    KerasVariable,
+    tf.__internal__.types.Tensor,
+    tf.__internal__.tracking.AutoTrackable,
+):
     _should_act_as_resource_variable = True
 
     @property
@@ -38,6 +42,10 @@ class Variable(KerasVariable, tf.__internal__.types.Tensor):
     # Overload native accessor.
     def __tf_tensor__(self, dtype=None, name=None):
         return tf.convert_to_tensor(self.value, dtype=dtype, name=name)
+
+    # For SavedModel
+    def _write_object_proto(self, *args, **kwargs):
+        return self.value._write_object_proto(*args, **kwargs)
 
 
 def convert_to_tensor(x, dtype=None):

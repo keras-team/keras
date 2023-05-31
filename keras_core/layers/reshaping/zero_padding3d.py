@@ -58,13 +58,9 @@ class ZeroPadding3D(Layer):
     """
 
     def __init__(
-        self,
-        padding=((1, 1), (1, 1), (1, 1)),
-        data_format=None,
-        name=None,
-        dtype=None,
+        self, padding=((1, 1), (1, 1), (1, 1)), data_format=None, **kwargs
     ):
-        super().__init__(name=name, dtype=dtype)
+        super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = (

@@ -57,13 +57,9 @@ class Cropping3D(Layer):
     """
 
     def __init__(
-        self,
-        cropping=((1, 1), (1, 1), (1, 1)),
-        data_format=None,
-        name=None,
-        dtype=None,
+        self, cropping=((1, 1), (1, 1), (1, 1)), data_format=None, **kwargs
     ):
-        super().__init__(name=name, dtype=dtype)
+        super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(cropping, int):
             self.cropping = (

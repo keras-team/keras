@@ -31,8 +31,8 @@ class Permute(Layer):
     (None, 64, 10)
     """
 
-    def __init__(self, dims, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, dims, **kwargs):
+        super().__init__(**kwargs)
         self.dims = tuple(dims)
         if sorted(dims) != list(range(1, len(dims) + 1)):
             raise ValueError(

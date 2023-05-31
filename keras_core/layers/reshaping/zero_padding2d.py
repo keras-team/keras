@@ -68,8 +68,8 @@ class ZeroPadding2D(Layer):
           `(batch_size, channels, padded_height, padded_width)`
     """
 
-    def __init__(self, padding=(1, 1), data_format=None, name=None, dtype=None):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, padding=(1, 1), data_format=None, **kwargs):
+        super().__init__(**kwargs)
         self.data_format = backend.standardize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding))
