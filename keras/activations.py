@@ -63,12 +63,12 @@ def softmax(x, axis=-1):
     The input values in are the log-odds of the resulting probability.
 
     Args:
-      x : Input tensor.
-      axis: Integer, axis along which the softmax normalization is applied.
+        x : Input tensor.
+        axis: Integer, axis along which the softmax normalization is applied.
 
     Returns:
-      Tensor, output of softmax transformation (all values are non-negative
-        and sum to 1).
+        Tensor, output of softmax transformation (all values are non-negative
+            and sum to 1).
 
     Examples:
 
@@ -123,11 +123,11 @@ def elu(x, alpha=1.0):
     Args:
         x: Input tensor.
         alpha: A scalar, slope of negative section. `alpha` controls the value
-          to which an ELU saturates for negative net inputs.
+            to which an ELU saturates for negative net inputs.
 
     Returns:
         The exponential linear unit (ELU) activation function: `x` if `x > 0`
-          and `alpha * (exp(x) - 1)` if `x < 0`.
+            and `alpha * (exp(x) - 1)` if `x < 0`.
 
 
     Reference:
@@ -181,9 +181,9 @@ def selu(x):
 
     Notes:
         - To be used together with the
-          `tf.keras.initializers.LecunNormal` initializer.
+            `tf.keras.initializers.LecunNormal` initializer.
         - To be used together with the dropout variant
-          `tf.keras.layers.AlphaDropout` (not regular dropout).
+            `tf.keras.layers.AlphaDropout` (not regular dropout).
 
     References:
         - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
@@ -260,7 +260,7 @@ def swish(x):
         The swish activation applied to `x` (see reference paper for details).
 
     Reference:
-      - [Ramachandran et al., 2017](https://arxiv.org/abs/1710.05941)
+        - [Ramachandran et al., 2017](https://arxiv.org/abs/1710.05941)
     """
     return tf.nn.silu(x)
 
@@ -292,16 +292,16 @@ def relu(x, alpha=0.0, max_value=None, threshold=0.0):
     Args:
         x: Input `tensor` or `variable`.
         alpha: A `float` that governs the slope for values lower than the
-          threshold.
+            threshold.
         max_value: A `float` that sets the saturation threshold (the largest
-          value the function will return).
+            value the function will return).
         threshold: A `float` giving the threshold value of the activation
-          function below which values will be damped or set to zero.
+            function below which values will be damped or set to zero.
 
     Returns:
-        A `Tensor` representing the input tensor,
-        transformed by the relu activation function.
-        Tensor will be of the same shape and dtype of input `x`.
+        A `Tensor` representing the input tensor, transformed by the relu
+        activation function. Tensor will be of the same shape and dtype of
+        input `x`.
     """
     return backend.relu(
         x, alpha=alpha, max_value=max_value, threshold=threshold
@@ -343,8 +343,8 @@ def gelu(x, approximate=False):
         if `approximate` is `False`.
 
     Reference:
-      - [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
-    """
+        - [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
+    """  # noqa: E501
     return tf.nn.gelu(x, approximate)
 
 
@@ -441,11 +441,11 @@ def hard_sigmoid(x):
         x: Input tensor.
 
     Returns:
-      The hard sigmoid activation, defined as:
+        The hard sigmoid activation, defined as:
 
-        - `if x < -2.5: return 0`
-        - `if x > 2.5: return 1`
-        - `if -2.5 <= x <= 2.5: return 0.2 * x + 0.5`
+            - `if x < -2.5: return 0`
+            - `if x > 2.5: return 1`
+            - `if -2.5 <= x <= 2.5: return 0.2 * x + 0.5`
     """
     return backend.hard_sigmoid(x)
 
@@ -517,6 +517,8 @@ def serialize(activation, use_legacy_format=False):
 
     Args:
         activation : Function object.
+        use_legacy_format: Boolean, whether to use the legacy format for
+            serialization. Defaults to False.
 
     Returns:
         String denoting the name attribute of the input function
@@ -590,9 +592,11 @@ def deserialize(name, custom_objects=None, use_legacy_format=False):
     """Returns activation function given a string identifier.
 
     Args:
-      name: The name of the activation function.
-      custom_objects: Optional `{function_name: function_obj}`
-        dictionary listing user-provided activation functions.
+        name: The name of the activation function.
+        custom_objects: Optional `{function_name: function_obj}`
+            dictionary listing user-provided activation functions.
+        use_legacy_format: Boolean, whether to use the legacy format for
+            deserialization. Defaults to False.
 
     Returns:
         Corresponding activation function.
