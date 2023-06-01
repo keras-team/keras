@@ -15,7 +15,7 @@ from keras_core.layers.layer import Layer
 from keras_core.layers.regularization.dropout import Dropout
 
 
-@keras_core_export("keras_core.layers.Attention")
+@keras_core_export("keras_core.layers.MultiHeadAttention")
 class MultiHeadAttention(Layer):
     """MultiHeadAttention layer.
 
