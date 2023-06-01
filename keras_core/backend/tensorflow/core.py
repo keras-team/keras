@@ -13,7 +13,7 @@ DYNAMIC_SHAPES_OK = True
 class Variable(
     KerasVariable,
     tf.__internal__.types.Tensor,
-    tf.__internal__.tracking.AutoTrackable,
+    tf.__internal__.tracking.Trackable,
 ):
     _should_act_as_resource_variable = True
 
@@ -43,9 +43,27 @@ class Variable(
     def __tf_tensor__(self, dtype=None, name=None):
         return tf.convert_to_tensor(self.value, dtype=dtype, name=name)
 
-    # For SavedModel
+    # Methods below are for SavedModel support
     def _write_object_proto(self, *args, **kwargs):
         return self.value._write_object_proto(*args, **kwargs)
+
+    @property
+    def _shared_name(self):
+        return self.value._shared_name
+
+    def _serialize_to_tensors(self):
+        return self.value._serialize_to_tensors()
+
+    def _restore_from_tensors(self, restored_tensors):
+        return self.value._restore_from_tensors(restored_tensors)
+
+    def _export_to_saved_model_graph(self, object_map, tensor_map, options, **kwargs):
+        resource_list = self.value._export_to_saved_model_graph(object_map, tensor_map, options, **kwargs)
+        object_map[self] = tf.Variable(object_map[self.value])
+        return resource_list
+
+    def _write_object_proto(self, proto, options):
+        return self.value._write_object_proto(proto, options)
 
 
 def convert_to_tensor(x, dtype=None):
