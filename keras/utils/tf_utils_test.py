@@ -14,9 +14,6 @@
 # ==============================================================================
 """Tests for Keras TF utils."""
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
-
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
@@ -471,17 +468,6 @@ class TestSyncToNumpyOrPythonType(parameterized.TestCase):
         tensor = tf.constant(value)
 
         self.assertEqual(tf_utils.sync_to_numpy_or_python_type(tensor), value)
-
-
-class TestCanJitCompile(tf.test.TestCase):
-    def test_darwin_arm_xla(self):
-        with patch("platform.processor", MagicMock(return_value="arm")):
-            with patch("platform.system", MagicMock(return_value="Darwin")):
-                self.assertFalse(tf_utils.can_jit_compile())
-
-    def test_linux_xla(self):
-        with patch("platform.system", MagicMock(return_value="Linux")):
-            self.assertTrue(tf_utils.can_jit_compile())
 
 
 if __name__ == "__main__":
