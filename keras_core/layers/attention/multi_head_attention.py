@@ -134,7 +134,6 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
-        self._built_from_signature = False
 
     def get_config(self):
         base_config = super().get_config()
