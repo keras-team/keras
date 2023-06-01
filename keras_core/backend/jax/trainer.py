@@ -12,11 +12,20 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 class JAXTrainer(base_trainer.Trainer):
     def compute_loss_and_updates(
-        self, trainable_variables, non_trainable_variables, x, y, sample_weight
+        self,
+        trainable_variables,
+        non_trainable_variables,
+        x,
+        y,
+        sample_weight,
+        training=False,
     ):
         """This method is stateless and is intended for use with jax.grad."""
+        kwargs = {}
+        if self._call_has_training_arg():
+            kwargs["training"] = training
         y_pred, non_trainable_variables = self.stateless_call(
-            trainable_variables, non_trainable_variables, x
+            trainable_variables, non_trainable_variables, x, **kwargs
         )
 
         loss = self.compute_loss(x, y, y_pred, sample_weight)
@@ -136,6 +145,7 @@ class JAXTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
+                training=True,
             )
 
             (
@@ -367,6 +377,7 @@ class JAXTrainer(base_trainer.Trainer):
                 x,
                 y,
                 sample_weight,
+                training=False,
             )
 
             with backend.StatelessScope(
@@ -488,8 +499,11 @@ class JAXTrainer(base_trainer.Trainer):
             )
 
         def _predict_step(trainable_variables, non_trainable_variables, data):
+            kwargs = {}
+            if self._call_has_training_arg():
+                kwargs["training"] = False
             outputs, _ = self.stateless_call(
-                trainable_variables, non_trainable_variables, data[0]
+                trainable_variables, non_trainable_variables, data[0], **kwargs
             )
             return outputs
 

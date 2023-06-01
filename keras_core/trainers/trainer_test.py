@@ -51,6 +51,17 @@ class StructModel(layers.Layer, Trainer):
         }
 
 
+class TrainingTestingLayer(layers.Layer, Trainer):
+    def __init__(self):
+        layers.Layer.__init__(self)
+        Trainer.__init__(self)
+
+    def call(self, x, training=False):
+        if training:
+            return x
+        return x * 0
+
+
 class TestTrainer(testing.TestCase):
     def test_metric_tracking(self):
         class ModelWithMetric(layers.Dense, Trainer):
@@ -252,3 +263,15 @@ class TestTrainer(testing.TestCase):
             model_2.predict(x, batch_size=batch_size),
         )
         self.assertAllClose(model.evaluate(x, y), model_2.evaluate(x, y))
+
+    def test_training_arg(self):
+        model = TrainingTestingLayer()
+        model.compile(optimizer="rmsprop", loss="mse")
+        x = np.ones((128, 1))
+        y = np.zeros((128, 1))
+        history = model.fit(x, y, batch_size=32)
+        self.assertAllClose(history.history["loss"], [1.0])
+        val_loss = model.evaluate(x, y, batch_size=32)
+        self.assertAllClose(val_loss, 0.0)
+        preds = model.predict(x)
+        self.assertAllClose(preds, np.zeros((128, 1)))
