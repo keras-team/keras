@@ -128,11 +128,8 @@ def append(
     return torch.cat((x1, x2), dim=axis)
 
 
-def arange(start, stop=None, step=None, dtype=None):
+def arange(start, stop=None, step=1, dtype=None):
     dtype = to_torch_dtype(dtype)
-    if stop is None:
-        return torch.arange(start, step=step, dtype=dtype)
-    step = step or 1
     return torch.arange(start, stop, step=step, dtype=dtype)
 
 

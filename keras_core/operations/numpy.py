@@ -427,18 +427,12 @@ def append(
 
 
 class Arange(Operation):
-    def call(self, start, stop=None, step=None, dtype=None):
-        if stop is None:
-            start, stop = 0, start
-        if step is None:
-            step = 1
+    def call(self, start, stop=None, step=1, dtype=None):
         return backend.numpy.arange(start, stop, step=step, dtype=dtype)
 
-    def compute_output_spec(self, start, stop=None, step=None, dtype=None):
+    def compute_output_spec(self, start, stop=None, step=1, dtype=None):
         if stop is None:
             start, stop = 0, start
-        if step is None:
-            step = 1
         output_shape = [np.ceil((stop - start) / step).astype(int)]
         return KerasTensor(output_shape, dtype=dtype)
 
@@ -446,11 +440,7 @@ class Arange(Operation):
 @keras_core_export(
     ["keras_core.operations.arange", "keras_core.operations.numpy.arange"]
 )
-def arange(start, stop=None, step=None, dtype=None):
-    if stop is None:
-        start, stop = 0, start
-    if step is None:
-        step = 1
+def arange(start, stop=None, step=1, dtype=None):
     return backend.numpy.arange(start, stop, step=step, dtype=dtype)
 
 

@@ -94,7 +94,7 @@ def append(
     return tfnp.append(x1, x2, axis=axis)
 
 
-def arange(start, stop=None, step=None, dtype=None):
+def arange(start, stop=None, step=1, dtype=None):
     return tfnp.arange(start, stop, step=step, dtype=dtype)
 
 
