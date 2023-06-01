@@ -4,6 +4,8 @@ import jax
 import numpy as np
 import tensorflow as tf
 
+from keras_core.api_export import keras_core_export
+
 try:
     import pandas
 except ImportError:
@@ -21,6 +23,7 @@ if pandas:
 # TODO: support torch tensors?
 
 
+@keras_core_export("keras_core.utils.unpack_x_y_sample_weight")
 def unpack_x_y_sample_weight(data):
     """Unpacks user-provided data tuple.
 
@@ -63,6 +66,7 @@ def unpack_x_y_sample_weight(data):
     raise ValueError(error_msg)
 
 
+@keras_core_export("keras_core.utils.pack_x_y_sample_weight")
 def pack_x_y_sample_weight(x, y=None, sample_weight=None):
     """Packs user-provided data into a tuple.
 
