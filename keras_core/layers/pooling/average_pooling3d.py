@@ -67,7 +67,7 @@ class AveragePooling3D(BasePooling):
     def __init__(
         self,
         pool_size,
-        strides,
+        strides=None,
         padding="valid",
         data_format="channels_last",
         name=None,
