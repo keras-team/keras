@@ -93,7 +93,7 @@ class GlobalMaxPoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ("channels_first", False),
     )
     def test_global_max_pooling1d(self, data_format, keepdims):
-        inputs = np.arange(24, dtype=np.float).reshape((2, 3, 4))
+        inputs = np.arange(24, dtype="float32").reshape((2, 3, 4))
 
         layer = layers.GlobalMaxPooling1D(
             data_format=data_format,
@@ -114,7 +114,7 @@ class GlobalMaxPoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ("channels_first", False),
     )
     def test_global_max_pooling2d(self, data_format, keepdims):
-        inputs = np.arange(96, dtype=np.float).reshape((2, 3, 4, 4))
+        inputs = np.arange(96, dtype="float32").reshape((2, 3, 4, 4))
 
         layer = layers.GlobalMaxPooling2D(
             data_format=data_format,
@@ -135,7 +135,7 @@ class GlobalMaxPoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ("channels_first", False),
     )
     def test_global_max_pooling3d(self, data_format, keepdims):
-        inputs = np.arange(360, dtype=np.float).reshape((2, 3, 3, 5, 4))
+        inputs = np.arange(360, dtype="float32").reshape((2, 3, 3, 5, 4))
 
         layer = layers.GlobalMaxPooling3D(
             data_format=data_format,

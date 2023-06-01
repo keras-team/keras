@@ -95,7 +95,7 @@ class GlobalAveragePoolingCorrectnessTest(
         ("channels_first", False),
     )
     def test_global_average_pooling1d(self, data_format, keepdims):
-        inputs = np.arange(24, dtype=np.float).reshape((2, 3, 4))
+        inputs = np.arange(24, dtype="float32").reshape((2, 3, 4))
 
         layer = layers.GlobalAveragePooling1D(
             data_format=data_format,
@@ -111,9 +111,9 @@ class GlobalAveragePoolingCorrectnessTest(
         self.assertAllClose(outputs, expected)
 
         if data_format == "channels_last":
-            mask = np.array([[1, 1, 0], [0, 1, 0]], dtype=np.int)
+            mask = np.array([[1, 1, 0], [0, 1, 0]], dtype="int32")
         else:
-            mask = np.array([[1, 1, 0, 0], [0, 1, 0, 1]], dtype=np.int)
+            mask = np.array([[1, 1, 0, 0], [0, 1, 0, 1]], dtype="int32")
         outputs = layer(inputs, mask)
         expected = tf_keras_layer(inputs, mask)
         self.assertAllClose(outputs, expected)
@@ -124,7 +124,7 @@ class GlobalAveragePoolingCorrectnessTest(
         ("channels_first", False),
     )
     def test_global_average_pooling2d(self, data_format, keepdims):
-        inputs = np.arange(96, dtype=np.float).reshape((2, 3, 4, 4))
+        inputs = np.arange(96, dtype="float32").reshape((2, 3, 4, 4))
 
         layer = layers.GlobalAveragePooling2D(
             data_format=data_format,
@@ -145,7 +145,7 @@ class GlobalAveragePoolingCorrectnessTest(
         ("channels_first", False),
     )
     def test_global_average_pooling3d(self, data_format, keepdims):
-        inputs = np.arange(360, dtype=np.float).reshape((2, 3, 3, 5, 4))
+        inputs = np.arange(360, dtype="float32").reshape((2, 3, 3, 5, 4))
 
         layer = layers.GlobalAveragePooling3D(
             data_format=data_format,
