@@ -973,7 +973,7 @@ class Layer(base_layer.Layer):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def input_spec(self, value):
         for v in tf.nest.flatten(value):
-            if v is not None and not isinstance(v, input_spec.InputSpec):
+            if v is not None and "InputSpec" not in v.__class__.__name__:
                 raise TypeError(
                     "Layer input_spec must be an instance of InputSpec. "
                     "Got: {}".format(v)
