@@ -1,8 +1,9 @@
+from keras_core import backend
 from keras_core import operations as ops
-from keras_core.backend import image_data_format
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.operations.operation_utils import compute_pooling_output_shape
+from keras_core.utils import argument_validation
 
 
 class BasePooling(Layer):
@@ -21,13 +22,16 @@ class BasePooling(Layer):
     ):
         super().__init__(name=name, **kwargs)
 
-        self.pool_size = pool_size
-        self.strides = pool_size if strides is None else strides
+        self.pool_size = argument_validation.standardize_tuple(
+            pool_size, pool_dimensions, "pool_size"
+        )
+        strides = pool_size if strides is None else strides
+        self.strides = argument_validation.standardize_tuple(
+            strides, pool_dimensions, "strides", allow_zero=True
+        )
         self.pool_mode = pool_mode
         self.padding = padding
-        self.data_format = (
-            image_data_format() if data_format is None else data_format
-        )
+        self.data_format = backend.standardize_data_format(data_format)
 
         self.input_spec = InputSpec(ndim=pool_dimensions + 2)
 
