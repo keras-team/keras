@@ -169,7 +169,6 @@ def inject_argument_info_in_traceback(fn, object_name=None):
                 else:
                     value = arg.default
                 arguments_context.append(f"  • {arg.name}={value}")
-
             if arguments_context:
                 arguments_context = "\n".join(arguments_context)
                 # Get original error message and append information to it.
@@ -220,9 +219,13 @@ def format_argument_value(value):
             tensor_cls = "tf.Tensor"
         elif backend.backend() == "jax":
             tensor_cls = "jnp.ndarray"
-        elif backend.backend() == "pytorch":
+        elif backend.backend() == "torch":
             tensor_cls = "torch.Tensor"
         else:
             tensor_cls = "array"
-        return f"{tensor_cls}(shape={value.shape}, dtype={value.dtype.name})"
+
+        return (
+            f"{tensor_cls}(shape={value.shape}, "
+            f"dtype={backend.standardize_dtype(value.dtype)})"
+        )
     return repr(value)

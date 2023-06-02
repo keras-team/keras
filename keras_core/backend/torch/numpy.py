@@ -69,7 +69,7 @@ def ones(shape, dtype="float32"):
 
 def zeros(shape, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    return torch.zeros(*shape, dtype=dtype)
+    return torch.zeros(size=shape, dtype=dtype)
 
 
 def absolute(x):

@@ -3,8 +3,7 @@ import os
 import sys
 import time
 
-import numpy as np
-
+from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.utils import io_utils
 
@@ -159,7 +158,7 @@ class Progbar:
             for k in self._values_order:
                 info += f" - {k}:"
                 if isinstance(self._values[k], list):
-                    avg = np.mean(
+                    avg = ops.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if abs(avg) > 1e-3:
@@ -188,7 +187,7 @@ class Progbar:
                 info += " -" + self._format_time(time_per_unit, self.unit_name)
                 for k in self._values_order:
                     info += f" - {k}:"
-                    avg = np.mean(
+                    avg = ops.mean(
                         self._values[k][0] / max(1, self._values[k][1])
                     )
                     if avg > 1e-3:

@@ -36,9 +36,10 @@ def to_torch_dtype(dtype):
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = convert_to_tensor(value, dtype=self._dtype)
+        self._value.requires_grad_(self.trainable)
 
     def _direct_assign(self, value):
-        self._value = value
+        self._value.copy_(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
@@ -78,7 +79,11 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
-    return x.to(dtype)
+    if isinstance(x, KerasVariable):
+        x = x.value
+    if is_tensor(x):
+        return x.to(dtype)
+    return convert_to_tensor(x, dtype)
 
 
 def name_scope(name):

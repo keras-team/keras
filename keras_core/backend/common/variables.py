@@ -395,6 +395,8 @@ def standardize_dtype(dtype):
             dtype = "int32"
     if hasattr(dtype, "name"):
         dtype = dtype.name
+    elif config.backend() == "torch":
+        dtype = str(dtype).split(".")[-1]
 
     if dtype not in ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
@@ -454,12 +456,7 @@ def shape_equal(a, b):
 
 
 def is_float_dtype(dtype):
-    if hasattr(dtype, "name"):
-        dtype = dtype.name
-    # The is a torch.dtype when using torch backend.
-    # Need to convert it to a str.
-    if not isinstance(dtype, str):
-        dtype = str(dtype).split(".")[-1]
+    dtype = standardize_dtype(dtype)
     return dtype.startswith("float") or dtype.startswith("bfloat")
 
 
