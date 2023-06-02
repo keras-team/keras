@@ -267,6 +267,18 @@ class GroupNormalizationTest(test_combinations.TestCase):
         )
 
     @test_combinations.run_all_keras_modes
+    def test_mask_broadcasting(self):
+        images = tf.ones((1, 2, 4, 3))  # NHWC
+        mask = tf.random.uniform((1, 2, 4, 1)) < 0.5  # NHWC
+
+        norm = GroupNormalization(
+            groups=3, axis=-1, input_shape=(2, 4, 9), scale=False, center=False
+        )
+        output = norm(images, mask=mask)
+
+        self.assertEqual(output.shape, (1, 2, 4, 3))
+
+    @test_combinations.run_all_keras_modes
     def test_correctness_instance_norm(self):
         instance_norm_layer = GroupNormalization(
             groups=4, axis=-1, input_shape=(2, 4), scale=False, center=False
