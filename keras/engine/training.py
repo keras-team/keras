@@ -4441,8 +4441,8 @@ def _check_output_activation_softmax(output_layers):
                 f"due to an incorrect check, please file an issue on "
                 f"https://github.com/keras-team/keras/issues. You can "
                 f"disable this check by setting "
-                f"`validate_softmax_activation=False` when calling `compile()`"
-                f" on the model."
+                f"`experimental_validate_softmax_activation=False` when calling"
+                f" `compile()` on the model."
             )
 
 
