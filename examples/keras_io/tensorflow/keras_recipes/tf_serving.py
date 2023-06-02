@@ -364,7 +364,7 @@ channel = grpc.insecure_channel("localhost:8500")
 
 """
 ```shell
-!pip install -q tensorflow_serving_api
+pip install -q tensorflow_serving_api
 ```
 
 ```python
@@ -378,8 +378,6 @@ stub = prediction_service_pb2_grpc.PredictionServiceStub(channel)
 
 # Get the serving_input key
 loaded_model = tf.saved_model.load(model_export_path)
-print(loaded_model)
-print(loaded_model.signatures)
 input_name = list(
     loaded_model.signatures["serving_default"]
     .structured_input_signature[1]

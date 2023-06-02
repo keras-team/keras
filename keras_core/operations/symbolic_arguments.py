@@ -1,5 +1,3 @@
-import typing
-
 from tensorflow import nest
 
 from keras_core.backend import KerasTensor
@@ -43,10 +41,9 @@ class SymbolicArguments:
             return (tensor_dict[self._single_positional_tensor],), {}
 
         def switch_fn(x):
-            if isinstance(x, typing.Hashable):
-                val = tensor_dict.get(x, None)
-                if val is not None:
-                    return val
+            val = tensor_dict.get(x, None)
+            if val is not None:
+                return val
             return x
 
         return self.convert(switch_fn)
