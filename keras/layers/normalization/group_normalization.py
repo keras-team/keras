@@ -171,6 +171,10 @@ class GroupNormalization(Layer):
 
         if mask is None:
             mask = tf.ones_like(inputs)
+        else:
+            # We broadcast before we group in case the mask does not have the
+            # same shape as the input.
+            mask = tf.broadcast_to(mask, input_shape)
 
         reshaped_inputs = self._reshape_into_groups(inputs)
         reshaped_mask = self._reshape_into_groups(mask)
