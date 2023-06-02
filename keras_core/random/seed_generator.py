@@ -16,7 +16,10 @@ class SeedGenerator:
             )
 
         def seed_initializer(*args, **kwargs):
-            return [seed, 0]
+            from keras_core.backend import convert_to_tensor
+
+            dtype = kwargs.get("dtype", None)
+            return convert_to_tensor([seed, 0], dtype=dtype)
 
         self.state = Variable(
             seed_initializer,
