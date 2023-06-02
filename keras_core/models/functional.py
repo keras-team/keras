@@ -143,7 +143,13 @@ class Functional(Function, Model):
                 f"(of type {type(outputs)})"
             )
 
+        trainable = kwargs.pop("trainable", None)
+
         Function.__init__(self, inputs, outputs, name=name, **kwargs)
+
+        if trainable is not None:
+            self.trainable = trainable
+
         self._layers = self.layers
         self.built = True
 
@@ -499,6 +505,7 @@ class Functional(Function, Model):
 
         # Create lits of input and output tensors and return new class
         name = config.get("name")
+        trainable = config.get("trainable")
         input_tensors = []
         output_tensors = []
         for layer_data in config["input_layers"]:
@@ -517,7 +524,12 @@ class Functional(Function, Model):
                 node_index
             ].output_tensors
             output_tensors.append(layer_output_tensors[tensor_index])
-        return cls(inputs=input_tensors, outputs=output_tensors, name=name)
+        return cls(
+            inputs=input_tensors,
+            outputs=output_tensors,
+            name=name,
+            trainable=trainable,
+        )
 
 
 def operation_fn(operation, training):

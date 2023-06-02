@@ -164,7 +164,7 @@ class FunctionalTest(testing.TestCase):
         # Test basic model
         inputs = Input(shape=(3,), batch_size=2)
         outputs = layers.Dense(3)(inputs)
-        model = Functional(inputs, outputs)
+        model = Functional(inputs, outputs, trainable=False)
         self.run_class_serialization_test(model)
 
         # Test multi-io model
