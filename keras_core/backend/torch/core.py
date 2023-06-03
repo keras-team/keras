@@ -35,8 +35,10 @@ def to_torch_dtype(dtype):
 
 class Variable(KerasVariable):
     def _initialize(self, value):
-        self._value = convert_to_tensor(value, dtype=self._dtype)
-        self._value.requires_grad_(self.trainable)
+        self._value = torch.nn.Parameter(
+            convert_to_tensor(value, dtype=self._dtype),
+            requires_grad=self.trainable,
+        )
 
     def _direct_assign(self, value):
         with torch.no_grad():
