@@ -225,7 +225,7 @@ class PyDatasetAdapter(DataAdapter):
                 )
             if len(batch) == 2:
                 sw = data_adapter_utils.class_weight_to_sample_weights(
-                    batch[1], class_weight
+                    batch[1], self.class_weight
                 )
                 batch = batch + (sw,)
         return batch

@@ -14,6 +14,7 @@ class KerasVariable:
         self.name = name or auto_name(self.__class__.__name__)
         dtype = standardize_dtype(dtype)
         self._dtype = dtype
+        self._shape = None
         self._initializer = None
         self.trainable = trainable
         if callable(initializer):
