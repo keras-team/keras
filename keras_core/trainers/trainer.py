@@ -7,6 +7,7 @@ from keras_core import optimizers
 from keras_core.saving import serialization_lib
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
+from keras_core.utils import traceback_utils
 from keras_core.utils import tracking
 
 
@@ -18,6 +19,7 @@ class Trainer:
         self.compiled = False
         self.steps_per_execution = 1
 
+    @traceback_utils.filter_traceback
     @tracking.no_automatic_dependency_tracking
     def compile(
         self,

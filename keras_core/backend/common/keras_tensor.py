@@ -80,7 +80,7 @@ class KerasTensor:
             "class MyLayer(Layer):\n"
             "    def call(self, x):\n"
             "        return jax_fn(x)\n\n"
-            "x = MyLayer()(x)"
+            "x = MyLayer()(x)\n"
             "```\n"
         )
 
