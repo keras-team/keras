@@ -192,6 +192,19 @@ class TorchTrainer(base_trainer.Trainer):
     ):
         pass
 
+    def test_step(self, data):
+        data = data[0]
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        loss = self.compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        )
+        self._loss_tracker.update_state(loss)
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+
     def evaluate(
         self,
         x=None,
@@ -204,4 +217,51 @@ class TorchTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        pass
+        # TODO: respect compiled trainable state
+        use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
+
+        if use_cached_eval_dataset:
+            epoch_iterator = self._eval_epoch_iterator
+        else:
+            # Create an iterator that yields batches of input/target data.
+            epoch_iterator = EpochIterator(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                steps_per_epoch=steps,
+                shuffle=False,
+                steps_per_execution=self.steps_per_execution,
+            )
+
+        # Container that configures and calls callbacks.
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_history=True,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        # Switch the torch Module back to testing mode.
+        self.eval()
+
+        callbacks.on_test_begin()
+        logs = None
+        self.reset_metrics()
+        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            callbacks.on_test_batch_begin(step)
+            with torch.no_grad():
+                logs = self.test_step(data)
+            callbacks.on_test_batch_end(step, logs)
+        logs = self._pythonify_logs(self.get_metrics_result())
+        callbacks.on_test_end(logs)
+
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)

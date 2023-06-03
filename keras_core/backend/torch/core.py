@@ -39,7 +39,8 @@ class Variable(KerasVariable):
         self._value.requires_grad_(self.trainable)
 
     def _direct_assign(self, value):
-        self._value.copy_(value)
+        with torch.no_grad():
+            self._value.copy_(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)

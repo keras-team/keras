@@ -300,7 +300,7 @@ def empty(shape, dtype="float32"):
 
 def equal(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.equal(x1, x2)
+    return torch.eq(x1, x2)
 
 
 def exp(x):
