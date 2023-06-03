@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.python.eager import context as tf_context
 
 from keras_core import callbacks as callbacks_module
+from keras_core import metrics as metrics_module
 from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
@@ -485,6 +486,45 @@ class TensorFlowTrainer(base_trainer.Trainer):
         callbacks.on_predict_end()
         return tf.__internal__.nest.map_structure_up_to(
             batch_outputs, np.concatenate, outputs
+        )
+
+    # Backwards compatibility shims.
+    @property
+    def compiled_metrics(self):
+        class DeprecatedCompiledMetric:
+            def update_state(_, y, y_pred, sample_weight=None):
+                return self._compiled_metrics_update_state(
+                    y, y_pred, sample_weight=sample_weight
+                )
+
+        return DeprecatedCompiledMetric()
+
+    def _compiled_metrics_update_state(self, y, y_pred, sample_weight=None):
+        warnings.warn(
+            "`model.compiled_metrics()` is deprecated. "
+            "Instead, use e.g.:\n"
+            "```\n"
+            "for metric in self.metrics:\n"
+            "    metric.update_state(y, y_pred)\n"
+            "```\n",
+            stacklevel=2,
+        )
+        for metric in self.metrics:
+            if isinstance(metric, metrics_module.Mean):
+                metric.update_state(y_pred, sample_weight=sample_weight)
+            else:
+                metric.update_state(y, y_pred, sample_weight=sample_weight)
+
+    def compiled_loss(
+        self, y, y_pred, sample_weight=None, regularization_losses=None
+    ):
+        warnings.warn(
+            "`model.compiled_loss()` is deprecated. "
+            "Instead, use `model.compute_loss(x, y, y_pred, sample_weight)`.",
+            stacklevel=2,
+        )
+        return self.compute_loss(
+            x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
 
 

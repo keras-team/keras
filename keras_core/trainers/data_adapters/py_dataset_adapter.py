@@ -3,6 +3,7 @@ import queue
 import random
 import threading
 import time
+import warnings
 import weakref
 from contextlib import closing
 
@@ -94,18 +95,30 @@ class PyDataset:
         self._use_multiprocessing = use_multiprocessing
         self._max_queue_size = max_queue_size
 
-    def _raise_if_super_not_called(self):
-        raise RuntimeError(
-            "Your `PyDataset` class should call "
-            "`super().__init__(**kwargs)` in its constructor. "
-            "`**kwargs` can include `workers`, "
-            "`use_multiprocessing`, `max_queue_size`."
-        )
+    def _warn_if_super_not_called(self):
+        warn = False
+        if not hasattr(self, "_workers"):
+            self._workers = 1
+            warn = True
+        if not hasattr(self, "_use_multiprocessing"):
+            self._use_multiprocessing = False
+            warn = True
+        if not hasattr(self, "_max_queue_size"):
+            self._max_queue_size = 10
+            warn = True
+        if warn:
+            warnings.warn(
+                "Your `PyDataset` class should call "
+                "`super().__init__(**kwargs)` in its constructor. "
+                "`**kwargs` can include `workers`, "
+                "`use_multiprocessing`, `max_queue_size`. Do not pass "
+                "these arguments to `fit()`, as they will be ignored.",
+                stacklevel=2,
+            )
 
     @property
     def workers(self):
-        if not hasattr(self, "_workers"):
-            self._raise_if_super_not_called()
+        self._warn_if_super_not_called()
         return self._workers
 
     @workers.setter
@@ -114,8 +127,7 @@ class PyDataset:
 
     @property
     def use_multiprocessing(self):
-        if not hasattr(self, "_use_multiprocessing"):
-            self._raise_if_super_not_called()
+        self._warn_if_super_not_called()
         return self._use_multiprocessing
 
     @use_multiprocessing.setter
@@ -124,8 +136,7 @@ class PyDataset:
 
     @property
     def max_queue_size(self):
-        if not hasattr(self, "_max_queue_size"):
-            self._raise_if_super_not_called()
+        self._warn_if_super_not_called()
         return self._max_queue_size
 
     @max_queue_size.setter
