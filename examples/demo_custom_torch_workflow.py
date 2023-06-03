@@ -39,6 +39,10 @@ model = keras_core.Sequential(
     ]
 )
 
+#################################################################
+######## Writing a torch training loop for a Keras model ########
+#################################################################
+
 # Instantiate the torch optimizer
 print("Num params:", len(list(model.parameters())))
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -47,7 +51,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
 
-def train(model, train_loader, num_epochs):
+def train(model, train_loader, num_epochs, optimizer, loss_fn):
     for epoch in range(num_epochs):
         running_loss = 0.0
         for batch_idx, (inputs, targets) in enumerate(train_loader):
@@ -65,7 +69,9 @@ def train(model, train_loader, num_epochs):
             # Print loss statistics
             if (batch_idx + 1) % 10 == 0:
                 print(
-                    f"Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {running_loss / 10}"
+                    f"Epoch [{epoch+1}/{num_epochs}], "
+                    f"Batch [{batch_idx+1}/{len(train_loader)}], "
+                    f"Loss: {running_loss / 10}"
                 )
                 running_loss = 0.0
 
@@ -80,4 +86,42 @@ train_loader = torch.utils.data.DataLoader(
     dataset, batch_size=batch_size, shuffle=False
 )
 
-train(model, train_loader, num_epochs)
+train(model, train_loader, num_epochs, optimizer, loss_fn)
+
+
+################################################################
+######## Using a Keras model or layer in a torch Module ########
+################################################################
+
+class MyModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = keras_core.Sequential(
+            [
+                layers.Input(shape=(28, 28, 1)),
+                layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Flatten(),
+                layers.Dropout(0.5),
+                layers.Dense(num_classes),
+            ]
+        )
+        # TODO: automate this
+        self.model.parameters()
+
+    def forward(self, x):
+        return self.model(x)
+
+
+torch_module = MyModel()
+
+# Instantiate the torch optimizer
+print("Num params:", len(list(torch_module.parameters())))
+optimizer = optim.Adam(torch_module.parameters(), lr=learning_rate)
+
+# Instantiate the torch loss function
+loss_fn = nn.CrossEntropyLoss()
+
+train(torch_module, train_loader, num_epochs, optimizer, loss_fn)
