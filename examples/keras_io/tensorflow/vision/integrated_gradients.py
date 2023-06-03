@@ -72,7 +72,9 @@ img_size = (299, 299, 3)
 model = xception.Xception(weights="imagenet")
 
 # The local path to our target image
-img_path = keras.utils.get_file("elephant.jpg", "https://i.imgur.com/Bvro0YD.png")
+img_path = keras.utils.get_file(
+    "elephant.jpg", "https://i.imgur.com/Bvro0YD.png"
+)
 display(Image(img_path))
 
 """
@@ -112,7 +114,9 @@ def get_gradients(img_input, top_pred_idx):
     return grads
 
 
-def get_integrated_gradients(img_input, top_pred_idx, baseline=None, num_steps=50):
+def get_integrated_gradients(
+    img_input, top_pred_idx, baseline=None, num_steps=50
+):
     """Computes Integrated Gradients for a predicted label.
 
     Args:
@@ -240,9 +244,9 @@ class GradVisualizer:
 
         # 2. Transform the attributions by a linear function f(x) = a*x + b such that
         # f(m) = 1.0 and f(e) = lower_end
-        transformed_attributions = (1 - lower_end) * (np.abs(attributions) - e) / (
-            m - e
-        ) + lower_end
+        transformed_attributions = (1 - lower_end) * (
+            np.abs(attributions) - e
+        ) / (m - e) + lower_end
 
         # 3. Make sure that the sign of transformed attributions is the same as original attributions
         transformed_attributions *= np.sign(attributions)
@@ -287,7 +291,10 @@ class GradVisualizer:
         return opened
 
     def draw_outlines(
-        self, attributions, percentage=90, connected_component_structure=np.ones((3, 3))
+        self,
+        attributions,
+        percentage=90,
+        connected_component_structure=np.ones((3, 3)),
     ):
         # 1. Binarize the attributions.
         attributions = self.binarize(attributions)
@@ -309,7 +316,9 @@ class GradVisualizer:
             component_sums.append((component_sum, mask))
 
         # 5. Compute the percentage of top components to keep
-        sorted_sums_and_masks = sorted(component_sums, key=lambda x: x[0], reverse=True)
+        sorted_sums_and_masks = sorted(
+            component_sums, key=lambda x: x[0], reverse=True
+        )
         sorted_sums = list(zip(*sorted_sums_and_masks))[0]
         cumulative_sorted_sums = np.cumsum(sorted_sums)
         cutoff_threshold = percentage * total / 100

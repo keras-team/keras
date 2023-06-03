@@ -162,7 +162,9 @@ x_test_2 = pairs_test[:, 1]
 """
 
 
-def visualize(pairs, labels, to_show=6, num_col=3, predictions=None, test=False):
+def visualize(
+    pairs, labels, to_show=6, num_col=3, predictions=None, test=False
+):
     """Creates a plot of pairs and labels, and prediction if it's test dataset.
 
     Arguments:
@@ -212,10 +214,14 @@ def visualize(pairs, labels, to_show=6, num_col=3, predictions=None, test=False)
         else:
             ax = axes[i // num_col, i % num_col]
 
-        ax.imshow(ops.concatenate([pairs[i][0], pairs[i][1]], axis=1), cmap="gray")
+        ax.imshow(
+            ops.concatenate([pairs[i][0], pairs[i][1]], axis=1), cmap="gray"
+        )
         ax.set_axis_off()
         if test:
-            ax.set_title("True: {} | Pred: {:.5f}".format(labels[i], predictions[i][0]))
+            ax.set_title(
+                "True: {} | Pred: {:.5f}".format(labels[i], predictions[i][0])
+            )
         else:
             ax.set_title("Label: {}".format(labels[i]))
     if test:
@@ -293,7 +299,9 @@ input_2 = keras.layers.Input((28, 28, 1))
 tower_1 = embedding_network(input_1)
 tower_2 = embedding_network(input_2)
 
-merge_layer = keras.layers.Lambda(euclidean_distance, output_shape=(1,))([tower_1, tower_2])
+merge_layer = keras.layers.Lambda(euclidean_distance, output_shape=(1,))(
+    [tower_1, tower_2]
+)
 normal_layer = keras.layers.BatchNormalization()(merge_layer)
 output_layer = keras.layers.Dense(1, activation="sigmoid")(normal_layer)
 siamese = keras.Model(inputs=[input_1, input_2], outputs=output_layer)
@@ -331,9 +339,7 @@ def loss(margin=1):
 
         square_pred = ops.square(y_pred)
         margin_square = ops.square(ops.maximum(margin - (y_pred), 0))
-        return ops.mean(
-            (1 - y_true) * square_pred + (y_true) * margin_square
-        )
+        return ops.mean((1 - y_true) * square_pred + (y_true) * margin_square)
 
     return contrastive_loss
 
@@ -342,7 +348,9 @@ def loss(margin=1):
 ## Compile the model with the contrastive loss
 """
 
-siamese.compile(loss=loss(margin=margin), optimizer="RMSprop", metrics=["accuracy"])
+siamese.compile(
+    loss=loss(margin=margin), optimizer="RMSprop", metrics=["accuracy"]
+)
 siamese.summary()
 
 
@@ -403,7 +411,9 @@ print("test loss, test acc:", results)
 """
 
 predictions = siamese.predict([x_test_1, x_test_2])
-visualize(pairs_test, labels_test, to_show=3, predictions=predictions, test=True)
+visualize(
+    pairs_test, labels_test, to_show=3, predictions=predictions, test=True
+)
 
 """
 **Example available on HuggingFace**
