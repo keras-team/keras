@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from tensorflow import keras
 
 import keras_core
@@ -86,9 +85,7 @@ def numerical_test():
     keras_core_model.set_weights(weights)
 
     for kw, kcw in zip(keras_model.weights, keras_core_model.weights):
-        if torch.is_tensor(kcw.value):
-            kcw = kcw.value.detach().numpy()
-        np.testing.assert_allclose(kw.numpy(), kcw)
+        np.testing.assert_allclose(kw.numpy(), kcw.numpy())
 
     keras_history = train_model(keras_model, x_train, y_train)
     keras_core_history = train_model(keras_core_model, x_train, y_train)
