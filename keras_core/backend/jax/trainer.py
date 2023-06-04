@@ -11,6 +11,12 @@ from keras_core.trainers.epoch_iterator import EpochIterator
 
 
 class JAXTrainer(base_trainer.Trainer):
+    def __init__(self):
+        super().__init__()
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
     def compute_loss_and_updates(
         self,
         trainable_variables,
@@ -192,14 +198,16 @@ class JAXTrainer(base_trainer.Trainer):
         else:
             _train_function = _train_step
 
+        self.train_function = _train_function
+
         if not self.run_eagerly and self.jit_compile:
 
             @jax.jit
             def train_step(state, data):
-                return _train_function(state, data)
+                return self.train_function(state, data)
 
         else:
-            train_step = _train_function
+            train_step = self.train_function
 
         self.stop_training = False
         callbacks.on_train_begin()

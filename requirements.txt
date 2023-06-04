@@ -13,5 +13,8 @@ pandas
 absl-py
 requests
 h5py
+protobuf
+google
+tensorboard-plugin-profile
 rich
 build
