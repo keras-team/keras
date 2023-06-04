@@ -1,5 +1,7 @@
 import warnings
 
+import numpy as np
+import tensorflow as tf
 import torch
 
 from keras_core import callbacks as callbacks_module
@@ -187,11 +189,6 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_train_end(logs=training_logs)
         return self.history
 
-    def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
-    ):
-        pass
-
     def test_step(self, data):
         data = data[0]
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -265,3 +262,67 @@ class TorchTrainer(base_trainer.Trainer):
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
+
+    def predict_step(self, data):
+        data = data[0]
+        x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        return y_pred
+
+    def predict(
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+    ):
+        # Create an iterator that yields batches of input data.
+        epoch_iterator = EpochIterator(
+            x=x,
+            batch_size=batch_size,
+            steps_per_epoch=steps,
+            shuffle=False,
+            steps_per_execution=self.steps_per_execution,
+        )
+
+        # Container that configures and calls callbacks.
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_history=True,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        def append_to_outputs(batch_outputs, outputs):
+            if outputs is None:
+                outputs = tf.nest.map_structure(
+                    lambda batch_output: [batch_output],
+                    batch_outputs,
+                )
+            else:
+                tf.__internal__.nest.map_structure_up_to(
+                    batch_outputs,
+                    lambda output, batch_output: output.append(batch_output),
+                    outputs,
+                    batch_outputs,
+                )
+            return outputs
+
+        # Switch the torch Module back to testing mode.
+        self.eval()
+
+        callbacks.on_predict_begin()
+        outputs = None
+        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            callbacks.on_predict_batch_begin(step)
+            with torch.no_grad():
+                batch_outputs = self.predict_step(data)
+            outputs = append_to_outputs(batch_outputs, outputs)
+            callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
+        callbacks.on_predict_end()
+        return tf.__internal__.nest.map_structure_up_to(
+            batch_outputs, np.concatenate, outputs
+        )
