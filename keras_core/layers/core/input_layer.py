@@ -33,7 +33,7 @@ class InputLayer(Layer):
         if shape:
             shape = backend.standardize_shape(shape)
             batch_shape = (batch_size,) + shape
-        self.batch_shape = batch_shape
+        self.batch_shape = tuple(batch_shape)
         self._dtype = backend.standardize_dtype(dtype)
 
         if input_tensor is not None:

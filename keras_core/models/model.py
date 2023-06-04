@@ -1,3 +1,4 @@
+import json
 import os
 import warnings
 
@@ -341,9 +342,56 @@ class Model(Trainer, Layer):
                 stacklevel=2,
             )
 
+    def to_json(self, **kwargs):
+        """Returns a JSON string containing the network configuration.
+
+        To load a network from a JSON save file, use
+        `keras.models.model_from_json(json_string, custom_objects={...})`.
+
+        Args:
+            **kwargs: Additional keyword arguments to be passed to
+                `json.dumps()`.
+
+        Returns:
+            A JSON string.
+        """
+        from keras_core.saving import serialization_lib
+
+        model_config = serialization_lib.serialize_keras_object(self)
+        return json.dumps(model_config, **kwargs)
+
     @traceback_utils.filter_traceback
     def export(self, filepath):
         raise NotImplementedError
+
+
+@keras_core_export("keras_core.models.model_from_json")
+def model_from_json(json_string, custom_objects=None):
+    """Parses a JSON model configuration string and returns a model instance.
+
+    Usage:
+
+    >>> model = keras_core.Sequential([
+    ...     keras_core.layers.Dense(5, input_shape=(3,)),
+    ...     keras_core.layers.Softmax()])
+    >>> config = model.to_json()
+    >>> loaded_model = keras_core.models.model_from_json(config)
+
+    Args:
+        json_string: JSON string encoding a model configuration.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    Returns:
+        A Keras model instance (uncompiled).
+    """
+    from keras_core.saving import serialization_lib
+
+    model_config = json.loads(json_string)
+    return serialization_lib.deserialize_keras_object(
+        model_config, custom_objects=custom_objects
+    )
 
 
 def functional_init_arguments(args, kwargs):
