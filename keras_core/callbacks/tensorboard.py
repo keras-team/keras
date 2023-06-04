@@ -1,8 +1,8 @@
-import warnings
 import logging
 import os
 import sys
 import time
+import warnings
 
 import tensorflow.summary as summary
 from tensorflow import nest
@@ -16,12 +16,10 @@ from keras_core.callbacks.callback import Callback
 from keras_core.layers import Embedding
 from keras_core.optimizers import Optimizer
 from keras_core.optimizers.schedules import learning_rate_schedule
-from keras_core.utils import file_utils
 
 
 @keras_core_export("keras_core.callbacks.TensorBoard")
 class TensorBoard(Callback):
-
     """Enable visualizations for TensorBoard.
 
     TensorBoard is a visualization tool provided with TensorFlow. A TensorFlow
@@ -34,10 +32,10 @@ class TensorBoard(Callback):
     * Weight histograms
     * Sampled profiling
 
-    When used in `Model.evaluate` or regular validation
+    When used in `model.evaluate()` or regular validation
     in addition to epoch summaries, there will be a summary that records
-    evaluation metrics vs `Model.optimizer.iterations` written. The metric names
-    will be prepended with `evaluation`, with `Model.optimizer.iterations` being
+    evaluation metrics vs `model.optimizer.iterations` written. The metric names
+    will be prepended with `evaluation`, with `model.optimizer.iterations` being
     the step in the visualized TensorBoard.
 
     If you have installed TensorFlow with pip, you should be able
@@ -52,34 +50,37 @@ class TensorBoard(Callback):
 
     Args:
         log_dir: the path of the directory where to save the log files to be
-            parsed by TensorBoard. e.g. log_dir = os.path.join(working_dir,
-            'logs') This directory should not be reused by any other callbacks.
+            parsed by TensorBoard. e.g.,
+            `log_dir = os.path.join(working_dir, 'logs')`.
+            This directory should not be reused by any other callbacks.
         histogram_freq: frequency (in epochs) at which to compute
             weight histograms for the layers of the model. If set to 0,
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
-        write_graph: TODO: still not supported.
-            whether to visualize the graph in TensorBoard. The log file
-            can become quite large when write_graph is set to True.
+        write_graph:  (Not supported at this time)
+            Whether to visualize the graph in TensorBoard.
+            Note that the log file can become quite large
+            when `write_graph` is set to `True`.
         write_images: whether to write model weights to visualize as image in
             TensorBoard.
         write_steps_per_second: whether to log the training steps per second
             into TensorBoard. This supports both epoch and batch frequency
             logging.
-        update_freq: `'batch'` or `'epoch'` or integer. When using `'epoch'`,
+        update_freq: `"batch"` or `"epoch"` or integer. When using `"epoch"`,
             writes the losses and metrics to TensorBoard after every epoch.
             If using an integer, let's say `1000`, all metrics and losses
             (including custom ones added by `Model.compile`) will be logged to
-            TensorBoard every 1000 batches. `'batch'` is a synonym for `1`,
+            TensorBoard every 1000 batches. `"batch"` is a synonym for 1,
             meaning that they will be written every batch.
             Note however that writing too frequently to TensorBoard can slow
             down your training, especially when used with distribution
             strategies as it will incur additional synchronization overhead.
             Batch-level summary writing is also available via `train_step`
             override. Please see
-            [TensorBoard Scalars tutorial](https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)  # noqa: E501
+            [TensorBoard Scalars tutorial](
+                https://www.tensorflow.org/tensorboard/scalars_and_keras#batch-level_logging)  # noqa: E501
             for more details.
-        profile_batch: TODO: still not supported.
+        profile_batch: (Not supported at this time)
             Profile the batch(es) to sample compute characteristics.
             profile_batch must be a non-negative integer or a tuple of integers.
             A pair of positive integers signify a range of batches to profile.
@@ -118,7 +119,7 @@ class TensorBoard(Callback):
     model.compile('sgd', 'mse')
 
     # Make sure to set `update_freq=N` to log a batch-level summary every N
-    # batches.  In addition to any `tf.summary` contained in `Model.call`,
+    # batches.  In addition to any `tf.summary` contained in `model.call()`,
     # metrics added in `Model.compile` will be logged every N batches.
     tb_callback = keras_core.callbacks.TensorBoard('./logs', update_freq=1)
     model.fit(x_train, y_train, callbacks=[tb_callback])
@@ -628,9 +629,9 @@ def keras_model_summary(name, data, step=None):
         name: A name for this summary. The summary tag used for TensorBoard will
             be this name prefixed by any active name scopes.
         data: A Keras Model to write.
-        step: Explicit `int64`-castable monotonic step value for this summary. If
-            omitted, this defaults to `tf.summary.experimental.get_step()`, which
-            must not be None.
+        step: Explicit `int64`-castable monotonic step value for this summary.
+            If omitted, this defaults to `tf.summary.experimental.get_step()`,
+            which must not be `None`.
 
     Returns:
         True on success, or False if no summary was written because no default
@@ -638,7 +639,7 @@ def keras_model_summary(name, data, step=None):
 
     Raises:
         ValueError: if a default writer exists, but no step was provided and
-            `tf.summary.experimental.get_step()` is None.
+            `tf.summary.experimental.get_step()` is `None`.
     """
     summary_metadata = SummaryMetadata()
     # Hard coding a plugin name. Please refer to go/tb-plugin-name-hardcode for
