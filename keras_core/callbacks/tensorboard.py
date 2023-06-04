@@ -658,7 +658,6 @@ def keras_model_summary(name, data, step=None):
     with summary.experimental.summary_scope(
         name, "graph_keras_model", [data, step]
     ) as (tag, _):
-        tensor = ops.convert_to_tensor(json_string, dtype="string")
         return summary.write(
-            tag=tag, tensor=tensor, step=step, metadata=summary_metadata
+            tag=tag, tensor=json_string, step=step, metadata=summary_metadata
         )
