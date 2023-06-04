@@ -590,10 +590,10 @@ class MultiStepLR(tf.keras.optimizers.schedules.LearningRateSchedule):
 
     Example:
     ```python
-      Assuming optimizer uses lr = 0.05 for all groups
-      #lr = 0.05     if epoch < 30
-      #lr = 0.005    if 30 <= epoch < 80
-      #lr = 0.0005   if epoch >= 80
+      Assuming optimizer uses lr = 0.1 for all groups
+      #lr = 0.1     if epoch < 30
+      #lr = 0.01    if 30 <= epoch < 80
+      #lr = 0.001   if epoch >= 80
       scheduler = MultiStepLR(optimizer, milestones=[30,80], gamma=0.1)
     ```
 
