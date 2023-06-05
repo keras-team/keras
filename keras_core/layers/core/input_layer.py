@@ -67,20 +67,12 @@ class InputLayer(Layer):
 
 
 @keras_core_export(["keras_core.layers.Input", "keras_core.Input"])
-def Input(
-    shape=None,
-    batch_size=None,
-    dtype=None,
-    batch_shape=None,
-    name=None,
-    tensor=None,
-):
+def Input(shape=None, batch_size=None, dtype=None, batch_shape=None, name=None):
     layer = InputLayer(
         shape=shape,
         batch_size=batch_size,
         dtype=dtype,
         batch_shape=batch_shape,
         name=name,
-        input_tensor=tensor,
     )
     return layer.output

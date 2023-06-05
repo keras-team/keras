@@ -26,7 +26,7 @@ class RNN(Layer):
             section "Note on passing external constants" below.
             - A `state_size` attribute. This can be a single integer
             (single state) in which case it is the size of the recurrent
-            state. This can also be a list/tuple of integers
+            state. This can also be a list of integers
             (one size per state).
             - A `output_size` attribute, a single integer.
             - A `get_initial_state(batch_size=None)`
@@ -227,16 +227,16 @@ class RNN(Layer):
             raise ValueError(
                 "state_size must be specified as property on the RNN cell."
             )
-        if not isinstance(state_size, (list, tuple, int)):
+        if not isinstance(state_size, (list, int)):
             raise ValueError(
-                "state_size must be an integer, or a list/tuple of integers "
+                "state_size must be an integer, or a list of integers "
                 "(one for each state tensor)."
             )
         if isinstance(state_size, int):
             self.state_size = [state_size]
             self.single_state = True
         else:
-            self.state_size = list(state_size)
+            self.state_size = state_size
             self.single_state = False
 
     def compute_output_shape(self, sequences_shape, initial_state_shape=None):

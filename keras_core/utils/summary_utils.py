@@ -30,7 +30,7 @@ def weight_memory_size(weights):
     for w in unique_weights:
         weight_shape = math.prod(w.shape)
         dtype = backend.standardize_dtype(w.dtype)
-        per_param_size = dtype_utils.float_dtype_size(dtype)
+        per_param_size = dtype_utils.dtype_size(dtype)
         total_memory_size += weight_shape * per_param_size
     return total_memory_size
 

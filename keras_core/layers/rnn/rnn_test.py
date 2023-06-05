@@ -8,10 +8,10 @@ from keras_core import testing
 
 
 class OneStateRNNCell(layers.Layer):
-    def __init__(self, units, state_size=None, **kwargs):
+    def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
         self.units = units
-        self.state_size = state_size if state_size else units
+        self.state_size = units
 
     def build(self, input_shape):
         self.kernel = self.add_weight(
@@ -34,10 +34,10 @@ class OneStateRNNCell(layers.Layer):
 
 
 class TwoStatesRNNCell(layers.Layer):
-    def __init__(self, units, state_size=None, **kwargs):
+    def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
         self.units = units
-        self.state_size = state_size if state_size else [units, units]
+        self.state_size = [units, units]
         self.output_size = units
 
     def build(self, input_shape):
@@ -72,27 +72,7 @@ class RNNTest(testing.TestCase):
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,
-            init_kwargs={"cell": OneStateRNNCell(5, state_size=5)},
-            input_shape=(3, 2, 4),
-            expected_output_shape=(3, 5),
-            expected_num_trainable_weights=2,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            supports_masking=True,
-        )
-        self.run_layer_test(
-            layers.RNN,
-            init_kwargs={"cell": OneStateRNNCell(5, state_size=[5])},
-            input_shape=(3, 2, 4),
-            expected_output_shape=(3, 5),
-            expected_num_trainable_weights=2,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            supports_masking=True,
-        )
-        self.run_layer_test(
-            layers.RNN,
-            init_kwargs={"cell": OneStateRNNCell(5, state_size=(5,))},
+            init_kwargs={"cell": OneStateRNNCell(5)},
             input_shape=(3, 2, 4),
             expected_output_shape=(3, 5),
             expected_num_trainable_weights=2,
@@ -126,17 +106,7 @@ class RNNTest(testing.TestCase):
         )
         self.run_layer_test(
             layers.RNN,
-            init_kwargs={"cell": TwoStatesRNNCell(5, state_size=[5, 5])},
-            input_shape=(3, 2, 4),
-            expected_output_shape=(3, 5),
-            expected_num_trainable_weights=3,
-            expected_num_non_trainable_weights=0,
-            expected_num_seed_generators=0,
-            supports_masking=True,
-        )
-        self.run_layer_test(
-            layers.RNN,
-            init_kwargs={"cell": TwoStatesRNNCell(5, state_size=(5, 5))},
+            init_kwargs={"cell": TwoStatesRNNCell(5)},
             input_shape=(3, 2, 4),
             expected_output_shape=(3, 5),
             expected_num_trainable_weights=3,
