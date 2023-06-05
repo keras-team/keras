@@ -3,11 +3,13 @@ import os
 import random
 
 import numpy as np
+import pytest
 import tensorflow.summary as summary
 from tensorflow.compat.v1 import SummaryMetadata
 from tensorflow.core.util import event_pb2
 from tensorflow.python.lib.io import tf_record
 
+from keras_core import backend
 from keras_core import callbacks
 from keras_core import layers
 from keras_core import losses
@@ -704,32 +706,43 @@ class TestTensorBoardV2(testing.TestCase):
         # self.fitModelAndAssertKerasModelWritten(model)
         pass
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="The profiling test can only run with TF backend.",
+    )
     def test_TensorBoard_auto_trace(self):
         # TODO: Waiting for implementation for torch/jax for profiling ops
         # if backend.backend() == "jax":
         #       return
         # TODO: Debug profiling for JAX
-        # model = self._get_seq_model()
-        # x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
-        # tb_cbk = callbacks.TensorBoard(
-        #     logdir, histogram_freq=1, profile_batch=1, write_graph=False
-        # )
+        logdir, train_dir, validation_dir = self._get_log_dirs()
+        model = models.Sequential(
+            [
+                layers.Input((10, 10, 1)),
+                layers.Flatten(),
+                layers.Dense(1),
+            ]
+        )
+        x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
+        tb_cbk = callbacks.TensorBoard(
+            logdir, histogram_freq=1, profile_batch=1, write_graph=False
+        )
+        model.compile("sgd", "mse")
+        model.fit(
+            x,
+            y,
+            batch_size=2,
+            epochs=2,
+            validation_data=(x, y),
+            callbacks=[tb_cbk],
+        )
+        summary_file = list_summaries(logdir)
 
-        # model.fit(
-        #     x,
-        #     y,
-        #     batch_size=2,
-        #     epochs=2,
-        #     validation_data=(x, y),
-        #     callbacks=[tb_cbk],
-        # )
-        # summary_file = list_summaries(logdir)
-
-        # self.assertEqual(
-        #     summary_file.tensors,
-        #     {
-        #         _ObservedSummary(logdir=train_dir, tag="batch_1"),
-        #     },
-        # )
-        # self.assertEqual(1, self._count_xplane_file(logdir=logdir))
+        self.assertEqual(
+            summary_file.tensors,
+            {
+                _ObservedSummary(logdir=train_dir, tag="batch_1"),
+            },
+        )
+        self.assertEqual(1, self._count_xplane_file(logdir=logdir))
         pass

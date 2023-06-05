@@ -183,7 +183,9 @@ class TensorBoard(Callback):
         self.update_freq = 1 if update_freq == "batch" else update_freq
         self.embeddings_freq = embeddings_freq
         self.embeddings_metadata = embeddings_metadata
-        self._init_profile_batch(0)  # TODO: profiling not available in JAX
+        self._init_profile_batch(
+            profile_batch
+        )  # TODO: profiling not available in JAX
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
         self._train_accumulated_time = 0

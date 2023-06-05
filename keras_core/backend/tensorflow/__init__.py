@@ -4,6 +4,7 @@ from keras_core.backend.tensorflow import math
 from keras_core.backend.tensorflow import nn
 from keras_core.backend.tensorflow import numpy
 from keras_core.backend.tensorflow import random
+from keras_core.backend.tensorflow import tensorboard
 from keras_core.backend.tensorflow.core import DYNAMIC_SHAPES_OK
 from keras_core.backend.tensorflow.core import Variable
 from keras_core.backend.tensorflow.core import cast
