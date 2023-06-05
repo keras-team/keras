@@ -56,7 +56,7 @@ class UpSampling2dTest(testing.TestCase, parameterized.TestCase):
             expected_out = np.repeat(inputs, length_row, axis=1)
             expected_out = np.repeat(expected_out, length_col, axis=2)
 
-        np.testing.assert_allclose(np_output, expected_out)
+        self.assertAllClose(np_output, expected_out)
 
     @parameterized.product(
         data_format=["channels_first", "channels_last"],

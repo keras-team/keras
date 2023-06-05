@@ -1,5 +1,6 @@
 import contextlib
 
+import numpy as np
 import torch
 
 from keras_core.backend.common import KerasVariable
@@ -46,9 +47,6 @@ class Variable(KerasVariable):
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
-    
-    def numpy(self):
-        return self.value.detach().numpy()
 
     # Overload native accessor.
     @classmethod
@@ -64,6 +62,11 @@ class Variable(KerasVariable):
         }
         return func(*args, **kwargs)
 
+    def __array__(self, dtype=None):
+        if self.value.requires_grad:
+            return self.value.detach().__array__(dtype)
+        return super().__array__(dtype)
+
 
 def convert_to_tensor(x, dtype=None):
     # TODO: Need to address device placement arg of `as_tensor`
@@ -73,6 +76,12 @@ def convert_to_tensor(x, dtype=None):
             return x.value.to(dtype)
         return x.value
     return torch.as_tensor(x, dtype=dtype)
+
+
+def convert_to_numpy(x):
+    if is_tensor(x) and x.requires_grad:
+        return x.detach().numpy()
+    return np.array(x)
 
 
 def is_tensor(x):

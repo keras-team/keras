@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 from tensorflow import nest
 
 from keras_core.backend.common import KerasVariable
@@ -33,6 +34,10 @@ def convert_to_tensor(x, dtype=None):
             return x.value.astype(dtype)
         return x.value
     return jnp.array(x, dtype=dtype)
+
+
+def convert_to_numpy(x):
+    return np.array(x)
 
 
 def is_tensor(x):
