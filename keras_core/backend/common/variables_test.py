@@ -26,19 +26,21 @@ class VariablesTest(test_case.TestCase):
             dtype="float32",
         )
         self.assertEqual(v.dtype, "float32")
-        self.assertEqual(v.value.dtype.name, "float32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
         print("open scope")
         with AutocastScope("float16"):
-            self.assertEqual(v.value.dtype.name, "float16")
-        self.assertEqual(v.value.dtype.name, "float32")
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype), "float16"
+            )
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
         # Test non-float variables are not affected
         v = backend.Variable(
             initializer=initializers.Ones(), shape=(2, 2), dtype="int32"
         )
         self.assertEqual(v.dtype, "int32")
-        self.assertEqual(v.value.dtype.name, "int32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
         with AutocastScope("float16"):
-            self.assertEqual(v.value.dtype.name, "int32")
+            self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
