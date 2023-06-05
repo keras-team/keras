@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from keras_core import layers
 from keras_core import testing
@@ -57,3 +58,16 @@ class HashedCrossingTest(testing.TestCase):
             ),
             output,
         )
+
+    def test_tf_data_compatibility(self):
+        layer = layers.HashedCrossing(num_bins=5)
+        feat1 = np.array(["A", "B", "A", "B", "A"])
+        feat2 = np.array([101, 101, 101, 102, 102])
+        ds = (
+            tf.data.Dataset.from_tensor_slices((feat1, feat2))
+            .batch(5)
+            .map(lambda x1, x2: layer((x1, x2)))
+        )
+        for output in ds.take(1):
+            output = output.numpy()
+        self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)

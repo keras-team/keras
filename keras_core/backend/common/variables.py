@@ -81,7 +81,7 @@ class KerasVariable:
         return value
 
     def numpy(self):
-        return np.array(self)
+        return np.array(self.value)
 
     @property
     def value(self):

@@ -1,7 +1,6 @@
 import numpy as np
 from absl.testing import parameterized
 
-from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -74,7 +73,6 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         # Assert the normalization is correct.
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        out = backend.convert_to_numpy(out)
         out -= np.reshape(np.array(layer.beta), broadcast_shape)
         out /= np.reshape(np.array(layer.gamma), broadcast_shape)
 
@@ -111,7 +109,6 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         for _ in range(10):
             out = layer(x, training=True)
 
-        out = backend.convert_to_numpy(out)
         out -= np.reshape(np.array(layer.beta), (1, 1, 1, 3))
         out /= np.reshape(np.array(layer.gamma), (1, 1, 1, 3))
 

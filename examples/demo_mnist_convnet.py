@@ -26,7 +26,7 @@ y_train = to_categorical(y_train, num_classes)
 y_test = to_categorical(y_test, num_classes)
 
 batch_size = 128
-epochs = 15
+epochs = 3
 
 model = keras_core.Sequential(
     [

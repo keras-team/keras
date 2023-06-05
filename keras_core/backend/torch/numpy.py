@@ -64,15 +64,11 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 def ones(shape, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    if isinstance(shape, int):
-        shape = (shape,)
-    return torch.ones(size=shape, dtype=dtype)
+    return torch.ones(*shape, dtype=dtype)
 
 
 def zeros(shape, dtype="float32"):
     dtype = to_torch_dtype(dtype)
-    if isinstance(shape, int):
-        shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype)
 
 

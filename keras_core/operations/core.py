@@ -1,5 +1,8 @@
 """
 scatter
+scatter_update
+block_update
+while_loop
 """
 
 from keras_core import backend

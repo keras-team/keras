@@ -83,7 +83,7 @@ class UpSampling3dTest(testing.TestCase, parameterized.TestCase):
             expected_out = np.repeat(expected_out, length_dim2, axis=2)
             expected_out = np.repeat(expected_out, length_dim3, axis=3)
 
-        self.assertAllClose(np_output, expected_out)
+        np.testing.assert_allclose(np_output, expected_out)
 
     def test_upsampling_3d_correctness(self):
         input_shape = (2, 1, 2, 1, 3)

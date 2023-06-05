@@ -9,7 +9,7 @@ import numpy as np
 num_classes = 10
 input_shape = (28, 28, 1)
 learning_rate = 0.01
-batch_size = 64
+batch_size = 128
 num_epochs = 1
 
 # Load the data and split it between train and test sets

@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
@@ -74,10 +73,6 @@ def convert_to_tensor(x, dtype=None):
         if tf.is_tensor(x):
             return tf.cast(x, dtype=dtype)
     return tf.convert_to_tensor(x, dtype=dtype)
-
-
-def convert_to_numpy(x):
-    return np.array(x)
 
 
 def is_tensor(x):

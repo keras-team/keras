@@ -573,7 +573,6 @@ class TensorBoard(Callback):
                 shape = w_img.shape
             w_img = ops.reshape(w_img, [shape[0], shape[1], shape[2], 1])
 
-        w_img = backend.convert_to_numpy(w_img)
         shape = w_img.shape
         # Not possible to handle 3D convnets etc.
         if len(shape) == 4 and shape[-1] in [1, 3, 4]:

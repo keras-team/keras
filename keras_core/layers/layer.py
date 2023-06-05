@@ -357,16 +357,7 @@ class Layer(BackendLayer, Operation):
         # Will be added to layer.losses
         variable.regularizer = regularizer
         variable.constraint = constraint
-        if trainable:
-            self._trainable_variables.append(variable)
-            # Prevent double-tracking
-            self._tracker.stored_ids["trainable_variables"].add(id(variable))
-        else:
-            self._non_trainable_variables.append(variable)
-            # Prevent double-tracking
-            self._tracker.stored_ids["non_trainable_variables"].add(
-                id(variable)
-            )
+        self._track_variable(variable)
         return variable
 
     def add_weight(self, *args, **kwargs):
@@ -895,6 +886,18 @@ class Layer(BackendLayer, Operation):
         self._losses.clear()
         for layer in self._layers:
             layer._clear_losses()
+
+    def _track_variable(self, variable):
+        if variable.trainable:
+            self._trainable_variables.append(variable)
+            # Prevent double-tracking
+            self._tracker.stored_ids["trainable_variables"].add(id(variable))
+        else:
+            self._non_trainable_variables.append(variable)
+            # Prevent double-tracking
+            self._tracker.stored_ids["non_trainable_variables"].add(
+                id(variable)
+            )
 
     def add_metric(self):
         # Permanently disabled

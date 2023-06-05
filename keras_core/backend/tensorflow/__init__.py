@@ -9,7 +9,6 @@ from keras_core.backend.tensorflow.core import Variable
 from keras_core.backend.tensorflow.core import cast
 from keras_core.backend.tensorflow.core import compute_output_spec
 from keras_core.backend.tensorflow.core import cond
-from keras_core.backend.tensorflow.core import convert_to_numpy
 from keras_core.backend.tensorflow.core import convert_to_tensor
 from keras_core.backend.tensorflow.core import is_tensor
 from keras_core.backend.tensorflow.core import name_scope

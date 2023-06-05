@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import backend
@@ -84,3 +85,25 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             run_training_check=False,
         )
+
+    def test_tf_data_compatibility(self):
+        input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
+        layer = layers.RandomZoom(
+            height_factor=(0.5, 0.5),
+            width_factor=(0.8, 0.8),
+            interpolation="nearest",
+            fill_mode="constant",
+        )
+        ds = tf.data.Dataset.from_tensor_slices(input_image).batch(1).map(layer)
+        expected_output = np.asarray(
+            [
+                [0, 0, 0, 0, 0],
+                [0, 5, 7, 9, 0],
+                [0, 10, 12, 14, 0],
+                [0, 20, 22, 24, 0],
+                [0, 0, 0, 0, 0],
+            ]
+        ).reshape((1, 5, 5, 1))
+        for output in ds.take(1):
+            output = output.numpy()
+        self.assertAllClose(expected_output, output)
