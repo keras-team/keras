@@ -72,9 +72,14 @@ def convert_to_tensor(x, dtype=None):
     # TODO: Need to address device placement arg of `as_tensor`
     dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
     if isinstance(x, Variable):
+        x = x.value
+    if is_tensor(x):
         if dtype and dtype != x.dtype:
-            return x.value.to(dtype)
-        return x.value
+            return x.to(dtype)
+        return x
+
+    # Convert to np first in case of any non-numpy, numpy-compatible array.
+    x = np.array(x)
     return torch.as_tensor(x, dtype=dtype)
 
 
