@@ -42,7 +42,7 @@ def set_floatx(value):
     as this will likely cause numeric stability issues.
     Instead, mixed precision, which leverages
     a mix of `float16` and `float32`. It can be configured by calling
-    `keras_core.mixed_precision.set_dtype_policy('mixed_float16')`.
+    `keras_core.mixed_precision.set_global_policy('mixed_float16')`.
 
     Args:
         value: String; `'float16'`, `'float32'`, or `'float64'`.

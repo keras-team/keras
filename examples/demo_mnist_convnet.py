@@ -30,7 +30,7 @@ epochs = 3
 
 model = keras_core.Sequential(
     [
-        layers.Input(shape=input_shape, batch_size=batch_size),
+        layers.Input(shape=input_shape),
         layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
         layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),

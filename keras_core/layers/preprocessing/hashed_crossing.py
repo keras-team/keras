@@ -100,7 +100,7 @@ class HashedCrossing(Layer):
 
     def call(self, inputs):
         outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow":
+        if backend.backend() != "tensorflow" and tf.executing_eagerly():
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 
