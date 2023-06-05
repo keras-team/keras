@@ -1,13 +1,13 @@
-""" Benchmark normalization layers.
+""" Benchmark activation layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
 
 ```
-python3 -m benchmarks.layer_benchmark.normalization_benchmark \
-    --benchmark_name=benchmark_batch_normalization \
-    --num_samples=2400 \
-    --batch_size=300 \
+python3 -m benchmarks.layer_benchmark.activation_benchmark \
+    --benchmark_name=benchmark_elu \
+    --num_samples=8192 \
+    --batch_size=1024 \
     --jit_compile=True
 ```
 """
@@ -20,17 +20,17 @@ from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 FLAGS = flags.FLAGS
 
 
-def benchmark_batch_normalization(
+def benchmark_elu(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "BatchNormalization"
+    layer_name = "ELU"
     init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256, 4],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
     )
 
@@ -39,50 +39,18 @@ def benchmark_batch_normalization(
         batch_size=batch_size,
     )
 
-    benchmark.benchmark_train(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
 
-
-def benchmark_group_normalization(
+def benchmark_prelu(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "GroupNormalization"
-    init_args = {
-        "groups": 2,
-    }
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[256, 256, 4],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-    benchmark.benchmark_train(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
-def benchmark_layer_normalization(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "LayerNormalization"
+    layer_name = "PReLU"
     init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256, 4],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
     )
 
@@ -91,16 +59,31 @@ def benchmark_layer_normalization(
         batch_size=batch_size,
     )
 
-    benchmark.benchmark_train(
+
+def benchmark_softmax(
+    num_samples,
+    batch_size,
+    jit_compile=True,
+):
+    layer_name = "Softmax"
+    init_args = {}
+    benchmark = LayerBenchmark(
+        layer_name,
+        init_args,
+        input_shape=[256, 256],
+        jit_compile=jit_compile,
+    )
+
+    benchmark.benchmark_predict(
         num_samples=num_samples,
         batch_size=batch_size,
     )
 
 
 BENCHMARK_NAMES = {
-    "benchmark_batch_normalization": benchmark_batch_normalization,
-    "benchmark_group_normalization": benchmark_group_normalization,
-    "benchmark_layer_normalization": benchmark_layer_normalization,
+    "benchmark_elu": benchmark_elu,
+    "benchmark_prelu": benchmark_prelu,
+    "benchmark_softmax": benchmark_softmax,
 }
 
 

@@ -6,7 +6,7 @@ flag to your custom value:
 ```
 python3 -m benchmarks.layer_benchmark.conv_benchmark \
     --benchmark_name=benchmark_conv2D \
-    --num_samples=1000 \
+    --num_samples=2000 \
     --batch_size=20 \
     --jit_compile=True
 ```
@@ -34,7 +34,7 @@ def benchmark_conv1D(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 4],
+        input_shape=[256, 16],
         jit_compile=jit_compile,
     )
 
@@ -62,7 +62,7 @@ def benchmark_conv2D(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 32, 4],
+        input_shape=[128, 128, 4],
         jit_compile=jit_compile,
     )
 
@@ -146,7 +146,7 @@ def benchmark_depthwise_conv2D(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 32, 4],
+        input_shape=[128, 128, 4],
         jit_compile=jit_compile,
     )
 
@@ -202,7 +202,7 @@ def benchmark_conv2D_transpose(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 32, 4],
+        input_shape=[128, 128, 4],
         jit_compile=jit_compile,
     )
 
@@ -262,6 +262,11 @@ def main(_):
     num_samples = FLAGS.num_samples
     batch_size = FLAGS.batch_size
     jit_compile = FLAGS.jit_compile
+
+    if benchmark_name is None:
+        for name, benchmark_fn in BENCHMARK_NAMES:
+            benchmark_fn(num_samples, batch_size, jit_compile)
+        return
 
     if benchmark_name not in BENCHMARK_NAMES:
         raise ValueError(

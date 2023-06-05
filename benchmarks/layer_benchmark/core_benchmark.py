@@ -1,13 +1,13 @@
-""" Benchmark normalization layers.
+""" Benchmark core layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
 
 ```
-python3 -m benchmarks.layer_benchmark.normalization_benchmark \
-    --benchmark_name=benchmark_batch_normalization \
-    --num_samples=2400 \
-    --batch_size=300 \
+python3 -m benchmarks.layer_benchmark.core_benchmark \
+    --benchmark_name=benchmark_dense \
+    --num_samples=8192 \
+    --batch_size=1024 \
     --jit_compile=True
 ```
 """
@@ -20,17 +20,19 @@ from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 FLAGS = flags.FLAGS
 
 
-def benchmark_batch_normalization(
+def benchmark_dense(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "BatchNormalization"
-    init_args = {}
+    layer_name = "Dense"
+    init_args = {"units": 128}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256, 4],
+        input_shape=[
+            256,
+        ],
         jit_compile=jit_compile,
     )
 
@@ -45,44 +47,20 @@ def benchmark_batch_normalization(
     )
 
 
-def benchmark_group_normalization(
+def benchmark_einsum_dense(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "GroupNormalization"
+    layer_name = "EinsumDense"
     init_args = {
-        "groups": 2,
+        "equation": "abc,cd->abd",
+        "output_shape": (None, 128),
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256, 4],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-    benchmark.benchmark_train(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
-def benchmark_layer_normalization(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "LayerNormalization"
-    init_args = {}
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[256, 256, 4],
+        input_shape=[64, 32],
         jit_compile=jit_compile,
     )
 
@@ -98,9 +76,8 @@ def benchmark_layer_normalization(
 
 
 BENCHMARK_NAMES = {
-    "benchmark_batch_normalization": benchmark_batch_normalization,
-    "benchmark_group_normalization": benchmark_group_normalization,
-    "benchmark_layer_normalization": benchmark_layer_normalization,
+    "benchmark_dense": benchmark_dense,
+    "benchmark_einsum_dense": benchmark_einsum_dense,
 }
 
 
