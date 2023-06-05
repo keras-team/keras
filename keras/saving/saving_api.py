@@ -32,6 +32,17 @@ except ImportError:
 
 is_oss = True
 
+def _support_gcs_uri(filepath, save_format, is_oss):
+    """Supports GCS URIs through bigstore via a temporary file."""
+    gs_filepath = None
+    if str(filepath).startswith("gs://") and save_format != 'tf':
+        gs_filepath = filepath
+        if not is_oss:
+            gs_filepath = filepath.replace("gs://", "/bigstore/")
+        filepath = os.path.join(
+            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
+        )
+    return gs_filepath, filepath
 
 @keras_export("keras.saving.save_model", "keras.models.save_model")
 def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
@@ -121,14 +132,7 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     save_format = get_save_format(filepath, save_format)
 
     # Supports GCS URIs through bigstore via a temporary file
-    gs_filepath = None
-    if str(filepath).startswith("gs://"):
-        gs_filepath = filepath
-        if not is_oss:
-            gs_filepath = filepath.replace("gs://", "/bigstore/")
-        filepath = os.path.join(
-            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
-        )
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
 
     # Deprecation warnings
     if save_format == "h5":
@@ -216,15 +220,10 @@ def load_model(
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
     # Supports GCS URIs by copying data to temporary file
-    if str(filepath).startswith("gs://"):
-        gs_filepath = filepath
-        if not is_oss:
-            gs_filepath = filepath.replace("gs://", "/bigstore/")
-        filepath = os.path.join(
-            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
-        )
-        if gs_filepath is not None:
-            tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+    if gs_filepath is not None:
+        tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
 
     is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
         filepath
@@ -269,14 +268,8 @@ def load_model(
 
 def save_weights(model, filepath, overwrite=True, **kwargs):
     # Supports GCS URIs through bigstore via a temporary file
-    gs_filepath = None
-    if str(filepath).startswith("gs://"):
-        gs_filepath = filepath
-        if not is_oss:
-            gs_filepath = filepath.replace("gs://", "/bigstore/")
-        filepath = os.path.join(
-            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
-        )
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
 
     if str(filepath).endswith(".weights.h5"):
         # If file exists and should not be overwritten.
@@ -301,15 +294,10 @@ def save_weights(model, filepath, overwrite=True, **kwargs):
 
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
     # Supports GCS URIs by copying data to temporary file
-    if str(filepath).startswith("gs://"):
-        gs_filepath = filepath
-        if not is_oss:
-            gs_filepath = filepath.replace("gs://", "/bigstore/")
-        filepath = os.path.join(
-            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
-        )
-        if gs_filepath is not None:
-            tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+    if gs_filepath is not None:
+        tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
 
     if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
         saving_lib.load_weights_only(
