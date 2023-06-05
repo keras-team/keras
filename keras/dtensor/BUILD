@@ -12,6 +12,7 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 # copybara:uncomment_end
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//learning/brain/distribute/experimental/auto_distribute:__pkg__",

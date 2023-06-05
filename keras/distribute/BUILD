@@ -7,6 +7,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove this deps when distribute test are converted to integration test.
     default_visibility = [
         "//keras:friends",
