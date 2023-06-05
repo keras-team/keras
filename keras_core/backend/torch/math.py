@@ -15,8 +15,25 @@ def segment_sum(data, segment_ids, num_segments=None, **kwargs):
         .type(torch.int64)
     )
     num_segments = num_segments or len(torch.unique(segment_ids))
-    shape = (num_segments,) + tuple(data.shape[1:])
+
+    # .scatter_add does not support -1 in the indices.
+    # Add all out-of-bound indices value to an extra dimension after
+    # num_segments, which is removed before returning the result.
+
+    # Replacing the out-of-bound indices.
+    segment_ids = torch.where(segment_ids >= 0, segment_ids, num_segments)
+    segment_ids = torch.where(
+        segment_ids < num_segments, segment_ids, num_segments
+    )
+
+    # Add one more dimension to the result shape with the "+1".
+    shape = (num_segments + 1,) + tuple(data.shape[1:])
+
     result = torch.zeros(*shape).scatter_add(0, segment_ids, data.float())
+
+    # Removing the extra dimension.
+    result = result[:-1, ...]
+
     return result.type(data.dtype)
 
 

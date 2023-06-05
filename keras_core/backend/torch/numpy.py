@@ -58,7 +58,7 @@ def max(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
-        return torch.maximum(result, initial)
+        return torch.maximum(result, torch.full(result.shape, initial))
     return result
 
 

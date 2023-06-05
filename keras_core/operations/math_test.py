@@ -103,6 +103,15 @@ class MathOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected)
 
+        # Test 1D with -1 case.
+        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
+        outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
+        expected = tf.math.unsorted_segment_sum(
+            data, segment_ids, num_segments=4
+        )
+        self.assertAllClose(outputs, expected)
+
         # Test N-D case.
         data = np.random.rand(9, 3, 3)
         segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
