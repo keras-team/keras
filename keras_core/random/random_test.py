@@ -83,3 +83,10 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         keras_core.utils.traceback_utils.disable_traceback_filtering()
         x = train_step(x)
         assert isinstance(x, jnp.ndarray)
+
+    def test_dropout_noise_shape(self):
+        inputs = knp.ones((2, 3, 5, 7))
+        x = random.dropout(
+            inputs, rate=0.3, noise_shape=[None, 3, 5, None], seed=0
+        )
+        self.assertEqual(x.shape, (2, 3, 5, 7))

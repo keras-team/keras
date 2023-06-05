@@ -102,11 +102,23 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     return sample * stddev + mean
 
 
+def _get_concrete_noise_shape(inputs, noise_shape):
+    if noise_shape is None:
+        return inputs.shape
+
+    concrete_inputs_shape = inputs.shape
+    noise_shape = []
+    for i, value in enumerate(noise_shape):
+        noise_shape.append(concrete_inputs_shape[i] if value is None else value)
+    return noise_shape
+
+
 def dropout(inputs, rate, noise_shape=None, seed=None):
     seed = draw_seed(seed)
     keep_prob = 1.0 - rate
-    if noise_shape is None:
-        noise_shape = inputs.shape
+    # The `noise_shape` may contain `None` so we need to convert it
+    # into a concrete shape before passing it on to jax.
+    noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     mask = jax.random.bernoulli(seed, p=keep_prob, shape=noise_shape)
     mask = jax.numpy.broadcast_to(mask, inputs.shape)
     return jax.lax.select(
