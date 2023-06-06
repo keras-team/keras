@@ -59,7 +59,7 @@ class Layer(BackendLayer, Operation):
     in the `call()` method, and a *state* (weight variables). State can be
     created:
 
-    * in `__init__()`, for instancce via `self.add_weight()`;
+    * in `__init__()`, for instance via `self.add_weight()`;
     * in the optional `build()` method, which is invoked by the first
       `__call__()` to the layer, and supplies the shape(s) of the input(s),
       which may not have been known at initialization time.
