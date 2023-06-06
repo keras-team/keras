@@ -94,3 +94,11 @@ class CenterCropTest(testing.TestCase, parameterized.TestCase):
                 size[1],
             )(img)
         self.assertAllClose(ref_out, out)
+
+    def test_tf_data_compatibility(self):
+        layer = layers.CenterCrop(8, 9)
+        input_data = np.random.random((2, 10, 12, 3))
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output = output.numpy()
+        self.assertEqual(list(output.shape), [2, 8, 9, 3])

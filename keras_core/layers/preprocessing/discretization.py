@@ -4,6 +4,7 @@ import tensorflow as tf
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.utils import backend_utils
 
 
 @keras_core_export("keras_core.layers.Discretization")
@@ -21,6 +22,9 @@ class Discretization(Layer):
     It can also always be used as part of an input preprocessing pipeline
     with any backend (outside the model itself), which is how we recommend
     to use this layer.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Input shape:
         Any array of dimension 2 or higher.
@@ -192,7 +196,10 @@ class Discretization(Layer):
 
     def call(self, inputs):
         outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow" and tf.executing_eagerly():
+        if (
+            backend.backend() != "tensorflow"
+            and not backend_utils.in_tf_graph()
+        ):
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 

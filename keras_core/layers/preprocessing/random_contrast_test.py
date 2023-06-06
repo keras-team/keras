@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from keras_core import layers
 from keras_core import testing
@@ -33,3 +34,10 @@ class RandomContrastTest(testing.TestCase):
         actual_outputs = np.clip(outputs, 0, 255)
 
         self.assertAllClose(outputs, actual_outputs)
+
+    def test_tf_data_compatibility(self):
+        layer = layers.RandomContrast(factor=0.5, seed=1337)
+        input_data = np.random.random((2, 8, 8, 3))
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output.numpy()

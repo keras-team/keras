@@ -1,12 +1,11 @@
 from keras_core import backend
-from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.utils import image_utils
 
 
 @keras_core_export("keras_core.layers.Resizing")
-class Resizing(Layer):
+class Resizing(TFDataLayer):
     """A preprocessing layer which resizes images.
 
     This layer resizes an image input to a target height and width. The input
@@ -24,6 +23,9 @@ class Resizing(Layer):
         `(..., target_height, target_width, channels)`,
         or `(..., channels, target_height, target_width)`,
         in `"channels_first"` format.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Args:
         height: Integer, the height of the output shape.
@@ -73,9 +75,10 @@ class Resizing(Layer):
                 size=size,
                 interpolation=self.interpolation,
                 data_format=self.data_format,
+                backend_module=self.backend,
             )
         else:
-            outputs = ops.image.resize(
+            outputs = self.backend.image.resize(
                 inputs,
                 size=size,
                 method=self.interpolation,

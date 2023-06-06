@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import backend
@@ -54,3 +55,12 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             run_training_check=False,
         )
+
+    def test_tf_data_compatibility(self):
+        layer = layers.RandomFlip("vertical", seed=42)
+        input_data = np.array([[[2, 3, 4]], [[5, 6, 7]]])
+        expected_output = np.array([[[5, 6, 7]], [[2, 3, 4]]])
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        for output in ds.take(1):
+            output = output.numpy()
+        self.assertAllClose(output, expected_output)

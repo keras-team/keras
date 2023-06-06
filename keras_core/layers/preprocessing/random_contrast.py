@@ -1,11 +1,10 @@
-from keras_core import operations as ops
+from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.backend import random
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 @keras_core_export("keras_core.layers.RandomContrast")
-class RandomContrast(Layer):
+class RandomContrast(TFDataLayer):
     """A preprocessing layer which randomly adjusts contrast during training.
 
     This layer will randomly adjust the contrast of an image or images
@@ -19,6 +18,9 @@ class RandomContrast(Layer):
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
     in integer or floating point dtype.
     By default, the layer will output floats.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
@@ -54,30 +56,34 @@ class RandomContrast(Layer):
                 f"Received: factor={factor}"
             )
         self.seed = seed
-        self.generator = random.SeedGenerator(seed)
+        self.generator = backend.random.SeedGenerator(seed)
 
     def call(self, inputs, training=True):
-        inputs = ops.cast(inputs, self.compute_dtype)
+        inputs = self.backend.cast(inputs, self.compute_dtype)
         if training:
-            factor = ops.random.uniform(
+            if backend.backend() != self.backend._backend:
+                seed_generator = self.backend.random.SeedGenerator(self.seed)
+            else:
+                seed_generator = self.generator
+            factor = self.backend.random.uniform(
                 shape=(),
                 minval=1.0 - self.lower,
                 maxval=1.0 + self.upper,
-                seed=self.generator,
+                seed=seed_generator,
             )
 
             outputs = self._adjust_constrast(inputs, factor)
-            outputs = ops.clip(outputs, 0, 255)
-            ops.reshape(outputs, inputs.shape)
+            outputs = self.backend.numpy.clip(outputs, 0, 255)
+            self.backend.numpy.reshape(outputs, self.backend.shape(inputs))
             return outputs
         else:
             return inputs
 
     def _adjust_constrast(self, inputs, contrast_factor):
         # reduce mean on height
-        inp_mean = ops.mean(inputs, axis=-3, keepdims=True)
+        inp_mean = self.backend.numpy.mean(inputs, axis=-3, keepdims=True)
         # reduce mean on width
-        inp_mean = ops.mean(inp_mean, axis=-2, keepdims=True)
+        inp_mean = self.backend.numpy.mean(inp_mean, axis=-2, keepdims=True)
 
         outputs = (inputs - inp_mean) * contrast_factor + inp_mean
         return outputs

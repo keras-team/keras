@@ -1,10 +1,10 @@
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 @keras_core_export("keras_core.layers.CategoryEncoding")
-class CategoryEncoding(Layer):
+class CategoryEncoding(TFDataLayer):
     """A preprocessing layer which encodes integer features.
 
     This layer provides options for condensing data into a categorical encoding
@@ -12,6 +12,9 @@ class CategoryEncoding(Layer):
     values as inputs, and it outputs a dense or sparse representation of those
     inputs. For integer inputs where the total number of tokens is not known,
     use `keras_core.layers.IntegerLookup` instead.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Examples:
 
@@ -130,23 +133,32 @@ class CategoryEncoding(Layer):
             if self.output_mode != "count":
                 raise ValueError(
                     "`count_weights` is not used when `output_mode` is not "
-                    "`'count'`. Received `count_weights={count_weights}`."
+                    f"`'count'`. Received `count_weights={count_weights}`."
                 )
-            count_weights = ops.cast(count_weights, self.compute_dtype)
+            count_weights = self.backend.cast(count_weights, self.compute_dtype)
 
         depth = self.num_tokens
 
-        max_value = ops.amax(inputs)
-        min_value = ops.amin(inputs)
-        condition = ops.logical_and(
-            ops.greater(ops.cast(depth, max_value.dtype), max_value),
-            ops.greater_equal(min_value, ops.cast(0, min_value.dtype)),
+        max_value = self.backend.numpy.amax(inputs)
+        min_value = self.backend.numpy.amin(inputs)
+        condition = self.backend.numpy.logical_and(
+            self.backend.numpy.greater(
+                self.backend.cast(depth, max_value.dtype), max_value
+            ),
+            self.backend.numpy.greater_equal(
+                min_value, self.backend.cast(0, min_value.dtype)
+            ),
         )
-        if not condition:
-            raise ValueError(
-                "Input values must be in the range 0 <= values < num_tokens"
-                f" with num_tokens={depth}"
-            )
+        try:
+            # Check value range in eager mode only.
+            condition = bool(condition.__array__())
+            if not condition:
+                raise ValueError(
+                    "Input values must be in the range 0 <= values < num_tokens"
+                    f" with num_tokens={depth}"
+                )
+        except:
+            pass
 
         return self._encode_categorical_inputs(
             inputs,
@@ -164,12 +176,12 @@ class CategoryEncoding(Layer):
     ):
         # In all cases, we should uprank scalar input to a single sample.
         if len(inputs.shape) == 0:
-            inputs = ops.expand_dims(inputs, -1)
+            inputs = self.backend.numpy.expand_dims(inputs, -1)
         # One hot will uprank only if the final output dimension
         # is not already 1.
         if output_mode == "one_hot":
             if len(inputs.shape) > 1 and inputs.shape[-1] != 1:
-                inputs = ops.expand_dims(inputs, -1)
+                inputs = self.backend.numpy.expand_dims(inputs, -1)
 
         # TODO(b/190445202): remove output rank restriction.
         if len(inputs.shape) > 2:
@@ -181,15 +193,14 @@ class CategoryEncoding(Layer):
             )
 
         binary_output = output_mode in ("multi_hot", "one_hot")
-        inputs = ops.cast(inputs, "int32")
+        inputs = self.backend.cast(inputs, "int32")
 
         if binary_output:
-            bincounts = ops.one_hot(inputs, num_classes=depth)
+            bincounts = self.backend.nn.one_hot(inputs, num_classes=depth)
             if output_mode == "multi_hot":
-                bincounts = ops.sum(bincounts, axis=0)
+                bincounts = self.backend.numpy.sum(bincounts, axis=0)
         else:
-            bincounts = ops.bincount(
+            bincounts = self.backend.numpy.bincount(
                 inputs, minlength=depth, weights=count_weights
             )
-
         return bincounts

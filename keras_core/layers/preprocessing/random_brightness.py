@@ -1,16 +1,18 @@
-from keras_core import operations as ops
+from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.backend import random
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 @keras_core_export("keras_core.layers.RandomBrightness")
-class RandomBrightness(Layer):
+class RandomBrightness(TFDataLayer):
     """A preprocessing layer which randomly adjusts brightness during training.
 
     This layer will randomly increase/reduce the brightness for the input RGB
     images. At inference time, the output will be identical to the input.
     Call the layer with `training=True` to adjust the brightness of the input.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Args:
         factor: Float or a list/tuple of 2 floats between -1.0 and 1.0. The
@@ -72,21 +74,21 @@ class RandomBrightness(Layer):
         super().__init__(**kwargs)
         self._set_factor(factor)
         self._set_value_range(value_range)
-        self._seed = seed
-        self._generator = random.SeedGenerator(seed)
+        self.seed = seed
+        self.generator = backend.random.SeedGenerator(seed)
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
             raise ValueError(
-                self._VALUE_RANGE_VALIDATION_ERROR
+                self.value_range_VALIDATION_ERROR
                 + f"Received: value_range={value_range}"
             )
         if len(value_range) != 2:
             raise ValueError(
-                self._VALUE_RANGE_VALIDATION_ERROR
+                self.value_range_VALIDATION_ERROR
                 + f"Received: value_range={value_range}"
             )
-        self._value_range = sorted(value_range)
+        self.value_range = sorted(value_range)
 
     def _set_factor(self, factor):
         if isinstance(factor, (tuple, list)):
@@ -114,7 +116,7 @@ class RandomBrightness(Layer):
             )
 
     def call(self, inputs, training=True):
-        inputs = ops.cast(inputs, self.compute_dtype)
+        inputs = self.backend.cast(inputs, self.compute_dtype)
         if training:
             return self._brightness_adjust(inputs)
         else:
@@ -127,23 +129,30 @@ class RandomBrightness(Layer):
         elif rank == 4:
             # Keep only the batch dim. This will ensure to have same adjustment
             # with in one image, but different across the images.
-            rgb_delta_shape = [images.shape[0], 1, 1, 1]
+            rgb_delta_shape = [self.backend.shape(images)[0], 1, 1, 1]
         else:
             raise ValueError(
                 "Expected the input image to be rank 3 or 4. Received "
-                f"inputs.shape = {images.shape}"
+                f"inputs.shape={images.shape}"
             )
 
-        rgb_delta = ops.random.uniform(
+        if backend.backend() != self.backend._backend:
+            seed_generator = self.backend.random.SeedGenerator(self.seed)
+        else:
+            seed_generator = self.generator
+
+        rgb_delta = self.backend.random.uniform(
             minval=self._factor[0],
             maxval=self._factor[1],
             shape=rgb_delta_shape,
-            seed=self._generator,
+            seed=seed_generator,
         )
-        rgb_delta = rgb_delta * (self._value_range[1] - self._value_range[0])
-        rgb_delta = ops.cast(rgb_delta, images.dtype)
+        rgb_delta = rgb_delta * (self.value_range[1] - self.value_range[0])
+        rgb_delta = self.backend.cast(rgb_delta, images.dtype)
         images += rgb_delta
-        return ops.clip(images, self._value_range[0], self._value_range[1])
+        return self.backend.numpy.clip(
+            images, self.value_range[0], self.value_range[1]
+        )
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -151,8 +160,8 @@ class RandomBrightness(Layer):
     def get_config(self):
         config = {
             "factor": self._factor,
-            "value_range": self._value_range,
-            "seed": self._seed,
+            "value_range": self.value_range,
+            "seed": self.seed,
         }
         base_config = super().get_config()
         return {**base_config, **config}

@@ -1,11 +1,11 @@
 from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.utils import image_utils
 
 
 @keras_core_export("keras_core.layers.CenterCrop")
-class CenterCrop(Layer):
+class CenterCrop(TFDataLayer):
     """A preprocessing layer which crops images.
 
     This layers crops the central portion of the images to a target size. If an
@@ -28,6 +28,9 @@ class CenterCrop(Layer):
 
     If the input height/width is even and the target height/width is odd (or
     inversely), the input image is left-padded by 1 pixel.
+
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
 
     Args:
         height: Integer, the height of the output shape.
@@ -99,7 +102,10 @@ class CenterCrop(Layer):
                 ]
 
         return image_utils.smart_resize(
-            inputs, [self.height, self.width], data_format=self.data_format
+            inputs,
+            [self.height, self.width],
+            data_format=self.data_format,
+            backend_module=self.backend,
         )
 
     def compute_output_shape(self, input_shape):

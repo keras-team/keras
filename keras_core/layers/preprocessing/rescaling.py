@@ -1,10 +1,9 @@
-from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 
 
 @keras_core_export("keras_core.layers.Rescaling")
-class Rescaling(Layer):
+class Rescaling(TFDataLayer):
     """A preprocessing layer which rescales input values to a new range.
 
     This layer rescales every value of an input (often an image) by multiplying
@@ -22,6 +21,9 @@ class Rescaling(Layer):
     of integer or floating point dtype, and by default the layer will output
     floats.
 
+    **Note:** This layer is safe to use inside a `tf.data` pipeline
+    (independently of which backend you're using).
+
     Args:
         scale: Float, the scale to apply to the inputs.
         offset: Float, the offset to apply to the inputs.
@@ -36,9 +38,9 @@ class Rescaling(Layer):
 
     def call(self, inputs):
         dtype = self.compute_dtype
-        scale = ops.cast(self.scale, dtype)
-        offset = ops.cast(self.offset, dtype)
-        return ops.cast(inputs, dtype) * scale + offset
+        scale = self.backend.cast(self.scale, dtype)
+        offset = self.backend.cast(self.offset, dtype)
+        return self.backend.cast(inputs, dtype) * scale + offset
 
     def compute_output_shape(self, input_shape):
         return input_shape

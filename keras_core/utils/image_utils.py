@@ -299,7 +299,11 @@ def load_img(
 
 
 def smart_resize(
-    x, size, interpolation="bilinear", data_format="channels_last"
+    x,
+    size,
+    interpolation="bilinear",
+    data_format="channels_last",
+    backend_module=None,
 ):
     """Resize images to a target size without aspect ratio distortion.
 
@@ -354,6 +358,8 @@ def smart_resize(
             Supports `bilinear`, `nearest`, `bicubic`,
             `lanczos3`, `lanczos5`.
         data_format: `"channels_last"` or `"channels_first"`.
+        backend_module: Backend module to use (if different from the default
+            backend).
 
     Returns:
         Array with shape `(size[0], size[1], channels)`.
@@ -361,11 +367,12 @@ def smart_resize(
         and if it was a backend-native tensor,
         the output is a backend-native tensor.
     """
+    backend_module = backend_module or backend
     if len(size) != 2:
         raise ValueError(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
         )
-    img = backend.convert_to_tensor(x)
+    img = backend_module.convert_to_tensor(x)
     if len(img.shape) is not None:
         if len(img.shape) < 3 or len(img.shape) > 4:
             raise ValueError(
@@ -373,30 +380,32 @@ def smart_resize(
                 "channels)`, or `(batch_size, height, width, channels)`, but "
                 f"got input with incorrect rank, of shape {img.shape}."
             )
-    shape = ops.shape(img)
+    shape = backend_module.shape(img)
     if data_format == "channels_last":
         height, width = shape[-3], shape[-2]
     else:
         height, width = shape[-2], shape[-1]
     target_height, target_width = size
 
-    crop_height = ops.cast(
-        ops.cast(width * target_height, "float32") / target_width, "int32"
+    crop_height = backend_module.cast(
+        backend_module.cast(width * target_height, "float32") / target_width,
+        "int32",
     )
-    crop_width = ops.cast(
-        ops.cast(height * target_width, "float32") / target_height, "int32"
+    crop_width = backend_module.cast(
+        backend_module.cast(height * target_width, "float32") / target_height,
+        "int32",
     )
 
     # Set back to input height / width if crop_height / crop_width is not
     # smaller.
-    crop_height = ops.minimum(height, crop_height)
-    crop_width = ops.minimum(width, crop_width)
+    crop_height = backend_module.numpy.minimum(height, crop_height)
+    crop_width = backend_module.numpy.minimum(width, crop_width)
 
-    crop_box_hstart = ops.cast(
-        ops.cast(height - crop_height, "float32") / 2, "int32"
+    crop_box_hstart = backend_module.cast(
+        backend_module.cast(height - crop_height, "float32") / 2, "int32"
     )
-    crop_box_wstart = ops.cast(
-        ops.cast(width - crop_width, "float32") / 2, "int32"
+    crop_box_wstart = backend_module.cast(
+        backend_module.cast(width - crop_width, "float32") / 2, "int32"
     )
 
     if data_format == "channels_last":
@@ -428,7 +437,7 @@ def smart_resize(
                 crop_box_wstart : crop_box_wstart + crop_width,
             ]
 
-    img = ops.image.resize(
+    img = backend_module.image.resize(
         img, size=size, method=interpolation, data_format=data_format
     )
 
