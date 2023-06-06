@@ -639,3 +639,13 @@ class LayerTest(testing.TestCase):
             "cannot add new elements of state",
         ):
             layer(np.random.random((3, 2)))
+
+    def test_init_after_state_tracking(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                self.some_attr = True
+                self.w = backend.Variable(np.random.random((2,)))
+                super().__init__()
+
+        layer = MyLayer()
+        self.assertEqual(len(layer.weights), 1)

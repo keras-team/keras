@@ -35,8 +35,8 @@ from keras_core.metrics.metric import Metric
 from keras_core.operations.operation import Operation
 from keras_core.utils import summary_utils
 from keras_core.utils import traceback_utils
+from keras_core.utils import tracking
 from keras_core.utils.shape_utils import map_shape_structure
-from keras_core.utils.tracking import Tracker
 
 if backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.layer import TFLayer as BackendLayer
@@ -257,40 +257,46 @@ class Layer(BackendLayer, Operation):
         self._call_signature_parameters = [
             p.name for p in inspect.signature(self.call).parameters.values()
         ]
-        self._configure_tracker()
+        self._initializer_tracker()
 
-    def _configure_tracker(self):
+    @tracking.no_automatic_dependency_tracking
+    def _initializer_tracker(self):
         if hasattr(self, "_tracker"):
             return
 
-        self._trainable_variables = []
-        self._non_trainable_variables = []
-        self._layers = []
-        self._metrics = []
-        self._seed_generators = []
-        self._tracker = Tracker(
+        trainable_variables = []
+        non_trainable_variables = []
+        layers = []
+        metrics = []
+        seed_generators = []
+        self._tracker = tracking.Tracker(
             {
                 "trainable_variables": (
                     lambda x: isinstance(x, backend.Variable) and x.trainable,
-                    self._trainable_variables,
+                    trainable_variables,
                 ),
                 "non_trainable_variables": (
                     lambda x: isinstance(x, backend.Variable)
                     and not x.trainable,
-                    self._non_trainable_variables,
+                    non_trainable_variables,
                 ),
-                "metrics": (lambda x: isinstance(x, Metric), self._metrics),
+                "metrics": (lambda x: isinstance(x, Metric), metrics),
                 "layers": (
                     lambda x: isinstance(x, Layer)
                     and not isinstance(x, Metric),
-                    self._layers,
+                    layers,
                 ),
                 "seed_generators": (
                     lambda x: isinstance(x, backend.random.SeedGenerator),
-                    self._seed_generators,
+                    seed_generators,
                 ),
             }
         )
+        self._trainable_variables = trainable_variables
+        self._non_trainable_variables = non_trainable_variables
+        self._layers = layers
+        self._metrics = metrics
+        self._seed_generators = seed_generators
 
     @utils.default
     def build(self, input_shape):
@@ -1032,14 +1038,11 @@ class Layer(BackendLayer, Operation):
         )
 
     def __setattr__(self, name, value):
-        # Prevent users from attaching state to the
-        # layer before `super()` is called -- since that
-        # state would silently not be tracked.
-        if name != "_lock":
-            self._check_super_called()
         # Track Variables, Layers, Metrics, SeedGenerators.
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
+        elif name != "_tracker":
+            self._initializer_tracker()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):

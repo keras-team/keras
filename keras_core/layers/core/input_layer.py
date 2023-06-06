@@ -30,7 +30,7 @@ class InputLayer(Layer):
         if shape is None and batch_shape is None:
             raise ValueError("You must pass a `shape` argument.")
 
-        if shape is not None:
+        if shape:
             shape = backend.standardize_shape(shape)
             batch_shape = (batch_size,) + shape
         self.batch_shape = tuple(batch_shape)

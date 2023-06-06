@@ -7,7 +7,6 @@ import warnings
 import numpy as np
 
 from keras_core import backend
-from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 try:
