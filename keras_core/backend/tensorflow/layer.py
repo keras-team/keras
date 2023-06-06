@@ -2,6 +2,10 @@ import tensorflow as tf
 
 
 class TFLayer(tf.__internal__.tracking.AutoTrackable):
+    def _post_build(self):
+        """Can be overriden to perform post-build actions."""
+        pass
+
     @property
     def _default_save_signature(self):
         """For SavedModel support: returns the default serving signature."""

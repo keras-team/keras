@@ -108,8 +108,6 @@ class MyModel(nn.Module):
                 layers.Dense(num_classes),
             ]
         )
-        # TODO: automate this
-        self.model.parameters()
 
     def forward(self, x):
         return self.model(x)

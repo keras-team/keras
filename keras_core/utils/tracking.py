@@ -58,16 +58,17 @@ class Tracker:
     def __init__(self, config):
         self.config = config
         self.stored_ids = {name: set() for name in self.config.keys()}
+        self.locked = False
+        self._lock_violation_msg = None
 
     def track(self, attr):
         if not is_tracking_enabled():
             return attr
 
-        for name, (is_attr_type, store) in self.config.items():
+        for name, (is_attr_type, _) in self.config.items():
             if is_attr_type(attr):
                 if id(attr) not in self.stored_ids[name]:
-                    store.append(attr)
-                    self.stored_ids[name].add(id(attr))
+                    self.add_to_store(name, attr)
                 return attr
         if isinstance(attr, tuple):
             wrapped_attr = []
@@ -78,15 +79,25 @@ class Tracker:
         elif isinstance(attr, list):
             return TrackedList(attr, self)
         elif isinstance(attr, dict):
-            # TODO: OrderedDict
+            # TODO: OrderedDict?
             return TrackedDict(attr, self)
         elif isinstance(attr, set):
             return TrackedSet(attr, self)
         return attr
 
+    def lock(self, msg):
+        self.locked = True
+        self._lock_violation_msg = msg
+
+    def add_to_store(self, store_name, value):
+        if self.locked:
+            raise ValueError(self._lock_violation_msg)
+        self.config[store_name][1].append(value)
+        self.stored_ids[store_name].add(id(value))
+
 
 class TrackedList(list):
-    # TODO(fchollet): override item removal methods?
+    # TODO: override item removal methods?
     def __init__(self, values, tracker):
         self.tracker = tracker
         values = [tracker.track(v) for v in values]
@@ -106,7 +117,7 @@ class TrackedList(list):
 
 
 class TrackedDict(dict):
-    # TODO(fchollet): override item removal methods?
+    # TODO: override item removal methods?
     def __init__(self, values, tracker):
         self.tracker = tracker
         values = {k: tracker.track(v) for k, v in values.items()}
@@ -122,7 +133,7 @@ class TrackedDict(dict):
 
 
 class TrackedSet(set):
-    # TODO(fchollet): override item removal methods?
+    # TODO: override item removal methods?
     def __init__(self, values, tracker):
         self.tracker = tracker
         values = {tracker.track(v) for v in values}

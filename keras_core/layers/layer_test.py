@@ -626,3 +626,16 @@ class LayerTest(testing.TestCase):
             NonMatchingArgument()(foo, bar)
 
         MatchingArguments()(foo, bar)
+
+    def test_tracker_locking(self):
+        class BadLayer(layers.Layer):
+            def call(self, x):
+                self.w = self.add_weight(initializer="zeros", shape=())
+                return x
+
+        layer = BadLayer()
+        with self.assertRaisesRegex(
+            ValueError,
+            "cannot add new elements of state",
+        ):
+            layer(np.random.random((3, 2)))

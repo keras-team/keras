@@ -103,24 +103,25 @@ class Sequential(Model):
             self._maybe_rebuild()
         else:
             self.built = False
+            self._tracker.locked = False
             self._functional = None
 
     def pop(self, rebuild=True):
         layer = self._layers.pop()
+        self.built = False
+        self._tracker.locked = False
+        self._functional = None
         if rebuild:
             self._maybe_rebuild()
-        else:
-            self.built = False
-            self._functional = None
         return layer
 
     def _maybe_rebuild(self):
+        self.built = False
+        self._functional = None
+        self._tracker.locked = False
         if isinstance(self._layers[0], InputLayer) and len(self._layers) > 1:
             input_shape = self._layers[0].batch_shape
             self.build(input_shape)
-        else:
-            self.built = False
-            self._functional = None
 
     def build(self, input_shape=None):
         if not isinstance(input_shape, (tuple, list)):
@@ -162,6 +163,7 @@ class Sequential(Model):
         outputs = x
         self._functional = Functional(inputs=inputs, outputs=outputs)
         self.built = True
+        self._post_build()
 
     def call(self, inputs, training=None, mask=None):
         if self._functional:

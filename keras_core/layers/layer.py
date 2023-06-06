@@ -245,12 +245,8 @@ class Layer(BackendLayer, Operation):
         self.supports_jit = True
 
         self._trainable = trainable
-        self._layers = []
-        self._metrics = []
-        self._seed_generators = []
         self._losses = []
-        self._trainable_variables = []
-        self._non_trainable_variables = []
+
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -261,7 +257,17 @@ class Layer(BackendLayer, Operation):
         self._call_signature_parameters = [
             p.name for p in inspect.signature(self.call).parameters.values()
         ]
+        self._configure_tracker()
 
+    def _configure_tracker(self):
+        if hasattr(self, "_tracker"):
+            return
+
+        self._trainable_variables = []
+        self._non_trainable_variables = []
+        self._layers = []
+        self._metrics = []
+        self._seed_generators = []
         self._tracker = Tracker(
             {
                 "trainable_variables": (
@@ -889,15 +895,9 @@ class Layer(BackendLayer, Operation):
 
     def _track_variable(self, variable):
         if variable.trainable:
-            self._trainable_variables.append(variable)
-            # Prevent double-tracking
-            self._tracker.stored_ids["trainable_variables"].add(id(variable))
+            self._tracker.add_to_store("trainable_variables", variable)
         else:
-            self._non_trainable_variables.append(variable)
-            # Prevent double-tracking
-            self._tracker.stored_ids["non_trainable_variables"].add(
-                id(variable)
-            )
+            self._tracker.add_to_store("non_trainable_variables", variable)
 
     def add_metric(self):
         # Permanently disabled
@@ -966,6 +966,19 @@ class Layer(BackendLayer, Operation):
             # Check input spec again (after build, since self.input_spec
             # may have been updated
             self._assert_input_compatibility(call_spec.first_arg)
+            # Hook used to do post-build actions
+            self._post_build()
+        if not self._tracker.locked:
+            # No state updates past this point.
+            self._tracker.lock(
+                msg=(
+                    "You cannot add new elements of state "
+                    "(variables or sub-layers) "
+                    "to a layer that is already built. All state "
+                    "must be created in the `__init__()` method or "
+                    "in the`build()` method."
+                )
+            )
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).

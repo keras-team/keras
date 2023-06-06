@@ -109,9 +109,7 @@ class BaseOptimizer:
             self._learning_rate = learning_rate
 
     def _track_variable(self, variable):
-        self._variables.append(variable)
-        # Prevent double-tracking
-        self._tracker.stored_ids["variables"].add(id(variable))
+        self._tracker.add_to_store("variables", variable)
 
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):

@@ -152,6 +152,7 @@ class Functional(Function, Model):
 
         self._layers = self.layers
         self.built = True
+        self._post_build()
 
     @property
     def layers(self):
