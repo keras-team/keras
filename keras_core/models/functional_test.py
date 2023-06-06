@@ -34,6 +34,17 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
+    def test_scalar_input(self):
+        input_a = Input(shape=(3,), batch_size=2, name="input_a")
+        input_b = Input(shape=(), batch_size=2, name="input_b")
+        outputs = input_a + input_b[:, None]
+        model = Functional([input_a, input_b], outputs)
+        model.summary()
+
+        in_val = [np.zeros((2, 3)), np.ones((2,))]
+        out_val = model(in_val)
+        self.assertAllClose(out_val, np.ones((2, 3)))
+
     def test_basic_flow_multi_output(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         x = layers.Dense(5)(inputs)
