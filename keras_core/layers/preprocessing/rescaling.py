@@ -38,7 +38,7 @@ class Rescaling(Layer):
         dtype = self.compute_dtype
         scale = ops.cast(self.scale, dtype)
         offset = ops.cast(self.offset, dtype)
-        return inputs * scale + offset
+        return ops.cast(inputs, dtype) * scale + offset
 
     def compute_output_shape(self, input_shape):
         return input_shape
