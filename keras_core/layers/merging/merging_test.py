@@ -45,11 +45,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    add_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                add_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -75,11 +73,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    add_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                add_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -140,11 +136,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    subtract_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                subtract_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -170,11 +164,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    subtract_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                subtract_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -244,11 +236,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -274,11 +264,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -339,11 +327,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -369,11 +355,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -434,11 +418,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -464,11 +446,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -529,11 +509,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -559,11 +537,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -626,11 +602,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [backend.Variable(x1), backend.Variable(x2)],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [backend.Variable(x1), backend.Variable(x2)],
                 )
             )
         )
@@ -657,11 +631,9 @@ class MergingLayersTest(testing.TestCase):
         )
         self.assertTrue(
             np.all(
-                backend.convert_to_numpy(
-                    merge_layer.compute_mask(
-                        [input_1, input_2],
-                        [x1, x2],
-                    )
+                merge_layer.compute_mask(
+                    [input_1, input_2],
+                    [x1, x2],
                 )
             )
         )

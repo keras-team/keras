@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from keras_core import backend
 from keras_core import layers
@@ -43,4 +44,15 @@ class StringLookupTest(testing.TestCase):
         input_data = ["b", "c", "d"]
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([2, 3, 0]))
+
+    def test_tf_data_compatibility(self):
+        layer = layers.StringLookup(
+            output_mode="int",
+            vocabulary=["a", "b", "c"],
+        )
+        input_data = ["b", "c", "d"]
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(3).map(layer)
+        for output in ds.take(1):
+            output = output.numpy()
         self.assertAllClose(output, np.array([2, 3, 0]))

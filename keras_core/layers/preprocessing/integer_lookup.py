@@ -327,6 +327,7 @@ class IntegerLookup(Layer):
             name=name,
             **kwargs,
         )
+        self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False
 
@@ -440,7 +441,7 @@ class IntegerLookup(Layer):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
         outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow":
+        if backend.backend() != "tensorflow" and tf.executing_eagerly():
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 

@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import backend
@@ -49,3 +50,10 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             run_training_check=False,
         )
+
+    def test_tf_data_compatibility(self):
+        layer = layers.RandomRotation(0.2)
+        input_data = np.random.random((1, 4, 4, 3))
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(1).map(layer)
+        for output in ds.take(1):
+            output.numpy()

@@ -175,7 +175,7 @@ class Hashing(Layer):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
         outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow":
+        if backend.backend() != "tensorflow" and tf.executing_eagerly():
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 

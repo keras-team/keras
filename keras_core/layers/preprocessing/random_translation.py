@@ -84,12 +84,14 @@ class RandomTranslation(Layer):
             **kwargs,
         )
         self.supports_jit = False
+        self._convert_input_args = False
+        self._allow_non_tensor_positional_args = True
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
-        outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow":
+        outputs = self.layer.call(inputs, training=training)
+        if backend.backend() != "tensorflow" and tf.executing_eagerly():
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 

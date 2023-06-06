@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from keras_core import backend
 from keras_core import layers
@@ -43,4 +44,15 @@ class IntegerLookupTest(testing.TestCase):
         input_data = [2, 3, 4, 5]
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([2, 3, 4, 0]))
+
+    def test_tf_data_compatibility(self):
+        layer = layers.IntegerLookup(
+            output_mode="int",
+            vocabulary=[1, 2, 3, 4],
+        )
+        input_data = [2, 3, 4, 5]
+        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
+        for output in ds.take(1):
+            output = output.numpy()
         self.assertAllClose(output, np.array([2, 3, 4, 0]))

@@ -118,6 +118,11 @@ class Discretization(Layer):
         self.bin_boundaries = (
             bin_boundaries if bin_boundaries is not None else []
         )
+        if self.bin_boundaries:
+            self.built = True
+        self._convert_input_args = False
+        self._allow_non_tensor_positional_args = True
+
         self.num_bins = num_bins
         self.epsilon = epsilon
         self.output_mode = output_mode
@@ -178,11 +183,16 @@ class Discretization(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape
 
-    def call(self, inputs):
-        if not isinstance(inputs, (tf.Tensor, np.ndarray)):
+    def __call__(self, inputs):
+        if not isinstance(inputs, (tf.Tensor, np.ndarray, backend.KerasTensor)):
             inputs = tf.convert_to_tensor(np.array(inputs))
+        if not self.built:
+            self.build(inputs.shape)
+        return super().__call__(inputs)
+
+    def call(self, inputs):
         outputs = self.layer.call(inputs)
-        if backend.backend() != "tensorflow":
+        if backend.backend() != "tensorflow" and tf.executing_eagerly():
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 
