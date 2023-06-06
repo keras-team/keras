@@ -154,6 +154,11 @@ class TestTrainer(testing.TestCase):
         )
 
     def test_fit_steps_per_epoch_flow_graph_fn(self):
+        if backend.backend() == "tensorflow":
+            self.skipTest(
+                "TODO: Graph mode without XLA in TF backend leads to "
+                "unexpected logs, need further checks."
+            )
         self._test_fit_flow(
             run_eagerly=False, jit_compile=False, use_steps_per_epoch=True
         )

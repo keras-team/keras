@@ -111,12 +111,129 @@ class ArrayDataAdapter(DataAdapter):
             yield tf.nest.map_structure(lambda x: x[start:stop], inputs)
 
     def get_tf_dataset(self):
-        ds = tf.data.Dataset.from_tensor_slices(self._inputs)
+        inputs = self._inputs
+        shuffle = self._shuffle
+        batch_size = self._batch_size
+        num_samples = self._num_samples
+        num_full_batches = int(self._num_samples // batch_size)
+
+        # Vectorized version of shuffle.
+        # This is a performance improvement over using `from_tensor_slices`.
+        # The indices of the data are shuffled and batched, and these indices
+        # are then zipped with the data and used to extract a batch of the data
+        # at each step. The performance improvements here come from:
+        # 1. vectorized batch using gather
+        # 2. parallelized map
+        # 3. pipelined permutation generation
+        # 4. optimized permutation batching
+        # 5. disabled static optimizations
+
+        indices_dataset = tf.data.Dataset.range(1)
+
+        def permutation(_):
+            # It turns out to be more performant to make a new set of indices
+            # rather than reusing the same range Tensor. (presumably because of
+            # buffer forwarding.)
+            indices = tf.range(num_samples, dtype=tf.int64)
+            if shuffle and shuffle != "batch":
+                indices = tf.random.shuffle(indices)
+            return indices
+
+        # We prefetch a single element. Computing large permutations can take
+        # quite a while so we don't want to wait for prefetching over an epoch
+        # boundary to trigger the next permutation. On the other hand, too many
+        # simultaneous shuffles can contend on a hardware level and degrade all
+        # performance.
+        indices_dataset = indices_dataset.map(permutation).prefetch(1)
+
+        def slice_batch_indices(indices):
+            """Convert a Tensor of indices into a dataset of batched indices.
+
+            This step can be accomplished in several ways. The most natural is
+            to slice the Tensor in a Dataset map. (With a condition on the upper
+            index to handle the partial batch.) However it turns out that
+            coercing the Tensor into a shape which is divisible by the batch
+            size (and handling the last partial batch separately) allows for a
+            much more favorable memory access pattern and improved performance.
+
+            Args:
+                indices: Tensor which determines the data order for an entire
+                    epoch.
+
+            Returns:
+                A Dataset of batched indices.
+            """
+            num_in_full_batch = num_full_batches * batch_size
+            first_k_indices = tf.slice(indices, [0], [num_in_full_batch])
+            first_k_indices = tf.reshape(
+                first_k_indices, [num_full_batches, batch_size]
+            )
+
+            flat_dataset = tf.data.Dataset.from_tensor_slices(first_k_indices)
+            if self._partial_batch_size:
+                index_remainder = tf.data.Dataset.from_tensors(
+                    tf.slice(
+                        indices, [num_in_full_batch], [self._partial_batch_size]
+                    )
+                )
+                flat_dataset = flat_dataset.concatenate(index_remainder)
+
+            return flat_dataset
+
+        indices_dataset = indices_dataset.flat_map(slice_batch_indices)
+
+        dataset = self.slice_inputs(indices_dataset, inputs)
+
+        if shuffle == "batch":
+
+            def shuffle_batch(*batch):
+                return tf.nest.map_structure(tf.random.shuffle, batch)
+
+            dataset = dataset.map(shuffle_batch)
+
+        options = tf.data.Options()
+        options.experimental_distribute.auto_shard_policy = (
+            tf.data.experimental.AutoShardPolicy.DATA
+        )
+        dataset = dataset.with_options(options)
+        return dataset.prefetch(tf.data.AUTOTUNE)
+
+    def slice_inputs(self, indices_dataset, inputs):
+        """Slice inputs into a Dataset of batches.
+
+        Given a Dataset of batch indices and the unsliced inputs,
+        this step slices the inputs in a parallelized fashion
+        and produces a dataset of input batches.
+
+        Args:
+            indices_dataset: A Dataset of batched indices.
+            inputs: A python data structure that contains the inputs, targets,
+                and possibly sample weights.
+
+        Returns:
+            A Dataset of input batches matching the batch indices.
+        """
+        dataset = tf.data.Dataset.zip(
+            (indices_dataset, tf.data.Dataset.from_tensors(inputs).repeat())
+        )
+
+        def grab_batch(i, data):
+            return tf.nest.map_structure(
+                lambda d: tf.gather(d, i, axis=0), data
+            )
+
+        dataset = dataset.map(grab_batch, num_parallel_calls=tf.data.AUTOTUNE)
+
+        # Default optimizations are disabled to avoid the overhead of
+        # (unnecessary) input pipeline graph serialization and deserialization
+        options = tf.data.Options()
+        options.experimental_optimization.apply_default_optimizations = False
         if self._shuffle:
-            ds = ds.shuffle(self._batch_size * 8)
-        ds = ds.batch(self._batch_size)
-        ds = ds.prefetch(tf.data.AUTOTUNE)
-        return ds
+            options.experimental_external_state_policy = (
+                tf.data.experimental.ExternalStatePolicy.IGNORE
+            )
+        dataset = dataset.with_options(options)
+        return dataset
 
     @property
     def num_batches(self):
