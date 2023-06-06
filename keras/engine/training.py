@@ -15,6 +15,7 @@
 """Training-related part of the Keras engine."""
 
 import copy
+import inspect
 import itertools
 import json
 import warnings
@@ -38,9 +39,11 @@ from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import compile_utils
 from keras.engine import data_adapter
+from keras.engine import functional
 from keras.engine import input_layer as input_layer_module
 from keras.engine import steps_per_execution_tuning
 from keras.engine import training_utils
+from keras.layers.activation import Softmax as SoftmaxLayer
 from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer
@@ -191,8 +194,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Signature detection
         if is_functional_model_init_params(args, kwargs) and cls == Model:
             # Functional model
-            from keras.engine import functional
-
             return functional.Functional(skip_init=True, *args, **kwargs)
         else:
             return super(Model, cls).__new__(cls, *args, **kwargs)
@@ -206,8 +207,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # Special case for Subclassed Functional Model, which we couldn't detect
         # when __new__ is called. We only realize it is a functional model when
         # it calls super.__init__ with input and output tensor.
-        from keras.engine import functional
-
         if is_functional_model_init_params(args, kwargs) and not isinstance(
             self, functional.Functional
         ):
@@ -745,6 +744,13 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               Defaults to `0`.
             **kwargs: Arguments supported for backwards compatibility only.
         """
+
+        validate_softmax_activation = kwargs.pop(
+            "experimental_validate_softmax_activation", True
+        )
+        if validate_softmax_activation:
+            _validate_softmax_output(self)
+
         if jit_compile and not tf_utils.can_jit_compile(warn=True):
             jit_compile = False
         base_layer.keras_api_gauge.get_cell("compile").set(True)
@@ -3855,6 +3861,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
         kwargs.pop("cloning", None)  # Legacy DistStrat argument, never used.
         kwargs.pop("experimental_run_tf_function", None)  # Always `True`.
+        kwargs.pop("experimental_validate_softmax_activation", None)
         distribute_arg = kwargs.pop("distribute", None)
         if distribute_arg is not None:
             raise ValueError(
@@ -4459,3 +4466,124 @@ def is_functional_model_init_params(args, kwargs):
     if "inputs" in kwargs and "outputs" in kwargs:
         return True
     return False
+
+
+def _validate_softmax_output(model_instance):
+    """
+    Calls the related function for checking the output activations
+
+    Args:
+        model_instance: A `Model` instance, either functional or sequential.
+
+    """
+    outputs = model_instance.outputs
+
+    output_layers = map_output_layers_with_names(model_instance, outputs)
+    _check_output_activation_softmax(output_layers)
+
+
+def _check_output_activation_softmax(output_layers):
+    """
+    Checks if the output activation is softmax and the applied axis has only
+    one unit.
+
+    Args:
+        output_layers: A dictionary of output layers with their names as keys
+            and the layers as values.
+
+    Raises:
+        ValueError: If the output activation is softmax and the applied axis
+            will make the model output 1.0 for all inputs.
+
+    """
+    for layer_name, layer in output_layers.items():
+
+        # If the activation is a layer, we can check the axis, but as a
+        # precaution, we check if the layer has an axis attribute.
+        if hasattr(layer, "activation"):
+            if isinstance(layer.activation, SoftmaxLayer):
+                try:
+                    softmax_axis = layer.activation.axis
+                except AttributeError:
+                    continue
+
+            # This is the case for when user uses "softmax" or tf.nn.softmax
+            elif "axis=-1" in str(
+                inspect.signature(layer.activation)
+            ) or "axis=None" in str(inspect.signature(layer.activation)):
+                softmax_axis = -1
+
+            # If above conditions are not met, we cannot check the output.
+            else:
+                continue
+
+            layer_output_shape = layer.output_shape
+
+            if layer_output_shape[softmax_axis] == 1:
+                raise ValueError(
+                    f"Output layer {layer_name} has a single unit output, "
+                    "but the activation is softmax. This is most likely an "
+                    "error because softmax outputs sum to 1 therefore single "
+                    "unit outputs with softmax will only output 1.0. If you "
+                    "think that the error is raised due to an incorrect check, "
+                    "please file an issue on "
+                    "https://github.com/keras-team/keras/issues. You can "
+                    "disable this check by setting "
+                    "`experimental_validate_softmax_activation=False` when "
+                    "calling `compile()` on the model."
+                )
+
+
+def map_output_layers_with_names(model_instance, outputs):
+    """
+    Maps the output layers with their names and returns a dictionary.
+
+    Args:
+        model_instance: A `Model` instance, either functional or sequential.
+        outputs: A list of output tensors of the model, this can be None in the
+            case of subclassed models.
+
+    Returns:
+        A dictionary of output layers with their names as keys and the layers
+            as values.
+    """
+    output_layers = {}
+
+    # `outputs` can be None in the case of subclassed models.
+    if outputs is not None:
+        # Iterate over each output tensor of the model
+        for output in model_instance.outputs:
+
+            # Get the name of the output layer, this is the KerasTensor.
+            # Something like: "dense_1/Softmax:0"
+            output_name = output.name
+
+            # If the output name is None, skip it. This is the case for
+            # native tf_ops. i.e if the model has an output layer like
+            # tf.cast(outputs, tf.float32).
+            if output_name is None:
+                continue
+
+            output_layer_name = output_name.split("/")[0]
+
+            # We use index -1 because the model can end with an input layer.
+            # In that case name will be something like "input_1", otherwise
+            # we'll have index out of range error in that kind of cases.
+            layer_act = output_name.split("/")[-1]
+
+            # Find the layer instance corresponding to the output tensor which
+            # has a softmax activation
+            layer_instance = None
+            for layer in model_instance.layers:
+                if (
+                    layer.name == output_layer_name
+                    and "softmax" in layer_act.lower()
+                ):
+                    layer_instance = layer
+                    break
+
+            # Add the output layer name and the layer instance to the dictionary
+            if layer_instance is not None:
+                output_layers[output_layer_name] = layer_instance
+
+    return output_layers
