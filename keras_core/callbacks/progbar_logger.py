@@ -90,7 +90,7 @@ class ProgbarLogger(Callback):
         logs = logs or {}
         self._maybe_init_progbar()
         self.seen = batch + 1  # One-indexed.
-    
+
         if self.verbose == 1:
             self.progbar.update(self.seen, list(logs.items()), finalize=False)
 
