@@ -27,7 +27,11 @@ class TorchTrainer(base_trainer.Trainer):
             y_pred = self(x, training=True)
         else:
             y_pred = self(x)
+
+        # Call torch.nn.Module.zero_grad() to clear the leftover gradients for
+        # the weights from the previous train step.
         self.zero_grad()
+
         loss = self.compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
@@ -37,7 +41,11 @@ class TorchTrainer(base_trainer.Trainer):
         if self.trainable_weights:
             # Backpropagation
             trainable_weights = [v for v in self.trainable_weights]
+
+            # Call torch.Tensor.backward() on the loss to compute gradients for
+            # the weights.
             loss.backward()
+
             gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights

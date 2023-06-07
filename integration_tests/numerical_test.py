@@ -1,7 +1,7 @@
+import keras_core  # isort: skip, keep it on top for torch test
+
 import numpy as np
 from tensorflow import keras
-
-import keras_core
 
 NUM_CLASSES = 10
 
