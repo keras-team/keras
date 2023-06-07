@@ -117,6 +117,12 @@ class KerasVariable:
         else:
             self._direct_assign(value)
 
+    def assign_add(self, value):
+        self.assign(self + value)
+
+    def assign_sub(self, value):
+        self.assign(self - value)
+
     @property
     def dtype(self):
         autocast_scope = get_autocast_scope()
