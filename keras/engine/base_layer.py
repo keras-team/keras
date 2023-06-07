@@ -1113,7 +1113,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             build_graph=not eager,
             training=training_mode,
         ):
-
             input_spec.assert_input_compatibility(
                 self.input_spec, inputs, self.name
             )
@@ -2862,7 +2861,9 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                         tf.shape(output)[0], activity_loss.dtype
                     )
                     # Make activity regularization strength batch-agnostic.
-                    mean_activity_loss = activity_loss / batch_size
+                    mean_activity_loss = tf.math.divide_no_nan(
+                        activity_loss, batch_size
+                    )
                     self.add_loss(mean_activity_loss)
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask, build_graph):
