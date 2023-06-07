@@ -20,6 +20,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         # TODO(scottzhu): Remove these two deps and convert the test to integration test.
         "//third_party/tensorflow/python/distribute:__pkg__",  # For collective_all_reduce_strategy_test

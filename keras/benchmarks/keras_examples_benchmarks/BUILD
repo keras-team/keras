@@ -4,6 +4,7 @@
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
 )

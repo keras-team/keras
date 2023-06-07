@@ -2,6 +2,7 @@
 #   Contains a collection of diverse Keras models to be used for integration tests.
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
     ],
