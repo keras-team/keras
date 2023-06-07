@@ -258,7 +258,18 @@ class Model(Trainer, Layer):
         )
 
     @traceback_utils.filter_traceback
-    def save(self, filepath, overwrite=True):
+    def save(self, filepath, overwrite=True, save_format="keras"):
+        if save_format in ["h5", "tf"]:
+            raise ValueError(
+                "`'h5'` and `'t5'` formats are no longer supported via the "
+                "`save_format` option. Please use the new `'keras'` format. "
+                f"Received: save_format={save_format}"
+            )
+        if save_format not in ["keras", "keras_v3"]:
+            raise ValueError(
+                "Unknown `save_format` value. Only the `'keras'` format is "
+                f"currently supported. Received: save_format={save_format}"
+            )
         if not str(filepath).endswith(".keras"):
             raise ValueError(
                 "The filename must end in `.keras`. "
