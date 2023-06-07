@@ -1,3 +1,4 @@
+from keras_core.api_export import keras_core_export
 from keras_core.layers.activations.activation import Activation
 from keras_core.layers.activations.elu import ELU
 from keras_core.layers.activations.leaky_relu import LeakyReLU
@@ -124,3 +125,42 @@ from keras_core.layers.rnn.rnn import RNN
 from keras_core.layers.rnn.simple_rnn import SimpleRNN
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras_core.layers.rnn.time_distributed import TimeDistributed
+from keras_core.saving import serialization_lib
+
+
+@keras_core_export("keras_core.layers.serialize")
+def serialize(layer):
+    """Returns the layer configuration as a Python dict.
+
+    Args:
+        layer: A `keras.layers.Layer` instance to serialize.
+
+    Returns:
+        Python dict which contains the configuration of the layer.
+    """
+    return serialization_lib.serialize_keras_object(layer)
+
+
+@keras_core_export("keras_core.layers.deserialize")
+def deserialize(config, custom_objects=None):
+    """Returns a Keras layer object via its configuration.
+
+    Args:
+        config: A python dict containing a serialized layer configuration.
+        custom_objects: Optional dictionary mapping names (strings) to custom
+            objects (classes and functions) to be considered during
+            deserialization.
+
+    Returns:
+        A Keras layer instance.
+    """
+    obj = serialization_lib.deserialize_keras_object(
+        config,
+        custom_objects=custom_objects,
+    )
+    if not isinstance(obj, Layer):
+        raise ValueError(
+            "`keras.layers.deserialize` was passed a `config` object that is "
+            f"not a `keras.layers.Layer`. Received: {config}"
+        )
+    return obj
