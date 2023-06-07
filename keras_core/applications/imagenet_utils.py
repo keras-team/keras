@@ -5,6 +5,7 @@ import numpy as np
 
 from keras_core import activations
 from keras_core import backend
+from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.utils import file_utils
 
@@ -190,7 +191,7 @@ def _preprocess_numpy_input(x, data_format, mode):
     else:
         if data_format == "channels_first":
             # 'RGB'->'BGR'
-            if x.ndim == 3:
+            if len(x.shape) == 3:
                 x = x[::-1, ...]
             else:
                 x = x[:, ::-1, ...]
@@ -202,7 +203,7 @@ def _preprocess_numpy_input(x, data_format, mode):
 
     # Zero-center by mean pixel
     if data_format == "channels_first":
-        if x.ndim == 3:
+        if len(x.shape) == 3:
             x[0, :, :] -= mean[0]
             x[1, :, :] -= mean[1]
             x[2, :, :] -= mean[2]
@@ -249,6 +250,8 @@ def _preprocess_symbolic_input(x, data_format, mode):
     Returns:
         Preprocessed tensor.
     """
+    ndim = len(x.shape)
+
     if mode == "tf":
         x /= 127.5
         x -= 1.0
@@ -260,7 +263,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
     else:
         if data_format == "channels_first":
             # 'RGB'->'BGR'
-            if backend.ndim(x) == 3:
+            if ndim == 3:
                 x = x[::-1, ...]
             else:
                 x = x[:, ::-1, ...]
@@ -270,21 +273,18 @@ def _preprocess_symbolic_input(x, data_format, mode):
         mean = [103.939, 116.779, 123.68]
         std = None
 
-    mean_tensor = backend.constant(-np.array(mean))
+    mean_tensor = ops.convert_to_tensor(-np.array(mean), dtype=x.dtype)
 
     # Zero-center by mean pixel
-    if backend.dtype(x) != backend.dtype(mean_tensor):
-        x = backend.bias_add(
-            x,
-            backend.cast(mean_tensor, backend.dtype(x)),
-            data_format=data_format,
-        )
+    if data_format == "channels_first":
+        mean_tensor = ops.reshape(mean_tensor, (1, 3) + (1,) * (ndim - 2))
     else:
-        x = backend.bias_add(x, mean_tensor, data_format)
+        mean_tensor = ops.reshape(mean_tensor, (1,) * (ndim - 1) + (3,))
+    x += mean_tensor
     if std is not None:
-        std_tensor = backend.constant(np.array(std), dtype=backend.dtype(x))
+        std_tensor = ops.convert_to_tensor(np.array(std), dtype=x.dtype)
         if data_format == "channels_first":
-            std_tensor = backend.reshape(std_tensor, (-1, 1, 1))
+            std_tensor = ops.reshape(std_tensor, (-1, 1, 1))
         x /= std_tensor
     return x
 
