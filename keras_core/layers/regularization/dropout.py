@@ -38,10 +38,8 @@ class Dropout(Layer):
             training mode (adding dropout) or in inference mode (doing nothing).
     """
 
-    def __init__(
-        self, rate, noise_shape=None, seed=None, name=None, dtype=None
-    ):
-        super().__init__(name=name, dtype=dtype)
+    def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
+        super().__init__(**kwargs)
         if not 0 <= rate <= 1:
             raise ValueError(
                 f"Invalid value received for argument "

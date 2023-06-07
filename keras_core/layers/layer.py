@@ -33,6 +33,7 @@ from keras_core.backend.common import global_state
 from keras_core.layers import input_spec
 from keras_core.metrics.metric import Metric
 from keras_core.operations.operation import Operation
+from keras_core.utils import python_utils
 from keras_core.utils import summary_utils
 from keras_core.utils import traceback_utils
 from keras_core.utils import tracking
@@ -1120,6 +1121,15 @@ class Layer(BackendLayer, Operation):
                 except AttributeError:
                     # It's a C type.
                     pass
+
+    @python_utils.default
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "trainable": self.trainable,
+            "dtype": self.dtype_policy.name,
+        }
+        return {**base_config, **config}
 
 
 def is_backend_tensor_or_symbolic(x):

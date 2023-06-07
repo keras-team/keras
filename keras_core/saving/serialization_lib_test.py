@@ -87,8 +87,17 @@ class SerializationLibTest(testing.TestCase):
             self.assertEqual(serialized, reserialized)
 
     def test_builtin_layers(self):
-        serialized, _, reserialized = self.roundtrip(keras_core.layers.Dense(3))
+        layer = keras_core.layers.Dense(
+            3,
+            name="foo",
+            trainable=False,
+            dtype="float16",
+        )
+        serialized, restored, reserialized = self.roundtrip(layer)
         self.assertEqual(serialized, reserialized)
+        self.assertEqual(layer.name, restored.name)
+        self.assertEqual(layer.trainable, restored.trainable)
+        self.assertEqual(layer.compute_dtype, restored.compute_dtype)
 
     def test_tensors_and_shapes(self):
         x = ops.random.normal((2, 2), dtype="float64")
