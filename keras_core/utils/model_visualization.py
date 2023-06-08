@@ -4,7 +4,6 @@ import os
 import sys
 
 from keras_core.api_export import keras_core_export
-from keras_core.operations.function import make_node_key
 from keras_core.utils import io_utils
 
 try:
@@ -202,6 +201,7 @@ def model_to_dot(
         a `pydot.Cluster` instance representing nested model if
         `subgraph=True`.
     """
+    from keras_core.operations.function import make_node_key
 
     if not model.built:
         raise ValueError(

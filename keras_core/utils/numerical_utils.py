@@ -1,7 +1,6 @@
 import numpy as np
 
 from keras_core import backend
-from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 
 
@@ -20,6 +19,8 @@ def normalize(x, axis=-1, order=2):
     Returns:
         A normalized copy of the array.
     """
+    from keras_core import operations as ops
+
     if not isinstance(order, int) or not order >= 1:
         raise ValueError(
             "Argument `order` must be an int >= 1. " f"Received: order={order}"
