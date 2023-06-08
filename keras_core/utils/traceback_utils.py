@@ -142,6 +142,9 @@ def inject_argument_info_in_traceback(fn, object_name=None):
     """
 
     def error_handler(*args, **kwargs):
+        if not is_traceback_filtering_enabled():
+            return fn(*args, **kwargs)
+
         signature = None
         bound_signature = None
         try:

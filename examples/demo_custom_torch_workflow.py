@@ -43,12 +43,34 @@ model = keras_core.Sequential(
 ######## Writing a torch training loop for a Keras model ########
 #################################################################
 
+def get_keras_model():
+    pass
+
+model = get_keras_model()
+
 # Instantiate the torch optimizer
-print("Num params:", len(list(model.parameters())))
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Instantiate the torch loss function
 loss_fn = nn.CrossEntropyLoss()
+
+def train_step(data):
+    x, y = data
+    y_pred = model(x)
+    loss = loss_fn(y_pred, y)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    return loss
+
+# Create a TensorDataset
+dataset = torch.utils.data.TensorDataset(
+    torch.from_numpy(x_train), torch.from_numpy(y_train)
+)
+
+for data in dataset:
+    loss = train_step(data)
+    print("Loss:", float(loss))
 
 
 def train(model, train_loader, num_epochs, optimizer, loss_fn):

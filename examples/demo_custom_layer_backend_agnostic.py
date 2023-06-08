@@ -18,12 +18,13 @@ class MyDense(layers.Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        w_shape = (input_dim, self.units)
-        w_value = initializers.GlorotUniform()(w_shape)
-        # State must be stored in backend.Variable objects.
-        self.w = backend.Variable(w_value, name="kernel", trainable=True)
+        self.w = self.add_weight(
+            shape=(input_dim, self.units),
+            initializer=initializers.GlorotNormal(),
+            name="kernel",
+            trainable=True,
+        )
 
-        # You can also use add_weight
         self.b = self.add_weight(
             shape=(self.units,),
             initializer=initializers.Zeros(),
