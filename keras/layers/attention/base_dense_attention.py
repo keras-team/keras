@@ -42,7 +42,7 @@ class BaseDenseAttention(base_layer.BaseRandomLayer):
         dropout: Float between 0 and 1. Fraction of the units to drop for the
             attention scores.
 
-    Call Args:
+    Call arguments:
         inputs: List of the following tensors:
             * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
             * value: Value `Tensor` of shape `[batch_size, Tv, dim]`.
