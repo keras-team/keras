@@ -1644,7 +1644,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 `keras.utils.Sequence` input only. If `True`, use process-based
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
-                multiprocessing, you should not pass non-picklable arguments to
+                multiprocessing, you should not pass non-pickleable arguments to
                 the generator as they can't be passed easily to children
                 processes.
 
@@ -2179,7 +2179,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               `keras.utils.Sequence` input only. If `True`, use process-based
               threading. If unspecified, `use_multiprocessing` will default to
               `False`. Note that because this implementation relies on
-              multiprocessing, you should not pass non-picklable arguments to
+              multiprocessing, you should not pass non-pickleable arguments to
               the generator as they can't be passed easily to children
               processes.
             return_dict: If `True`, loss and metric results are returned as a
@@ -2537,7 +2537,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 `keras.utils.Sequence` input only. If `True`, use process-based
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
-                multiprocessing, you should not pass non-picklable arguments to
+                multiprocessing, you should not pass non-pickleable arguments to
                 the generator as they can't be passed easily to children
                 processes.
 
