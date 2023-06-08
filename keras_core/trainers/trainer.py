@@ -348,3 +348,12 @@ class Trainer:
         if len(results) == 1:
             return results[0]
         return results
+
+    def _assert_compile_called(self, method_name=None):
+        if not self.compiled:
+            msg = "You must call `compile()` before "
+            if metrics_module:
+                msg += "using the model."
+            else:
+                msg += f"calling `{method_name}()`."
+            raise ValueError(msg)

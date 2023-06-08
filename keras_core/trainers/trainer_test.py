@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import initializers
@@ -62,7 +63,7 @@ class TrainingTestingLayer(layers.Layer, Trainer):
         return x * 0
 
 
-class TestTrainer(testing.TestCase):
+class TestTrainer(testing.TestCase, parameterized.TestCase):
     def test_metric_tracking(self):
         class ModelWithMetric(layers.Dense, Trainer):
             def __init__(self, units):
@@ -101,7 +102,24 @@ class TestTrainer(testing.TestCase):
         # And those weights are tracked at the model level
         self.assertEqual(len(model.metrics_variables), 6)
 
-    def _test_fit_flow(self, run_eagerly, jit_compile, use_steps_per_epoch):
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False, False),
+            ("graph_fn", False, False, False),
+            ("jit", False, True, False),
+            ("steps_per_epoch_eager", True, False, True),
+            ("steps_per_epoch_graph_fn", False, False, True),
+            ("steps_per_epoch_jit", False, True, True),
+        ]
+    )
+    def test_fit_flow(self, run_eagerly, jit_compile, use_steps_per_epoch):
+        if not run_eagerly and not jit_compile and use_steps_per_epoch:
+            if backend.backend() == "tensorflow":
+                self.skipTest(
+                    "TODO: Graph mode without XLA in TF backend leads to "
+                    "unexpected logs, need further checks."
+                )
+
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -133,42 +151,14 @@ class TestTrainer(testing.TestCase):
             atol=6.1051628e-1,
         )
 
-    def test_fit_flow_eager(self):
-        self._test_fit_flow(
-            run_eagerly=True, jit_compile=False, use_steps_per_epoch=False
-        )
-
-    def test_fit_flow_graph_fn(self):
-        self._test_fit_flow(
-            run_eagerly=False, jit_compile=False, use_steps_per_epoch=False
-        )
-
-    def test_fit_flow_jit(self):
-        self._test_fit_flow(
-            run_eagerly=False, jit_compile=True, use_steps_per_epoch=False
-        )
-
-    def test_fit_steps_per_epoch_flow_eager(self):
-        self._test_fit_flow(
-            run_eagerly=True, jit_compile=False, use_steps_per_epoch=True
-        )
-
-    def test_fit_steps_per_epoch_flow_graph_fn(self):
-        if backend.backend() == "tensorflow":
-            self.skipTest(
-                "TODO: Graph mode without XLA in TF backend leads to "
-                "unexpected logs, need further checks."
-            )
-        self._test_fit_flow(
-            run_eagerly=False, jit_compile=False, use_steps_per_epoch=True
-        )
-
-    def test_fit_steps_per_epoch_flow_jit(self):
-        self._test_fit_flow(
-            run_eagerly=False, jit_compile=True, use_steps_per_epoch=True
-        )
-
-    def _test_evaluate_flow(self, run_eagerly, jit_compile):
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False),
+            ("graph_fn", False, False),
+            ("jit", False, True),
+        ]
+    )
+    def test_evaluate_flow(self, run_eagerly, jit_compile):
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -189,16 +179,14 @@ class TestTrainer(testing.TestCase):
         self.assertIn("mean_squared_error", output)
         self.assertAllClose(output["mean_squared_error"], 16.0)
 
-    def test_evaluate_flow_eager(self):
-        self._test_evaluate_flow(run_eagerly=True, jit_compile=False)
-
-    def test_evaluate_flow_graph_fn(self):
-        self._test_evaluate_flow(run_eagerly=False, jit_compile=False)
-
-    def test_evaluate_flow_jit(self):
-        self._test_evaluate_flow(run_eagerly=False, jit_compile=True)
-
-    def _test_predict_flow(self, run_eagerly, jit_compile):
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False),
+            ("graph_fn", False, False),
+            ("jit", False, True),
+        ]
+    )
+    def test_predict_flow(self, run_eagerly, jit_compile):
         # Test basic example
         model = ExampleModel(units=3)
         model.run_eagerly = run_eagerly
@@ -224,15 +212,6 @@ class TestTrainer(testing.TestCase):
         self.assertEqual(len(outputs), 2)
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
-
-    def test_predict_flow_eager(self):
-        self._test_predict_flow(run_eagerly=True, jit_compile=False)
-
-    def test_predict_flow_graph_fn(self):
-        self._test_predict_flow(run_eagerly=False, jit_compile=False)
-
-    def test_predict_flow_jit(self):
-        self._test_predict_flow(run_eagerly=False, jit_compile=True)
 
     def test_steps_per_execution_steps_count(self):
         class StepCount(Callback):
@@ -280,3 +259,59 @@ class TestTrainer(testing.TestCase):
         self.assertAllClose(val_loss, 0.0)
         preds = model.predict(x)
         self.assertAllClose(preds, np.zeros((128, 1)))
+
+    @parameterized.named_parameters(
+        [
+            ("eager", True, False),
+            ("graph_fn", False, False),
+            ("jit", False, True),
+        ]
+    )
+    def test_on_batch_methods(self, run_eagerly, jit_compile):
+        model = ExampleModel(units=3)
+        x = np.ones((100, 4))
+        y = np.zeros((100, 3))
+        sw = np.arange(100).reshape((100,)).astype("float32") / 50.0
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+            run_eagerly=run_eagerly,
+            jit_compile=jit_compile,
+        )
+        logs = model.train_on_batch(x, y)
+        self.assertTrue(isinstance(logs, list))
+        self.assertEqual(len(logs), 2)
+        self.assertAlmostEqual(logs[0], 16.0)
+
+        logs = model.train_on_batch(x, y, return_dict=True)
+        self.assertTrue(isinstance(logs, dict))
+        self.assertEqual(len(logs), 2)
+        self.assertAlmostEqual(logs["loss"], 15.579)
+
+        logs = model.test_on_batch(x, y)
+        self.assertTrue(isinstance(logs, list))
+        self.assertEqual(len(logs), 2)
+        self.assertAlmostEqual(logs[0], 15.173)
+
+        logs = model.test_on_batch(x, y, return_dict=True)
+        self.assertTrue(isinstance(logs, dict))
+        self.assertEqual(len(logs), 2)
+        self.assertAlmostEqual(logs["loss"], 14.97)
+
+        output = model.predict_on_batch(x)
+        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertAllClose(output[0], np.array([3.789511, 3.789511, 3.789511]))
+
+        # With sample weights
+        logs = model.train_on_batch(x, y, sw)
+        self.assertAlmostEqual(logs[0], 14.819)
+        logs = model.test_on_batch(x, y, sw)
+        self.assertAlmostEqual(logs[0], 14.595)
+        output = model.predict_on_batch(x)
+        self.assertAllClose(output[0], np.array([3.689468, 3.689468, 3.689468]))
+
+        # With class weights
+        logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
+        self.assertAlmostEqual(logs[0], 12.899)

@@ -2,9 +2,9 @@ import numpy as np
 from absl.testing import parameterized
 
 import keras_core as keras
+from keras_core import testing
 from keras_core.applications import imagenet_utils as utils
 from keras_core.mixed_precision import set_dtype_policy
-from keras_core import testing
 
 
 class TestImageNetUtils(testing.TestCase, parameterized.TestCase):

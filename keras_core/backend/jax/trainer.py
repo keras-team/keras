@@ -37,104 +37,39 @@ class JAXTrainer(base_trainer.Trainer):
         loss = self.compute_loss(x, y, y_pred, sample_weight)
         return loss, (y_pred, non_trainable_variables)
 
-    def fit(
-        self,
-        x=None,
-        y=None,
-        batch_size=None,
-        epochs=1,
-        verbose="auto",
-        callbacks=None,
-        validation_split=0.0,
-        validation_data=None,
-        shuffle=True,
-        class_weight=None,
-        sample_weight=None,
-        initial_epoch=0,
-        steps_per_epoch=None,
-        validation_steps=None,
-        validation_batch_size=None,
-        validation_freq=1,
-    ):
-        if not self.compiled:
-            raise ValueError(
-                "You must call `compile()` before calling `fit()`."
-            )
-
-        # TODO: respect compiled trainable state
-        if validation_split and validation_data is None:
-            # Create the validation data using the training data. Only supported
-            # for TF/numpy/jax arrays.
-            (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = data_adapter_utils.train_validation_split(
-                (x, y, sample_weight), validation_split=validation_split
-            )
-
-        if validation_data:
-            (
-                val_x,
-                val_y,
-                val_sample_weight,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
-
-        # Create an iterator that yields batches for one epoch.
-        epoch_iterator = EpochIterator(
-            x=x,
-            y=y,
-            sample_weight=sample_weight,
-            batch_size=batch_size,
-            steps_per_epoch=steps_per_epoch,
-            shuffle=shuffle,
-            class_weight=class_weight,
-            steps_per_execution=self.steps_per_execution,
-        )
-
+    def _eager_build(self, data_batch):
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
         if not self.built or compile_metrics_unbuilt:
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data = data[0]
-                (
-                    x,
-                    y,
-                    sample_weight,
-                ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-                # Build model
-                with backend.StatelessScope():
-                    y_pred = self(x)
-                    if compile_metrics_unbuilt:
-                        # Build metrics
-                        self.compute_metrics(
-                            x, y, y_pred, sample_weight=sample_weight
-                        )
-                break
-        if not self.optimizer.built:
+            (
+                x,
+                y,
+                sample_weight,
+            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
+            # Build model
+            with backend.StatelessScope():
+                y_pred = self(x)
+                if compile_metrics_unbuilt:
+                    # Build metrics
+                    self.compute_metrics(
+                        x, y, y_pred, sample_weight=sample_weight
+                    )
+        if self.optimizer is not None and not self.optimizer.built:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
 
-        # Container that configures and calls callbacks.
-        if not isinstance(callbacks, callbacks_module.CallbackList):
-            callbacks = callbacks_module.CallbackList(
-                callbacks,
-                add_history=True,
-                add_progbar=verbose != 0,
-                verbose=verbose,
-                epochs=epochs,
-                steps=epoch_iterator.num_batches,
-                model=self,
-            )
+    def make_train_function(self, force=False):
+        if self.train_function is not None and not force:
+            return self.train_function
 
         grad_fn = jax.value_and_grad(
             self.compute_loss_and_updates, has_aux=True
         )
 
-        def _train_step(state, data):
+        def one_train_step(state, data):
             data = data[0]
             (
                 trainable_variables,
@@ -169,8 +104,8 @@ class JAXTrainer(base_trainer.Trainer):
                     )
                 ]
             ) as scope:
-                logs = self.compute_metrics(x, y, y_pred, sample_weight)
                 self._loss_tracker.update_state(loss)
+                logs = self.compute_metrics(x, y, y_pred, sample_weight)
 
             new_metrics_variables = []
             for ref_v in self.metrics_variables:
@@ -188,27 +123,233 @@ class JAXTrainer(base_trainer.Trainer):
             )
             return logs, state
 
-        def _train_multi_step(state, data):
+        def multi_train_steps(state, data):
             for single_step_data in data:
-                logs, state = _train_step(state, [single_step_data])
+                logs, state = one_train_step(state, [single_step_data])
             return logs, state
 
         if self.steps_per_execution > 1:
-            _train_function = _train_multi_step
+            train_step = multi_train_steps
         else:
-            _train_function = _train_step
-
-        self.train_function = _train_function
+            train_step = one_train_step
 
         if not self.run_eagerly and self.jit_compile:
 
             @jax.jit
-            def train_step(state, data):
-                return self.train_function(state, data)
+            def compiled_train_step(state, data):
+                return train_step(state, data)
+
+            self.train_function = compiled_train_step
 
         else:
-            train_step = self.train_function
+            self.train_function = train_step
 
+    def make_test_function(self, force=False):
+        if self.test_function is not None and not force:
+            return self.test_function
+
+        def one_test_step(state, data):
+            data = data[0]
+            (
+                trainable_variables,
+                non_trainable_variables,
+                metrics_variables,
+            ) = state
+            x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(
+                data
+            )
+            loss, (
+                y_pred,
+                non_trainable_variables,
+            ) = self.compute_loss_and_updates(
+                trainable_variables,
+                non_trainable_variables,
+                x,
+                y,
+                sample_weight,
+                training=False,
+            )
+
+            with backend.StatelessScope(
+                state_mapping=[
+                    (ref_v, v)
+                    for ref_v, v in zip(
+                        self.metrics_variables, metrics_variables
+                    )
+                ]
+            ) as scope:
+                self._loss_tracker.update_state(loss)
+                logs = self.compute_metrics(x, y, y_pred, sample_weight)
+
+            new_metrics_variables = []
+            for ref_v in self.metrics_variables:
+                new_v = scope.get_current_value(ref_v)
+                if new_v is None:
+                    new_v = ref_v.value
+                new_metrics_variables.append(new_v)
+            metrics_variables = new_metrics_variables
+
+            state = (
+                trainable_variables,
+                non_trainable_variables,
+                metrics_variables,
+            )
+            return logs, state
+
+        def multi_test_steps(state, data):
+            for single_step_data in data:
+                logs, state = one_test_step(state, [single_step_data])
+            return logs, state
+
+        if self.steps_per_execution > 1:
+            test_step = multi_test_steps
+        else:
+            test_step = one_test_step
+
+        if not self.run_eagerly and self.jit_compile:
+
+            @jax.jit
+            def compiled_test_step(state, data):
+                return test_step(state, data)
+
+            self.test_function = compiled_test_step
+
+        else:
+            self.test_function = test_step
+
+    def make_predict_function(self, force=False):
+        if self.predict_function is not None and not force:
+            return self.predict_function
+
+        def one_predict_step(
+            trainable_variables, non_trainable_variables, data
+        ):
+            kwargs = {}
+            if self._call_has_training_arg():
+                kwargs["training"] = False
+            outputs, _ = self.stateless_call(
+                trainable_variables, non_trainable_variables, data[0], **kwargs
+            )
+            return outputs
+
+        def multi_predict_steps(
+            trainable_variables, non_trainable_variables, data
+        ):
+            outputs = one_predict_step(
+                trainable_variables, non_trainable_variables, data[:1]
+            )
+            for single_step_data in data[1:]:
+                step_outputs = one_predict_step(
+                    trainable_variables,
+                    non_trainable_variables,
+                    [single_step_data],
+                )
+                outputs = tf.nest.map_structure(
+                    lambda t1, t2: jax.numpy.concatenate([t1, t2]),
+                    outputs,
+                    step_outputs,
+                )
+            return outputs
+
+        if self.steps_per_execution > 1:
+            predict_step = multi_predict_steps
+        else:
+            predict_step = one_predict_step
+
+        if not self.run_eagerly and self.jit_compile:
+
+            @jax.jit
+            def compiled_predict_step(
+                trainable_variables, non_trainable_variables, data
+            ):
+                return predict_step(
+                    trainable_variables, non_trainable_variables, data
+                )
+
+            self.predict_function = compiled_predict_step
+
+        else:
+            self.predict_function = predict_step
+
+    def fit(
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        epochs=1,
+        verbose="auto",
+        callbacks=None,
+        validation_split=0.0,
+        validation_data=None,
+        shuffle=True,
+        class_weight=None,
+        sample_weight=None,
+        initial_epoch=0,
+        steps_per_epoch=None,
+        validation_steps=None,
+        validation_batch_size=None,
+        validation_freq=1,
+    ):
+        self._assert_compile_called("fit")
+        # TODO: respect compiled trainable state
+        if validation_split and validation_data is None:
+            # Create the validation data using the training data. Only supported
+            # for TF/numpy/jax arrays.
+            (
+                x,
+                y,
+                sample_weight,
+            ), validation_data = data_adapter_utils.train_validation_split(
+                (x, y, sample_weight), validation_split=validation_split
+            )
+
+        if validation_data:
+            (
+                val_x,
+                val_y,
+                val_sample_weight,
+            ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
+
+        # Create an iterator that yields batches for one epoch.
+        epoch_iterator = EpochIterator(
+            x=x,
+            y=y,
+            sample_weight=sample_weight,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch,
+            shuffle=shuffle,
+            class_weight=class_weight,
+            steps_per_execution=self.steps_per_execution,
+        )
+
+        needs_building = (
+            not self.built
+            or not self.optimizer.built
+            or (
+                self._compile_metrics is not None
+                and not self._compile_metrics.built
+            )
+        )
+        if needs_building:
+            # Build the model on one batch of data.
+            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+                data_batch = data[0]
+                self._eager_build(data_batch)
+                break
+
+        # Container that configures and calls callbacks.
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_history=True,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=epochs,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        self.make_train_function()
         self.stop_training = False
         callbacks.on_train_begin()
 
@@ -232,7 +373,7 @@ class JAXTrainer(base_trainer.Trainer):
                     optimizer_variables,
                     metrics_variables,
                 )
-                logs, state = train_step(state, data)
+                logs, state = self.train_function(state, data)
                 (
                     trainable_variables,
                     non_trainable_variables,
@@ -318,6 +459,7 @@ class JAXTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
+        self._assert_compile_called("evaluate")
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
@@ -340,18 +482,8 @@ class JAXTrainer(base_trainer.Trainer):
         if not self.built:
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
-                data = data[0]
-                (
-                    x,
-                    y,
-                    sample_weight,
-                ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-                # Build model
-                with backend.StatelessScope():
-                    y_pred = self(x)
-                    # Build metrics
-                    self.compute_metrics(x, y, y_pred, sample_weight)
-                self.reset_metrics()
+                data_batch = data[0]
+                self._eager_build(data_batch)
                 break
 
         # Container that configures and calls callbacks.
@@ -366,73 +498,7 @@ class JAXTrainer(base_trainer.Trainer):
                 model=self,
             )
 
-        def _test_step(state, data):
-            data = data[0]
-            (
-                trainable_variables,
-                non_trainable_variables,
-                metrics_variables,
-            ) = state
-            x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(
-                data
-            )
-            loss, (
-                y_pred,
-                non_trainable_variables,
-            ) = self.compute_loss_and_updates(
-                trainable_variables,
-                non_trainable_variables,
-                x,
-                y,
-                sample_weight,
-                training=False,
-            )
-
-            with backend.StatelessScope(
-                state_mapping=[
-                    (ref_v, v)
-                    for ref_v, v in zip(
-                        self.metrics_variables, metrics_variables
-                    )
-                ]
-            ) as scope:
-                logs = self.compute_metrics(x, y, y_pred, sample_weight)
-                self._loss_tracker.update_state(loss)
-
-            new_metrics_variables = []
-            for ref_v in self.metrics_variables:
-                new_v = scope.get_current_value(ref_v)
-                if new_v is None:
-                    new_v = ref_v.value
-                new_metrics_variables.append(new_v)
-            metrics_variables = new_metrics_variables
-
-            state = (
-                trainable_variables,
-                non_trainable_variables,
-                metrics_variables,
-            )
-            return logs, state
-
-        def _test_multi_step(state, data):
-            for single_step_data in data:
-                logs, state = _test_step(state, [single_step_data])
-            return logs, state
-
-        if self.steps_per_execution > 1:
-            _test_function = _test_multi_step
-        else:
-            _test_function = _test_step
-
-        if not self.run_eagerly and self.jit_compile:
-
-            @jax.jit
-            def test_step(state, data):
-                return _test_function(state, data)
-
-        else:
-            test_step = _test_function
-
+        self.make_test_function()
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
@@ -449,7 +515,7 @@ class JAXTrainer(base_trainer.Trainer):
                 non_trainable_variables,
                 metrics_variables,
             )
-            logs, state = test_step(state, data)
+            logs, state = self.test_function(state, data)
             # Note that trainable variables are not returned since they're
             # immutable here.
             _, non_trainable_variables, metrics_variables = state
@@ -506,52 +572,7 @@ class JAXTrainer(base_trainer.Trainer):
                 model=self,
             )
 
-        def _predict_step(trainable_variables, non_trainable_variables, data):
-            kwargs = {}
-            if self._call_has_training_arg():
-                kwargs["training"] = False
-            outputs, _ = self.stateless_call(
-                trainable_variables, non_trainable_variables, data[0], **kwargs
-            )
-            return outputs
-
-        def _predict_multi_step(
-            trainable_variables, non_trainable_variables, data
-        ):
-            outputs = _predict_step(
-                trainable_variables, non_trainable_variables, data[:1]
-            )
-            for single_step_data in data[1:]:
-                step_outputs = _predict_step(
-                    trainable_variables,
-                    non_trainable_variables,
-                    [single_step_data],
-                )
-                outputs = tf.nest.map_structure(
-                    lambda t1, t2: jax.numpy.concatenate([t1, t2]),
-                    outputs,
-                    step_outputs,
-                )
-            return outputs
-
-        if self.steps_per_execution > 1:
-            _predict_function = _predict_multi_step
-        else:
-            _predict_function = _predict_step
-
-        if not self.run_eagerly and self.jit_compile:
-
-            @jax.jit
-            def predict_step(
-                trainable_variables, non_trainable_variables, data
-            ):
-                return _predict_function(
-                    trainable_variables, non_trainable_variables, data
-                )
-
-        else:
-            predict_step = _predict_function
-
+        self.make_predict_function()
         callbacks.on_predict_begin()
 
         def append_to_outputs(batch_outputs, outputs):
@@ -574,7 +595,7 @@ class JAXTrainer(base_trainer.Trainer):
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_predict_batch_begin(step)
-            batch_outputs = predict_step(
+            batch_outputs = self.predict_function(
                 trainable_variables, non_trainable_variables, x
             )
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -583,6 +604,178 @@ class JAXTrainer(base_trainer.Trainer):
         return tf.__internal__.nest.map_structure_up_to(
             batch_outputs, np.concatenate, outputs
         )
+
+    def train_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        class_weight=None,
+        return_dict=False,
+    ):
+        """Runs a single gradient update on a single batch of data.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) to apply to the model's loss for the samples
+                from this class during training. This can be useful to tell the
+                model to "pay more attention" to samples from an
+                under-represented class. When `class_weight` is specified
+                and targets have a rank of 2 or greater, either `y` must
+                be one-hot encoded, or an explicit final dimension of 1
+                must be included for sparse class labels.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        self._assert_compile_called("train_on_batch")
+        if class_weight is not None:
+            if sample_weight is not None:
+                raise ValueError(
+                    "Arguments `sample_weight` and `class_weight` "
+                    "cannot be specified at the same time. "
+                    f"Received: sample_weight={sample_weight}, "
+                    f"class_weight={class_weight}"
+                )
+            sample_weight = data_adapter_utils.class_weight_to_sample_weights(
+                y, class_weight
+            )
+        data = (x, y, sample_weight)
+
+        # Maybe build model
+        self._eager_build(data)
+        self.make_train_function()
+
+        # Train step
+        trainable_variables = self.trainable_variables
+        non_trainable_variables = self.non_trainable_variables
+        optimizer_variables = self.optimizer.variables
+        metrics_variables = self.metrics_variables
+        state = (
+            trainable_variables,
+            non_trainable_variables,
+            optimizer_variables,
+            metrics_variables,
+        )
+        logs, state = self.train_function(state, [data])
+
+        # State sync
+        (
+            trainable_variables,
+            non_trainable_variables,
+            optimizer_variables,
+            metrics_variables,
+        ) = state
+        self._jax_state = {
+            "trainable_variables": trainable_variables,
+            "non_trainable_variables": non_trainable_variables,
+            "optimizer_variables": optimizer_variables,
+            "metrics_variables": metrics_variables,
+        }
+        self.jax_state_sync()
+
+        # Format return values
+        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
+
+    def test_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        return_dict=False,
+    ):
+        """Test the model on a single batch of samples.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        self._assert_compile_called("test_on_batch")
+
+        data = (x, y, sample_weight)
+        # Maybe build model
+        self._eager_build(data)
+        self.make_test_function()
+
+        # Test step
+        trainable_variables = self.trainable_variables
+        non_trainable_variables = self.non_trainable_variables
+        metrics_variables = self.metrics_variables
+        state = (
+            trainable_variables,
+            non_trainable_variables,
+            metrics_variables,
+        )
+        logs, state = self.test_function(state, [data])
+
+        # State sync
+        _, non_trainable_variables, metrics_variables = state
+        self._jax_state = {
+            "non_trainable_variables": non_trainable_variables,
+            "metrics_variables": metrics_variables,
+        }
+        self.jax_state_sync()
+
+        # Format return values.
+        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
+
+    def predict_on_batch(self, x):
+        """Returns predictions for a single batch of samples.
+
+        Args:
+            x: Input data. It must be array-like.
+
+        Returns:
+            NumPy array(s) of predictions.
+        """
+        if not self.built:
+            # Build model
+            with backend.StatelessScope():
+                self(x)
+
+        self.make_predict_function()
+        trainable_variables = self.trainable_variables
+        non_trainable_variables = self.non_trainable_variables
+        batch_outputs = self.predict_function(
+            trainable_variables, non_trainable_variables, [x]
+        )
+        batch_outputs = tf.nest.map_structure(
+            lambda x: np.array(x), batch_outputs
+        )
+        return batch_outputs
 
     def jax_state_sync(self):
         if not getattr(self, "_jax_state", None):

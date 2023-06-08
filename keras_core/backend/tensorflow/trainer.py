@@ -97,9 +97,11 @@ class TensorFlowTrainer(base_trainer.Trainer):
             """Runs a single training step on a batch of data."""
             return self.train_step(data)
 
-        if not self.run_eagerly and self.jit_compile:
+        if not self.run_eagerly:
             one_step_on_data = tf.function(
-                one_step_on_data, jit_compile=True, reduce_retracing=True
+                one_step_on_data,
+                jit_compile=self.jit_compile,
+                reduce_retracing=True,
             )
 
         @tf.autograph.experimental.do_not_convert
@@ -245,10 +247,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
-        if not self.compiled:
-            raise ValueError(
-                "You must call `compile()` before calling `fit()`."
-            )
+        self._assert_compile_called("fit")
         # TODO: respect compiled trainable state
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -368,6 +367,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
+        self._assert_compile_called("evaluate")
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
@@ -462,7 +462,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 try:
                     single_step_data = next(iterator)
                 except (StopIteration, tf.errors.OutOfRangeError) as e:
-                    if len(data) > 0:
+                    if hasattr(data, "__len__") and len(data) > 0:
                         # Suppress the error when still have remaining data.
                         return data
                     else:
@@ -487,6 +487,120 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return tf.__internal__.nest.map_structure_up_to(
             batch_outputs, np.concatenate, outputs
         )
+
+    def train_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        class_weight=None,
+        return_dict=False,
+    ):
+        """Runs a single gradient update on a single batch of data.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) to apply to the model's loss for the samples
+                from this class during training. This can be useful to tell the
+                model to "pay more attention" to samples from an
+                under-represented class. When `class_weight` is specified
+                and targets have a rank of 2 or greater, either `y` must
+                be one-hot encoded, or an explicit final dimension of 1
+                must be included for sparse class labels.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        self._assert_compile_called("train_on_batch")
+        self.make_train_function()
+        if class_weight is not None:
+            if sample_weight is not None:
+                raise ValueError(
+                    "Arguments `sample_weight` and `class_weight` "
+                    "cannot be specified at the same time. "
+                    f"Received: sample_weight={sample_weight}, "
+                    f"class_weight={class_weight}"
+                )
+            sample_weight = data_adapter_utils.class_weight_to_sample_weights(
+                y, class_weight
+            )
+
+        def data():
+            yield (x, y, sample_weight)
+
+        logs = self.train_function(data())
+        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
+
+    def test_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        return_dict=False,
+    ):
+        """Test the model on a single batch of samples.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        self._assert_compile_called("test_on_batch")
+        self.make_test_function()
+
+        def data():
+            yield (x, y, sample_weight)
+
+        logs = self.test_function(data())
+        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
+
+    def predict_on_batch(self, x):
+        """Returns predictions for a single batch of samples.
+
+        Args:
+            x: Input data. It must be array-like.
+
+        Returns:
+            NumPy array(s) of predictions.
+        """
+        self.make_predict_function()
+        batch_outputs = self.predict_function((x,))
+        batch_outputs = tf.nest.map_structure(
+            lambda x: np.array(x), batch_outputs
+        )
+        return batch_outputs
 
     # Backwards compatibility shims.
     @property
