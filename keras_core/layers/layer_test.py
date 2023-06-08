@@ -627,6 +627,21 @@ class LayerTest(testing.TestCase):
 
         MatchingArguments()(foo, bar)
 
+    def test_training_arg_not_specified(self):
+        class NoTrainingSpecified(layers.Layer):
+            def __init__(self):
+                super().__init__()
+
+            def build(self, input_shape):
+                self.activation = layers.Activation("linear")
+
+            def call(self, inputs):
+                return self.activation(inputs)
+
+        layer = NoTrainingSpecified()
+        inputs = ops.random.uniform(shape=(1, 100, 100, 3))
+        layer(inputs, training=True)
+
     def test_tracker_locking(self):
         class BadLayer(layers.Layer):
             def call(self, x):

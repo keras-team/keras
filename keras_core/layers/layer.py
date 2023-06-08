@@ -1139,7 +1139,17 @@ def is_backend_tensor_or_symbolic(x):
 class CallSpec:
     def __init__(self, call_fn, args, kwargs):
         sig = inspect.signature(call_fn)
-        bound_args = sig.bind(*args, **kwargs)
+
+        # `training` and `mask` are special kwargs that are always available in
+        # a layer, if user specifies them in their call without adding to spec,
+        # we remove them to be able to bind variables. User is not using
+        # `training` anyway so we can ignore.
+        # TODO: If necessary use workaround for `mask`
+        if "training" in kwargs and "training" not in sig.parameters:
+            kwargs.pop("training")
+            bound_args = sig.bind(*args, **kwargs)
+        else:
+            bound_args = sig.bind(*args, **kwargs)
         self.user_arguments_dict = {
             k: v for k, v in bound_args.arguments.items()
         }
