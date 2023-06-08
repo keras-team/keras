@@ -333,28 +333,25 @@ class Functional(Function, Model):
         config["layers"] = layer_configs
 
         # Gather info about inputs and outputs.
-        model_inputs = []
-        for tensor in self._inputs:
+        def get_tensor_config(tensor):
             operation = tensor._keras_history[0]
             node_index = tensor._keras_history[1]
             tensor_index = tensor._keras_history[2]
             node_key = make_node_key(operation, node_index)
-            if node_key not in self._nodes:
-                continue
+            assert node_key in self._nodes
             new_node_index = node_reindexing_map[node_key]
-            model_inputs.append([operation.name, new_node_index, tensor_index])
-        config["input_layers"] = model_inputs
-        model_outputs = []
-        for tensor in self._outputs:
-            operation = tensor._keras_history[0]
-            node_index = tensor._keras_history[1]
-            tensor_index = tensor._keras_history[2]
-            node_key = make_node_key(operation, node_index)
-            if node_key not in self._nodes:
-                continue
-            new_node_index = node_reindexing_map[node_key]
-            model_outputs.append([operation.name, new_node_index, tensor_index])
-        config["output_layers"] = model_outputs
+            return [operation.name, new_node_index, tensor_index]
+
+        def map_tensors(tensors):
+            if isinstance(tensors, dict):
+                return {k: get_tensor_config(v) for k, v in tensors.items()}
+            if isinstance(tensors, (list, tuple)):
+                return [get_tensor_config(v) for v in tensors]
+            else:
+                return [get_tensor_config(tensors)]
+
+        config["input_layers"] = map_tensors(self._inputs_struct)
+        config["output_layers"] = map_tensors(self._outputs_struct)
         return copy.deepcopy(config)
 
     @classmethod
@@ -507,24 +504,23 @@ class Functional(Function, Model):
         # Create lits of input and output tensors and return new class
         name = config.get("name")
         trainable = config.get("trainable")
-        input_tensors = []
-        output_tensors = []
-        for layer_data in config["input_layers"]:
-            layer_name, node_index, tensor_index = layer_data
+
+        def get_tensor(layer_name, node_index, tensor_index):
             assert layer_name in created_layers
             layer = created_layers[layer_name]
             layer_output_tensors = layer._inbound_nodes[
                 node_index
             ].output_tensors
-            input_tensors.append(layer_output_tensors[tensor_index])
-        for layer_data in config["output_layers"]:
-            layer_name, node_index, tensor_index = layer_data
-            assert layer_name in created_layers
-            layer = created_layers[layer_name]
-            layer_output_tensors = layer._inbound_nodes[
-                node_index
-            ].output_tensors
-            output_tensors.append(layer_output_tensors[tensor_index])
+            return layer_output_tensors[tensor_index]
+
+        def map_tensors(tensors):
+            if isinstance(tensors, dict):
+                return {k: get_tensor(*v) for k, v in tensors.items()}
+            else:
+                return [get_tensor(*v) for v in tensors]
+
+        input_tensors = map_tensors(config["input_layers"])
+        output_tensors = map_tensors(config["output_layers"])
         return cls(
             inputs=input_tensors,
             outputs=output_tensors,

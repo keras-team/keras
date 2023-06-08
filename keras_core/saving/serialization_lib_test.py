@@ -188,6 +188,26 @@ class SerializationLibTest(testing.TestCase):
     #     y2 = new_lmbda(x)
     #     self.assertAllClose(y1, y2, atol=1e-5)
 
+    def test_dict_inputs_outputs(self):
+        input_foo = keras_core.Input((2,), name="foo")
+        input_bar = keras_core.Input((2,), name="bar")
+        dense = keras_core.layers.Dense(1)
+        output_foo = dense(input_foo)
+        output_bar = dense(input_bar)
+        model = keras_core.Model(
+            {"foo": input_foo, "bar": input_bar},
+            {"foo": output_foo, "bar": output_bar},
+        )
+        _, new_model, _ = self.roundtrip(model)
+        original_output = model(
+            {"foo": np.zeros((2, 2)), "bar": np.zeros((2, 2))}
+        )
+        restored_output = model(
+            {"foo": np.zeros((2, 2)), "bar": np.zeros((2, 2))}
+        )
+        self.assertAllClose(original_output["foo"], restored_output["foo"])
+        self.assertAllClose(original_output["bar"], restored_output["bar"])
+
     def shared_inner_layer(self):
         input_1 = keras_core.Input((2,))
         input_2 = keras_core.Input((2,))
