@@ -242,3 +242,7 @@ def while_loop(
     if maximum_iterations is not None:
         outputs = outputs[:-1]
     return outputs
+
+
+def stop_gradient(variable):
+    return jax.lax.stop_gradient(variable)

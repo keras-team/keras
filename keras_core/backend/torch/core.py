@@ -274,3 +274,7 @@ def while_loop(
         loop_vars = tuple(loop_vars)
         current_iter += 1
     return loop_vars
+
+
+def stop_gradient(variable):
+    return variable.requires_grad_(False)

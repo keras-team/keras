@@ -1,5 +1,10 @@
 import numpy as np
 
+from keras_core import layers
+from keras_core import losses
+from keras_core import models
+from keras_core import operations as ops
+from keras_core import optimizers
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.operations import core
@@ -158,3 +163,24 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
         self.assertAllClose(x, np.ones((2, 3)) * 6)
         self.assertAllClose(y, np.ones((3, 2)) * 6)
+
+    def test_stop_gradient(self):
+        class ExampleLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight(shape=(1,), initializer="zeros")
+                self.b = self.add_weight(shape=(1,), initializer="zeros")
+
+            def call(self, x, training=False):
+                return x * ops.stop_gradient(self.w.value) + self.b
+
+        model = models.Sequential([ExampleLayer()])
+        model.compile(
+            optimizer=optimizers.SGD(), loss=losses.MeanSquaredError()
+        )
+        rng = np.random.default_rng(0)
+        x = np.ones((2, 4), dtype=np.float32)
+        y = rng.standard_normal((2, 4), dtype=np.float32)
+        model.fit(x, y, epochs=1, batch_size=2)
+        self.assertEqual(model.layers[0].w.numpy(), 0.0)
+        self.assertNotEqual(model.layers[0].b.numpy(), 0.0)

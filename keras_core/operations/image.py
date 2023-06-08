@@ -22,7 +22,7 @@ class Resize(Operation):
     def call(self, image):
         return backend.image.resize(
             image,
-            self.shape,
+            self.size,
             method=self.method,
             antialias=self.antialias,
             data_format=self.data_format,

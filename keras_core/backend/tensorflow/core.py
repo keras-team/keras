@@ -157,3 +157,7 @@ def while_loop(
         loop_vars,
         maximum_iterations=maximum_iterations,
     )
+
+
+def stop_gradient(variable):
+    return tf.stop_gradient(variable)
