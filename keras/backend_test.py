@@ -2415,7 +2415,7 @@ class TestCTC(tf.test.TestCase):
         log_prob_pred = backend.eval(log_prob_pred_tf)
         for i in range(top_paths):
             self.assertTrue(
-                np.alltrue(decode_truth[i] == backend.eval(decode_pred_tf[i]))
+                np.all(decode_truth[i] == backend.eval(decode_pred_tf[i]))
             )
         self.assertAllClose(log_prob_truth, log_prob_pred)
 
