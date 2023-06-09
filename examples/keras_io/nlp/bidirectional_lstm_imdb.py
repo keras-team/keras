@@ -54,5 +54,9 @@ You can use the trained model hosted on [Hugging Face Hub](https://huggingface.c
 and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io/bidirectional_lstm_imdb).
 """
 
-model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-model.fit(x_train, y_train, batch_size=32, epochs=2, validation_data=(x_val, y_val))
+model.compile(
+    optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"]
+)
+model.fit(
+    x_train, y_train, batch_size=32, epochs=2, validation_data=(x_val, y_val)
+)

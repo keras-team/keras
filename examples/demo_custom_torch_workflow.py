@@ -50,8 +50,10 @@ model = keras_core.Sequential(
 ######## Writing a torch training loop for a Keras model ########
 #################################################################
 
+
 def get_keras_model():
     pass
+
 
 model = get_keras_model()
 
@@ -61,6 +63,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # Instantiate the torch loss function
 loss_fn = nn.CrossEntropyLoss()
 
+
 def train_step(data):
     x, y = data
     y_pred = model(x)
@@ -69,6 +72,7 @@ def train_step(data):
     loss.backward()
     optimizer.step()
     return loss
+
 
 # Create a TensorDataset
 dataset = torch.utils.data.TensorDataset(
@@ -121,6 +125,7 @@ train(model, train_loader, num_epochs, optimizer, loss_fn)
 ################################################################
 ######## Using a Keras model or layer in a torch Module ########
 ################################################################
+
 
 class MyModel(nn.Module):
     def __init__(self):

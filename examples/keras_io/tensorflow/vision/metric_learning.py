@@ -70,7 +70,9 @@ def show_collage(examples):
     )
     for row_idx in range(num_rows):
         for col_idx in range(num_cols):
-            array = (np.array(examples[row_idx, col_idx]) * 255).astype(np.uint8)
+            array = (np.array(examples[row_idx, col_idx]) * 255).astype(
+                np.uint8
+            )
             collage.paste(
                 Image.fromarray(array), (col_idx * box_size, row_idx * box_size)
             )
@@ -127,7 +129,9 @@ class AnchorPositivePairs(keras.utils.PyDataset):
         return self.num_batchs
 
     def __getitem__(self, _idx):
-        x = np.empty((2, num_classes, height_width, height_width, 3), dtype=np.float32)
+        x = np.empty(
+            (2, num_classes, height_width, height_width, 3), dtype=np.float32
+        )
         for class_idx in range(num_classes):
             examples_for_class = class_idx_to_train_idxs[class_idx]
             anchor_idx = random.choice(examples_for_class)
@@ -206,7 +210,9 @@ this model is intentionally small.
 """
 
 inputs = layers.Input(shape=(height_width, height_width, 3))
-x = layers.Conv2D(filters=32, kernel_size=3, strides=2, activation="relu")(inputs)
+x = layers.Conv2D(filters=32, kernel_size=3, strides=2, activation="relu")(
+    inputs
+)
 x = layers.Conv2D(filters=64, kernel_size=3, strides=2, activation="relu")(x)
 x = layers.Conv2D(filters=128, kernel_size=3, strides=2, activation="relu")(x)
 x = layers.GlobalAveragePooling2D()(x)
@@ -243,7 +249,9 @@ near_neighbours_per_example = 10
 
 embeddings = model.predict(x_test)
 gram_matrix = np.einsum("ae,be->ab", embeddings, embeddings)
-near_neighbours = np.argsort(gram_matrix.T)[:, -(near_neighbours_per_example + 1) :]
+near_neighbours = np.argsort(gram_matrix.T)[
+    :, -(near_neighbours_per_example + 1) :
+]
 
 """
 As a visual check of these embeddings we can build a collage of the near neighbours for 5
@@ -308,6 +316,10 @@ labels = [
     "Ship",
     "Truck",
 ]
-disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=labels)
-disp.plot(include_values=True, cmap="viridis", ax=None, xticks_rotation="vertical")
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=confusion_matrix, display_labels=labels
+)
+disp.plot(
+    include_values=True, cmap="viridis", ax=None, xticks_rotation="vertical"
+)
 plt.show()

@@ -24,6 +24,7 @@ learning_rate = 0.01
 batch_size = 128
 num_epochs = 1
 
+
 def get_data():
     # Load the data and split it between train and test sets
     (x_train, y_train), (x_test, y_test) = keras_core.datasets.mnist.load_data()
@@ -43,6 +44,7 @@ def get_data():
         torch.from_numpy(x_train), torch.from_numpy(y_train)
     )
     return dataset
+
 
 def get_model():
     # Create the Keras model
@@ -108,16 +110,17 @@ def train(model, train_loader, num_epochs, optimizer, loss_fn):
                 )
                 running_loss = 0.0
 
+
 def setup(current_gpu_index, num_gpu):
     # Device setup
-    os.environ['MASTER_ADDR'] = 'keras-core-torch'
-    os.environ['MASTER_PORT'] = '56492'
+    os.environ["MASTER_ADDR"] = "keras-core-torch"
+    os.environ["MASTER_PORT"] = "56492"
     device = torch.device("cuda:{}".format(current_gpu_index))
     dist.init_process_group(
-        backend='nccl',
-        init_method='env://',
+        backend="nccl",
+        init_method="env://",
         world_size=num_gpu,
-        rank=current_gpu_index
+        rank=current_gpu_index,
     )
     torch.cuda.set_device(device)
 
@@ -139,6 +142,7 @@ def prepare(dataset, current_gpu_index, num_gpu, batch_size):
     )
 
     return train_loader
+
 
 def cleanup():
     # Cleanup
@@ -167,7 +171,9 @@ def main(current_gpu_index, num_gpu):
 
     # Put model on device
     model = model.to(current_gpu_index)
-    ddp_model = DDP(model, device_ids=[current_gpu_index], output_device=current_gpu_index)
+    ddp_model = DDP(
+        model, device_ids=[current_gpu_index], output_device=current_gpu_index
+    )
 
     train(ddp_model, dataloader, num_epochs, optimizer, loss_fn)
 
@@ -176,7 +182,11 @@ def main(current_gpu_index, num_gpu):
     ################################################################
 
     torch_module = MyModel().to(current_gpu_index)
-    ddp_torch_module = DDP(torch_module, device_ids=[current_gpu_index], output_device=current_gpu_index)
+    ddp_torch_module = DDP(
+        torch_module,
+        device_ids=[current_gpu_index],
+        output_device=current_gpu_index,
+    )
 
     # Instantiate the torch optimizer
     optimizer = optim.Adam(torch_module.parameters(), lr=learning_rate)
@@ -192,12 +202,12 @@ def main(current_gpu_index, num_gpu):
 if __name__ == "__main__":
     # GPU parameters
     num_gpu = torch.cuda.device_count()
-    
+
     print(f"Running on {num_gpu} GPUs")
 
     torch.multiprocessing.spawn(
         main,
-        args=(num_gpu, ),
+        args=(num_gpu,),
         nprocs=num_gpu,
         join=True,
     )

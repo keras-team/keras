@@ -141,7 +141,9 @@ np.random.RandomState(seed=32).shuffle(negative_images)
 negative_dataset = tf.data.Dataset.from_tensor_slices(negative_images)
 negative_dataset = negative_dataset.shuffle(buffer_size=4096)
 
-dataset = tf.data.Dataset.zip((anchor_dataset, positive_dataset, negative_dataset))
+dataset = tf.data.Dataset.zip(
+    (anchor_dataset, positive_dataset, negative_dataset)
+)
 dataset = dataset.shuffle(buffer_size=1024)
 dataset = dataset.map(preprocess_triplets)
 
