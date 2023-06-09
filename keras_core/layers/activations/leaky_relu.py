@@ -1,3 +1,5 @@
+import warnings
+
 from keras_core import activations
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
@@ -34,11 +36,17 @@ class LeakyReLU(Layer):
     """
 
     def __init__(self, negative_slope=0.3, **kwargs):
+        if "alpha" in kwargs:
+            negative_slope = kwargs.pop("alpha")
+            warnings.warn(
+                "Argument `alpha` is deprecated. "
+                "Use `negative_slope` instead."
+            )
         super().__init__(**kwargs)
         if negative_slope is None:
             raise ValueError(
                 "The negative_slope value of a Leaky ReLU layer "
-                "cannot be None, Expecting a float. Received: "
+                "cannot be None. Expected a float. Received: "
                 f"negative_slope={negative_slope}"
             )
         self.supports_masking = True
