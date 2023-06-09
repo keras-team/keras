@@ -230,7 +230,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return return_metrics
+        return self._pythonify_logs(return_metrics)
 
     def fit(
         self,

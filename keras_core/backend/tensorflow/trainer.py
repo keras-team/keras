@@ -304,12 +304,14 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 for step, iterator in epoch_iterator.enumerate_epoch():
                     callbacks.on_train_batch_begin(step)
                     logs = self.train_function(iterator)
-                    callbacks.on_train_batch_end(step, logs)
+                    callbacks.on_train_batch_end(
+                        step, self._pythonify_logs(logs)
+                    )
                     if self.stop_training:
                         break
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self._pythonify_logs(self.get_metrics_result())
+            epoch_logs = self.get_metrics_result()
 
             # Run validation.
             if validation_data and self._should_eval(epoch, validation_freq):
@@ -335,7 +337,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 val_logs = {
                     "val_" + name: val for name, val in val_logs.items()
                 }
-                epoch_logs.update(self._pythonify_logs(val_logs))
+                epoch_logs.update(val_logs)
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             training_logs = epoch_logs
@@ -407,8 +409,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             for step, iterator in epoch_iterator.enumerate_epoch():
                 callbacks.on_test_batch_begin(step)
                 logs = self.test_function(iterator)
-                callbacks.on_test_batch_end(step, logs)
-        logs = self._pythonify_logs(self.get_metrics_result())
+                callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
+        logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
 
         if return_dict:
