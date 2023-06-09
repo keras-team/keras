@@ -35,7 +35,16 @@ class RegularizersTest(testing.TestCase):
 
     def test_get_method(self):
         obj = regularizers.get("l1l2")
-        self.assertTrue(obj, regularizers.L1L2)
+        self.assertIsInstance(obj, regularizers.L1L2)
+
+        obj = regularizers.get("l1")
+        self.assertIsInstance(obj, regularizers.L1)
+
+        obj = regularizers.get("l2")
+        self.assertIsInstance(obj, regularizers.L2)
+
+        obj = regularizers.get("orthogonal_regularizer")
+        self.assertIsInstance(obj, regularizers.OrthogonalRegularizer)
 
         obj = regularizers.get(None)
         self.assertEqual(obj, None)

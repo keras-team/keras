@@ -212,7 +212,7 @@ class L1L2(Regularizer):
         return {"l1": float(self.l1), "l2": float(self.l2)}
 
 
-@keras_core_export("keras_core.regularizers.L1")
+@keras_core_export(["keras_core.regularizers.L1", "keras_core.regularizers.l1"])
 class L1(Regularizer):
     """A regularizer that applies a L1 regularization penalty.
 
@@ -241,7 +241,7 @@ class L1(Regularizer):
         return {"l1": float(self.l1)}
 
 
-@keras_core_export("keras_core.regularizers.L2")
+@keras_core_export(["keras_core.regularizers.L2", "keras_core.regularizers.l2"])
 class L2(Regularizer):
     """A regularizer that applies a L2 regularization penalty.
 
@@ -270,7 +270,12 @@ class L2(Regularizer):
         return {"l2": float(self.l2)}
 
 
-@keras_core_export("keras_core.regularizers.OrthogonalRegularizer")
+@keras_core_export(
+    [
+        "keras_core.regularizers.OrthogonalRegularizer",
+        "keras_core.regularizers.orthogonal_regularizer",
+    ]
+)
 class OrthogonalRegularizer(Regularizer):
     """Regularizer that encourages input vectors to be orthogonal to each other.
 
