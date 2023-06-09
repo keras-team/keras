@@ -46,6 +46,7 @@ from keras_core.metrics.regression_metrics import MeanSquaredLogarithmicError
 from keras_core.metrics.regression_metrics import R2Score
 from keras_core.metrics.regression_metrics import RootMeanSquaredError
 from keras_core.saving import serialization_lib
+from keras_core.utils.naming import to_snake_case
 
 ALL_OBJECTS = {
     # Base
@@ -102,6 +103,9 @@ ALL_OBJECTS = {
     OneHotMeanIoU,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
+ALL_OBJECTS_DICT.update(
+    {to_snake_case(cls.__name__): cls for cls in ALL_OBJECTS}
+)
 ALL_OBJECTS_DICT.update(
     {
         "mse": MeanSquaredError,

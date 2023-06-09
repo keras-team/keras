@@ -112,6 +112,12 @@ class MetricTest(testing.TestCase):
         metric = metrics_module.get("mse")
         self.assertTrue(isinstance(metric, metrics_module.MeanSquaredError))
 
+        metric = metrics_module.get("mean_squared_error")
+        self.assertTrue(isinstance(metric, metrics_module.MeanSquaredError))
+
+        metric = metrics_module.get("categorical_accuracy")
+        self.assertTrue(isinstance(metric, metrics_module.CategoricalAccuracy))
+
         metric = metrics_module.get(None)
         self.assertEqual(metric, None)
 
