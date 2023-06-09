@@ -60,46 +60,6 @@ def benchmark_prelu(
     )
 
 
-def benchmark_relu(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "ReLU"
-    init_args = {}
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[256, 256],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
-def benchmark_leaky_relu(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "LeakyReLU"
-    init_args = {}
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[256, 256],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
 def benchmark_softmax(
     num_samples,
     batch_size,
@@ -122,8 +82,6 @@ def benchmark_softmax(
 
 BENCHMARK_NAMES = {
     "benchmark_elu": benchmark_elu,
-    "benchmark_relu": benchmark_relu,
-    "benchmark_leaky_relu": benchmark_leaky_relu,
     "benchmark_prelu": benchmark_prelu,
     "benchmark_softmax": benchmark_softmax,
 }

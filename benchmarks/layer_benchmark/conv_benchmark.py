@@ -161,64 +161,6 @@ def benchmark_depthwise_conv2D(
     )
 
 
-def benchmark_separable_conv1D(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "SeparableConv1D"
-    init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
-        "filters": 3,
-    }
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[32, 4],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-    benchmark.benchmark_train(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
-def benchmark_separable_conv2D(
-    num_samples,
-    batch_size,
-    jit_compile=True,
-):
-    layer_name = "SeparableConv2D"
-    init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
-        "filters": 3,
-    }
-    benchmark = LayerBenchmark(
-        layer_name,
-        init_args,
-        input_shape=[128, 128, 4],
-        jit_compile=jit_compile,
-    )
-
-    benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-    benchmark.benchmark_train(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-
 def benchmark_conv1D_transpose(
     num_samples,
     batch_size,
@@ -309,8 +251,6 @@ BENCHMARK_NAMES = {
     "benchmark_conv3D": benchmark_conv3D,
     "benchmark_depthwise_conv1D": benchmark_depthwise_conv1D,
     "benchmark_depthwise_conv2D": benchmark_depthwise_conv2D,
-    "benchmark_separable_conv1D": benchmark_separable_conv1D,
-    "benchmark_separable_conv2D": benchmark_separable_conv2D,
     "benchmark_conv1D_transpose": benchmark_conv1D_transpose,
     "benchmark_conv2D_transpose": benchmark_conv2D_transpose,
     "benchmark_conv3D_transpose": benchmark_conv3D_transpose,
