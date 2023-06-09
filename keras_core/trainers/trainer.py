@@ -366,12 +366,6 @@ def model_supports_jit(model):
             import tensorflow as tf
 
             if tf.config.list_physical_devices("GPU"):
-                warnings.warn(
-                    "XLA (`jit_compile`) is not yet supported "
-                    "on GPU on Apple M1/M2 ARM processors with "
-                    "TensorFlow-Metal. "
-                    "Falling back to `jit_compile=False`.",
-                )
                 return False
     if all(x.supports_jit for x in model._flatten_layers()):
         return True
