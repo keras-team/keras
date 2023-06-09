@@ -184,3 +184,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         model.fit(x, y, epochs=1, batch_size=2)
         self.assertEqual(model.layers[0].w.numpy(), 0.0)
         self.assertNotEqual(model.layers[0].b.numpy(), 0.0)
+
+    def test_shape(self):
+        x = np.ones((2, 3, 7, 1))
+        self.assertAllEqual(core.shape(x), (2, 3, 7, 1))
+
+        x = KerasTensor((None, 3, None, 1))
+        self.assertAllEqual(core.shape(x), (None, 3, None, 1))

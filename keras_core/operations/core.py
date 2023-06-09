@@ -222,3 +222,11 @@ def stop_gradient(variable):
     >>> var = keras_core.operations.stop_gradient(var)
     """
     return backend.core.stop_gradient(variable)
+
+
+@keras_core_export("keras_core.operations.shape")
+def shape(x):
+    """Gets the shape of the tensor input."""
+    if any_symbolic_tensors((x,)):
+        return x.shape
+    return backend.core.shape(x)
