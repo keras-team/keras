@@ -127,7 +127,7 @@ class Hashing(Layer):
         of shape `(batch_size, ...,)`.
 
     Output shape:
-        An `int64` tensor of shape `(batch_size, ...)`.
+        An `int32` tensor of shape `(batch_size, ...)`.
 
     Reference:
 
@@ -186,8 +186,8 @@ class Hashing(Layer):
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 
-    def compute_output_shape(self, input_shape):
-        return input_shape
+    def compute_output_spec(self, inputs):
+        return backend.KerasTensor(shape=inputs.shape, dtype="int32")
 
     def get_config(self):
         config = super().get_config()

@@ -119,9 +119,7 @@ class Discretization(Layer):
             dtype=dtype,
             **kwargs,
         )
-        self.bin_boundaries = (
-            bin_boundaries if bin_boundaries is not None else []
-        )
+        self.bin_boundaries = bin_boundaries
         if self.bin_boundaries:
             self.built = True
         self._convert_input_args = False
@@ -184,8 +182,8 @@ class Discretization(Layer):
     def reset_state(self):
         self.layer.reset_state()
 
-    def compute_output_shape(self, input_shape):
-        return input_shape
+    def compute_output_spec(self, inputs):
+        return backend.KerasTensor(shape=inputs.shape, dtype="int32")
 
     def __call__(self, inputs):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, backend.KerasTensor)):

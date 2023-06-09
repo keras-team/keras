@@ -6,6 +6,8 @@ from keras_core import testing
 
 
 class CategoryEncodingTest(testing.TestCase):
+    # TODO: test coverage is insufficient.
+    # Must test > 1 batch size, unbatch cases separately
     def test_count_output(self):
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1, 0, 0], [2, 1, 0, 1, 0, 0]])

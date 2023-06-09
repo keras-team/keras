@@ -447,13 +447,25 @@ class StringLookup(Layer):
         return outputs
 
     def save_own_variables(self, store):
-        self.layer.save_own_variables(store)
+        if hasattr(self.layer, "save_own_variables"):
+            self.layer.save_own_variables(store)
+        else:
+            self.layer._save_own_variables(store)
 
     def load_own_variables(self, store):
-        self.layer.load_own_variables(store)
+        if hasattr(self.layer, "load_own_variables"):
+            self.layer.load_own_variables(store)
+        else:
+            self.layer._load_own_variables(store)
 
     def save_assets(self, dir_path):
-        self.layer.save_assets(dir_path)
+        if hasattr(self.layer, "save_assets"):
+            self.layer.save_assets(dir_path)
+        else:
+            self.layer._save_assets(dir_path)
 
     def load_assets(self, dir_path):
-        self.layer.load_assets(dir_path)
+        if hasattr(self.layer, "save_assets"):
+            self.layer.load_assets(dir_path)
+        else:
+            self.layer._load_assets(dir_path)
