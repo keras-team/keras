@@ -97,10 +97,31 @@ def benchmark_layer_normalization(
     )
 
 
+def benchmark_unit_normalization(
+    num_samples,
+    batch_size,
+    jit_compile=True,
+):
+    layer_name = "UnitNormalization"
+    init_args = {}
+    benchmark = LayerBenchmark(
+        layer_name,
+        init_args,
+        input_shape=[256, 256, 4],
+        jit_compile=jit_compile,
+    )
+
+    benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+
 BENCHMARK_NAMES = {
     "benchmark_batch_normalization": benchmark_batch_normalization,
     "benchmark_group_normalization": benchmark_group_normalization,
     "benchmark_layer_normalization": benchmark_layer_normalization,
+    "benchmark_unit_normalization": benchmark_unit_normalization,
 }
 
 
