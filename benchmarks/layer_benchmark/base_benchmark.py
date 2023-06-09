@@ -163,16 +163,18 @@ class LayerBenchmark:
             outputs = self._tf_keras_layer(inputs)
         return tf.keras.Model(inputs=inputs, outputs=outputs)
 
-    def benchmark_predict(self, num_samples, batch_size):
-        if isinstance(self.input_shape[0], (tuple, list)):
-            # The layer has multiple inputs.
-            data = []
-            for data_shape in self.input_shape:
-                data_shape = [num_samples] + list(data_shape)
-                data.append(np.random.normal(size=data_shape))
-        else:
-            data_shape = [num_samples] + list(self.input_shape)
-            data = np.random.normal(size=data_shape)
+    def benchmark_predict(self, num_samples, batch_size, data=None):
+        if data is None:
+            # Generate default data if not provided.
+            if isinstance(self.input_shape[0], (tuple, list)):
+                # The layer has multiple inputs.
+                data = []
+                for data_shape in self.input_shape:
+                    data_shape = [num_samples] + list(data_shape)
+                    data.append(np.random.normal(size=data_shape))
+            else:
+                data_shape = [num_samples] + list(self.input_shape)
+                data = np.random.normal(size=data_shape)
 
         num_iterations = num_samples // batch_size - 1
         callback = KerasCoreBenchmarkMetricsCallback(stop_batch=num_iterations)
@@ -207,21 +209,26 @@ class LayerBenchmark:
             f"{tf_keras_throughput:.2f} samples/sec."
         )
 
-    def benchmark_train(self, num_samples, batch_size):
-        if isinstance(self.input_shape[0], (tuple, list)):
-            # The layer has multiple inputs.
-            data = []
-            for data_shape in self.input_shape:
-                data_shape = [num_samples] + list(data_shape)
-                data.append(np.random.normal(size=data_shape))
-        else:
-            data_shape = [num_samples] + list(self.input_shape)
-            data = [np.random.normal(size=data_shape)]
-        if self.flat_call_inputs:
-            # Scale by a small factor to avoid zero gradients.
-            label = np.array(self._keras_core_layer(*data)) * 1.001
-        else:
-            label = np.array(self._keras_core_layer(data)) * 1.001
+    def benchmark_train(self, num_samples, batch_size, data=None, label=None):
+        if data is None:
+            # Generate default data if not provided.
+            if isinstance(self.input_shape[0], (tuple, list)):
+                # The layer has multiple inputs.
+                data = []
+                for data_shape in self.input_shape:
+                    data_shape = [num_samples] + list(data_shape)
+                    data.append(np.random.normal(size=data_shape))
+            else:
+                data_shape = [num_samples] + list(self.input_shape)
+                data = [np.random.normal(size=data_shape)]
+
+        if label is None:
+            # Generate default label if not provided.
+            if self.flat_call_inputs:
+                # Scale by a small factor to avoid zero gradients.
+                label = np.array(self._keras_core_layer(*data)) * 1.001
+            else:
+                label = np.array(self._keras_core_layer(data)) * 1.001
 
         num_iterations = num_samples // batch_size - 1
         callback = KerasCoreBenchmarkMetricsCallback(stop_batch=num_iterations)

@@ -1,13 +1,13 @@
-""" Benchmark conv layers.
+""" Benchmark pooling layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
 
 ```
-python3 -m benchmarks.layer_benchmark.conv_benchmark \
-    --benchmark_name=benchmark_conv2D \
-    --num_samples=2000 \
-    --batch_size=20 \
+python3 -m benchmarks.layer_benchmark.pooling_benchmark \
+    --benchmark_name=benchmark_max_pooling1d \
+    --num_samples=2048 \
+    --batch_size=256 \
     --jit_compile=True
 ```
 """
@@ -21,20 +21,19 @@ from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 FLAGS = flags.FLAGS
 
 
-def benchmark_conv1D(
+def benchmark_average_pooling1d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv1D"
+    layer_name = "AveragePooling1D"
     init_args = {
-        "filters": 16,
-        "kernel_size": 2,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 16],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -49,20 +48,19 @@ def benchmark_conv1D(
     )
 
 
-def benchmark_conv2D(
+def benchmark_average_pooling2d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv2D"
+    layer_name = "AveragePooling2D"
     init_args = {
-        "filters": 16,
-        "kernel_size": 2,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[128, 128, 4],
+        input_shape=[256, 256, 3],
         jit_compile=jit_compile,
     )
 
@@ -77,20 +75,19 @@ def benchmark_conv2D(
     )
 
 
-def benchmark_conv3D(
+def benchmark_average_pooling3d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv3D"
+    layer_name = "AveragePooling3D"
     init_args = {
-        "filters": 16,
-        "kernel_size": 2,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 32, 32, 4],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -105,20 +102,19 @@ def benchmark_conv3D(
     )
 
 
-def benchmark_depthwise_conv1D(
+def benchmark_max_pooling1d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "DepthwiseConv1D"
+    layer_name = "MaxPooling1D"
     init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 4],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -133,20 +129,19 @@ def benchmark_depthwise_conv1D(
     )
 
 
-def benchmark_depthwise_conv2D(
+def benchmark_max_pooling2d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "DepthwiseConv2D"
+    layer_name = "MaxPooling2D"
     init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[128, 128, 4],
+        input_shape=[256, 256, 3],
         jit_compile=jit_compile,
     )
 
@@ -161,21 +156,19 @@ def benchmark_depthwise_conv2D(
     )
 
 
-def benchmark_separable_conv1D(
+def benchmark_max_pooling3d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "SeparableConv1D"
+    layer_name = "MaxPooling3D"
     init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
-        "filters": 3,
+        "pool_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 4],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -190,21 +183,17 @@ def benchmark_separable_conv1D(
     )
 
 
-def benchmark_separable_conv2D(
+def benchmark_global_average_pooling1d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "SeparableConv2D"
-    init_args = {
-        "kernel_size": 16,
-        "depth_multiplier": 2,
-        "filters": 3,
-    }
+    layer_name = "GlobalAveragePooling1D"
+    init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[128, 128, 4],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -219,20 +208,17 @@ def benchmark_separable_conv2D(
     )
 
 
-def benchmark_conv1D_transpose(
+def benchmark_global_average_pooling2d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv1DTranspose"
-    init_args = {
-        "filters": 16,
-        "kernel_size": 2,
-    }
+    layer_name = "GlobalAveragePooling2D"
+    init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 4],
+        input_shape=[256, 256, 3],
         jit_compile=jit_compile,
     )
 
@@ -247,20 +233,17 @@ def benchmark_conv1D_transpose(
     )
 
 
-def benchmark_conv2D_transpose(
+def benchmark_global_average_pooling3d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv2DTranspose"
-    init_args = {
-        "filters": 16,
-        "kernel_size": 2,
-    }
+    layer_name = "GlobalAveragePooling3D"
+    init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[128, 128, 4],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -275,20 +258,67 @@ def benchmark_conv2D_transpose(
     )
 
 
-def benchmark_conv3D_transpose(
+def benchmark_global_max_pooling1d(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Conv3DTranspose"
-    init_args = {
-        "filters": 16,
-        "kernel_size": 2,
-    }
+    layer_name = "GlobalMaxPooling1D"
+    init_args = {}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 32, 32, 4],
+        input_shape=[256, 3],
+        jit_compile=jit_compile,
+    )
+
+    benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+
+def benchmark_global_max_pooling2d(
+    num_samples,
+    batch_size,
+    jit_compile=True,
+):
+    layer_name = "GlobalMaxPooling2D"
+    init_args = {}
+    benchmark = LayerBenchmark(
+        layer_name,
+        init_args,
+        input_shape=[256, 256, 3],
+        jit_compile=jit_compile,
+    )
+
+    benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+
+def benchmark_global_max_pooling3d(
+    num_samples,
+    batch_size,
+    jit_compile=True,
+):
+    layer_name = "GlobalMaxPooling3D"
+    init_args = {}
+    benchmark = LayerBenchmark(
+        layer_name,
+        init_args,
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -304,16 +334,18 @@ def benchmark_conv3D_transpose(
 
 
 BENCHMARK_NAMES = {
-    "benchmark_conv1D": benchmark_conv1D,
-    "benchmark_conv2D": benchmark_conv2D,
-    "benchmark_conv3D": benchmark_conv3D,
-    "benchmark_depthwise_conv1D": benchmark_depthwise_conv1D,
-    "benchmark_depthwise_conv2D": benchmark_depthwise_conv2D,
-    "benchmark_separable_conv1D": benchmark_separable_conv1D,
-    "benchmark_separable_conv2D": benchmark_separable_conv2D,
-    "benchmark_conv1D_transpose": benchmark_conv1D_transpose,
-    "benchmark_conv2D_transpose": benchmark_conv2D_transpose,
-    "benchmark_conv3D_transpose": benchmark_conv3D_transpose,
+    "benchmark_average_pooling1d": benchmark_average_pooling1d,
+    "benchmark_average_pooling2d": benchmark_average_pooling2d,
+    "benchmark_average_pooling3d": benchmark_average_pooling3d,
+    "benchmark_max_pooling1d": benchmark_max_pooling1d,
+    "benchmark_max_pooling2d": benchmark_max_pooling2d,
+    "benchmark_max_pooling3d": benchmark_max_pooling3d,
+    "benchmark_global_average_pooling1d": benchmark_global_average_pooling1d,
+    "benchmark_global_average_pooling2d": benchmark_global_average_pooling2d,
+    "benchmark_global_average_pooling3d": benchmark_global_average_pooling3d,
+    "benchmark_global_max_pooling1d": benchmark_global_max_pooling1d,
+    "benchmark_global_max_pooling2d": benchmark_global_max_pooling2d,
+    "benchmark_global_max_pooling3d": benchmark_global_max_pooling3d,
 }
 
 

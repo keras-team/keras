@@ -1,13 +1,13 @@
-""" Benchmark activation layers.
+""" Benchmark regularization layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
 
 ```
-python3 -m benchmarks.layer_benchmark.activation_benchmark \
-    --benchmark_name=benchmark_elu \
-    --num_samples=8192 \
-    --batch_size=1024 \
+python3 -m benchmarks.layer_benchmark.regularization_benchmark \
+    --benchmark_name=benchmark_dropout\
+    --num_samples=2048 \
+    --batch_size=256 \
     --jit_compile=True
 ```
 """
@@ -20,17 +20,19 @@ from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 FLAGS = flags.FLAGS
 
 
-def benchmark_elu(
+def benchmark_dropout(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "ELU"
-    init_args = {}
+    layer_name = "Dropout"
+    init_args = {
+        "rate": 0.5,
+    }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256],
+        input_shape=[256, 256, 4],
         jit_compile=jit_compile,
     )
 
@@ -39,18 +41,25 @@ def benchmark_elu(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
 
-def benchmark_prelu(
+
+def benchmark_gaussian_dropout(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "PReLU"
-    init_args = {}
+    layer_name = "GaussionDropout"
+    init_args = {
+        "rate": 0.5,
+    }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256],
+        input_shape=[256, 256, 4],
         jit_compile=jit_compile,
     )
 
@@ -59,18 +68,25 @@ def benchmark_prelu(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
 
-def benchmark_relu(
+
+def benchmark_gaussian_noise(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "ReLU"
-    init_args = {}
+    layer_name = "GaussionNoise"
+    init_args = {
+        "stddev": 0.5,
+    }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256],
+        input_shape=[256, 256, 4],
         jit_compile=jit_compile,
     )
 
@@ -79,18 +95,25 @@ def benchmark_relu(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
 
-def benchmark_leaky_relu(
+
+def benchmark_spatial_dropout1D(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "LeakyReLU"
-    init_args = {}
+    layer_name = "SpatialDropout1D"
+    init_args = {
+        "rate": 0.5,
+    }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -99,33 +122,73 @@ def benchmark_leaky_relu(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
 
-def benchmark_softmax(
+
+def benchmark_spatial_dropout2D(
     num_samples,
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "Softmax"
-    init_args = {}
+    layer_name = "SpatialDropout2D"
+    init_args = {
+        "rate": 0.5,
+    }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 256],
+        input_shape=[256, 256, 3],
         jit_compile=jit_compile,
     )
 
     benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+
+def benchmark_spatial_dropout3D(
+    num_samples,
+    batch_size,
+    jit_compile=True,
+):
+    layer_name = "SpatialDropout3D"
+    init_args = {
+        "rate": 0.5,
+    }
+    benchmark = LayerBenchmark(
+        layer_name,
+        init_args,
+        input_shape=[32, 32, 32, 3],
+        jit_compile=jit_compile,
+    )
+
+    benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
         num_samples=num_samples,
         batch_size=batch_size,
     )
 
 
 BENCHMARK_NAMES = {
-    "benchmark_elu": benchmark_elu,
-    "benchmark_relu": benchmark_relu,
-    "benchmark_leaky_relu": benchmark_leaky_relu,
-    "benchmark_prelu": benchmark_prelu,
-    "benchmark_softmax": benchmark_softmax,
+    "benchmark_dropout": benchmark_dropout,
+    "benchmark_gaussian_dropout": benchmark_gaussian_dropout,
+    "benchmark_gaussian_noise": benchmark_gaussian_noise,
+    "benchmark_spatial_dropout1D": benchmark_spatial_dropout1D,
+    "benchmark_spatial_dropout2D": benchmark_spatial_dropout2D,
+    "benchmark_spatial_dropout3D": benchmark_spatial_dropout3D,
 }
 
 
