@@ -1,9 +1,16 @@
+# flake8: noqa
+import os
+
+# Set backend env to torch
+os.environ["KERAS_BACKEND"] = "torch"
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from keras_core import layers
 import keras_core
 import numpy as np
+
 
 # Model / data parameters
 num_classes = 10
