@@ -2,11 +2,13 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core.api_export import keras_core_export
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.utils import argument_validation
 
 
+@keras_core_export("keras_core.layers.UpSampling2D")
 class UpSampling2D(Layer):
     """Upsampling layer for 2D inputs.
 

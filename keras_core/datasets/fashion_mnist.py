@@ -9,7 +9,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.utils.file_utils import get_file
 
 
-@keras_core_export("keras_core.datasets.mnist.load_data")
+@keras_core_export("keras_core.datasets.fashion_mnist.load_data")
 def load_data():
     """Loads the Fashion-MNIST dataset.
 
