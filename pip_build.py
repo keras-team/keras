@@ -22,6 +22,9 @@ import shutil
 
 import namex
 
+# Needed because importing torch after TF causes the runtime to crash
+import torch  # noqa: F401
+
 package = "keras_core"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"

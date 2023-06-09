@@ -2,6 +2,10 @@
 
 Keras Core is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
 
+## Local installation
+
+Run `python3 pip_build.py --install` from the root directory.
+
 ## Backwards compatibility
 
 Keras Core is intend to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend).
