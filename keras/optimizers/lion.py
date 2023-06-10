@@ -40,10 +40,10 @@ class Lion(optimizer.Optimizer):
     similar strength (lr * wd).
 
     Args:
-        learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
-            `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
+        learning_rate: A `tf.Tensor`is a floating point value, a schedule that 
+            `tf.keras.optimizers.schedules.LearningRateSchedule`, or callable
             that takes no arguments and returns the actual value to use. The
-            learning rate. Defaults to 0.0001.
+            learning rate defaults to 0.0001.
         beta_1: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             rate to combine the current gradient and the 1st moment estimate.
