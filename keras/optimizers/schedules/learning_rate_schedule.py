@@ -575,18 +575,22 @@ class InverseTimeDecay(LearningRateSchedule):
         }
 
 
-@keras_export("keras.optimizers.schedules.MultiStepLR", "keras.optimizers.MultiStepLR")
+@keras_export(
+    "keras.optimizers.schedules.MultiStepLR", "keras.optimizers.MultiStepLR"
+)
 class MultiStepLR(tf.keras.optimizers.schedules.LearningRateSchedule):
     """
-    A MultiStep learning rate scheduler. 
-    Decays the learning rate of each parameter group by gamma 
-    once the number of epoch reaches one of the milestones. 
+    A MultiStep learning rate scheduler.
+    Decays the learning rate of each parameter group by gamma
+    once the number of epoch reaches one of the milestones.
     Args:
         lr (float): The initial learning rate.
         batch_size (int): The batch size used for training.
         steps_per_epoch (int): The number of batches in the training dataset.
-        milestones (list): A list of epoch indices at which the learning rate will be multiplied by the gamma value.
-        gamma (float): The multiplicative factor to apply to the learning rate at each milestone.
+        milestones (list): A list of epoch indices at which the learning rate
+          will be multiplied by the gamma value.
+        gamma (float): The multiplicative factor to apply to the learning rate
+          at each milestone.
 
     Example:
     ```python
@@ -598,7 +602,8 @@ class MultiStepLR(tf.keras.optimizers.schedules.LearningRateSchedule):
     ```
 
     """
-    def __init__(self, lr, steps_per_epoch, milestones:list, gamma:int):
+
+    def __init__(self, lr, steps_per_epoch, milestones: list, gamma: int):
         self.lr = lr
         self.epoch = 0
         self.steps_per_epoch = self.steps_per_epoch
@@ -609,13 +614,13 @@ class MultiStepLR(tf.keras.optimizers.schedules.LearningRateSchedule):
         with tf.name_scope(self.name or "MultiStepLR"):
             self.epoch = int((step + 1) / self.steps_per_epoch)
             lr = self.tf.convert_to_tensor(
-                    self.initial_learning_rate, name="initial_learning_rate"
-                )
+                self.initial_learning_rate, name="initial_learning_rate"
+            )
             for milestone in self.milestones:
                 if self.epoch >= milestone:
                     lr *= self.gamma
             return lr
-    
+
     def get_config(self):
         return {
             "lr": self.lr,
@@ -624,16 +629,16 @@ class MultiStepLR(tf.keras.optimizers.schedules.LearningRateSchedule):
             "gamma": self.gamma,
         }
 
+
 @keras_export(
-    "keras.optimizers.schedules.CosineDecay",
-    "keras.optimizers.CosineDecay"
+    "keras.optimizers.schedules.CosineDecay", "keras.optimizers.CosineDecay"
 )
 class CosineDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
     """A LearningRateSchedule that uses a cosine decay schedule.
 
-    To stick to the original paper, users can pass in 
-    steps_per_epoch = num_batches_per_epoch and 
-    decay_steps = num_epochs. If not, pass in 
+    To stick to the original paper, users can pass in
+    steps_per_epoch = num_batches_per_epoch and
+    decay_steps = num_epochs. If not, pass in
     decay_steps = num_batches_per_epoch * num_epochs to decay every batch.
     See [Loshchilov & Hutter, ICLR2016](https://arxiv.org/abs/1608.03983),
     SGDR: Stochastic Gradient Descent with Warm Restarts.
@@ -671,7 +676,12 @@ class CosineDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
     """
 
     def __init__(
-        self, initial_learning_rate, decay_steps, steps_per_epoch=None, alpha=0.0, name=None
+        self,
+        initial_learning_rate,
+        decay_steps,
+        steps_per_epoch=None,
+        alpha=0.0,
+        name=None,
     ):
         """Applies cosine decay to the learning rate.
         Args:
@@ -694,10 +704,9 @@ class CosineDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
         self.name = name
         self.steps_per_epoch = steps_per_epoch
 
-
     def __call__(self, step):
         if self.steps_per_epoch is not None:
-            step = (step+1) / self.steps_per_epoch
+            step = (step + 1) / self.steps_per_epoch
         with tf.name_scope(self.name or "CosineDecay"):
             initial_learning_rate = tf.convert_to_tensor(
                 self.initial_learning_rate, name="initial_learning_rate"
@@ -715,7 +724,6 @@ class CosineDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
 
             decayed = (1 - self.alpha) * cosine_decayed + self.alpha
             return tf.multiply(initial_learning_rate, decayed)
-
 
     def get_config(self):
         return {
