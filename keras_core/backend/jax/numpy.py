@@ -471,8 +471,6 @@ def tan(x):
 
 
 def tensordot(x1, x2, axes=2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
     return jnp.tensordot(x1, x2, axes=axes)
 
 

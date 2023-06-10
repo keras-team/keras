@@ -64,3 +64,13 @@ def logsumexp(x, axis=None, keepdims=False):
         + max_x
     )
     return torch.squeeze(result, dim=axis) if not keepdims else result
+
+
+def qr(x, mode="reduced"):
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return torch.linalg.qr(x, mode=mode)

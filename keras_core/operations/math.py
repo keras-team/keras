@@ -106,3 +106,52 @@ def logsumexp(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Logsumexp(axis, keepdims).symbolic_call(x)
     return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
+
+
+class Qr(Operation):
+    def __init__(self, mode="reduced"):
+        super().__init__()
+        if mode not in {"reduced", "complete"}:
+            raise ValueError(
+                "`mode` argument value not supported. "
+                "Expected one of {'reduced', 'complete'}. "
+                f"Received: mode={mode}"
+            )
+        self.mode = mode
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "Input should have rank >= 2. Received: "
+                f"input.shape = {x.shape}"
+            )
+        m = x.shape[-2]
+        n = x.shape[-1]
+        if m is None or n is None:
+            raise ValueError(
+                "Input should have its last 2 dimensions "
+                "fully-defined. Received: "
+                f"input.shape = {x.shape}"
+            )
+        k = min(m, n)
+        base = tuple(x.shape[:-2])
+        if self.mode == "reduced":
+            return (
+                KerasTensor(shape=base + (m, k), dtype=x.dtype),
+                KerasTensor(shape=base + (k, n), dtype=x.dtype),
+            )
+        # 'complete' mode.
+        return (
+            KerasTensor(shape=base + (m, m), dtype=x.dtype),
+            KerasTensor(shape=base + (m, n), dtype=x.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.qr(x, mode=self.mode)
+
+
+@keras_core_export("keras_core.operations.qr")
+def qr(x, mode="reduced"):
+    if any_symbolic_tensors((x,)):
+        return Qr(mode=mode).symbolic_call(x)
+    return backend.math.qr(x, mode=mode)

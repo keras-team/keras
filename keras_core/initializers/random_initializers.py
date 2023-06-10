@@ -1,8 +1,5 @@
 import math
 
-import numpy as np
-
-from keras_core import backend
 from keras_core import operations as ops
 from keras_core.api_export import keras_core_export
 from keras_core.backend import random
@@ -652,13 +649,12 @@ class OrthogonalInitializer(Initializer):
         # Generate a random matrix
         a = random.normal(flat_shape, seed=self.seed, dtype=dtype)
         # Compute the qr factorization
-        q, r = np.linalg.qr(a)
+        q, r = ops.qr(a)
         # Make Q uniform
-        d = np.diag(r)
-        q *= np.sign(d)
+        d = ops.diag(r)
+        q *= ops.sign(d)
         if num_rows < num_cols:
-            q = np.transpose(q)
-        q = backend.convert_to_tensor(q)
+            q = ops.transpose(q)
         return self.gain * ops.reshape(q, shape)
 
     def get_config(self):

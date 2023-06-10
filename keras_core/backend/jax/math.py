@@ -35,3 +35,13 @@ def logsumexp(x, axis=None, keepdims=False):
         jnp.log(jnp.sum(jnp.exp(x - max_x), axis=axis, keepdims=True)) + max_x
     )
     return jnp.squeeze(result) if not keepdims else result
+
+
+def qr(x, mode="reduced"):
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return jax.numpy.linalg.qr(x, mode=mode)

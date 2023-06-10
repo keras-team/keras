@@ -38,6 +38,22 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
 
+    def test_qr(self):
+        x = KerasTensor((None, 4, 3), dtype="float32")
+        q, r = kmath.qr(x, mode="reduced")
+        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="reduced")
+        qref_shape = (None,) + qref.shape[1:]
+        rref_shape = (None,) + rref.shape[1:]
+        self.assertEqual(q.shape, qref_shape)
+        self.assertEqual(r.shape, rref_shape)
+
+        q, r = kmath.qr(x, mode="complete")
+        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
+        qref_shape = (None,) + qref.shape[1:]
+        rref_shape = (None,) + rref.shape[1:]
+        self.assertEqual(q.shape, qref_shape)
+        self.assertEqual(r.shape, rref_shape)
+
 
 class MathOpsStaticShapeTest(testing.TestCase):
     @pytest.mark.skipif(
@@ -71,6 +87,18 @@ class MathOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((1, 2, 3), dtype="float32")
         result = kmath.logsumexp(x)
         self.assertEqual(result.shape, ())
+
+    def test_qr(self):
+        x = KerasTensor((4, 3), dtype="float32")
+        q, r = kmath.qr(x, mode="reduced")
+        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="reduced")
+        self.assertEqual(q.shape, qref.shape)
+        self.assertEqual(r.shape, rref.shape)
+
+        q, r = kmath.qr(x, mode="complete")
+        qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
+        self.assertEqual(q.shape, qref.shape)
+        self.assertEqual(r.shape, rref.shape)
 
 
 class MathOpsCorrectnessTest(testing.TestCase):
@@ -180,3 +208,15 @@ class MathOpsCorrectnessTest(testing.TestCase):
         outputs = kmath.logsumexp(x, axis=1)
         expected = np.log(np.sum(np.exp(x), axis=1))
         self.assertAllClose(outputs, expected)
+
+    def test_qr(self):
+        x = np.random.random((4, 5))
+        q, r = kmath.qr(x, mode="reduced")
+        qref, rref = np.linalg.qr(x, mode="reduced")
+        self.assertAllClose(qref, q)
+        self.assertAllClose(rref, r)
+
+        q, r = kmath.qr(x, mode="complete")
+        qref, rref = np.linalg.qr(x, mode="complete")
+        self.assertAllClose(qref, q)
+        self.assertAllClose(rref, r)
