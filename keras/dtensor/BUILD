@@ -12,7 +12,6 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 # copybara:uncomment_end
 
 package(
-    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//learning/brain/distribute/experimental/auto_distribute:__pkg__",
@@ -119,7 +118,6 @@ tf_py_test(
 tf_py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
-    shard_count = 2,
     tags = [
         "requires-net:external",
     ],

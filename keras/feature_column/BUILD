@@ -1,7 +1,6 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
-    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/tensorflow/python/feature_column:__subpackages__",  # For unit testing

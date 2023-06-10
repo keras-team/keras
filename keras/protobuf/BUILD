@@ -4,7 +4,6 @@
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 
 package(
-    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
     ],

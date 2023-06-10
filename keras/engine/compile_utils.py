@@ -31,11 +31,8 @@ from keras.utils import tf_utils
 class Container:
     """Base Container class."""
 
-    def __init__(self, output_names=None, mesh=None):
+    def __init__(self, output_names=None):
         self._output_names = output_names
-        # Used by DTensor layout map use case. Can be removed after DTensor
-        # based distribution strategy.
-        self._mesh = mesh
 
     def build(self, y_pred):
         if self._output_names is None:
@@ -118,16 +115,9 @@ class LossesContainer(Container):
     """
 
     def __init__(
-        self,
-        losses,
-        loss_weights=None,
-        output_names=None,
-        total_loss_mean=None,
-        mesh=None,
+        self, losses, loss_weights=None, output_names=None, total_loss_mean=None
     ):
-        super(LossesContainer, self).__init__(
-            output_names=output_names, mesh=mesh
-        )
+        super(LossesContainer, self).__init__(output_names=output_names)
 
         # Keep user-supplied values untouched for recompiling and serialization.
         self._user_losses = losses
@@ -138,9 +128,7 @@ class LossesContainer(Container):
         self._per_output_metrics = None  # Per-output losses become metrics.
 
         # Mean of the total loss.
-        self._total_loss_mean = total_loss_mean or metrics_mod.Mean(
-            name="loss", mesh=self._mesh
-        )
+        self._total_loss_mean = total_loss_mean or metrics_mod.Mean(name="loss")
         self._built = False
 
     def get_config(self):
@@ -222,7 +210,7 @@ class LossesContainer(Container):
                     self._per_output_metrics.append(None)
                 else:
                     self._per_output_metrics.append(
-                        metrics_mod.Mean(output_name + "_loss", mesh=self._mesh)
+                        metrics_mod.Mean(output_name + "_loss")
                     )
 
     def __call__(
@@ -387,7 +375,6 @@ class MetricsContainer(Container):
         weighted_metrics=None,
         output_names=None,
         from_serialized=False,
-        mesh=None,
     ):
         """Initializes a container for metrics.
 
@@ -400,9 +387,7 @@ class MetricsContainer(Container):
             model.  Used to avoid redundantly applying pre-processing renaming
             steps.
         """
-        super(MetricsContainer, self).__init__(
-            output_names=output_names, mesh=mesh
-        )
+        super(MetricsContainer, self).__init__(output_names=output_names)
 
         self._check_duplicated_metrics(metrics, weighted_metrics)
         # Keep user-supplied values untouched for recompiling and serialization.
@@ -703,8 +688,9 @@ class MetricsContainer(Container):
                     )
 
             metric_obj = metrics_mod.MeanMetricWrapper(
-                metric_obj, name=metric_name, mesh=self._mesh
+                metric_obj, name=metric_name
             )
+
         return metric_obj
 
     def _should_broadcast(self, obj):

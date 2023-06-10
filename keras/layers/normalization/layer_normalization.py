@@ -305,11 +305,17 @@ class LayerNormalization(Layer):
             outputs = tf.cast(outputs, input_dtype)
         else:
             # Collapse dims before self.axis, and dims in self.axis
-
+            pre_dim, in_dim = (1, 1)
             axis = sorted(self.axis)
             tensor_shape = tf.shape(inputs)
-            pre_dim = tf.reduce_prod(tensor_shape[: axis[0]])
-            in_dim = tf.reduce_prod(tensor_shape[axis[0] :])
+            for dim in range(0, ndims):
+                dim_tensor = tensor_shape[dim]
+                if dim < axis[0]:
+                    pre_dim = pre_dim * dim_tensor
+                else:
+                    assert dim in axis
+                    in_dim = in_dim * dim_tensor
+
             squeezed_shape = [1, pre_dim, in_dim, 1]
             # This fused operation requires reshaped inputs to be NCHW.
             data_format = "NCHW"

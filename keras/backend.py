@@ -5441,22 +5441,7 @@ def softmax(x, axis=-1):
     Returns:
         A tensor.
     """
-    if x.shape.rank <= 1:
-        raise ValueError(
-            f"Cannot apply softmax to a tensor that is 1D. Received input: {x}"
-        )
-
-    if isinstance(axis, int):
-        output = tf.nn.softmax(x, axis=axis)
-    else:
-        # nn.softmax does not support tuple axis.
-        numerator = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
-        denominator = tf.reduce_sum(numerator, axis=axis, keepdims=True)
-        output = numerator / denominator
-
-    # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x
-    return output
+    return tf.nn.softmax(x, axis=axis)
 
 
 @keras_export("keras.backend.softplus")
@@ -5914,10 +5899,7 @@ def sigmoid(x):
     Returns:
         A tensor.
     """
-    output = tf.sigmoid(x)
-    # Cache the logits to use for crossentropy loss.
-    output._keras_logits = x
-    return output
+    return tf.math.sigmoid(x)
 
 
 @keras_export("keras.backend.hard_sigmoid")

@@ -2,7 +2,6 @@
 #   Contains the Keras datasets package (internal TensorFlow version).
 
 package(
-    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
     ],

@@ -335,12 +335,11 @@ def print_summary(
             It will be called on each line of the summary.
             You can set it to a custom function
             in order to capture the string summary.
-            When `None`, uses `print` (prints to stdout).
-            Defaults to `None`.
+            It defaults to `print` (prints to stdout).
         expand_nested: Whether to expand the nested models.
-            Defaults to `False`.
+            If not provided, defaults to `False`.
         show_trainable: Whether to show if a layer is trainable.
-            Defaults to `False`.
+            If not provided, defaults to `False`.
         layer_range: List or tuple containing two strings,
             the starting layer name and ending layer name (both inclusive),
             indicating the range of layers to be printed in the summary. The
@@ -1043,9 +1042,9 @@ def warmstart_embedding_matrix(
           embedding matrix.
         new_embeddings_initializer: Initializer for embedding vectors for
           previously unseen terms to be added to the new embedding matrix (see
-          `keras.initializers`). new_embedding matrix
+          `keras.initializers`). Defaults to "uniform". new_embedding matrix
           needs to be specified with "constant" initializer.
-          matrix. None means "uniform". Default value is None.
+          matrix. Default value is None.
 
     Returns:
       tf.tensor of remapped embedding layer matrix

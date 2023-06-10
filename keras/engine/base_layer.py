@@ -1113,6 +1113,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
             build_graph=not eager,
             training=training_mode,
         ):
+
             input_spec.assert_input_compatibility(
                 self.input_spec, inputs, self.name
             )
@@ -1559,10 +1560,20 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     @property
     def metrics(self):
-        """List of metrics attached to the layer.
+        """List of metrics added using the `add_metric()` API.
+
+        Example:
+
+        >>> input = tf.keras.layers.Input(shape=(3,))
+        >>> d = tf.keras.layers.Dense(2)
+        >>> output = d(input)
+        >>> d.add_metric(tf.reduce_max(output), name='max')
+        >>> d.add_metric(tf.reduce_min(output), name='min')
+        >>> [m.name for m in d.metrics]
+        ['max', 'min']
 
         Returns:
-            A list of `Metric` objects.
+          A list of `Metric` objects.
         """
         collected_metrics = []
         for layer in self._flatten_layers():
@@ -1572,7 +1583,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                 collected_metrics.extend(layer._metrics)
         return collected_metrics
 
-    @doc_controls.do_not_generate_docs
     def add_metric(self, value, name=None, **kwargs):
         """Adds metric tensor to the layer.
 
@@ -2861,9 +2871,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                         tf.shape(output)[0], activity_loss.dtype
                     )
                     # Make activity regularization strength batch-agnostic.
-                    mean_activity_loss = tf.math.divide_no_nan(
-                        activity_loss, batch_size
-                    )
+                    mean_activity_loss = activity_loss / batch_size
                     self.add_loss(mean_activity_loss)
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask, build_graph):

@@ -1519,12 +1519,9 @@ class ModelCheckpoint(Callback):
             self.epochs_since_last_save = 0
             filepath = self._get_file_path(epoch, batch, logs)
 
+            # Create host directory if it doesn't exist.
             dirname = os.path.dirname(filepath)
-            if (
-                dirname
-                and not dirname.startswith("gs://")
-                and not tf.io.gfile.exists(dirname)
-            ):
+            if dirname and not tf.io.gfile.exists(dirname):
                 tf.io.gfile.makedirs(dirname)
 
             try:

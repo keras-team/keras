@@ -17,6 +17,7 @@
 import collections
 import contextlib
 import copy
+import platform
 import random
 import threading
 
@@ -707,6 +708,13 @@ def _astuple(attrs):
 
 def can_jit_compile(warn=False):
     """Returns True if TensorFlow XLA is available for the platform."""
+    if platform.system() == "Darwin" and "arm" in platform.processor().lower():
+        if warn:
+            logging.warning(
+                "XLA (`jit_compile`) is not yet supported on Apple M1/M2 ARM "
+                "processors. Falling back to `jit_compile=False`."
+            )
+        return False
     if pywrap_tfe.TF_ListPluggablePhysicalDevices():
         if warn:
             logging.warning(

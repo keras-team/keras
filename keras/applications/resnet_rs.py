@@ -196,9 +196,9 @@ BASE_DOCSTRING = """Instantiates the {name} architecture.
             `classifier_activation=None` to return the logits of the "top"
             layer.
         include_preprocessing: Boolean, whether to include the preprocessing
-            layer (`Rescaling`) at the bottom of the network. Note: Input image
-            is normalized by ImageNet mean and standard deviation.
-            Defaults to `True`.
+            layer (`Rescaling`) at the bottom of the network. Defaults to
+            `True`.  Note: Input image is normalized by ImageNet mean and
+            standard deviation.
 
     Returns:
         A `keras.Model` instance.
@@ -582,10 +582,9 @@ def ResNetRS(
           use on the "top" layer. Ignored unless `include_top=True`. Set
           `classifier_activation=None` to return the logits of the "top" layer.
         include_preprocessing: Boolean, whether to include the preprocessing
-          layer (`Rescaling`) at the bottom of the network. Note - Input image
-          is normalized by ImageNet mean and standard deviation.
-          Defaults to `True`.
-
+          layer (`Rescaling`) at the bottom of the network. Defaults to `True`.
+          Note- Input image is normalized by ImageNet mean and standard
+          deviation.
 
     Returns:
         A `tf.keras.Model` instance.
@@ -959,10 +958,10 @@ def preprocess_input(x, data_format=None):
 
     Args:
       x: A floating point `numpy.array` or a `tf.Tensor`.
-      data_format: Optional data format of the image tensor/array. `None` means
-        the global setting `tf.keras.backend.image_data_format()` is used
-        (unless you changed it, it uses "channels_last").
-        Defaults to `None`.
+      data_format: Optional data format of the image tensor/array. Defaults to
+        None, in which case the global setting
+        `tf.keras.backend.image_data_format()` is used (unless you changed it,
+        it defaults to "channels_last").{mode}
 
     Returns:
       Unchanged `numpy.array` or `tf.Tensor`.

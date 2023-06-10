@@ -187,7 +187,7 @@ class Progbar:
               as-is. Else, an average of the metric over time will be
               displayed.
             finalize: Whether this is the last update for the progress bar. If
-              `None`, uses `current >= self.target`. Defaults to `None`.
+              `None`, defaults to `current >= self.target`.
         """
         if finalize is None:
             if self.target is None:
