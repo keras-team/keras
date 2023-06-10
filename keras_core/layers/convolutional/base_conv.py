@@ -204,16 +204,21 @@ class BaseConv(Layer):
             self.bias = None
         self.built = True
 
-    def call(self, inputs):
-        outputs = ops.conv(
+    def convolution_op(self, inputs, kernel):
+        return ops.conv(
             inputs,
-            self.kernel,
+            kernel,
             strides=list(self.strides),
             padding=self.padding,
             dilation_rate=self.dilation_rate,
             data_format=self.data_format,
         )
 
+    def call(self, inputs):
+        outputs = self.convolution_op(
+            inputs,
+            self.kernel,
+        )
         if self.use_bias:
             if self.data_format == "channels_last":
                 bias_shape = (1,) * (self.rank + 1) + (self.filters,)
