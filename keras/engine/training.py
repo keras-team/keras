@@ -34,6 +34,7 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_module
+from keras.layers.activation import Softmax as SoftmaxLayer
 from keras.engine import training_utils
 from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
@@ -4413,37 +4414,38 @@ def _check_output_activation_softmax(output_layers):
 
         # If the activation is a layer, we can check the axis, but as a
         # precaution, we check if the layer has an axis attribute.
-        if isinstance(layer.activation, base_layer.Layer):
-            try:
-                softmax_axis = layer.activation.axis
-            except AttributeError:
+        if hasattr(layer, "activation"):
+            if isinstance(layer.activation, SoftmaxLayer):
+                try:
+                    softmax_axis = layer.activation.axis
+                except AttributeError:
+                    continue
+
+            # This is the case for when user uses "softmax" or tf.nn.softmax
+            elif "axis=-1" in str(
+                inspect.signature(layer.activation)
+            ) or "axis=None" in str(inspect.signature(layer.activation)):
+                softmax_axis = -1
+
+            # If above conditions are not met, we cannot check the output.
+            else:
                 continue
 
-        # This is the case for when user uses "softmax" or tf.nn.softmax
-        elif "axis=-1" in str(
-            inspect.signature(layer.activation)
-        ) or "axis=None" in str(inspect.signature(layer.activation)):
-            softmax_axis = -1
+            layer_output_shape = layer.output_shape
 
-        # If above conditions are not met, we cannot check the output.
-        else:
-            continue
-
-        layer_output_shape = layer.output_shape
-
-        if layer_output_shape[softmax_axis] == 1:
-            raise ValueError(
-                f"Output layer {layer_name} has a single unit output, "
-                f"but the activation is softmax. This is most likely "
-                f"an error because softmax outputs sum to 1 therefore single "
-                f"unit outputs with softmax "
-                f"will only output 1.0. If you think that the error is raised "
-                f"due to an incorrect check, please file an issue on "
-                f"https://github.com/keras-team/keras/issues. You can "
-                f"disable this check by setting "
-                f"`experimental_validate_softmax_activation=False` when calling"
-                f" `compile()` on the model."
-            )
+            if layer_output_shape[softmax_axis] == 1:
+                raise ValueError(
+                    f"Output layer {layer_name} has a single unit output, "
+                    "but the activation is softmax. This is most likely an "
+                    "error because softmax outputs sum to 1 therefore single "
+                    "unit outputs with softmax will only output 1.0. If you "
+                    "think that the error is raised due to an incorrect check, "
+                    "please file an issue on "
+                    "https://github.com/keras-team/keras/issues. You can "
+                    "disable this check by setting "
+                    "`experimental_validate_softmax_activation=False` when "
+                    "calling `compile()` on the model."
+                )
 
 
 def map_output_layers_with_names(model_instance, outputs):
