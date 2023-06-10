@@ -34,6 +34,7 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_module
+from keras.engine import steps_per_execution_tuning
 from keras.layers.activation import Softmax as SoftmaxLayer
 from keras.engine import training_utils
 from keras.metrics import base_metric
