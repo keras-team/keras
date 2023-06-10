@@ -5,6 +5,7 @@ load("//keras/api:api_gen.bzl", "gen_api_init_files")
 load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_FILES_V1")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/py/tensorflow:__subpackages__",

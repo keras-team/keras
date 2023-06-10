@@ -49,7 +49,7 @@ class BatchNormalizationDTensorTest(test_util.DTensorBaseTest):
         self.mesh = self.configTestMesh(mesh_dict)
 
     def test_strategy_backed_by_dtensor(self):
-        strategy = dtensor_mirrored_strategy.MirroredStrategy(self.mesh)
+        strategy = dtensor_mirrored_strategy.MirroredStrategy(mesh=self.mesh)
 
         with strategy.scope():
             self.assertTrue(utils.running_with_dtensor_strategy())

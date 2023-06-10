@@ -7,6 +7,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove this deps when distribute test are converted to integration test.
     default_visibility = [
         "//keras:friends",
@@ -117,6 +118,19 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_utils",
+    ],
+)
+
+cuda_py_test(
+    name = "model_checkpoint_test",
+    srcs = ["model_checkpoint_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":multi_worker_testing_utils",
+        ":worker_training_state",
+        "//:expect_tensorflow_installed",
+        "//keras",
     ],
 )
 
@@ -768,7 +782,7 @@ distribute_py_test(
     name = "parameter_server_exact_evaluation_test",
     srcs = ["parameter_server_exact_evaluation_test.py"],
     python_version = "PY3",
-    shard_count = 28,
+    shard_count = 29,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)

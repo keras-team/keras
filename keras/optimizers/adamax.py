@@ -57,19 +57,19 @@ class Adamax(optimizer.Optimizer):
     ```
 
     Args:
-      learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
-        `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
-        that takes no arguments and returns the actual value to use. The
-        learning rate. Defaults to `0.001`.
-      beta_1: A float value or a constant float tensor. The exponential decay
-        rate for the 1st moment estimates.
-      beta_2: A float value or a constant float tensor. The exponential decay
-        rate for the exponentially weighted infinity norm.
-      epsilon: A small constant for numerical stability.
-      {{base_optimizer_keyword_args}}
+        learning_rate: A `tf.Tensor`, floating point value, a schedule that is a
+            `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
+            that takes no arguments and returns the actual value to use. The
+            learning rate. Defaults to `0.001`.
+        beta_1: A float value or a constant float tensor. The exponential decay
+            rate for the 1st moment estimates.
+        beta_2: A float value or a constant float tensor. The exponential decay
+            rate for the exponentially weighted infinity norm.
+        epsilon: A small constant for numerical stability.
+        {{base_optimizer_keyword_args}}
 
     Reference:
-      - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
+        - [Kingma et al., 2014](http://arxiv.org/abs/1412.6980)
     """
 
     def __init__(
@@ -113,7 +113,7 @@ class Adamax(optimizer.Optimizer):
         exponentially weighted infinity norm (denoted as u).
 
         Args:
-          var_list: list of model variables to build Adamax variables on.
+            var_list: list of model variables to build Adamax variables on.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:

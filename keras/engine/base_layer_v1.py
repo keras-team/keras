@@ -237,7 +237,7 @@ class Layer(base_layer.Layer):
 
         # Whether the layer will track any layers that are set as attribute on
         # itself as sub-layers, the weights from the sub-layers will be included
-        # in the parent layer's variables() as well.  Default to True, which
+        # in the parent layer's variables() as well.  Defaults to `True`, which
         # means auto tracking is turned on. Certain subclass might want to turn
         # it off, like the Sequential model.
         self._auto_track_sub_layers = True
@@ -973,7 +973,7 @@ class Layer(base_layer.Layer):
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def input_spec(self, value):
         for v in tf.nest.flatten(value):
-            if v is not None and not isinstance(v, input_spec.InputSpec):
+            if v is not None and "InputSpec" not in v.__class__.__name__:
                 raise TypeError(
                     "Layer input_spec must be an instance of InputSpec. "
                     "Got: {}".format(v)

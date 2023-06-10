@@ -85,6 +85,18 @@ class OptimizersTest(test_util.DTensorBaseTest):
             optimizer._index_dict[optimizer._var_key(var_list[7])], 7
         )
 
+    def test_aggregate_gradients_noop(self):
+        optimizer = adam.Adam(mesh=self.mesh)
+
+        variable_init_value = tf.ones(shape=(), dtype=tf.float32)
+        model_variable = dtensor.DVariable(variable_init_value, trainable=True)
+        grads = tf.ones_like(variable_init_value)
+
+        grad_and_var = zip([grads], [model_variable])
+
+        result = optimizer.aggregate_gradients(grad_and_var)
+        self.assertEqual(result, grad_and_var)
+
     @parameterized.named_parameters(
         (
             "Adadelta",

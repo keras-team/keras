@@ -51,13 +51,13 @@ class Softmax(Layer):
 
     Example without mask:
 
-    >>> inp = np.asarray([1., 2., 1.])
+    >>> inp = np.asarray([[1., 2., 1.]])
     >>> layer = tf.keras.layers.Softmax()
     >>> layer(inp).numpy()
-    array([0.21194157, 0.5761169 , 0.21194157], dtype=float32)
-    >>> mask = np.asarray([True, False, True], dtype=bool)
+    array([[0.21194157, 0.5761169 , 0.21194157]], dtype=float32)
+    >>> mask = np.asarray([[True, False, True]], dtype=bool)
     >>> layer(inp, mask).numpy()
-    array([0.5, 0. , 0.5], dtype=float32)
+    array([[0.5, 0. , 0.5]], dtype=float32)
 
     Input shape:
         Arbitrary. Use the keyword argument `input_shape`

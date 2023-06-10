@@ -43,11 +43,14 @@ class DeterministicRandomTestTool(object):
     This applies both to the stateful random operations used for creating and
     initializing variables, and to the stateful random operations used in
     computation (such as for dropout layers).
+
+    Args:
+      mode: Set mode to 'constant' or 'num_random_ops'. Defaults to
+        'constant'.
+      seed: The random seed to use.
     """
 
     def __init__(self, seed: int = 42, mode="constant"):
-        """Set mode to 'constant' or 'num_random_ops'. Defaults to
-        'constant'."""
         if mode not in {"constant", "num_random_ops"}:
             raise ValueError(
                 "Mode arg must be 'constant' or 'num_random_ops'. "

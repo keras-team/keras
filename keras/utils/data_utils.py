@@ -247,7 +247,7 @@ def get_file(
             The default `'auto'` corresponds to `['tar', 'zip']`.
             None or an empty list will return no matches found.
         cache_dir: Location to store cached files, when None it
-            defaults to the default directory `~/.keras/`.
+            defaults to `~/.keras/`.
 
     Returns:
         Path to the downloaded file.
@@ -1063,14 +1063,16 @@ def pad_sequences(
         maxlen: Optional Int, maximum length of all sequences. If not provided,
             sequences will be padded to the length of the longest individual
             sequence.
-        dtype: (Optional, defaults to `"int32"`). Type of the output sequences.
+        dtype: (Optional). Type of the output sequences.
             To pad sequences with variable length strings, you can use `object`.
-        padding: String, "pre" or "post" (optional, defaults to `"pre"`):
-            pad either before or after each sequence.
-        truncating: String, "pre" or "post" (optional, defaults to `"pre"`):
+            Defaults to `"int32"`.
+        padding: String, "pre" or "post" (optional):
+            pad either before or after each sequence. Defaults to `"pre"`.
+        truncating: String, "pre" or "post" (optional):
             remove values from sequences larger than
             `maxlen`, either at the beginning or at the end of the sequences.
-        value: Float or String, padding value. (Optional, defaults to 0.)
+            Defaults to `"pre"`.
+        value: Float or String, padding value. (Optional). Defaults to `0.`.
 
     Returns:
         Numpy array with shape `(len(sequences), maxlen)`

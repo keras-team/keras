@@ -49,6 +49,58 @@ def _aggregate_results(coordinator_metrics, results):
     return coordinator_metrics
 
 
+def make_binary_dataset_fn(num_examples, num_data_shards, batch_size):
+    def dataset_fn(input_context=None):
+        del input_context
+        x = np.arange(num_examples)
+
+        def make_batch_with_n_true(n):
+            return np.concatenate((np.ones(n), np.zeros(batch_size - n)))
+
+        y = np.zeros(num_examples)
+        batch_idxs = np.arange(num_examples // batch_size)
+        for shard_idx in range(num_data_shards):
+            num_correct = shard_idx
+            # Dataset.shard uses mod sharding, so each shard consists of the
+            # batches whose index mod (num_data_shards) = shard_idx
+            batch_idxs_for_shard = np.where(
+                np.mod(batch_idxs, num_data_shards) == shard_idx
+            )[0]
+            for batch_idx in batch_idxs_for_shard:
+                # Select the individual data elements for this batch
+                batch_range = range(
+                    batch_idx * batch_size, (batch_idx + 1) * batch_size
+                )
+                num_for_batch = min(num_correct, batch_size)
+                y[batch_range] = make_batch_with_n_true(num_for_batch)
+                num_correct -= num_for_batch
+
+        dataset = tf.data.Dataset.from_tensor_slices((x, y))
+
+        dataset = dataset.batch(batch_size)
+        return dataset
+
+    return dataset_fn
+
+
+def make_multiclass_dataset_fn(
+    num_examples, num_data_shards, batch_size, n_classes
+):
+    def dataset_fn(input_context=None):
+        del input_context
+        x = np.arange(num_examples)
+        y = np.mod(np.arange(num_examples), n_classes)
+        y[y == 0] = 1
+        y = tf.convert_to_tensor(y, dtype=tf.int64)
+        weights = np.random.uniform(size=num_examples)
+        dataset = tf.data.Dataset.from_tensor_slices((x, y, weights)).batch(
+            batch_size
+        )
+        return dataset
+
+    return dataset_fn
+
+
 @test_utils.run_v2_only
 class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
     def setUp(self):
@@ -223,7 +275,6 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
     def testDistributedModelEvaluation(
         self, input_type, eval_in_model_fit, use_auto, custom_metric
     ):
-
         # Define dataset by batch size, number of shards, and batches per shard
         batch_size = 16
         num_data_shards = 32
@@ -237,39 +288,9 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
 
         # The predictions y_pred from this dummy model are fixed to True. This
         # way we can control the expected accuracy by just modifying y.
-        class MyModel(keras.Model):
+        class BinaryModel(keras.Model):
             def __call__(self, x, training=False):
                 return tf.cast(x >= 0, tf.float32)
-
-        def dataset_fn(input_context=None):
-            del input_context
-            x = np.arange(num_examples)
-
-            def make_batch_with_n_true(n):
-                return np.concatenate((np.ones(n), np.zeros(batch_size - n)))
-
-            y = np.zeros(num_examples)
-            batch_idxs = np.arange(num_examples // batch_size)
-            for shard_idx in range(num_data_shards):
-                num_correct = shard_idx
-                # Dataset.shard uses mod sharding, so each shard consists of the
-                # batches whose index mod (num_data_shards) = shard_idx
-                batch_idxs_for_shard = np.where(
-                    np.mod(batch_idxs, num_data_shards) == shard_idx
-                )[0]
-                for batch_idx in batch_idxs_for_shard:
-                    # Select the individual data elements for this batch
-                    batch_range = range(
-                        batch_idx * batch_size, (batch_idx + 1) * batch_size
-                    )
-                    num_for_batch = min(num_correct, batch_size)
-                    y[batch_range] = make_batch_with_n_true(num_for_batch)
-                    num_correct -= num_for_batch
-
-            dataset = tf.data.Dataset.from_tensor_slices((x, y))
-
-            dataset = dataset.batch(batch_size)
-            return dataset
 
         class CustomAccuracy(keras.metrics.Metric):
             def __init__(self, name="custom_acc", dtype=None):
@@ -299,14 +320,22 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             )
             return metric
 
+        dataset_fn = make_binary_dataset_fn(
+            num_examples, num_data_shards, batch_size
+        )
+
+        loss = "mae"
+
         logging.info("Local evaluation (exact)")
-        model = MyModel()
-        model.compile(metrics=[build_metric()])
+        model = BinaryModel()
+        model.compile(metrics=[build_metric()], loss=loss)
         ground_truth_evaluation = model.evaluate(dataset_fn())
         logging.info(
             "Result local evaluation (exact): %s", ground_truth_evaluation
         )
         self.assertAlmostEqual(ground_truth_evaluation[1], expected_acc)
+        # Since outputs are always 0 or 1, MAE loss should == 1 - accuracy
+        self.assertAlmostEqual(ground_truth_evaluation[0], 1 - expected_acc)
 
         logging.info("Distributed evaluation (exact)")
         if use_auto:
@@ -315,10 +344,10 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             num_shards = 5 * self.strategy._extended._num_workers
 
         with self.strategy.scope():
-            model = MyModel()
+            model = BinaryModel()
             model.compile(
                 metrics=[build_metric()],
-                loss="mae",
+                loss=loss,
                 pss_evaluation_shards=num_shards,
             )
 
@@ -337,8 +366,7 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
             )
 
         metric_name = "custom_acc" if custom_metric else "accuracy"
-        # Since outputs are always 0 or 1, MAE loss should == accuracy
-        expected_results = {metric_name: expected_acc, "loss": expected_acc}
+        expected_results = {metric_name: expected_acc, "loss": 1 - expected_acc}
 
         def kill_and_revive_in_thread(wait_secs=0.1):
             def _kill_and_revive_fn():
@@ -383,6 +411,73 @@ class ExactEvaluationTest(tf.test.TestCase, parameterized.TestCase):
         for metric, val in eval_results.items():
             self.assertIn(metric, expected_results)
             self.assertAlmostEqual(val, expected_results[metric], places=5)
+
+    def testDistributedMulticlassWeightedEvaluation(self):
+        n_classes = 5
+
+        # Define dataset by batch size, number of shards, and batches per shard
+        batch_size = n_classes * 2
+        num_data_shards = 32
+        batches_per_shard = 4
+        num_examples = batch_size * num_data_shards * batches_per_shard
+        expected_acc = 4 / 5
+
+        class MulticlassModel(keras.Model):
+            def __call__(self, x, training=False):
+                # e.g. x = 6 -> y_pred = [0, 1, 0, 0, 0]
+                return tf.squeeze(
+                    tf.one_hot(
+                        indices=[tf.math.floormod(x, n_classes)],
+                        depth=n_classes,
+                    )
+                )
+
+        dataset_fn = make_multiclass_dataset_fn(
+            num_examples, num_data_shards, batch_size, n_classes
+        )
+
+        model = MulticlassModel()
+        model.compile(
+            metrics=[
+                keras.metrics.SparseCategoricalAccuracy(),
+                keras.metrics.SparseCategoricalCrossentropy(),
+            ],
+            weighted_metrics=[keras.metrics.SparseCategoricalCrossentropy()],
+            loss="sparse_categorical_crossentropy",
+        )
+        eval_dataset = dataset_fn()
+        ground_truth_evaluation = model.evaluate(eval_dataset, return_dict=True)
+        self.assertAlmostEqual(
+            ground_truth_evaluation["sparse_categorical_accuracy"], expected_acc
+        )
+
+        with self.strategy.scope():
+            model = MulticlassModel()
+            model.compile(
+                metrics=[
+                    keras.metrics.SparseCategoricalAccuracy(),
+                    keras.metrics.SparseCategoricalCrossentropy(),
+                ],
+                weighted_metrics=[
+                    keras.metrics.SparseCategoricalCrossentropy()
+                ],
+                loss="sparse_categorical_crossentropy",
+                pss_evaluation_shards=num_data_shards,
+            )
+
+        # run a single train step to compile metrics
+        train_dataset = dataset_fn()
+        model.fit(train_dataset, steps_per_epoch=1)
+
+        eval_results = model.evaluate(eval_dataset, return_dict=True)
+        eval_results = {
+            metric: val.numpy() for metric, val in eval_results.items()
+        }
+        for metric, val in eval_results.items():
+            self.assertIn(metric, ground_truth_evaluation)
+            self.assertAlmostEqual(
+                val, ground_truth_evaluation[metric], places=4
+            )
 
 
 if __name__ == "__main__":

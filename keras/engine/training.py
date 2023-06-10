@@ -23,10 +23,17 @@ import weakref
 
 import numpy as np
 import tensorflow.compat.v2 as tf
+from tensorflow.python.distribute import distribute_utils
+from tensorflow.python.distribute import input_ops
+from tensorflow.python.eager import context
+from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 from keras import backend
 from keras import callbacks as callbacks_module
 from keras import optimizers
+from keras.dtensor import dtensor_api
 from keras.dtensor import layout_map as layout_map_lib
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -56,14 +63,6 @@ from keras.utils import tf_utils
 from keras.utils import traceback_utils
 from keras.utils import version_utils
 from keras.utils.mode_keys import ModeKeys
-
-# isort: off
-from tensorflow.python.eager import context
-from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util.tf_export import keras_export
-from tensorflow.python.distribute import distribute_utils
-from tensorflow.python.distribute import input_ops
-from tensorflow.tools.docs import doc_controls
 
 try:
     import h5py
@@ -319,6 +318,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self._checkpoint = tf.train.Checkpoint(root=weakref.ref(self))
 
         self._steps_per_execution = None
+        self._enable_tune_steps_per_execution = False
+
+        self._layout_map = layout_map_lib.get_current_layout_map()
 
         self._init_batch_counters()
         self._base_model_initialized = True
@@ -328,7 +330,25 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         # `fit`, `evaluate`, and `predict`.
         self._jit_compile = None
 
-        self._layout_map = layout_map_lib.get_current_layout_map()
+    def _create_counter_variable(self, init_value):
+        """Helper function for counter variable creation.
+
+        For the DTensor use case with layout map, since the variable are not
+        tracked by model, they can't be visited by the layout map, and need to
+        be properly initialized as DVariable.
+        """
+        # This function should be removed after we move to the strategy based
+        # implementation for DTensor.
+        if self._layout_map is None:
+            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+            return tf.Variable(init_value, dtype="int64", aggregation=agg)
+        else:
+            layout = dtensor_api.Layout.replicated(
+                mesh=self._layout_map.get_default_mesh(), rank=0
+            )
+            return dtensor_api.DVariable(
+                init_value, dtype="int64", layout=layout
+            )
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _init_batch_counters(self):
@@ -340,12 +360,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # inside tf.function.
             # These variables are not connected to outputs so they have no
             # effect on graph generation anyway.
-            agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-            self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-            self._test_counter = tf.Variable(0, dtype="int64", aggregation=agg)
-            self._predict_counter = tf.Variable(
-                0, dtype="int64", aggregation=agg
-            )
+
+            self._train_counter = self._create_counter_variable(0)
+            self._test_counter = self._create_counter_variable(0)
+            self._predict_counter = self._create_counter_variable(0)
 
     def __setattr__(self, name, value):
         if not getattr(self, "_self_setattr_tracking", True):
@@ -687,16 +705,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               `run_eagerly=True` is not supported when using
               `tf.distribute.experimental.ParameterServerStrategy`. Defaults to
                `False`.
-            steps_per_execution: Int. The number of batches to
-              run during each `tf.function` call. Running multiple batches
-              inside a single `tf.function` call can greatly improve performance
-              on TPUs or small models with a large Python overhead. At most, one
-              full epoch will be run each execution. If a number larger than the
-              size of the epoch is passed, the execution will be truncated to
-              the size of the epoch. Note that if `steps_per_execution` is set
-              to `N`, `Callback.on_batch_begin` and `Callback.on_batch_end`
-              methods will only be called every `N` batches (i.e. before/after
-              each `tf.function` execution). Defaults to `1`.
+            steps_per_execution: Int or `'auto'`. The number of batches to
+              run during each `tf.function` call. If set to "auto", keras will
+              automatically tune `steps_per_execution` during runtime. Running
+              multiple batches inside a single `tf.function` call can greatly
+              improve performance on TPUs, when used with distributed strategies
+              such as `ParameterServerStrategy`, or with small models with a
+              large Python overhead. At most, one full epoch will be run each
+              execution. If a number larger than the size of the epoch is
+              passed, the execution will be truncated to the size of the epoch.
+              Note that if `steps_per_execution` is set to `N`,
+              `Callback.on_batch_begin` and `Callback.on_batch_end` methods will
+              only be called every `N` batches (i.e. before/after each
+              `tf.function` execution). Defaults to `1`.
             jit_compile: If `True`, compile the model training step with XLA.
               [XLA](https://www.tensorflow.org/xla) is an optimizing compiler
               for machine learning.
@@ -765,20 +786,37 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._run_eagerly = run_eagerly
 
             self.optimizer = self._get_optimizer(optimizer)
+
+            mesh = None
+            if self._layout_map is not None:
+                mesh = self._layout_map.get_default_mesh()
+
             if isinstance(loss, compile_utils.LossesContainer):
                 self.compiled_loss = loss
             else:
                 self.compiled_loss = compile_utils.LossesContainer(
-                    loss, loss_weights, output_names=self.output_names
+                    loss,
+                    loss_weights,
+                    output_names=self.output_names,
+                    mesh=mesh,
                 )
             self.compiled_metrics = compile_utils.MetricsContainer(
                 metrics,
                 weighted_metrics,
                 output_names=self.output_names,
                 from_serialized=from_serialized,
+                mesh=mesh,
             )
 
-            self._configure_steps_per_execution(steps_per_execution or 1)
+            if steps_per_execution == "auto":
+                self._configure_steps_per_execution(1)
+                self._steps_per_execution_tuner = (
+                    steps_per_execution_tuning.StepsPerExecutionTuner(
+                        self.optimizer, self._steps_per_execution
+                    )
+                )
+            else:
+                self._configure_steps_per_execution(steps_per_execution or 1)
 
             self._pss_evaluation_shards = self._infer_exact_eval_shards(
                 pss_evaluation_shards
@@ -828,10 +866,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _configure_steps_per_execution(self, steps_per_execution):
-        self._steps_per_execution = tf.Variable(
-            steps_per_execution,
-            dtype="int64",
-            aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA,
+        self._steps_per_execution = self._create_counter_variable(
+            steps_per_execution
         )
 
     @property
@@ -974,6 +1010,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     @run_eagerly.setter
     def run_eagerly(self, value):
         self._run_eagerly = value
+
+    @property
+    def enable_tune_steps_per_execution(self):
+        return self._enable_tune_steps_per_execution
+
+    @enable_tune_steps_per_execution.setter
+    def enable_tune_steps_per_execution(self, value):
+        self._enable_tune_steps_per_execution = value
 
     @property
     def jit_compile(self):
@@ -1338,6 +1382,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
+            and not self.enable_tune_steps_per_execution
         ):
 
             def train_function(iterator):
@@ -1605,7 +1650,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 `keras.utils.Sequence` input only. If `True`, use process-based
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
-                multiprocessing, you should not pass non-picklable arguments to
+                multiprocessing, you should not pass non-pickleable arguments to
                 the generator as they can't be passed easily to children
                 processes.
 
@@ -1720,6 +1765,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._train_counter.assign(0)
             callbacks.on_train_begin()
             training_logs = None
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.start()
             # Handle fault-tolerance for multi-worker.
             # TODO(omalleyt): Fix the ordering issues that mean this has to
             # happen after `callbacks.on_train_begin`.
@@ -1826,6 +1873,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # If eval data_handler exists, delete it after all epochs are done.
             if getattr(self, "_eval_data_handler", None) is not None:
                 del self._eval_data_handler
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.stop()
             callbacks.on_train_end(logs=training_logs)
             return self.history
 
@@ -1866,9 +1915,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         def step_function(batch):
             def run_step(data):
                 # TODO(b/272050910): Use sample_weight for weighted metrics.
-                x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
+                x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
+                    data
+                )
                 y_pred = self(x, training=False)
-                return x, y, y_pred
+                return x, y, y_pred, sample_weight
 
             if self._jit_compile:
                 run_step = tf.function(
@@ -1884,21 +1935,45 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             return outputs
 
         def shard_test_function(dataset, total_shards, shard_idx):
-            local_metrics = []
+            # Copy loss and metric variables to the worker and work with them
+            # locally. This ensures each shard function is atomic: if a worker
+            # is preempted, the intermediate progress is discarded and that
+            # shard is retried. This in turn guarantees exactly-once visitation.
+            local_unweighted_metrics, local_weighted_metrics = [], []
             with tf_utils.with_metric_local_vars_scope():
-                for metric in self.compiled_metrics.metrics:
-                    local_metrics.append(base_metric.clone_metric(metric))
-                for metric in self.compiled_loss.metrics:
-                    local_metrics.append(base_metric.clone_metric(metric))
+                # TODO(jmullenbach): implement and use a clone for
+                # `MetricsContainer` and use its `update_state` method directly.
+                for metric in self.compiled_metrics.unweighted_metrics:
+                    if metric is not None:
+                        local_unweighted_metrics.append(
+                            base_metric.clone_metric(metric)
+                        )
+                for metric in self.compiled_metrics.weighted_metrics:
+                    if metric is not None:
+                        local_weighted_metrics.append(
+                            base_metric.clone_metric(metric)
+                        )
+                local_loss = compile_utils.LossesContainer.from_config(
+                    self.compiled_loss.get_config()
+                )
+
             dataset = input_ops.auto_shard_dataset(
                 dataset, total_shards, shard_idx
             )
             iterator = iter(dataset)
             with distribute_utils.cache_variable_reads():
                 for batch in iterator:
-                    x, y, y_pred = step_function(batch)
-                    for local_metric in local_metrics:
-                        local_metric.update_state(y, y_pred)
+                    x, y, y_pred, sample_weight = step_function(batch)
+                    for weighted_metric in local_weighted_metrics:
+                        weighted_metric.update_state(y, y_pred, sample_weight)
+                    for unweighted_metric in local_unweighted_metrics:
+                        unweighted_metric.update_state(y, y_pred)
+                    local_loss(y, y_pred, sample_weight)
+            local_metrics = (
+                local_unweighted_metrics
+                + local_weighted_metrics
+                + local_loss.metrics
+            )
             outputs = {metric.name: metric.weights for metric in local_metrics}
             with tf.control_dependencies(_minimum_control_deps(outputs)):
                 self._test_counter.assign_add(1)
@@ -1972,6 +2047,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
+            and not self.enable_tune_steps_per_execution
         ):
 
             def test_function(iterator):
@@ -2109,7 +2185,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               `keras.utils.Sequence` input only. If `True`, use process-based
               threading. If unspecified, `use_multiprocessing` will default to
               `False`. Note that because this implementation relies on
-              multiprocessing, you should not pass non-picklable arguments to
+              multiprocessing, you should not pass non-pickleable arguments to
               the generator as they can't be passed easily to children
               processes.
             return_dict: If `True`, loss and metric results are returned as a
@@ -2193,6 +2269,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             test_function_runner = self._get_test_function_runner(callbacks)
             self._test_counter.assign(0)
             callbacks.on_test_begin()
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.start()
             for (
                 _,
                 dataset_or_iterator,
@@ -2217,6 +2295,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 logs = self._aggregate_exact_metrics(logs)
             else:
                 logs = self._validate_and_get_metrics_result(logs)
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.stop()
             callbacks.on_test_end(logs=logs)
 
             if return_dict:
@@ -2341,6 +2421,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
+            and not self.enable_tune_steps_per_execution
         ):
 
             def predict_function(iterator):
@@ -2462,7 +2543,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 `keras.utils.Sequence` input only. If `True`, use process-based
                 threading. If unspecified, `use_multiprocessing` will default to
                 `False`. Note that because this implementation relies on
-                multiprocessing, you should not pass non-picklable arguments to
+                multiprocessing, you should not pass non-pickleable arguments to
                 the generator as they can't be passed easily to children
                 processes.
 
@@ -2553,6 +2634,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self.predict_function = self.make_predict_function()
             self._predict_counter.assign(0)
             callbacks.on_predict_begin()
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.start()
             batch_outputs = None
             for _, iterator in data_handler.enumerate_epochs():  # Single epoch.
                 with data_handler.catch_stop_iteration():
@@ -2591,6 +2674,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     "information of where went wrong, or file a "
                     "issue/bug to `tf.keras`."
                 )
+            if self.enable_tune_steps_per_execution:
+                self._steps_per_execution_tuner.stop()
             callbacks.on_predict_end()
         all_outputs = tf.__internal__.nest.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs

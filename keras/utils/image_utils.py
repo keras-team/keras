@@ -120,9 +120,9 @@ def smart_resize(x, size, interpolation="bilinear"):
         format `(height, width, channels)` or `(batch_size, height, width,
         channels)`.
       size: Tuple of `(height, width)` integer. Target size.
-      interpolation: String, interpolation to use for resizing. Defaults to
-        `'bilinear'`. Supports `bilinear`, `nearest`, `bicubic`, `area`,
-        `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
+      interpolation: String, interpolation to use for resizing. Supports
+        `bilinear`, `nearest`, `bicubic`, `area`, `lanczos3`, `lanczos5`,
+        `gaussian`, `mitchellcubic`. Defaults to `'bilinear'`.
 
     Returns:
       Array with shape `(size[0], size[1], channels)`. If the input image was a
@@ -216,14 +216,14 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
     Args:
         x: Input data, in any form that can be converted to a Numpy array.
         data_format: Image data format, can be either `"channels_first"` or
-          `"channels_last"`. Defaults to `None`, in which case the global
+          `"channels_last"`. None means the global
           setting `tf.keras.backend.image_data_format()` is used (unless you
-          changed it, it defaults to `"channels_last"`).
+          changed it, it uses `"channels_last"`). Defaults to `None`.
         scale: Whether to rescale the image such that minimum and maximum values
           are 0 and 255 respectively. Defaults to `True`.
-        dtype: Dtype to use. Default to `None`, in which case the global setting
-          `tf.keras.backend.floatx()` is used (unless you changed it, it
-          defaults to `"float32"`)
+        dtype: Dtype to use. None makes the global setting
+          `tf.keras.backend.floatx()` to be used (unless you changed it, it
+          uses `"float32"`). Defaults to `None`.
 
     Returns:
         A PIL Image instance.
@@ -298,12 +298,12 @@ def img_to_array(img, data_format=None, dtype=None):
     Args:
         img: Input PIL Image instance.
         data_format: Image data format, can be either `"channels_first"` or
-          `"channels_last"`. Defaults to `None`, in which case the global
+          `"channels_last"`. None means the global
           setting `tf.keras.backend.image_data_format()` is used (unless you
-          changed it, it defaults to `"channels_last"`).
-        dtype: Dtype to use. Default to `None`, in which case the global setting
-          `tf.keras.backend.floatx()` is used (unless you changed it, it
-          defaults to `"float32"`).
+          changed it, it uses `"channels_last"`). Defaults to `None`.
+        dtype: Dtype to use. None makes the global setting
+          `tf.keras.backend.floatx()` to be used (unless you changed it, it
+          uses `"float32"`). Defaults to `None`.
 
     Returns:
         A 3D Numpy array.

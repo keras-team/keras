@@ -3,6 +3,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = ["//keras/api:__subpackages__"],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -32,7 +33,7 @@ tf_py_test(
     deps = [
         "//:expect_six_installed",
         "//third_party/py/tensorflow",
-        "//third_party/tensorflow/python:lib",
+        "//third_party/tensorflow/python/lib/io:lib",
         "//third_party/tensorflow/tools/api/lib:python_object_to_proto_visitor",
         "//third_party/tensorflow/tools/common:public_api",
         "//third_party/tensorflow/tools/common:traverse",
