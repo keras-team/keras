@@ -637,7 +637,15 @@ class TensorFlowTrainer(base_trainer.Trainer):
         warnings.warn(
             "`model.compiled_loss()` is deprecated. "
             "Instead, use `model.compute_loss(x, y, y_pred, sample_weight)`.",
-            stacklevel=2,
+        )
+        return self.compute_loss(
+            x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
+        )
+
+    def loss(self, y, y_pred, sample_weight=None):
+        warnings.warn(
+            "`model.loss` is deprecated. "
+            "Instead, use `model.compute_loss(x, y, y_pred, sample_weight)`.",
         )
         return self.compute_loss(
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
