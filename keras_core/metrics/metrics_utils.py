@@ -226,7 +226,10 @@ def _update_confusion_matrix_variables_optimized(
     # Since the predict value has to be strictly greater than the thresholds,
     # eg, buckets like [0, 0.5], (0.5, 1], and 0.5 belongs to first bucket.
     # We have to use math.ceil(val) - 1 for the bucket.
-    bucket_indices = ops.ceil(y_pred * (num_thresholds - 1)) - 1
+    bucket_indices = (
+        ops.ceil(y_pred * (ops.cast(num_thresholds, dtype=y_pred.dtype) - 1))
+        - 1
+    )
 
     if thresholds_with_epsilon:
         # In this case, the first bucket should actually take into account since
