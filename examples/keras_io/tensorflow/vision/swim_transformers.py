@@ -100,7 +100,15 @@ def window_partition(x, window_size):
     patch_num_y = height // window_size
     patch_num_x = width // window_size
     x = tf.reshape(
-        x, shape=(-1, patch_num_y, window_size, patch_num_x, window_size, channels)
+        x,
+        shape=(
+            -1,
+            patch_num_y,
+            window_size,
+            patch_num_x,
+            window_size,
+            channels,
+        ),
     )
     x = tf.transpose(x, (0, 1, 3, 2, 4, 5))
     windows = tf.reshape(x, shape=(-1, window_size, window_size, channels))
@@ -112,7 +120,14 @@ def window_reverse(windows, window_size, height, width, channels):
     patch_num_x = width // window_size
     x = tf.reshape(
         windows,
-        shape=(-1, patch_num_y, patch_num_x, window_size, window_size, channels),
+        shape=(
+            -1,
+            patch_num_y,
+            patch_num_x,
+            window_size,
+            window_size,
+            channels,
+        ),
     )
     x = tf.transpose(x, perm=(0, 1, 3, 2, 4, 5))
     x = tf.reshape(x, shape=(-1, height, width, channels))
@@ -129,7 +144,9 @@ class DropPath(layers.Layer):
         batch_size = input_shape[0]
         rank = x.shape.rank
         shape = (batch_size,) + (1,) * (rank - 1)
-        random_tensor = (1 - self.drop_prob) + tf.random.uniform(shape, dtype=x.dtype)
+        random_tensor = (1 - self.drop_prob) + tf.random.uniform(
+            shape, dtype=x.dtype
+        )
         path_mask = tf.floor(random_tensor)
         output = tf.math.divide(x, 1 - self.drop_prob) * path_mask
         return output
@@ -149,7 +166,13 @@ whereas window-based self-attention leads to linear complexity and is easily sca
 
 class WindowAttention(layers.Layer):
     def __init__(
-        self, dim, window_size, num_heads, qkv_bias=True, dropout_rate=0.0, **kwargs
+        self,
+        dim,
+        window_size,
+        num_heads,
+        qkv_bias=True,
+        dropout_rate=0.0,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.dim = dim
@@ -174,7 +197,9 @@ class WindowAttention(layers.Layer):
         coords_matrix = np.meshgrid(coords_h, coords_w, indexing="ij")
         coords = np.stack(coords_matrix)
         coords_flatten = coords.reshape(2, -1)
-        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        relative_coords = (
+            coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        )
         relative_coords = relative_coords.transpose([1, 2, 0])
         relative_coords[:, :, 0] += self.window_size[0] - 1
         relative_coords[:, :, 1] += self.window_size[1] - 1
@@ -182,7 +207,8 @@ class WindowAttention(layers.Layer):
         relative_position_index = relative_coords.sum(-1)
 
         self.relative_position_index = tf.Variable(
-            initial_value=lambda: tf.convert_to_tensor(relative_position_index), trainable=False
+            initial_value=lambda: tf.convert_to_tensor(relative_position_index),
+            trainable=False,
         )
 
     def call(self, x, mask=None):
@@ -204,9 +230,12 @@ class WindowAttention(layers.Layer):
             self.relative_position_bias_table, relative_position_index_flat
         )
         relative_position_bias = tf.reshape(
-            relative_position_bias, shape=(num_window_elements, num_window_elements, -1)
+            relative_position_bias,
+            shape=(num_window_elements, num_window_elements, -1),
         )
-        relative_position_bias = tf.transpose(relative_position_bias, perm=(2, 0, 1))
+        relative_position_bias = tf.transpose(
+            relative_position_bias, perm=(2, 0, 1)
+        )
         attn = attn + tf.expand_dims(relative_position_bias, axis=0)
 
         if mask is not None:
@@ -329,7 +358,9 @@ class SwinTransformer(layers.Layer):
             )
             attn_mask = tf.where(attn_mask != 0, -100.0, attn_mask)
             attn_mask = tf.where(attn_mask == 0, 0.0, attn_mask)
-            self.attn_mask = tf.Variable(initial_value=attn_mask, trainable=False)
+            self.attn_mask = tf.Variable(
+                initial_value=attn_mask, trainable=False
+            )
 
     def call(self, x):
         height, width = self.num_patch
@@ -351,7 +382,8 @@ class SwinTransformer(layers.Layer):
         attn_windows = self.attn(x_windows, mask=self.attn_mask)
 
         attn_windows = tf.reshape(
-            attn_windows, shape=(-1, self.window_size, self.window_size, channels)
+            attn_windows,
+            shape=(-1, self.window_size, self.window_size, channels),
         )
         shifted_x = window_reverse(
             attn_windows, self.window_size, height, width, channels
@@ -401,7 +433,9 @@ class PatchExtract(layers.Layer):
         )
         patch_dim = patches.shape[-1]
         patch_num = patches.shape[1]
-        return tf.reshape(patches, (batch_size, patch_num * patch_num, patch_dim))
+        return tf.reshape(
+            patches, (batch_size, patch_num * patch_num, patch_dim)
+        )
 
 
 class PatchEmbedding(layers.Layer):
@@ -409,7 +443,9 @@ class PatchEmbedding(layers.Layer):
         super().__init__(**kwargs)
         self.num_patch = num_patch
         self.proj = layers.Dense(embed_dim)
-        self.pos_embed = layers.Embedding(input_dim=num_patch, output_dim=embed_dim)
+        self.pos_embed = layers.Embedding(
+            input_dim=num_patch, output_dim=embed_dim
+        )
 
     def call(self, patch):
         pos = tf.range(start=0, limit=self.num_patch, delta=1)

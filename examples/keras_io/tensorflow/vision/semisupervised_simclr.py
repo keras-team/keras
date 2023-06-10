@@ -68,6 +68,7 @@ check out
 
 # Make sure we are able to handle large datasets
 import resource
+
 low, high = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (high, high))
 
@@ -95,7 +96,11 @@ width = 128
 temperature = 0.1
 # Stronger augmentations for contrastive, weaker ones for supervised training
 contrastive_augmentation = {"min_area": 0.25, "brightness": 0.6, "jitter": 0.2}
-classification_augmentation = {"min_area": 0.75, "brightness": 0.3, "jitter": 0.1}
+classification_augmentation = {
+    "min_area": 0.75,
+    "brightness": 0.3,
+    "jitter": 0.1,
+}
 
 """
 ## Dataset
@@ -108,7 +113,9 @@ smaller batch of labeled images.
 def prepare_dataset():
     # Labeled and unlabeled samples are loaded synchronously
     # with batch sizes selected accordingly
-    steps_per_epoch = (unlabeled_dataset_size + labeled_dataset_size) // batch_size
+    steps_per_epoch = (
+        unlabeled_dataset_size + labeled_dataset_size
+    ) // batch_size
     unlabeled_batch_size = unlabeled_dataset_size // steps_per_epoch
     labeled_batch_size = labeled_dataset_size // steps_per_epoch
     print(
@@ -117,12 +124,16 @@ def prepare_dataset():
 
     # Turning off shuffle to lower resource usage
     unlabeled_train_dataset = (
-        tfds.load("stl10", split="unlabelled", as_supervised=True, shuffle_files=False)
+        tfds.load(
+            "stl10", split="unlabelled", as_supervised=True, shuffle_files=False
+        )
         .shuffle(buffer_size=10 * unlabeled_batch_size)
         .batch(unlabeled_batch_size)
     )
     labeled_train_dataset = (
-        tfds.load("stl10", split="train", as_supervised=True, shuffle_files=False)
+        tfds.load(
+            "stl10", split="train", as_supervised=True, shuffle_files=False
+        )
         .shuffle(buffer_size=10 * labeled_batch_size)
         .batch(labeled_batch_size)
     )
@@ -193,7 +204,9 @@ class RandomColorAffine(layers.Layer):
 
             # Same for all colors
             brightness_scales = 1 + tf.random.uniform(
-                (batch_size, 1, 1, 1), minval=-self.brightness, maxval=self.brightness
+                (batch_size, 1, 1, 1),
+                minval=-self.brightness,
+                maxval=self.brightness,
             )
             # Different for all colors
             jitter_matrices = tf.random.uniform(
@@ -356,7 +369,9 @@ class ContrastiveModel(keras.Model):
 
         self.temperature = temperature
         self.contrastive_augmenter = get_augmenter(**contrastive_augmentation)
-        self.classification_augmenter = get_augmenter(**classification_augmentation)
+        self.classification_augmenter = get_augmenter(
+            **classification_augmentation
+        )
         self.encoder = get_encoder()
         # Non-linear MLP as projection head
         self.projection_head = keras.Sequential(
@@ -369,7 +384,8 @@ class ContrastiveModel(keras.Model):
         )
         # Single dense layer for linear probing
         self.linear_probe = keras.Sequential(
-            [layers.Input(shape=(width,)), layers.Dense(10)], name="linear_probe"
+            [layers.Input(shape=(width,)), layers.Dense(10)],
+            name="linear_probe",
         )
 
         self.encoder.summary()
@@ -383,14 +399,18 @@ class ContrastiveModel(keras.Model):
         self.probe_optimizer = probe_optimizer
 
         # self.contrastive_loss will be defined as a method
-        self.probe_loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        self.probe_loss = keras.losses.SparseCategoricalCrossentropy(
+            from_logits=True
+        )
 
         self.contrastive_loss_tracker = keras.metrics.Mean(name="c_loss")
         self.contrastive_accuracy = keras.metrics.SparseCategoricalAccuracy(
             name="c_acc"
         )
         self.probe_loss_tracker = keras.metrics.Mean(name="p_loss")
-        self.probe_accuracy = keras.metrics.SparseCategoricalAccuracy(name="p_acc")
+        self.probe_accuracy = keras.metrics.SparseCategoricalAccuracy(
+            name="p_acc"
+        )
 
     @property
     def metrics(self):
@@ -409,7 +429,8 @@ class ContrastiveModel(keras.Model):
         projections_1 = tf.math.l2_normalize(projections_1, axis=1)
         projections_2 = tf.math.l2_normalize(projections_2, axis=1)
         similarities = (
-            tf.matmul(projections_1, projections_2, transpose_b=True) / self.temperature
+            tf.matmul(projections_1, projections_2, transpose_b=True)
+            / self.temperature
         )
 
         # The similarity between the representations of two augmented views of the
@@ -445,15 +466,19 @@ class ContrastiveModel(keras.Model):
             # The representations are passed through a projection mlp
             projections_1 = self.projection_head(features_1, training=True)
             projections_2 = self.projection_head(features_2, training=True)
-            contrastive_loss = self.contrastive_loss(projections_1, projections_2)
+            contrastive_loss = self.contrastive_loss(
+                projections_1, projections_2
+            )
         gradients = tape.gradient(
             contrastive_loss,
-            self.encoder.trainable_weights + self.projection_head.trainable_weights,
+            self.encoder.trainable_weights
+            + self.projection_head.trainable_weights,
         )
         self.contrastive_optimizer.apply_gradients(
             zip(
                 gradients,
-                self.encoder.trainable_weights + self.projection_head.trainable_weights,
+                self.encoder.trainable_weights
+                + self.projection_head.trainable_weights,
             )
         )
         self.contrastive_loss_tracker.update_state(contrastive_loss)
@@ -468,7 +493,9 @@ class ContrastiveModel(keras.Model):
             features = self.encoder(preprocessed_images, training=False)
             class_logits = self.linear_probe(features, training=True)
             probe_loss = self.probe_loss(labels, class_logits)
-        gradients = tape.gradient(probe_loss, self.linear_probe.trainable_weights)
+        gradients = tape.gradient(
+            probe_loss, self.linear_probe.trainable_weights
+        )
         self.probe_optimizer.apply_gradients(
             zip(gradients, self.linear_probe.trainable_weights)
         )
@@ -548,11 +575,14 @@ print(
 
 
 # The classification accuracies of the baseline and the pretraining + finetuning process:
-def plot_training_curves(pretraining_history, finetuning_history, baseline_history):
+def plot_training_curves(
+    pretraining_history, finetuning_history, baseline_history
+):
     for metric_key, metric_name in zip(["acc", "loss"], ["accuracy", "loss"]):
         plt.figure(figsize=(8, 5), dpi=100)
         plt.plot(
-            baseline_history.history[f"val_{metric_key}"], label="supervised baseline"
+            baseline_history.history[f"val_{metric_key}"],
+            label="supervised baseline",
         )
         plt.plot(
             pretraining_history.history[f"val_p_{metric_key}"],

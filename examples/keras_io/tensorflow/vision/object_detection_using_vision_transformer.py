@@ -58,15 +58,21 @@ path_to_downloaded_file = keras.utils.get_file(
 )
 
 # Extracting tar files found inside main zip file
-shutil.unpack_archive("./datasets/caltech-101/101_ObjectCategories.tar.gz", "./")
+shutil.unpack_archive(
+    "./datasets/caltech-101/101_ObjectCategories.tar.gz", "./"
+)
 shutil.unpack_archive("./datasets/caltech-101/Annotations.tar", "./")
 
 # list of paths to images and annotations
 image_paths = [
-    f for f in os.listdir(path_images) if os.path.isfile(os.path.join(path_images, f))
+    f
+    for f in os.listdir(path_images)
+    if os.path.isfile(os.path.join(path_images, f))
 ]
 annot_paths = [
-    f for f in os.listdir(path_annot) if os.path.isfile(os.path.join(path_annot, f))
+    f
+    for f in os.listdir(path_annot)
+    if os.path.isfile(os.path.join(path_annot, f))
 ]
 
 image_paths.sort()
@@ -186,7 +192,9 @@ plt.axis("off")
 patches = Patches(patch_size)(tf.convert_to_tensor([x_train[0]]))
 print(f"Image size: {image_size} X {image_size}")
 print(f"Patch size: {patch_size} X {patch_size}")
-print(f"{patches.shape[1]} patches per image \n{patches.shape[-1]} elements per patch")
+print(
+    f"{patches.shape[1]} patches per image \n{patches.shape[-1]} elements per patch"
+)
 
 
 n = int(np.sqrt(patches.shape[1]))
@@ -289,7 +297,9 @@ def create_vit_object_detector(
     representation = layers.Flatten()(representation)
     representation = layers.Dropout(0.3)(representation)
     # Add MLP.
-    features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.3)
+    features = mlp(
+        representation, hidden_units=mlp_head_units, dropout_rate=0.3
+    )
 
     bounding_box = layers.Dense(4)(
         features
@@ -461,7 +471,9 @@ for input_image in x_test[:10]:
 
     top_left_x, top_left_y = int(y_test[i][0] * w), int(y_test[i][1] * h)
 
-    bottom_right_x, bottom_right_y = int(y_test[i][2] * w), int(y_test[i][3] * h)
+    bottom_right_x, bottom_right_y = int(y_test[i][2] * w), int(
+        y_test[i][3] * h
+    )
 
     box_truth = top_left_x, top_left_y, bottom_right_x, bottom_right_y
 
