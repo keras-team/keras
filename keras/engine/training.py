@@ -34,8 +34,8 @@ from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import functional
 from keras.engine import input_layer as input_layer_module
-from keras.layers.activation import Softmax as SoftmaxLayer
 from keras.engine import training_utils
+from keras.layers.activation import Softmax as SoftmaxLayer
 from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
 from keras.optimizers import optimizer
