@@ -95,7 +95,9 @@ model = keras.Sequential(
         keras.layers.Input(shape=input_shape),
         StandardizedConv2DWithCall(32, kernel_size=(3, 3), activation="relu"),
         layers.MaxPooling2D(pool_size=(2, 2)),
-        StandardizedConv2DWithOverride(64, kernel_size=(3, 3), activation="relu"),
+        StandardizedConv2DWithOverride(
+            64, kernel_size=(3, 3), activation="relu"
+        ),
         layers.MaxPooling2D(pool_size=(2, 2)),
         layers.Flatten(),
         layers.Dropout(0.5),
@@ -110,9 +112,13 @@ model.summary()
 batch_size = 128
 epochs = 5
 
-model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
 
-model.fit(x_train, y_train, batch_size=batch_size, epochs=5, validation_split=0.1)
+model.fit(
+    x_train, y_train, batch_size=batch_size, epochs=5, validation_split=0.1
+)
 
 """
 ## Conclusion

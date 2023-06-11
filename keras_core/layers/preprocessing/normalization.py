@@ -97,7 +97,6 @@ class Normalization(Layer):
         self, axis=-1, mean=None, variance=None, invert=False, **kwargs
     ):
         super().__init__(**kwargs)
-
         # Standardize `axis` to a tuple.
         if axis is None:
             axis = ()
@@ -117,8 +116,12 @@ class Normalization(Layer):
         self.input_variance = variance
         self.invert = invert
         self.supports_masking = True
+        self._build_input_shape = None
 
     def build(self, input_shape):
+        if input_shape is None:
+            return
+
         ndim = len(input_shape)
         self._build_input_shape = input_shape
 
@@ -321,3 +324,11 @@ class Normalization(Layer):
         super().load_own_variables(store)
         # Ensure that we call finalize_state after variable loading.
         self.finalize_state()
+
+    def get_build_config(self):
+        if self._build_input_shape:
+            return {"input_shape": self._build_input_shape}
+
+    def build_from_config(self, config):
+        if config:
+            self.build(config["input_shape"])

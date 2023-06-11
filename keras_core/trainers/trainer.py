@@ -16,7 +16,7 @@ class Trainer:
     def __init__(self):
         self._lock = False
         self._run_eagerly = False
-        self._jit_compile = True
+        self._jit_compile = None
         self.compiled = False
         self.steps_per_execution = 1
 
@@ -74,6 +74,10 @@ class Trainer:
 
     @property
     def jit_compile(self):
+        if self._jit_compile is None:
+            # Value was never set. Resolve it now.
+            jit_compile = model_supports_jit(self)
+            self._jit_compile = jit_compile
         return self._jit_compile
 
     @jit_compile.setter
