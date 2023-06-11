@@ -371,9 +371,13 @@ class Model(Trainer, Layer):
         model_config = serialization_lib.serialize_keras_object(self)
         return json.dumps(model_config, **kwargs)
 
-    @traceback_utils.filter_traceback
-    def export(self, filepath):
-        raise NotImplementedError
+    def export(self, filepath, format="tf_saved_model"):
+        raise NotImplementedError(
+            "The export() method is not yet supported. It will "
+            "be added in the next version. For the time being, you "
+            "can use `tf.saved_model.save(model)` to save a "
+            "TensorFlow SavedModel for your Keras Core model."
+        )
 
 
 @keras_core_export("keras_core.models.model_from_json")

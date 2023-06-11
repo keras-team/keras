@@ -154,13 +154,7 @@ class UpSampling2D(Layer):
 
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 2, 3, 1])
-        # https://github.com/keras-team/keras-core/issues/294
-        # Use `ops.repeat` for `nearest` interpolation
-        if interpolation == "nearest":
-            x = ops.repeat(x, height_factor, axis=1)
-            x = ops.repeat(x, width_factor, axis=2)
-        else:
-            x = ops.image.resize(x, new_shape, method=interpolation)
+        x = ops.image.resize(x, new_shape, method=interpolation)
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 3, 1, 2])
 
