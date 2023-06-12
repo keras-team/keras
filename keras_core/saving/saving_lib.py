@@ -612,6 +612,10 @@ def get_temp_dir():
     return temp_dir
 
 
+# def get_attr_skiplist_for_layers():
+#     if global_state.get_shared_attribute("saving_attr_skiplist_last", None) is None:
+
+
 def _is_keras_trackable(obj):
     return isinstance(
         obj,

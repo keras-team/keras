@@ -12,10 +12,14 @@ from keras_core.callbacks.callback import Callback
 
 if backend.backend() == "jax":
     from keras_core.backend.jax.trainer import JAXTrainer as Trainer
-else:
+elif backend.backend() == "torch":
+    from keras_core.backend.torch.trainer import TorchTrainer as Trainer
+elif backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import (
         TensorFlowTrainer as Trainer,
     )
+else:
+    raise ImportError(f"Invalid backend: {backend.backend()}")
 
 
 # A model is just a layer mixed in with a Trainer.

@@ -430,18 +430,11 @@ def standardize_shape(
                 f"Cannot convert '{shape}' to a shape. "
                 f"Found invalid entry '{e}'. "
             )
-            if allow_dynamic_batch_size:
+            if not allow_dynamic_batch_size and e is None:
                 msg += (
                     "Dynamic shapes (shapes with `None` entries) "
-                    f"are not allowed with the {config.backend()}, "
-                    "except for the batch size (axis 0)."
-                )
-            else:
-                msg += (
-                    "Dynamic shapes (shapes with `None` entries) "
-                    f"are not allowed with the {config.backend()}. "
-                    "All dimensions should be positive integers, "
-                    "including the batch size (axis 0)."
+                    f"are not allowed with the {config.backend()} "
+                    "backend."
                 )
             raise ValueError(msg)
         if e < 0:
