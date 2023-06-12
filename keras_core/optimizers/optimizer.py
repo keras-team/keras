@@ -18,3 +18,4 @@ class Optimizer(BackendOptimizer):
 
 
 base_optimizer_keyword_args = base_optimizer.base_optimizer_keyword_args
+Optimizer.__doc__ = base_optimizer.BaseOptimizer.__doc__

@@ -8,6 +8,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.saving import saving_api
 from keras_core.saving import saving_lib
+from keras_core.trainers import trainer as base_trainer
 from keras_core.utils import io_utils
 from keras_core.utils import summary_utils
 from keras_core.utils import traceback_utils
@@ -436,3 +437,11 @@ def inject_functional_model_class(cls):
     cls.__new__(cls)
 
     return cls
+
+
+Model.fit.__doc__ = base_trainer.Trainer.fit.__doc__
+Model.predict.__doc__ = base_trainer.Trainer.predict.__doc__
+Model.evaluate.__doc__ = base_trainer.Trainer.evaluate.__doc__
+Model.train_on_batch.__doc__ = base_trainer.Trainer.train_on_batch.__doc__
+Model.test_on_batch.__doc__ = base_trainer.Trainer.test_on_batch.__doc__
+Model.predict_on_batch.__doc__ = base_trainer.Trainer.predict_on_batch.__doc__
