@@ -71,6 +71,16 @@ class StepsPerExecutionTuner:
         self.thread.start()
         return self.thread
 
+    @property
+    def steps_per_execution(self):
+        """Settable attribute representing`steps_per_execution` variable."""
+        return self._steps_per_execution
+
+    @steps_per_execution.setter
+    def steps_per_execution(self, value):
+        self._steps_per_execution.assign(value)
+        self.init_spe = value
+
     def _steps_per_execution_interval_call(self):
         while not self.steps_per_execution_stop_event.is_set():
             self._measure_and_tune()
@@ -127,7 +137,7 @@ class StepsPerExecutionTuner:
             repeat_action_mult = 0.5
             opposite_action_mult = 1.5
 
-        spe_variable = self.steps_per_execution
+        spe_variable = self._steps_per_execution
         spe_limit = spe_variable.dtype.max / 1.5
         current_spe = spe_variable.numpy().item()
         if self.avg_rgsps > fast_threshold:
@@ -145,7 +155,7 @@ class StepsPerExecutionTuner:
         elif current_spe == 0:
             new_spe = self.init_spe
 
-        self.steps_per_execution.assign(np.round(new_spe))
+        self._steps_per_execution.assign(np.round(new_spe))
         self.prev_avg_rgsps = self.avg_rgsps
 
     def _measure_and_tune(self):
