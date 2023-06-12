@@ -146,7 +146,7 @@ def reduce_weighted_values(
         sample_weight = ops.cast(sample_weight, values.dtype)
         # Update dimensions of `sample_weight` to match `losses`.
         values, sample_weight = squeeze_to_same_rank(values, sample_weight)
-        values *= sample_weight
+        values = values * sample_weight
 
     # Apply reduction function to the individual weighted losses.
     loss = reduce_values(values, reduction)
