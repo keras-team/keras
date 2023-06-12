@@ -1,6 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
+import keras_core
 from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
@@ -319,3 +320,25 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         # With class weights
         logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
         self.assertAlmostEqual(logs[0], 12.899)
+
+    def test_nested_input_predict(self):
+        # https://github.com/keras-team/keras-core/issues/325
+
+        class TupleInputModel(keras_core.Model):
+            def call(self, inputs):
+                a, b = inputs
+                return a + b
+
+        model = TupleInputModel()
+        x1, x2 = np.random.rand(2, 3, 4)
+        out = model.predict((x1, x2))
+        self.assertEqual(out.shape, (3, 4))
+
+        class DictInputModel(keras_core.Model):
+            def call(self, inputs):
+                return inputs["a"] + inputs["b"]
+
+        model = DictInputModel()
+        x1, x2 = np.random.rand(2, 3, 4)
+        out = model.predict({"a": x1, "b": x2})
+        self.assertEqual(out.shape, (3, 4))

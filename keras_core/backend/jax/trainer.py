@@ -8,6 +8,7 @@ from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
+from keras_core.utils import traceback_utils
 
 
 class JAXTrainer(base_trainer.Trainer):
@@ -227,8 +228,10 @@ class JAXTrainer(base_trainer.Trainer):
             kwargs = {}
             if self._call_has_training_arg():
                 kwargs["training"] = False
+
+            x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
             outputs, _ = self.stateless_call(
-                trainable_variables, non_trainable_variables, data[0], **kwargs
+                trainable_variables, non_trainable_variables, x, **kwargs
             )
             return outputs
 
@@ -271,6 +274,7 @@ class JAXTrainer(base_trainer.Trainer):
         else:
             self.predict_function = predict_step
 
+    @traceback_utils.filter_traceback
     def fit(
         self,
         x=None,
@@ -447,6 +451,7 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state = None
         return self.history
 
+    @traceback_utils.filter_traceback
     def evaluate(
         self,
         x=None,
@@ -540,6 +545,7 @@ class JAXTrainer(base_trainer.Trainer):
             return logs
         return self._flatten_metrics_in_order(logs)
 
+    @traceback_utils.filter_traceback
     def predict(
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
@@ -556,8 +562,9 @@ class JAXTrainer(base_trainer.Trainer):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Build model
+                x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data[0])
                 with backend.StatelessScope():
-                    self(data[0])
+                    self(x)
                 break
 
         # Container that configures and calls callbacks.
