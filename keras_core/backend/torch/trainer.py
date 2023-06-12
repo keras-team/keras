@@ -18,54 +18,83 @@ class TorchTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
 
+    def train_step(self, data):
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+
+        # Compute prediction error
+        if self._call_has_training_arg():
+            y_pred = self(x, training=True)
+        else:
+            y_pred = self(x)
+
+        # Call torch.nn.Module.zero_grad() to clear the leftover gradients
+        # for the weights from the previous train step.
+        self.zero_grad()
+
+        loss = self.compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        )
+        self._loss_tracker.update_state(loss)
+
+        # Compute gradients
+        if self.trainable_weights:
+            # Backpropagation
+            trainable_weights = [v for v in self.trainable_weights]
+
+            # Call torch.Tensor.backward() on the loss to compute gradients
+            # for the weights.
+            loss.backward()
+
+            gradients = [v.value.grad for v in trainable_weights]
+
+            # Update weights
+            with torch.no_grad():
+                self.optimizer.apply_gradients(
+                    zip(gradients, trainable_weights)
+                )
+        else:
+            warnings.warn("The model does not have any trainable weights.")
+
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+
+    def test_step(self, data):
+        (
+            x,
+            y,
+            sample_weight,
+        ) = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        loss = self.compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
+        )
+        self._loss_tracker.update_state(loss)
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+
+    def predict_step(self, data):
+        x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if self._call_has_training_arg():
+            y_pred = self(x, training=False)
+        else:
+            y_pred = self(x)
+        return y_pred
+
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return self.train_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the PyTorch backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             """Runs a single training step on a batch of data."""
             data = data[0]
-            x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(
-                data
-            )
-
-            # Compute prediction error
-            if self._call_has_training_arg():
-                y_pred = self(x, training=True)
-            else:
-                y_pred = self(x)
-
-            # Call torch.nn.Module.zero_grad() to clear the leftover gradients
-            # for the weights from the previous train step.
-            self.zero_grad()
-
-            loss = self.compute_loss(
-                x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
-            )
-            self._loss_tracker.update_state(loss)
-
-            # Compute gradients
-            if self.trainable_weights:
-                # Backpropagation
-                trainable_weights = [v for v in self.trainable_weights]
-
-                # Call torch.Tensor.backward() on the loss to compute gradients
-                # for the weights.
-                loss.backward()
-
-                gradients = [v.value.grad for v in trainable_weights]
-
-                # Update weights
-                with torch.no_grad():
-                    self.optimizer.apply_gradients(
-                        zip(gradients, trainable_weights)
-                    )
-            else:
-                warnings.warn("The model does not have any trainable weights.")
-
-            return self.compute_metrics(
-                x, y, y_pred, sample_weight=sample_weight
-            )
+            return self.train_step(data)
 
         self.train_function = one_step_on_data
 
@@ -73,26 +102,17 @@ class TorchTrainer(base_trainer.Trainer):
         if self.test_function is not None and not force:
             return self.test_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the PyTorch backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             """Runs a single test step on a batch of data."""
+            data = data[0]
             with torch.no_grad():
-                data = data[0]
-                (
-                    x,
-                    y,
-                    sample_weight,
-                ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-                if self._call_has_training_arg():
-                    y_pred = self(x, training=False)
-                else:
-                    y_pred = self(x)
-                loss = self.compute_loss(
-                    x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
-                )
-                self._loss_tracker.update_state(loss)
-                return self.compute_metrics(
-                    x, y, y_pred, sample_weight=sample_weight
-                )
+                return self.test_step(data)
 
         self.test_function = one_step_on_data
 
@@ -100,16 +120,17 @@ class TorchTrainer(base_trainer.Trainer):
         if self.predict_function is not None and not force:
             return self.predict_function
 
+        if self.steps_per_execution > 1:
+            raise ValueError(
+                "`steps_per_execution` must be 1 with the PyTorch backend. "
+                f"Received: steps_per_execution={self.steps_per_execution}"
+            )
+
         def one_step_on_data(data):
             """Runs a predict test step on a batch of data."""
+            data = data[0]
             with torch.no_grad():
-                data = data[0]
-                x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-                if self._call_has_training_arg():
-                    y_pred = self(x, training=False)
-                else:
-                    y_pred = self(x)
-                return y_pred
+                return self.predict_step(data)
 
         self.predict_function = one_step_on_data
 
@@ -377,34 +398,6 @@ class TorchTrainer(base_trainer.Trainer):
         class_weight=None,
         return_dict=False,
     ):
-        """Runs a single gradient update on a single batch of data.
-
-        Args:
-            x: Input data. Must be array-like.
-            y: Target data. Must be array-like.
-            sample_weight: Optional array of the same length as x, containing
-                weights to apply to the model's loss for each sample.
-                In the case of temporal data, you can pass a 2D array
-                with shape `(samples, sequence_length)`, to apply a different
-                weight to every timestep of every sample.
-            class_weight: Optional dictionary mapping class indices (integers)
-                to a weight (float) to apply to the model's loss for the samples
-                from this class during training. This can be useful to tell the
-                model to "pay more attention" to samples from an
-                under-represented class. When `class_weight` is specified
-                and targets have a rank of 2 or greater, either `y` must
-                be one-hot encoded, or an explicit final dimension of 1
-                must be included for sparse class labels.
-            return_dict: If `True`, loss and metric results are returned as a
-                dict, with each key being the name of the metric. If `False`,
-                they are returned as a list.
-
-        Returns:
-            A scalar loss value (when no metrics and `return_dict=False`),
-            a list of loss and metric values
-            (if there are metrics and `return_dict=False`), or a dict of
-            metric and loss values (if `return_dict=True`).
-        """
         self._assert_compile_called("train_on_batch")
         self.make_train_function()
         if class_weight is not None:
@@ -433,26 +426,6 @@ class TorchTrainer(base_trainer.Trainer):
         sample_weight=None,
         return_dict=False,
     ):
-        """Test the model on a single batch of samples.
-
-        Args:
-            x: Input data. Must be array-like.
-            y: Target data. Must be array-like.
-            sample_weight: Optional array of the same length as x, containing
-                weights to apply to the model's loss for each sample.
-                In the case of temporal data, you can pass a 2D array
-                with shape `(samples, sequence_length)`, to apply a different
-                weight to every timestep of every sample.
-            return_dict: If `True`, loss and metric results are returned as a
-                dict, with each key being the name of the metric. If `False`,
-                they are returned as a list.
-
-        Returns:
-            A scalar loss value (when no metrics and `return_dict=False`),
-            a list of loss and metric values
-            (if there are metrics and `return_dict=False`), or a dict of
-            metric and loss values (if `return_dict=True`).
-        """
         self._assert_compile_called("test_on_batch")
         self.make_test_function()
 
@@ -465,14 +438,6 @@ class TorchTrainer(base_trainer.Trainer):
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
-        """Returns predictions for a single batch of samples.
-
-        Args:
-            x: Input data. It must be array-like.
-
-        Returns:
-            NumPy array(s) of predictions.
-        """
         self.make_predict_function()
         batch_outputs = self.predict_function((x,))
         batch_outputs = tf.nest.map_structure(

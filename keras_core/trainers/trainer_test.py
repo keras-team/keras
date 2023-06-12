@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 import keras_core
@@ -218,6 +219,10 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
 
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="`steps_per_execution` not implemented for torch yet",
+    )
     def test_steps_per_execution_steps_count(self):
         class StepCount(Callback):
             def __init__(self):
