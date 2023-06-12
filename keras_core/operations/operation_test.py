@@ -9,7 +9,8 @@ from keras_core.operations import operation
 
 class OpWithMultipleInputs(operation.Operation):
     def call(self, x, y, z=None):
-        return x + 2 * y + 3 * z
+        return 3 * z + x + 2 * y
+        # Order of operations issue with torch backend
 
     def compute_output_spec(self, x, y, z=None):
         return keras_tensor.KerasTensor(x.shape, x.dtype)

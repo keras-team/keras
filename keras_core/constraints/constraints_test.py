@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras_core import backend
 from keras_core import constraints
 from keras_core import testing
 
@@ -35,12 +36,14 @@ class ConstraintsTest(testing.TestCase):
     def test_unit_norm(self):
         constraint_fn = constraints.UnitNorm()
         output = constraint_fn(get_example_array())
+        output = backend.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
         self.assertAllClose(l2, 1.0)
 
     def test_min_max_norm(self):
         constraint_fn = constraints.MinMaxNorm(min_value=0.2, max_value=0.5)
         output = constraint_fn(get_example_array())
+        output = backend.convert_to_numpy(output)
         l2 = np.sqrt(np.sum(np.square(output), axis=0))
         self.assertFalse(l2[l2 < 0.2])
         self.assertFalse(l2[l2 > 0.5 + 1e-6])

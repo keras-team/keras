@@ -58,7 +58,7 @@ def logsumexp(x, axis=None, keepdims=False):
         max_x = torch.max(x)
         return torch.log(torch.sum(torch.exp(x - max_x))) + max_x
 
-    max_x = torch.max(x, dim=axis, keepdim=True).values
+    max_x = torch.amax(x, dim=axis, keepdim=True)
     result = (
         torch.log(torch.sum(torch.exp(x - max_x), dim=axis, keepdim=True))
         + max_x

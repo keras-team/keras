@@ -134,6 +134,8 @@ def append(
 
 def arange(start, stop=None, step=1, dtype=None):
     dtype = to_torch_dtype(dtype)
+    if stop is None:
+        return torch.arange(end=start, dtype=dtype)
     return torch.arange(start, stop, step=step, dtype=dtype)
 
 

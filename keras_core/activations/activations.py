@@ -416,6 +416,7 @@ def mish(x):
 
     - [Misra, 2019](https://arxiv.org/abs/1908.08681)
     """
+    x = backend.convert_to_tensor(x)
     return Mish.static_call(x)
 
 
