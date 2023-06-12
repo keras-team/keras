@@ -55,6 +55,18 @@ class StepsPerExecutionTuningTest(test_combinations.TestCase):
         assert tuner.steps_per_execution_stop_event.is_set()
         assert tuner.spe_measurement_count > 0
 
+    def test_settable_steps_per_execution(self):
+        spe_variable = tf.Variable(1)
+        tuner = steps_per_execution_tuning.StepsPerExecutionTuner(
+            mockOptimizer(5), spe_variable, interval=0.2
+        )
+        tuner.start()
+        tuner.stop()
+        assert tuner.init_spe == 1
+        tuner.steps_per_execution = 5
+        assert spe_variable.numpy().item() == 5
+        assert tuner.init_spe == 5
+
 
 if __name__ == "__main__":
     tf.test.main()
