@@ -1,4 +1,4 @@
-""" Benchmark regularization layers.
+"""Benchmark regularization layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -52,7 +52,7 @@ def benchmark_gaussian_dropout(
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "GaussionDropout"
+    layer_name = "GaussianDropout"
     init_args = {
         "rate": 0.5,
     }
@@ -79,7 +79,7 @@ def benchmark_gaussian_noise(
     batch_size,
     jit_compile=True,
 ):
-    layer_name = "GaussionNoise"
+    layer_name = "GaussianNoise"
     init_args = {
         "stddev": 0.5,
     }
@@ -199,7 +199,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES:
+        for name, benchmark_fn in BENCHMARK_NAMES.items():
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 

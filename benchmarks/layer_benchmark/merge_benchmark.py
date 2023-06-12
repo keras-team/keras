@@ -1,4 +1,4 @@
-""" Benchmark merge layers.
+"""Benchmark merge layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -6,8 +6,8 @@ flag to your custom value:
 ```
 python3 -m benchmarks.layer_benchmark.merge_benchmark \
     --benchmark_name=benchmark_add \
-    --num_samples=8192 \
-    --batch_size=1024 \
+    --num_samples=2048 \
+    --batch_size=256 \
     --jit_compile=True
 ```
 """
@@ -40,6 +40,11 @@ def benchmark_add(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
 
 def benchmark_average(
     num_samples,
@@ -57,6 +62,11 @@ def benchmark_average(
     )
 
     benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
         num_samples=num_samples,
         batch_size=batch_size,
     )
@@ -82,6 +92,11 @@ def benchmark_concatenate(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
 
 def benchmark_dot(
     num_samples,
@@ -89,7 +104,7 @@ def benchmark_dot(
     jit_compile=True,
 ):
     layer_name = "Dot"
-    init_args = {}
+    init_args = {"axes": [2, 1]}
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
@@ -99,6 +114,11 @@ def benchmark_dot(
     )
 
     benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
         num_samples=num_samples,
         batch_size=batch_size,
     )
@@ -124,6 +144,11 @@ def benchmark_maximum(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
 
 def benchmark_minimum(
     num_samples,
@@ -145,6 +170,11 @@ def benchmark_minimum(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
 
 def benchmark_multiply(
     num_samples,
@@ -156,12 +186,17 @@ def benchmark_multiply(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[[256, 256], [256, 32]],
+        input_shape=[[256, 64], [256, 64]],
         flat_call_inputs=False,
         jit_compile=jit_compile,
     )
 
     benchmark.benchmark_predict(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
+    benchmark.benchmark_train(
         num_samples=num_samples,
         batch_size=batch_size,
     )
@@ -187,6 +222,11 @@ def benchmark_subtract(
         batch_size=batch_size,
     )
 
+    benchmark.benchmark_train(
+        num_samples=num_samples,
+        batch_size=batch_size,
+    )
+
 
 BENCHMARK_NAMES = {
     "benchmark_add": benchmark_add,
@@ -207,7 +247,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES:
+        for name, benchmark_fn in BENCHMARK_NAMES.items():
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 

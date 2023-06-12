@@ -108,15 +108,28 @@ class LayerBenchmark:
         input_shape,
         flat_call_inputs=True,
         jit_compile=True,
+        keras_core_layer=None,
+        tf_keras_layer=None,
     ):
         self.layer_name = layer_name
-        self.input_shape = input_shape
         _keras_core_layer_class = getattr(keras_core.layers, layer_name)
         _tf_keras_layer_class = getattr(tf.keras.layers, layer_name)
 
-        self._keras_core_layer = _keras_core_layer_class(**init_args)
-        self._tf_keras_layer = _tf_keras_layer_class(**init_args)
+        if keras_core_layer is None:
+            # Sometimes you want to initialize the keras_core layer and tf_keras
+            # layer in a different way. For example, `Bidirectional` layer,
+            # which takes in `keras_core.layers.Layer` and
+            # `tf.keras.layer.Layer` separately.
+            self._keras_core_layer = _keras_core_layer_class(**init_args)
+        else:
+            self._keras_core_layer = keras_core_layer
 
+        if tf_keras_layer is None:
+            self._tf_keras_layer = _tf_keras_layer_class(**init_args)
+        else:
+            self._tf_keras_layer = tf_keras_layer
+
+        self.input_shape = input_shape
         self._keras_core_model = self._build_keras_core_model(
             input_shape, flat_call_inputs
         )
