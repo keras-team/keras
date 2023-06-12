@@ -960,13 +960,16 @@ def conv_transpose(
 
 
 class OneHot(Operation):
-    def __init__(self, num_classes, axis=-1):
+    def __init__(self, num_classes, axis=-1, dtype=None):
         super().__init__()
         self.num_classes = num_classes
         self.axis = axis
+        self.dtype = dtype or backend.floatx()
 
     def call(self, x):
-        return backend.nn.one_hot(x, self.num_classes, axis=self.axis)
+        return backend.nn.one_hot(
+            x, self.num_classes, axis=self.axis, dtype=self.dtype
+        )
 
     def compute_output_spec(self, x):
         x_shape = list(getattr(x, "shape", []))
@@ -979,16 +982,18 @@ class OneHot(Operation):
                 f"axis must be -1 or between [0, {len(x.shape)}), but "
                 f"received {self.axis}."
             )
-        return KerasTensor(x_shape)
+        return KerasTensor(x_shape, dtype=self.dtype)
 
 
 @keras_core_export(
     ["keras_core.operations.one_hot", "keras_core.operations.nn.one_hot"]
 )
-def one_hot(x, num_classes, axis=-1):
+def one_hot(x, num_classes, axis=-1, dtype=None):
     if any_symbolic_tensors((x,)):
-        return OneHot(num_classes, axis=axis).symbolic_call(x)
-    return backend.nn.one_hot(x, num_classes, axis=axis)
+        return OneHot(num_classes, axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.nn.one_hot(
+        x, num_classes, axis=axis, dtype=dtype or backend.floatx()
+    )
 
 
 class BinaryCrossentropy(Operation):

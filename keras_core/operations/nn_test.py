@@ -8,7 +8,7 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.operations import nn as knn
 
 
-class NNOpsDynamicShapeTest(testing.TestCase):
+class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
     def test_relu(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.relu(x).shape, (None, 2, 3))
@@ -280,6 +280,13 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.one_hot(x, 5).shape, (None, 3, 1, 5))
         self.assertEqual(knn.one_hot(x, 5, 1).shape, (None, 5, 3, 1))
         self.assertEqual(knn.one_hot(x, 5, 2).shape, (None, 3, 5, 1))
+
+    @parameterized.product(dtype=["float32", "int32"])
+    def test_one_hot_dtype(self, dtype):
+        # dtype tests
+        x = np.arange(5)
+        out = knn.one_hot(x, 5, axis=0, dtype=dtype)
+        self.assertEqual(out.dtype.name, dtype)
 
 
 class NNOpsStaticShapeTest(testing.TestCase):

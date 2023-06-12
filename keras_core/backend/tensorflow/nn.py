@@ -416,8 +416,8 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1):
-    return tf.one_hot(x, num_classes, axis=axis)
+def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    return tf.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
 def _get_logits(output, from_logits, op_type, fn_name):

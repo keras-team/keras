@@ -387,8 +387,8 @@ def conv_transpose(
     )
 
 
-def one_hot(x, num_classes, axis=-1):
-    return jnn.one_hot(x, num_classes, axis=axis)
+def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
