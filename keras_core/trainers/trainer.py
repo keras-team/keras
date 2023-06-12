@@ -277,6 +277,84 @@ class Trainer:
     ):
         raise NotImplementedError
 
+    def train_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        class_weight=None,
+        return_dict=False,
+    ):
+        """Runs a single gradient update on a single batch of data.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) to apply to the model's loss for the samples
+                from this class during training. This can be useful to tell the
+                model to "pay more attention" to samples from an
+                under-represented class. When `class_weight` is specified
+                and targets have a rank of 2 or greater, either `y` must
+                be one-hot encoded, or an explicit final dimension of 1
+                must be included for sparse class labels.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        raise NotImplementedError
+
+    def test_on_batch(
+        self,
+        x,
+        y=None,
+        sample_weight=None,
+        return_dict=False,
+    ):
+        """Test the model on a single batch of samples.
+
+        Args:
+            x: Input data. Must be array-like.
+            y: Target data. Must be array-like.
+            sample_weight: Optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape `(samples, sequence_length)`, to apply a different
+                weight to every timestep of every sample.
+            return_dict: If `True`, loss and metric results are returned as a
+                dict, with each key being the name of the metric. If `False`,
+                they are returned as a list.
+
+        Returns:
+            A scalar loss value (when no metrics and `return_dict=False`),
+            a list of loss and metric values
+            (if there are metrics and `return_dict=False`), or a dict of
+            metric and loss values (if `return_dict=True`).
+        """
+        raise NotImplementedError
+
+    def predict_on_batch(self, x):
+        """Returns predictions for a single batch of samples.
+
+        Args:
+            x: Input data. It must be array-like.
+
+        Returns:
+            NumPy array(s) of predictions.
+        """
+        raise NotImplementedError
+
     def get_compile_config(self):
         """Returns a serialized config with information for compiling the model.
 

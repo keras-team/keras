@@ -171,6 +171,16 @@ class FunctionalTest(testing.TestCase):
         out_val = model(np.random.random((2, 3)))
         self.assertEqual(out_val.shape, (2, 3, 3))
 
+    def test_dtype_standardization(self):
+        float_input = Input(shape=(2,), dtype="float16")
+        int_input = Input(shape=(2,), dtype="int32")
+        float_output = float_input + 2
+        int_output = int_input + 2
+        model = Functional((float_input, int_input), (float_output, int_output))
+        float_data, int_data = model((np.ones((2, 2)), np.ones((2, 2))))
+        self.assertEqual(backend.standardize_dtype(float_data.dtype), "float16")
+        self.assertEqual(backend.standardize_dtype(int_data.dtype), "int32")
+
     def test_serialization(self):
         # Test basic model
         inputs = Input(shape=(3,), batch_size=2)

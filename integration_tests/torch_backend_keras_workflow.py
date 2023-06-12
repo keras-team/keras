@@ -29,6 +29,11 @@ history = model.fit(
 model.evaluate(x, y, verbose=0)
 model.predict(x, verbose=0)
 
+# Test on batch functions
+model.train_on_batch(x, y)
+model.test_on_batch(x, y)
+model.predict_on_batch(x)
+
 # Test functional model.
 inputs = keras_core.Input(shape=(32, 32, 3))
 outputs = layers.Conv2D(filters=10, kernel_size=3)(inputs)
