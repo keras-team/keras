@@ -74,10 +74,11 @@ def update_state_wrapper(update_state_fn):
                 )
 
         with tf_utils.graph_context_for_symbolic_tensors(*args, **kwargs):
-            update_op = update_state_fn(*args, **kwargs)
-        if update_op is not None:  # update_op will be None in eager execution.
-            metric_obj.add_update(update_op)
-        return update_op
+            result = update_state_fn(*args, **kwargs)
+        if not tf.executing_eagerly():
+            result = tf.compat.v1.get_default_graph().get_operations()[-1]
+            metric_obj.add_update(result)
+        return result
 
     return tf.__internal__.decorator.make_decorator(update_state_fn, decorated)
 

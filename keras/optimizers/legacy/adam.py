@@ -445,7 +445,7 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
         super().set_weights(weights)
 
     @tf.function(jit_compile=True)
-    def _resource_apply_dense(self, grad, var, apply_state=None):
+    def _resource_apply_dense_impl(self, grad, var, apply_state):
         var_device, var_dtype = var.device, var.dtype.base_dtype
         coefficients = (apply_state or {}).get(
             (var_device, var_dtype)
@@ -467,8 +467,13 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
             v = vhat
         var.assign_sub((m * alpha) / (tf.sqrt(v) + coefficients["epsilon"]))
 
+    def _resource_apply_dense(self, grad, var, apply_state=None):
+        self._resource_apply_dense_impl(grad, var, apply_state)
+        if not tf.executing_eagerly():
+            return tf.compat.v1.get_default_graph().get_operations()[-1]
+
     @tf.function(jit_compile=True)
-    def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
+    def _resource_apply_sparse_impl(self, grad, var, indices, apply_state):
         var_device, var_dtype = var.device, var.dtype.base_dtype
         coefficients = (apply_state or {}).get(
             (var_device, var_dtype)
@@ -498,6 +503,11 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
                 * m
                 / (tf.sqrt(v_hat) + coefficients["epsilon"])
             )
+
+    def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
+        self._resource_apply_sparse_impl(grad, var, indices, apply_state)
+        if not tf.executing_eagerly():
+            return tf.compat.v1.get_default_graph().get_operations()[-1]
 
     def get_config(self):
         config = super().get_config()
