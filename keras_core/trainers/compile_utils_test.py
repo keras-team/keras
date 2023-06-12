@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras_core import backend
 from keras_core import metrics as losses_module
@@ -194,7 +195,7 @@ class TestCompileMetrics(testing.TestCase):
         self.assertAllClose(result["accuracy"], 0.333333)
 
 
-class TestCompileLoss(testing.TestCase):
+class TestCompileLoss(testing.TestCase, parameterized.TestCase):
     def test_single_output_case(self):
         compile_loss = CompileLoss(
             loss=losses_module.MeanSquaredError(),
@@ -210,3 +211,65 @@ class TestCompileLoss(testing.TestCase):
         compile_loss.build(y_true, y_pred)
         value = compile_loss(y_true, y_pred)
         self.assertAllClose(value, 0.068333, atol=1e-5)
+
+    @parameterized.parameters(True, False)
+    def test_list_output_case(self, broadcast):
+        if broadcast:
+            # Test broadcasting single loss to all outputs
+            compile_loss = CompileLoss(
+                loss="mse",
+            )
+        else:
+            compile_loss = CompileLoss(
+                loss=["mse", "mse"],
+            )
+        # Test symbolic build
+        y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
+        y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
+        compile_loss.build(y_true, y_pred)
+        # Test eager build
+        y_true = [
+            np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+            np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        ]
+        y_pred = [
+            np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+            np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        ]
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.953333, atol=1e-5)
+
+    @parameterized.parameters(True, False)
+    def test_dict_output_case(self, broadcast):
+        if broadcast:
+            # Test broadcasting single loss to all outputs
+            compile_loss = CompileLoss(
+                loss="mse",
+            )
+        else:
+            compile_loss = CompileLoss(
+                loss={"a": "mse", "b": "mse"},
+            )
+        # Test symbolic build
+        y_true = {
+            "a": backend.KerasTensor((3, 4)),
+            "b": backend.KerasTensor((3, 4)),
+        }
+        y_pred = {
+            "a": backend.KerasTensor((3, 4)),
+            "b": backend.KerasTensor((3, 4)),
+        }
+        compile_loss.build(y_true, y_pred)
+        # Test eager build
+        y_true = {
+            "a": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+            "b": np.array([[0.7, 0.8], [0.9, 1.0], [1.1, 1.2]]),
+        }
+        y_pred = {
+            "a": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
+            "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
+        }
+        compile_loss.build(y_true, y_pred)
+        value = compile_loss(y_true, y_pred)
+        self.assertAllClose(value, 0.953333, atol=1e-5)

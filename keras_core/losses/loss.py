@@ -38,7 +38,7 @@ class Loss:
                 lambda x: ops.convert_to_tensor(x, dtype=dtype), y_pred
             )
             y_true = nest.map_structure(
-                lambda x: ops.convert_to_tensor(x, dtype=y_pred.dtype), y_true
+                lambda x: ops.convert_to_tensor(x, dtype=dtype), y_true
             )
 
             losses = self.call(y_true, y_pred)
