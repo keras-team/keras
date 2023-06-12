@@ -183,9 +183,15 @@ class TensorBoard(Callback):
         self.update_freq = 1 if update_freq == "batch" else update_freq
         self.embeddings_freq = embeddings_freq
         self.embeddings_metadata = embeddings_metadata
-        self._init_profile_batch(
-            profile_batch
-        )  # TODO: profiling not available in JAX
+        if profile_batch and backend.backend() != "tensorflow":
+            # TODO: profiling not available in JAX/torch
+            raise ValueError(
+                "Profiling is not yet available with the "
+                f"{backend.backend()} backend. Please open a PR "
+                "if you'd like to add this feature. Received: "
+                f"profile_batch={profile_batch} (must be 0)"
+            )
+        self._init_profile_batch(profile_batch)
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
         self._train_accumulated_time = 0
