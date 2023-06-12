@@ -1,4 +1,4 @@
-""" Benchmark rnn layers.
+"""Benchmark rnn layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -12,6 +12,7 @@ python3 -m benchmarks.layer_benchmark.rnn_benchmark \
 ```
 """
 
+import tensorflow as tf
 from absl import app
 from absl import flags
 
@@ -62,7 +63,7 @@ def benchmark_conv_lstm2d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 64, 64, 3],
+        input_shape=[32, 32, 32, 3],
         jit_compile=jit_compile,
     )
 
@@ -84,13 +85,13 @@ def benchmark_conv_lstm3d(
 ):
     layer_name = "ConvLSTM3D"
     init_args = {
-        "filters": 16,
+        "filters": 8,
         "kernel_size": 2,
     }
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[16, 32, 32, 16, 3],
+        input_shape=[8, 16, 16, 16, 3],
         jit_compile=jit_compile,
     )
 
@@ -117,7 +118,7 @@ def benchmark_gru(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 256],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
     )
 
@@ -144,7 +145,7 @@ def benchmark_lstm(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 256],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
     )
 
@@ -171,7 +172,7 @@ def benchmark_simple_rnn(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 256],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
     )
 
@@ -192,14 +193,18 @@ def benchmark_bidirectional(
     jit_compile=True,
 ):
     layer_name = "Bidirectional"
-    init_args = {
-        "layer": keras_core.layers.LSTM(32),
-    }
+    init_args = {}
+    keras_core_layer = keras_core.layers.Bidirectional(
+        keras_core.layers.LSTM(32)
+    )
+    tf_keras_layer = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(32))
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[32, 256],
+        input_shape=[256, 256],
         jit_compile=jit_compile,
+        keras_core_layer=keras_core_layer,
+        tf_keras_layer=tf_keras_layer,
     )
 
     benchmark.benchmark_predict(
@@ -219,14 +224,20 @@ def benchmark_time_distributed(
     jit_compile=True,
 ):
     layer_name = "TimeDistributed"
-    init_args = {
-        "layer": keras_core.layers.Conv2D(64, (3, 3)),
-    }
+    init_args = {}
+    keras_core_layer = keras_core.layers.TimeDistributed(
+        keras_core.layers.Conv2D(16, (3, 3))
+    )
+    tf_keras_layer = tf.keras.layers.TimeDistributed(
+        tf.keras.layers.Conv2D(16, (3, 3))
+    )
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[10, 128, 128, 3],
+        input_shape=[10, 32, 32, 3],
         jit_compile=jit_compile,
+        keras_core_layer=keras_core_layer,
+        tf_keras_layer=tf_keras_layer,
     )
 
     benchmark.benchmark_predict(
@@ -259,7 +270,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES:
+        for name, benchmark_fn in BENCHMARK_NAMES.items():
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 
