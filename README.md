@@ -2,6 +2,12 @@
 
 Keras Core is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
 
+**WARNING:** At this time, this package is highly experimental.
+It has rough edges and not everything might work as expected.
+We are currently hard at work improving it.
+
+Once ready, this package will become Keras 3.0 and subsume `tf.keras`.
+
 ## Local installation
 
 Keras Core is compatible with Linux and MacOS systems. To install it locally:
