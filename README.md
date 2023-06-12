@@ -4,7 +4,23 @@ Keras Core is a new multi-backend implementation of the Keras API, with support 
 
 ## Local installation
 
-Run `python3 pip_build.py --install` from the root directory.
+Keras Core is compatible with Linux and MacOS systems. To install it locally:
+
+1. Install dependencies:
+
+```
+pip install -r requirements.txt
+```
+
+2. Run installation command from the root directory.
+
+```
+python pip_build.py --install
+```
+
+Note that Keras Core strictly requires TensorFlow,
+in particular because it uses `tf.nest` to handle nested Python structures.
+In the future, we will make all backend frameworks optional.
 
 ## Configuring your backend
 
