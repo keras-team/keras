@@ -82,8 +82,10 @@ def format_layer_shape(layer):
             lambda x: format_shape(x.shape), outputs
         )
     if len(output_shapes) == 1:
-        output_shapes = output_shapes[0]
-    return str(output_shapes)
+        return output_shapes[0]
+    out = str(output_shapes)
+    out = out.replace("'", "")
+    return out
 
 
 def print_summary(
