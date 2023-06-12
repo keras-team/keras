@@ -152,6 +152,9 @@ class Functional(Function, Model):
 
         self._layers = self.layers
         self.built = True
+        # We will convert directly (to the correct dtype per input).
+        self._convert_input_args = False
+        self._allow_non_tensor_positional_args = True
         self._post_build()
 
     @property
@@ -232,6 +235,16 @@ class Functional(Function, Model):
         # Otherwise both ref inputs and inputs will already be in same order.
         return nest.flatten(inputs)
 
+    def _convert_inputs_to_tensors(self, flat_inputs):
+        flat_dtypes = [x.dtype for x in self._inputs]
+        converted = []
+        for x, dtype in zip(flat_inputs, flat_dtypes):
+            if backend.is_tensor(x):
+                converted.append(backend.cast(x, dtype=dtype))
+            else:
+                converted.append(backend.convert_to_tensor(x, dtype=dtype))
+        return converted
+
     def _adjust_input_rank(self, flat_inputs):
         flat_ref_shapes = [x.shape for x in self._inputs]
         adjusted = []
@@ -263,6 +276,7 @@ class Functional(Function, Model):
 
     def _standardize_inputs(self, inputs):
         flat_inputs = self._flatten_to_reference_inputs(inputs)
+        flat_inputs = self._convert_inputs_to_tensors(flat_inputs)
         return self._adjust_input_rank(flat_inputs)
 
     @property
