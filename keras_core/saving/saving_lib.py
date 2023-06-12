@@ -12,6 +12,7 @@ import zipfile
 import numpy as np
 from tensorflow.io import gfile
 
+from keras_core.backend.common import global_state
 from keras_core.layers.layer import Layer
 from keras_core.losses.loss import Loss
 from keras_core.metrics.metric import Metric
@@ -32,33 +33,6 @@ _CONFIG_FILENAME = "config.json"
 _METADATA_FILENAME = "metadata.json"
 _VARS_FNAME = "model.weights"  # Will become e.g. "model.weights.h5"
 _ASSETS_DIRNAME = "assets"
-
-
-ATTR_SKIPLIST = frozenset(
-    {
-        "_operations",
-        "_layers",
-        "_functional",
-        "_losses",
-        "_inbound_nodes",
-        "_outbound_nodes",
-        "_variables",
-        "weights",
-        "non_trainable_weights",
-        "trainable_weights",
-        "variables",
-        "non_trainable_variables",
-        "trainable_variables",
-        # TF trackable attrs
-        "_unconditional_checkpoint_dependencies",
-        "_unconditional_dependency_names",
-        "_checkpoint_dependencies",
-        "_deferred_dependencies",
-        "_deserialization_dependencies",
-        "_lookup_dependency",
-        "_self_unconditional_dependency_names",
-    }
-)
 
 
 def save_model(model, filepath, weights_format="h5"):
@@ -290,8 +264,20 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 
 
 def _walk_trackable(trackable):
+    if isinstance(trackable, Layer):
+        obj_type = "Layer"
+    elif isinstance(trackable, Optimizer):
+        obj_type = "Optimizer"
+    elif isinstance(trackable, Metric):
+        obj_type = "Metric"
+    elif isinstance(trackable, Loss):
+        obj_type = "Loss"
+    else:
+        raise ValueError(f"Invalid obj_type: {obj_type}")
+    attr_skiplist = get_attr_skiplist(obj_type)
+
     for child_attr in dir(trackable):
-        if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
+        if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
         try:
             child_obj = getattr(trackable, child_attr)
@@ -610,6 +596,33 @@ def get_temp_dir():
     testfile = tempfile.TemporaryFile(dir=temp_dir)
     testfile.close()
     return temp_dir
+
+
+def get_attr_skiplist(obj_type):
+    skiplist = global_state.get_global_attribute(
+        f"saving_attr_skiplist_{obj_type}", None
+    )
+    if skiplist is not None:
+        return skiplist
+    if obj_type == "Layer":
+        ref_obj = Layer()
+        skiplist = dir(ref_obj)
+    elif obj_type == "Metric":
+        ref_obj = Metric()
+        skiplist = dir(ref_obj)
+    elif obj_type == "Optimizer":
+        ref_obj = Optimizer(1.0)
+        skiplist = dir(ref_obj)
+        skiplist.remove("variables")
+    elif obj_type == "Loss":
+        ref_obj = Loss()
+        skiplist = dir(ref_obj)
+    else:
+        raise ValueError(f"Invalid obj_type: {obj_type}")
+    global_state.set_global_attribute(
+        f"saving_attr_skiplist_{obj_type}", skiplist
+    )
+    return skiplist
 
 
 def _is_keras_trackable(obj):
