@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras_core import layers
 from keras_core import testing
 from keras_core.layers.core.input_layer import Input
@@ -25,3 +27,22 @@ class ModelTest(testing.TestCase):
         json_string = model.to_json()
         new_model = model_from_json(json_string)
         self.assertEqual(json_string, new_model.to_json())
+
+    def test_tuple_input_model_subclass(self):
+        # https://github.com/keras-team/keras-core/issues/324
+
+        class MultiInputModel(Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.dense1 = layers.Dense(4)
+
+            def call(self, inputs):
+                a, b = inputs
+                r = self.dense1(a)
+                return layers.concatenate([r, b])
+
+        model = MultiInputModel()
+        x1 = np.random.rand(3, 3)
+        x2 = np.random.rand(3, 2)
+        out = model((x1, x2))
+        self.assertEqual(out.shape, (3, 6))

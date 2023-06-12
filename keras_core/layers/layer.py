@@ -989,19 +989,9 @@ class Layer(BackendLayer, Operation):
 
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
-        if is_shape_tuple(input_shape):
-            input_shape = tuple(input_shape)
-        if isinstance(input_shape, list):
-            input_tensors = [
-                backend.KerasTensor(shape) for shape in input_shape
-            ]
-        elif isinstance(input_shape, dict):
-            input_tensors = {
-                k: backend.KerasTensor(shape)
-                for k, shape in input_shape.items()
-            }
-        else:
-            input_tensors = backend.KerasTensor(input_shape)
+        input_tensors = map_shape_structure(
+            lambda s: backend.KerasTensor(s), input_shape
+        )
         try:
             backend.compute_output_spec(self.call, input_tensors)
             return True
