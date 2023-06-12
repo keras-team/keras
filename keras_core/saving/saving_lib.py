@@ -49,6 +49,14 @@ ATTR_SKIPLIST = frozenset(
         "variables",
         "non_trainable_variables",
         "trainable_variables",
+        # TF trackable attrs
+        "_unconditional_checkpoint_dependencies",
+        "_unconditional_dependency_names",
+        "_checkpoint_dependencies",
+        "_deferred_dependencies",
+        "_deserialization_dependencies",
+        "_lookup_dependency",
+        "_self_unconditional_dependency_names",
     }
 )
 
