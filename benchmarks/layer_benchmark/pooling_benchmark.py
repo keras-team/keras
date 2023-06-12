@@ -1,4 +1,4 @@
-"""Benchmark pooling layers.
+""" Benchmark pooling layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -33,7 +33,7 @@ def benchmark_average_pooling1d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[1024, 256],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -87,7 +87,7 @@ def benchmark_average_pooling3d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[64, 64, 32, 3],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -114,7 +114,7 @@ def benchmark_max_pooling1d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[1024, 256],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -168,7 +168,7 @@ def benchmark_max_pooling3d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[64, 64, 32, 3],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -193,7 +193,7 @@ def benchmark_global_average_pooling1d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[1024, 256],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -243,7 +243,7 @@ def benchmark_global_average_pooling3d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[64, 64, 32, 3],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -268,7 +268,7 @@ def benchmark_global_max_pooling1d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[1024, 256],
+        input_shape=[256, 3],
         jit_compile=jit_compile,
     )
 
@@ -318,7 +318,7 @@ def benchmark_global_max_pooling3d(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[64, 64, 32, 3],
+        input_shape=[64, 64, 64, 3],
         jit_compile=jit_compile,
     )
 
@@ -356,7 +356,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES.items():
+        for name, benchmark_fn in BENCHMARK_NAMES:
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 

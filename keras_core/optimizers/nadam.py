@@ -76,10 +76,14 @@ class Nadam(optimizer.Optimizer):
         """
         if self.built:
             return
+        if var_list:
+            dtype = var_list[0].dtype
+        else:
+            dtype = backend.floatx()
         super().build(var_list)
         self._momentums = []
         self._velocities = []
-        self._u_product = backend.Variable(1.0, dtype=var_list[0].dtype)
+        self._u_product = backend.Variable(1.0, dtype=dtype)
 
         for var in var_list:
             self._momentums.append(

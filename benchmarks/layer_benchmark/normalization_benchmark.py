@@ -1,4 +1,4 @@
-"""Benchmark normalization layers.
+""" Benchmark normalization layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -6,8 +6,8 @@ flag to your custom value:
 ```
 python3 -m benchmarks.layer_benchmark.normalization_benchmark \
     --benchmark_name=benchmark_batch_normalization \
-    --num_samples=2048 \
-    --batch_size=256 \
+    --num_samples=2400 \
+    --batch_size=300 \
     --jit_compile=True
 ```
 """
@@ -82,7 +82,7 @@ def benchmark_layer_normalization(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 128, 4],
+        input_shape=[256, 256, 4],
         jit_compile=jit_compile,
     )
 
@@ -107,16 +107,11 @@ def benchmark_unit_normalization(
     benchmark = LayerBenchmark(
         layer_name,
         init_args,
-        input_shape=[256, 128, 4],
+        input_shape=[256, 256, 4],
         jit_compile=jit_compile,
     )
 
     benchmark.benchmark_predict(
-        num_samples=num_samples,
-        batch_size=batch_size,
-    )
-
-    benchmark.benchmark_train(
         num_samples=num_samples,
         batch_size=batch_size,
     )
@@ -137,7 +132,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES.items():
+        for name, benchmark_fn in BENCHMARK_NAMES:
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 

@@ -1,4 +1,4 @@
-"""Benchmark attention layers.
+""" Benchmark attention layers.
 
 To run benchmarks, see the following command for an example, please change the
 flag to your custom value:
@@ -6,8 +6,8 @@ flag to your custom value:
 ```
 python3 -m benchmarks.layer_benchmark.attention_benchmark \
     --benchmark_name=benchmark_attention \
-    --num_samples=2048 \
-    --batch_size=256 \
+    --num_samples=8192 \
+    --batch_size=1024 \
     --jit_compile=True
 ```
 """
@@ -115,7 +115,7 @@ def main(_):
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES.items():
+        for name, benchmark_fn in BENCHMARK_NAMES:
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 
