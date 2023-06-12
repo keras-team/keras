@@ -119,6 +119,7 @@ tf_py_test(
     srcs = ["softmax_test.py"],
     python_version = "PY3",
     deps = [
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

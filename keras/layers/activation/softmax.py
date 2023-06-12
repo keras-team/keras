@@ -25,26 +25,6 @@ from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-def _large_compatible_negative(tensor_type):
-    """Large negative number as Tensor.
-
-    This function is necessary because the standard value for epsilon
-    in this module (-1e9) cannot be represented using tf.float16
-
-    Args:
-        tensor_type: a dtype to determine the type.
-
-    Returns:
-        a large negative number.
-    """
-    # In case of dtype=float16 (e.g., for mixed-precision), the largest
-    # negative number (dtypes.float16.min) is divided by 2, in order to
-    # avoid overflows when summing negative inputs.
-    if tensor_type == tf.float16:
-        return tf.float16.min / 2.0
-    return -1e9
-
-
 @keras_export("keras.layers.Softmax")
 class Softmax(Layer):
     """Softmax activation function.
@@ -87,16 +67,14 @@ class Softmax(Layer):
 
     def call(self, inputs, mask=None):
         if mask is not None:
-            # Since mask is 1.0 for positions we want to keep and 0.0 for masked
-            # positions, this operation will create a tensor which is 0.0 for
-            # positions we want to attend and -1e.9 for masked positions.
-            adder = (1.0 - tf.cast(mask, inputs.dtype)) * (
-                _large_compatible_negative(inputs.dtype)
+            # Although mask is expected to be tf.bool already, there are
+            # existing users where masked values are provided as zero/not zero
+            # values.
+            inputs = tf.where(
+                tf.cast(mask, dtype=tf.bool),
+                inputs,
+                tf.constant(-float("inf"), dtype=inputs.dtype),
             )
-
-            # Since we are adding it to the raw scores before the softmax, this
-            # is effectively the same as removing these entirely.
-            inputs += adder
         if isinstance(self.axis, (tuple, list)):
             if len(self.axis) > 1:
                 return tf.exp(
