@@ -61,10 +61,23 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
     @parameterized.product(
         axis=(-1, 1),
         input_shape=((5, 2, 3), (5, 3, 3, 2)),
+        moving_mean_initializer=("zeros", "ones"),
+        moving_variance_initializer=("zeros", "ones"),
     )
-    def test_correctness(self, axis, input_shape):
+    def test_correctness(
+        self,
+        axis,
+        input_shape,
+        moving_mean_initializer,
+        moving_variance_initializer,
+    ):
         # Training
-        layer = layers.BatchNormalization(axis=axis, momentum=0)
+        layer = layers.BatchNormalization(
+            axis=axis,
+            momentum=0,
+            moving_mean_initializer=moving_mean_initializer,
+            moving_variance_initializer=moving_variance_initializer,
+        )
         # Random data centered on 5.0, variance 10.0
         x = np.random.normal(loc=5.0, scale=10.0, size=input_shape)
         out = x
@@ -83,11 +96,18 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         reduction_axes = tuple(reduction_axes)
         self.assertAllClose(np.mean(out, axis=reduction_axes), 0.0, atol=1e-3)
         self.assertAllClose(np.std(out, axis=reduction_axes), 1.0, atol=1e-3)
+        self.assertAllClose(layer.moving_mean, 0.0, atol=1e-3)
+        self.assertAllClose(layer.moving_variance, 1.0, atol=1e-3)
 
-        # Inference
+        # Inference done before training shouldn't match.
         inference_out = layer(x, training=False)
         training_out = layer(x, training=True)
         self.assertNotAllClose(inference_out, training_out)
+
+        # Since momentum is zero, inference after training should match.
+        training_out = layer(x, training=True)
+        inference_out = layer(x, training=False)
+        self.assertAllClose(inference_out, training_out)
 
     def test_trainable_behavior(self):
         layer = layers.BatchNormalization(axis=-1, momentum=0.8, epsilon=1e-7)

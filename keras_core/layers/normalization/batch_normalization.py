@@ -201,6 +201,10 @@ class BatchNormalization(Layer):
             self.moving_mean.assign(
                 self.moving_mean * self.momentum + mean * (1.0 - self.momentum)
             )
+            self.moving_variance.assign(
+                self.moving_variance * self.momentum
+                + variance * (1.0 - self.momentum)
+            )
         else:
             moving_mean = ops.reshape(self.moving_mean, broadcast_shape)
             moving_variance = ops.reshape(self.moving_variance, broadcast_shape)
