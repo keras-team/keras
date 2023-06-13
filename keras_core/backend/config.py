@@ -228,16 +228,22 @@ if "KERAS_BACKEND" in os.environ:
         _BACKEND = _backend
 
 
-@keras_core_export("keras_core.backend.backend")
+@keras_core_export(
+    [
+        "keras_core.config.backend",
+        "keras_core.backend.backend",
+    ]
+)
 def backend():
     """Publicly accessible method for determining the current backend.
 
     Returns:
-        String, the name of the backend Keras is currently using.
+        String, the name of the backend Keras is currently using. One of
+            `"tensorflow"`, `"torch"`, or `"jax"`.
 
     Example:
 
-    >>> keras.backend.backend()
+    >>> keras.config.backend()
     'tensorflow'
     """
     return _BACKEND
