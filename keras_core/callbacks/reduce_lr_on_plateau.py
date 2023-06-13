@@ -103,11 +103,12 @@ class ReduceLROnPlateau(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs["lr"] = float(np.array(self.model.optimizer.learning_rate))
+        logs["learning_rate"] = float(
+            np.array(self.model.optimizer.learning_rate)
+        )
         current = logs.get(self.monitor)
 
         if current is None:
-            print("tacos")
             warnings.warn(
                 "Learning rate reduction is conditioned on metric "
                 f"`{self.monitor}` which is not available. Available metrics "

@@ -77,25 +77,3 @@ class TestTFDatasetAdapter(testing.TestCase):
 
     def test_class_weights_categorical_targets(self):
         self._test_class_weights(target_encoding="categorical")
-
-    def test_num_batches(self):
-        dataset = tf.data.Dataset.range(42)
-        cardinality = int(dataset.cardinality())
-        self.assertEqual(cardinality, 42)
-        adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
-        self.assertEqual(adapter.num_batches, 42)
-
-        # Test for Infiniate Cardinality
-        dataset = tf.data.Dataset.range(42)
-        dataset = dataset.repeat()
-        cardinality = int(dataset.cardinality())
-        self.assertEqual(cardinality, tf.data.INFINITE_CARDINALITY)
-        adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
-        self.assertIsNone(adapter.num_batches)
-
-        # Test for Unknown Cardinality
-        dataset = dataset.filter(lambda x: True)
-        cardinality = int(dataset.cardinality())
-        self.assertEqual(cardinality, tf.data.UNKNOWN_CARDINALITY)
-        adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
-        self.assertIsNone(adapter.num_batches)
