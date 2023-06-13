@@ -29,7 +29,8 @@ class TFDatasetAdapter(DataAdapter):
     @property
     def num_batches(self):
         cardinality = int(self._dataset.cardinality())
-        if cardinality == -1:
+        # Return None for Unknown and Infiite cardinality datasets
+        if cardinality < 0:
             return None
         return cardinality
 
