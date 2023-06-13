@@ -60,7 +60,7 @@ class Variable(KerasVariable):
         self._value = torch.nn.Parameter(
             convert_to_tensor(value, dtype=self._dtype),
             requires_grad=self.trainable,
-        )
+        ).to(get_device())
 
     def _direct_assign(self, value):
         with torch.no_grad():
@@ -102,26 +102,30 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None):
-    # TODO: Need to address device placement arg of `as_tensor`
     dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
     if isinstance(x, Variable):
         x = x.value
     if is_tensor(x):
         if dtype and dtype != x.dtype:
-            return x.to(dtype)
-        return x
+            x = x.to(dtype)
+        return x.to(get_device())
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
         x = np.array(x)
-    # Handle list or tuple of torch tensors
     elif len(x) > 0 and isinstance(x[0], torch.Tensor):
+        # Handle list or tuple of torch tensors
         return torch.stack(x)
 
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 
 def convert_to_numpy(x):
+    if isinstance(x, KerasVariable):
+        x = x.value
+    if is_tensor(x) and x.is_cuda:
+        # Tensor has to be moved to CPU before converting to numpy.
+        x = x.cpu()
     if is_tensor(x) and x.requires_grad:
         return x.detach().numpy()
     return np.array(x)

@@ -39,6 +39,8 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
+    if isinstance(x, list):
+        x = stack(x)
     x = convert_to_tensor(x)
     # Conversion to float necessary for `torch.mean`
     x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
@@ -845,6 +847,8 @@ def var(x, axis=None, keepdims=False):
 
 
 def sum(x, axis=None, keepdims=False):
+    if isinstance(x, list):
+        x = stack(x)
     x = convert_to_tensor(x)
     if axis is not None:
         return torch.sum(x, axis=axis, keepdim=keepdims)
