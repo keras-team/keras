@@ -39,11 +39,12 @@ class JAXTrainer(base_trainer.Trainer):
         return loss, (y_pred, non_trainable_variables)
 
     def _eager_build(self, data_batch):
+        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
             and not self._compile_metrics.built
         )
-        if not self.built or compile_metrics_unbuilt:
+        if model_unbuilt or compile_metrics_unbuilt:
             # Build the model on one batch of data.
             (
                 x,
@@ -318,7 +319,7 @@ class JAXTrainer(base_trainer.Trainer):
         )
 
         needs_building = (
-            not self.built
+            not all(layer.built for layer in self._flatten_layers())
             or not self.optimizer.built
             or (
                 self._compile_metrics is not None
@@ -475,7 +476,7 @@ class JAXTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
-        if not self.built:
+        if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 data_batch = data[0]
@@ -549,7 +550,7 @@ class JAXTrainer(base_trainer.Trainer):
             steps_per_execution=self.steps_per_execution,
         )
 
-        if not self.built:
+        if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
             for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Build model
@@ -703,7 +704,7 @@ class JAXTrainer(base_trainer.Trainer):
         return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
-        if not self.built:
+        if not all(layer.built for layer in self._flatten_layers()):
             # Build model
             with backend.StatelessScope():
                 self(x)
