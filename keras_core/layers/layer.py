@@ -301,6 +301,15 @@ class Layer(BackendLayer, Operation):
 
     @utils.default
     def build(self, input_shape):
+        if utils.is_default(self.build) and might_have_unbuilt_state(self):
+            warnings.warn(
+                f"`build()` was called on layer '{self.name}', however "
+                "the layer does not have a `build()` method implemented "
+                "and it looks like it has unbuilt state. This will cause "
+                "the layer to be marked as built, despite not being "
+                "actually built, which may cause failures down the line. "
+                "Make sure to implement a proper `build()` method."
+            )
         self.built = True
 
     def get_build_config(self):
