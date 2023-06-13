@@ -111,8 +111,13 @@ def convert_to_tensor(x, dtype=None):
             return x.to(dtype)
         return x
 
-    # Convert to np first in case of any non-numpy, numpy-compatible array.
-    x = np.array(x)
+    # Convert to np in case of any array-like that is not list or tuple.
+    if not isinstance(x, (list, tuple)):
+        x = np.array(x)
+    # Handle list or tuple of torch tensors
+    elif len(x) > 0 and isinstance(x[0], torch.Tensor):
+        return torch.stack(x)
+
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 

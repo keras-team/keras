@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras_core import backend
 from keras_core import initializers
 from keras_core import testing
 from keras_core.layers.rnn.conv_lstm import ConvLSTM
@@ -21,11 +22,11 @@ class ConvLSTMCellTest(testing.TestCase):
             recurrent_initializer=initializers.Constant(0.02),
         )
         output = layer(x, [s1, s2])
-        checksum_0 = np.sum(output[0])
+        checksum_0 = np.sum(backend.convert_to_numpy(output[0]))
         self.assertAllClose(checksum_0, 188.89502)
-        checksum_1 = np.sum(output[1][0])
+        checksum_1 = np.sum(backend.convert_to_numpy(output[1][0]))
         self.assertAllClose(checksum_1, 188.89502)
-        checksum_2 = np.sum(output[1][1])
+        checksum_2 = np.sum(backend.convert_to_numpy(output[1][1]))
         self.assertAllClose(checksum_2, 2170.444)
 
 
@@ -44,4 +45,5 @@ class ConvLSTMTest(testing.TestCase):
             recurrent_initializer=initializers.Constant(0.02),
         )
         output = layer(x, initial_state=[s1, s2])
+        output = backend.convert_to_numpy(output)
         self.assertAllClose(np.sum(output), 119.812454)

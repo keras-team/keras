@@ -76,6 +76,12 @@ def zeros(shape, dtype="float32"):
     return torch.zeros(size=shape, dtype=dtype)
 
 
+def zeros_like(x, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype)
+    return torch.zeros_like(x, dtype=dtype)
+
+
 def absolute(x):
     return abs(x)
 
