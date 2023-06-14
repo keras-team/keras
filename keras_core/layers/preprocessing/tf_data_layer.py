@@ -1,3 +1,4 @@
+from keras_core import backend
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
 
@@ -16,7 +17,9 @@ class TFDataLayer(Layer):
         self._allow_non_tensor_positional_args = True
 
     def __call__(self, inputs, **kwargs):
-        if backend_utils.in_tf_graph():
+        if backend_utils.in_tf_graph() and not isinstance(
+            inputs, backend.KerasTensor
+        ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
             inputs = self.backend.convert_to_tensor(
