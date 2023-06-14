@@ -58,7 +58,7 @@ def to_torch_dtype(dtype):
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype),
+            convert_to_tensor(value, dtype=self._dtype).to(get_device()),
             requires_grad=self.trainable,
         ).to(get_device())
 
@@ -84,16 +84,14 @@ class Variable(KerasVariable):
         return func(*args, **kwargs)
 
     def __array__(self, dtype=None):
-        if self.value.requires_grad:
-            return self.value.detach().__array__(dtype)
-        return super().__array__(dtype)
+        return _prepare_for_numpy(self.value).__array__(dtype)
 
     @property
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
         if get_device() == "meta" and value.device != "meta":
-            return torch.randn(
+            return torch.empty(
                 size=value.shape,
                 dtype=value.dtype,
                 device="meta",
@@ -105,6 +103,7 @@ def convert_to_tensor(x, dtype=None):
     dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
     if isinstance(x, Variable):
         x = x.value
+        return x
     if is_tensor(x):
         if dtype and dtype != x.dtype:
             x = x.to(dtype)
@@ -120,15 +119,18 @@ def convert_to_tensor(x, dtype=None):
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 
-def convert_to_numpy(x):
-    if isinstance(x, KerasVariable):
-        x = x.value
-    if is_tensor(x) and x.is_cuda:
+def _prepare_for_numpy(x):
+    if is_tensor(x):
+        if x.requires_grad:
+            x = x.detach()
         # Tensor has to be moved to CPU before converting to numpy.
-        x = x.cpu()
-    if is_tensor(x) and x.requires_grad:
-        return x.detach().numpy()
-    return np.array(x)
+        if x.is_cuda:
+            x = x.cpu()
+    return x
+
+
+def convert_to_numpy(x):
+    return np.array(_prepare_for_numpy(x))
 
 
 def is_tensor(x):
@@ -170,7 +172,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     for i, e in enumerate(shape):
                         if e is None:
                             shape[i] = fill_value
-                return torch.randn(
+                return torch.empty(
                     size=shape,
                     dtype=TORCH_DTYPES[x.dtype],
                     device=get_device(),

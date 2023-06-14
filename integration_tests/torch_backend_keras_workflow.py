@@ -38,7 +38,7 @@ model.predict_on_batch(x)
 inputs = keras_core.Input(shape=(32, 32, 3))
 outputs = layers.Conv2D(filters=10, kernel_size=3)(inputs)
 outputs = layers.GlobalAveragePooling2D()(outputs)
-outputs = layers.Dense(1)(outputs)
+outputs = layers.Dense(1, activation="sigmoid")(outputs)
 model = keras_core.Model(inputs, outputs)
 model.compile(
     loss="binary_crossentropy", optimizer="adam", metrics=["mae", "accuracy"]
