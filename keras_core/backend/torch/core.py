@@ -253,15 +253,30 @@ def scatter_update(inputs, indices, updates):
     return inputs
 
 
-def block_update(inputs, start_indices, updates):
+def slice(inputs, start_indices, shape):
+    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices, dtype="int64")
+    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
+    shape = convert_to_tensor(shape).to(shape_dtype)
+
+    python_slice = __builtins__["slice"]
+    slices = [
+        python_slice(start_index, start_index + length)
+        for start_index, length in zip(start_indices, shape)
+    ]
+    return inputs[slices]
+
+
+def slice_update(inputs, start_indices, updates):
+    shape_dtype = to_torch_dtype("int64")
+    inputs = convert_to_tensor(inputs)
+    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     updates = convert_to_tensor(updates)
 
-    update_shape = updates.shape
+    python_slice = __builtins__["slice"]
     slices = [
-        slice(start_index, start_index + update_length)
-        for start_index, update_length in zip(start_indices, update_shape)
+        python_slice(start_index, start_index + update_length)
+        for start_index, update_length in zip(start_indices, updates.shape)
     ]
     inputs[slices] = updates
     return inputs

@@ -141,7 +141,11 @@ def scatter_update(inputs, indices, updates):
     return tf.tensor_scatter_nd_update(inputs, indices, updates)
 
 
-def block_update(inputs, start_indices, updates):
+def slice(inputs, start_indices, shape):
+    return tf.slice(inputs, start_indices, shape)
+
+
+def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
