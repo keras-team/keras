@@ -202,14 +202,12 @@ def scatter_update(inputs, indices, updates):
     return inputs
 
 
-def block_update(inputs, start_indices, updates):
-    update_shape = updates.shape
-    slices = [
-        slice(start_index, start_index + update_length)
-        for start_index, update_length in zip(start_indices, update_shape)
-    ]
-    inputs[tuple(slices)] = updates
-    return inputs
+def slice(inputs, start_indices, shape):
+    return jax.lax.dynamic_slice(inputs, start_indices, shape)
+
+
+def slice_update(inputs, start_indices, updates):
+    return jax.lax.dynamic_update_slice(inputs, updates, start_indices)
 
 
 def while_loop(
