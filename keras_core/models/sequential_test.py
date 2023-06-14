@@ -232,3 +232,14 @@ class SequentialTest(testing.TestCase):
             model, custom_objects={"DictLayer": DictLayer}
         )
         self.assertLen(revived.layers, 1)
+
+    def test_functional_properties(self):
+        model = Sequential(name="seq")
+        inputs = Input(shape=(2,))
+        model.add(inputs)
+        model.add(layers.Dense(4))
+
+        self.assertEqual(model.inputs, [inputs])
+        self.assertEqual(model.outputs, [model.layers[-1].output])
+        self.assertEqual(model.input_shape, (None, 2))
+        self.assertEqual(model.output_shape, (None, 4))
