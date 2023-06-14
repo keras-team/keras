@@ -1004,6 +1004,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.CategoricalFocalCrossentropy())
     ```
+
     Args:
         alpha: A weight balancing factor for all classes, default is `0.25` as
             mentioned in the reference. It can be a list of floats or a scalar.
@@ -1032,6 +1033,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             for more details.
         name: Optional name for the instance.
             Defaults to 'categorical_focal_crossentropy'.
+
     """
 
     def __init__(

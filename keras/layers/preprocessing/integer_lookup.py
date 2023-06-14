@@ -192,7 +192,7 @@ class IntegerLookup(index_lookup.IndexLookup):
     **One-hot output**
 
     Configure the layer with `output_mode='one_hot'`. Note that the first
-    `num_oov_indices` dimensions in the ont_hot encoding represent OOV values.
+    `num_oov_indices` dimensions in the one_hot encoding represent OOV values.
 
     >>> vocab = [12, 36, 1138, 42]
     >>> data = tf.constant([12, 36, 1138, 42, 7]) # Note OOV tokens

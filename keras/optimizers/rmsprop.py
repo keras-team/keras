@@ -44,22 +44,22 @@ class RMSprop(optimizer.Optimizer):
     gradients, and uses that average to estimate the variance.
 
     Args:
-      learning_rate: Initial value for the learning rate:
-        either a floating point value,
-        or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
-        Defaults to 0.001.
-      rho: float, defaults to 0.9. Discounting factor for the old gradients.
-      momentum: float, defaults to 0.0. If not 0.0., the optimizer tracks the
-        momentum value, with a decay rate equals to `1 - momentum`.
-      epsilon: A small constant for numerical stability. This epsilon is
-        "epsilon hat" in the Kingma and Ba paper (in the formula just before
-        Section 2.1), not the epsilon in Algorithm 1 of the paper. Defaults to
-        1e-7.
-      centered: Boolean. If `True`, gradients are normalized by the estimated
-        variance of the gradient; if False, by the uncentered second moment.
-        Setting this to `True` may help with training, but is slightly more
-        expensive in terms of computation and memory. Defaults to `False`.
-      {{base_optimizer_keyword_args}}
+        learning_rate: Initial value for the learning rate:
+            either a floating point value,
+            or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
+            Defaults to 0.001.
+        rho: float, defaults to 0.9. Discounting factor for the old gradients.
+        momentum: float, defaults to 0.0. If not 0.0., the optimizer tracks the
+            momentum value, with a decay rate equals to `1 - momentum`.
+        epsilon: A small constant for numerical stability. This epsilon is
+            "epsilon hat" in the Kingma and Ba paper (in the formula just before
+            Section 2.1), not the epsilon in Algorithm 1 of the paper.
+            Defaults to `1e-7`.
+        centered: Boolean. If `True`, gradients are normalized by the estimated
+            variance of the gradient; if False, by the uncentered second moment.
+            Setting this to `True` may help with training, but is slightly more
+            expensive in terms of computation and memory. Defaults to `False`.
+        {{base_optimizer_keyword_args}}
 
     Usage:
 
@@ -71,8 +71,7 @@ class RMSprop(optimizer.Optimizer):
     9.683772
 
     Reference:
-      - [Hinton, 2012](
-        http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
+        - [Hinton, 2012](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf) # noqa: E501
     """
 
     def __init__(

@@ -2391,6 +2391,92 @@ class TrainingTest(test_combinations.TestCase):
         self.assertEqual(input_specs[2].shape.as_list(), [3, 3])
 
 
+class TestAutotuneSPE(test_combinations.TestCase):
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_compile_fit_with_jit_compile(self):
+        # Test with jit_compile = True
+        model = sequential.Sequential([layers_module.Dense(1)])
+        model.compile(
+            "sgd",
+            loss="mse",
+            run_eagerly=False,
+            jit_compile=True,
+            steps_per_execution="auto",
+        )
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
+        # Test fcompile fit for a RNN model
+        model = sequential.Sequential()
+        model.add(
+            layers_module.TimeDistributed(
+                layers_module.Embedding(5, 6, mask_zero=True),
+                input_shape=(None, None),
+            )
+        )  # N by t_1 by t_2 by 6
+        model.add(
+            layers_module.TimeDistributed(
+                layers_module.SimpleRNN(7, return_sequences=True)
+            )
+        )
+        model.add(
+            layers_module.TimeDistributed(
+                layers_module.SimpleRNN(8, return_sequences=False)
+            )
+        )
+        model.add(layers_module.SimpleRNN(1, return_sequences=False))
+        model.compile(
+            optimizer="sgd",
+            loss="mse",
+            jit_compile=True,
+            steps_per_execution="auto",
+        )
+        model_input = np.random.randint(
+            low=1, high=5, size=(10, 3, 4), dtype="int32"
+        )
+        for i in range(4):
+            model_input[i, i:, i:] = 0
+        model.fit(
+            model_input, np.random.random((10, 1)), epochs=1, batch_size=10
+        )
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_compile_fit_evaluate_predict_with_mirrored_strategy(self):
+        # Test with jit_compile = True
+        strategy = tf.distribute.MirroredStrategy()
+        with strategy.scope():
+            model = sequential.Sequential([layers_module.Dense(1)])
+        model.compile(
+            "sgd",
+            loss="mse",
+            run_eagerly=False,
+            jit_compile=True,
+            steps_per_execution="auto",
+        )
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
+        model.evaluate(x, y)
+        model.predict(x)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_spe_tune_compile_fit_then_false_predict(self):
+        strategy = tf.distribute.MirroredStrategy()
+        with strategy.scope():
+            model = sequential.Sequential([layers_module.Dense(1)])
+        model.compile(
+            "sgd",
+            loss="mse",
+            run_eagerly=False,
+            jit_compile=True,
+            steps_per_execution="auto",
+        )
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
+        model.evaluate(x, y)
+        model.enable_tune_steps_per_execution = False
+        model.predict(x)
+        assert model.enable_tune_steps_per_execution == False
+
+
 class TestExceptionsAndWarnings(test_combinations.TestCase):
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     @test_combinations.run_with_all_model_types

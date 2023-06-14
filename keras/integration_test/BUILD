@@ -7,6 +7,7 @@ load("@org_keras//keras:keras.bzl", "tpu_py_test")
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
@@ -142,6 +143,23 @@ tf_py_test(
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
+    ],
+)
+
+distribute_py_test(
+    name = "ctl_tutorial_test",
+    srcs = ["ctl_tutorial_test.py"],
+    main = "ctl_tutorial_test.py",
+    shard_count = 5,
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+        "//keras/distribute:strategy_combinations",
     ],
 )
 

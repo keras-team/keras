@@ -39,6 +39,10 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
+    name: "enable_tune_steps_per_execution"
+    mtype: "<type \'property\'>"
+  }
+  member {
     name: "inbound_nodes"
     mtype: "<type \'property\'>"
   }

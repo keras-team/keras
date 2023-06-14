@@ -36,9 +36,10 @@ class GlobalAveragePooling3D(GlobalPooling3D):
         `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
         while `channels_first` corresponds to inputs with shape
         `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       keepdims: A boolean, whether to keep the spatial dimensions or not.
         If `keepdims` is `False` (default), the rank of the tensor is reduced
         for spatial dimensions.

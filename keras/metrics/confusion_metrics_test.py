@@ -2465,10 +2465,14 @@ class ResetStatesTest(test_combinations.TestCase):
         @tf.function
         def reset_in_fn():
             m.reset_state()
-            return m.update_state(100)
+            m.update_state(100)
 
         for _ in range(5):
-            self.evaluate(reset_in_fn())
+            reset_in_fn()
+            if not tf.executing_eagerly():
+                self.evaluate(
+                    tf.compat.v1.get_default_graph().get_operations()[-1]
+                )
         self.assertEqual(self.evaluate(m.count), 1)
 
 
