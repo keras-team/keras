@@ -15,7 +15,6 @@ from keras_core.backend.common.stateless_scope import in_stateless_scope
 from keras_core.backend.common.variables import AutocastScope
 from keras_core.backend.common.variables import get_autocast_scope
 from keras_core.backend.common.variables import is_float_dtype
-from keras_core.backend.common.variables import is_int_dtype
 from keras_core.backend.common.variables import standardize_dtype
 from keras_core.backend.common.variables import standardize_shape
 from keras_core.backend.config import epsilon

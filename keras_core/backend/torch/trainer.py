@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 import torch
 
-from keras_core import backend
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
@@ -387,7 +386,6 @@ class TorchTrainer(base_trainer.Trainer):
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
-        outputs = tf.nest.map_structure(backend.convert_to_numpy, outputs)
         return tf.__internal__.nest.map_structure_up_to(
             batch_outputs, np.concatenate, outputs
         )
@@ -443,6 +441,6 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function((x,))
         batch_outputs = tf.nest.map_structure(
-            backend.convert_to_numpy, batch_outputs
+            lambda x: np.array(x), batch_outputs
         )
         return batch_outputs

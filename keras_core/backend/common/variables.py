@@ -460,11 +460,6 @@ def is_float_dtype(dtype):
     return dtype.startswith("float") or dtype.startswith("bfloat")
 
 
-def is_int_dtype(dtype):
-    dtype = standardize_dtype(dtype)
-    return dtype.startswith("int") or dtype.startswith("uint")
-
-
 def get_autocast_scope():
     return global_state.get_global_attribute("autocast_scope")
 

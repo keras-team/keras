@@ -3,7 +3,6 @@ import pytest
 from absl.testing import parameterized
 
 import keras_core
-from keras_core import backend
 from keras_core import testing
 from keras_core.operations import numpy as knp
 from keras_core.random import random
@@ -39,27 +38,6 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(res.shape, np_res.shape)
         self.assertLessEqual(knp.max(res), maxval)
         self.assertGreaterEqual(knp.max(res), minval)
-
-    @parameterized.parameters(
-        {"seed": 10, "shape": (5,), "min": 0, "max": 10, "dtype": "uint16"},
-        {"seed": 10, "shape": (2, 3), "min": 0, "max": 10, "dtype": "uint32"},
-        {"seed": 10, "shape": (2, 3, 4), "min": 0, "max": 2, "dtype": "int8"},
-        {"seed": 10, "shape": (2, 3), "min": -1, "max": 1, "dtype": "int16"},
-        {"seed": 10, "shape": (2, 3), "min": 1, "max": 3, "dtype": "int32"},
-    )
-    def test_randint(self, seed, shape, min, max, dtype):
-        np.random.seed(seed)
-        np_res = np.random.randint(low=min, high=max, size=shape)
-        res = random.randint(
-            shape, minval=min, maxval=max, seed=seed, dtype=dtype
-        )
-        self.assertEqual(res.shape, shape)
-        self.assertEqual(res.shape, np_res.shape)
-        self.assertLessEqual(knp.max(res), max)
-        self.assertGreaterEqual(knp.max(res), min)
-        # Torch has incomplete dtype support for uints; will remap some dtypes.
-        if keras_core.backend.backend() != "torch":
-            self.assertEqual(backend.standardize_dtype(res.dtype), dtype)
 
     @parameterized.parameters(
         {"seed": 10, "shape": (5,), "mean": 0, "stddev": 1},

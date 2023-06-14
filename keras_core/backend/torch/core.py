@@ -18,7 +18,6 @@ TORCH_DTYPES = {
     "float32": torch.float32,
     "float64": torch.float64,
     "uint8": torch.uint8,
-    "uint16": torch.int32,  # TODO: Torch doesn't have `uint16` dtype.
     "uint32": torch.int64,  # TODO: Torch doesn't have `uint32` dtype.
     "int8": torch.int8,
     "int16": torch.int16,
@@ -59,7 +58,7 @@ def to_torch_dtype(dtype):
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype).to(get_device()),
+            convert_to_tensor(value, dtype=self._dtype),
             requires_grad=self.trainable,
         ).to(get_device())
 
@@ -85,14 +84,16 @@ class Variable(KerasVariable):
         return func(*args, **kwargs)
 
     def __array__(self, dtype=None):
-        return _prepare_for_numpy(self.value).__array__(dtype)
+        if self.value.requires_grad:
+            return self.value.detach().__array__(dtype)
+        return super().__array__(dtype)
 
     @property
     def value(self):
         value = super().value
         # Create and use a symbolic tensor stub in symbolic calls.
         if get_device() == "meta" and value.device != "meta":
-            return torch.empty(
+            return torch.randn(
                 size=value.shape,
                 dtype=value.dtype,
                 device="meta",
@@ -104,7 +105,6 @@ def convert_to_tensor(x, dtype=None):
     dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
     if isinstance(x, Variable):
         x = x.value
-        return x
     if is_tensor(x):
         if dtype and dtype != x.dtype:
             x = x.to(dtype)
@@ -120,18 +120,15 @@ def convert_to_tensor(x, dtype=None):
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 
-def _prepare_for_numpy(x):
-    if is_tensor(x):
-        if x.requires_grad:
-            x = x.detach()
-        # Tensor has to be moved to CPU before converting to numpy.
-        if x.is_cuda:
-            x = x.cpu()
-    return x
-
-
 def convert_to_numpy(x):
-    return np.array(_prepare_for_numpy(x))
+    if isinstance(x, KerasVariable):
+        x = x.value
+    if is_tensor(x) and x.is_cuda:
+        # Tensor has to be moved to CPU before converting to numpy.
+        x = x.cpu()
+    if is_tensor(x) and x.requires_grad:
+        return x.detach().numpy()
+    return np.array(x)
 
 
 def is_tensor(x):
@@ -173,7 +170,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     for i, e in enumerate(shape):
                         if e is None:
                             shape[i] = fill_value
-                return torch.empty(
+                return torch.randn(
                     size=shape,
                     dtype=TORCH_DTYPES[x.dtype],
                     device=get_device(),
@@ -254,30 +251,15 @@ def scatter_update(inputs, indices, updates):
     return inputs
 
 
-def slice(inputs, start_indices, shape):
-    shape_dtype = to_torch_dtype("int64")
+def block_update(inputs, start_indices, updates):
     inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
-    shape = convert_to_tensor(shape).to(shape_dtype)
-
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + length)
-        for start_index, length in zip(start_indices, shape)
-    ]
-    return inputs[slices]
-
-
-def slice_update(inputs, start_indices, updates):
-    shape_dtype = to_torch_dtype("int64")
-    inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
+    start_indices = convert_to_tensor(start_indices, dtype="int64")
     updates = convert_to_tensor(updates)
 
-    python_slice = __builtins__["slice"]
+    update_shape = updates.shape
     slices = [
-        python_slice(start_index, start_index + update_length)
-        for start_index, update_length in zip(start_indices, updates.shape)
+        slice(start_index, start_index + update_length)
+        for start_index, update_length in zip(start_indices, update_shape)
     ]
     inputs[slices] = updates
     return inputs
