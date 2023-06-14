@@ -50,7 +50,6 @@ model = keras_core.Sequential(
 #################################################################
 
 # Instantiate the torch optimizer
-print("Num params:", len(list(model.parameters())))
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Instantiate the torch loss function
@@ -122,7 +121,6 @@ class MyModel(nn.Module):
 torch_module = MyModel()
 
 # Instantiate the torch optimizer
-print("Num params:", len(list(torch_module.parameters())))
 optimizer = optim.Adam(torch_module.parameters(), lr=learning_rate)
 
 # Instantiate the torch loss function
