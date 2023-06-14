@@ -18,6 +18,7 @@ TORCH_DTYPES = {
     "float32": torch.float32,
     "float64": torch.float64,
     "uint8": torch.uint8,
+    "uint16": torch.int32,  # TODO: Torch doesn't have `uint16` dtype.
     "uint32": torch.int64,  # TODO: Torch doesn't have `uint32` dtype.
     "int8": torch.int8,
     "int16": torch.int16,
