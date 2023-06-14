@@ -72,7 +72,7 @@ class Loss:
 
 
 def standardize_reduction(reduction):
-    allowed = {"sum_over_batch_size", "sum", None}
+    allowed = {"sum_over_batch_size", "sum", None, "none"}
     if reduction not in allowed:
         raise ValueError(
             "Invalid value for argument `reduction`. "
@@ -100,6 +100,7 @@ def squeeze_to_same_rank(x1, x2):
 def reduce_values(values, reduction="sum_over_batch_size"):
     if (
         reduction is None
+        or reduction == "none"
         or tuple(values.shape) == ()
         or tuple(values.shape) == (0,)
     ):
