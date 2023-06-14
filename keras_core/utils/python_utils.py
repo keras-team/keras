@@ -122,3 +122,21 @@ def remove_long_seq(maxlen, seq, label):
             new_seq.append(x)
             new_label.append(y)
     return new_seq, new_label
+
+
+def removeprefix(x, prefix):
+    """Backport of `removeprefix` from PEP-616 (Python 3.9+)"""
+
+    if len(prefix) > 0 and x.startswith(prefix):
+        return x[len(prefix) :]
+    else:
+        return x
+
+
+def removesuffix(x, suffix):
+    """Backport of `removesuffix` from PEP-616 (Python 3.9+)"""
+
+    if len(suffix) > 0 and x.endswith(suffix):
+        return x[: -len(suffix)]
+    else:
+        return x

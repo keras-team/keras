@@ -18,5 +18,7 @@ from keras_core.utils.numerical_utils import to_categorical
 from keras_core.utils.progbar import Progbar
 from keras_core.utils.python_utils import default
 from keras_core.utils.python_utils import is_default
+from keras_core.utils.python_utils import removeprefix
+from keras_core.utils.python_utils import removesuffix
 from keras_core.utils.rng_utils import set_random_seed
 from keras_core.utils.sequence_utils import pad_sequences

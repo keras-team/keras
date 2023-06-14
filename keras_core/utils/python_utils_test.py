@@ -10,3 +10,13 @@ class PythonUtilsTest(testing.TestCase):
         serialized = python_utils.func_dump(my_function)
         deserialized = python_utils.func_load(serialized)
         self.assertEqual(deserialized(2, y=3), 5)
+
+    def test_removesuffix(self):
+        x = "model.keras"
+        self.assertEqual(python_utils.removesuffix(x, ".keras"), "model")
+        self.assertEqual(python_utils.removesuffix(x, "model"), x)
+
+    def test_removeprefix(self):
+        x = "model.keras"
+        self.assertEqual(python_utils.removeprefix(x, "model"), ".keras")
+        self.assertEqual(python_utils.removeprefix(x, ".keras"), x)

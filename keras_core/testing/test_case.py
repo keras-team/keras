@@ -8,6 +8,7 @@ from tensorflow import nest
 
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core import utils
 from keras_core.models import Model
 from keras_core.utils import traceback_utils
 
@@ -336,7 +337,9 @@ def create_keras_tensors(input_shape, dtype):
         return [keras_tensor.KerasTensor(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
-            k.removesuffix("_shape"): keras_tensor.KerasTensor(v, dtype=dtype)
+            utils.removesuffix(k, "_shape"): keras_tensor.KerasTensor(
+                v, dtype=dtype
+            )
             for k, v in input_shape.items()
         }
 
@@ -370,6 +373,6 @@ def create_eager_tensors(input_shape, dtype):
         return [create_fn(s, dtype=dtype) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
-            k.removesuffix("_shape"): create_fn(v, dtype=dtype)
+            utils.removesuffix(k, "_shape"): create_fn(v, dtype=dtype)
             for k, v in input_shape.items()
         }

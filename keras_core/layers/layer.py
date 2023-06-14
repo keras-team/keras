@@ -1021,7 +1021,7 @@ class Layer(BackendLayer, Operation):
             # Case: all input keyword arguments were plain tensors.
             input_tensors = {
                 # We strip the `_shape` suffix to recover kwarg names.
-                k.removesuffix("_shape"): backend.KerasTensor(shape)
+                utils.removesuffix(k, "_shape"): backend.KerasTensor(shape)
                 for k, shape in shapes_dict.items()
             }
             try:
@@ -1286,7 +1286,7 @@ def check_shapes_signature(target_fn, call_spec, cls):
                 f"Received `{method_name}()` argument "
                 f"`{name}`, which does not end in `_shape`."
             )
-        expected_call_arg = name.removesuffix("_shape")
+        expected_call_arg = utils.removesuffix(name, "_shape")
         if expected_call_arg not in call_spec.arguments_dict:
             raise ValueError(
                 f"{error_preamble} For layer '{cls.__name__}', "

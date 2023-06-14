@@ -1,6 +1,7 @@
 import copy
 
 from keras_core import operations as ops
+from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.layers.core.wrapper import Wrapper
 from keras_core.layers.layer import Layer
@@ -109,16 +110,16 @@ class Bidirectional(Wrapper):
         # Recreate the forward layer from the original layer config, so that it
         # will not carry over any state from the layer.
         config = serialization_lib.serialize_keras_object(layer)
-        config["config"]["name"] = "forward_" + layer.name.removeprefix(
-            "forward_"
+        config["config"]["name"] = "forward_" + utils.removeprefix(
+            layer.name, "forward_"
         )
         self.forward_layer = serialization_lib.deserialize_keras_object(config)
 
         if backward_layer is None:
             config = serialization_lib.serialize_keras_object(layer)
             config["config"]["go_backwards"] = True
-            config["config"]["name"] = "backward_" + layer.name.removeprefix(
-                "backward_"
+            config["config"]["name"] = "backward_" + utils.removeprefix(
+                layer.name, "backward_"
             )
             self.backward_layer = serialization_lib.deserialize_keras_object(
                 config
