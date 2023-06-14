@@ -136,15 +136,6 @@ class Function(Operation):
 
         return nest.pack_sequence_as(self._outputs_struct, output_tensors)
 
-    def get_config(self):
-        # TODO(fchollet)
-        raise NotImplementedError
-
-    @classmethod
-    def from_config(self, config):
-        # TODO(fchollet)
-        raise NotImplementedError
-
     def _assert_input_compatibility(self, inputs):
         try:
             nest.assert_same_structure(

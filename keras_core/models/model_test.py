@@ -46,3 +46,22 @@ class ModelTest(testing.TestCase):
         x2 = np.random.rand(3, 2)
         out = model((x1, x2))
         self.assertEqual(out.shape, (3, 6))
+
+    def test_reviving_functional_from_config_custom_layer(self):
+        class CustomDense(layers.Layer):
+            def __init__(self, units, **kwargs):
+                super().__init__(**kwargs)
+                self.dense = layers.Dense(units)
+
+            def call(self, x):
+                return self.dense(x)
+
+        inputs = layers.Input((4,))
+        outputs = CustomDense(10)(inputs)
+        model = Model(inputs, outputs)
+        config = model.get_config()
+
+        new_model = Model.from_config(
+            config, custom_objects={"CustomDense": CustomDense}
+        )
+        self.assertTrue(isinstance(new_model, Functional))
