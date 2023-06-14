@@ -52,6 +52,7 @@ class CenterCrop(TFDataLayer):
         self.data_format = backend.standardize_data_format(data_format)
 
     def call(self, inputs):
+        inputs = self.backend.cast(inputs, self.compute_dtype)
         if self.data_format == "channels_first":
             init_height = inputs.shape[-2]
             init_width = inputs.shape[-1]

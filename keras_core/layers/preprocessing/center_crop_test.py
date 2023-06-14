@@ -102,3 +102,13 @@ class CenterCropTest(testing.TestCase, parameterized.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(list(output.shape), [2, 8, 9, 3])
+
+    def test_list_compatibility(self):
+        images = [
+            np.random.rand(10, 10, 3),
+            np.random.rand(10, 10, 3),
+        ]
+        output = layers.CenterCrop(height=6, width=5)(images)
+        ref_output = tf.keras.layers.CenterCrop(6, 5)(images)
+        self.assertListEqual(list(output.shape), [2, 6, 5, 3])
+        self.assertAllClose(ref_output, output)
