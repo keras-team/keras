@@ -56,7 +56,7 @@ class ZeroPadding1D(Layer):
         [ 0  0  0]]], shape=(2, 6, 3), dtype=int64)
 
     Args:
-        padding: Int, or tuple of int (length 2), or dictionary.
+        padding: Int, or tuple of int (length 2).
             - If int:
             How many zeros to add at the beginning and end of
             the padding dimension (axis 1).
