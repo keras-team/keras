@@ -39,7 +39,6 @@ from keras.engine import base_layer_utils
 from keras.engine import compile_utils
 from keras.engine import data_adapter
 from keras.engine import input_layer as input_layer_module
-from keras.engine import steps_per_execution_tuning
 from keras.engine import training_utils
 from keras.metrics import base_metric
 from keras.mixed_precision import loss_scale_optimizer as lso
@@ -55,6 +54,7 @@ from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import io_utils
 from keras.utils import layer_utils
+from keras.utils import steps_per_execution_tuning
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils import traceback_utils

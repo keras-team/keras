@@ -18,8 +18,13 @@ import time
 
 import tensorflow.compat.v2 as tf
 
-from keras.engine import steps_per_execution_tuning
+from keras import Input
+from keras import Model
+from keras import losses
+from keras import optimizers
+from keras.layers import Dense
 from keras.testing_infra import test_combinations
+from keras.utils import steps_per_execution_tuning
 
 
 class mockOptimizer:
@@ -66,6 +71,69 @@ class StepsPerExecutionTuningTest(test_combinations.TestCase):
         tuner.steps_per_execution = 5
         assert spe_variable.numpy().item() == 5
         assert tuner.init_spe == 5
+
+    def test_custom_training_loop(self):
+        dataset = _get_dataset()
+        iterator = iter(dataset)
+
+        inputs = Input(shape=(784,), name="digits")
+        x = Dense(64, activation="relu", name="dense_1")(inputs)
+        x = Dense(64, activation="relu", name="dense_2")(x)
+        outputs = Dense(10, name="predictions")(x)
+        model = Model(inputs=inputs, outputs=outputs)
+        optimizer = optimizers.SGD(learning_rate=1e-3)
+        loss_fn = losses.SparseCategoricalCrossentropy(from_logits=True)
+
+        # Create our steps per execution variable
+        steps_per_execution = tf.Variable(
+            1,
+            dtype="int64",
+            aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA,
+        )
+
+        # Create the tuner
+        tuner = steps_per_execution_tuning.StepsPerExecutionTuner(
+            optimizer, steps_per_execution
+        )
+
+        # Create a step function that runs a single training step
+        @tf.function
+        def step_fn(iterator):
+            batch_data, labels = next(iterator)
+            print(batch_data.shape, labels.shape)
+            with tf.GradientTape() as tape:
+                logits = model(batch_data, training=True)
+                loss_value = loss_fn(labels, logits)
+            grads = tape.gradient(loss_value, model.trainable_weights)
+            optimizer.apply_gradients(zip(grads, model.trainable_weights))
+
+        # We can now pack multiple execution steps into one call
+        @tf.function
+        def multi_step_train_fn(iterator, steps_per_execution):
+            for _ in tf.range(steps_per_execution):
+                step_fn(iterator)
+            return
+
+        steps_per_epoch = 10
+        epochs = 2
+
+        # Start the tuner before training
+        tuner.start()
+
+        for _ in range(epochs):
+            for _ in range(steps_per_epoch):
+                multi_step_train_fn(iterator, steps_per_execution)
+
+        # End the tuner after training
+        tuner.stop()
+
+
+def _get_dataset():
+    inputs = tf.zeros((1000, 784), dtype=tf.float32)
+    targets = tf.zeros((1000,), dtype=tf.float32)
+    dataset = tf.data.Dataset.from_tensor_slices((inputs, targets))
+    dataset = dataset.batch(10)
+    return dataset
 
 
 if __name__ == "__main__":
