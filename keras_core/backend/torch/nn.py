@@ -543,7 +543,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 
 def binary_crossentropy(target, output, from_logits=False):
-    # TODO: `torch.as_tensor` has device arg. Need to think how to pass it.
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
 
@@ -560,4 +559,5 @@ def binary_crossentropy(target, output, from_logits=False):
             output, target, reduction="none"
         )
     else:
+        output = torch.clip(output, epsilon(), 1.0 - epsilon())
         return tnn.binary_cross_entropy(output, target, reduction="none")
