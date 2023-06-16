@@ -26,6 +26,7 @@ class DropoutTest(testing.TestCase):
         inputs = np.ones((20, 500))
         layer = layers.Dropout(0.5, seed=1337)
         outputs = layer(inputs, training=True)
+        outputs = backend.convert_to_numpy(outputs)
         self.assertAllClose(np.mean(outputs), 1.0, atol=0.02)
         self.assertAllClose(np.max(outputs), 2.0)
 

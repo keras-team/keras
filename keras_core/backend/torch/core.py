@@ -59,7 +59,7 @@ def to_torch_dtype(dtype):
 class Variable(KerasVariable):
     def _initialize(self, value):
         self._value = torch.nn.Parameter(
-            convert_to_tensor(value, dtype=self._dtype).to(get_device()),
+            convert_to_tensor(value, dtype=self._dtype),
             requires_grad=self.trainable,
         ).to(get_device())
 
@@ -87,18 +87,6 @@ class Variable(KerasVariable):
     def __array__(self, dtype=None):
         return _prepare_for_numpy(self.value).__array__(dtype)
 
-    @property
-    def value(self):
-        value = super().value
-        # Create and use a symbolic tensor stub in symbolic calls.
-        if get_device() == "meta" and value.device != "meta":
-            return torch.empty(
-                size=value.shape,
-                dtype=value.dtype,
-                device="meta",
-            )
-        return value
-
 
 def convert_to_tensor(x, dtype=None):
     dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
@@ -116,7 +104,9 @@ def convert_to_tensor(x, dtype=None):
     elif len(x) > 0 and isinstance(x[0], torch.Tensor):
         # Handle list or tuple of torch tensors
         return torch.stack(x)
-
+    if isinstance(x, np.ndarray) and x.dtype == np.uint32:
+        # Torch backend does not support uint32.
+        x = x.astype(np.int64)
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 
@@ -180,22 +170,20 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
             return x
 
-        with device_scope("meta"):
-            args_1, kwargs_1 = nest.map_structure(
-                lambda x: convert_keras_tensor_to_torch(x, fill_value=83),
-                (args, kwargs),
-            )
-            outputs_1 = fn(*args_1, **kwargs_1)
+        args_1, kwargs_1 = nest.map_structure(
+            lambda x: convert_keras_tensor_to_torch(x, fill_value=83),
+            (args, kwargs),
+        )
+        outputs_1 = fn(*args_1, **kwargs_1)
 
         outputs = outputs_1
 
         if none_in_shape:
-            with device_scope("meta"):
-                args_2, kwargs_2 = nest.map_structure(
-                    lambda x: convert_keras_tensor_to_torch(x, fill_value=89),
-                    (args, kwargs),
-                )
-                outputs_2 = fn(*args_2, **kwargs_2)
+            args_2, kwargs_2 = nest.map_structure(
+                lambda x: convert_keras_tensor_to_torch(x, fill_value=89),
+                (args, kwargs),
+            )
+            outputs_2 = fn(*args_2, **kwargs_2)
 
             flat_out_1 = nest.flatten(outputs_1)
             flat_out_2 = nest.flatten(outputs_2)

@@ -88,7 +88,7 @@ class UpSampling3dTest(testing.TestCase, parameterized.TestCase):
     def test_upsampling_3d_correctness(self):
         input_shape = (2, 1, 2, 1, 3)
         x = np.arange(np.prod(input_shape)).reshape(input_shape)
-        np.testing.assert_array_equal(
+        self.assertAllClose(
             layers.UpSampling3D(size=(2, 2, 2))(x),
             np.array(
                 [

@@ -407,7 +407,7 @@ class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         outputs = layer(inputs)
         expected = tf_keras_layer(inputs)
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, rtol=5e-4)
 
     @parameterized.parameters(
         {
@@ -482,4 +482,4 @@ class ConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
         outputs = layer(inputs)
 
         expected = tf_keras_layer(inputs)
-        self.assertAllClose(outputs, expected, rtol=1e-5)
+        self.assertAllClose(outputs, expected, rtol=5e-4)

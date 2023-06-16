@@ -93,7 +93,7 @@ class RandomTranslation(Layer):
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = tf.convert_to_tensor(np.array(inputs))
+            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         outputs = self.layer.call(inputs, training=training)
         if (
             backend.backend() != "tensorflow"

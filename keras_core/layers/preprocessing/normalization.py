@@ -265,7 +265,6 @@ class Normalization(Layer):
                 total_count += batch_count
                 batch_weight = float(batch_count) / total_count
                 existing_weight = 1.0 - batch_weight
-
                 new_total_mean = (
                     total_mean * existing_weight + batch_mean * batch_weight
                 )

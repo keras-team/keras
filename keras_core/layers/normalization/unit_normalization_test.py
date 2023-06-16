@@ -1,10 +1,12 @@
 import numpy as np
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
 
 def squared_l2_norm(x):
+    x = backend.convert_to_numpy(x)
     return np.sum(x**2)
 
 

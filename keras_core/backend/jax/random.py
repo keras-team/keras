@@ -42,10 +42,12 @@ def _get_concrete_noise_shape(inputs, noise_shape):
         return inputs.shape
 
     concrete_inputs_shape = inputs.shape
-    noise_shape = []
+    concrete_noise_shape = []
     for i, value in enumerate(noise_shape):
-        noise_shape.append(concrete_inputs_shape[i] if value is None else value)
-    return noise_shape
+        concrete_noise_shape.append(
+            concrete_inputs_shape[i] if value is None else value
+        )
+    return concrete_noise_shape
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):

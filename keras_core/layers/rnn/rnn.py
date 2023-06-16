@@ -383,7 +383,8 @@ class RNN(Layer):
         # Note that states may be deeply nested
         # (e.g. in the stacked cells case).
         initial_state = nest.map_structure(
-            lambda x: ops.cast(x, dtype=self.compute_dtype), initial_state
+            lambda x: backend.convert_to_tensor(x, dtype=self.compute_dtype),
+            initial_state,
         )
 
         last_output, outputs, states = self.inner_loop(

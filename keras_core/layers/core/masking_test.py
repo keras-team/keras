@@ -31,6 +31,8 @@ class MaskingTest(testing.TestCase):
         layer = layers.Masking(mask_value=0.0)
         self.assertAllClose(layer.compute_mask(x), expected_mask)
 
+        test_obj = self
+
         class TestLayer(layers.Layer):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -41,7 +43,7 @@ class MaskingTest(testing.TestCase):
 
             def call(self, inputs, mask=None):
                 assert mask is not None
-                np.testing.assert_allclose(mask, expected_mask)
+                test_obj.assertAllClose(mask, expected_mask)
                 return inputs
 
         model = models.Sequential(

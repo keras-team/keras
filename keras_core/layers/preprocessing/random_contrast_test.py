@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -31,6 +32,7 @@ class RandomContrastTest(testing.TestCase):
         inp_mean = np.mean(inputs, axis=-3, keepdims=True)
         inp_mean = np.mean(inp_mean, axis=-2, keepdims=True)
         actual_outputs = (inputs - inp_mean) * factor + inp_mean
+        outputs = backend.convert_to_numpy(outputs)
         actual_outputs = np.clip(outputs, 0, 255)
 
         self.assertAllClose(outputs, actual_outputs)

@@ -65,6 +65,11 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
             supports_masking=False,
             run_training_check=False,
         )
+
+    @pytest.mark.skipif(
+        backend.backend() == "torch", reason="Torch does not support lanczos."
+    )
+    def test_resizing_basics_lanczos5(self):
         self.run_layer_test(
             layers.Resizing,
             init_kwargs={

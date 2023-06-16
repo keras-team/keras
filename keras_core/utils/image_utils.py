@@ -399,6 +399,8 @@ def smart_resize(
     # smaller.
     crop_height = backend_module.numpy.minimum(height, crop_height)
     crop_width = backend_module.numpy.minimum(width, crop_width)
+    crop_height = backend_module.cast(crop_height, "int32")
+    crop_width = backend_module.cast(crop_width, "int32")
 
     crop_box_hstart = backend_module.cast(
         backend_module.cast(height - crop_height, "float32") / 2, "int32"

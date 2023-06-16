@@ -88,8 +88,10 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
         out = backend.convert_to_numpy(out)
-        out -= np.reshape(np.array(layer.beta), broadcast_shape)
-        out /= np.reshape(np.array(layer.gamma), broadcast_shape)
+        out -= np.reshape(backend.convert_to_numpy(layer.beta), broadcast_shape)
+        out /= np.reshape(
+            backend.convert_to_numpy(layer.gamma), broadcast_shape
+        )
 
         reduction_axes = list(range(len(input_shape)))
         del reduction_axes[axis]
@@ -132,8 +134,8 @@ class BatchNormalizationTest(testing.TestCase, parameterized.TestCase):
             out = layer(x, training=True)
 
         out = backend.convert_to_numpy(out)
-        out -= np.reshape(np.array(layer.beta), (1, 1, 1, 3))
-        out /= np.reshape(np.array(layer.gamma), (1, 1, 1, 3))
+        out -= np.reshape(backend.convert_to_numpy(layer.beta), (1, 1, 1, 3))
+        out /= np.reshape(backend.convert_to_numpy(layer.gamma), (1, 1, 1, 3))
 
         self.assertAllClose(np.mean(out, axis=(0, 1, 2)), 0.0, atol=1e-3)
         self.assertAllClose(np.std(out, axis=(0, 1, 2)), 1.0, atol=1e-3)

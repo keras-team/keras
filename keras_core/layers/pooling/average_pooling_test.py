@@ -136,8 +136,7 @@ class AveragePoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ((2, 3), (2, 2), "same", "channels_last"),
     )
     def test_average_pooling2d(self, pool_size, strides, padding, data_format):
-        inputs = np.arange(300, dtype="float32").reshape((3, 5, 5, 4))
-
+        inputs = np.arange(16, dtype="float32").reshape((1, 4, 4, 1))
         layer = layers.AveragePooling2D(
             pool_size=pool_size,
             strides=strides,

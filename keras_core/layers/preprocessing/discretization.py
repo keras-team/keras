@@ -187,7 +187,7 @@ class Discretization(Layer):
 
     def __call__(self, inputs):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, backend.KerasTensor)):
-            inputs = tf.convert_to_tensor(np.array(inputs))
+            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         if not self.built:
             self.build(inputs.shape)
         return super().__call__(inputs)

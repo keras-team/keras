@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -25,5 +26,7 @@ class GaussianDropoutTest(testing.TestCase):
         layer = layers.GaussianDropout(0.3, seed=1337)
         outputs = layer(inputs, training=True)
         self.assertAllClose(
-            np.std(outputs), np.sqrt(0.3 / (1 - 0.3)), atol=0.02
+            np.std(backend.convert_to_numpy(outputs)),
+            np.sqrt(0.3 / (1 - 0.3)),
+            atol=0.02,
         )
