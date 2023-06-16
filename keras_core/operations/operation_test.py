@@ -9,8 +9,9 @@ from keras_core.operations import operation
 
 class OpWithMultipleInputs(operation.Operation):
     def call(self, x, y, z=None):
+        # `z` has to be put first due to the order of operations issue with
+        # torch backend.
         return 3 * z + x + 2 * y
-        # Order of operations issue with torch backend
 
     def compute_output_spec(self, x, y, z=None):
         return keras_tensor.KerasTensor(x.shape, x.dtype)
@@ -145,6 +146,8 @@ class OperationTest(testing.TestCase):
         x = np.ones((2,))
         y = np.ones((2,))
         z = knp.ones((2,))  # mix
+        if backend.backend() == "torch":
+            z = z.cpu()
         op = OpWithMultipleInputs()
         out = op(x, y, z)
         self.assertTrue(backend.is_tensor(out))

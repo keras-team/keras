@@ -621,7 +621,9 @@ def clip_by_norm(values, clip_norm, axes=None):
     l2sum_safe = ops.where(pred, l2sum, ops.ones_like(l2sum))
     l2norm = ops.where(pred, ops.sqrt(l2sum_safe), l2sum)
     intermediate = values * clip_norm
-    values_clip = intermediate / ops.maximum(l2norm, clip_norm)
+    values_clip = ops.convert_to_tensor(intermediate) / ops.maximum(
+        l2norm, clip_norm
+    )
     return values_clip
 
 

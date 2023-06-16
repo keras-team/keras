@@ -51,7 +51,10 @@ class VariablesTest(test_case.TestCase):
 
         # Test non-float variables are not affected
         v = backend.Variable(
-            initializer=initializers.Ones(), shape=(2, 2), dtype="int32"
+            initializer=initializers.Ones(),
+            shape=(2, 2),
+            dtype="int32",
+            trainable=False,
         )
         self.assertEqual(v.dtype, "int32")
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")

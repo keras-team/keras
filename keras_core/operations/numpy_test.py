@@ -1569,102 +1569,90 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.add(x, y)), np.add(x, y))
-        self.assertAllClose(np.array(knp.add(x, z)), np.add(x, z))
+        self.assertAllClose(knp.add(x, y), np.add(x, y))
+        self.assertAllClose(knp.add(x, z), np.add(x, z))
 
-        self.assertAllClose(np.array(knp.Add()(x, y)), np.add(x, y))
-        self.assertAllClose(np.array(knp.Add()(x, z)), np.add(x, z))
+        self.assertAllClose(knp.Add()(x, y), np.add(x, y))
+        self.assertAllClose(knp.Add()(x, z), np.add(x, z))
 
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.subtract(x, y)), np.subtract(x, y))
-        self.assertAllClose(np.array(knp.subtract(x, z)), np.subtract(x, z))
+        self.assertAllClose(knp.subtract(x, y), np.subtract(x, y))
+        self.assertAllClose(knp.subtract(x, z), np.subtract(x, z))
 
-        self.assertAllClose(np.array(knp.Subtract()(x, y)), np.subtract(x, y))
-        self.assertAllClose(np.array(knp.Subtract()(x, z)), np.subtract(x, z))
+        self.assertAllClose(knp.Subtract()(x, y), np.subtract(x, y))
+        self.assertAllClose(knp.Subtract()(x, z), np.subtract(x, z))
 
     def test_multiply(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.multiply(x, y)), np.multiply(x, y))
-        self.assertAllClose(np.array(knp.multiply(x, z)), np.multiply(x, z))
+        self.assertAllClose(knp.multiply(x, y), np.multiply(x, y))
+        self.assertAllClose(knp.multiply(x, z), np.multiply(x, z))
 
-        self.assertAllClose(np.array(knp.Multiply()(x, y)), np.multiply(x, y))
-        self.assertAllClose(np.array(knp.Multiply()(x, z)), np.multiply(x, z))
+        self.assertAllClose(knp.Multiply()(x, y), np.multiply(x, y))
+        self.assertAllClose(knp.Multiply()(x, z), np.multiply(x, z))
 
     def test_matmul(self):
         x = np.ones([2, 3, 4, 5])
         y = np.ones([2, 3, 5, 6])
         z = np.ones([5, 6])
-        self.assertAllClose(np.array(knp.matmul(x, y)), np.matmul(x, y))
-        self.assertAllClose(np.array(knp.matmul(x, z)), np.matmul(x, z))
+        self.assertAllClose(knp.matmul(x, y), np.matmul(x, y))
+        self.assertAllClose(knp.matmul(x, z), np.matmul(x, z))
 
-        self.assertAllClose(np.array(knp.Matmul()(x, y)), np.matmul(x, y))
-        self.assertAllClose(np.array(knp.Matmul()(x, z)), np.matmul(x, z))
+        self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
+        self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.power(x, y)), np.power(x, y))
-        self.assertAllClose(np.array(knp.power(x, z)), np.power(x, z))
+        self.assertAllClose(knp.power(x, y), np.power(x, y))
+        self.assertAllClose(knp.power(x, z), np.power(x, z))
 
-        self.assertAllClose(np.array(knp.Power()(x, y)), np.power(x, y))
-        self.assertAllClose(np.array(knp.Power()(x, z)), np.power(x, z))
+        self.assertAllClose(knp.Power()(x, y), np.power(x, y))
+        self.assertAllClose(knp.Power()(x, z), np.power(x, z))
 
     def test_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.divide(x, y)), np.divide(x, y))
-        self.assertAllClose(np.array(knp.divide(x, z)), np.divide(x, z))
+        self.assertAllClose(knp.divide(x, y), np.divide(x, y))
+        self.assertAllClose(knp.divide(x, z), np.divide(x, z))
 
-        self.assertAllClose(np.array(knp.Divide()(x, y)), np.divide(x, y))
-        self.assertAllClose(np.array(knp.Divide()(x, z)), np.divide(x, z))
+        self.assertAllClose(knp.Divide()(x, y), np.divide(x, y))
+        self.assertAllClose(knp.Divide()(x, z), np.divide(x, z))
 
     def test_true_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]]])
-        self.assertAllClose(
-            np.array(knp.true_divide(x, y)), np.true_divide(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.true_divide(x, z)), np.true_divide(x, z)
-        )
+        self.assertAllClose(knp.true_divide(x, y), np.true_divide(x, y))
+        self.assertAllClose(knp.true_divide(x, z), np.true_divide(x, z))
 
-        self.assertAllClose(
-            np.array(knp.TrueDivide()(x, y)), np.true_divide(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.TrueDivide()(x, z)), np.true_divide(x, z)
-        )
+        self.assertAllClose(knp.TrueDivide()(x, y), np.true_divide(x, y))
+        self.assertAllClose(knp.TrueDivide()(x, z), np.true_divide(x, z))
 
     def test_append(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         z = np.array([[[1, 2, 3], [3, 2, 1]], [[4, 5, 6], [3, 2, 1]]])
-        self.assertAllClose(np.array(knp.append(x, y)), np.append(x, y))
-        self.assertAllClose(
-            np.array(knp.append(x, y, axis=1)), np.append(x, y, axis=1)
-        )
-        self.assertAllClose(np.array(knp.append(x, z)), np.append(x, z))
+        self.assertAllClose(knp.append(x, y), np.append(x, y))
+        self.assertAllClose(knp.append(x, y, axis=1), np.append(x, y, axis=1))
+        self.assertAllClose(knp.append(x, z), np.append(x, z))
 
-        self.assertAllClose(np.array(knp.Append()(x, y)), np.append(x, y))
-        self.assertAllClose(
-            np.array(knp.Append(axis=1)(x, y)), np.append(x, y, axis=1)
-        )
-        self.assertAllClose(np.array(knp.Append()(x, z)), np.append(x, z))
+        self.assertAllClose(knp.Append()(x, y), np.append(x, y))
+        self.assertAllClose(knp.Append(axis=1)(x, y), np.append(x, y, axis=1))
+        self.assertAllClose(knp.Append()(x, z), np.append(x, z))
 
     def test_arctan2(self):
         x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
         y = np.array([[4.0, 5.0, 6.0], [3.0, 2.0, 1.0]])
-        self.assertAllClose(np.array(knp.arctan2(x, y)), np.arctan2(x, y))
+        self.assertAllClose(knp.arctan2(x, y), np.arctan2(x, y))
 
-        self.assertAllClose(np.array(knp.Arctan2()(x, y)), np.arctan2(x, y))
+        self.assertAllClose(knp.Arctan2()(x, y), np.arctan2(x, y))
 
     def test_cross(self):
         x1 = np.ones([2, 1, 4, 3])
@@ -1672,188 +1660,174 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         y1 = np.ones([2, 1, 4, 3])
         y2 = np.ones([1, 5, 4, 3])
         y3 = np.ones([1, 5, 4, 2])
-        self.assertAllClose(np.array(knp.cross(x1, y1)), np.cross(x1, y1))
-        self.assertAllClose(np.array(knp.cross(x1, y2)), np.cross(x1, y2))
+        self.assertAllClose(knp.cross(x1, y1), np.cross(x1, y1))
+        self.assertAllClose(knp.cross(x1, y2), np.cross(x1, y2))
         if backend.backend() != "torch":
             # API divergence between `torch.cross` and `np.cross`
             # `torch.cross` only allows dim 3, `np.cross` allows dim 2 or 3
-            self.assertAllClose(np.array(knp.cross(x1, y3)), np.cross(x1, y3))
-            self.assertAllClose(np.array(knp.cross(x2, y3)), np.cross(x2, y3))
+            self.assertAllClose(knp.cross(x1, y3), np.cross(x1, y3))
+            self.assertAllClose(knp.cross(x2, y3), np.cross(x2, y3))
 
-        self.assertAllClose(np.array(knp.Cross()(x1, y1)), np.cross(x1, y1))
-        self.assertAllClose(np.array(knp.Cross()(x1, y2)), np.cross(x1, y2))
+        self.assertAllClose(knp.Cross()(x1, y1), np.cross(x1, y1))
+        self.assertAllClose(knp.Cross()(x1, y2), np.cross(x1, y2))
         if backend.backend() != "torch":
             # API divergence between `torch.cross` and `np.cross`
             # `torch.cross` only allows dim 3, `np.cross` allows dim 2 or 3
-            self.assertAllClose(np.array(knp.Cross()(x1, y3)), np.cross(x1, y3))
-            self.assertAllClose(np.array(knp.Cross()(x2, y3)), np.cross(x2, y3))
+            self.assertAllClose(knp.Cross()(x1, y3), np.cross(x1, y3))
+            self.assertAllClose(knp.Cross()(x2, y3), np.cross(x2, y3))
 
     def test_einsum(self):
-        x = np.arange(24).reshape([2, 3, 4])
-        y = np.arange(24).reshape([2, 4, 3])
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(24).reshape([2, 4, 3]).astype("float32")
         self.assertAllClose(
-            np.array(knp.einsum("ijk,lkj->il", x, y)),
+            knp.einsum("ijk,lkj->il", x, y),
             np.einsum("ijk,lkj->il", x, y),
         )
         self.assertAllClose(
-            np.array(knp.einsum("ijk,ikj->i", x, y)),
+            knp.einsum("ijk,ikj->i", x, y),
             np.einsum("ijk,ikj->i", x, y),
         )
         self.assertAllClose(
-            np.array(knp.einsum("i...,j...k->...ijk", x, y)),
+            knp.einsum("i...,j...k->...ijk", x, y),
             np.einsum("i..., j...k->...ijk", x, y),
         )
-        self.assertAllClose(
-            np.array(knp.einsum(",ijk", 5, y)), np.einsum(",ijk", 5, y)
-        )
+        self.assertAllClose(knp.einsum(",ijk", 5, y), np.einsum(",ijk", 5, y))
 
         self.assertAllClose(
-            np.array(knp.Einsum("ijk,lkj->il")(x, y)),
+            knp.Einsum("ijk,lkj->il")(x, y),
             np.einsum("ijk,lkj->il", x, y),
         )
         self.assertAllClose(
-            np.array(knp.Einsum("ijk,ikj->i")(x, y)),
+            knp.Einsum("ijk,ikj->i")(x, y),
             np.einsum("ijk,ikj->i", x, y),
         )
         self.assertAllClose(
-            np.array(knp.Einsum("i...,j...k->...ijk")(x, y)),
+            knp.Einsum("i...,j...k->...ijk")(x, y),
             np.einsum("i...,j...k->...ijk", x, y),
         )
-        self.assertAllClose(
-            np.array(knp.Einsum(",ijk")(5, y)), np.einsum(",ijk", 5, y)
-        )
+        self.assertAllClose(knp.Einsum(",ijk")(5, y), np.einsum(",ijk", 5, y))
 
     def test_full_like(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.full_like(x, 2)), np.full_like(x, 2))
+        self.assertAllClose(knp.full_like(x, 2), np.full_like(x, 2))
         self.assertAllClose(
-            np.array(knp.full_like(x, 2, dtype="float32")),
+            knp.full_like(x, 2, dtype="float32"),
             np.full_like(x, 2, dtype="float32"),
         )
         self.assertAllClose(
-            np.array(knp.full_like(x, np.ones([2, 3]))),
+            knp.full_like(x, np.ones([2, 3])),
             np.full_like(x, np.ones([2, 3])),
         )
 
-        self.assertAllClose(np.array(knp.FullLike()(x, 2)), np.full_like(x, 2))
+        self.assertAllClose(knp.FullLike()(x, 2), np.full_like(x, 2))
         self.assertAllClose(
-            np.array(knp.FullLike()(x, 2, dtype="float32")),
+            knp.FullLike()(x, 2, dtype="float32"),
             np.full_like(x, 2, dtype="float32"),
         )
         self.assertAllClose(
-            np.array(knp.FullLike()(x, np.ones([2, 3]))),
+            knp.FullLike()(x, np.ones([2, 3])),
             np.full_like(x, np.ones([2, 3])),
         )
 
     def test_greater(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.greater(x, y)), np.greater(x, y))
-        self.assertAllClose(np.array(knp.greater(x, 2)), np.greater(x, 2))
-        self.assertAllClose(np.array(knp.greater(2, x)), np.greater(2, x))
+        self.assertAllClose(knp.greater(x, y), np.greater(x, y))
+        self.assertAllClose(knp.greater(x, 2), np.greater(x, 2))
+        self.assertAllClose(knp.greater(2, x), np.greater(2, x))
 
-        self.assertAllClose(np.array(knp.Greater()(x, y)), np.greater(x, y))
-        self.assertAllClose(np.array(knp.Greater()(x, 2)), np.greater(x, 2))
-        self.assertAllClose(np.array(knp.Greater()(2, x)), np.greater(2, x))
+        self.assertAllClose(knp.Greater()(x, y), np.greater(x, y))
+        self.assertAllClose(knp.Greater()(x, 2), np.greater(x, 2))
+        self.assertAllClose(knp.Greater()(2, x), np.greater(2, x))
 
     def test_greater_equal(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
         self.assertAllClose(
-            np.array(knp.greater_equal(x, y)),
+            knp.greater_equal(x, y),
             np.greater_equal(x, y),
         )
         self.assertAllClose(
-            np.array(knp.greater_equal(x, 2)),
+            knp.greater_equal(x, 2),
             np.greater_equal(x, 2),
         )
         self.assertAllClose(
-            np.array(knp.greater_equal(2, x)),
+            knp.greater_equal(2, x),
             np.greater_equal(2, x),
         )
 
         self.assertAllClose(
-            np.array(knp.GreaterEqual()(x, y)),
+            knp.GreaterEqual()(x, y),
             np.greater_equal(x, y),
         )
         self.assertAllClose(
-            np.array(knp.GreaterEqual()(x, 2)),
+            knp.GreaterEqual()(x, 2),
             np.greater_equal(x, 2),
         )
         self.assertAllClose(
-            np.array(knp.GreaterEqual()(2, x)),
+            knp.GreaterEqual()(2, x),
             np.greater_equal(2, x),
         )
 
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.isclose(x, y)), np.isclose(x, y))
-        self.assertAllClose(np.array(knp.isclose(x, 2)), np.isclose(x, 2))
-        self.assertAllClose(np.array(knp.isclose(2, x)), np.isclose(2, x))
+        self.assertAllClose(knp.isclose(x, y), np.isclose(x, y))
+        self.assertAllClose(knp.isclose(x, 2), np.isclose(x, 2))
+        self.assertAllClose(knp.isclose(2, x), np.isclose(2, x))
 
-        self.assertAllClose(np.array(knp.Isclose()(x, y)), np.isclose(x, y))
-        self.assertAllClose(np.array(knp.Isclose()(x, 2)), np.isclose(x, 2))
-        self.assertAllClose(np.array(knp.Isclose()(2, x)), np.isclose(2, x))
+        self.assertAllClose(knp.Isclose()(x, y), np.isclose(x, y))
+        self.assertAllClose(knp.Isclose()(x, 2), np.isclose(x, 2))
+        self.assertAllClose(knp.Isclose()(2, x), np.isclose(2, x))
 
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.less(x, y)), np.less(x, y))
-        self.assertAllClose(np.array(knp.less(x, 2)), np.less(x, 2))
-        self.assertAllClose(np.array(knp.less(2, x)), np.less(2, x))
+        self.assertAllClose(knp.less(x, y), np.less(x, y))
+        self.assertAllClose(knp.less(x, 2), np.less(x, 2))
+        self.assertAllClose(knp.less(2, x), np.less(2, x))
 
-        self.assertAllClose(np.array(knp.Less()(x, y)), np.less(x, y))
-        self.assertAllClose(np.array(knp.Less()(x, 2)), np.less(x, 2))
-        self.assertAllClose(np.array(knp.Less()(2, x)), np.less(2, x))
+        self.assertAllClose(knp.Less()(x, y), np.less(x, y))
+        self.assertAllClose(knp.Less()(x, 2), np.less(x, 2))
+        self.assertAllClose(knp.Less()(2, x), np.less(2, x))
 
     def test_less_equal(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.less_equal(x, y)), np.less_equal(x, y))
-        self.assertAllClose(np.array(knp.less_equal(x, 2)), np.less_equal(x, 2))
-        self.assertAllClose(np.array(knp.less_equal(2, x)), np.less_equal(2, x))
+        self.assertAllClose(knp.less_equal(x, y), np.less_equal(x, y))
+        self.assertAllClose(knp.less_equal(x, 2), np.less_equal(x, 2))
+        self.assertAllClose(knp.less_equal(2, x), np.less_equal(2, x))
 
-        self.assertAllClose(
-            np.array(knp.LessEqual()(x, y)), np.less_equal(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.LessEqual()(x, 2)), np.less_equal(x, 2)
-        )
-        self.assertAllClose(
-            np.array(knp.LessEqual()(2, x)), np.less_equal(2, x)
-        )
+        self.assertAllClose(knp.LessEqual()(x, y), np.less_equal(x, y))
+        self.assertAllClose(knp.LessEqual()(x, 2), np.less_equal(x, 2))
+        self.assertAllClose(knp.LessEqual()(2, x), np.less_equal(2, x))
 
     def test_linspace(self):
+        self.assertAllClose(knp.linspace(0, 10, 5), np.linspace(0, 10, 5))
         self.assertAllClose(
-            np.array(knp.linspace(0, 10, 5)), np.linspace(0, 10, 5)
-        )
-        self.assertAllClose(
-            np.array(knp.linspace(0, 10, 5, endpoint=False)),
+            knp.linspace(0, 10, 5, endpoint=False),
             np.linspace(0, 10, 5, endpoint=False),
         )
+        self.assertAllClose(knp.Linspace(num=5)(0, 10), np.linspace(0, 10, 5))
         self.assertAllClose(
-            np.array(knp.Linspace(num=5)(0, 10)), np.linspace(0, 10, 5)
-        )
-        self.assertAllClose(
-            np.array(knp.Linspace(num=5, endpoint=False)(0, 10)),
+            knp.Linspace(num=5, endpoint=False)(0, 10),
             np.linspace(0, 10, 5, endpoint=False),
         )
 
         start = np.zeros([2, 3, 4])
         stop = np.ones([2, 3, 4])
         self.assertAllClose(
-            np.array(knp.linspace(start, stop, 5, retstep=True)[0]),
+            knp.linspace(start, stop, 5, retstep=True)[0],
             np.linspace(start, stop, 5, retstep=True)[0],
         )
         self.assertAllClose(
-            np.array(
+            backend.convert_to_numpy(
                 knp.linspace(start, stop, 5, endpoint=False, retstep=True)[0]
             ),
             np.linspace(start, stop, 5, endpoint=False, retstep=True)[0],
         )
         self.assertAllClose(
-            np.array(
+            backend.convert_to_numpy(
                 knp.linspace(
                     start, stop, 5, endpoint=False, retstep=True, dtype="int32"
                 )[0]
@@ -1864,17 +1838,17 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            np.array(knp.Linspace(5, retstep=True)(start, stop)[0]),
+            knp.Linspace(5, retstep=True)(start, stop)[0],
             np.linspace(start, stop, 5, retstep=True)[0],
         )
         self.assertAllClose(
-            np.array(
+            backend.convert_to_numpy(
                 knp.Linspace(5, endpoint=False, retstep=True)(start, stop)[0]
             ),
             np.linspace(start, stop, 5, endpoint=False, retstep=True)[0],
         )
         self.assertAllClose(
-            np.array(
+            backend.convert_to_numpy(
                 knp.Linspace(5, endpoint=False, retstep=True, dtype="int32")(
                     start, stop
                 )[0]
@@ -1887,60 +1861,34 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
     def test_logical_and(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
-        self.assertAllClose(
-            np.array(knp.logical_and(x, y)), np.logical_and(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.logical_and(x, True)), np.logical_and(x, True)
-        )
-        self.assertAllClose(
-            np.array(knp.logical_and(True, x)), np.logical_and(True, x)
-        )
+        self.assertAllClose(knp.logical_and(x, y), np.logical_and(x, y))
+        self.assertAllClose(knp.logical_and(x, True), np.logical_and(x, True))
+        self.assertAllClose(knp.logical_and(True, x), np.logical_and(True, x))
 
-        self.assertAllClose(
-            np.array(knp.LogicalAnd()(x, y)), np.logical_and(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.LogicalAnd()(x, True)), np.logical_and(x, True)
-        )
-        self.assertAllClose(
-            np.array(knp.LogicalAnd()(True, x)), np.logical_and(True, x)
-        )
+        self.assertAllClose(knp.LogicalAnd()(x, y), np.logical_and(x, y))
+        self.assertAllClose(knp.LogicalAnd()(x, True), np.logical_and(x, True))
+        self.assertAllClose(knp.LogicalAnd()(True, x), np.logical_and(True, x))
 
     def test_logical_or(self):
         x = np.array([[True, False], [True, True]])
         y = np.array([[False, False], [True, False]])
-        self.assertAllClose(np.array(knp.logical_or(x, y)), np.logical_or(x, y))
-        self.assertAllClose(
-            np.array(knp.logical_or(x, True)), np.logical_or(x, True)
-        )
-        self.assertAllClose(
-            np.array(knp.logical_or(True, x)), np.logical_or(True, x)
-        )
+        self.assertAllClose(knp.logical_or(x, y), np.logical_or(x, y))
+        self.assertAllClose(knp.logical_or(x, True), np.logical_or(x, True))
+        self.assertAllClose(knp.logical_or(True, x), np.logical_or(True, x))
 
-        self.assertAllClose(
-            np.array(knp.LogicalOr()(x, y)), np.logical_or(x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.LogicalOr()(x, True)), np.logical_or(x, True)
-        )
-        self.assertAllClose(
-            np.array(knp.LogicalOr()(True, x)), np.logical_or(True, x)
-        )
+        self.assertAllClose(knp.LogicalOr()(x, y), np.logical_or(x, y))
+        self.assertAllClose(knp.LogicalOr()(x, True), np.logical_or(x, True))
+        self.assertAllClose(knp.LogicalOr()(True, x), np.logical_or(True, x))
 
     def test_logspace(self):
+        self.assertAllClose(knp.logspace(0, 10, 5), np.logspace(0, 10, 5))
         self.assertAllClose(
-            np.array(knp.logspace(0, 10, 5)), np.logspace(0, 10, 5)
-        )
-        self.assertAllClose(
-            np.array(knp.logspace(0, 10, 5, endpoint=False)),
+            knp.logspace(0, 10, 5, endpoint=False),
             np.logspace(0, 10, 5, endpoint=False),
         )
+        self.assertAllClose(knp.Logspace(num=5)(0, 10), np.logspace(0, 10, 5))
         self.assertAllClose(
-            np.array(knp.Logspace(num=5)(0, 10)), np.logspace(0, 10, 5)
-        )
-        self.assertAllClose(
-            np.array(knp.Logspace(num=5, endpoint=False)(0, 10)),
+            knp.Logspace(num=5, endpoint=False)(0, 10),
             np.logspace(0, 10, 5, endpoint=False),
         )
 
@@ -1948,405 +1896,375 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         stop = np.ones([2, 3, 4])
 
         self.assertAllClose(
-            np.array(knp.logspace(start, stop, 5, base=10)),
+            knp.logspace(start, stop, 5, base=10),
             np.logspace(start, stop, 5, base=10),
         )
         self.assertAllClose(
-            np.array(knp.logspace(start, stop, 5, endpoint=False, base=10)),
+            knp.logspace(start, stop, 5, endpoint=False, base=10),
             np.logspace(start, stop, 5, endpoint=False, base=10),
         )
 
         self.assertAllClose(
-            np.array(knp.Logspace(5, base=10)(start, stop)),
+            knp.Logspace(5, base=10)(start, stop),
             np.logspace(start, stop, 5, base=10),
         )
         self.assertAllClose(
-            np.array(knp.Logspace(5, endpoint=False, base=10)(start, stop)),
+            knp.Logspace(5, endpoint=False, base=10)(start, stop),
             np.logspace(start, stop, 5, endpoint=False, base=10),
         )
 
     def test_maximum(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
-        self.assertAllClose(np.array(knp.maximum(x, y)), np.maximum(x, y))
-        self.assertAllClose(np.array(knp.maximum(x, 1)), np.maximum(x, 1))
-        self.assertAllClose(np.array(knp.maximum(1, x)), np.maximum(1, x))
+        self.assertAllClose(knp.maximum(x, y), np.maximum(x, y))
+        self.assertAllClose(knp.maximum(x, 1), np.maximum(x, 1))
+        self.assertAllClose(knp.maximum(1, x), np.maximum(1, x))
 
-        self.assertAllClose(np.array(knp.Maximum()(x, y)), np.maximum(x, y))
-        self.assertAllClose(np.array(knp.Maximum()(x, 1)), np.maximum(x, 1))
-        self.assertAllClose(np.array(knp.Maximum()(1, x)), np.maximum(1, x))
+        self.assertAllClose(knp.Maximum()(x, y), np.maximum(x, y))
+        self.assertAllClose(knp.Maximum()(x, 1), np.maximum(x, 1))
+        self.assertAllClose(knp.Maximum()(1, x), np.maximum(1, x))
 
     def test_minimum(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
-        self.assertAllClose(np.array(knp.minimum(x, y)), np.minimum(x, y))
-        self.assertAllClose(np.array(knp.minimum(x, 1)), np.minimum(x, 1))
-        self.assertAllClose(np.array(knp.minimum(1, x)), np.minimum(1, x))
+        self.assertAllClose(knp.minimum(x, y), np.minimum(x, y))
+        self.assertAllClose(knp.minimum(x, 1), np.minimum(x, 1))
+        self.assertAllClose(knp.minimum(1, x), np.minimum(1, x))
 
-        self.assertAllClose(np.array(knp.Minimum()(x, y)), np.minimum(x, y))
-        self.assertAllClose(np.array(knp.Minimum()(x, 1)), np.minimum(x, 1))
-        self.assertAllClose(np.array(knp.Minimum()(1, x)), np.minimum(1, x))
+        self.assertAllClose(knp.Minimum()(x, y), np.minimum(x, y))
+        self.assertAllClose(knp.Minimum()(x, 1), np.minimum(x, 1))
+        self.assertAllClose(knp.Minimum()(1, x), np.minimum(1, x))
 
     def test_mod(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
-        self.assertAllClose(np.array(knp.mod(x, y)), np.mod(x, y))
-        self.assertAllClose(np.array(knp.mod(x, 1)), np.mod(x, 1))
-        self.assertAllClose(np.array(knp.mod(1, x)), np.mod(1, x))
+        self.assertAllClose(knp.mod(x, y), np.mod(x, y))
+        self.assertAllClose(knp.mod(x, 1), np.mod(x, 1))
+        self.assertAllClose(knp.mod(1, x), np.mod(1, x))
 
-        self.assertAllClose(np.array(knp.Mod()(x, y)), np.mod(x, y))
-        self.assertAllClose(np.array(knp.Mod()(x, 1)), np.mod(x, 1))
-        self.assertAllClose(np.array(knp.Mod()(1, x)), np.mod(1, x))
+        self.assertAllClose(knp.Mod()(x, y), np.mod(x, y))
+        self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
+        self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
 
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
-        self.assertAllClose(np.array(knp.not_equal(x, y)), np.not_equal(x, y))
-        self.assertAllClose(np.array(knp.not_equal(x, 1)), np.not_equal(x, 1))
-        self.assertAllClose(np.array(knp.not_equal(1, x)), np.not_equal(1, x))
+        self.assertAllClose(knp.not_equal(x, y), np.not_equal(x, y))
+        self.assertAllClose(knp.not_equal(x, 1), np.not_equal(x, 1))
+        self.assertAllClose(knp.not_equal(1, x), np.not_equal(1, x))
 
-        self.assertAllClose(np.array(knp.NotEqual()(x, y)), np.not_equal(x, y))
-        self.assertAllClose(np.array(knp.NotEqual()(x, 1)), np.not_equal(x, 1))
-        self.assertAllClose(np.array(knp.NotEqual()(1, x)), np.not_equal(1, x))
+        self.assertAllClose(knp.NotEqual()(x, y), np.not_equal(x, y))
+        self.assertAllClose(knp.NotEqual()(x, 1), np.not_equal(x, 1))
+        self.assertAllClose(knp.NotEqual()(1, x), np.not_equal(1, x))
 
     def test_outer(self):
         x = np.array([1, 2, 3])
         y = np.array([4, 5, 6])
-        self.assertAllClose(np.array(knp.outer(x, y)), np.outer(x, y))
-        self.assertAllClose(np.array(knp.Outer()(x, y)), np.outer(x, y))
+        self.assertAllClose(knp.outer(x, y), np.outer(x, y))
+        self.assertAllClose(knp.Outer()(x, y), np.outer(x, y))
 
         x = np.ones([2, 3, 4])
         y = np.ones([2, 3, 4, 5, 6])
-        self.assertAllClose(np.array(knp.outer(x, y)), np.outer(x, y))
-        self.assertAllClose(np.array(knp.Outer()(x, y)), np.outer(x, y))
+        self.assertAllClose(knp.outer(x, y), np.outer(x, y))
+        self.assertAllClose(knp.Outer()(x, y), np.outer(x, y))
 
     def test_take(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         indices = np.array([0, 1])
-        self.assertAllClose(np.array(knp.take(x, indices)), np.take(x, indices))
-        self.assertAllClose(np.array(knp.take(x, 0)), np.take(x, 0))
-        self.assertAllClose(
-            np.array(knp.take(x, 0, axis=1)), np.take(x, 0, axis=1)
-        )
+        self.assertAllClose(knp.take(x, indices), np.take(x, indices))
+        self.assertAllClose(knp.take(x, 0), np.take(x, 0))
+        self.assertAllClose(knp.take(x, 0, axis=1), np.take(x, 0, axis=1))
 
-        self.assertAllClose(
-            np.array(knp.Take()(x, indices)), np.take(x, indices)
-        )
-        self.assertAllClose(np.array(knp.Take()(x, 0)), np.take(x, 0))
-        self.assertAllClose(
-            np.array(knp.Take(axis=1)(x, 0)), np.take(x, 0, axis=1)
-        )
+        self.assertAllClose(knp.Take()(x, indices), np.take(x, indices))
+        self.assertAllClose(knp.Take()(x, 0), np.take(x, 0))
+        self.assertAllClose(knp.Take(axis=1)(x, 0), np.take(x, 0, axis=1))
 
     def test_take_along_axis(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         indices = np.ones([1, 4, 1, 1], dtype=np.int32)
         self.assertAllClose(
-            np.array(knp.take_along_axis(x, indices, axis=1)),
+            knp.take_along_axis(x, indices, axis=1),
             np.take_along_axis(x, indices, axis=1),
         )
         self.assertAllClose(
-            np.array(knp.TakeAlongAxis(axis=1)(x, indices)),
+            knp.TakeAlongAxis(axis=1)(x, indices),
             np.take_along_axis(x, indices, axis=1),
         )
 
         x = np.arange(12).reshape([1, 1, 3, 4])
         indices = np.ones([1, 4, 1, 1], dtype=np.int32)
         self.assertAllClose(
-            np.array(knp.take_along_axis(x, indices, axis=2)),
+            knp.take_along_axis(x, indices, axis=2),
             np.take_along_axis(x, indices, axis=2),
         )
         self.assertAllClose(
-            np.array(knp.TakeAlongAxis(axis=2)(x, indices)),
+            knp.TakeAlongAxis(axis=2)(x, indices),
             np.take_along_axis(x, indices, axis=2),
         )
 
     def test_tensordot(self):
-        x = np.arange(24).reshape([1, 2, 3, 4])
-        y = np.arange(24).reshape([3, 4, 1, 2])
+        x = np.arange(24).reshape([1, 2, 3, 4]).astype("float32")
+        y = np.arange(24).reshape([3, 4, 1, 2]).astype("float32")
         self.assertAllClose(
-            np.array(knp.tensordot(x, y, axes=2)), np.tensordot(x, y, axes=2)
+            knp.tensordot(x, y, axes=2), np.tensordot(x, y, axes=2)
         )
         self.assertAllClose(
-            np.array(knp.tensordot(x, y, axes=([0, 1], [2, 3]))),
+            knp.tensordot(x, y, axes=([0, 1], [2, 3])),
             np.tensordot(x, y, axes=([0, 1], [2, 3])),
         )
         self.assertAllClose(
-            np.array(knp.Tensordot(axes=2)(x, y)),
+            knp.Tensordot(axes=2)(x, y),
             np.tensordot(x, y, axes=2),
         )
         self.assertAllClose(
-            np.array(knp.Tensordot(axes=([0, 1], [2, 3]))(x, y)),
+            knp.Tensordot(axes=([0, 1], [2, 3]))(x, y),
             np.tensordot(x, y, axes=([0, 1], [2, 3])),
         )
 
     def test_vdot(self):
-        x = np.array([1, 2, 3])
-        y = np.array([4, 5, 6])
-        self.assertAllClose(np.array(knp.vdot(x, y)), np.vdot(x, y))
-        self.assertAllClose(np.array(knp.Vdot()(x, y)), np.vdot(x, y))
+        x = np.array([1.0, 2.0, 3.0])
+        y = np.array([4.0, 5.0, 6.0])
+        self.assertAllClose(knp.vdot(x, y), np.vdot(x, y))
+        self.assertAllClose(knp.Vdot()(x, y), np.vdot(x, y))
 
     def test_where(self):
         x = np.array([1, 2, 3])
         y = np.array([4, 5, 6])
-        self.assertAllClose(
-            np.array(knp.where(x > 1, x, y)), np.where(x > 1, x, y)
-        )
-        self.assertAllClose(
-            np.array(knp.Where()(x > 1, x, y)), np.where(x > 1, x, y)
-        )
+        self.assertAllClose(knp.where(x > 1, x, y), np.where(x > 1, x, y))
+        self.assertAllClose(knp.Where()(x > 1, x, y), np.where(x > 1, x, y))
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.mean(x)), np.mean(x))
-        self.assertAllClose(np.array(knp.mean(x, axis=1)), np.mean(x, axis=1))
+        self.assertAllClose(knp.mean(x), np.mean(x))
+        self.assertAllClose(knp.mean(x, axis=1), np.mean(x, axis=1))
         self.assertAllClose(
-            np.array(knp.mean(x, axis=1, keepdims=True)),
+            knp.mean(x, axis=1, keepdims=True),
             np.mean(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Mean()(x)), np.mean(x))
-        self.assertAllClose(np.array(knp.Mean(axis=1)(x)), np.mean(x, axis=1))
+        self.assertAllClose(knp.Mean()(x), np.mean(x))
+        self.assertAllClose(knp.Mean(axis=1)(x), np.mean(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Mean(axis=1, keepdims=True)(x)),
+            knp.Mean(axis=1, keepdims=True)(x),
             np.mean(x, axis=1, keepdims=True),
         )
 
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
-        self.assertAllClose(np.array(knp.all(x)), np.all(x))
-        self.assertAllClose(np.array(knp.all(x, axis=1)), np.all(x, axis=1))
+        self.assertAllClose(knp.all(x), np.all(x))
+        self.assertAllClose(knp.all(x, axis=1), np.all(x, axis=1))
         self.assertAllClose(
-            np.array(knp.all(x, axis=1, keepdims=True)),
+            knp.all(x, axis=1, keepdims=True),
             np.all(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.All()(x)), np.all(x))
-        self.assertAllClose(np.array(knp.All(axis=1)(x)), np.all(x, axis=1))
+        self.assertAllClose(knp.All()(x), np.all(x))
+        self.assertAllClose(knp.All(axis=1)(x), np.all(x, axis=1))
         self.assertAllClose(
-            np.array(knp.All(axis=1, keepdims=True)(x)),
+            knp.All(axis=1, keepdims=True)(x),
             np.all(x, axis=1, keepdims=True),
         )
 
     def test_any(self):
         x = np.array([[True, False, True], [True, True, True]])
-        self.assertAllClose(np.array(knp.any(x)), np.any(x))
-        self.assertAllClose(np.array(knp.any(x, axis=1)), np.any(x, axis=1))
+        self.assertAllClose(knp.any(x), np.any(x))
+        self.assertAllClose(knp.any(x, axis=1), np.any(x, axis=1))
         self.assertAllClose(
-            np.array(knp.any(x, axis=1, keepdims=True)),
+            knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Any()(x)), np.any(x))
-        self.assertAllClose(np.array(knp.Any(axis=1)(x)), np.any(x, axis=1))
+        self.assertAllClose(knp.Any()(x), np.any(x))
+        self.assertAllClose(knp.Any(axis=1)(x), np.any(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Any(axis=1, keepdims=True)(x)),
+            knp.Any(axis=1, keepdims=True)(x),
             np.any(x, axis=1, keepdims=True),
         )
 
     def test_var(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.var(x)), np.var(x))
-        self.assertAllClose(np.array(knp.var(x, axis=1)), np.var(x, axis=1))
+        self.assertAllClose(knp.var(x), np.var(x))
+        self.assertAllClose(knp.var(x, axis=1), np.var(x, axis=1))
         self.assertAllClose(
-            np.array(knp.var(x, axis=1, keepdims=True)),
+            knp.var(x, axis=1, keepdims=True),
             np.var(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Var()(x)), np.var(x))
-        self.assertAllClose(np.array(knp.Var(axis=1)(x)), np.var(x, axis=1))
+        self.assertAllClose(knp.Var()(x), np.var(x))
+        self.assertAllClose(knp.Var(axis=1)(x), np.var(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Var(axis=1, keepdims=True)(x)),
+            knp.Var(axis=1, keepdims=True)(x),
             np.var(x, axis=1, keepdims=True),
         )
 
     def test_sum(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.sum(x)), np.sum(x))
-        self.assertAllClose(np.array(knp.sum(x, axis=1)), np.sum(x, axis=1))
+        self.assertAllClose(knp.sum(x), np.sum(x))
+        self.assertAllClose(knp.sum(x, axis=1), np.sum(x, axis=1))
         self.assertAllClose(
-            np.array(knp.sum(x, axis=1, keepdims=True)),
+            knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Sum()(x)), np.sum(x))
-        self.assertAllClose(np.array(knp.Sum(axis=1)(x)), np.sum(x, axis=1))
+        self.assertAllClose(knp.Sum()(x), np.sum(x))
+        self.assertAllClose(knp.Sum(axis=1)(x), np.sum(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Sum(axis=1, keepdims=True)(x)),
+            knp.Sum(axis=1, keepdims=True)(x),
             np.sum(x, axis=1, keepdims=True),
         )
 
     def test_amax(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.amax(x)), np.amax(x))
-        self.assertAllClose(np.array(knp.amax(x, axis=1)), np.amax(x, axis=1))
+        self.assertAllClose(knp.amax(x), np.amax(x))
+        self.assertAllClose(knp.amax(x, axis=1), np.amax(x, axis=1))
         self.assertAllClose(
-            np.array(knp.amax(x, axis=1, keepdims=True)),
+            knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Amax()(x)), np.amax(x))
-        self.assertAllClose(np.array(knp.Amax(axis=1)(x)), np.amax(x, axis=1))
+        self.assertAllClose(knp.Amax()(x), np.amax(x))
+        self.assertAllClose(knp.Amax(axis=1)(x), np.amax(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Amax(axis=1, keepdims=True)(x)),
+            knp.Amax(axis=1, keepdims=True)(x),
             np.amax(x, axis=1, keepdims=True),
         )
 
     def test_amin(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.amin(x)), np.amin(x))
-        self.assertAllClose(np.array(knp.amin(x, axis=1)), np.amin(x, axis=1))
+        self.assertAllClose(knp.amin(x), np.amin(x))
+        self.assertAllClose(knp.amin(x, axis=1), np.amin(x, axis=1))
         self.assertAllClose(
-            np.array(knp.amin(x, axis=1, keepdims=True)),
+            knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Amin()(x)), np.amin(x))
-        self.assertAllClose(np.array(knp.Amin(axis=1)(x)), np.amin(x, axis=1))
+        self.assertAllClose(knp.Amin()(x), np.amin(x))
+        self.assertAllClose(knp.Amin(axis=1)(x), np.amin(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Amin(axis=1, keepdims=True)(x)),
+            knp.Amin(axis=1, keepdims=True)(x),
             np.amin(x, axis=1, keepdims=True),
         )
 
     def test_square(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.square(x)), np.square(x))
+        self.assertAllClose(knp.square(x), np.square(x))
 
-        self.assertAllClose(np.array(knp.Square()(x)), np.square(x))
+        self.assertAllClose(knp.Square()(x), np.square(x))
 
     def test_negative(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.negative(x)), np.negative(x))
+        self.assertAllClose(knp.negative(x), np.negative(x))
 
-        self.assertAllClose(np.array(knp.Negative()(x)), np.negative(x))
+        self.assertAllClose(knp.Negative()(x), np.negative(x))
 
     def test_abs(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.abs(x)), np.abs(x))
+        self.assertAllClose(knp.abs(x), np.abs(x))
 
-        self.assertAllClose(np.array(knp.Abs()(x)), np.abs(x))
+        self.assertAllClose(knp.Abs()(x), np.abs(x))
 
     def test_absolute(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.absolute(x)), np.absolute(x))
+        self.assertAllClose(knp.absolute(x), np.absolute(x))
 
-        self.assertAllClose(np.array(knp.Absolute()(x)), np.absolute(x))
+        self.assertAllClose(knp.Absolute()(x), np.absolute(x))
 
     def test_squeeze(self):
         x = np.ones([1, 2, 3, 4, 5])
-        self.assertAllClose(np.array(knp.squeeze(x)), np.squeeze(x))
-        self.assertAllClose(
-            np.array(knp.squeeze(x, axis=0)), np.squeeze(x, axis=0)
-        )
+        self.assertAllClose(knp.squeeze(x), np.squeeze(x))
+        self.assertAllClose(knp.squeeze(x, axis=0), np.squeeze(x, axis=0))
 
-        self.assertAllClose(np.array(knp.Squeeze()(x)), np.squeeze(x))
-        self.assertAllClose(
-            np.array(knp.Squeeze(axis=0)(x)), np.squeeze(x, axis=0)
-        )
+        self.assertAllClose(knp.Squeeze()(x), np.squeeze(x))
+        self.assertAllClose(knp.Squeeze(axis=0)(x), np.squeeze(x, axis=0))
 
     def test_transpose(self):
         x = np.ones([1, 2, 3, 4, 5])
-        self.assertAllClose(np.array(knp.transpose(x)), np.transpose(x))
+        self.assertAllClose(knp.transpose(x), np.transpose(x))
         self.assertAllClose(
-            np.array(knp.transpose(x, axes=(1, 0, 3, 2, 4))),
+            knp.transpose(x, axes=(1, 0, 3, 2, 4)),
             np.transpose(x, axes=(1, 0, 3, 2, 4)),
         )
 
-        self.assertAllClose(np.array(knp.Transpose()(x)), np.transpose(x))
+        self.assertAllClose(knp.Transpose()(x), np.transpose(x))
         self.assertAllClose(
-            np.array(knp.Transpose(axes=(1, 0, 3, 2, 4))(x)),
+            knp.Transpose(axes=(1, 0, 3, 2, 4))(x),
             np.transpose(x, axes=(1, 0, 3, 2, 4)),
         )
 
     def test_arcos(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
-        self.assertAllClose(np.array(knp.arccos(x)), np.arccos(x))
+        self.assertAllClose(knp.arccos(x), np.arccos(x))
 
-        self.assertAllClose(np.array(knp.Arccos()(x)), np.arccos(x))
+        self.assertAllClose(knp.Arccos()(x), np.arccos(x))
 
     def test_arcsin(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
-        self.assertAllClose(np.array(knp.arcsin(x)), np.arcsin(x))
+        self.assertAllClose(knp.arcsin(x), np.arcsin(x))
 
-        self.assertAllClose(np.array(knp.Arcsin()(x)), np.arcsin(x))
+        self.assertAllClose(knp.Arcsin()(x), np.arcsin(x))
 
     def test_argmax(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.argmax(x)), np.argmax(x))
-        self.assertAllClose(
-            np.array(knp.argmax(x, axis=1)), np.argmax(x, axis=1)
-        )
+        self.assertAllClose(knp.argmax(x), np.argmax(x))
+        self.assertAllClose(knp.argmax(x, axis=1), np.argmax(x, axis=1))
 
-        self.assertAllClose(np.array(knp.Argmax()(x)), np.argmax(x))
-        self.assertAllClose(
-            np.array(knp.Argmax(axis=1)(x)), np.argmax(x, axis=1)
-        )
+        self.assertAllClose(knp.Argmax()(x), np.argmax(x))
+        self.assertAllClose(knp.Argmax(axis=1)(x), np.argmax(x, axis=1))
 
     def test_argmin(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.argmin(x)), np.argmin(x))
-        self.assertAllClose(
-            np.array(knp.argmin(x, axis=1)), np.argmin(x, axis=1)
-        )
+        self.assertAllClose(knp.argmin(x), np.argmin(x))
+        self.assertAllClose(knp.argmin(x, axis=1), np.argmin(x, axis=1))
 
-        self.assertAllClose(np.array(knp.Argmin()(x)), np.argmin(x))
-        self.assertAllClose(
-            np.array(knp.Argmin(axis=1)(x)), np.argmin(x, axis=1)
-        )
+        self.assertAllClose(knp.Argmin()(x), np.argmin(x))
+        self.assertAllClose(knp.Argmin(axis=1)(x), np.argmin(x, axis=1))
 
     def test_argsort(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.argsort(x)), np.argsort(x))
+        self.assertAllClose(knp.argsort(x), np.argsort(x))
+        self.assertAllClose(knp.argsort(x, axis=1), np.argsort(x, axis=1))
         self.assertAllClose(
-            np.array(knp.argsort(x, axis=1)), np.argsort(x, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.argsort(x, axis=None)),
+            knp.argsort(x, axis=None),
             np.argsort(x, axis=None),
         )
 
-        self.assertAllClose(np.array(knp.Argsort()(x)), np.argsort(x))
+        self.assertAllClose(knp.Argsort()(x), np.argsort(x))
+        self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Argsort(axis=1)(x)), np.argsort(x, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.Argsort(axis=None)(x)),
+            knp.Argsort(axis=None)(x),
             np.argsort(x, axis=None),
         )
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.array(x)), np.array(x))
-        self.assertAllClose(np.array(knp.Array()(x)), np.array(x))
+        self.assertAllClose(knp.array(x), np.array(x))
+        self.assertAllClose(knp.Array()(x), np.array(x))
 
     def test_average(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         weights = np.ones([2, 3])
         weights_1d = np.ones([3])
-        self.assertAllClose(np.array(knp.average(x)), np.average(x))
+        self.assertAllClose(knp.average(x), np.average(x))
+        self.assertAllClose(knp.average(x, axis=1), np.average(x, axis=1))
         self.assertAllClose(
-            np.array(knp.average(x, axis=1)), np.average(x, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.average(x, axis=1, weights=weights)),
+            knp.average(x, axis=1, weights=weights),
             np.average(x, axis=1, weights=weights),
         )
         self.assertAllClose(
-            np.array(knp.average(x, axis=1, weights=weights_1d)),
+            knp.average(x, axis=1, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
 
-        self.assertAllClose(np.array(knp.Average()(x)), np.average(x))
+        self.assertAllClose(knp.Average()(x), np.average(x))
+        self.assertAllClose(knp.Average(axis=1)(x), np.average(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Average(axis=1)(x)), np.average(x, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.Average(axis=1)(x, weights=weights)),
+            knp.Average(axis=1)(x, weights=weights),
             np.average(x, axis=1, weights=weights),
         )
         self.assertAllClose(
-            np.array(knp.Average(axis=1)(x, weights=weights_1d)),
+            knp.Average(axis=1)(x, weights=weights_1d),
             np.average(x, axis=1, weights=weights_1d),
         )
 
@@ -2355,356 +2273,342 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
         minlength = 3
         self.assertAllClose(
-            np.array(knp.bincount(x, weights=weights, minlength=minlength)),
+            knp.bincount(x, weights=weights, minlength=minlength),
             np.bincount(x, weights=weights, minlength=minlength),
         )
         self.assertAllClose(
-            np.array(knp.Bincount(weights=weights, minlength=minlength)(x)),
+            knp.Bincount(weights=weights, minlength=minlength)(x),
             np.bincount(x, weights=weights, minlength=minlength),
         )
 
     def test_broadcast_to(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(
-            np.array(knp.broadcast_to(x, [2, 2, 3])),
+            knp.broadcast_to(x, [2, 2, 3]),
             np.broadcast_to(x, [2, 2, 3]),
         )
 
         self.assertAllClose(
-            np.array(knp.BroadcastTo([2, 2, 3])(x)),
+            knp.BroadcastTo([2, 2, 3])(x),
             np.broadcast_to(x, [2, 2, 3]),
         )
 
     def test_ceil(self):
         x = np.array([[1.2, 2.1, -2.5], [2.4, -11.9, -5.5]])
-        self.assertAllClose(np.array(knp.ceil(x)), np.ceil(x))
-        self.assertAllClose(np.array(knp.Ceil()(x)), np.ceil(x))
+        self.assertAllClose(knp.ceil(x), np.ceil(x))
+        self.assertAllClose(knp.Ceil()(x), np.ceil(x))
 
     def test_clip(self):
         x = np.array([[1.2, 2.1, -2.5], [2.4, -11.9, -5.5]])
-        self.assertAllClose(np.array(knp.clip(x, -2, 2)), np.clip(x, -2, 2))
-        self.assertAllClose(np.array(knp.clip(x, -2, 2)), np.clip(x, -2, 2))
+        self.assertAllClose(knp.clip(x, -2, 2), np.clip(x, -2, 2))
+        self.assertAllClose(knp.clip(x, -2, 2), np.clip(x, -2, 2))
 
-        self.assertAllClose(np.array(knp.Clip(0, 1)(x)), np.clip(x, 0, 1))
-        self.assertAllClose(np.array(knp.Clip(0, 1)(x)), np.clip(x, 0, 1))
+        self.assertAllClose(knp.Clip(0, 1)(x), np.clip(x, 0, 1))
+        self.assertAllClose(knp.Clip(0, 1)(x), np.clip(x, 0, 1))
 
     def test_concatenate(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
         z = np.array([[7, 8, 9], [9, 8, 7]])
         self.assertAllClose(
-            np.array(knp.concatenate([x, y], axis=0)),
+            knp.concatenate([x, y], axis=0),
             np.concatenate([x, y], axis=0),
         )
         self.assertAllClose(
-            np.array(knp.concatenate([x, y, z], axis=0)),
+            knp.concatenate([x, y, z], axis=0),
             np.concatenate([x, y, z], axis=0),
         )
         self.assertAllClose(
-            np.array(knp.concatenate([x, y], axis=1)),
+            knp.concatenate([x, y], axis=1),
             np.concatenate([x, y], axis=1),
         )
 
         self.assertAllClose(
-            np.array(knp.Concatenate(axis=0)([x, y])),
+            knp.Concatenate(axis=0)([x, y]),
             np.concatenate([x, y], axis=0),
         )
         self.assertAllClose(
-            np.array(knp.Concatenate(axis=0)([x, y, z])),
+            knp.Concatenate(axis=0)([x, y, z]),
             np.concatenate([x, y, z], axis=0),
         )
         self.assertAllClose(
-            np.array(knp.Concatenate(axis=1)([x, y])),
+            knp.Concatenate(axis=1)([x, y]),
             np.concatenate([x, y], axis=1),
         )
 
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
-        self.assertAllClose(np.array(knp.conjugate(x)), np.conjugate(x))
-        self.assertAllClose(np.array(knp.Conjugate()(x)), np.conjugate(x))
+        self.assertAllClose(knp.conjugate(x), np.conjugate(x))
+        self.assertAllClose(knp.Conjugate()(x), np.conjugate(x))
 
     def test_conj(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
-        self.assertAllClose(np.array(knp.conj(x)), np.conj(x))
-        self.assertAllClose(np.array(knp.Conj()(x)), np.conj(x))
+        self.assertAllClose(knp.conj(x), np.conj(x))
+        self.assertAllClose(knp.Conj()(x), np.conj(x))
 
     def test_copy(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.copy(x)), np.copy(x))
-        self.assertAllClose(np.array(knp.Copy()(x)), np.copy(x))
+        self.assertAllClose(knp.copy(x), np.copy(x))
+        self.assertAllClose(knp.Copy()(x), np.copy(x))
 
     def test_cos(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.cos(x)), np.cos(x))
-        self.assertAllClose(np.array(knp.Cos()(x)), np.cos(x))
+        self.assertAllClose(knp.cos(x), np.cos(x))
+        self.assertAllClose(knp.Cos()(x), np.cos(x))
 
     def test_count_nonzero(self):
         x = np.array([[0, 2, 3], [3, 2, 0]])
-        self.assertAllClose(np.array(knp.count_nonzero(x)), np.count_nonzero(x))
+        self.assertAllClose(knp.count_nonzero(x), np.count_nonzero(x))
         self.assertAllClose(
-            np.array(knp.count_nonzero(x, axis=1)),
+            knp.count_nonzero(x, axis=1),
             np.count_nonzero(x, axis=1),
         )
 
         self.assertAllClose(
-            np.array(knp.CountNonzero()(x)),
+            knp.CountNonzero()(x),
             np.count_nonzero(x),
         )
         self.assertAllClose(
-            np.array(knp.CountNonzero(axis=1)(x)),
+            knp.CountNonzero(axis=1)(x),
             np.count_nonzero(x, axis=1),
         )
 
     def test_cumprod(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.cumprod(x)), np.cumprod(x))
+        self.assertAllClose(knp.cumprod(x), np.cumprod(x))
         self.assertAllClose(
-            np.array(knp.cumprod(x, axis=0)),
+            knp.cumprod(x, axis=0),
             np.cumprod(x, axis=0),
         )
         self.assertAllClose(
-            np.array(knp.cumprod(x, axis=None)),
+            knp.cumprod(x, axis=None),
             np.cumprod(x, axis=None),
         )
 
-        self.assertAllClose(np.array(knp.Cumprod()(x)), np.cumprod(x))
+        self.assertAllClose(knp.Cumprod()(x), np.cumprod(x))
         self.assertAllClose(
-            np.array(knp.Cumprod(axis=0)(x)),
+            knp.Cumprod(axis=0)(x),
             np.cumprod(x, axis=0),
         )
         self.assertAllClose(
-            np.array(knp.Cumprod(axis=None)(x)),
+            knp.Cumprod(axis=None)(x),
             np.cumprod(x, axis=None),
         )
 
     def test_cumsum(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.cumsum(x)), np.cumsum(x))
+        self.assertAllClose(knp.cumsum(x), np.cumsum(x))
         self.assertAllClose(
-            np.array(knp.cumsum(x, axis=0)),
+            knp.cumsum(x, axis=0),
             np.cumsum(x, axis=0),
         )
         self.assertAllClose(
-            np.array(knp.cumsum(x, axis=1)),
+            knp.cumsum(x, axis=1),
             np.cumsum(x, axis=1),
         )
 
-        self.assertAllClose(np.array(knp.Cumsum()(x)), np.cumsum(x))
+        self.assertAllClose(knp.Cumsum()(x), np.cumsum(x))
         self.assertAllClose(
-            np.array(knp.Cumsum(axis=0)(x)),
+            knp.Cumsum(axis=0)(x),
             np.cumsum(x, axis=0),
         )
         self.assertAllClose(
-            np.array(knp.Cumsum(axis=1)(x)),
+            knp.Cumsum(axis=1)(x),
             np.cumsum(x, axis=1),
         )
 
     def test_diag(self):
         x = np.array([1, 2, 3])
-        self.assertAllClose(np.array(knp.diag(x)), np.diag(x))
-        self.assertAllClose(np.array(knp.diag(x, k=1)), np.diag(x, k=1))
-        self.assertAllClose(np.array(knp.diag(x, k=-1)), np.diag(x, k=-1))
+        self.assertAllClose(knp.diag(x), np.diag(x))
+        self.assertAllClose(knp.diag(x, k=1), np.diag(x, k=1))
+        self.assertAllClose(knp.diag(x, k=-1), np.diag(x, k=-1))
 
-        self.assertAllClose(np.array(knp.Diag()(x)), np.diag(x))
-        self.assertAllClose(np.array(knp.Diag(k=1)(x)), np.diag(x, k=1))
-        self.assertAllClose(np.array(knp.Diag(k=-1)(x)), np.diag(x, k=-1))
+        self.assertAllClose(knp.Diag()(x), np.diag(x))
+        self.assertAllClose(knp.Diag(k=1)(x), np.diag(x, k=1))
+        self.assertAllClose(knp.Diag(k=-1)(x), np.diag(x, k=-1))
 
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.diag(x)), np.diag(x))
-        self.assertAllClose(np.array(knp.diag(x, k=1)), np.diag(x, k=1))
-        self.assertAllClose(np.array(knp.diag(x, k=-1)), np.diag(x, k=-1))
+        self.assertAllClose(knp.diag(x), np.diag(x))
+        self.assertAllClose(knp.diag(x, k=1), np.diag(x, k=1))
+        self.assertAllClose(knp.diag(x, k=-1), np.diag(x, k=-1))
 
-        self.assertAllClose(np.array(knp.Diag()(x)), np.diag(x))
-        self.assertAllClose(np.array(knp.Diag(k=1)(x)), np.diag(x, k=1))
-        self.assertAllClose(np.array(knp.Diag(k=-1)(x)), np.diag(x, k=-1))
+        self.assertAllClose(knp.Diag()(x), np.diag(x))
+        self.assertAllClose(knp.Diag(k=1)(x), np.diag(x, k=1))
+        self.assertAllClose(knp.Diag(k=-1)(x), np.diag(x, k=-1))
 
     def test_diagonal(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.diagonal(x)), np.diagonal(x))
+        self.assertAllClose(knp.diagonal(x), np.diagonal(x))
         self.assertAllClose(
-            np.array(knp.diagonal(x, offset=1)),
+            knp.diagonal(x, offset=1),
             np.diagonal(x, offset=1),
         )
         self.assertAllClose(
-            np.array(knp.diagonal(x, offset=-1)), np.diagonal(x, offset=-1)
+            knp.diagonal(x, offset=-1), np.diagonal(x, offset=-1)
         )
 
-        self.assertAllClose(np.array(knp.Diagonal()(x)), np.diagonal(x))
+        self.assertAllClose(knp.Diagonal()(x), np.diagonal(x))
+        self.assertAllClose(knp.Diagonal(offset=1)(x), np.diagonal(x, offset=1))
         self.assertAllClose(
-            np.array(knp.Diagonal(offset=1)(x)), np.diagonal(x, offset=1)
-        )
-        self.assertAllClose(
-            np.array(knp.Diagonal(offset=-1)(x)), np.diagonal(x, offset=-1)
+            knp.Diagonal(offset=-1)(x), np.diagonal(x, offset=-1)
         )
 
         x = np.ones([2, 3, 4, 5])
-        self.assertAllClose(np.array(knp.diagonal(x)), np.diagonal(x))
+        self.assertAllClose(knp.diagonal(x), np.diagonal(x))
         self.assertAllClose(
-            np.array(knp.diagonal(x, offset=1, axis1=2, axis2=3)),
+            knp.diagonal(x, offset=1, axis1=2, axis2=3),
             np.diagonal(x, offset=1, axis1=2, axis2=3),
         )
         self.assertAllClose(
-            np.array(knp.diagonal(x, offset=-1, axis1=2, axis2=3)),
+            knp.diagonal(x, offset=-1, axis1=2, axis2=3),
             np.diagonal(x, offset=-1, axis1=2, axis2=3),
         )
 
     def test_dot(self):
-        x = np.arange(24).reshape([2, 3, 4])
-        y = np.arange(12).reshape([4, 3])
-        z = np.arange(4)
-        self.assertAllClose(np.array(knp.dot(x, y)), np.dot(x, y))
-        self.assertAllClose(np.array(knp.dot(x, z)), np.dot(x, z))
-        self.assertAllClose(np.array(knp.dot(x, 2)), np.dot(x, 2))
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+        y = np.arange(12).reshape([4, 3]).astype("float32")
+        z = np.arange(4).astype("float32")
+        self.assertAllClose(knp.dot(x, y), np.dot(x, y))
+        self.assertAllClose(knp.dot(x, z), np.dot(x, z))
+        self.assertAllClose(knp.dot(x, 2), np.dot(x, 2))
 
-        self.assertAllClose(np.array(knp.Dot()(x, y)), np.dot(x, y))
-        self.assertAllClose(np.array(knp.Dot()(x, z)), np.dot(x, z))
-        self.assertAllClose(np.array(knp.Dot()(x, 2)), np.dot(x, 2))
+        self.assertAllClose(knp.Dot()(x, y), np.dot(x, y))
+        self.assertAllClose(knp.Dot()(x, z), np.dot(x, z))
+        self.assertAllClose(knp.Dot()(x, 2), np.dot(x, 2))
 
     def test_exp(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.exp(x)), np.exp(x))
-        self.assertAllClose(np.array(knp.Exp()(x)), np.exp(x))
+        self.assertAllClose(knp.exp(x), np.exp(x))
+        self.assertAllClose(knp.Exp()(x), np.exp(x))
 
     def test_expand_dims(self):
         x = np.ones([2, 3, 4])
-        self.assertAllClose(
-            np.array(knp.expand_dims(x, 0)), np.expand_dims(x, 0)
-        )
-        self.assertAllClose(
-            np.array(knp.expand_dims(x, 1)), np.expand_dims(x, 1)
-        )
-        self.assertAllClose(
-            np.array(knp.expand_dims(x, -2)), np.expand_dims(x, -2)
-        )
+        self.assertAllClose(knp.expand_dims(x, 0), np.expand_dims(x, 0))
+        self.assertAllClose(knp.expand_dims(x, 1), np.expand_dims(x, 1))
+        self.assertAllClose(knp.expand_dims(x, -2), np.expand_dims(x, -2))
 
-        self.assertAllClose(
-            np.array(knp.ExpandDims(0)(x)), np.expand_dims(x, 0)
-        )
-        self.assertAllClose(
-            np.array(knp.ExpandDims(1)(x)), np.expand_dims(x, 1)
-        )
-        self.assertAllClose(
-            np.array(knp.ExpandDims(-2)(x)), np.expand_dims(x, -2)
-        )
+        self.assertAllClose(knp.ExpandDims(0)(x), np.expand_dims(x, 0))
+        self.assertAllClose(knp.ExpandDims(1)(x), np.expand_dims(x, 1))
+        self.assertAllClose(knp.ExpandDims(-2)(x), np.expand_dims(x, -2))
 
     def test_expm1(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.expm1(x)), np.expm1(x))
-        self.assertAllClose(np.array(knp.Expm1()(x)), np.expm1(x))
+        self.assertAllClose(knp.expm1(x), np.expm1(x))
+        self.assertAllClose(knp.Expm1()(x), np.expm1(x))
 
     def test_flip(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.flip(x)), np.flip(x))
-        self.assertAllClose(np.array(knp.flip(x, 0)), np.flip(x, 0))
-        self.assertAllClose(np.array(knp.flip(x, 1)), np.flip(x, 1))
+        self.assertAllClose(knp.flip(x), np.flip(x))
+        self.assertAllClose(knp.flip(x, 0), np.flip(x, 0))
+        self.assertAllClose(knp.flip(x, 1), np.flip(x, 1))
 
-        self.assertAllClose(np.array(knp.Flip()(x)), np.flip(x))
-        self.assertAllClose(np.array(knp.Flip(0)(x)), np.flip(x, 0))
-        self.assertAllClose(np.array(knp.Flip(1)(x)), np.flip(x, 1))
+        self.assertAllClose(knp.Flip()(x), np.flip(x))
+        self.assertAllClose(knp.Flip(0)(x), np.flip(x, 0))
+        self.assertAllClose(knp.Flip(1)(x), np.flip(x, 1))
 
     def test_floor(self):
         x = np.array([[1.1, 2.2, -3.3], [3.3, 2.2, -1.1]])
-        self.assertAllClose(np.array(knp.floor(x)), np.floor(x))
-        self.assertAllClose(np.array(knp.Floor()(x)), np.floor(x))
+        self.assertAllClose(knp.floor(x), np.floor(x))
+        self.assertAllClose(knp.Floor()(x), np.floor(x))
 
     def test_hstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
-        self.assertAllClose(np.array(knp.hstack([x, y])), np.hstack([x, y]))
-        self.assertAllClose(np.array(knp.Hstack()([x, y])), np.hstack([x, y]))
+        self.assertAllClose(knp.hstack([x, y]), np.hstack([x, y]))
+        self.assertAllClose(knp.Hstack()([x, y]), np.hstack([x, y]))
 
         x = np.ones([2, 3, 4])
         y = np.ones([2, 5, 4])
-        self.assertAllClose(np.array(knp.hstack([x, y])), np.hstack([x, y]))
-        self.assertAllClose(np.array(knp.Hstack()([x, y])), np.hstack([x, y]))
+        self.assertAllClose(knp.hstack([x, y]), np.hstack([x, y]))
+        self.assertAllClose(knp.Hstack()([x, y]), np.hstack([x, y]))
 
     def test_imag(self):
         x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
-        self.assertAllClose(np.array(knp.imag(x)), np.imag(x))
-        self.assertAllClose(np.array(knp.Imag()(x)), np.imag(x))
+        self.assertAllClose(knp.imag(x), np.imag(x))
+        self.assertAllClose(knp.Imag()(x), np.imag(x))
 
     def test_isfinite(self):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
-        self.assertAllClose(np.array(knp.isfinite(x)), np.isfinite(x))
-        self.assertAllClose(np.array(knp.Isfinite()(x)), np.isfinite(x))
+        self.assertAllClose(knp.isfinite(x), np.isfinite(x))
+        self.assertAllClose(knp.Isfinite()(x), np.isfinite(x))
 
     def test_isinf(self):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
-        self.assertAllClose(np.array(knp.isinf(x)), np.isinf(x))
-        self.assertAllClose(np.array(knp.Isinf()(x)), np.isinf(x))
+        self.assertAllClose(knp.isinf(x), np.isinf(x))
+        self.assertAllClose(knp.Isinf()(x), np.isinf(x))
 
     def test_isnan(self):
         x = np.array([[1, 2, np.inf], [np.nan, np.nan, np.nan]])
-        self.assertAllClose(np.array(knp.isnan(x)), np.isnan(x))
-        self.assertAllClose(np.array(knp.Isnan()(x)), np.isnan(x))
+        self.assertAllClose(knp.isnan(x), np.isnan(x))
+        self.assertAllClose(knp.Isnan()(x), np.isnan(x))
 
     def test_log(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.log(x)), np.log(x))
-        self.assertAllClose(np.array(knp.Log()(x)), np.log(x))
+        self.assertAllClose(knp.log(x), np.log(x))
+        self.assertAllClose(knp.Log()(x), np.log(x))
 
     def test_log10(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.log10(x)), np.log10(x))
-        self.assertAllClose(np.array(knp.Log10()(x)), np.log10(x))
+        self.assertAllClose(knp.log10(x), np.log10(x))
+        self.assertAllClose(knp.Log10()(x), np.log10(x))
 
     def test_log1p(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.log1p(x)), np.log1p(x))
-        self.assertAllClose(np.array(knp.Log1p()(x)), np.log1p(x))
+        self.assertAllClose(knp.log1p(x), np.log1p(x))
+        self.assertAllClose(knp.Log1p()(x), np.log1p(x))
 
     def test_log2(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.log2(x)), np.log2(x))
-        self.assertAllClose(np.array(knp.Log2()(x)), np.log2(x))
+        self.assertAllClose(knp.log2(x), np.log2(x))
+        self.assertAllClose(knp.Log2()(x), np.log2(x))
 
     def test_logaddexp(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.logaddexp(x, y)), np.logaddexp(x, y))
-        self.assertAllClose(np.array(knp.Logaddexp()(x, y)), np.logaddexp(x, y))
+        self.assertAllClose(knp.logaddexp(x, y), np.logaddexp(x, y))
+        self.assertAllClose(knp.Logaddexp()(x, y), np.logaddexp(x, y))
 
     def test_logical_not(self):
         x = np.array([[True, False], [False, True]])
-        self.assertAllClose(np.array(knp.logical_not(x)), np.logical_not(x))
-        self.assertAllClose(np.array(knp.LogicalNot()(x)), np.logical_not(x))
+        self.assertAllClose(knp.logical_not(x), np.logical_not(x))
+        self.assertAllClose(knp.LogicalNot()(x), np.logical_not(x))
 
     def test_max(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.max(x)), np.max(x))
-        self.assertAllClose(np.array(knp.Max()(x)), np.max(x))
+        self.assertAllClose(knp.max(x), np.max(x))
+        self.assertAllClose(knp.Max()(x), np.max(x))
 
-        self.assertAllClose(np.array(knp.max(x, 0)), np.max(x, 0))
-        self.assertAllClose(np.array(knp.Max(0)(x)), np.max(x, 0))
+        self.assertAllClose(knp.max(x, 0), np.max(x, 0))
+        self.assertAllClose(knp.Max(0)(x), np.max(x, 0))
 
-        self.assertAllClose(np.array(knp.max(x, 1)), np.max(x, 1))
-        self.assertAllClose(np.array(knp.Max(1)(x)), np.max(x, 1))
+        self.assertAllClose(knp.max(x, 1), np.max(x, 1))
+        self.assertAllClose(knp.Max(1)(x), np.max(x, 1))
 
     def test_min(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.min(x)), np.min(x))
-        self.assertAllClose(np.array(knp.Min()(x)), np.min(x))
+        self.assertAllClose(knp.min(x), np.min(x))
+        self.assertAllClose(knp.Min()(x), np.min(x))
 
-        self.assertAllClose(np.array(knp.min(x, 0)), np.min(x, 0))
-        self.assertAllClose(np.array(knp.Min(0)(x)), np.min(x, 0))
+        self.assertAllClose(knp.min(x, 0), np.min(x, 0))
+        self.assertAllClose(knp.Min(0)(x), np.min(x, 0))
 
-        self.assertAllClose(np.array(knp.min(x, 1)), np.min(x, 1))
-        self.assertAllClose(np.array(knp.Min(1)(x)), np.min(x, 1))
+        self.assertAllClose(knp.min(x, 1), np.min(x, 1))
+        self.assertAllClose(knp.Min(1)(x), np.min(x, 1))
 
     def test_meshgrid(self):
         x = np.array([1, 2, 3])
         y = np.array([4, 5, 6])
         z = np.array([7, 8, 9])
-        self.assertAllClose(np.array(knp.meshgrid(x, y)), np.meshgrid(x, y))
-        self.assertAllClose(np.array(knp.meshgrid(x, z)), np.meshgrid(x, z))
+        self.assertAllClose(knp.meshgrid(x, y), np.meshgrid(x, y))
+        self.assertAllClose(knp.meshgrid(x, z), np.meshgrid(x, z))
         self.assertAllClose(
-            np.array(knp.meshgrid(x, y, z, indexing="ij")),
+            knp.meshgrid(x, y, z, indexing="ij"),
             np.meshgrid(x, y, z, indexing="ij"),
         )
-        self.assertAllClose(np.array(knp.Meshgrid()(x, y)), np.meshgrid(x, y))
-        self.assertAllClose(np.array(knp.Meshgrid()(x, z)), np.meshgrid(x, z))
+        self.assertAllClose(knp.Meshgrid()(x, y), np.meshgrid(x, y))
+        self.assertAllClose(knp.Meshgrid()(x, z), np.meshgrid(x, z))
         self.assertAllClose(
-            np.array(knp.Meshgrid(indexing="ij")(x, y, z)),
+            knp.Meshgrid(indexing="ij")(x, y, z),
             np.meshgrid(x, y, z, indexing="ij"),
         )
 
@@ -2713,49 +2617,39 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             x = np.ones([1, 2, 3])
             y = np.ones([4, 5, 6, 6])
             z = np.ones([7, 8])
-            self.assertAllClose(np.array(knp.meshgrid(x, y)), np.meshgrid(x, y))
-            self.assertAllClose(np.array(knp.meshgrid(x, z)), np.meshgrid(x, z))
+            self.assertAllClose(knp.meshgrid(x, y), np.meshgrid(x, y))
+            self.assertAllClose(knp.meshgrid(x, z), np.meshgrid(x, z))
             self.assertAllClose(
-                np.array(knp.meshgrid(x, y, z, indexing="ij")),
+                knp.meshgrid(x, y, z, indexing="ij"),
                 np.meshgrid(x, y, z, indexing="ij"),
             )
+            self.assertAllClose(knp.Meshgrid()(x, y), np.meshgrid(x, y))
+            self.assertAllClose(knp.Meshgrid()(x, z), np.meshgrid(x, z))
             self.assertAllClose(
-                np.array(knp.Meshgrid()(x, y)), np.meshgrid(x, y)
-            )
-            self.assertAllClose(
-                np.array(knp.Meshgrid()(x, z)), np.meshgrid(x, z)
-            )
-            self.assertAllClose(
-                np.array(knp.Meshgrid(indexing="ij")(x, y, z)),
+                knp.Meshgrid(indexing="ij")(x, y, z),
                 np.meshgrid(x, y, z, indexing="ij"),
             )
 
     def test_moveaxis(self):
         x = np.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        self.assertAllClose(knp.moveaxis(x, 0, -1), np.moveaxis(x, 0, -1))
+        self.assertAllClose(knp.moveaxis(x, -1, 0), np.moveaxis(x, -1, 0))
         self.assertAllClose(
-            np.array(knp.moveaxis(x, 0, -1)), np.moveaxis(x, 0, -1)
-        )
-        self.assertAllClose(
-            np.array(knp.moveaxis(x, -1, 0)), np.moveaxis(x, -1, 0)
-        )
-        self.assertAllClose(
-            np.array(knp.moveaxis(x, (0, 1), (1, 0))),
+            knp.moveaxis(x, (0, 1), (1, 0)),
             np.moveaxis(x, (0, 1), (1, 0)),
         )
         self.assertAllClose(
-            np.array(knp.moveaxis(x, [0, 1, 2], [2, 0, 1])),
+            knp.moveaxis(x, [0, 1, 2], [2, 0, 1]),
             np.moveaxis(x, [0, 1, 2], [2, 0, 1]),
         )
+        self.assertAllClose(knp.Moveaxis(-1, 0)(x), np.moveaxis(x, -1, 0))
         self.assertAllClose(
-            np.array(knp.Moveaxis(-1, 0)(x)), np.moveaxis(x, -1, 0)
-        )
-        self.assertAllClose(
-            np.array(knp.Moveaxis((0, 1), (1, 0))(x)),
+            knp.Moveaxis((0, 1), (1, 0))(x),
             np.moveaxis(x, (0, 1), (1, 0)),
         )
 
         self.assertAllClose(
-            np.array(knp.Moveaxis([0, 1, 2], [2, 0, 1])(x)),
+            knp.Moveaxis([0, 1, 2], [2, 0, 1])(x),
             np.moveaxis(x, [0, 1, 2], [2, 0, 1]),
         )
 
@@ -2766,332 +2660,318 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
     def test_nonzero(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.nonzero(x)), np.nonzero(x))
-        self.assertAllClose(np.array(knp.Nonzero()(x)), np.nonzero(x))
+        self.assertAllClose(knp.nonzero(x), np.nonzero(x))
+        self.assertAllClose(knp.Nonzero()(x), np.nonzero(x))
 
     def test_ones_like(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.ones_like(x)), np.ones_like(x))
-        self.assertAllClose(np.array(knp.OnesLike()(x)), np.ones_like(x))
+        self.assertAllClose(knp.ones_like(x), np.ones_like(x))
+        self.assertAllClose(knp.OnesLike()(x), np.ones_like(x))
 
     def test_pad(self):
         x = np.array([[1, 2], [3, 4]])
         self.assertAllClose(
-            np.array(knp.pad(x, ((1, 1), (1, 1)))), np.pad(x, ((1, 1), (1, 1)))
+            knp.pad(x, ((1, 1), (1, 1))),
+            np.pad(x, ((1, 1), (1, 1))),
         )
         self.assertAllClose(
-            np.array(knp.pad(x, ((1, 1), (1, 1)))),
+            knp.pad(x, ((1, 1), (1, 1))),
             np.pad(x, ((1, 1), (1, 1))),
         )
 
         self.assertAllClose(
-            np.array(knp.Pad(((1, 1), (1, 1)))(x)), np.pad(x, ((1, 1), (1, 1)))
+            knp.Pad(((1, 1), (1, 1)))(x),
+            np.pad(x, ((1, 1), (1, 1))),
         )
         self.assertAllClose(
-            np.array(knp.Pad(((1, 1), (1, 1)))(x)),
+            knp.Pad(((1, 1), (1, 1)))(x),
             np.pad(x, ((1, 1), (1, 1))),
         )
 
         self.assertAllClose(
-            np.array(knp.pad(x, ((1, 1), (1, 1)), mode="reflect")),
+            knp.pad(x, ((1, 1), (1, 1)), mode="reflect"),
             np.pad(x, ((1, 1), (1, 1)), mode="reflect"),
         )
         self.assertAllClose(
-            np.array(knp.pad(x, ((1, 1), (1, 1)), mode="symmetric")),
+            knp.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
             np.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
         )
 
         self.assertAllClose(
-            np.array(knp.Pad(((1, 1), (1, 1)), mode="reflect")(x)),
+            knp.Pad(((1, 1), (1, 1)), mode="reflect")(x),
             np.pad(x, ((1, 1), (1, 1)), mode="reflect"),
         )
         self.assertAllClose(
-            np.array(knp.Pad(((1, 1), (1, 1)), mode="symmetric")(x)),
+            knp.Pad(((1, 1), (1, 1)), mode="symmetric")(x),
             np.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
         )
 
         x = np.ones([2, 3, 4, 5])
         self.assertAllClose(
-            np.array(knp.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1)))),
+            knp.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
             np.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
         )
         self.assertAllClose(
-            np.array(knp.Pad(((2, 3), (1, 1), (1, 1), (1, 1)))(x)),
+            knp.Pad(((2, 3), (1, 1), (1, 1), (1, 1)))(x),
             np.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
         )
 
     def test_prod(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.prod(x)), np.prod(x))
-        self.assertAllClose(np.array(knp.prod(x, axis=1)), np.prod(x, axis=1))
+        self.assertAllClose(knp.prod(x), np.prod(x))
+        self.assertAllClose(knp.prod(x, axis=1), np.prod(x, axis=1))
         self.assertAllClose(
-            np.array(knp.prod(x, axis=1, keepdims=True)),
+            knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Prod()(x)), np.prod(x))
-        self.assertAllClose(np.array(knp.Prod(axis=1)(x)), np.prod(x, axis=1))
+        self.assertAllClose(knp.Prod()(x), np.prod(x))
+        self.assertAllClose(knp.Prod(axis=1)(x), np.prod(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Prod(axis=1, keepdims=True)(x)),
+            knp.Prod(axis=1, keepdims=True)(x),
             np.prod(x, axis=1, keepdims=True),
         )
 
     def test_ravel(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.ravel(x)), np.ravel(x))
-        self.assertAllClose(np.array(knp.Ravel()(x)), np.ravel(x))
+        self.assertAllClose(knp.ravel(x), np.ravel(x))
+        self.assertAllClose(knp.Ravel()(x), np.ravel(x))
 
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
-        self.assertAllClose(np.array(knp.real(x)), np.real(x))
-        self.assertAllClose(np.array(knp.Real()(x)), np.real(x))
+        self.assertAllClose(knp.real(x), np.real(x))
+        self.assertAllClose(knp.Real()(x), np.real(x))
 
     def test_reciprocal(self):
         x = np.array([[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]])
-        self.assertAllClose(np.array(knp.reciprocal(x)), np.reciprocal(x))
-        self.assertAllClose(np.array(knp.Reciprocal()(x)), np.reciprocal(x))
+        self.assertAllClose(knp.reciprocal(x), np.reciprocal(x))
+        self.assertAllClose(knp.Reciprocal()(x), np.reciprocal(x))
 
     def test_repeat(self):
         x = np.array([[1, 2], [3, 4]])
-        self.assertAllClose(np.array(knp.repeat(x, 2)), np.repeat(x, 2))
+        self.assertAllClose(knp.repeat(x, 2), np.repeat(x, 2))
+        self.assertAllClose(knp.repeat(x, 3, axis=1), np.repeat(x, 3, axis=1))
         self.assertAllClose(
-            np.array(knp.repeat(x, 3, axis=1)), np.repeat(x, 3, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.repeat(x, np.array([1, 2]), axis=-1)),
+            knp.repeat(x, np.array([1, 2]), axis=-1),
             np.repeat(x, np.array([1, 2]), axis=-1),
         )
-        self.assertAllClose(np.array(knp.Repeat(2)(x)), np.repeat(x, 2))
+        self.assertAllClose(knp.Repeat(2)(x), np.repeat(x, 2))
+        self.assertAllClose(knp.Repeat(3, axis=1)(x), np.repeat(x, 3, axis=1))
         self.assertAllClose(
-            np.array(knp.Repeat(3, axis=1)(x)), np.repeat(x, 3, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.Repeat(np.array([1, 2]), axis=0)(x)),
+            knp.Repeat(np.array([1, 2]), axis=0)(x),
             np.repeat(x, np.array([1, 2]), axis=0),
         )
 
     def test_reshape(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(
-            np.array(knp.reshape(x, [3, 2])), np.reshape(x, [3, 2])
-        )
-        self.assertAllClose(
-            np.array(knp.Reshape([3, 2])(x)), np.reshape(x, [3, 2])
-        )
+        self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x, [3, 2]))
+        self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
 
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.roll(x, 1)), np.roll(x, 1))
-        self.assertAllClose(
-            np.array(knp.roll(x, 1, axis=1)), np.roll(x, 1, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.roll(x, -1, axis=0)), np.roll(x, -1, axis=0)
-        )
-        self.assertAllClose(np.array(knp.Roll(1)(x)), np.roll(x, 1))
-        self.assertAllClose(
-            np.array(knp.Roll(1, axis=1)(x)), np.roll(x, 1, axis=1)
-        )
-        self.assertAllClose(
-            np.array(knp.Roll(-1, axis=0)(x)), np.roll(x, -1, axis=0)
-        )
+        self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))
+        self.assertAllClose(knp.roll(x, 1, axis=1), np.roll(x, 1, axis=1))
+        self.assertAllClose(knp.roll(x, -1, axis=0), np.roll(x, -1, axis=0))
+        self.assertAllClose(knp.Roll(1)(x), np.roll(x, 1))
+        self.assertAllClose(knp.Roll(1, axis=1)(x), np.roll(x, 1, axis=1))
+        self.assertAllClose(knp.Roll(-1, axis=0)(x), np.roll(x, -1, axis=0))
 
     def test_round(self):
         x = np.array([[1.1, 2.5, 3.9], [3.2, 2.3, 1.8]])
-        self.assertAllClose(np.array(knp.round(x)), np.round(x))
-        self.assertAllClose(np.array(knp.Round()(x)), np.round(x))
+        self.assertAllClose(knp.round(x), np.round(x))
+        self.assertAllClose(knp.Round()(x), np.round(x))
 
     def test_sign(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
-        self.assertAllClose(np.array(knp.sign(x)), np.sign(x))
-        self.assertAllClose(np.array(knp.Sign()(x)), np.sign(x))
+        self.assertAllClose(knp.sign(x), np.sign(x))
+        self.assertAllClose(knp.Sign()(x), np.sign(x))
 
     def test_sin(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
-        self.assertAllClose(np.array(knp.sin(x)), np.sin(x))
-        self.assertAllClose(np.array(knp.Sin()(x)), np.sin(x))
+        self.assertAllClose(knp.sin(x), np.sin(x))
+        self.assertAllClose(knp.Sin()(x), np.sin(x))
 
     def test_size(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.size(x)), np.size(x))
-        self.assertAllClose(np.array(knp.Size()(x)), np.size(x))
+        self.assertAllClose(knp.size(x), np.size(x))
+        self.assertAllClose(knp.Size()(x), np.size(x))
 
     def test_sort(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.sort(x)), np.sort(x))
-        self.assertAllClose(np.array(knp.Sort()(x)), np.sort(x))
-        self.assertAllClose(np.array(knp.sort(x, axis=0)), np.sort(x, axis=0))
-        self.assertAllClose(np.array(knp.Sort(axis=0)(x)), np.sort(x, axis=0))
+        self.assertAllClose(knp.sort(x), np.sort(x))
+        self.assertAllClose(knp.Sort()(x), np.sort(x))
+        self.assertAllClose(knp.sort(x, axis=0), np.sort(x, axis=0))
+        self.assertAllClose(knp.Sort(axis=0)(x), np.sort(x, axis=0))
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         if backend.backend() == "torch":
             self.assertAllClose(
-                [t.numpy() for t in knp.split(x, 2)], np.split(x, 2)
+                [backend.convert_to_numpy(t) for t in knp.split(x, 2)],
+                np.split(x, 2),
             )
             self.assertAllClose(
-                [t.numpy() for t in knp.Split(2)(x)], np.split(x, 2)
+                [backend.convert_to_numpy(t) for t in knp.Split(2)(x)],
+                np.split(x, 2),
             )
             self.assertAllClose(
-                [t.numpy() for t in knp.split(x, [1, 2], axis=1)],
+                [
+                    backend.convert_to_numpy(t)
+                    for t in knp.split(x, [1, 2], axis=1)
+                ],
                 np.split(x, [1, 2], axis=1),
             )
             self.assertAllClose(
-                [t.numpy() for t in knp.Split([1, 2], axis=1)(x)],
+                [
+                    backend.convert_to_numpy(t)
+                    for t in knp.Split([1, 2], axis=1)(x)
+                ],
                 np.split(x, [1, 2], axis=1),
             )
         else:
-            self.assertAllClose(np.array(knp.split(x, 2)), np.split(x, 2))
-            self.assertAllClose(np.array(knp.Split(2)(x)), np.split(x, 2))
+            self.assertAllClose(knp.split(x, 2), np.split(x, 2))
+            self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
             self.assertAllClose(
-                np.array(knp.split(x, [1, 2], axis=1)),
+                knp.split(x, [1, 2], axis=1),
                 np.split(x, [1, 2], axis=1),
             )
             self.assertAllClose(
-                np.array(knp.Split([1, 2], axis=1)(x)),
+                knp.Split([1, 2], axis=1)(x),
                 np.split(x, [1, 2], axis=1),
             )
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]])
-        self.assertAllClose(np.array(knp.sqrt(x)), np.sqrt(x))
-        self.assertAllClose(np.array(knp.Sqrt()(x)), np.sqrt(x))
+        self.assertAllClose(knp.sqrt(x), np.sqrt(x))
+        self.assertAllClose(knp.Sqrt()(x), np.sqrt(x))
 
     def test_stack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
-        self.assertAllClose(np.array(knp.stack([x, y])), np.stack([x, y]))
-        self.assertAllClose(
-            np.array(knp.stack([x, y], axis=1)), np.stack([x, y], axis=1)
-        )
-        self.assertAllClose(np.array(knp.Stack()([x, y])), np.stack([x, y]))
-        self.assertAllClose(
-            np.array(knp.Stack(axis=1)([x, y])), np.stack([x, y], axis=1)
-        )
+        self.assertAllClose(knp.stack([x, y]), np.stack([x, y]))
+        self.assertAllClose(knp.stack([x, y], axis=1), np.stack([x, y], axis=1))
+        self.assertAllClose(knp.Stack()([x, y]), np.stack([x, y]))
+        self.assertAllClose(knp.Stack(axis=1)([x, y]), np.stack([x, y], axis=1))
 
     def test_std(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.std(x)), np.std(x))
-        self.assertAllClose(np.array(knp.std(x, axis=1)), np.std(x, axis=1))
+        self.assertAllClose(knp.std(x), np.std(x))
+        self.assertAllClose(knp.std(x, axis=1), np.std(x, axis=1))
         self.assertAllClose(
-            np.array(knp.std(x, axis=1, keepdims=True)),
+            knp.std(x, axis=1, keepdims=True),
             np.std(x, axis=1, keepdims=True),
         )
 
-        self.assertAllClose(np.array(knp.Std()(x)), np.std(x))
-        self.assertAllClose(np.array(knp.Std(axis=1)(x)), np.std(x, axis=1))
+        self.assertAllClose(knp.Std()(x), np.std(x))
+        self.assertAllClose(knp.Std(axis=1)(x), np.std(x, axis=1))
         self.assertAllClose(
-            np.array(knp.Std(axis=1, keepdims=True)(x)),
+            knp.Std(axis=1, keepdims=True)(x),
             np.std(x, axis=1, keepdims=True),
         )
 
     def test_swapaxes(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
         self.assertAllClose(
-            np.array(knp.swapaxes(x, 0, 1)),
+            knp.swapaxes(x, 0, 1),
             np.swapaxes(x, 0, 1),
         )
         self.assertAllClose(
-            np.array(knp.Swapaxes(0, 1)(x)),
+            knp.Swapaxes(0, 1)(x),
             np.swapaxes(x, 0, 1),
         )
 
     def test_tan(self):
         x = np.array([[1, -2, 3], [-3, 2, -1]])
-        self.assertAllClose(np.array(knp.tan(x)), np.tan(x))
-        self.assertAllClose(np.array(knp.Tan()(x)), np.tan(x))
+        self.assertAllClose(knp.tan(x), np.tan(x))
+        self.assertAllClose(knp.Tan()(x), np.tan(x))
 
     def test_tile(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        self.assertAllClose(np.array(knp.tile(x, [2, 3])), np.tile(x, [2, 3]))
-        self.assertAllClose(np.array(knp.Tile([2, 3])(x)), np.tile(x, [2, 3]))
+        self.assertAllClose(knp.tile(x, [2, 3]), np.tile(x, [2, 3]))
+        self.assertAllClose(knp.Tile([2, 3])(x), np.tile(x, [2, 3]))
 
     def test_trace(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
-        self.assertAllClose(np.array(knp.trace(x)), np.trace(x))
+        self.assertAllClose(knp.trace(x), np.trace(x))
         self.assertAllClose(
-            np.array(knp.trace(x, axis1=2, axis2=3)),
+            knp.trace(x, axis1=2, axis2=3),
             np.trace(x, axis1=2, axis2=3),
         )
         self.assertAllClose(
-            np.array(knp.Trace(axis1=2, axis2=3)(x)),
+            knp.Trace(axis1=2, axis2=3)(x),
             np.trace(x, axis1=2, axis2=3),
         )
 
     def test_tril(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
-        self.assertAllClose(np.array(knp.tril(x)), np.tril(x))
-        self.assertAllClose(np.array(knp.tril(x, -1)), np.tril(x, -1))
-        self.assertAllClose(np.array(knp.Tril(-1)(x)), np.tril(x, -1))
+        self.assertAllClose(knp.tril(x), np.tril(x))
+        self.assertAllClose(knp.tril(x, -1), np.tril(x, -1))
+        self.assertAllClose(knp.Tril(-1)(x), np.tril(x, -1))
 
     def test_triu(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
-        self.assertAllClose(np.array(knp.triu(x)), np.triu(x))
-        self.assertAllClose(np.array(knp.triu(x, -1)), np.triu(x, -1))
-        self.assertAllClose(np.array(knp.Triu(-1)(x)), np.triu(x, -1))
+        self.assertAllClose(knp.triu(x), np.triu(x))
+        self.assertAllClose(knp.triu(x, -1), np.triu(x, -1))
+        self.assertAllClose(knp.Triu(-1)(x), np.triu(x, -1))
 
     def test_vstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
-        self.assertAllClose(np.array(knp.vstack([x, y])), np.vstack([x, y]))
-        self.assertAllClose(np.array(knp.Vstack()([x, y])), np.vstack([x, y]))
+        self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
+        self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
     def test_ones(self):
-        self.assertAllClose(np.array(knp.ones([2, 3])), np.ones([2, 3]))
-        self.assertAllClose(np.array(knp.Ones()([2, 3])), np.ones([2, 3]))
+        self.assertAllClose(knp.ones([2, 3]), np.ones([2, 3]))
+        self.assertAllClose(knp.Ones()([2, 3]), np.ones([2, 3]))
 
     def test_zeros(self):
-        self.assertAllClose(np.array(knp.zeros([2, 3])), np.zeros([2, 3]))
-        self.assertAllClose(np.array(knp.Zeros()([2, 3])), np.zeros([2, 3]))
+        self.assertAllClose(knp.zeros([2, 3]), np.zeros([2, 3]))
+        self.assertAllClose(knp.Zeros()([2, 3]), np.zeros([2, 3]))
 
     def test_eye(self):
-        self.assertAllClose(np.array(knp.eye(3)), np.eye(3))
-        self.assertAllClose(np.array(knp.eye(3, 4)), np.eye(3, 4))
-        self.assertAllClose(np.array(knp.eye(3, 4, 1)), np.eye(3, 4, 1))
+        self.assertAllClose(knp.eye(3), np.eye(3))
+        self.assertAllClose(knp.eye(3, 4), np.eye(3, 4))
+        self.assertAllClose(knp.eye(3, 4, 1), np.eye(3, 4, 1))
 
-        self.assertAllClose(np.array(knp.Eye()(3)), np.eye(3))
-        self.assertAllClose(np.array(knp.Eye()(3, 4)), np.eye(3, 4))
-        self.assertAllClose(np.array(knp.Eye()(3, 4, 1)), np.eye(3, 4, 1))
+        self.assertAllClose(knp.Eye()(3), np.eye(3))
+        self.assertAllClose(knp.Eye()(3, 4), np.eye(3, 4))
+        self.assertAllClose(knp.Eye()(3, 4, 1), np.eye(3, 4, 1))
 
     def test_arange(self):
-        self.assertAllClose(np.array(knp.arange(3)), np.arange(3))
-        self.assertAllClose(np.array(knp.arange(3, 7)), np.arange(3, 7))
-        self.assertAllClose(np.array(knp.arange(3, 7, 2)), np.arange(3, 7, 2))
+        self.assertAllClose(knp.arange(3), np.arange(3))
+        self.assertAllClose(knp.arange(3, 7), np.arange(3, 7))
+        self.assertAllClose(knp.arange(3, 7, 2), np.arange(3, 7, 2))
 
-        self.assertAllClose(np.array(knp.Arange()(3)), np.arange(3))
-        self.assertAllClose(np.array(knp.Arange()(3, 7)), np.arange(3, 7))
-        self.assertAllClose(np.array(knp.Arange()(3, 7, 2)), np.arange(3, 7, 2))
+        self.assertAllClose(knp.Arange()(3), np.arange(3))
+        self.assertAllClose(knp.Arange()(3, 7), np.arange(3, 7))
+        self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
 
     def test_full(self):
-        self.assertAllClose(np.array(knp.full([2, 3], 0)), np.full([2, 3], 0))
+        self.assertAllClose(knp.full([2, 3], 0), np.full([2, 3], 0))
+        self.assertAllClose(knp.full([2, 3], 0.1), np.full([2, 3], 0.1))
         self.assertAllClose(
-            np.array(knp.full([2, 3], 0.1)), np.full([2, 3], 0.1)
-        )
-        self.assertAllClose(
-            np.array(knp.full([2, 3], np.array([1, 4, 5]))),
+            knp.full([2, 3], np.array([1, 4, 5])),
             np.full([2, 3], np.array([1, 4, 5])),
         )
 
-        self.assertAllClose(np.array(knp.Full()([2, 3], 0)), np.full([2, 3], 0))
+        self.assertAllClose(knp.Full()([2, 3], 0), np.full([2, 3], 0))
+        self.assertAllClose(knp.Full()([2, 3], 0.1), np.full([2, 3], 0.1))
         self.assertAllClose(
-            np.array(knp.Full()([2, 3], 0.1)), np.full([2, 3], 0.1)
-        )
-        self.assertAllClose(
-            np.array(knp.Full()([2, 3], np.array([1, 4, 5]))),
+            knp.Full()([2, 3], np.array([1, 4, 5])),
             np.full([2, 3], np.array([1, 4, 5])),
         )
 
     def test_identity(self):
-        self.assertAllClose(np.array(knp.identity(3)), np.identity(3))
-        self.assertAllClose(np.array(knp.Identity()(3)), np.identity(3))
+        self.assertAllClose(knp.identity(3), np.identity(3))
+        self.assertAllClose(knp.Identity()(3), np.identity(3))
 
     def test_tri(self):
-        self.assertAllClose(np.array(knp.tri(3)), np.tri(3))
-        self.assertAllClose(np.array(knp.tri(3, 4)), np.tri(3, 4))
-        self.assertAllClose(np.array(knp.tri(3, 4, 1)), np.tri(3, 4, 1))
+        self.assertAllClose(knp.tri(3), np.tri(3))
+        self.assertAllClose(knp.tri(3, 4), np.tri(3, 4))
+        self.assertAllClose(knp.tri(3, 4, 1), np.tri(3, 4, 1))
 
-        self.assertAllClose(np.array(knp.Tri()(3)), np.tri(3))
-        self.assertAllClose(np.array(knp.Tri()(3, 4)), np.tri(3, 4))
-        self.assertAllClose(np.array(knp.Tri()(3, 4, 1)), np.tri(3, 4, 1))
+        self.assertAllClose(knp.Tri()(3), np.tri(3))
+        self.assertAllClose(knp.Tri()(3, 4), np.tri(3, 4))
+        self.assertAllClose(knp.Tri()(3, 4, 1), np.tri(3, 4, 1))

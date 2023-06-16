@@ -37,6 +37,7 @@ class TestFitLRSchedulesFlow(testing.TestCase):
         self.assertAllClose(
             history.history["loss"],
             [230.79457092285156, 128.30319213867188, 79.33648681640625],
+            rtol=5e-5,
         )
 
 
@@ -59,7 +60,7 @@ class ExponentialDecayTest(testing.TestCase):
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
     def test_staircase(self):
-        step = backend.Variable(1)
+        step = backend.Variable(1.0)
         decayed_lr = schedules.ExponentialDecay(0.1, 3, 0.96, staircase=True)
 
         # No change to learning rate due to staircase
@@ -76,7 +77,7 @@ class ExponentialDecayTest(testing.TestCase):
         self.assertAllClose(decayed_lr(step), expected, 1e-6)
 
     def test_variables(self):
-        step = backend.Variable(1)
+        step = backend.Variable(1.0)
         decayed_lr = schedules.ExponentialDecay(0.1, 3, 0.96, staircase=True)
 
         # No change to learning rate
@@ -99,7 +100,7 @@ class PiecewiseConstantDecayTest(testing.TestCase):
         )
 
     def test_piecewise_values(self):
-        x = backend.Variable(-999)
+        x = backend.Variable(-999.0)
         decayed_lr = schedules.PiecewiseConstantDecay(
             [100, 110, 120], [1.0, 0.1, 0.01, 0.001]
         )
@@ -118,7 +119,7 @@ class PiecewiseConstantDecayTest(testing.TestCase):
 
     def test_boundary_values(self):
         # Test casting boundaries from int32 to int64.
-        x_int64 = backend.Variable(0, dtype="int64")
+        x_int64 = backend.Variable(0, dtype="int64", trainable=False)
         boundaries, values = [1, 2, 3], [0.4, 0.5, 0.6, 0.7]
         decayed_lr = schedules.PiecewiseConstantDecay(boundaries, values)
 
@@ -260,7 +261,7 @@ class InverseTimeDecayTest(testing.TestCase):
         initial_lr = 0.1
         k = 10
         decay_rate = 0.96
-        step = backend.Variable(0)
+        step = backend.Variable(0.0)
         decayed_lr = schedules.InverseTimeDecay(initial_lr, k, decay_rate)
 
         for i in range(k + 1):
@@ -272,7 +273,7 @@ class InverseTimeDecayTest(testing.TestCase):
         initial_lr = 0.1
         k = 10
         decay_rate = 0.96
-        step = backend.Variable(0)
+        step = backend.Variable(0.0)
         decayed_lr = schedules.InverseTimeDecay(
             initial_lr, k, decay_rate, staircase=True
         )

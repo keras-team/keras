@@ -21,7 +21,9 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.stddev, stddev)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        self.assertAllClose(np.std(values), stddev, atol=1e-1)
+        self.assertAllClose(
+            np.std(backend.convert_to_numpy(values)), stddev, atol=1e-1
+        )
 
         self.run_class_serialization_test(initializer)
 
@@ -66,6 +68,7 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.maxval, maxval)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
+        values = backend.convert_to_numpy(values)
         self.assertGreaterEqual(np.min(values), minval)
         self.assertLess(np.max(values), maxval)
 
@@ -83,7 +86,11 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.scale, scale)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        self.assertAllClose(np.std(values), np.sqrt(scale / 25), atol=1e-1)
+        self.assertAllClose(
+            np.std(backend.convert_to_numpy(values)),
+            np.sqrt(scale / 25),
+            atol=1e-1,
+        )
         self.run_class_serialization_test(initializer)
 
         initializer = initializers.VarianceScaling(
@@ -93,7 +100,11 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.scale, scale)
         self.assertEqual(initializer.seed, seed)
         self.assertEqual(values.shape, shape)
-        self.assertAllClose(np.std(values), np.sqrt(scale / 20), atol=1e-1)
+        self.assertAllClose(
+            np.std(backend.convert_to_numpy(values)),
+            np.sqrt(scale / 20),
+            atol=1e-1,
+        )
         self.run_class_serialization_test(initializer)
 
     def test_orthogonal_initializer(self):

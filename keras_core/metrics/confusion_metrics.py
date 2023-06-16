@@ -655,7 +655,9 @@ class SensitivitySpecificityBase(Metric):
         Returns:
             maximal dependent value, if no value satisfies the constraint 0.0.
         """
-        feasible = ops.array(ops.nonzero(predicate(constrained, self.value)))
+        feasible = backend.convert_to_numpy(
+            ops.nonzero(predicate(constrained, self.value))
+        )
 
         print(feasible)
         feasible_exists = ops.greater(ops.size(feasible), 0)

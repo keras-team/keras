@@ -94,8 +94,12 @@ class Adafactor(optimizer.Optimizer):
             if len(var.shape) < 2:
                 # Don't factor if variable is of dimension < 2, but we still
                 # need to create dummy variables as placeholder.
-                self._r.append(backend.Variable(0, name=var.name))
-                self._c.append(backend.Variable(0, name=var.name))
+                self._r.append(
+                    backend.Variable(0, name=var.name, trainable=False)
+                )
+                self._c.append(
+                    backend.Variable(0, name=var.name, trainable=False)
+                )
             else:
                 # Always factor the last 2 dimenstions.
                 r_shape = var.shape[:-1]

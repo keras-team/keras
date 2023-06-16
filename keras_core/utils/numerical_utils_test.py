@@ -70,6 +70,8 @@ class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
         out = numerical_utils.normalize(xb, axis=-1, order=order)
         self.assertTrue(backend.is_tensor(out))
         self.assertAllClose(
-            tf.keras.utils.normalize(np.array(xb), axis=-1, order=order),
-            np.array(out),
+            tf.keras.utils.normalize(
+                backend.convert_to_numpy(xb), axis=-1, order=order
+            ),
+            backend.convert_to_numpy(out),
         )
