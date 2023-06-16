@@ -3,6 +3,7 @@ import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.operations import nn as knn
@@ -286,7 +287,7 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         # dtype tests
         x = np.arange(5)
         out = knn.one_hot(x, 5, axis=0, dtype=dtype)
-        self.assertEqual(out.dtype.name, dtype)
+        self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
 
 
 class NNOpsStaticShapeTest(testing.TestCase):

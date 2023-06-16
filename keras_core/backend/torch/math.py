@@ -67,6 +67,7 @@ def logsumexp(x, axis=None, keepdims=False):
 
 
 def qr(x, mode="reduced"):
+    x = convert_to_tensor(x)
     if mode not in {"reduced", "complete"}:
         raise ValueError(
             "`mode` argument value not supported. "
