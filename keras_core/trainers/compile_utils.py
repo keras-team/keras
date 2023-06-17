@@ -548,19 +548,35 @@ class CompileLoss(losses_module.Loss):
         self.flat_loss_weights = flat_loss_weights
         self.built = True
 
-    def call(self, y_true, y_pred):
+    def __call__(self, y_true, y_pred, sample_weight=None):
+        with ops.name_scope(self.name):
+            return self.call(y_true, y_pred, sample_weight)
+
+    def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
 
         y_true = nest.flatten(y_true)
         y_pred = nest.flatten(y_pred)
+
+        if sample_weight is not None:
+            sample_weight = nest.flatten(sample_weight)
+        else:
+            sample_weight = [None for _ in y_true]
+
         loss_values = []
 
-        for loss, y_t, y_p, w in zip(
-            self.flat_losses, y_true, y_pred, self.flat_loss_weights
+        for loss, y_t, y_p, loss_weight, sample_weight in zip(
+            self.flat_losses,
+            y_true,
+            y_pred,
+            self.flat_loss_weights,
+            sample_weight,
         ):
             if loss:
-                value = w * ops.cast(loss(y_t, y_p), dtype=backend.floatx())
+                value = loss_weight * ops.cast(
+                    loss(y_t, y_p, sample_weight), dtype=backend.floatx()
+                )
                 loss_values.append(value)
         if loss_values:
             total_loss = sum(loss_values)

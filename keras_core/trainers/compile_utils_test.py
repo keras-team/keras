@@ -270,6 +270,10 @@ class TestCompileLoss(testing.TestCase, parameterized.TestCase):
             "a": np.array([[1.2, 1.1], [1.0, 0.9], [0.8, 0.7]]),
             "b": np.array([[0.6, 0.5], [0.4, 0.3], [0.2, 0.1]]),
         }
+        sample_weight = {
+            "a": np.array([1.0, 2.0, 3.0]),
+            "b": np.array([3.0, 2.0, 1.0]),
+        }
         compile_loss.build(y_true, y_pred)
-        value = compile_loss(y_true, y_pred)
-        self.assertAllClose(value, 0.953333, atol=1e-5)
+        value = compile_loss(y_true, y_pred, sample_weight)
+        self.assertAllClose(value, 1.266666, atol=1e-5)
