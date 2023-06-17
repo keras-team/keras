@@ -381,6 +381,12 @@ def NASNetMobile(
     Returns:
         A Keras model instance.
     """
+    if backend.backend() == "torch":
+        raise ValueError(
+            "NASNetMobile is not available with the torch backend "
+            "at this time due to an outstanding bug. "
+            "If interested, please open a PR."
+        )
     return NASNet(
         input_shape,
         penultimate_filters=1056,

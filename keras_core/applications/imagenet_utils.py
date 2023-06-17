@@ -103,7 +103,7 @@ def preprocess_input(x, data_format=None, mode="caffe"):
     if isinstance(x, np.ndarray):
         return _preprocess_numpy_input(x, data_format=data_format, mode=mode)
     else:
-        return _preprocess_symbolic_input(x, data_format=data_format, mode=mode)
+        return _preprocess_tensor_input(x, data_format=data_format, mode=mode)
 
 
 preprocess_input.__doc__ = PREPROCESS_INPUT_DOC.format(
@@ -230,7 +230,7 @@ def _preprocess_numpy_input(x, data_format, mode):
     return x
 
 
-def _preprocess_symbolic_input(x, data_format, mode):
+def _preprocess_tensor_input(x, data_format, mode):
     """Preprocesses a tensor encoding a batch of images.
 
     Args:
@@ -263,13 +263,13 @@ def _preprocess_symbolic_input(x, data_format, mode):
     else:
         if data_format == "channels_first":
             # 'RGB'->'BGR'
-            if ndim == 3:
-                x = x[::-1, ...]
+            if len(x.shape) == 3:
+                x = ops.stack([x[i, ...] for i in (2, 1, 0)], axis=0)
             else:
-                x = x[:, ::-1, ...]
+                x = ops.stack([x[:, i, :] for i in (2, 1, 0)], axis=1)
         else:
             # 'RGB'->'BGR'
-            x = x[..., ::-1]
+            x = ops.stack([x[..., i] for i in (2, 1, 0)], axis=-1)
         mean = [103.939, 116.779, 123.68]
         std = None
 

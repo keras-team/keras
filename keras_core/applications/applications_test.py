@@ -110,6 +110,11 @@ def _get_elephant(target_size):
 class ApplicationsTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(MODEL_LIST)
     def test_application_notop_variable_input_channels(self, app, last_dim, _):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+
         # Test compatibility with 1 channel
         if backend.image_data_format() == "channels_first":
             input_shape = (1, None, None)
@@ -131,6 +136,11 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(MODEL_LIST)
     @pytest.mark.skipif(PIL is None, reason="Requires PIL.")
     def test_application_base(self, app, _, app_module):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+
         # Can be instantiated with default arguments
         model = app(weights="imagenet")
 
@@ -149,18 +159,33 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
 
     @parameterized.named_parameters(MODEL_LIST)
     def test_application_notop_custom_input_shape(self, app, last_dim, _):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+
         model = app(weights=None, include_top=False, input_shape=(123, 123, 3))
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape[-1], last_dim)
 
     @parameterized.named_parameters(MODEL_LIST)
     def test_application_pooling(self, app, last_dim, _):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+
         model = app(weights=None, include_top=False, pooling="max")
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape, [None, last_dim])
 
     @parameterized.named_parameters(MODEL_LIST)
     def test_application_classifier_activation(self, app, *_):
+        if app == nasnet.NASNetMobile and backend.backend() == "torch":
+            self.skipTest(
+                "NASNetMobile pretrained incorrect with torch backend."
+            )
+
         model = app(
             weights=None, include_top=True, classifier_activation="softmax"
         )
