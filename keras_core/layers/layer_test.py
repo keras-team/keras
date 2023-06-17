@@ -357,7 +357,7 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
 
-    @pytest.mark.skipIf(
+    @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="Torch backend has unimplemtned ops for mixed precision on CPU.",
     )
