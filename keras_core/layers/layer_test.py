@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import backend
 from keras_core import layers
@@ -356,6 +357,10 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
 
+    @pytest.mark.skipIf(
+        backend.backend() == "torch",
+        reason="Torch backend has unimplemtned ops for mixed precision on CPU.",
+    )
     def test_mixed_precision(self):
         x = np.ones((4, 4))
 

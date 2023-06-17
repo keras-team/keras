@@ -250,20 +250,51 @@ def average_pool(
     data_format = standardize_data_format(data_format)
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
-
+    padding_value = 0
     if padding == "same":
-        # Torch does not natively support `"same"` padding, we need to manually
-        # apply the right amount of padding to `inputs`.
-        inputs = _apply_same_padding(
-            inputs, pool_size, strides, operation_type="pooling"
-        )
+        spatial_shape = inputs.shape[2:]
+        num_spatial_dims = len(spatial_shape)
+        padding_value = []
+        uneven_padding = []
+
+        for i in range(num_spatial_dims):
+            padding_size = _compute_padding_length(
+                spatial_shape[i], pool_size[i], strides[i]
+            )
+            # Torch only supports even padding on each dim, to replicate the
+            # behavior of "same" padding of `tf.keras` as much as possible,
+            # we need to pad evenly using the shorter padding.
+            padding_value.append(padding_size[0])
+            if padding_size[0] != padding_size[1]:
+                # Handle unequal padding.
+                # `torch.nn.pad` sets padding value in the reverse order.
+                uneven_padding = [0, 1] + uneven_padding
+        inputs = tnn.pad(inputs, uneven_padding)
 
     if num_spatial_dims == 1:
-        outputs = tnn.avg_pool1d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.avg_pool1d(
+            inputs,
+            kernel_size=pool_size,
+            stride=strides,
+            padding=padding_value,
+            count_include_pad=False,
+        )
     elif num_spatial_dims == 2:
-        outputs = tnn.avg_pool2d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.avg_pool2d(
+            inputs,
+            kernel_size=pool_size,
+            stride=strides,
+            padding=padding_value,
+            count_include_pad=False,
+        )
     elif num_spatial_dims == 3:
-        outputs = tnn.avg_pool3d(inputs, kernel_size=pool_size, stride=strides)
+        outputs = tnn.avg_pool3d(
+            inputs,
+            kernel_size=pool_size,
+            stride=strides,
+            padding=padding_value,
+            count_include_pad=False,
+        )
     else:
         raise ValueError(
             "Inputs to pooling op must have ndim=3, 4 or 5, "
