@@ -279,3 +279,21 @@ def cast(x, dtype):
     if any_symbolic_tensors((x,)):
         return backend.KerasTensor(shape=x.shape, dtype=dtype)
     return backend.core.cast(x, dtype)
+
+
+@keras_core_export("keras_core.operations.convert_to_tensor")
+def convert_to_tensor(x, dtype=None):
+    """Convert a NumPy array to a tensor."""
+    return backend.convert_to_tensor(x, dtype=dtype)
+
+
+@keras_core_export("keras_core.operations.convert_to_numpy")
+def convert_to_numpy(x):
+    """Convert a tensor to a NumPy array."""
+    if any_symbolic_tensors((x,)):
+        raise ValueError(
+            "A symbolic tensor (usually the result of applying layers or "
+            "operations to a `keras.Input`), cannot be converted to a numpy "
+            "array. There is no concrete value for the input."
+        )
+    return backend.convert_to_numpy(x)

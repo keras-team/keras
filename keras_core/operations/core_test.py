@@ -231,3 +231,13 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         x = KerasTensor((None, 3, None, 1))
         self.assertAllEqual(core.shape(x), (None, 3, None, 1))
+
+    def test_convert_to_tensor(self):
+        x = np.ones((2,))
+        x = ops.convert_to_tensor(x)
+        x = ops.convert_to_numpy(x)
+        self.assertAllEqual(x, (1, 1))
+        self.assertIsInstance(x, np.ndarray)
+
+        with self.assertRaises(ValueError):
+            ops.convert_to_numpy(KerasTensor((2,)))

@@ -4,7 +4,6 @@
 
 from keras_core.backend import cast
 from keras_core.backend import cond
-from keras_core.backend import convert_to_tensor
 from keras_core.backend import is_tensor
 from keras_core.backend import name_scope
 from keras_core.backend import random
