@@ -20,7 +20,7 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         outputs = kmath.segment_sum(data, segment_ids, num_segments=5)
         self.assertEqual(outputs.shape, (5, 4))
 
-    def test_topk(self):
+    def test_top_k(self):
         x = KerasTensor((None, 2, 3))
         values, indices = kmath.top_k(x, k=1)
         self.assertEqual(values.shape, (None, 2, 1))
@@ -154,6 +154,12 @@ class MathOpsCorrectnessTest(testing.TestCase):
         values, indices = kmath.top_k(x, k=2)
         self.assertAllClose(values, [4, 3])
         self.assertAllClose(indices, [1, 4])
+
+        x = np.array([0, 4, 2, 1, 3, -1], dtype=np.float32)
+        values, indices = kmath.top_k(x, k=2, sorted=False)
+        # Any order ok when `sorted=False`.
+        self.assertEqual(set(backend.convert_to_numpy(values)), set([4, 3]))
+        self.assertEqual(set(backend.convert_to_numpy(indices)), set([1, 4]))
 
         x = np.random.rand(5, 5)
         outputs = kmath.top_k(x, k=2)
