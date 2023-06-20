@@ -326,10 +326,10 @@ def get_file(
                 self.finished = False
 
             def __call__(self, block_num, block_size, total_size):
-                    if total_size == -1:
-                        total_size = None
-                    if not self.progbar:
-                        self.progbar = Progbar(total_size)
+                if total_size == -1:
+                    total_size = None
+                if not self.progbar:
+                    self.progbar = Progbar(total_size)
                 current = block_num * block_size
 
                 if total_size is None:
