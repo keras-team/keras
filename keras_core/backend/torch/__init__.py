@@ -1,3 +1,16 @@
+"""Torch backend APIs.
+
+Torch has a different logic of device management compared to TF and JAX. In
+short variables/tensors are not by default created on GPU, and GPU cannot
+directly communicate with CPU. Therefore, we are doing the following to automate
+device management for Torch backend, if GPU is available:
+
+- Variables are created on GPU.
+- Input data will be placed on GPU at the first `keras_core.layers.Layer` call.
+- Tensor creation happens on GPU, e.g., `zeros()` will create a tensor on GPU.
+- `convert_to_numpy` will bring the tensor to CPU and convert to numpy array.
+"""
+
 from keras_core.backend.torch import core
 from keras_core.backend.torch import image
 from keras_core.backend.torch import math
