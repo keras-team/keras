@@ -43,7 +43,7 @@ class Trainer:
         else:
             self._compile_metrics = None
         if jit_compile == "auto":
-            if model_supports_jit(self):
+            if not run_eagerly and model_supports_jit(self):
                 jit_compile = True
             else:
                 jit_compile = False

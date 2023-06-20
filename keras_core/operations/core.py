@@ -4,6 +4,11 @@ scatter_update
 slice
 slice_update
 while_loop
+stop_gradient
+shape
+cast
+convert_to_tensor
+convert_to_numpy
 """
 
 from keras_core import backend
