@@ -34,9 +34,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
     seed = tf_draw_seed(seed)
-    output = tf.random.stateless_categorical(
-        logits, num_samples, seed=seed
-    )
+    output = tf.random.stateless_categorical(logits, num_samples, seed=seed)
     return tf.cast(output, dtype)
 
 

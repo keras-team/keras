@@ -31,7 +31,10 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     dtype = to_torch_dtype(dtype)
     generator = torch_seed_generator(seed, device=get_device())
     return torch.multinomial(
-        logits, num_samples, replacement=True, generator=generator,
+        logits,
+        num_samples,
+        replacement=True,
+        generator=generator,
     ).type(dtype)
 
 

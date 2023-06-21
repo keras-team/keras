@@ -1,3 +1,5 @@
+from tensorflow import nest
+
 from keras_core import backend
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
@@ -22,8 +24,11 @@ class TFDataLayer(Layer):
         ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
-            inputs = self.backend.convert_to_tensor(
-                inputs, dtype=self.compute_dtype
+            inputs = nest.map_structure(
+                lambda x: self.backend.convert_to_tensor(
+                    x, dtype=self.compute_dtype
+                ),
+                inputs,
             )
             switch_convert_input_args = False
             if self._convert_input_args:
