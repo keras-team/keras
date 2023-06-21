@@ -4,6 +4,7 @@ import torch
 from keras_core.backend.torch.core import cast
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
+from keras_core.backend.torch.core import is_tensor
 from keras_core.backend.torch.core import to_torch_dtype
 
 TORCH_INT_TYPES = (
@@ -187,9 +188,9 @@ def argsort(x, axis=-1):
 
 def array(x, dtype=None):
     dtype = to_torch_dtype(dtype)
-    if not isinstance(x, torch.Tensor):
+    if isinstance(x, torch.Tensor):
         return x
-    return x.numpy()
+    return torch.tensor(x, dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
@@ -754,6 +755,8 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
+    if is_tensor(repeats):
+        repeats = tuple(repeats.int().numpy())
     x = convert_to_tensor(x)
     return torch.tile(x, dims=repeats)
 

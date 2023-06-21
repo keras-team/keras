@@ -509,7 +509,7 @@ def update_confusion_matrix_variables(
         data_tiles = [num_thresholds, 1]
 
     thresh_tiled = ops.tile(
-        ops.reshape(thresholds, thresh_pretile_shape), ops.array(thresh_tiles)
+        ops.reshape(thresholds, thresh_pretile_shape), thresh_tiles
     )
 
     # Tile the predictions for every threshold.
