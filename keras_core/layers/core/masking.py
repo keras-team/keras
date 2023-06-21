@@ -61,7 +61,7 @@ class Masking(Layer):
         try:
             outputs._keras_mask = ops.squeeze(boolean_mask, axis=-1)
         except AttributeError:
-            # outputs in a C type.
+            # tensor is a C type.
             pass
         return outputs
 

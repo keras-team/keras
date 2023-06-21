@@ -175,8 +175,8 @@ class CompileMetrics(metrics_module.Metric):
         if output_names:
             num_outputs = len(output_names)
 
-        y_pred = nest.flatten(y_pred)
-        y_true = nest.flatten(y_true)
+        y_pred = self._flatten_y(y_pred)
+        y_true = self._flatten_y(y_true)
 
         metrics = self._user_metrics
         weighted_metrics = self._user_weighted_metrics
@@ -314,16 +314,25 @@ class CompileMetrics(metrics_module.Metric):
                         flat_metrics.append(None)
         return flat_metrics
 
+    def _flatten_y(self, y):
+        if isinstance(y, dict) and self.output_names:
+            result = []
+            for name in self.output_names:
+                if name in y:
+                    result.append(y[name])
+            return result
+        return nest.flatten(y)
+
     def update_state(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
-        y_true = nest.flatten(y_true)
-        y_pred = nest.flatten(y_pred)
+        y_true = self._flatten_y(y_true)
+        y_pred = self._flatten_y(y_pred)
         for m, y_t, y_p in zip(self._flat_metrics, y_true, y_pred):
             if m:
                 m.update_state(y_t, y_p)
         if sample_weight is not None:
-            sample_weight = nest.flatten(sample_weight)
+            sample_weight = self._flatten_y(sample_weight)
             # For multi-outputs, repeat sample weights for n outputs.
             if len(sample_weight) < len(y_true):
                 sample_weight = [sample_weight[0] for _ in range(len(y_true))]
@@ -427,7 +436,7 @@ class CompileLoss(losses_module.Loss):
         if output_names:
             num_outputs = len(output_names)
 
-        y_pred = nest.flatten(y_pred)
+        y_pred = self._flatten_y(y_pred)
         loss = self._user_loss
         loss_weights = self._user_loss_weights
         flat_losses = []
@@ -577,15 +586,24 @@ class CompileLoss(losses_module.Loss):
         with ops.name_scope(self.name):
             return self.call(y_true, y_pred, sample_weight)
 
+    def _flatten_y(self, y):
+        if isinstance(y, dict) and self.output_names:
+            result = []
+            for name in self.output_names:
+                if name in y:
+                    result.append(y[name])
+            return result
+        return nest.flatten(y)
+
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
 
-        y_true = nest.flatten(y_true)
-        y_pred = nest.flatten(y_pred)
+        y_true = self._flatten_y(y_true)
+        y_pred = self._flatten_y(y_pred)
 
         if sample_weight is not None:
-            sample_weight = nest.flatten(sample_weight)
+            sample_weight = self._flatten_y(sample_weight)
             # For multi-outputs, repeat sample weights for n outputs.
             if len(sample_weight) < len(y_true):
                 sample_weight = [sample_weight[0] for _ in range(len(y_true))]
