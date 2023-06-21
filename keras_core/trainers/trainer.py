@@ -34,12 +34,20 @@ class Trainer:
         jit_compile="auto",
     ):
         self.optimizer = optimizers.get(optimizer)
+        if hasattr(self, "output_names"):
+            output_names = self.output_names
+        else:
+            output_names = None
         if loss is not None:
-            self._compile_loss = CompileLoss(loss, loss_weights)
+            self._compile_loss = CompileLoss(
+                loss, loss_weights, output_names=output_names
+            )
         else:
             self._compile_loss = None
         if metrics is not None:
-            self._compile_metrics = CompileMetrics(metrics, weighted_metrics)
+            self._compile_metrics = CompileMetrics(
+                metrics, weighted_metrics, output_names=output_names
+            )
         else:
             self._compile_metrics = None
         if jit_compile == "auto":

@@ -54,7 +54,7 @@ def is_binary_or_sparse_categorical(y_true, y_pred):
     return is_binary, is_sparse_categorical
 
 
-def get_metric(identifier, y_true, y_pred):
+def get_metric(identifier, y_true, y_pred, name_prefix=None):
     if identifier is None:
         return None  # Ok to have no metric for an output.
 
@@ -85,6 +85,8 @@ def get_metric(identifier, y_true, y_pred):
         metric_obj = metrics_module.MeanMetricWrapper(
             metric_obj, name=metric_name
         )
+    if name_prefix and not metric_obj.name.startswith(name_prefix):
+        metric_obj.name = "_".join([name_prefix, metric_obj.name])
     return metric_obj
 
 
@@ -117,7 +119,13 @@ def get_loss(identifier, y_true, y_pred):
 
 
 class CompileMetrics(metrics_module.Metric):
-    def __init__(self, metrics, weighted_metrics, name="compile_metric"):
+    def __init__(
+        self,
+        metrics,
+        weighted_metrics,
+        name="compile_metric",
+        output_names=None,
+    ):
         super().__init__(name=name)
         if metrics and not isinstance(metrics, (list, tuple, dict)):
             raise ValueError(
@@ -136,6 +144,7 @@ class CompileMetrics(metrics_module.Metric):
         self._user_weighted_metrics = weighted_metrics
         self.built = False
         self.name = "compile_metrics"
+        self.output_names = output_names
 
     @property
     def variables(self):
@@ -150,9 +159,10 @@ class CompileMetrics(metrics_module.Metric):
         return vars
 
     def build(self, y_true, y_pred):
-        if isinstance(y_pred, dict):
+        if self.output_names:
+            output_names = self.output_names
+        elif isinstance(y_pred, dict):
             output_names = sorted(list(y_pred.keys()))
-            num_outputs = len(output_names)
         elif isinstance(y_pred, (list, tuple)):
             num_outputs = len(y_pred)
             if all(hasattr(x, "_keras_history") for x in y_pred):
@@ -162,15 +172,14 @@ class CompileMetrics(metrics_module.Metric):
         else:
             output_names = None
             num_outputs = 1
+        if output_names:
+            num_outputs = len(output_names)
 
         y_pred = nest.flatten(y_pred)
         y_true = nest.flatten(y_true)
 
         metrics = self._user_metrics
         weighted_metrics = self._user_weighted_metrics
-        if output_names and not num_outputs:
-            num_outputs = len(output_names)
-
         self._flat_metrics = self._build_metrics_set(
             metrics,
             num_outputs,
@@ -238,7 +247,12 @@ class CompileMetrics(metrics_module.Metric):
                         "(the list of metrics corresponding to that output). "
                         f"Received:\n{argument_name}={metrics}"
                     )
-                for mls, yt, yp in zip(metrics, y_true, y_pred):
+                name = None
+                for idx, (mls, yt, yp) in enumerate(
+                    zip(metrics, y_true, y_pred)
+                ):
+                    if output_names:
+                        name = output_names[idx]
                     if not all(is_function_like(e) for e in mls):
                         raise ValueError(
                             f"All entries in the sublists of the "
@@ -249,7 +263,7 @@ class CompileMetrics(metrics_module.Metric):
                     flat_metrics.append(
                         MetricsList(
                             [
-                                get_metric(m, yt, yp)
+                                get_metric(m, yt, yp, name)
                                 for m in mls
                                 if m is not None
                             ]
@@ -290,7 +304,7 @@ class CompileMetrics(metrics_module.Metric):
                         flat_metrics.append(
                             MetricsList(
                                 [
-                                    get_metric(m, yt, yp)
+                                    get_metric(m, yt, yp, name)
                                     for m in metrics[name]
                                     if m is not None
                                 ]
@@ -310,6 +324,9 @@ class CompileMetrics(metrics_module.Metric):
                 m.update_state(y_t, y_p)
         if sample_weight is not None:
             sample_weight = nest.flatten(sample_weight)
+            # For multi-outputs, repeat sample weights for n outputs.
+            if len(sample_weight) < len(y_true):
+                sample_weight = [sample_weight[0] for _ in range(len(y_true))]
         else:
             sample_weight = [None for _ in range(len(y_true))]
         for m, y_t, y_p, s_w in zip(
@@ -375,7 +392,11 @@ class CompileMetrics(metrics_module.Metric):
 
 class CompileLoss(losses_module.Loss):
     def __init__(
-        self, loss, loss_weights=None, reduction="sum_over_batch_size"
+        self,
+        loss,
+        loss_weights=None,
+        reduction="sum_over_batch_size",
+        output_names=None,
     ):
         if loss_weights and not isinstance(loss_weights, (list, tuple, dict)):
             raise ValueError(
@@ -386,12 +407,14 @@ class CompileLoss(losses_module.Loss):
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
+        self.output_names = output_names
         super().__init__(name="compile_loss", reduction=reduction)
 
     def build(self, y_true, y_pred):
-        if isinstance(y_pred, dict):
+        if self.output_names:
+            output_names = self.output_names
+        elif isinstance(y_pred, dict):
             output_names = sorted(list(y_pred.keys()))
-            num_outputs = len(output_names)
         elif isinstance(y_pred, (list, tuple)):
             num_outputs = len(y_pred)
             if all(hasattr(x, "_keras_history") for x in y_pred):
@@ -401,6 +424,8 @@ class CompileLoss(losses_module.Loss):
         else:
             output_names = None
             num_outputs = 1
+        if output_names:
+            num_outputs = len(output_names)
 
         y_pred = nest.flatten(y_pred)
         loss = self._user_loss
@@ -561,11 +586,13 @@ class CompileLoss(losses_module.Loss):
 
         if sample_weight is not None:
             sample_weight = nest.flatten(sample_weight)
+            # For multi-outputs, repeat sample weights for n outputs.
+            if len(sample_weight) < len(y_true):
+                sample_weight = [sample_weight[0] for _ in range(len(y_true))]
         else:
             sample_weight = [None for _ in y_true]
 
         loss_values = []
-
         for loss, y_t, y_p, loss_weight, sample_weight in zip(
             self.flat_losses,
             y_true,
