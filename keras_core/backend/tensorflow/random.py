@@ -32,6 +32,14 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     )
 
 
+def categorical(logits, num_samples, dtype="int64", seed=None):
+    seed = tf_draw_seed(seed)
+    output = tf.random.stateless_categorical(
+        logits, num_samples, seed=seed
+    )
+    return tf.cast(output, dtype)
+
+
 def randint(shape, minval, maxval, dtype="int32", seed=None):
     intemediate_dtype = dtype
     if standardize_dtype(dtype) not in ["int32", "int64"]:

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras_core.backend.config import floatx
+from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
 from keras_core.backend.torch.core import to_torch_dtype
 from keras_core.random.seed_generator import SeedGenerator
@@ -9,9 +10,9 @@ from keras_core.random.seed_generator import draw_seed
 from keras_core.random.seed_generator import make_default_seed
 
 
-def torch_seed_generator(seed):
+def torch_seed_generator(seed, device="cpu"):
     seed_val, _ = draw_seed(seed)
-    generator = torch.Generator()
+    generator = torch.Generator(device=device)
     generator.manual_seed(int(seed_val))
     return generator
 
@@ -23,6 +24,15 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     return torch.normal(
         mean, stddev, size=shape, generator=generator, dtype=dtype
     ).to(get_device())
+
+
+def categorical(logits, num_samples, dtype="int32", seed=None):
+    logits = convert_to_tensor(logits)
+    dtype = to_torch_dtype(dtype)
+    generator = torch_seed_generator(seed, device=get_device())
+    return torch.multinomial(
+        logits, num_samples, replacement=True, generator=generator,
+    ).type(dtype)
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):

@@ -29,6 +29,51 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     )
 
 
+@keras_core_export("keras_core.random.categorical")
+def categorical(logits, num_samples, dtype="int32", seed=None):
+    """Draws samples from a categorical distribution.
+
+    This function takes as input `logits`, a 2-D input tensor with shape
+    (batch_size, num_classes). Each row of the input represents a categorical
+    distribution, with each column index containing the log-probability for a
+    given class.
+
+    The function will output a 2-D tensor with shape (batch_size, num_samples),
+    where each row contains samples from the corresponding row in `logits`.
+    Each column index contains an independent samples drawn from the input
+    distribution.
+
+    Args:
+        logits: 2-D Tensor with shape (batch_size, num_classes). Each row
+            should define a categorical distibution with the unnormalized
+            log-probabilities for all classes.
+        num_samples: Int, the number of independent samples to draw for each
+            row of the input. This will be the second dimension of the output
+            tensor's shape.
+        dtype: Optional dtype of the output tensor.
+        seed: A Python integer or instance of
+            `keras_core.random.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.random.SeedGenerator`.
+
+    Returns:
+        A 2-D tensor with (batch_size, num_samples).
+    """
+    logits_shape = list(backend.convert_to_tensor(logits).shape)
+    if len(logits_shape) != 2:
+        raise ValueError(
+            "`logits` should be a 2-D tensor with shape "
+            f"[batch_size, num_classes]. Received: logits={logits}"
+        )
+    return backend.random.categorical(
+        logits, num_samples, dtype=dtype, seed=seed
+    )
+
+
 @keras_core_export("keras_core.random.uniform")
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     """Draw samples from a uniform distribution.

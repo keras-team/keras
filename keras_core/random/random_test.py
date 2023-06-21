@@ -41,6 +41,29 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertGreaterEqual(knp.max(res), minval)
 
     @parameterized.parameters(
+        {"seed": 10, "num_samples": 1, "batch_size": 1},
+        {"seed": 10, "num_samples": 5, "batch_size": 2},
+        {"seed": 10, "num_samples": 10, "batch_size": 4},
+        {"seed": 10, "num_samples": 15, "batch_size": 8},
+    )
+    def test_categorical(self, seed, num_samples, batch_size):
+        np.random.seed(seed)
+        # Definitively favor the batch index.
+        logits = np.eye(batch_size) * 1e9
+        res = random.categorical(logits, num_samples, seed=seed)
+        # Outputs should have shape `(batch_size, num_samples)`, where each
+        # output index matches the batch index.
+        self.assertEqual(res.shape, (batch_size, num_samples))
+        expected = np.tile(np.arange(batch_size)[:, None], (1, num_samples))
+        self.assertAllClose(res, expected)
+
+    def test_categorical_errors(self):
+        with self.assertRaises(ValueError):
+            random.categorical(np.ones((5,)), 5)
+        with self.assertRaises(ValueError):
+            random.categorical(np.ones((5, 5, 5)), 5)
+
+    @parameterized.parameters(
         {"seed": 10, "shape": (5,), "min": 0, "max": 10, "dtype": "uint16"},
         {"seed": 10, "shape": (2, 3), "min": 0, "max": 10, "dtype": "uint32"},
         {"seed": 10, "shape": (2, 3, 4), "min": 0, "max": 2, "dtype": "int8"},

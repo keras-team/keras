@@ -21,6 +21,17 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     )
 
 
+def categorical(logits, num_samples, dtype="int32", seed=None):
+    seed = draw_seed(seed)
+    output_shape = list(logits.shape)
+    output_shape[1] = num_samples
+    output_shape = tuple(output_shape)
+    output = jax.random.categorical(
+        seed, logits[..., None], shape=output_shape, axis=1
+    )
+    return output.astype(dtype)
+
+
 def randint(shape, minval, maxval, dtype="int32", seed=None):
     seed = draw_seed(seed)
     return jax.random.randint(
