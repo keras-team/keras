@@ -5013,7 +5013,7 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
                 ValueError,
                 "has a single unit output, but the activation is softmax.*",
             ):
-                model.compile()
+                model.compile(loss="mse", optimizer="sgd")
             del model
 
     def test_functional_model_output(self):
@@ -5025,7 +5025,7 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
                 ValueError,
                 "has a single unit output, but the activation is softmax.*",
             ):
-                model.compile()
+                model.compile(loss="mse", optimizer="sgd")
             del model
 
     def test_multi_output_model(self):
@@ -5038,7 +5038,7 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
                 ValueError,
                 "has a single unit output, but the activation is softmax.*",
             ):
-                model.compile()
+                model.compile(loss="mse", optimizer="sgd")
             del model
 
     def test_multi_input_output_model(self):
@@ -5054,7 +5054,7 @@ class TestCheckLastLayerActivation(test_combinations.TestCase):
                 ValueError,
                 "has a single unit output, but the activation is softmax.*",
             ):
-                model.compile()
+                model.compile(loss="mse", optimizer="sgd")
             del model
 
 
