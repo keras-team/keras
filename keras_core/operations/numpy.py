@@ -2665,7 +2665,10 @@ class Repeat(Operation):
         size_on_ax = x_shape[self.axis]
         output_shape = x_shape
         if isinstance(self.repeats, int):
-            output_shape[self.axis] = size_on_ax * self.repeats
+            if size_on_ax is None:
+                output_shape[self.axis] = None
+            else:
+                output_shape[self.axis] = size_on_ax * self.repeats
         else:
             output_shape[self.axis] = int(np.sum(self.repeats))
         return KerasTensor(output_shape, dtype=x.dtype)

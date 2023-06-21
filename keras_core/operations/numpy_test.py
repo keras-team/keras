@@ -1027,6 +1027,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.repeat(x, 2).shape, (None,))
         self.assertEqual(knp.repeat(x, 3, axis=1).shape, (None, 9))
         self.assertEqual(knp.repeat(x, [1, 2], axis=0).shape, (3, 3))
+        self.assertEqual(knp.repeat(x, 2, axis=0).shape, (None, 3))
 
     def test_reshape(self):
         x = KerasTensor([None, 3])
