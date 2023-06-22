@@ -446,7 +446,8 @@ class TestTensorBoardV2(testing.TestCase):
                 tensor = backend.convert_to_tensor(data, dtype="float32")
                 if backend.backend() == "torch":
                     # TODO: Use device scope after the API is added.
-                    tensor = tensor.cpu()
+                    if tensor.is_cuda:
+                        tensor = tensor.cpu()
                 summary.write(
                     tag=tag,
                     tensor=tensor,

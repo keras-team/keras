@@ -7,9 +7,11 @@ import torch
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
+from keras_core.backend.torch.core import device_scope
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
+from keras_core.utils import traceback_utils
 
 
 class TorchTrainer(base_trainer.Trainer):
@@ -97,7 +99,13 @@ class TorchTrainer(base_trainer.Trainer):
             data = data[0]
             return self.train_step(data)
 
-        self.train_function = one_step_on_data
+        if not self.run_eagerly:
+            # Temporarily commented the torch compile due to failed unit tests.
+            # TODO: Uncomment the following line when unit tests passes.
+            # self.train_function = torch.compile(one_step_on_data)
+            self.train_function = one_step_on_data
+        else:
+            self.train_function = one_step_on_data
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
@@ -135,6 +143,34 @@ class TorchTrainer(base_trainer.Trainer):
 
         self.predict_function = one_step_on_data
 
+    def _symbolic_build(self, data_batch):
+        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
+        compile_metrics_unbuilt = (
+            self._compile_metrics is not None
+            and not self._compile_metrics.built
+        )
+        if model_unbuilt or compile_metrics_unbuilt:
+            # Build the model on one batch of data.
+            (
+                x,
+                y,
+                sample_weight,
+            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
+            # Build model
+            with backend.StatelessScope():
+                with device_scope("meta"):
+                    y_pred = self(x)
+                    if compile_metrics_unbuilt:
+                        # Build metrics
+                        self.compute_metrics(
+                            x, y, y_pred, sample_weight=sample_weight
+                        )
+        if self.optimizer is not None and not self.optimizer.built:
+            # Build optimizer
+            self.optimizer.build(self.trainable_variables)
+        self._post_build()
+
+    @traceback_utils.filter_traceback
     def fit(
         self,
         x=None,
@@ -190,6 +226,21 @@ class TorchTrainer(base_trainer.Trainer):
             class_weight=class_weight,
             steps_per_execution=self.steps_per_execution,
         )
+
+        needs_building = (
+            not all(layer.built for layer in self._flatten_layers())
+            or not self.optimizer.built
+            or (
+                self._compile_metrics is not None
+                and not self._compile_metrics.built
+            )
+        )
+        if needs_building:
+            # Build the model on one batch of data.
+            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+                data_batch = data[0]
+                self._symbolic_build(data_batch)
+                break
 
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
@@ -275,6 +326,7 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_train_end(logs=training_logs)
         return self.history
 
+    @traceback_utils.filter_traceback
     def evaluate(
         self,
         x=None,
@@ -306,6 +358,13 @@ class TorchTrainer(base_trainer.Trainer):
                 steps_per_execution=self.steps_per_execution,
             )
 
+        if not all(layer.built for layer in self._flatten_layers()):
+            # Build the model on one batch of data.
+            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+                data_batch = data[0]
+                self._symbolic_build(data_batch)
+                break
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -336,6 +395,7 @@ class TorchTrainer(base_trainer.Trainer):
             return logs
         return self._flatten_metrics_in_order(logs)
 
+    @traceback_utils.filter_traceback
     def predict(
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
@@ -401,7 +461,6 @@ class TorchTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("train_on_batch")
-        self.make_train_function()
         if class_weight is not None:
             if sample_weight is not None:
                 raise ValueError(
@@ -415,6 +474,11 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         data = (x, y, sample_weight)
+
+        # Maybe build model
+        self._symbolic_build(data)
+        self.make_train_function()
+
         logs = self.train_function([data])
         logs = tf.nest.map_structure(lambda x: np.array(x), logs)
         if return_dict:
@@ -429,9 +493,12 @@ class TorchTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
-        self.make_test_function()
 
         data = (x, y, sample_weight)
+
+        # Maybe build model
+        self._symbolic_build(data)
+        self.make_test_function()
 
         logs = self.test_function([data])
         logs = tf.nest.map_structure(lambda x: np.array(x), logs)

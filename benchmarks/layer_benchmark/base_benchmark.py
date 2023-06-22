@@ -239,9 +239,19 @@ class LayerBenchmark:
             # Generate default label if not provided.
             if self.flat_call_inputs:
                 # Scale by a small factor to avoid zero gradients.
-                label = np.array(self._keras_core_layer(*data)) * 1.001
+                label = (
+                    keras_core.backend.convert_to_numpy(
+                        self._keras_core_layer(*data)
+                    )
+                    * 1.001
+                )
             else:
-                label = np.array(self._keras_core_layer(data)) * 1.001
+                label = (
+                    keras_core.backend.convert_to_numpy(
+                        self._keras_core_layer(data)
+                    )
+                    * 1.001
+                )
 
         num_iterations = num_samples // batch_size - 1
         callback = KerasCoreBenchmarkMetricsCallback(stop_batch=num_iterations)

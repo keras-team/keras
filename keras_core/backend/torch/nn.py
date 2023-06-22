@@ -8,6 +8,7 @@ from keras_core.backend.common.backend_utils import (
 )
 from keras_core.backend.config import epsilon
 from keras_core.backend.torch.core import convert_to_tensor
+from keras_core.backend.torch.core import get_device
 from keras_core.utils.argument_validation import standardize_tuple
 
 
@@ -215,6 +216,14 @@ def max_pool(
             inputs, pool_size, strides, operation_type="pooling"
         )
 
+    device = get_device()
+    # Torch max pooling ops do not support symbolic tensors.
+    # Create a real tensor to execute the ops.
+    if device == "meta":
+        inputs = torch.empty(
+            size=inputs.shape, dtype=inputs.dtype, device="cpu"
+        )
+
     if num_spatial_dims == 1:
         outputs = tnn.max_pool1d(inputs, kernel_size=pool_size, stride=strides)
     elif num_spatial_dims == 2:
@@ -227,6 +236,8 @@ def max_pool(
             "corresponding to 1D, 2D and 3D inputs. "
             f"Received input shape: {inputs.shape}."
         )
+
+    outputs = outputs.to(device)
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
     return outputs

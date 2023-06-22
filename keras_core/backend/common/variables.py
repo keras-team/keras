@@ -62,7 +62,6 @@ class KerasVariable:
     def _deferred_initialize(self):
         if self._value is not None:
             raise ValueError(f"Variable {self.name} is already initialized.")
-        from keras_core.backend.common.stateless_scope import in_stateless_scope
 
         if in_stateless_scope():
             raise ValueError(
@@ -381,12 +380,6 @@ PYTHON_DTYPES_MAP = {
     int: "int",  # TBD by backend
     float: "float32",
     str: "string",
-}
-
-PYTHON_DTYPES_MAP = {
-    bool: "bool",
-    int: "int",  # TBD by backend
-    float: "float32",
 }
 
 

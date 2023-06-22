@@ -108,7 +108,7 @@ class Function(Operation):
         # Dictionary mapping reference tensors to computed tensors.
         tensor_dict = {}
         for x, y in zip(self.inputs, inputs):
-            tensor_dict[x] = y
+            tensor_dict[id(x)] = y
 
         nodes_by_depth = self._nodes_by_depth
         depth_keys = list(nodes_by_depth.keys())
@@ -120,7 +120,7 @@ class Function(Operation):
                 if not node.operation or node.is_input:
                     continue  # Input tensors already exist.
 
-                if any(x not in tensor_dict for x in node.input_tensors):
+                if any(id(x) not in tensor_dict for x in node.input_tensors):
                     continue  # Node is not computable, try skipping.
 
                 args, kwargs = node.arguments.fill_in(tensor_dict)
@@ -128,11 +128,11 @@ class Function(Operation):
 
                 # Update tensor_dict.
                 for x, y in zip(node.outputs, nest.flatten(outputs)):
-                    tensor_dict[x] = y
+                    tensor_dict[id(x)] = y
 
         output_tensors = []
         for x in self.outputs:
-            output_tensors.append(tensor_dict[x])
+            output_tensors.append(tensor_dict[id(x)])
 
         return nest.pack_sequence_as(self._outputs_struct, output_tensors)
 

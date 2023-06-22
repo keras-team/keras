@@ -190,7 +190,7 @@ def array(x, dtype=None):
     dtype = to_torch_dtype(dtype)
     if isinstance(x, torch.Tensor):
         return x
-    return torch.tensor(x, dtype=dtype)
+    return torch.tensor(x, dtype=dtype, device=get_device())
 
 
 def average(x, axis=None, weights=None):
@@ -647,7 +647,25 @@ def reciprocal(x):
 
 def repeat(x, repeats, axis=None):
     x = convert_to_tensor(x)
+
+    if get_device() == "meta":
+        # Import upper level modules locally to avoid circular imports
+        # TODO: Refactor the upper level modules to avoid these imports.
+        from keras_core.backend import KerasTensor
+        from keras_core.backend import standardize_dtype
+        from keras_core.operations.numpy import repeat
+
+        x = KerasTensor(x.shape, standardize_dtype(x.dtype))
+        outputs = repeat(x, repeats, axis=axis)
+        print(outputs)
+        return torch.empty(
+            size=outputs.shape,
+            dtype=to_torch_dtype(outputs.dtype),
+            device=get_device(),
+        )
+
     repeats = convert_to_tensor(repeats, dtype=int)
+
     return torch.repeat_interleave(x, repeats, dim=axis)
 
 

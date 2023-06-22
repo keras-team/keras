@@ -495,7 +495,9 @@ class TensorBoard(Callback):
         else:
             lr_schedule = getattr(self.model.optimizer, "lr", None)
         if isinstance(lr_schedule, learning_rate_schedule.LearningRateSchedule):
-            logs["learning_rate"] = lr_schedule(self.model.optimizer.iterations)
+            logs["learning_rate"] = float(
+                lr_schedule(self.model.optimizer.iterations)
+            )
         return logs
 
     def _compute_steps_per_second(self):
@@ -512,7 +514,7 @@ class TensorBoard(Callback):
         steps_per_second = (
             current_iteration - self._previous_epoch_iterations
         ) / time_since_epoch_begin
-        return steps_per_second
+        return float(steps_per_second)
 
     def _log_epoch_metrics(self, epoch, logs):
         """Writes epoch metrics out as scalar summaries.

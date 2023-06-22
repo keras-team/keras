@@ -38,11 +38,11 @@ class SymbolicArguments:
         if self._single_positional_tensor is not None:
             # Performance optimization for most common case.
             # Approx. 70x faster.
-            return (tensor_dict[self._single_positional_tensor],), {}
+            return (tensor_dict[id(self._single_positional_tensor)],), {}
 
         def switch_fn(x):
             if isinstance(x, KerasTensor):
-                val = tensor_dict.get(x, None)
+                val = tensor_dict.get(id(x), None)
                 if val is not None:
                     return val
             return x
