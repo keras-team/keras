@@ -48,8 +48,9 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
     )
     def test_categorical(self, seed, num_samples, batch_size):
         np.random.seed(seed)
-        # Definitively favor the batch index.
-        logits = np.eye(batch_size) * 1e9
+        # Create logits that definitely favors the batch index after a softmax
+        # is applied. Without a softmax, this would be close to random.
+        logits = np.eye(batch_size) * 1e5 + 1e6
         res = random.categorical(logits, num_samples, seed=seed)
         # Outputs should have shape `(batch_size, num_samples)`, where each
         # output index matches the batch index.
