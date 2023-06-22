@@ -23,7 +23,7 @@ class DenseTest(testing.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
             expected_num_losses=0,
-            supports_masking=False,
+            supports_masking=True,
         )
         # 3D case, some regularizers.
         self.run_layer_test(
@@ -40,7 +40,7 @@ class DenseTest(testing.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_seed_generators=0,
             expected_num_losses=2,  # we have 2 regularizers.
-            supports_masking=False,
+            supports_masking=True,
         )
 
     def test_dense_correctness(self):
