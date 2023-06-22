@@ -102,10 +102,10 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     x = normal(shape + (4,), mean=0, stddev=1, dtype=dtype, seed=seed)
     valid = (x > -2) & (x < 2)
     indexes = valid.max(-1, keepdim=True)[1]
-    trunc_x = torch.empty(shape)
+    trunc_x = torch.empty(shape, device=get_device())
     trunc_x.data.copy_(x.gather(-1, indexes).squeeze(-1))
     trunc_x.data.mul_(stddev).add_(mean)
-    return trunc_x.to(get_device())
+    return trunc_x
 
 
 def _get_concrete_noise_shape(inputs, noise_shape):
@@ -122,16 +122,19 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    seed, _ = draw_seed(seed)
-    generator = torch.Generator()
-    generator.manual_seed(int(seed))
-
     keep_prob = 1.0 - rate
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
-    keep_prob_matrix = torch.full(noise_shape, keep_prob)
-    mask = torch.bernoulli(keep_prob_matrix, generator=generator).bool()
+    keep_prob_matrix = torch.full(noise_shape, keep_prob, device=get_device())
+    generator = torch_seed_generator(seed)
+
+    # Do not use generator during symbolic execution.
+    if get_device() == "meta":
+        mask = torch.bernoulli(keep_prob_matrix)
+    else:
+        mask = torch.bernoulli(keep_prob_matrix, generator=generator)
+
+    mask = mask.bool()
     mask = torch.broadcast_to(mask, inputs.shape)
-    mask = mask.to(get_device())
     return torch.where(
         mask, inputs / keep_prob, torch.zeros_like(inputs, dtype=inputs.dtype)
     )

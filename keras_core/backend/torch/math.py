@@ -7,9 +7,9 @@ from keras_core.backend.torch.core import get_device
 def segment_sum(data, segment_ids, num_segments=None, **kwargs):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids)
-    num_repeats = (
-        torch.prod(torch.tensor(data.shape[1:])).long().to(get_device())
-    )
+    num_repeats = torch.prod(
+        torch.tensor(data.shape[1:], device=get_device())
+    ).long()
     # To use `scatter_add` in torch, we need to replicate `segment_ids` into the
     # shape of `data`.
     segment_ids = (
@@ -32,10 +32,8 @@ def segment_sum(data, segment_ids, num_segments=None, **kwargs):
     # Add one more dimension to the result shape with the "+1".
     shape = (num_segments + 1,) + tuple(data.shape[1:])
 
-    result = (
-        torch.zeros(*shape)
-        .to(get_device())
-        .scatter_add(0, segment_ids, data.float())
+    result = torch.zeros(*shape, device=get_device()).scatter_add(
+        0, segment_ids, data.float()
     )
 
     # Removing the extra dimension.

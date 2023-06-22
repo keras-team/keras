@@ -254,7 +254,7 @@ def vectorized_map(function, elements):
 def scatter(indices, values, shape):
     indices = convert_to_tensor(indices)
     values = convert_to_tensor(values)
-    zeros = torch.zeros(shape, dtype=values.dtype).to(get_device())
+    zeros = torch.zeros(shape, dtype=values.dtype, device=get_device())
 
     index_length = indices.shape[-1]
     value_shape = shape[index_length:]
