@@ -179,13 +179,13 @@ class TestCompileMetrics(testing.TestCase):
         self.assertAllClose(result["output_1_mse"], 0.055833336)
         self.assertAllClose(result["output_2_mse"], 0.055833336)
         self.assertAllClose(
-            result["weighted_output_1_mean_squared_error"], 0.0725
+            result["output_1_weighted_mean_squared_error"], 0.0725
         )
         self.assertAllClose(
-            result["weighted_output_2_mean_squared_error"], 0.0725
+            result["output_2_weighted_mean_squared_error"], 0.0725
         )
-        self.assertAllClose(result["weighted_output_1_mse"], 0.0725)
-        self.assertAllClose(result["weighted_output_2_mse"], 0.0725)
+        self.assertAllClose(result["output_1_weighted_mse"], 0.0725)
+        self.assertAllClose(result["output_2_weighted_mse"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
@@ -193,8 +193,8 @@ class TestCompileMetrics(testing.TestCase):
         self.assertEqual(len(result), 8)
         self.assertAllClose(result["output_1_mean_squared_error"], 0.0)
         self.assertAllClose(result["output_2_mean_squared_error"], 0.0)
-        self.assertAllClose(result["weighted_output_1_mean_squared_error"], 0.0)
-        self.assertAllClose(result["weighted_output_2_mean_squared_error"], 0.0)
+        self.assertAllClose(result["output_1_weighted_mean_squared_error"], 0.0)
+        self.assertAllClose(result["output_2_weighted_mean_squared_error"], 0.0)
 
     def test_name_conversions(self):
         compile_metrics = CompileMetrics(

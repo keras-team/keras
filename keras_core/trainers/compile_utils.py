@@ -8,9 +8,10 @@ from keras_core.utils.naming import get_object_name
 
 
 class MetricsList(metrics_module.Metric):
-    def __init__(self, metrics, name="metrics_list"):
+    def __init__(self, metrics, name="metrics_list", output_name=None):
         super().__init__(name=name)
         self.metrics = metrics
+        self.output_name = output_name
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         for m in self.metrics:
@@ -54,7 +55,7 @@ def is_binary_or_sparse_categorical(y_true, y_pred):
     return is_binary, is_sparse_categorical
 
 
-def get_metric(identifier, y_true, y_pred, name_prefix=None):
+def get_metric(identifier, y_true, y_pred):
     if identifier is None:
         return None  # Ok to have no metric for an output.
 
@@ -85,8 +86,6 @@ def get_metric(identifier, y_true, y_pred, name_prefix=None):
         metric_obj = metrics_module.MeanMetricWrapper(
             metric_obj, name=metric_name
         )
-    if name_prefix and not metric_obj.name.startswith(name_prefix):
-        metric_obj.name = "_".join([name_prefix, metric_obj.name])
     return metric_obj
 
 
@@ -202,17 +201,22 @@ class CompileMetrics(metrics_module.Metric):
         self, metrics, num_outputs, output_names, y_true, y_pred, argument_name
     ):
         flat_metrics = []
+        if isinstance(metrics, dict):
+            for name in metrics.keys():
+                if name not in output_names:
+                    raise ValueError(
+                        f"In the dict argument `{argument_name}`, key "
+                        f"'{name}' does not correspond to any model "
+                        f"output. Received:\n{argument_name}={metrics}"
+                    )
         if num_outputs == 1:
             if not metrics:
                 flat_metrics.append(None)
             else:
+                if isinstance(metrics, dict):
+                    metrics = nest.flatten(metrics)
                 if not isinstance(metrics, list):
-                    raise ValueError(
-                        "When there is only a single output, the "
-                        f"`{argument_name}` argument must be a list of metric "
-                        f"objects. Received instead:\n"
-                        f"{argument_name}={metrics} of type {type(metrics)}"
-                    )
+                    metrics = [metrics]
                 if not all(is_function_like(m) for m in metrics):
                     raise ValueError(
                         f"Expected all entries in the `{argument_name}` list "
@@ -239,20 +243,12 @@ class CompileMetrics(metrics_module.Metric):
                         f"length {len(metrics)} whereas the model has "
                         f"{len(y_pred)} outputs."
                     )
-                if not all(isinstance(mls, list) for mls in metrics):
-                    raise ValueError(
-                        "For a model with multiple outputs, "
-                        f"when providing the `{argument_name}` argument as a "
-                        "list, each list entry should itself be a list "
-                        "(the list of metrics corresponding to that output). "
-                        f"Received:\n{argument_name}={metrics}"
-                    )
-                name = None
                 for idx, (mls, yt, yp) in enumerate(
                     zip(metrics, y_true, y_pred)
                 ):
-                    if output_names:
-                        name = output_names[idx]
+                    if not isinstance(mls, list):
+                        mls = [mls]
+                    name = output_names[idx] if output_names else None
                     if not all(is_function_like(e) for e in mls):
                         raise ValueError(
                             f"All entries in the sublists of the "
@@ -263,10 +259,11 @@ class CompileMetrics(metrics_module.Metric):
                     flat_metrics.append(
                         MetricsList(
                             [
-                                get_metric(m, yt, yp, name)
+                                get_metric(m, yt, yp)
                                 for m in mls
                                 if m is not None
-                            ]
+                            ],
+                            output_name=name,
                         )
                     )
             elif isinstance(metrics, dict):
@@ -277,21 +274,8 @@ class CompileMetrics(metrics_module.Metric):
                         f"Received {argument_name}={metrics}"
                     )
                 for name in metrics.keys():
-                    if name not in output_names:
-                        raise ValueError(
-                            f"In the dict argument `{argument_name}`, key "
-                            f"'{name}' does not correspond to any model "
-                            f"output. Received:\n{argument_name}={metrics}"
-                        )
                     if not isinstance(metrics[name], list):
-                        raise ValueError(
-                            "For a model with multiple outputs, "
-                            f"when providing the `{argument_name}` argument as "
-                            "a dict, each dict entry should be a list (the "
-                            "list of metrics corresponding to that output). "
-                            f"At key '{name}', received invalid type:\n"
-                            f"{metrics[name]}"
-                        )
+                        metrics[name] = [metrics[name]]
                     if not all(is_function_like(e) for e in metrics[name]):
                         raise ValueError(
                             f"All entries in the sublists of the "
@@ -304,10 +288,11 @@ class CompileMetrics(metrics_module.Metric):
                         flat_metrics.append(
                             MetricsList(
                                 [
-                                    get_metric(m, yt, yp, name)
+                                    get_metric(m, yt, yp)
                                     for m in metrics[name]
                                     if m is not None
-                                ]
+                                ],
+                                output_name=name,
                             )
                         )
                     else:
@@ -365,23 +350,32 @@ class CompileMetrics(metrics_module.Metric):
             if not mls:
                 continue
             for m in mls.metrics:
-                if m.name not in unique_name_counters:
-                    results[m.name] = m.result()
-                    unique_name_counters[m.name] = 1
+                name = m.name
+                if mls.output_name:
+                    name = f"{mls.output_name}_{name}"
+                if name not in unique_name_counters:
+                    results[name] = m.result()
+                    unique_name_counters[name] = 1
                 else:
-                    name = f"{m.name}_{unique_name_counters[m.name]}"
-                    unique_name_counters[m.name] += 1
+                    index = unique_name_counters[name]
+                    unique_name_counters[name] += 1
+                    name = f"{name}_{index}"
                     results[name] = m.result()
 
         for mls in self._flat_weighted_metrics:
             if not mls:
                 continue
             for m in mls.metrics:
-                if m.name not in unique_name_counters:
-                    results[m.name] = m.result()
-                    unique_name_counters[m.name] = 1
+                name = m.name
+                if mls.output_name:
+                    name = f"{mls.output_name}_{name}"
+                if name not in unique_name_counters:
+                    results[name] = m.result()
+                    unique_name_counters[name] = 1
                 else:
                     name = f"weighted_{m.name}"
+                    if mls.output_name:
+                        name = f"{mls.output_name}_{name}"
                     if name not in unique_name_counters:
                         unique_name_counters[name] = 1
                     else:
@@ -442,12 +436,25 @@ class CompileLoss(losses_module.Loss):
         flat_losses = []
         flat_loss_weights = []
 
-        if num_outputs == 1 and not is_function_like(loss):
-            raise ValueError(
-                "When there is only a single output, the `loss` argument "
-                "must be a callable. "
-                f"Received instead:\nloss={loss} of type {type(loss)}"
-            )
+        if isinstance(loss, dict):
+            for name in loss.keys():
+                if name not in output_names:
+                    raise ValueError(
+                        "In the dict argument `loss`, key "
+                        f"'{name}' does not correspond to any model output. "
+                        f"Received:\nloss={loss}"
+                    )
+        if num_outputs == 1:
+            if isinstance(loss, dict):
+                loss = nest.flatten(loss)
+            if isinstance(loss, list) and len(loss) == 1:
+                loss = loss[0]
+            if not is_function_like(loss):
+                raise ValueError(
+                    "When there is only a single output, the `loss` argument "
+                    "must be a callable. "
+                    f"Received instead:\nloss={loss} of type {type(loss)}"
+                )
 
         if is_function_like(loss) and nest.is_nested(y_pred):
             # The model has multiple outputs but only one loss fn
@@ -471,6 +478,7 @@ class CompileLoss(losses_module.Loss):
             else:
                 flat_loss_weights.append(1.0)
         elif isinstance(loss, (list, tuple)):
+            loss = nest.flatten(loss)
             if len(loss) != len(y_pred):
                 raise ValueError(
                     "For a model with multiple outputs, "
@@ -507,11 +515,11 @@ class CompileLoss(losses_module.Loss):
                         f"length {len(loss_weights)} whereas the model has "
                         f"{len(y_pred)} outputs."
                     )
-                if not all(isinstance(e, float) for e in loss_weights):
+                if not all(isinstance(e, (int, float)) for e in loss_weights):
                     raise ValueError(
-                        "For a model with multiple outputs, "
-                        "when providing the `loss_weights` argument as a "
-                        "list, each list entry should be a Python float (the "
+                        "For a model with multiple outputs, when providing "
+                        "the `loss_weights` argument as a list, "
+                        "each list entry should be a Python int or float (the "
                         "weighting coefficient corresponding to the loss for "
                         f"that output). Received: loss_weights={loss_weights}"
                     )
@@ -526,12 +534,8 @@ class CompileLoss(losses_module.Loss):
                     f"Received loss={loss}"
                 )
             for name in loss.keys():
-                if name not in output_names:
-                    raise ValueError(
-                        "In the dict argument `loss`, key "
-                        f"'{name}' does not correspond to any model output. "
-                        f"Received:\nloss={loss}"
-                    )
+                if isinstance(loss[name], list) and len(loss[name]) == 1:
+                    loss[name] = loss[name][0]
                 if not is_function_like(loss[name]):
                     raise ValueError(
                         "For a model with multiple outputs, "
