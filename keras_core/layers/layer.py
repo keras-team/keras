@@ -780,16 +780,14 @@ class Layer(BackendLayer, Operation):
         else:
             # Use compute_output_shape() to return the right output spec
             call_spec = CallSpec(self.call, args, kwargs)
-            shapes_dict = get_shapes_dict(
-                self.compute_output_shape, call_spec, self.__class__
+            shapes_dict = get_shapes_dict(call_spec)
+            shapes_dict = update_shapes_dict_for_target_fn(
+                self.compute_output_shape,
+                shapes_dict=shapes_dict,
+                call_spec=call_spec,
+                class_name=self.__class__.__name__,
             )
-            if len(shapes_dict) == 1:
-                # Single arg: pass it positionally
-                input_shape = tuple(shapes_dict.values())[0]
-                output_shape = self.compute_output_shape(input_shape)
-            else:
-                # More than one shape: pass them by name.
-                output_shape = self.compute_output_shape(**shapes_dict)
+            output_shape = self.compute_output_shape(**shapes_dict)
 
             if (
                 isinstance(output_shape, list)
@@ -950,47 +948,40 @@ class Layer(BackendLayer, Operation):
 
     def _maybe_build(self, call_spec):
         if not self.built:
-            shapes_dict = get_shapes_dict(self.build, call_spec, self.__class__)
+            shapes_dict = get_shapes_dict(call_spec)
             self._build_shapes_dict = shapes_dict
-            failure = False
 
-            if len(shapes_dict) == 1:
-                # Single arg: pass it positionally
-                input_shape = tuple(shapes_dict.values())[0]
-                with backend.name_scope(self.name):
-                    if utils.is_default(
-                        self.build
-                    ) and might_have_unbuilt_state(self):
-                        status = self._build_by_run_for_single_pos_arg(
-                            input_shape
+            with backend.name_scope(self.name):
+                if not utils.is_default(self.build):
+                    shapes_dict = update_shapes_dict_for_target_fn(
+                        self.build,
+                        shapes_dict=shapes_dict,
+                        call_spec=call_spec,
+                        class_name=self.__class__.__name__,
+                    )
+                    self.build(**shapes_dict)
+                elif might_have_unbuilt_state(self):
+                    if len(shapes_dict) == 1:
+                        # Single arg: pass it positionally
+                        success = self._build_by_run_for_single_pos_arg(
+                            tuple(shapes_dict.values())[0]
                         )
-                        if not status:
-                            failure = True
                     else:
-                        self.build(input_shape)
-            else:
-                with backend.name_scope(self.name):
-                    if utils.is_default(self.build):
-                        if might_have_unbuilt_state(self):
-                            status = self._build_by_run_for_kwargs(shapes_dict)
-                            if not status:
-                                failure = True
-                    else:
-                        self.build(**shapes_dict)
-            if failure:
-                if call_spec.eager:
-                    # Will let the actual eager call do the state-building
-                    return
-                raise ValueError(
-                    f"Layer '{self.name}' looks like it has "
-                    "unbuilt state, but Keras is not able to "
-                    "trace the layer `call()` in order to "
-                    "build it automatically. You must implement "
-                    "the `def build(self, input_shape)` method on your "
-                    "layer. It should create all variables used by the "
-                    "layer (e.g. by calling `layer.build()` on all its "
-                    "children layers)."
-                )
+                        success = self._build_by_run_for_kwargs(shapes_dict)
+                    if not success:
+                        if call_spec.eager:
+                            # Will let the actual eager call do state-building
+                            return
+                        raise ValueError(
+                            f"Layer '{self.name}' looks like it has "
+                            "unbuilt state, but Keras is not able to "
+                            "trace the layer `call()` in order to "
+                            "build it automatically. You must implement "
+                            "the `def build(self, input_shape)` method on your "
+                            "layer. It should create all variables used by the "
+                            "layer (e.g. by calling `layer.build()` on all its "
+                            "children layers)."
+                        )
             self.built = True
 
             # Check input spec again (after build, since self.input_spec
@@ -1218,17 +1209,16 @@ def get_arguments_dict(fn, args, kwargs):
     return arg_dict
 
 
-def get_shapes_dict(target_fn, call_spec, cls):
+def get_shapes_dict(call_spec):
     """Convert the call() arguments dict into a dict of input shape arguments.
 
     Example:
 
     ```
-    >>> get_shapes_dict(self.build, call_spec, cls)
+    >>> get_shapes_dict(call_spec)
     {"input_a_shape": (2, 3)}
     ```
     """
-    expected_names = check_shapes_signature(target_fn, call_spec, cls)
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask" or k.startswith("mask_"):
@@ -1236,8 +1226,6 @@ def get_shapes_dict(target_fn, call_spec, cls):
             continue
         if k == "kwargs" or k == "args":
             # Do not include catch-alls in shapes dict
-            continue
-        if expected_names is not None and f"{k}_shape" not in expected_names:
             continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = nest.map_structure(
@@ -1248,22 +1236,30 @@ def get_shapes_dict(target_fn, call_spec, cls):
     return shapes_dict
 
 
-def check_shapes_signature(target_fn, call_spec, cls):
-    """Asserts that the argument names in `target_fn` match arguments in `call`.
+def update_shapes_dict_for_target_fn(
+    target_fn,
+    shapes_dict,
+    call_spec,
+    class_name,
+):
+    """Updates a `shapes_dict` for `build()` or `compute_output_shape()`.
 
-    We use this to check that `build()` and `compute_output_shape()` arguments
-    align with `call()` arguments.
+    This function will align a dictionary of the shapes of all tensor
+    passed to `call`, with the signatures of `build()` or
+    `compute_output_shape()`.
 
-    For instance if `build()` has the signature
-    `def build(self, a_shape, b_shape)` we expect `call()` to accept the
-    arguments `a` and `b`.
+    The alignment is a follows:
 
-    When there is a single argument accepted by `target_fn`, we do allow any
-    name and do not check the call signature.
+    - If `build()` or `compute_output_shape()` accept only one argument,
+        forward the shape of the first positional argument from call without
+        checking any argument names.
+    - If `build()` or `compute_output_shape()` accept multiple arguments,
+        enforce that all argument names match a call argument name, e.g.
+        `foo_shape` would match call argument `foo`.
 
     Returns:
-        The list of arguments names expected by the `target_fn` or
-        `None` if any passed name is acceptable.
+        An updated `shapes_dict` that can be used to invoke
+        `target_fn(**shapes_dict)`.
     """
     if utils.is_default(target_fn):
         return None
@@ -1276,31 +1272,40 @@ def check_shapes_signature(target_fn, call_spec, cls):
             param.KEYWORD_ONLY,
         ):
             expected_names.append(name)
+
+    # Single arg: don't check names, pass first shape.
     if len(expected_names) == 1:
-        return None
+        key = expected_names[0]
+        input_shape = tuple(shapes_dict.values())[0]
+        return {key: input_shape}
+
+    # Multiple args: check that all names line up.
+    kwargs = {}
     for name in expected_names:
         method_name = target_fn.__name__
         error_preamble = (
             f"For a `{method_name}()` method with more than one argument, all "
             "arguments should have a `_shape` suffix and match an argument "
             f"from `call()`. E.g. `{method_name}(self, foo_shape, bar_shape)` "
-            "would match `call(self, foo, bar)`."
         )
         if not name.endswith("_shape"):
             raise ValueError(
-                f"{error_preamble} For layer '{cls.__name__}', "
+                f"{error_preamble} For layer '{class_name}', "
                 f"Received `{method_name}()` argument "
                 f"`{name}`, which does not end in `_shape`."
             )
         expected_call_arg = utils.removesuffix(name, "_shape")
         if expected_call_arg not in call_spec.arguments_dict:
             raise ValueError(
-                f"{error_preamble} For layer '{cls.__name__}', "
+                f"{error_preamble} For layer '{class_name}', "
                 f"received `{method_name}()` argument "
                 f"`{name}`, but `call()` does not have argument "
                 f"`{expected_call_arg}`."
             )
-    return expected_names
+        if name in shapes_dict:
+            kwargs[name] = shapes_dict[name]
+
+    return kwargs
 
 
 class CallContext:

@@ -598,40 +598,77 @@ class LayerTest(testing.TestCase):
     def test_build_signature_errors(self):
         class NoShapeSuffix(layers.Layer):
             def build(self, foo_shape, bar):
-                self._built = True
+                self.built = True
 
             def call(self, foo, bar):
                 return foo + bar
 
         class NonMatchingArgument(layers.Layer):
             def build(self, foo_shape, baz_shape):
-                self._built = True
+                self.built = True
 
             def call(self, foo, bar):
-                return foo + bar
+                return foo[:, 0] + bar[:, 0]
 
         class MatchingArguments(layers.Layer):
-            def build(self, foo_shape, bar_shape):
-                self._built = True
+            def build(self, bar_shape, foo_shape):
+                self.foo_shape = foo_shape
+                self.bar_shape = bar_shape
+                self.built = True
 
             def call(self, foo, bar):
-                return foo + bar
+                return foo[:, 0] + bar[:, 0]
 
-        foo = backend.numpy.ones((4, 4))
-        bar = backend.numpy.ones((4, 4))
+        class SubsetArguments(layers.Layer):
+            def build(self, baz_shape, foo_shape):
+                self.foo_shape = foo_shape
+                self.baz_shape = baz_shape
+                self.built = True
+
+            def call(self, foo, bar=None, baz=None):
+                return foo[:, 0] + bar[:, 0] + baz[:, 0]
+
+        class SingleArgument(layers.Layer):
+            def build(self, anything_whatsoever):
+                self.foo_shape = anything_whatsoever
+                self.built = True
+
+            def call(self, foo, bar):
+                return foo[:, 0] + bar[:, 0]
+
+        foo = backend.numpy.ones((4, 1))
+        bar = backend.numpy.ones((4, 2))
+        baz = backend.numpy.ones((4, 3))
         with self.assertRaisesRegex(
             ValueError,
             r"argument `bar`, which does not end in `_shape`",
         ):
-            NoShapeSuffix()(foo, bar)
+            layer = NoShapeSuffix()
+            layer(foo, bar)
 
         with self.assertRaisesRegex(
             ValueError,
             r"`baz_shape`, but `call\(\)` does not have argument `baz`",
         ):
-            NonMatchingArgument()(foo, bar)
+            layer = NonMatchingArgument()
+            layer(foo, bar)
 
-        MatchingArguments()(foo, bar)
+        # Align by name when build and call arguments match.
+        layer = MatchingArguments()
+        layer(foo, bar)
+        self.assertEqual(layer.foo_shape, foo.shape)
+        self.assertEqual(layer.bar_shape, bar.shape)
+
+        # Align by name when build supports a subset of call arguments.
+        layer = SubsetArguments()
+        layer(foo, bar, baz)
+        self.assertEqual(layer.foo_shape, foo.shape)
+        self.assertEqual(layer.baz_shape, baz.shape)
+
+        # When build has only one argument, match the first call argument.
+        layer = SingleArgument()
+        layer(foo, bar)
+        self.assertEqual(layer.foo_shape, foo.shape)
 
     def test_training_arg_not_specified(self):
         class NoTrainingSpecified(layers.Layer):
