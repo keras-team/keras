@@ -11,6 +11,8 @@ convert_to_tensor
 convert_to_numpy
 """
 
+import numpy as np
+
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
@@ -296,9 +298,7 @@ def convert_to_tensor(x, dtype=None):
 def convert_to_numpy(x):
     """Convert a tensor to a NumPy array."""
     if any_symbolic_tensors((x,)):
-        raise ValueError(
-            "A symbolic tensor (usually the result of applying layers or "
-            "operations to a `keras.Input`), cannot be converted to a numpy "
-            "array. There is no concrete value for the input."
-        )
+        # This will raise a `ValueError` defined in the `KerasTensor` class. We
+        # trigger it rather than duplicate it here.
+        return np.array(x)
     return backend.convert_to_numpy(x)
