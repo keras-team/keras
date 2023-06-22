@@ -30,9 +30,8 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
     logits = convert_to_tensor(logits)
     dtype = to_torch_dtype(dtype)
     generator = torch_seed_generator(seed, device=get_device())
-    probs = torch.softmax(logits, dim=-1)
     return torch.multinomial(
-        probs,
+        logits,
         num_samples,
         replacement=True,
         generator=generator,

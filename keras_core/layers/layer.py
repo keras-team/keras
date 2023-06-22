@@ -248,6 +248,9 @@ class Layer(BackendLayer, Operation):
         self._trainable = trainable
         self._losses = []
 
+        self._call_signature_parameters = [
+            p.name for p in inspect.signature(self.call).parameters.values()
+        ]
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -255,9 +258,6 @@ class Layer(BackendLayer, Operation):
         self._allow_non_tensor_positional_args = False
         # Dict of shapes that were used to call `build()`.
         self._build_shapes_dict = None
-        self._call_signature_parameters = [
-            p.name for p in inspect.signature(self.call).parameters.values()
-        ]
         self._initializer_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -606,31 +606,27 @@ class Layer(BackendLayer, Operation):
 
         ##############################
         # 6. Populate mask argument(s)
-        if self.supports_masking:
-            if len(call_spec.tensor_arguments_dict) == 1:
-                if (
-                    "mask" in call_spec.argument_names
-                    and call_spec.arguments_dict["mask"] is None
-                ):
-                    arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
-                    only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                    mask = nest.map_structure(
-                        lambda x: getattr(x, "_keras_mask", None),
-                        only_tensor_arg,
-                    )
-                    kwargs["mask"] = mask
-            elif len(call_spec.tensor_arguments_dict) > 1:
-                for k, v in call_spec.tensor_arguments_dict.items():
-                    expected_mask_arg_name = f"{k}_mask"
-                    if expected_mask_arg_name in call_spec.argument_names:
-                        if (
-                            call_spec.arguments_dict[expected_mask_arg_name]
-                            is None
-                        ):
-                            mask = nest.map_structure(
-                                lambda x: getattr(x, "_keras_mask", None), v
-                            )
-                            kwargs[expected_mask_arg_name] = mask
+        if len(call_spec.tensor_arguments_dict) == 1:
+            if (
+                "mask" in call_spec.argument_names
+                and call_spec.arguments_dict["mask"] is None
+            ):
+                arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
+                only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
+                mask = nest.map_structure(
+                    lambda x: getattr(x, "_keras_mask", None),
+                    only_tensor_arg,
+                )
+                kwargs["mask"] = mask
+        elif len(call_spec.tensor_arguments_dict) > 1:
+            for k, v in call_spec.tensor_arguments_dict.items():
+                expected_mask_arg_name = f"{k}_mask"
+                if expected_mask_arg_name in call_spec.argument_names:
+                    if call_spec.arguments_dict[expected_mask_arg_name] is None:
+                        mask = nest.map_structure(
+                            lambda x: getattr(x, "_keras_mask", None), v
+                        )
+                        kwargs[expected_mask_arg_name] = mask
 
         ####################
         # 7. Call the layer.
@@ -651,15 +647,21 @@ class Layer(BackendLayer, Operation):
                         if backend.is_tensor(output):
                             self.add_loss(self.activity_regularizer(output))
 
+            # Set masks on outputs,
+            # provided only the first positional input arg and its mask.
+            # TODO: consider extending this to all args and kwargs.
+            previous_mask = getattr(call_spec.first_arg, "_keras_mask", None)
             if self.supports_masking:
-                # Set masks on outputs,
-                # provided only the first positional input arg and its mask.
-                # TODO: consider extending this to all args and kwargs.
-                previous_mask = getattr(
-                    call_spec.first_arg, "_keras_mask", None
-                )
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
+                )
+            elif previous_mask is not None:
+                warnings.warn(
+                    f"Layer '{self.name}' (of type {self.__class__.__name__}) "
+                    "was passed an input with a mask attached to it. "
+                    "However, this layer does not support masking and will "
+                    "therefore destroy the mask information. Downstream "
+                    "layers will not see the mask."
                 )
         finally:
             # Destroy call context if we created it

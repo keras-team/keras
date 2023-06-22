@@ -71,7 +71,8 @@ class Operation:
                 f"'{self.name}' (of type {self.__class__.__name__}). "
                 f"Either the `{self.__class__.__name__}.call()` method "
                 f"is incorrect, or you need to implement the "
-                f"`{self.__class__.__name__}.compute_output_spec()` method. "
+                f"`{self.__class__.__name__}.compute_output_spec() / "
+                "compute_output_shape()` method. "
                 f"Error encountered:\n\n{e}"
             )
             raise new_e.with_traceback(e.__traceback__) from None

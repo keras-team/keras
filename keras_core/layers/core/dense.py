@@ -82,6 +82,7 @@ class Dense(Layer):
         self.bias_constraint = constraints.get(bias_constraint)
 
         self.input_spec = InputSpec(min_ndim=2)
+        self.supports_masking = True
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
