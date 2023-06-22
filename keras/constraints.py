@@ -174,6 +174,8 @@ class UnitNorm(Constraint):
         set `axis` to `[0, 1, 2]`
         to constrain the weights of each filter tensor of size
         `(rows, cols, input_depth)`.
+        When using with a `tf.keras.layers.Embedding`, use `axis=-1` to
+        constrain each embedding row (entry) to have unit length.
     """
 
     def __init__(self, axis=0):
