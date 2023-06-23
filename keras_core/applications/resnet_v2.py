@@ -5,7 +5,7 @@ from keras_core.applications import resnet
 
 @keras_core_export(
     [
-        "keras_core.applications.resnet_v2.ResNet50V2",
+        "keras_core.applications.ResNet50V2",
         "keras_core.applications.resnet_v2.ResNet50V2",
     ]
 )
@@ -45,7 +45,7 @@ def ResNet50V2(
 
 @keras_core_export(
     [
-        "keras_core.applications.resnet_v2.ResNet101V2",
+        "keras_core.applications.ResNet101V2",
         "keras_core.applications.resnet_v2.ResNet101V2",
     ]
 )
@@ -85,7 +85,7 @@ def ResNet101V2(
 
 @keras_core_export(
     [
-        "keras_core.applications.resnet_v2.ResNet152V2",
+        "keras_core.applications.ResNet152V2",
         "keras_core.applications.resnet_v2.ResNet152V2",
     ]
 )
