@@ -91,6 +91,8 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         {"seed": 10, "shape": (2, 3, 4), "mean": 0, "stddev": 1},
         {"seed": 10, "shape": (2, 3), "mean": 10, "stddev": 1},
         {"seed": 10, "shape": (2, 3), "mean": 10, "stddev": 3},
+        # Test list shapes.
+        {"seed": 10, "shape": [2, 3], "mean": 10, "stddev": 3},
     )
     def test_truncated_normal(self, seed, shape, mean, stddev):
         np.random.seed(seed)
@@ -98,7 +100,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         res = random.truncated_normal(
             shape, mean=mean, stddev=stddev, seed=seed
         )
-        self.assertEqual(res.shape, shape)
+        self.assertEqual(res.shape, tuple(shape))
         self.assertEqual(res.shape, np_res.shape)
         self.assertLessEqual(knp.max(res), mean + 2 * stddev)
         self.assertGreaterEqual(knp.max(res), mean - 2 * stddev)

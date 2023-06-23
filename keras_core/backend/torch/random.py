@@ -99,7 +99,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     # Take a larger standard normal dist, discard values outside 2 * stddev
     # Offset by mean and stddev
-    x = normal(shape + (4,), mean=0, stddev=1, dtype=dtype, seed=seed)
+    x = normal(tuple(shape) + (4,), mean=0, stddev=1, dtype=dtype, seed=seed)
     valid = (x > -2) & (x < 2)
     indexes = valid.max(-1, keepdim=True)[1]
     trunc_x = torch.empty(shape, device=get_device())
