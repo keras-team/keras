@@ -176,7 +176,8 @@ class Functional(Function, Model):
         else:
             masks = self._flatten_to_reference_inputs(mask)
             for x, mask in zip(inputs, masks):
-                x._keras_mask = mask
+                if mask is not None:
+                    x._keras_mask = mask
         outputs = self._run_through_graph(
             inputs, operation_fn=lambda op: operation_fn(op, training=training)
         )
