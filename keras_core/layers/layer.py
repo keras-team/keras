@@ -242,7 +242,7 @@ class Layer(BackendLayer, Operation):
         self.built = False
         self.dtype_policy = mixed_precision.resolve_policy(dtype)
         self.autocast = autocast
-        self.input_spec = None
+        self._input_spec = None
         self.supports_jit = True
 
         self._trainable = trainable
@@ -298,6 +298,14 @@ class Layer(BackendLayer, Operation):
         self._layers = layers
         self._metrics = metrics
         self._seed_generators = seed_generators
+
+    @property
+    def input_spec(self):
+        return self._input_spec
+
+    @input_spec.setter
+    def input_spec(self, value):
+        self._input_spec = value
 
     @utils.default
     def build(self, input_shape):

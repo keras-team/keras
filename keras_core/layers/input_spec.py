@@ -152,13 +152,18 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
             inputs = list_inputs
 
     inputs = nest.flatten(inputs)
+    if len(input_spec) != len(inputs):
+        raise ValueError(
+            f"Layer '{layer_name}' expected {len(input_spec)} input(s). "
+            f"Received {len(inputs)} instead."
+        )
     for x in inputs:
         # Having a shape/dtype is the only commonality of the various
         # tensor-like objects that may be passed. The most common kind of
         # invalid type we are guarding for is a Layer instance (Functional API),
         # which does not have a `shape` attribute.
         if not hasattr(x, "shape"):
-            raise TypeError(
+            raise ValueError(
                 f"Inputs to a layer should be tensors. Got '{x}' "
                 f"(of type {type(x)}) as input for layer '{layer_name}'."
             )

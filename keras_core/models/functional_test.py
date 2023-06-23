@@ -4,6 +4,7 @@ from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 from keras_core.layers.core.input_layer import Input
+from keras_core.layers.input_spec import InputSpec
 from keras_core.models import Functional
 from keras_core.models import Model
 
@@ -221,6 +222,52 @@ class FunctionalTest(testing.TestCase):
         outputs = layers.Dense(4)(x)
         model = Functional({"a": input_a, "b": input_b}, outputs)
         self.run_class_serialization_test(model)
+
+    def test_bad_input_spec(self):
+        # Single input
+        inputs = Input(shape=(4,))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+        with self.assertRaisesRegex(
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+        ):
+            model(np.zeros((2, 3)))
+        with self.assertRaisesRegex(ValueError, "expected 1 input"):
+            model([np.zeros((2, 4)), np.zeros((2, 4))])
+
+        # List input
+        input_a = Input(shape=(4,), name="a")
+        input_b = Input(shape=(4,), name="b")
+        x = input_a + input_b
+        outputs = layers.Dense(2)(x)
+        model = Functional([input_a, input_b], outputs)
+        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+            model(np.zeros((2, 3)))
+        with self.assertRaisesRegex(
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+        ):
+            model([np.zeros((2, 3)), np.zeros((2, 4))])
+
+        # Dict input
+        model = Functional({"a": input_a, "b": input_b}, outputs)
+        with self.assertRaisesRegex(ValueError, "expected 2 input"):
+            model(np.zeros((2, 3)))
+        with self.assertRaisesRegex(
+            ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
+        ):
+            model({"a": np.zeros((2, 3)), "b": np.zeros((2, 4))})
+
+    def test_manual_input_spec(self):
+        inputs = Input(shape=(None, 3))
+        outputs = layers.Dense(2)(inputs)
+        model = Functional(inputs, outputs)
+        model.input_spec = InputSpec(shape=(None, 4, 3))
+        with self.assertRaisesRegex(
+            ValueError,
+            r"expected shape=\(None, 4, 3\), found shape=\(2, 3, 3\)",
+        ):
+            model(np.zeros((2, 3, 3)))
+        model(np.zeros((2, 4, 3)))
 
     def test_add_loss(self):
         # TODO

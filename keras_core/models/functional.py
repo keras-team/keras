@@ -6,6 +6,7 @@ from tensorflow import nest
 
 from keras_core import backend
 from keras_core import operations as ops
+from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.models.model import Model
 from keras_core.operations.function import Function
@@ -295,6 +296,46 @@ class Functional(Function, Model):
     def add_loss(self, loss):
         # Symbolic only. TODO
         raise NotImplementedError
+
+    @property
+    def input_spec(self):
+        if hasattr(self, "_manual_input_spec"):
+            return self._manual_input_spec
+
+        def shape_with_no_batch_size(x):
+            x = list(x)
+            if x:
+                x[0] = None
+            return tuple(x)
+
+        if isinstance(self._inputs_struct, dict):
+            # Case where `_nested_inputs` is a plain dict of Inputs.
+            names = sorted(self._inputs_struct.keys())
+            return [
+                InputSpec(
+                    shape=shape_with_no_batch_size(
+                        self._inputs_struct[name].shape
+                    ),
+                    allow_last_axis_squeeze=True,
+                    name=name,
+                )
+                for name in names
+            ]
+        else:
+            # Single input, or list/tuple of inputs.
+            # The data may be passed as a dict keyed by input name.
+            return [
+                InputSpec(
+                    shape=shape_with_no_batch_size(x.shape),
+                    allow_last_axis_squeeze=True,
+                    name=x._keras_history[0].name,
+                )
+                for x in self._inputs
+            ]
+
+    @input_spec.setter
+    def input_spec(self, value):
+        self._manual_input_spec = value
 
     def get_config(self):
         if not functional_like_constructor(self.__class__):
