@@ -78,10 +78,18 @@ ALL_OBJECTS = {
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {
+        "bce": binary_crossentropy,
+        "BCE": binary_crossentropy,
+        "kld": kl_divergence,
+        "KLD": kl_divergence,
         "mae": mean_absolute_error,
         "MAE": mean_absolute_error,
         "mse": mean_squared_error,
         "MSE": mean_squared_error,
+        "mape": mean_absolute_percentage_error,
+        "MAPE": mean_absolute_percentage_error,
+        "msle": mean_squared_logarithmic_error,
+        "MSLE": mean_squared_logarithmic_error,
     }
 )
 

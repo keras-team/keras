@@ -199,6 +199,40 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertListEqual(hist_keys, ref_keys)
 
+    def test_functional_list_outputs_list_losses_abbr(self):
+        model = _get_model_multi_outputs_list()
+        self.assertTrue(isinstance(model, Functional))
+        x = np.random.rand(8, 3)
+        y1 = np.random.rand(8, 1)
+        y2 = np.random.randint(0, 2, (8, 1))
+        model.compile(
+            optimizer="sgd",
+            loss=["mse", "bce"],
+            metrics=[
+                ["bce", "mse", "mae"],
+                ["mse", "acc"],
+            ],
+            loss_weights=[0.1, 2],
+        )
+        # Fit the model to make sure compile_metrics are built
+        hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
+        hist_keys = sorted(hist.history.keys())
+        # TODO `tf.keras` also outputs individual losses for outputs
+        # TODO Align output names with 'bce', `mse`, `mae` of `tf.keras`
+        ref_keys = sorted(
+            [
+                "loss",
+                # "output_a_loss",
+                "output_a_binary_crossentropy",
+                "output_a_mean_absolute_error",
+                "output_a_mean_squared_error",
+                "output_b_acc",
+                # "output_b_loss",
+                "output_b_mean_squared_error",
+            ]
+        )
+        self.assertListEqual(hist_keys, ref_keys)
+
     def test_functional_list_outputs_nested_list_losses(self):
         model = _get_model_multi_outputs_list()
         self.assertTrue(isinstance(model, Functional))
