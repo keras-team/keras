@@ -3835,11 +3835,11 @@ class BaseRandomLayer(Layer):
         children.update(super()._trackable_children(save_type, **kwargs))
         return children
 
-    def _lookup_dependency(self, name):
+    def _lookup_dependency(self, name, cached_dependencies=None):
         # When loading from a Keras SavedModel load, make sure that the loader
         # can find the random generator, otherwise the loader will assume that
         # it does not exist, and will try to create a new generator.
         if name == "_random_generator":
             return self._random_generator
         else:
-            return super()._lookup_dependency(name)
+            return super()._lookup_dependency(name, cached_dependencies)

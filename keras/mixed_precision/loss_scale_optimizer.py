@@ -209,9 +209,9 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
         weights.update(super()._trackable_children(save_type, **kwargs))
         return weights
 
-    def _lookup_dependency(self, name):
+    def _lookup_dependency(self, name, cached_dependencies=None):
         """From Trackable. Find a weight in the current graph."""
-        unconditional = super()._lookup_dependency(name)
+        unconditional = super()._lookup_dependency(name, cached_dependencies)
         if unconditional is not None:
             return unconditional
         if tf.executing_eagerly():
