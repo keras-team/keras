@@ -63,8 +63,10 @@ def highlight_symbol(x):
     return f"[color(33)]{x}[/]"
 
 
-def bold_text(x):
+def bold_text(x, color=None):
     """Bolds text using rich markup."""
+    if color:
+        return f"[bold][color({color})]{x}[/][/]"
     return f"[bold]{x}[/]"
 
 
@@ -172,19 +174,22 @@ def print_summary(
         positions = positions or [0.45, 0.84, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #"]
+        alignment = ["left", "left", "right"]
     else:
         line_length = line_length or 108
         positions = positions or [0.3, 0.56, 0.70, 1.0]
         # header names for the different log elements
         header = ["Layer (type)", "Output Shape", "Param #", "Connected to"]
+        alignment = ["left", "left", "right", "left"]
         relevant_nodes = []
         for v in model._nodes_by_depth.values():
             relevant_nodes += v
 
     if show_trainable:
         line_length += 8
-        positions = [p * 0.86 for p in positions] + [1.0]
+        positions = [p * 0.88 for p in positions] + [1.0]
         header.append("Trainable")
+        alignment.append("center")
 
     # Compute columns widths
     line_length = min(line_length, shutil.get_terminal_size().columns - 4)
@@ -200,7 +205,6 @@ def print_summary(
     # Render summary as a rich table.
     columns = []
     # Right align parameter counts.
-    alignment = ["left", "left", "right", "left", "left"]
     for i, name in enumerate(header):
         column = rich.table.Column(
             name,
@@ -208,6 +212,7 @@ def print_summary(
             width=column_widths[i],
         )
         columns.append(column)
+
     table = rich.table.Table(*columns, width=line_length, show_lines=True)
 
     def get_layer_fields(layer, prefix=""):
@@ -226,7 +231,11 @@ def print_summary(
 
         fields = [name, output_shape, params]
         if show_trainable:
-            fields.append("Y" if layer.trainable else "N")
+            fields.append(
+                bold_text("Y", color=34)
+                if layer.trainable
+                else bold_text("N", color=9)
+            )
         return fields
 
     def get_connections(layer):

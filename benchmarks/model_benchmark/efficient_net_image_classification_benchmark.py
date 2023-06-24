@@ -10,16 +10,15 @@ python3 -m model_benchmark.resnet_image_classification_benchmark \
 
 import time
 
-import keras_core as keras
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from absl import app
 from absl import flags
 from absl import logging
-
-
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
+
+import keras_core as keras
 from keras_core.applications import EfficientNetV2B0
 
 flags.DEFINE_integer("epochs", 1, "The number of epochs.")
@@ -111,7 +110,7 @@ def main(_):
 
     benchmark_metrics_callback = BenchmarkMetricsCallback(
         start_batch=1,
-        stop_batch=train_ds.cardinality().numpy()-1,
+        stop_batch=train_ds.cardinality().numpy() - 1,
     )
 
     classifier.compile(
@@ -134,9 +133,10 @@ def main(_):
     wall_time = time.time() - st
     validation_accuracy = history.history["val_sparse_categorical_accuracy"][-1]
 
-    examples_per_second = np.mean(
-        np.array(benchmark_metrics_callback.state["throughput"])
-    ) * FLAGS.batch_size
+    examples_per_second = (
+        np.mean(np.array(benchmark_metrics_callback.state["throughput"]))
+        * FLAGS.batch_size
+    )
 
     logging.info("Training Finished!")
     logging.info(f"Wall Time: {wall_time:.4f} seconds.")
