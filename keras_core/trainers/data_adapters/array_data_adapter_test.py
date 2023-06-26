@@ -2,7 +2,6 @@ import jax
 import numpy as np
 import pandas
 import tensorflow as tf
-import torch
 from absl.testing import parameterized
 
 from keras_core import backend
@@ -11,9 +10,7 @@ from keras_core.trainers.data_adapters import array_data_adapter
 
 
 class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
-    @parameterized.parameters(
-        [("np",), ("tf",), ("jax",), ("torch",), ("pandas")]
-    )
+    @parameterized.parameters([("np",), ("tf",), ("pandas")])
     def test_basic_flow(self, array_type):
         if array_type == "np":
             x = np.random.random((34, 4))
@@ -24,9 +21,6 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         elif array_type == "jax":
             x = jax.numpy.ones((34, 4))
             y = jax.numpy.ones((34, 2))
-        elif array_type == "torch":
-            x = torch.ones((34, 4))
-            y = torch.ones((34, 2))
         elif array_type == "pandas":
             x = pandas.DataFrame(np.random.random((34, 4)))
             y = pandas.DataFrame(np.random.random((34, 2)))

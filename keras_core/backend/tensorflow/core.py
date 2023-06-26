@@ -28,7 +28,7 @@ class Variable(
         )
 
     def _direct_assign(self, value):
-        self._value.assign(tf.cast(value, self._value.dtype))
+        self.value.assign(value)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)

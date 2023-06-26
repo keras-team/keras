@@ -2,7 +2,7 @@
 Title: Understanding masking & padding
 Authors: Scott Zhu, Francois Chollet
 Date created: 2019/07/16
-Last modified: 2020/04/14
+Last modified: 2023/06/25
 Description: Complete guide to using mask-aware sequence layers in Keras.
 Accelerator: None
 """
@@ -376,5 +376,4 @@ automatically.
 manually.
 - You can easily write layers that modify the current mask, that generate a new mask,
 or that consume the mask associated with the inputs.
-
 """

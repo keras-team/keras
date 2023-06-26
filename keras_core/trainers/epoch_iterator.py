@@ -42,8 +42,10 @@ import types
 import warnings
 
 import tensorflow as tf
+from tensorflow import nest
 
 from keras_core.trainers.data_adapters import array_data_adapter
+from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters import generator_data_adapter
 from keras_core.trainers.data_adapters import py_dataset_adapter
 from keras_core.trainers.data_adapters import tf_dataset_adapter
@@ -67,7 +69,8 @@ class EpochIterator:
         if steps_per_epoch:
             self._current_iterator = None
             self._insufficient_data = False
-        if array_data_adapter.can_convert_arrays((x, y, sample_weight)):
+        first_element = next(iter(nest.flatten(x)), None)
+        if isinstance(first_element, data_adapter_utils.ARRAY_TYPES):
             self.data_adapter = array_data_adapter.ArrayDataAdapter(
                 x,
                 y,

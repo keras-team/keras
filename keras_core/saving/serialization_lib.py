@@ -5,6 +5,7 @@ import inspect
 import types
 import warnings
 
+import jax
 import numpy as np
 import tensorflow as tf
 
@@ -161,7 +162,11 @@ def serialize_keras_object(obj):
         }
     if isinstance(obj, tf.TensorShape):
         return obj.as_list() if obj._dims is not None else None
-    if backend.is_tensor(obj):
+    if isinstance(obj, (tf.Tensor, jax.numpy.ndarray)) or hasattr(
+        obj, "device"
+    ):
+        # Import torch creates circular dependency, so we use
+        # `hasattr(obj, "device")` to check if obj is a torch tensor.
         return {
             "class_name": "__tensor__",
             "config": {

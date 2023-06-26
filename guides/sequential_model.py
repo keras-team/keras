@@ -2,7 +2,7 @@
 Title: The Sequential model
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2020/04/12
-Last modified: 2020/04/12
+Last modified: 2023/06/25
 Description: Complete guide to the Sequential model.
 Accelerator: GPU
 """
