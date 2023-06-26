@@ -302,8 +302,9 @@ def slice_update(inputs, start_indices, updates):
         python_slice(start_index, start_index + update_length)
         for start_index, update_length in zip(start_indices, updates.shape)
     ]
-    inputs[slices] = updates
-    return inputs
+    outputs = torch.clone(inputs)
+    outputs[slices] = updates
+    return outputs
 
 
 def while_loop(
