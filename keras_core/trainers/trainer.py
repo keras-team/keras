@@ -123,7 +123,9 @@ class Trainer:
         for m in self.metrics:
             m.reset_state()
 
-    def compute_loss(self, x=None, y=None, y_pred=None, sample_weight=None):
+    def compute_loss(
+        self, x=None, y=None, y_pred=None, sample_weight=None, allow_empty=False
+    ):
         """Compute the total loss, validate it, and return it.
 
         Subclasses can optionally override this method to provide custom loss
@@ -167,6 +169,9 @@ class Trainer:
             y: Target data.
             y_pred: Predictions returned by the model (output of `model(x)`)
             sample_weight: Sample weights for weighting the loss function.
+            allow_empty: If `False`, the method will error out if
+                no loss has been computed by the model. If `True`, then
+                if no loss is computed, the method returns 0.
 
         Returns:
             The total loss as a scalar tensor, or `None` if no loss results
@@ -180,12 +185,14 @@ class Trainer:
                 losses.append(loss)
         for loss in self.losses:
             losses.append(ops.cast(loss, dtype=backend.floatx()))
-        if len(losses) == 0:
+        if not allow_empty and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
         if len(losses) == 1:
             total_loss = losses[0]
+        elif len(losses) == 0:
+            total_loss = ops.zeros(())
         else:
             total_loss = ops.sum(losses)
         return total_loss
