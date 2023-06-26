@@ -7,7 +7,6 @@ Description: Complete guide to training & evaluation with `fit()` and `evaluate(
 Accelerator: GPU
 """
 
-
 """
 ## Setup
 """
