@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
+import h5py
 import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
@@ -733,6 +734,24 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
         self.assertAllClose(ref_out, out, atol=1e-6)
+
+    def test_layer_index_naming(self):
+        weights_filepath = os.path.join(self.get_temp_dir(), "model.weights.h5")
+        model = keras.Sequential(
+            [
+                keras.layers.Dense(10),
+                keras.layers.Dense(10),
+                keras.layers.Dense(10),
+                keras.layers.Dense(10),
+            ]
+        )
+        model.build([1, 20])
+        model.save_weights(weights_filepath)
+        with h5py.File(weights_filepath, "r") as f:
+            self.assertAllEqual(
+                list(f["_layer_checkpoint_dependencies"].keys()),
+                ["dense", "dense_1", "dense_2", "dense_3"],
+            )
 
 
 # This custom class lacks custom object registration.
