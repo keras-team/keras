@@ -8,6 +8,7 @@ from keras_core import initializers
 from keras_core import layers
 from keras_core import losses
 from keras_core import metrics
+from keras_core import operations as ops
 from keras_core import optimizers
 from keras_core import testing
 from keras_core.callbacks.callback import Callback
@@ -431,3 +432,21 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         )
         model.evaluate(x_test, y_test, batch_size=4)
         model.predict(x_test, batch_size=4)
+
+    def test_internal_only_loss(self):
+        class LossLayer(layers.Layer):
+            def call(self, x):
+                self.add_loss(ops.sum(x))
+                return x
+
+        model = keras_core.Sequential(
+            [
+                layers.Dense(2),
+                LossLayer(),
+                layers.Dense(1),
+            ]
+        )
+        model.compile(optimizer="adam")
+        x = np.ones((16, 2))
+        y = np.zeros((16, 1))
+        model.fit(x, y, batch_size=4)

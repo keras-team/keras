@@ -247,6 +247,7 @@ class Layer(BackendLayer, Operation):
 
         self._trainable = trainable
         self._losses = []
+        self._loss_ids = set()
 
         self._call_signature_parameters = [
             p.name for p in inspect.signature(self.call).parameters.values()
@@ -844,14 +845,26 @@ class Layer(BackendLayer, Operation):
             if scope.collect_losses:
                 for x in losses:
                     scope.add_loss(loss)
+                    self._loss_ids.add(id(loss))
         else:
             self._losses.extend(losses)
 
+    def _get_own_losses(self):
+        if backend.in_stateless_scope():
+            losses = []
+            scope = backend.get_stateless_scope()
+            for loss in scope.losses:
+                if id(loss) in self._loss_ids:
+                    losses.append(loss)
+            return losses
+        else:
+            return self._losses[:]
+
     @property
     def losses(self):
-        losses = self._losses[:]
+        losses = self._get_own_losses()
         for layer in self._layers:
-            losses.extend(layer._losses)
+            losses.extend(layer._get_own_losses())
         weight_regularization_losses = []
         for v in self.trainable_weights:
             regularizer = getattr(v, "regularizer", None)
@@ -859,6 +872,18 @@ class Layer(BackendLayer, Operation):
                 weight_regularization_losses.append(regularizer(v))
         losses.extend(weight_regularization_losses)
         return losses
+
+    def _clear_losses(self):
+        if backend.in_stateless_scope():
+            scope = backend.get_stateless_scope()
+            if scope.collect_losses:
+                for x in scope.losses:
+                    if id(x) in self._loss_ids:
+                        scope.losses.remove(x)
+        self._losses.clear()
+        self._loss_ids.clear()
+        for layer in self._layers:
+            layer._clear_losses()
 
     def save_own_variables(self, store):
         """Saves the state of the layer.
@@ -916,17 +941,6 @@ class Layer(BackendLayer, Operation):
             )
         for i, v in enumerate(all_vars):
             v.assign(store[f"{i}"])
-
-    def _clear_losses(self):
-        if backend.in_stateless_scope():
-            scope = backend.get_stateless_scope()
-            if scope.collect_losses:
-                for x in scope.losses:
-                    if x in self._losses:
-                        scope.losses.remove(x)
-        self._losses.clear()
-        for layer in self._layers:
-            layer._clear_losses()
 
     def _track_variable(self, variable):
         if variable.trainable:

@@ -4,6 +4,7 @@ import tensorflow as tf  # for nest
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
+from keras_core import operations as ops
 from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
@@ -31,11 +32,16 @@ class JAXTrainer(base_trainer.Trainer):
         kwargs = {}
         if self._call_has_training_arg():
             kwargs["training"] = training
-        y_pred, non_trainable_variables = self.stateless_call(
-            trainable_variables, non_trainable_variables, x, **kwargs
+        y_pred, non_trainable_variables, losses = self.stateless_call(
+            trainable_variables,
+            non_trainable_variables,
+            x,
+            return_losses=True,
+            **kwargs,
         )
-
-        loss = self.compute_loss(x, y, y_pred, sample_weight)
+        loss = self.compute_loss(x, y, y_pred, sample_weight, allow_empty=True)
+        if losses:
+            loss += ops.sum(losses)
         return loss, (y_pred, non_trainable_variables)
 
     def _eager_build(self, data_batch):
