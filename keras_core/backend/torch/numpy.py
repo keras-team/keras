@@ -661,7 +661,7 @@ def repeat(x, repeats, axis=None):
 
         x = KerasTensor(x.shape, standardize_dtype(x.dtype))
         outputs = repeat(x, repeats, axis=axis)
-        print(outputs)
+
         return torch.empty(
             size=outputs.shape,
             dtype=to_torch_dtype(outputs.dtype),

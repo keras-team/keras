@@ -3,7 +3,7 @@
 To run the benchmark, make sure you are in model_benchmark/ directory, and run
 the command below:
 
-python3 -m model_benchmark.resnet_image_classification_benchmark \
+python3 -m model_benchmark.efficient_net_image_classification_benchmark \
     --epochs=2 \
     --batch_size=32
 """
