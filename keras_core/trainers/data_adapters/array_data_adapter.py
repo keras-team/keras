@@ -27,11 +27,7 @@ class ArrayDataAdapter(DataAdapter):
         shuffle=False,
         class_weight=None,
     ):
-        types_struct = nest.map_structure(lambda x: type(x), x)
-        flat_types = nest.flatten(types_struct)
-        if not all(
-            issubclass(c, data_adapter_utils.ARRAY_TYPES) for c in flat_types
-        ):
+        if not can_convert_arrays((x, y, sample_weight)):
             raise ValueError(
                 "Expected all elements of `x` to be array-like. "
                 f"Received invalid types: x={x}"
@@ -252,6 +248,28 @@ class ArrayDataAdapter(DataAdapter):
         return self._partial_batch_size or None
 
 
+def can_convert_arrays(arrays):
+    """Check if array like-inputs can be handled by `ArrayDataAdapter`
+
+    Args:
+        inputs: Structure of `Tensor`s, NumPy arrays, or tensor-like.
+
+    Returns:
+        `True` if `arrays` can be handled by `ArrayDataAdapter`, `False`
+        otherwise.
+    """
+
+    def can_convert_single_array(x):
+        is_none = x is None
+        known_type = isinstance(x, data_adapter_utils.ARRAY_TYPES)
+        convertable_type = hasattr(x, "__array__")
+        return is_none or known_type or convertable_type
+
+    return all(
+        tf.nest.flatten(tf.nest.map_structure(can_convert_single_array, arrays))
+    )
+
+
 def convert_to_arrays(arrays, dtype=None):
     """Process array-like inputs.
 
@@ -262,7 +280,7 @@ def convert_to_arrays(arrays, dtype=None):
     - Converts `list`s to `tuple`s (for `tf.data` support).
 
     Args:
-        inputs: Structure of `Tensor`s, `NumPy` arrays, or tensor-like.
+        inputs: Structure of `Tensor`s, NumPy arrays, or tensor-like.
 
     Returns:
         Structure of NumPy `ndarray`s.
@@ -277,15 +295,16 @@ def convert_to_arrays(arrays, dtype=None):
                 x = np.expand_dims(x.to_numpy(dtype=dtype), axis=-1)
             elif isinstance(x, pandas.DataFrame):
                 x = x.to_numpy(dtype=dtype)
-        if isinstance(x, (tf.Tensor, tf.Variable)):
-            x = x.numpy()
         if not isinstance(x, np.ndarray):
+            # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
+            # `torch.Tensor`, as well as any other tensor-like object that has
+            # added numpy support.
             if hasattr(x, "__array__"):
                 x = np.array(x, dtype=dtype)
             else:
                 raise ValueError(
-                    "Expected a NumPy array, tf.Tensor, "
-                    "Pandas Dataframe, or Pandas Series. "
+                    "Expected a NumPy array, tf.Tensor, jax.np.ndarray, "
+                    "torch.Tensor, Pandas Dataframe, or Pandas Series. "
                     f"Received invalid input: {x} (of type {type(x)})"
                 )
         if x.dtype == object:
