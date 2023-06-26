@@ -211,7 +211,7 @@ class Functional(Function, Model):
         if isinstance(inputs, dict):
             ref_inputs = self._inputs_struct
             if not nest.is_nested(ref_inputs):
-                ref_inputs = [self._nested_inputs]
+                ref_inputs = [self._inputs_struct]
             if isinstance(ref_inputs, dict):
                 # In the case that the graph is constructed with dict input
                 # tensors, We will use the original dict key to map with the

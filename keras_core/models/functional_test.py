@@ -99,6 +99,24 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
+    def test_named_input_dict_io(self):
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        x = layers.Dense(5)(input_a)
+        outputs = layers.Dense(4)(x)
+
+        model = Functional(input_a, outputs)
+
+        # Eager call
+        in_val = {"a": np.random.random((2, 3))}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
+        # Symbolic call
+        input_a_2 = Input(shape=(3,), batch_size=2)
+        in_val = {"a": input_a_2}
+        out_val = model(in_val)
+        self.assertEqual(out_val.shape, (2, 4))
+
     def test_layer_getters(self):
         # Test mixing ops and layers
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
