@@ -1,6 +1,5 @@
 import math
 
-import jax
 import numpy as np
 import tensorflow as tf
 
@@ -12,15 +11,12 @@ except ImportError:
     pandas = None
 
 
-ARRAY_TYPES = (tf.Tensor, np.ndarray, jax.numpy.ndarray)
+# Leave jax, tf, and torch arrays off this list. Instead we will use
+# `__array__` to detect these types. Doing so allows us to avoid importing a
+# backend framework we are not currently using just to do type-checking.
+ARRAY_TYPES = (np.ndarray,)
 if pandas:
-    ARRAY_TYPES = ARRAY_TYPES + (
-        tf.Tensor,
-        np.ndarray,
-        pandas.Series,
-        pandas.DataFrame,
-    )
-# TODO: support torch tensors?
+    ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
 
 @keras_core_export("keras_core.utils.unpack_x_y_sample_weight")
