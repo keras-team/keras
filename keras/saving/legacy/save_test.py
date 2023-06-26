@@ -1135,6 +1135,46 @@ class TestWholeModelSaving(test_combinations.TestCase):
         self.assertIsInstance(reloaded_model, new_cls)
 
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    def test_custom_sequential_registered_no_scope(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class MyDense(keras.layers.Dense):
+            def __init__(self, units, **kwargs):
+                super().__init__(units, **kwargs)
+
+        input_shape = [1]
+        inputs = keras.Input(shape=input_shape)
+        custom_layer = MyDense(1)
+        saved_model_dir = self._save_model_dir()
+        save_format = test_utils.get_save_format()
+
+        model = keras.Sequential(layers=[inputs, custom_layer])
+        model.save(saved_model_dir, save_format=save_format)
+        loaded_model = keras.models.load_model(saved_model_dir)
+
+        x = tf.constant([5])
+        self.assertAllEqual(model(x), loaded_model(x))
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
+    def test_custom_functional_registered_no_scope(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class MyDense(keras.layers.Dense):
+            def __init__(self, units, **kwargs):
+                super().__init__(units, **kwargs)
+
+        saved_model_dir = self._save_model_dir()
+        save_format = test_utils.get_save_format()
+        input_shape = [1]
+        inputs = keras.Input(shape=input_shape)
+        outputs = MyDense(1)(inputs)
+        model = keras.Model(inputs, outputs)
+
+        model.save(saved_model_dir, save_format=save_format)
+        loaded_model = keras.models.load_model(saved_model_dir)
+
+        x = tf.constant([5])
+        self.assertAllEqual(model(x), loaded_model(x))
+
+    @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_shared_objects(self):
         class OuterLayer(keras.layers.Layer):
             def __init__(self, inner_layer):
@@ -1222,7 +1262,6 @@ class TestWholeModelSaving(test_combinations.TestCase):
         with object_registration.CustomObjectScope(
             {"OuterLayer": OuterLayer, "InnerLayer": InnerLayer}
         ):
-
             # Test saving and loading to disk
             save_format = test_utils.get_save_format()
             saved_model_dir = self._save_model_dir()

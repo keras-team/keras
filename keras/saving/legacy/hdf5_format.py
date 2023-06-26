@@ -81,6 +81,9 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
             "import h5py."
         )
 
+    # Ensures that all models saved in HDF5 format follow the old serialization
+    model.use_legacy_config = True
+
     # TODO(psv) Add warning when we save models that contain non-serializable
     # entities like metrics added using `add_metric` and losses added using
     # `add_loss.`
