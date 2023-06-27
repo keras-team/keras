@@ -1,8 +1,8 @@
 import jax.numpy as jnp
 
+from keras_core.backend import config
 from keras_core.backend.jax.core import cast
 from keras_core.backend.jax.core import convert_to_tensor
-from keras_core.backend import config
 
 
 def add(x1, x2):
@@ -53,6 +53,7 @@ def mean(x, axis=None, keepdims=False):
         return cast(outputs, dtype)
     else:
         return cast(outputs, config.floatx())
+
 
 def max(x, axis=None, keepdims=False, initial=None):
     return jnp.max(x, axis=axis, keepdims=keepdims, initial=initial)
