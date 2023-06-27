@@ -7,7 +7,9 @@ import torch
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
 from keras_core import optimizers as optimizers_module
-from keras_core.backend.torch.core import device_scope
+from keras_core.backend.common import standardize_dtype
+from keras_core.backend.common.keras_tensor import KerasTensor
+from keras_core.backend.torch.core import is_tensor
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
@@ -150,21 +152,30 @@ class TorchTrainer(base_trainer.Trainer):
             and not self._compile_metrics.built
         )
         if model_unbuilt or compile_metrics_unbuilt:
-            # Build the model on one batch of data.
+            # Create symbolic tensors matching an input batch.
+
+            def to_symbolic_input(v):
+                if is_tensor(v):
+                    return KerasTensor(v.shape, standardize_dtype(v.dtype))
+                return v
+
+            data_batch = tf.nest.map_structure(to_symbolic_input, data_batch)
             (
                 x,
                 y,
                 sample_weight,
             ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
-            # Build model
-            with backend.StatelessScope():
-                with device_scope("meta"):
-                    y_pred = self(x)
-                    if compile_metrics_unbuilt:
-                        # Build metrics
-                        self.compute_metrics(
-                            x, y, y_pred, sample_weight=sample_weight
-                        )
+            # Build all model state with `backend.compute_output_spec`.
+            y_pred = backend.compute_output_spec(self, x)
+            if compile_metrics_unbuilt:
+                # Build all metric state with `backend.compute_output_spec`.
+                backend.compute_output_spec(
+                    self.compute_metrics,
+                    x,
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                )
         if self.optimizer is not None and not self.optimizer.built:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)

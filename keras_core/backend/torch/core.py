@@ -176,45 +176,62 @@ def name_scope(name):
 
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
-    with StatelessScope():
+    def has_none_shape(x):
+        """Check for if a `KerasTensor` has dynamic shape."""
+        if isinstance(x, KerasTensor):
+            return None in x.shape
+        return False
 
-        def has_none_shape(x):
-            if isinstance(x, KerasTensor):
-                return None in x.shape
-            return False
-
-        none_in_shape = any(map(has_none_shape, nest.flatten((args, kwargs))))
-
-        def convert_keras_tensor_to_torch(x, fill_value=None):
-            if isinstance(x, KerasTensor):
-                shape = list(x.shape)
-                if fill_value:
-                    for i, e in enumerate(shape):
-                        if e is None:
-                            shape[i] = fill_value
-                return torch.empty(
-                    size=shape,
-                    dtype=TORCH_DTYPES[x.dtype],
-                    device=get_device(),
-                )
-            return x
-
-        with device_scope("meta"):
-            args_1, kwargs_1 = nest.map_structure(
-                lambda x: convert_keras_tensor_to_torch(x, fill_value=83),
-                (args, kwargs),
+    def convert_keras_tensor_to_torch(x, fill_value=None):
+        """Convert `KerasTensor`s to `torch.Tensor`s."""
+        if isinstance(x, KerasTensor):
+            shape = list(x.shape)
+            if fill_value:
+                for i, e in enumerate(shape):
+                    if e is None:
+                        shape[i] = fill_value
+            return torch.ones(
+                size=shape,
+                dtype=TORCH_DTYPES[x.dtype],
+                device=get_device(),
             )
-            outputs_1 = fn(*args_1, **kwargs_1)
+        return x
 
-        outputs = outputs_1
+    def convert_torch_to_keras_tensor(x):
+        """Convert `torch.Tensor`s to `KerasTensor`s."""
+        if is_tensor(x):
+            return KerasTensor(x.shape, standardize_dtype(x.dtype))
+        return x
 
-        if none_in_shape:
+    def symbolic_call(fn, args, kwargs, fill_value):
+        """Call `fn` to infer output shape and dtype."""
+        try:
+            # First try instantiating all tensors on the `"meta"` device,
+            # which  should give a "zero flop" way to trace shape, but does
+            # not have universal support with torch operations.
             with device_scope("meta"):
-                args_2, kwargs_2 = nest.map_structure(
-                    lambda x: convert_keras_tensor_to_torch(x, fill_value=89),
+                args, kwargs = nest.map_structure(
+                    lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
-                outputs_2 = fn(*args_2, **kwargs_2)
+                return fn(*args, **kwargs)
+        except:
+            # If the `"meta"` device placement fails, fall back to tracing
+            # eagerly with tensors on the default device. This will be
+            # more robust, but more expensive.
+            args, kwargs = nest.map_structure(
+                lambda x: convert_keras_tensor_to_torch(x, fill_value),
+                (args, kwargs),
+            )
+            return fn(*args, **kwargs)
+
+    with StatelessScope():
+        outputs = symbolic_call(fn, args, kwargs, fill_value=83)
+
+        none_in_shape = any(map(has_none_shape, nest.flatten((args, kwargs))))
+        if none_in_shape:
+            outputs_1 = outputs
+            outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
 
             flat_out_1 = nest.flatten(outputs_1)
             flat_out_2 = nest.flatten(outputs_2)
@@ -227,11 +244,6 @@ def compute_output_spec(fn, *args, **kwargs):
                         shape[i] = None
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
             outputs = nest.pack_sequence_as(outputs_1, flat_out)
-
-        def convert_torch_to_keras_tensor(x):
-            if is_tensor(x):
-                return KerasTensor(x.shape, standardize_dtype(x.dtype))
-            return x
 
         output_spec = nest.map_structure(convert_torch_to_keras_tensor, outputs)
     return output_spec
