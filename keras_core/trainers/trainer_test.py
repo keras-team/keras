@@ -450,3 +450,75 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         x = np.ones((16, 2))
         y = np.zeros((16, 1))
         model.fit(x, y, batch_size=4)
+
+    def get_layer(self):
+        class ExampleLayer(keras_core.Layer):
+            def call(self, x):
+                return x * 2
+
+        return ExampleLayer
+
+    def get_model(self):
+        class ExampleModel(keras_core.Model):
+            def call(self, x):
+                return x * 2
+
+        return ExampleModel
+
+    def get_functional(self):
+        ExampleLayer = self.get_layer()
+
+        class ExampleFunctional(keras_core.Functional):
+            def __init__(self, input_shape=(None,)):
+                inputs = keras_core.Input(input_shape)
+                outputs = ExampleLayer()(inputs)
+                super().__init__(inputs=inputs, outputs=outputs)
+
+        return ExampleFunctional
+
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "model",
+                "model_class": "get_model",
+            },
+            {
+                "testcase_name": "layer",
+                "model_class": "get_layer",
+            },
+            {
+                "testcase_name": "functional",
+                "model_class": "get_functional",
+            },
+        ]
+    )
+    @pytest.mark.skipif(
+        keras_core.backend.backend() != "tensorflow",
+        reason="Only tensorflow supports raggeds",
+    )
+    def test_trainer_with_raggeds(self, model_class):
+        import tensorflow as tf
+
+        def loss_fn(y, y_pred, sample_weight=None):
+            return 0
+
+        model = getattr(self, model_class)()()
+        x = tf.ragged.constant([[1], [2, 3]])
+
+        # test forward pass
+        y = model(x)
+        self.assertEqual(type(y), tf.RaggedTensor)
+
+        # test training
+        if model_class in ["get_model", "get_functional"]:
+            model.compile(optimizer="adam", loss=loss_fn)
+            model.fit(x, x)
+            y = model.predict(x)
+            self.assertEqual(type(y), tf.RaggedTensor)
+
+        # test if everything works with the sequential model
+        model = keras_core.Sequential([model])
+        model.compile(optimizer="adam", loss=loss_fn)
+        model.fit(x, x)
+        y = model.predict(x)
+        self.assertEqual(type(y), tf.RaggedTensor)

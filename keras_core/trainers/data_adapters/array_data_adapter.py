@@ -295,6 +295,10 @@ def convert_to_arrays(arrays, dtype=None):
                 x = np.expand_dims(x.to_numpy(dtype=dtype), axis=-1)
             elif isinstance(x, pandas.DataFrame):
                 x = x.to_numpy(dtype=dtype)
+        if isinstance(x, (tf.Tensor, tf.Variable)):
+            x = x.numpy()
+        if isinstance(x, tf.RaggedTensor):
+            return tf.cast(x, dtype=dtype)
         if not isinstance(x, np.ndarray):
             # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
             # `torch.Tensor`, as well as any other tensor-like object that has
@@ -303,9 +307,10 @@ def convert_to_arrays(arrays, dtype=None):
                 x = np.array(x, dtype=dtype)
             else:
                 raise ValueError(
-                    "Expected a NumPy array, tf.Tensor, jax.np.ndarray, "
-                    "torch.Tensor, Pandas Dataframe, or Pandas Series. "
-                    f"Received invalid input: {x} (of type {type(x)})"
+                    "Expected a NumPy array, tf.Tensor, tf.RaggedTensor, "
+                    "jax.np.ndarray, torch.Tensor, Pandas Dataframe, or "
+                    "Pandas Series. Received invalid input: "
+                    f"{x} (of type {type(x)})"
                 )
         if x.dtype == object:
             return x
