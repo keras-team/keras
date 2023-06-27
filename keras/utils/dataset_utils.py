@@ -38,7 +38,7 @@ def split_dataset(
     Args:
         dataset: A `tf.data.Dataset` object, or a list/tuple of arrays with the
           same length.
-        left_size: If float (in the range `(0, 1)`), it signifies
+        left_size: If float (in the range "[0, 1] (excluding the boundary values 0 and 1)"), it signifies
           the fraction of the data to pack in the left dataset. If integer, it
           signifies the number of samples to pack in the left dataset. If
           `None`, it uses the complement to `right_size`. Defaults to `None`.
@@ -398,7 +398,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`left_size` should be either a positive integer "
             f"smaller than {total_length}, or a float "
-            "within the range `(0, 1)`. Received: left_size="
+            "within the range '[0, 1] (excluding the boundary values 0 and 1)'. Received: left_size="
             f"{left_size}"
         )
 
@@ -413,7 +413,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`right_size` should be either a positive integer "
             f"and smaller than {total_length} or a float "
-            "within the range `(0, 1)`. Received: right_size="
+            "within the range '[0, 1] (excluding the boundary values 0 and 1)'. Received: right_size="
             f"{right_size}"
         )
 
