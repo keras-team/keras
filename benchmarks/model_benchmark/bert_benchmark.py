@@ -12,6 +12,7 @@ python3 -m model_benchmark.bert_benchmark \
 
 import time
 
+import keras_core as keras
 import keras_nlp
 import numpy as np
 import tensorflow as tf
@@ -21,7 +22,6 @@ from absl import flags
 from absl import logging
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
 
-import keras_core as keras
 
 flags.DEFINE_string("model_size", "small", "The size of model to benchmark.")
 flags.DEFINE_string(
