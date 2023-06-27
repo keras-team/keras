@@ -130,7 +130,7 @@ for epoch in range(epochs):
 
         # Run one step of gradient descent by updating
         # the value of the variables to minimize the loss.
-        optimizer.apply_gradients(zip(grads, model.trainable_weights))
+        optimizer.apply(grads, model.trainable_weights)
 
         # Log every 100 batches.
         if step % 100 == 0:
@@ -184,7 +184,7 @@ for epoch in range(epochs):
             logits = model(x_batch_train, training=True)
             loss_value = loss_fn(y_batch_train, logits)
         grads = tape.gradient(loss_value, model.trainable_weights)
-        optimizer.apply_gradients(zip(grads, model.trainable_weights))
+        optimizer.apply(grads, model.trainable_weights)
 
         # Update training metric.
         train_acc_metric.update_state(y_batch_train, logits)
@@ -236,7 +236,7 @@ def train_step(x, y):
         logits = model(x, training=True)
         loss_value = loss_fn(y, logits)
     grads = tape.gradient(loss_value, model.trainable_weights)
-    optimizer.apply_gradients(zip(grads, model.trainable_weights))
+    optimizer.apply(grads, model.trainable_weights)
     train_acc_metric.update_state(y, logits)
     return loss_value
 
@@ -340,7 +340,7 @@ def train_step(x, y):
         # Add any extra losses created during the forward pass.
         loss_value += sum(model.losses)
     grads = tape.gradient(loss_value, model.trainable_weights)
-    optimizer.apply_gradients(zip(grads, model.trainable_weights))
+    optimizer.apply(grads, model.trainable_weights)
     train_acc_metric.update_state(y, logits)
     return loss_value
 
@@ -465,7 +465,7 @@ def train_step(real_images):
         predictions = discriminator(combined_images)
         d_loss = loss_fn(labels, predictions)
     grads = tape.gradient(d_loss, discriminator.trainable_weights)
-    d_optimizer.apply_gradients(zip(grads, discriminator.trainable_weights))
+    d_optimizer.apply(grads, discriminator.trainable_weights)
 
     # Sample random points in the latent space
     random_latent_vectors = tf.random.normal(shape=(batch_size, latent_dim))
@@ -478,7 +478,7 @@ def train_step(real_images):
         predictions = discriminator(generator(random_latent_vectors))
         g_loss = loss_fn(misleading_labels, predictions)
     grads = tape.gradient(g_loss, generator.trainable_weights)
-    g_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+    g_optimizer.apply(grads, generator.trainable_weights)
     return d_loss, g_loss, generated_images
 
 

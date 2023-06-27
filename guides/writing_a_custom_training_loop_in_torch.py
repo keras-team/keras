@@ -160,7 +160,7 @@ Important differences:
 
 - You retrieve the gradients for the variables via `v.value.grad`,
 called on each trainable variable.
-- You update your variables via `optimizer.apply_gradients()`, which must be
+- You update your variables via `optimizer.apply()`, which must be
 called in a `torch.no_grad()` scope.
 
 **Also, a big gotcha:** while all NumPy/TensorFlow/JAX/Keras APIs
@@ -192,7 +192,7 @@ for epoch in range(epochs):
 
         # Update weights
         with torch.no_grad():
-            optimizer.apply_gradients(zip(gradients, trainable_weights))
+            optimizer.apply(gradients, trainable_weights)
 
         # Log every 100 batches.
         if step % 100 == 0:
@@ -253,7 +253,7 @@ for epoch in range(epochs):
 
         # Update weights
         with torch.no_grad():
-            optimizer.apply_gradients(zip(gradients, trainable_weights))
+            optimizer.apply(gradients, trainable_weights)
 
         # Update training metric.
         train_acc_metric.update_state(targets, logits)
@@ -352,7 +352,7 @@ for epoch in range(epochs):
 
         # Update weights
         with torch.no_grad():
-            optimizer.apply_gradients(zip(gradients, trainable_weights))
+            optimizer.apply(gradients, trainable_weights)
 
         # Update training metric.
         train_acc_metric.update_state(targets, logits)
