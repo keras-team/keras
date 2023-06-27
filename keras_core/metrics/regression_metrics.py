@@ -554,7 +554,7 @@ class R2Score(reduction_metrics.Metric):
 
     def reset_state(self):
         for v in self.variables:
-            v.assign(ops.zeros(v.shape))
+            v.assign(ops.zeros(v.shape, dtype=v.dtype))
 
     def get_config(self):
         config = {
