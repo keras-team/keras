@@ -2472,9 +2472,44 @@ class TestAutotuneSPE(test_combinations.TestCase):
         x, y = np.ones((10, 1)), np.ones((10, 1))
         model.fit(x, y, epochs=2)
         model.evaluate(x, y)
-        model.enable_tune_steps_per_execution = False
+        model.autotune_steps_per_execution = False
         model.predict(x)
-        assert model.enable_tune_steps_per_execution == False
+        assert model.autotune_steps_per_execution == False
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_spe_tune_set_after_compile(self):
+        model = sequential.Sequential([layers_module.Dense(1)])
+        model.compile(
+            "sgd",
+            loss="mse",
+            run_eagerly=False,
+            jit_compile=True,
+            steps_per_execution=5,
+        )
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
+        assert model._steps_per_execution_tuner is None
+        model.autotune_steps_per_execution = True
+        model.fit(x, y, epochs=2)
+        assert model.steps_per_execution.numpy().item() == 5
+        assert model._steps_per_execution_tuner
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_spe_tune_set_before_compile(self):
+        model = sequential.Sequential([layers_module.Dense(1)])
+        model.steps_per_execution = 5
+        model.compile(
+            "sgd",
+            loss="mse",
+            run_eagerly=False,
+            jit_compile=True,
+            steps_per_execution="auto",
+        )
+        assert model.steps_per_execution.numpy().item() == 5
+        assert model._steps_per_execution_tuner
+
+        x, y = np.ones((10, 1)), np.ones((10, 1))
+        model.fit(x, y, epochs=2)
 
 
 class TestExceptionsAndWarnings(test_combinations.TestCase):
