@@ -522,3 +522,17 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         model.fit(x, x)
         y = model.predict(x)
         self.assertEqual(type(y), tf.RaggedTensor)
+
+    def test_predict_dropout(self):
+        # Test that `predict` with a dropout op
+        # has nondeterministic behavior across batches.
+
+        inputs = layers.Input((20,))
+        outputs = layers.Dropout(0.5, seed=1337)(inputs, training=True)
+        model = keras_core.Model(inputs, outputs)
+        out1 = model.predict(np.ones((4, 20)), batch_size=2)
+        self.assertGreater(5, np.sum(np.abs(out1[:2, :] - out1[2:4, :])))
+
+        out2 = model.predict_on_batch(np.ones((2, 20)))
+        out3 = model.predict_on_batch(np.ones((2, 20)))
+        self.assertGreater(5, np.sum(np.abs(out2 - out3)))

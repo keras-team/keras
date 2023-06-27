@@ -171,10 +171,10 @@ class JAXTrainer(base_trainer.Trainer):
             kwargs["training"] = False
 
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        outputs, _ = self.stateless_call(
+        outputs, non_trainable_variables = self.stateless_call(
             trainable_variables, non_trainable_variables, x, **kwargs
         )
-        return outputs
+        return outputs, (trainable_variables, non_trainable_variables)
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
@@ -243,9 +243,10 @@ class JAXTrainer(base_trainer.Trainer):
             return self.predict_step(state, data)
 
         def multi_predict_steps(state, data):
-            outputs = one_predict_step(state, data[:1])
+            outputs, state = one_predict_step(state, data[:1])
+
             for single_step_data in data[1:]:
-                step_outputs = one_predict_step(
+                step_outputs, state = one_predict_step(
                     state,
                     [single_step_data],
                 )
@@ -254,7 +255,7 @@ class JAXTrainer(base_trainer.Trainer):
                     outputs,
                     step_outputs,
                 )
-            return outputs
+            return outputs, state
 
         if self.steps_per_execution > 1:
             predict_step = multi_predict_steps
@@ -597,12 +598,11 @@ class JAXTrainer(base_trainer.Trainer):
 
         trainable_variables = self.trainable_variables
         non_trainable_variables = self.non_trainable_variables
+        state = (trainable_variables, non_trainable_variables)
         outputs = None
         for step, x in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_predict_batch_begin(step)
-            batch_outputs = self.predict_function(
-                [trainable_variables, non_trainable_variables], x
-            )
+            batch_outputs, state = self.predict_function(state, x)
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
@@ -718,9 +718,8 @@ class JAXTrainer(base_trainer.Trainer):
         self.make_predict_function()
         trainable_variables = self.trainable_variables
         non_trainable_variables = self.non_trainable_variables
-        batch_outputs = self.predict_function(
-            [trainable_variables, non_trainable_variables], [x]
-        )
+        state = (trainable_variables, non_trainable_variables)
+        batch_outputs, state = self.predict_function(state, [x])
         batch_outputs = tf.nest.map_structure(
             lambda x: np.array(x), batch_outputs
         )
