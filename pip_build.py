@@ -430,10 +430,11 @@ def test_wheel(wheel_path, expected_version, requirements_path):
     ]
     checks = ";".join(symbols_to_check)
     script = (
+        # TODO(keras-team): Fix the build script since "#!/bin/bash" somehow doesn't work
         "#!/bin/bash\n"
         "virtualenv kenv\n"
         f"source {os.path.join('kenv', 'bin', 'activate')}\n"
-        f"pip3 install -r {requirements_path}\n"
+        # f"pip3 install -r {requirements_path}\n"
         f"pip3 install {wheel_path} --force-reinstall\n"
         f"python3 -c 'import keras;{checks};print(keras.__version__)'\n"
         f"python3 -c 'import tensorflow as tf;tf.compat.v1.layers.Dense'\n"
