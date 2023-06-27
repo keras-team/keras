@@ -93,7 +93,7 @@ class JAXTrainer(base_trainer.Trainer):
             trainable_variables,
             optimizer_variables,
         ) = self.optimizer.stateless_apply(
-            grads, trainable_variables, optimizer_variables
+            optimizer_variables, grads, trainable_variables
         )
 
         with backend.StatelessScope(

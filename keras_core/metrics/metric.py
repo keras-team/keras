@@ -109,6 +109,31 @@ class Metric:
         """Accumulate statistics for the metric."""
         raise NotImplementedError
 
+    def stateless_update_state(self, metric_variables, *args, **kwargs):
+        if len(metric_variables) != len(self.variables):
+            raise ValueError(
+                "Argument `metric_variables` must be a list of tensors "
+                f"corresponding 1:1 to {self.__class__.__name__}().variables. "
+                f"Received list with length {len(metric_variables)}, but "
+                f"expected {len(self.variables)} variables."
+            )
+        # Gather variable mapping
+        mapping = list(zip(self.variables, metric_variables))
+
+        # Call in stateless scope
+        with backend.StatelessScope(state_mapping=mapping) as scope:
+            self.update_state(*args, **kwargs)
+
+        # Gather updated variables
+        metric_variables = []
+        for v in self.variables:
+            new_v = scope.get_current_value(v)
+            if new_v is not None:
+                metric_variables.append(new_v)
+            else:
+                metric_variables.append(v)
+        return metric_variables
+
     def result(self):
         """Compute the current metric value.
 

@@ -39,7 +39,7 @@ your own training & evaluation loops from scratch. This is what this guide is ab
 """
 ## A first end-to-end example
 
-To write a custom training loop, you need the following ingredients:
+To write a custom training loop, we need the following ingredients:
 
 - A model to train, of course.
 - An optimizer. You could either use a `keras_core.optimizers` optimizer,
@@ -70,8 +70,8 @@ def get_model():
 # Prepare the training dataset.
 batch_size = 32
 (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
-x_train = np.reshape(x_train, (-1, 784))
-x_test = np.reshape(x_test, (-1, 784))
+x_train = np.reshape(x_train, (-1, 784)).astype("float32")
+x_test = np.reshape(x_test, (-1, 784)).astype("float32")
 y_train = keras.utils.to_categorical(y_train)
 y_test = keras.utils.to_categorical(y_test)
 
@@ -145,8 +145,8 @@ for epoch in range(epochs):
         # Optimizer variable updates
         optimizer.step()
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {loss.detach().numpy():.4f}"
             )
@@ -194,8 +194,8 @@ for epoch in range(epochs):
         with torch.no_grad():
             optimizer.apply_gradients(zip(gradients, trainable_weights))
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {loss.detach().numpy():.4f}"
             )
@@ -215,8 +215,8 @@ loops written from scratch. Here's the flow:
 - Call `metric.reset_state()` when you need to clear the state of the metric
 (typically at the end of an epoch)
 
-Let's use this knowledge to compute `CategoricalAccuracy` on validation data at
-the end of each epoch:
+Let's use this knowledge to compute `CategoricalAccuracy` on training and
+validation data at the end of each epoch:
 """
 
 # Get a fresh model
@@ -258,8 +258,8 @@ for epoch in range(epochs):
         # Update training metric.
         train_acc_metric.update_state(targets, logits)
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {loss.detach().numpy():.4f}"
             )
@@ -357,8 +357,8 @@ for epoch in range(epochs):
         # Update training metric.
         train_acc_metric.update_state(targets, logits)
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {loss.detach().numpy():.4f}"
             )
@@ -379,3 +379,7 @@ for epoch in range(epochs):
     val_acc = val_acc_metric.result()
     val_acc_metric.reset_state()
     print(f"Validation acc: {float(val_acc):.4f}")
+
+"""
+That's it!
+"""

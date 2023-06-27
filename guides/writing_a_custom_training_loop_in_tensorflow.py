@@ -40,11 +40,6 @@ your own training & evaluation loops from scratch. This is what this guide is ab
 """
 ## A first end-to-end example
 
-Calling a model inside a `GradientTape` scope enables you to retrieve the gradients of
-the trainable weights of the layer with respect to a loss value. Using an optimizer
-instance, you can use these gradients to update these variables (which you can
-retrieve using `model.trainable_weights`).
-
 Let's consider a simple MNIST model:
 """
 
@@ -67,7 +62,7 @@ First, we're going to need an optimizer, a loss function, and a dataset:
 """
 
 # Instantiate an optimizer.
-optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+optimizer = keras.optimizers.Adam(learning_rate=1e-3)
 # Instantiate a loss function.
 loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -92,6 +87,11 @@ val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
 val_dataset = val_dataset.batch(batch_size)
 
 """
+Calling a model inside a `GradientTape` scope enables you to retrieve the gradients of
+the trainable weights of the layer with respect to a loss value. Using an optimizer
+instance, you can use these gradients to update these variables (which you can
+retrieve using `model.trainable_weights`).
+
 Here's our training loop, step by step:
 
 - We open a `for` loop that iterates over epochs
@@ -132,8 +132,8 @@ for epoch in range(epochs):
         # the value of the variables to minimize the loss.
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {float(loss_value):.4f}"
             )
@@ -153,15 +153,15 @@ loops written from scratch. Here's the flow:
 - Call `metric.reset_state()` when you need to clear the state of the metric
 (typically at the end of an epoch)
 
-Let's use this knowledge to compute `SparseCategoricalAccuracy` on validation data at
-the end of each epoch:
+Let's use this knowledge to compute `SparseCategoricalAccuracy` on training and
+validation data at the end of each epoch:
 """
 
 # Get a fresh model
 model = get_model()
 
 # Instantiate an optimizer to train the model.
-optimizer = keras.optimizers.SGD(learning_rate=1e-3)
+optimizer = keras.optimizers.Adam(learning_rate=1e-3)
 # Instantiate a loss function.
 loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -189,8 +189,8 @@ for epoch in range(epochs):
         # Update training metric.
         train_acc_metric.update_state(y_batch_train, logits)
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {float(loss_value):.4f}"
             )
@@ -265,8 +265,8 @@ for epoch in range(epochs):
     for step, (x_batch_train, y_batch_train) in enumerate(train_dataset):
         loss_value = train_step(x_batch_train, y_batch_train)
 
-        # Log every 200 batches.
-        if step % 200 == 0:
+        # Log every 100 batches.
+        if step % 100 == 0:
             print(
                 f"Training loss (for 1 batch) at step {step}: {float(loss_value):.4f}"
             )
@@ -509,7 +509,7 @@ for epoch in range(epochs):
         d_loss, g_loss, generated_images = train_step(real_images)
 
         # Logging.
-        if step % 200 == 0:
+        if step % 100 == 0:
             # Print metrics
             print(f"discriminator loss at step {step}: {d_loss:.2f}")
             print(f"adversarial loss at step {step}: {g_loss:.2f}")

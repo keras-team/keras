@@ -178,7 +178,7 @@ class BaseOptimizer:
         grads, trainable_variables = zip(*grads_and_vars)
         return self.apply(grads, trainable_variables)
 
-    def apply(self, grads, variables=None):
+    def apply(self, grads, trainable_variables=None):
         """
         `grads` should be a list of gradient tensors
         with 1:1 mapping to the list of variables the optimizer was built with.
@@ -191,7 +191,7 @@ class BaseOptimizer:
             # `apply_gradients` is a no-op.
             return
 
-        if variables is None:
+        if trainable_variables is None:
             if not self.built:
                 raise ValueError(
                     "When passing `grads` without `variables`, the optimizer "
@@ -208,7 +208,7 @@ class BaseOptimizer:
                 )
             trainable_variables = self._trainable_variables
         else:
-            trainable_variables = list(variables)
+            trainable_variables = list(trainable_variables)
             # Optionally build optimizer.
             if not self.built:
                 with ops.name_scope(self.name):
@@ -246,12 +246,12 @@ class BaseOptimizer:
             self.update_step(grad, var, learning_rate)
         self.iterations.assign(self.iterations + 1)
 
-    def stateless_apply(self, grads, trainable_variables, optimizer_variables):
+    def stateless_apply(self, optimizer_variables, grads, trainable_variables):
         self._check_super_called()
 
         if not self.built:
             raise ValueError(
-                "To call stateless_apply_gradients, {self.__class__.__name__} "
+                f"To call `stateless_apply`, {self.__class__.__name__} "
                 "must be built (i.e. its variables must have been created). "
                 "You can build it via `optimizer.build(trainable_variables)`."
             )

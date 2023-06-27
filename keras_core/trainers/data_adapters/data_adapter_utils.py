@@ -14,7 +14,7 @@ except ImportError:
 # Leave jax, tf, and torch arrays off this list. Instead we will use
 # `__array__` to detect these types. Doing so allows us to avoid importing a
 # backend framework we are not currently using just to do type-checking.
-ARRAY_TYPES = (np.ndarray, tf.RaggedTensor)
+ARRAY_TYPES = (np.ndarray,)
 if pandas:
     ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
