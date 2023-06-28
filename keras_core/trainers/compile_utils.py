@@ -3,7 +3,7 @@ from tensorflow import nest
 from keras_core import backend
 from keras_core import losses as losses_module
 from keras_core import metrics as metrics_module
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.utils.naming import get_object_name
 
 

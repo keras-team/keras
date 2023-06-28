@@ -7,7 +7,7 @@ from tensorflow import nest
 from keras_core import backend
 from keras_core import layers
 from keras_core import models
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.layers.preprocessing import feature_space
 from keras_core.saving import saving_api

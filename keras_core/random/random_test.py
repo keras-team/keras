@@ -5,7 +5,7 @@ from absl.testing import parameterized
 import keras_core
 from keras_core import backend
 from keras_core import testing
-from keras_core.operations import numpy as knp
+from keras_core.ops import numpy as knp
 from keras_core.random import random
 
 

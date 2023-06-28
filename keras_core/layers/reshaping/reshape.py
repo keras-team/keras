@@ -1,7 +1,7 @@
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.operations import operation_utils
+from keras_core.ops import operation_utils
 
 
 @keras_core_export("keras_core.layers.Reshape")

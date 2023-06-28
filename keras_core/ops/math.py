@@ -9,8 +9,8 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
-from keras_core.operations.operation import Operation
-from keras_core.operations.operation_utils import reduce_shape
+from keras_core.ops.operation import Operation
+from keras_core.ops.operation_utils import reduce_shape
 
 
 class SegmentSum(Operation):
@@ -33,7 +33,7 @@ class SegmentSum(Operation):
         )
 
 
-@keras_core_export("keras_core.operations.segment_sum")
+@keras_core_export("keras_core.ops.segment_sum")
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
@@ -61,7 +61,7 @@ class TopK(Operation):
         return backend.math.top_k(x, self.k, self.sorted)
 
 
-@keras_core_export("keras_core.operations.top_k")
+@keras_core_export("keras_core.ops.top_k")
 def top_k(x, k, sorted=True):
     if any_symbolic_tensors((x,)):
         return TopK(k, sorted).symbolic_call(x)
@@ -80,7 +80,7 @@ class InTopK(Operation):
         return backend.math.in_top_k(targets, predictions, self.k)
 
 
-@keras_core_export("keras_core.operations.in_top_k")
+@keras_core_export("keras_core.ops.in_top_k")
 def in_top_k(targets, predictions, k):
     if any_symbolic_tensors((targets, predictions)):
         return InTopK(k).symbolic_call(targets, predictions)
@@ -101,7 +101,7 @@ class Logsumexp(Operation):
         return backend.math.logsumexp(x, axis=self.axis, keepdims=self.keepdims)
 
 
-@keras_core_export("keras_core.operations.logsumexp")
+@keras_core_export("keras_core.ops.logsumexp")
 def logsumexp(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Logsumexp(axis, keepdims).symbolic_call(x)
@@ -150,7 +150,7 @@ class Qr(Operation):
         return backend.math.qr(x, mode=self.mode)
 
 
-@keras_core_export("keras_core.operations.qr")
+@keras_core_export("keras_core.ops.qr")
 def qr(x, mode="reduced"):
     if any_symbolic_tensors((x,)):
         return Qr(mode=mode).symbolic_call(x)

@@ -1,7 +1,7 @@
 """Wrapper layer to apply every temporal slice of an input."""
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.core.wrapper import Wrapper
 from keras_core.layers.layer import Layer

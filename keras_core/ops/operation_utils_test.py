@@ -1,7 +1,7 @@
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
-from keras_core.operations import operation_utils
+from keras_core.ops import operation_utils
 
 
 class OperationUtilsTest(testing.TestCase):

@@ -1,6 +1,6 @@
 import copy
 
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.layers.core.wrapper import Wrapper

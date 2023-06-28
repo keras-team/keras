@@ -3,7 +3,7 @@ import warnings
 
 from keras_core import backend
 from keras_core import metrics as metrics_module
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import optimizers
 from keras_core.saving import serialization_lib
 from keras_core.trainers.compile_utils import CompileLoss

@@ -1,4 +1,4 @@
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.backend import standardize_dtype
 from keras_core.initializers.initializer import Initializer

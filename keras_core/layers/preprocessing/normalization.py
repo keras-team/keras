@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 

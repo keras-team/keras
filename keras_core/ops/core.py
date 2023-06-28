@@ -17,7 +17,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
-from keras_core.operations.operation import Operation
+from keras_core.ops.operation import Operation
 
 
 class Scatter(Operation):
@@ -28,7 +28,7 @@ class Scatter(Operation):
         return KerasTensor(shape, dtype=values.dtype)
 
 
-@keras_core_export("keras_core.operations.scatter")
+@keras_core_export("keras_core.ops.scatter")
 def scatter(indices, values, shape):
     if any_symbolic_tensors((indices, values, shape)):
         return Scatter().symbolic_call(indices, values, shape)
@@ -43,7 +43,7 @@ class ScatterUpdate(Operation):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
 
 
-@keras_core_export("keras_core.operations.scatter_update")
+@keras_core_export("keras_core.ops.scatter_update")
 def scatter_update(inputs, indices, updates):
     """Update inputs via updates at scattered (sparse) indices.
 
@@ -61,7 +61,7 @@ def scatter_update(inputs, indices, updates):
     inputs = np.zeros((4, 4, 4))
     indices = [[1, 2, 3], [0, 1, 3]]
     updates = np.array([1., 1.])
-    inputs = keras_core.operations.scatter_update(inputs, indices, updates)
+    inputs = keras_core.ops.scatter_update(inputs, indices, updates)
     ```
 
     2 `indices` is a 2D tensor of shape `(num_updates, k)`, where `num_updates`
@@ -77,7 +77,7 @@ def scatter_update(inputs, indices, updates):
     inputs = np.zeros((4, 4, 4))
     indices = [[1, 2], [2, 3]]
     updates = np.array([[1., 1., 1, 1,], [1., 1., 1, 1,])
-    inputs = keras_core.operations.scatter_update(inputs, indices, updates)
+    inputs = keras_core.ops.scatter_update(inputs, indices, updates)
     ```
 
     Args:
@@ -103,7 +103,7 @@ class Slice(Operation):
         return KerasTensor(shape, dtype=inputs.dtype)
 
 
-@keras_core_export("keras_core.operations.slice")
+@keras_core_export("keras_core.ops.slice")
 def slice(inputs, start_indices, shape):
     """Return a slice of an input tensor.
 
@@ -117,7 +117,7 @@ def slice(inputs, start_indices, shape):
     inputs = np.zeros((5, 5))
     start_indices = np.array([3, 3])
     shape = np.array([2, 2])
-    inputs = keras_core.operations.slice(inputs, start_indices, updates)
+    inputs = keras_core.ops.slice(inputs, start_indices, updates)
     ```
 
     Args:
@@ -142,7 +142,7 @@ class SliceUpdate(Operation):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
 
 
-@keras_core_export("keras_core.operations.slice_update")
+@keras_core_export("keras_core.ops.slice_update")
 def slice_update(inputs, start_indices, updates):
     """Update an input by slicing in a tensor of updated values.
 
@@ -160,7 +160,7 @@ def slice_update(inputs, start_indices, updates):
     inputs = np.zeros((5, 5))
     start_indices = [3, 3]
     updates = np.ones((2, 2))
-    inputs = keras_core.operations.slice_update(inputs, start_indices, updates)
+    inputs = keras_core.ops.slice_update(inputs, start_indices, updates)
     ```
 
     Args:
@@ -197,7 +197,7 @@ class WhileLoop(Operation):
         return [KerasTensor(v.shape, dtype=v.dtype) for v in loop_vars]
 
 
-@keras_core_export("keras_core.operations.while_loop")
+@keras_core_export("keras_core.ops.while_loop")
 def while_loop(
     cond,
     body,
@@ -226,7 +226,7 @@ def while_loop(
     >>> i = 0
     >>> cond = lambda i: i < 10
     >>> body = lambda i: i + 1
-    >>> keras_core.operations.while_loop(cond, body, [i])[0]
+    >>> keras_core.ops.while_loop(cond, body, [i])[0]
     10
     """
 
@@ -249,7 +249,7 @@ class StopGradient(Operation):
         return KerasTensor(variable.shape, dtype=variable.dtype)
 
 
-@keras_core_export("keras_core.operations.stop_gradient")
+@keras_core_export("keras_core.ops.stop_gradient")
 def stop_gradient(variable):
     """Stops gradient computation.
 
@@ -266,12 +266,12 @@ def stop_gradient(variable):
     ...     [1., 2., 3.],
     ...     dtype="float32"
     ... )
-    >>> var = keras_core.operations.stop_gradient(var)
+    >>> var = keras_core.ops.stop_gradient(var)
     """
     return backend.core.stop_gradient(variable)
 
 
-@keras_core_export("keras_core.operations.shape")
+@keras_core_export("keras_core.ops.shape")
 def shape(x):
     """Gets the shape of the tensor input."""
     if any_symbolic_tensors((x,)):
@@ -279,7 +279,7 @@ def shape(x):
     return backend.core.shape(x)
 
 
-@keras_core_export("keras_core.operations.cast")
+@keras_core_export("keras_core.ops.cast")
 def cast(x, dtype):
     """Cast a tensor to the desired dtype."""
     dtype = backend.standardize_dtype(dtype)
@@ -288,13 +288,13 @@ def cast(x, dtype):
     return backend.core.cast(x, dtype)
 
 
-@keras_core_export("keras_core.operations.convert_to_tensor")
+@keras_core_export("keras_core.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None):
     """Convert a NumPy array to a tensor."""
     return backend.convert_to_tensor(x, dtype=dtype)
 
 
-@keras_core_export("keras_core.operations.convert_to_numpy")
+@keras_core_export("keras_core.ops.convert_to_numpy")
 def convert_to_numpy(x):
     """Convert a tensor to a NumPy array."""
     if any_symbolic_tensors((x,)):

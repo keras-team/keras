@@ -4,13 +4,13 @@ from keras_core import activations
 from keras_core import backend
 from keras_core import constraints
 from keras_core import initializers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import regularizers
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras_core.layers.rnn.rnn import RNN
-from keras_core.operations import operation_utils
+from keras_core.ops import operation_utils
 from keras_core.utils import argument_validation
 
 

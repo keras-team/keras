@@ -3,7 +3,7 @@ from enum import Enum
 import numpy as np
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.losses.loss import squeeze_to_same_rank
 from keras_core.utils.python_utils import to_list
 

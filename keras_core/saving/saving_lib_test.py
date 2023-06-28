@@ -9,7 +9,7 @@ from unittest import mock
 import numpy as np
 
 import keras_core
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.saving import saving_lib
 

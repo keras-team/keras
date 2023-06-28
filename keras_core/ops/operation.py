@@ -6,7 +6,7 @@ from tensorflow import nest
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend.common.keras_tensor import any_symbolic_tensors
-from keras_core.operations.node import Node
+from keras_core.ops.node import Node
 from keras_core.utils import python_utils
 from keras_core.utils import traceback_utils
 from keras_core.utils.naming import auto_name

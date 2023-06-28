@@ -37,8 +37,8 @@ from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
-from keras_core.operations import operation_utils
-from keras_core.operations.operation import Operation
+from keras_core.ops import operation_utils
+from keras_core.ops.operation import Operation
 
 
 class Relu(Operation):
@@ -49,9 +49,7 @@ class Relu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.relu", "keras_core.operations.nn.relu"]
-)
+@keras_core_export(["keras_core.ops.relu", "keras_core.ops.nn.relu"])
 def relu(x):
     if any_symbolic_tensors((x,)):
         return Relu().symbolic_call(x)
@@ -66,9 +64,7 @@ class Relu6(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.relu6", "keras_core.operations.nn.relu6"]
-)
+@keras_core_export(["keras_core.ops.relu6", "keras_core.ops.nn.relu6"])
 def relu6(x):
     if any_symbolic_tensors((x,)):
         return Relu6().symbolic_call(x)
@@ -83,9 +79,7 @@ class Sigmoid(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.sigmoid", "keras_core.operations.nn.sigmoid"]
-)
+@keras_core_export(["keras_core.ops.sigmoid", "keras_core.ops.nn.sigmoid"])
 def sigmoid(x):
     if any_symbolic_tensors((x,)):
         return Sigmoid().symbolic_call(x)
@@ -100,9 +94,7 @@ class Tanh(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.tanh", "keras_core.operations.nn.tanh"]
-)
+@keras_core_export(["keras_core.ops.tanh", "keras_core.ops.nn.tanh"])
 def tanh(x):
     if any_symbolic_tensors((x,)):
         return Tanh().symbolic_call(x)
@@ -117,9 +109,7 @@ class Softplus(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.softplus", "keras_core.operations.nn.softplus"]
-)
+@keras_core_export(["keras_core.ops.softplus", "keras_core.ops.nn.softplus"])
 def softplus(x):
     if any_symbolic_tensors((x,)):
         return Softplus().symbolic_call(x)
@@ -134,9 +124,7 @@ class Softsign(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.softsign", "keras_core.operations.nn.softsign"]
-)
+@keras_core_export(["keras_core.ops.softsign", "keras_core.ops.nn.softsign"])
 def softsign(x):
     if any_symbolic_tensors((x,)):
         return Softsign().symbolic_call(x)
@@ -151,9 +139,7 @@ class Silu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.silu", "keras_core.operations.nn.silu"]
-)
+@keras_core_export(["keras_core.ops.silu", "keras_core.ops.nn.silu"])
 def silu(x):
     if any_symbolic_tensors((x,)):
         return Silu().symbolic_call(x)
@@ -168,9 +154,7 @@ class Swish(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.swish", "keras_core.operations.nn.swish"]
-)
+@keras_core_export(["keras_core.ops.swish", "keras_core.ops.nn.swish"])
 def swish(x):
     if any_symbolic_tensors((x,)):
         return Swish().symbolic_call(x)
@@ -187,8 +171,8 @@ class LogSigmoid(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.log_sigmoid",
-        "keras_core.operations.nn.log_sigmoid",
+        "keras_core.ops.log_sigmoid",
+        "keras_core.ops.nn.log_sigmoid",
     ]
 )
 def log_sigmoid(x):
@@ -210,7 +194,7 @@ class LeakyRelu(Operation):
 
 
 @keras_core_export(
-    ["keras_core.operations.leaky_relu", "keras_core.operations.nn.leaky_relu"]
+    ["keras_core.ops.leaky_relu", "keras_core.ops.nn.leaky_relu"]
 )
 def leaky_relu(x, negative_slope=0.2):
     if any_symbolic_tensors((x,)):
@@ -228,8 +212,8 @@ class HardSigmoid(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.hard_sigmoid",
-        "keras_core.operations.nn.hard_sigmoid",
+        "keras_core.ops.hard_sigmoid",
+        "keras_core.ops.nn.hard_sigmoid",
     ]
 )
 def hard_sigmoid(x):
@@ -250,9 +234,7 @@ class Elu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.elu", "keras_core.operations.nn.elu"]
-)
+@keras_core_export(["keras_core.ops.elu", "keras_core.ops.nn.elu"])
 def elu(x, alpha=1.0):
     if any_symbolic_tensors((x,)):
         return Elu(alpha).symbolic_call(x)
@@ -267,9 +249,7 @@ class Selu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.selu", "keras_core.operations.nn.selu"]
-)
+@keras_core_export(["keras_core.ops.selu", "keras_core.ops.nn.selu"])
 def selu(x):
     if any_symbolic_tensors((x,)):
         return Selu().symbolic_call(x)
@@ -288,9 +268,7 @@ class Gelu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.gelu", "keras_core.operations.nn.gelu"]
-)
+@keras_core_export(["keras_core.ops.gelu", "keras_core.ops.nn.gelu"])
 def gelu(x, approximate=True):
     if any_symbolic_tensors((x,)):
         return Gelu(approximate).symbolic_call(x)
@@ -309,9 +287,7 @@ class Softmax(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.softmax", "keras_core.operations.nn.softmax"]
-)
+@keras_core_export(["keras_core.ops.softmax", "keras_core.ops.nn.softmax"])
 def softmax(x, axis=None):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
@@ -332,8 +308,8 @@ class LogSoftmax(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.log_softmax",
-        "keras_core.operations.nn.log_softmax",
+        "keras_core.ops.log_softmax",
+        "keras_core.ops.nn.log_softmax",
     ]
 )
 def log_softmax(x, axis=None):
@@ -376,9 +352,7 @@ class MaxPool(Operation):
         return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.max_pool", "keras_core.operations.nn.max_pool"]
-)
+@keras_core_export(["keras_core.ops.max_pool", "keras_core.ops.nn.max_pool"])
 def max_pool(
     inputs,
     pool_size,
@@ -465,8 +439,8 @@ class AveragePool(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.average_pool",
-        "keras_core.operations.nn.average_pool",
+        "keras_core.ops.average_pool",
+        "keras_core.ops.nn.average_pool",
     ]
 )
 def average_pool(
@@ -558,9 +532,7 @@ class Conv(Operation):
         return KerasTensor(output_shape, dtype=inputs.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.conv", "keras_core.operations.nn.conv"]
-)
+@keras_core_export(["keras_core.ops.conv", "keras_core.ops.nn.conv"])
 def conv(
     inputs,
     kernel,
@@ -655,8 +627,8 @@ class DepthwiseConv(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.depthwise_conv",
-        "keras_core.operations.nn.depthwise_conv",
+        "keras_core.ops.depthwise_conv",
+        "keras_core.ops.nn.depthwise_conv",
     ]
 )
 def depthwise_conv(
@@ -764,8 +736,8 @@ class SeparableConv(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.separable_conv",
-        "keras_core.operations.nn.separable_conv",
+        "keras_core.ops.separable_conv",
+        "keras_core.ops.nn.separable_conv",
     ]
 )
 def separable_conv(
@@ -886,8 +858,8 @@ class ConvTranspose(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.conv_transpose",
-        "keras_core.operations.nn.conv_transpose",
+        "keras_core.ops.conv_transpose",
+        "keras_core.ops.nn.conv_transpose",
     ]
 )
 def conv_transpose(
@@ -985,9 +957,7 @@ class OneHot(Operation):
         return KerasTensor(x_shape, dtype=self.dtype)
 
 
-@keras_core_export(
-    ["keras_core.operations.one_hot", "keras_core.operations.nn.one_hot"]
-)
+@keras_core_export(["keras_core.ops.one_hot", "keras_core.ops.nn.one_hot"])
 def one_hot(x, num_classes, axis=-1, dtype=None):
     if any_symbolic_tensors((x,)):
         return OneHot(num_classes, axis=axis, dtype=dtype).symbolic_call(x)
@@ -1018,8 +988,8 @@ class BinaryCrossentropy(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.binary_crossentropy",
-        "keras_core.operations.nn.binary_crossentropy",
+        "keras_core.ops.binary_crossentropy",
+        "keras_core.ops.nn.binary_crossentropy",
     ]
 )
 def binary_crossentropy(target, output, from_logits=False):
@@ -1061,8 +1031,8 @@ class CategoricalCrossentropy(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.categorical_crossentropy",
-        "keras_core.operations.nn.categorical_crossentropy",
+        "keras_core.ops.categorical_crossentropy",
+        "keras_core.ops.nn.categorical_crossentropy",
     ]
 )
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -1107,8 +1077,8 @@ class SparseCategoricalCrossentropy(Operation):
 
 @keras_core_export(
     [
-        "keras_core.operations.sparse_categorical_crossentropy",
-        "keras_core.operations.nn.sparse_categorical_crossentropy",
+        "keras_core.ops.sparse_categorical_crossentropy",
+        "keras_core.ops.nn.sparse_categorical_crossentropy",
     ]
 )
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):

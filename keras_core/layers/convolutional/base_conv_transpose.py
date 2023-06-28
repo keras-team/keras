@@ -3,7 +3,7 @@
 from keras_core import activations
 from keras_core import constraints
 from keras_core import initializers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import regularizers
 from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (

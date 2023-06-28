@@ -3,7 +3,7 @@ import warnings
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.operations.node import Node
+from keras_core.ops.node import Node
 
 
 @keras_core_export("keras_core.layers.InputLayer")

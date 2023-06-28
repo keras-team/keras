@@ -1,8 +1,8 @@
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
-from keras_core.operations.operation_utils import compute_pooling_output_shape
+from keras_core.ops.operation_utils import compute_pooling_output_shape
 from keras_core.utils import argument_validation
 
 

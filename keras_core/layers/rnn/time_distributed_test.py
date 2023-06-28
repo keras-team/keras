@@ -2,7 +2,7 @@ import numpy as np
 
 from keras_core import initializers
 from keras_core import layers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 
 

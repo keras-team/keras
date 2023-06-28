@@ -659,7 +659,7 @@ def repeat(x, repeats, axis=None):
         # TODO: Refactor the upper level modules to avoid these imports.
         from keras_core.backend import KerasTensor
         from keras_core.backend import standardize_dtype
-        from keras_core.operations.numpy import repeat
+        from keras_core.ops.numpy import repeat
 
         x = KerasTensor(x.shape, standardize_dtype(x.dtype))
         outputs = repeat(x, repeats, axis=axis)

@@ -1,6 +1,6 @@
 from keras_core import backend
 from keras_core import layers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 

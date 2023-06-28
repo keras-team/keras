@@ -39,7 +39,7 @@ from zipfile import ZipFile
 
 import keras_core as keras
 from keras_core import layers
-import keras_core.operations as ops
+from keras_core import ops
 """
 ## First, load the data and apply preprocessing
 """

@@ -2,7 +2,7 @@ import numpy as np
 
 import keras_core
 from keras_core import layers
-from keras_core import operations as ops
+from keras_core import ops
 
 keras_core.utils.set_random_seed(1337)
 x = np.random.rand(100, 32, 32, 3)

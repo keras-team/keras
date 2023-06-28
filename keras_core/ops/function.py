@@ -4,7 +4,7 @@ from tensorflow import nest
 
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
-from keras_core.operations.operation import Operation
+from keras_core.ops.operation import Operation
 
 
 @keras_core_export("keras_core.Function")
@@ -25,7 +25,7 @@ class Function(Operation):
     input_1 = keras_core.KerasTensor(shape=(None, 2, 3))
     input_2 = keras_core.KerasTensor(shape=(None, 2, 3))
     x = input_1 + input_2
-    output = keras_core.operations.sigmoid(x)
+    output = keras_core.ops.sigmoid(x)
     fn = keras_core.Function(inputs=[input_1, input_2], outputs=output)
 
     input_1_val = np.random.random((4, 2, 3))

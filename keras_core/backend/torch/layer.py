@@ -1,7 +1,7 @@
 import torch
 
 from keras_core.backend.common.stateless_scope import in_stateless_scope
-from keras_core.operations.operation import Operation
+from keras_core.ops.operation import Operation
 
 
 class TorchLayer(torch.nn.Module):

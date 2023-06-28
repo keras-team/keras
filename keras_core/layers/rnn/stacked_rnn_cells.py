@@ -1,6 +1,6 @@
 from tensorflow import nest
 
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.saving import serialization_lib

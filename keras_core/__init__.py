@@ -6,7 +6,7 @@ from keras_core import datasets
 from keras_core import initializers
 from keras_core import layers
 from keras_core import models
-from keras_core import operations
+from keras_core import ops
 from keras_core import optimizers
 from keras_core import regularizers
 from keras_core import utils

@@ -1,5 +1,5 @@
 from keras_core import initializers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers import Wrapper
 from keras_core.layers.input_spec import InputSpec

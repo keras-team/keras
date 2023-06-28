@@ -5,7 +5,7 @@ from absl.testing import parameterized
 from keras_core import backend
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
-from keras_core.operations import image as kimage
+from keras_core.ops import image as kimage
 
 
 class ImageOpsDynamicShapeTest(testing.TestCase):

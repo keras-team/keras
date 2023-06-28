@@ -14,7 +14,7 @@ from keras_core import callbacks
 from keras_core import layers
 from keras_core import losses
 from keras_core import models
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import optimizers
 from keras_core import testing
 from keras_core.optimizers import schedules

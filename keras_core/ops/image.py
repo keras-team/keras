@@ -2,7 +2,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
-from keras_core.operations.operation import Operation
+from keras_core.ops.operation import Operation
 
 
 class Resize(Operation):
@@ -51,7 +51,7 @@ class Resize(Operation):
         )
 
 
-@keras_core_export("keras_core.operations.image.resize")
+@keras_core_export("keras_core.ops.image.resize")
 def resize(
     image, size, method="bilinear", antialias=False, data_format="channels_last"
 ):

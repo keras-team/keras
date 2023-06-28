@@ -8,7 +8,7 @@ from tensorflow.python.ops.numpy_ops import np_config
 from keras_core import layers
 from keras_core import metrics
 from keras_core import models
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.metrics import metrics_utils
 

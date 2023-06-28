@@ -19,7 +19,7 @@ def normalize(x, axis=-1, order=2):
     Returns:
         A normalized copy of the array.
     """
-    from keras_core import operations as ops
+    from keras_core import ops
 
     if not isinstance(order, int) or not order >= 1:
         raise ValueError(

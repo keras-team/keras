@@ -1,4 +1,4 @@
-import keras_core.operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.convolutional.base_conv import BaseConv
 

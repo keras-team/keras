@@ -7,7 +7,7 @@ import numpy as np
 from tensorflow import nest
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import utils
 from keras_core.models import Model
 from keras_core.utils import traceback_utils

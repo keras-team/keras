@@ -1,4 +1,4 @@
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.merging.base_merge import Merge
 from keras_core.utils.numerical_utils import normalize
@@ -105,7 +105,7 @@ def batch_dot(x, y, axes=None):
             "Cannot perform batch_dot over axis 0. "
             "If your inputs are not batched, "
             "add a dummy batch dimension to your "
-            "inputs using keras_core.operations.expand_dims(x, 0)"
+            "inputs using keras_core.ops.expand_dims(x, 0)"
         )
     a0, a1 = axes
     d1 = x_shape[a0]

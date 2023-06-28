@@ -5,12 +5,12 @@ import warnings
 from tensorflow import nest
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 from keras_core.models.model import Model
-from keras_core.operations.function import Function
-from keras_core.operations.function import make_node_key
+from keras_core.ops.function import Function
+from keras_core.ops.function import make_node_key
 from keras_core.saving import serialization_lib
 from keras_core.utils import tracking
 

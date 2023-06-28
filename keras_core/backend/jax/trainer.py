@@ -4,7 +4,7 @@ import tensorflow as tf  # for nest
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import optimizers as optimizers_module
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils

@@ -1,5 +1,5 @@
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.losses.loss import squeeze_to_same_rank
 from keras_core.metrics import reduction_metrics

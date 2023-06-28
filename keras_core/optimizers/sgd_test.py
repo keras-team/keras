@@ -3,7 +3,7 @@
 import numpy as np
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.optimizers.sgd import SGD
 

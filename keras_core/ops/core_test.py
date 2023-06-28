@@ -3,11 +3,11 @@ import numpy as np
 from keras_core import layers
 from keras_core import losses
 from keras_core import models
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import optimizers
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
-from keras_core.operations import core
+from keras_core.ops import core
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):

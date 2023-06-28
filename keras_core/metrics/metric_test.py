@@ -3,7 +3,7 @@ import numpy as np
 from keras_core import backend
 from keras_core import initializers
 from keras_core import metrics as metrics_module
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.metrics.metric import Metric
 
@@ -101,11 +101,11 @@ class MetricTest(testing.TestCase):
                 )
 
             update(metric_variables, y_true_batch, y_pred_batch)
-    
+
     def test_stateless_result(self):
         metric = ExampleMetric(name="mse")
         res = metric.stateless_result([ops.ones(()) * 12, ops.ones(()) * 3])
-        self.assertAllClose(res, 4.)
+        self.assertAllClose(res, 4.0)
 
     def test_variable_tracking(self):
         # In list

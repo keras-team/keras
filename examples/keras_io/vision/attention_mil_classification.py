@@ -56,7 +56,7 @@ by TensorFlow.
 import numpy as np
 import keras_core as keras
 from keras_core import layers
-from keras_core import operations as ops
+from keras_core import ops
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 

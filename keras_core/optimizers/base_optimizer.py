@@ -5,7 +5,7 @@ import numpy as np
 
 from keras_core import backend
 from keras_core import initializers
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.optimizers.schedules import learning_rate_schedule
 from keras_core.saving import serialization_lib
 from keras_core.utils import tracking

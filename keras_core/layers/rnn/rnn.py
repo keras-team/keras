@@ -1,7 +1,7 @@
 from tensorflow import nest
 
 from keras_core import backend
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
@@ -138,7 +138,7 @@ class RNN(Layer):
 
     ```python
     from keras_core.layers import RNN
-    from keras_core import operations as ops
+    from keras_core import ops
 
     # First, let's define a RNN Cell, as a layer subclass.
     class MinimalRNNCell(keras_core.layers.Layer):

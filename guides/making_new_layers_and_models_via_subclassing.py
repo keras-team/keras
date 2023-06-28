@@ -30,7 +30,7 @@ Let's dive in.
 
 import numpy as np
 import keras_core as keras
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import layers
 
 """

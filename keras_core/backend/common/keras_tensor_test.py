@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from jax import numpy as jnp
 
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import testing
 from keras_core.backend.common import keras_tensor
 

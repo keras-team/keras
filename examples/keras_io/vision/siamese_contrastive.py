@@ -27,7 +27,7 @@ the class segmentation of the training inputs.
 import random
 import numpy as np
 import keras_core as keras
-from keras_core import operations as ops
+from keras_core import ops
 import matplotlib.pyplot as plt
 
 """
