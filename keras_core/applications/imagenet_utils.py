@@ -118,17 +118,17 @@ def decode_predictions(preds, top=5):
     """Decodes the prediction of an ImageNet model.
 
     Args:
-      preds: Numpy array encoding a batch of predictions.
-      top: Integer, how many top-guesses to return. Defaults to 5.
+        preds: NumPy array encoding a batch of predictions.
+        top: Integer, how many top-guesses to return. Defaults to 5.
 
     Returns:
-      A list of lists of top class prediction tuples
-      `(class_name, class_description, score)`.
-      One list of tuples per sample in batch input.
+        A list of lists of top class prediction tuples
+        `(class_name, class_description, score)`.
+        One list of tuples per sample in batch input.
 
     Raises:
-      ValueError: In case of invalid shape of the `pred` array
-        (must be 2D).
+        ValueError: In case of invalid shape of the `pred` array
+            (must be 2D).
     """
     global CLASS_INDEX
 
@@ -137,7 +137,7 @@ def decode_predictions(preds, top=5):
             "`decode_predictions` expects "
             "a batch of predictions "
             "(i.e. a 2D array of shape (samples, 1000)). "
-            "Found array with shape: " + str(preds.shape)
+            f"Received array with shape: {preds.shape}"
         )
     if CLASS_INDEX is None:
         fpath = file_utils.get_file(
@@ -149,6 +149,7 @@ def decode_predictions(preds, top=5):
         with open(fpath) as f:
             CLASS_INDEX = json.load(f)
     results = []
+    preds = ops.convert_to_numpy(preds)
     for pred in preds:
         top_indices = pred.argsort()[-top:][::-1]
         result = [tuple(CLASS_INDEX[str(i)]) + (pred[i],) for i in top_indices]

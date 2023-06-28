@@ -486,9 +486,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 outputs = append_to_outputs(batch_outputs, outputs)
                 callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
-        return tf.__internal__.nest.map_structure_up_to(
+        outputs = tf.__internal__.nest.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs
         )
+        return tf.nest.map_structure(convert_to_np_if_not_ragged, outputs)
 
     def train_on_batch(
         self,
@@ -544,7 +545,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self.make_predict_function()
         batch_outputs = self.predict_function((x,))
         batch_outputs = tf.nest.map_structure(
-            lambda x: np.array(x), batch_outputs
+            convert_to_np_if_not_ragged, batch_outputs
         )
         return batch_outputs
 
@@ -828,6 +829,12 @@ def _is_tpu_strategy_class(clz):
     return any(map(_is_tpu_strategy_class, clz.__bases__))
 
 
+def convert_to_np_if_not_ragged(x):
+    if isinstance(x, tf.RaggedTensor):
+        return x
+    return x.numpy()
+
+
 def potentially_ragged_concat(tensors):
     """Concats `Tensor`s along their first dimension.
 
@@ -836,16 +843,14 @@ def potentially_ragged_concat(tensors):
 
     Returns:
         Concatenation of the inputs along the first dimension -- of type
-        `Tensor` if all input shapes are compatible, or `RaggedTensor`
+        `np.ndarray` if all input shapes are compatible, or `tf.RaggedTensor`
         if not.
     """
     if len(tensors) == 1:
         return tensors[0]
-    if isinstance(tensors[0], tf.SparseTensor):
+    elif isinstance(tensors[0], tf.SparseTensor):
         return tf.sparse.concat(axis=0, sp_inputs=tensors)
     elif isinstance(tensors[0], tf.RaggedTensor):
-        return tf.concat(tensors, axis=0)
-    elif not tf.__internal__.tf2.enabled():
         return tf.concat(tensors, axis=0)
 
     non_batch_shapes = tf.stack([tf.shape(tensor)[1:] for tensor in tensors])

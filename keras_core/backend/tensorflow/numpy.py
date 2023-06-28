@@ -44,12 +44,13 @@ def max(x, axis=None, keepdims=False, initial=None):
 
     # TensorFlow returns -inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
-    size_x = size(x)
-    tf.assert_greater(
-        size_x,
-        tf.constant(0, dtype=size_x.dtype),
-        message="Cannot compute the max of an empty tensor.",
-    )
+    if tf.executing_eagerly():
+        size_x = size(x)
+        tf.assert_greater(
+            size_x,
+            tf.constant(0, dtype=size_x.dtype),
+            message="Cannot compute the max of an empty tensor.",
+        )
 
     return tfnp.max(x, axis=axis, keepdims=keepdims)
 
@@ -362,12 +363,13 @@ def min(x, axis=None, keepdims=False, initial=None):
 
     # TensorFlow returns inf by default for an empty list, but for consistency
     # with other backends and the numpy API we want to throw in this case.
-    size_x = size(x)
-    tf.assert_greater(
-        size_x,
-        tf.constant(0, dtype=size_x.dtype),
-        message="Cannot compute the min of an empty tensor.",
-    )
+    if tf.executing_eagerly():
+        size_x = size(x)
+        tf.assert_greater(
+            size_x,
+            tf.constant(0, dtype=size_x.dtype),
+            message="Cannot compute the min of an empty tensor.",
+        )
 
     return tfnp.min(x, axis=axis, keepdims=keepdims)
 
