@@ -3,7 +3,7 @@ Title: Customizing what happens in `fit()` with PyTorch
 Author: [fchollet](https://twitter.com/fchollet)
 Date created: 2023/06/27
 Last modified: 2023/06/27
-Description: Complete guide to overriding the training step of the Model class with PyTorch.
+Description: Overriding the training step of the Model class with PyTorch.
 Accelerator: GPU
 """
 
@@ -196,8 +196,6 @@ class CustomModel(keras.Model):
         # We list our `Metric` objects here so that `reset_states()` can be
         # called automatically at the start of each epoch
         # or at the start of `evaluate()`.
-        # If you don't implement this property, you have to call
-        # `reset_states()` yourself at the time of your choosing.
         return [self.loss_tracker, self.mae_metric]
 
 

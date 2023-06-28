@@ -101,6 +101,11 @@ class MetricTest(testing.TestCase):
                 )
 
             update(metric_variables, y_true_batch, y_pred_batch)
+    
+    def test_stateless_result(self):
+        metric = ExampleMetric(name="mse")
+        res = metric.stateless_result([ops.ones(()) * 12, ops.ones(()) * 3])
+        self.assertAllClose(res, 4.)
 
     def test_variable_tracking(self):
         # In list

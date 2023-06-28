@@ -142,6 +142,22 @@ class Metric:
         """
         raise NotImplementedError
 
+    def stateless_result(self, metric_variables):
+        if len(metric_variables) != len(self.variables):
+            raise ValueError(
+                "Argument `metric_variables` must be a list of tensors "
+                f"corresponding 1:1 to {self.__class__.__name__}().variables. "
+                f"Received list with length {len(metric_variables)}, but "
+                f"expected {len(self.variables)} variables."
+            )
+        # Gather variable mapping
+        mapping = list(zip(self.variables, metric_variables))
+
+        # Call in stateless scope
+        with backend.StatelessScope(state_mapping=mapping) as scope:
+            res = self.result()
+        return res
+
     @property
     def dtype(self):
         return self._dtype
