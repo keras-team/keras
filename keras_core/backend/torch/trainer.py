@@ -101,11 +101,13 @@ class TorchTrainer(base_trainer.Trainer):
             data = data[0]
             return self.train_step(data)
 
-        if not self.run_eagerly:
-            # Temporarily commented the torch compile due to failed unit tests.
+        if self.jit_compile:
+            raise ValueError(
+                "`jit_compile` is not yet enabled for the PyTorch backend."
+            )
+            # Temporarily disabled torch compile due to failed unit tests.
             # TODO: Uncomment the following line when unit tests passes.
             # self.train_function = torch.compile(one_step_on_data)
-            self.train_function = one_step_on_data
         else:
             self.train_function = one_step_on_data
 

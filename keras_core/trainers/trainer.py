@@ -51,10 +51,10 @@ class Trainer:
         else:
             self._compile_metrics = None
         if jit_compile == "auto":
-            if not run_eagerly and model_supports_jit(self):
-                jit_compile = True
-            else:
+            if run_eagerly:
                 jit_compile = False
+            else:
+                jit_compile = resolve_auto_jit_compile(self)
         if jit_compile and run_eagerly:
             jit_compile = False
             warnings.warn(
@@ -62,6 +62,12 @@ class Trainer:
                 "cannot also be True. Disabling `jit_compile`.",
                 stacklevel=2,
             )
+        if jit_compile and backend.backend() == "torch":
+            warnings.warn(
+                "`jit_compile` is not yet enabled for the PyTorch backend. "
+                "Proceeding with `jit_compile=False`."
+            )
+            jit_compile = False
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -746,6 +752,16 @@ class Trainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
+
+
+def resolve_auto_jit_compile(model):
+    if model_supports_jit(model):
+        if backend.backend() == "torch":
+            # Torch defaults to eager mode
+            # until torch compile is reliable
+            return False
+        return True
+    return False
 
 
 def model_supports_jit(model):
