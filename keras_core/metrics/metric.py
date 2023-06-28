@@ -154,7 +154,7 @@ class Metric:
         mapping = list(zip(self.variables, metric_variables))
 
         # Call in stateless scope
-        with backend.StatelessScope(state_mapping=mapping) as scope:
+        with backend.StatelessScope(state_mapping=mapping):
             res = self.result()
         return res
 
