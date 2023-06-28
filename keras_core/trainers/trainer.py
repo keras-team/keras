@@ -714,11 +714,14 @@ class Trainer:
     def _pythonify_logs(self, logs):
         result = {}
         for key, value in sorted(logs.items()):
-            try:
-                value = float(value)
-            except:
-                pass
-            result[key] = value
+            if isinstance(value, dict):
+                result.update(self._pythonify_logs(value))
+            else:
+                try:
+                    value = float(value)
+                except:
+                    pass
+                result[key] = value
         return result
 
     def _flatten_metrics_in_order(self, logs):

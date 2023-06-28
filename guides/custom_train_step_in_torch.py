@@ -115,14 +115,7 @@ class CustomModel(keras.Model):
 
         # Return a dict mapping metric names to current value
         # Note that it will include the loss (tracked in self.metrics).
-        metric_values = {}
-        for metric in self.metrics:
-            result = metric.result()
-            if isinstance(result, dict):
-                metric_values.update(result)
-            else:
-                metric_values[metric.name] = result
-        return metric_values
+        return {m.name: m.result() for m in self.metrics}
 
 
 """
@@ -278,14 +271,7 @@ class CustomModel(keras.Model):
 
         # Return a dict mapping metric names to current value
         # Note that it will include the loss (tracked in self.metrics).
-        metric_values = {}
-        for metric in self.metrics:
-            result = metric.result()
-            if isinstance(result, dict):
-                metric_values.update(result)
-            else:
-                metric_values[metric.name] = result
-        return metric_values
+        return {m.name: m.result() for m in self.metrics}
 
 
 # Construct and compile an instance of CustomModel
@@ -324,14 +310,7 @@ class CustomModel(keras.Model):
                 metric.update_state(y, y_pred)
         # Return a dict mapping metric names to current value.
         # Note that it will include the loss (tracked in self.metrics).
-        metric_values = {}
-        for metric in self.metrics:
-            result = metric.result()
-            if isinstance(result, dict):
-                metric_values.update(result)
-            else:
-                metric_values[metric.name] = result
-        return metric_values
+        return {m.name: m.result() for m in self.metrics}
 
 
 # Construct an instance of CustomModel
