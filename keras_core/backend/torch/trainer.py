@@ -26,7 +26,7 @@ class TorchTrainer(base_trainer.Trainer):
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
-        # Compute prediction error
+        # Compute predictions
         if self._call_has_training_arg():
             y_pred = self(x, training=True)
         else:
@@ -146,40 +146,54 @@ class TorchTrainer(base_trainer.Trainer):
         self.predict_function = one_step_on_data
 
     def _symbolic_build(self, data_batch):
-        model_unbuilt = not all(layer.built for layer in self._flatten_layers())
-        compile_metrics_unbuilt = (
-            self._compile_metrics is not None
-            and not self._compile_metrics.built
-        )
-        if model_unbuilt or compile_metrics_unbuilt:
-            # Create symbolic tensors matching an input batch.
+        try:
+            model_unbuilt = not all(
+                layer.built for layer in self._flatten_layers()
+            )
+            compile_metrics_unbuilt = (
+                self._compile_metrics is not None
+                and not self._compile_metrics.built
+            )
+            if model_unbuilt or compile_metrics_unbuilt:
+                # Create symbolic tensors matching an input batch.
 
-            def to_symbolic_input(v):
-                if is_tensor(v):
-                    return KerasTensor(v.shape, standardize_dtype(v.dtype))
-                return v
+                def to_symbolic_input(v):
+                    if is_tensor(v):
+                        return KerasTensor(v.shape, standardize_dtype(v.dtype))
+                    return v
 
-            data_batch = tf.nest.map_structure(to_symbolic_input, data_batch)
-            (
-                x,
-                y,
-                sample_weight,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
-            # Build all model state with `backend.compute_output_spec`.
-            y_pred = backend.compute_output_spec(self, x)
-            if compile_metrics_unbuilt:
-                # Build all metric state with `backend.compute_output_spec`.
-                backend.compute_output_spec(
-                    self.compute_metrics,
+                data_batch = tf.nest.map_structure(
+                    to_symbolic_input, data_batch
+                )
+                (
                     x,
                     y,
-                    y_pred,
-                    sample_weight=sample_weight,
-                )
-        if self.optimizer is not None and not self.optimizer.built:
-            # Build optimizer
-            self.optimizer.build(self.trainable_variables)
-        self._post_build()
+                    sample_weight,
+                ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
+                # Build all model state with `backend.compute_output_spec`.
+                y_pred = backend.compute_output_spec(self, x)
+                if compile_metrics_unbuilt:
+                    # Build all metric state with `backend.compute_output_spec`.
+                    backend.compute_output_spec(
+                        self.compute_metrics,
+                        x,
+                        y,
+                        y_pred,
+                        sample_weight=sample_weight,
+                    )
+            if self.optimizer is not None and not self.optimizer.built:
+                # Build optimizer
+                self.optimizer.build(self.trainable_variables)
+            self._post_build()
+        except:
+            raise RuntimeError(
+                "Unable to automatically build the model. "
+                "Please build it yourself before calling fit/evaluate/predict. "
+                "A model is 'built' when its variables have been created and "
+                "its `self.built` attribute is True. Usually, "
+                "calling the model on a batch of data "
+                "is the right way to build it."
+            )
 
     @traceback_utils.filter_traceback
     def fit(
