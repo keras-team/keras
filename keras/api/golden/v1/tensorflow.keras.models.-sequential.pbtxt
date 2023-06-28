@@ -15,10 +15,6 @@ tf_class {
     mtype: "<type \'property\'>"
   }
   member {
-    name: "autotune_steps_per_execution"
-    mtype: "<type \'property\'>"
-  }
-  member {
     name: "compute_dtype"
     mtype: "<type \'property\'>"
   }
@@ -40,6 +36,10 @@ tf_class {
   }
   member {
     name: "dynamic"
+    mtype: "<type \'property\'>"
+  }
+  member {
+    name: "enable_tune_steps_per_execution"
     mtype: "<type \'property\'>"
   }
   member {
@@ -124,10 +124,6 @@ tf_class {
   }
   member {
     name: "stateful"
-    mtype: "<type \'property\'>"
-  }
-  member {
-    name: "steps_per_execution"
     mtype: "<type \'property\'>"
   }
   member {
