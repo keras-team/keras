@@ -61,6 +61,7 @@ def max(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
+        initial = convert_to_tensor(initial)
         return torch.maximum(result, torch.full(result.shape, initial))
     return result
 
@@ -557,6 +558,7 @@ def min(x, axis=None, keepdims=False, initial=None):
         result = result.values
 
     if initial is not None:
+        initial = convert_to_tensor(initial)
         return torch.minimum(result, initial)
     return result
 
