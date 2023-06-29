@@ -598,7 +598,7 @@ class R2Score(base_metric.Metric):
 
     def reset_state(self):
         for v in self.variables:
-            v.assign(tf.zeros(v.shape))
+            v.assign(tf.zeros(v.shape, dtype=v.dtype))
 
     def get_config(self):
         config = {
