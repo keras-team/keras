@@ -178,9 +178,7 @@ splitting scheme (split on whitespace).
 
 def custom_standardization(input_string):
     lowercase = tf.strings.lower(input_string)
-    return tf.strings.regex_replace(
-        lowercase, "[%s]" % re.escape(strip_chars), ""
-    )
+    return tf.strings.regex_replace(lowercase, "[%s]" % re.escape(strip_chars), "")
 
 
 strip_chars = "!\"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"
@@ -265,9 +263,7 @@ def get_cnn_model():
     # We freeze our feature extractor
     base_model.trainable = False
     base_model_out = base_model.output
-    base_model_out = layers.Reshape((-1, base_model_out.shape[-1]))(
-        base_model_out
-    )
+    base_model_out = layers.Reshape((-1, base_model_out.shape[-1]))(base_model_out)
     cnn_model = keras.models.Model(base_model.input, base_model_out)
     return cnn_model
 
@@ -346,9 +342,7 @@ class TransformerDecoderBlock(layers.Layer):
         self.layernorm_3 = layers.LayerNormalization()
 
         self.embedding = PositionalEmbedding(
-            embed_dim=EMBED_DIM,
-            sequence_length=SEQ_LENGTH,
-            vocab_size=VOCAB_SIZE,
+            embed_dim=EMBED_DIM, sequence_length=SEQ_LENGTH, vocab_size=VOCAB_SIZE
         )
         self.out = layers.Dense(VOCAB_SIZE, activation="softmax")
 
@@ -400,10 +394,7 @@ class TransformerDecoderBlock(layers.Layer):
         mask = tf.cast(i >= j, dtype="int32")
         mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))
         mult = tf.concat(
-            [
-                tf.expand_dims(batch_size, -1),
-                tf.constant([1, 1], dtype=tf.int32),
-            ],
+            [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)],
             axis=0,
         )
         return tf.tile(mask, mult)
@@ -440,9 +431,7 @@ class ImageCaptioningModel(keras.Model):
         mask = tf.cast(mask, dtype=tf.float32)
         return tf.reduce_sum(accuracy) / tf.reduce_sum(mask)
 
-    def _compute_caption_loss_and_acc(
-        self, img_embed, batch_seq, training=True
-    ):
+    def _compute_caption_loss_and_acc(self, img_embed, batch_seq, training=True):
         encoder_out = self.encoder(img_embed, training=training)
         batch_seq_inp = batch_seq[:, :-1]
         batch_seq_true = batch_seq[:, 1:]
@@ -480,8 +469,7 @@ class ImageCaptioningModel(keras.Model):
 
             # 4. Get the list of all the trainable weights
             train_vars = (
-                self.encoder.trainable_variables
-                + self.decoder.trainable_variables
+                self.encoder.trainable_variables + self.decoder.trainable_variables
             )
 
             # 5. Get the gradients
@@ -496,10 +484,7 @@ class ImageCaptioningModel(keras.Model):
         self.acc_tracker.update_state(batch_acc)
 
         # 8. Return the loss and accuracy values
-        return {
-            "loss": self.loss_tracker.result(),
-            "acc": self.acc_tracker.result(),
-        }
+        return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}
 
     def test_step(self, batch_data):
         batch_img, batch_seq = batch_data
@@ -528,10 +513,7 @@ class ImageCaptioningModel(keras.Model):
         self.acc_tracker.update_state(batch_acc)
 
         # 5. Return the loss and accuracy values
-        return {
-            "loss": self.loss_tracker.result(),
-            "acc": self.acc_tracker.result(),
-        }
+        return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}
 
     @property
     def metrics(self):
@@ -541,12 +523,8 @@ class ImageCaptioningModel(keras.Model):
 
 
 cnn_model = get_cnn_model()
-encoder = TransformerEncoderBlock(
-    embed_dim=EMBED_DIM, dense_dim=FF_DIM, num_heads=1
-)
-decoder = TransformerDecoderBlock(
-    embed_dim=EMBED_DIM, ff_dim=FF_DIM, num_heads=2
-)
+encoder = TransformerEncoderBlock(embed_dim=EMBED_DIM, dense_dim=FF_DIM, num_heads=1)
+decoder = TransformerDecoderBlock(embed_dim=EMBED_DIM, ff_dim=FF_DIM, num_heads=2)
 caption_model = ImageCaptioningModel(
     cnn_model=cnn_model,
     encoder=encoder,
@@ -561,20 +539,15 @@ caption_model = ImageCaptioningModel(
 
 # Define the loss function
 cross_entropy = keras.losses.SparseCategoricalCrossentropy(
-    from_logits=False,
-    reduction=None,
+    from_logits=False, reduction=None,
 )
 
 # EarlyStopping criteria
-early_stopping = keras.callbacks.EarlyStopping(
-    patience=3, restore_best_weights=True
-)
+early_stopping = keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)
 
 
 # Learning Rate Scheduler for the optimizer
-class LRSchedule(
-    keras.optimizers.schedules.learning_rate_schedule.LearningRateSchedule
-):
+class LRSchedule(keras.optimizers.schedules.learning_rate_schedule.LearningRateSchedule):
     def __init__(self, post_warmup_learning_rate, warmup_steps):
         super().__init__()
         self.post_warmup_learning_rate = post_warmup_learning_rate
@@ -595,14 +568,10 @@ class LRSchedule(
 # Create a learning rate schedule
 num_train_steps = len(train_dataset) * EPOCHS
 num_warmup_steps = num_train_steps // 15
-lr_schedule = LRSchedule(
-    post_warmup_learning_rate=1e-4, warmup_steps=num_warmup_steps
-)
+lr_schedule = LRSchedule(post_warmup_learning_rate=1e-4, warmup_steps=num_warmup_steps)
 
 # Compile the model
-caption_model.compile(
-    optimizer=keras.optimizers.Adam(lr_schedule), loss=cross_entropy
-)
+caption_model.compile(optimizer=keras.optimizers.Adam(lr_schedule), loss=cross_entropy)
 
 # Fit the model
 caption_model.fit(

@@ -123,9 +123,7 @@ class Involution(keras.layers.Layer):
                 keras.layers.BatchNormalization(),
                 keras.layers.ReLU(),
                 keras.layers.Conv2D(
-                    filters=self.kernel_size
-                    * self.kernel_size
-                    * self.group_number,
+                    filters=self.kernel_size * self.kernel_size * self.group_number,
                     kernel_size=1,
                 ),
             ]
@@ -200,39 +198,22 @@ input_tensor = tf.random.normal((32, 256, 256, 3))
 
 # Compute involution with stride 1.
 output_tensor, _ = Involution(
-    channel=3,
-    group_number=1,
-    kernel_size=5,
-    stride=1,
-    reduction_ratio=1,
-    name="inv_1",
+    channel=3, group_number=1, kernel_size=5, stride=1, reduction_ratio=1, name="inv_1"
 )(input_tensor)
 print(f"with stride 1 ouput shape: {output_tensor.shape}")
 
 # Compute involution with stride 2.
 output_tensor, _ = Involution(
-    channel=3,
-    group_number=1,
-    kernel_size=5,
-    stride=2,
-    reduction_ratio=1,
-    name="inv_2",
+    channel=3, group_number=1, kernel_size=5, stride=2, reduction_ratio=1, name="inv_2"
 )(input_tensor)
 print(f"with stride 2 ouput shape: {output_tensor.shape}")
 
 # Compute involution with stride 1, channel 16 and reduction ratio 2.
 output_tensor, _ = Involution(
-    channel=16,
-    group_number=1,
-    kernel_size=5,
-    stride=1,
-    reduction_ratio=2,
-    name="inv_3",
+    channel=16, group_number=1, kernel_size=5, stride=1, reduction_ratio=2, name="inv_3"
 )(input_tensor)
 print(
-    "with channel 16 and reduction ratio 2 ouput shape: {}".format(
-        output_tensor.shape
-    )
+    "with channel 16 and reduction ratio 2 ouput shape: {}".format(output_tensor.shape)
 )
 
 """
@@ -269,9 +250,7 @@ train_ds = (
     .shuffle(256)
     .batch(256)
 )
-test_ds = tf.data.Dataset.from_tensor_slices((test_images, test_labels)).batch(
-    256
-)
+test_ds = tf.data.Dataset.from_tensor_slices((test_images, test_labels)).batch(256)
 
 """
 ## Visualise the data
@@ -308,9 +287,7 @@ plt.show()
 print("building the convolution model...")
 conv_model = keras.Sequential(
     [
-        keras.layers.Conv2D(
-            32, (3, 3), input_shape=(32, 32, 3), padding="same"
-        ),
+        keras.layers.Conv2D(32, (3, 3), input_shape=(32, 32, 3), padding="same"),
         keras.layers.ReLU(name="relu1"),
         keras.layers.MaxPooling2D((2, 2)),
         keras.layers.Conv2D(64, (3, 3), padding="same"),
@@ -346,32 +323,17 @@ print("building the involution model...")
 
 inputs = keras.Input(shape=(32, 32, 3))
 x, _ = Involution(
-    channel=3,
-    group_number=1,
-    kernel_size=3,
-    stride=1,
-    reduction_ratio=2,
-    name="inv_1",
+    channel=3, group_number=1, kernel_size=3, stride=1, reduction_ratio=2, name="inv_1"
 )(inputs)
 x = keras.layers.ReLU()(x)
 x = keras.layers.MaxPooling2D((2, 2))(x)
 x, _ = Involution(
-    channel=3,
-    group_number=1,
-    kernel_size=3,
-    stride=1,
-    reduction_ratio=2,
-    name="inv_2",
+    channel=3, group_number=1, kernel_size=3, stride=1, reduction_ratio=2, name="inv_2"
 )(x)
 x = keras.layers.ReLU()(x)
 x = keras.layers.MaxPooling2D((2, 2))(x)
 x, _ = Involution(
-    channel=3,
-    group_number=1,
-    kernel_size=3,
-    stride=1,
-    reduction_ratio=2,
-    name="inv_3",
+    channel=3, group_number=1, kernel_size=3, stride=1, reduction_ratio=2, name="inv_3"
 )(x)
 x = keras.layers.ReLU()(x)
 x = keras.layers.Flatten()(x)

@@ -98,7 +98,6 @@ train(model, train_loader, num_epochs, optimizer, loss_fn)
 ######## Using a Keras model or layer in a torch Module ########
 ################################################################
 
-
 class MyModel(nn.Module):
     def __init__(self):
         super().__init__()

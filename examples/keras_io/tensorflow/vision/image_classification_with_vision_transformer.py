@@ -58,10 +58,7 @@ transformer_units = [
     projection_dim,
 ]  # Size of the transformer layers
 transformer_layers = 8
-mlp_head_units = [
-    2048,
-    1024,
-]  # Size of the dense layers of the final classifier
+mlp_head_units = [2048, 1024]  # Size of the dense layers of the final classifier
 
 
 """
@@ -221,9 +218,7 @@ def create_vit_classifier():
     representation = layers.Flatten()(representation)
     representation = layers.Dropout(0.5)(representation)
     # Add MLP.
-    features = mlp(
-        representation, hidden_units=mlp_head_units, dropout_rate=0.5
-    )
+    features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
     # Classify outputs.
     logits = layers.Dense(num_classes)(features)
     # Create the Keras model.
@@ -246,9 +241,7 @@ def run_experiment(model):
         loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=[
             keras.metrics.SparseCategoricalAccuracy(name="accuracy"),
-            keras.metrics.SparseTopKCategoricalAccuracy(
-                5, name="top-5-accuracy"
-            ),
+            keras.metrics.SparseTopKCategoricalAccuracy(5, name="top-5-accuracy"),
         ],
     )
 

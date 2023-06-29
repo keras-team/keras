@@ -96,9 +96,7 @@ positive class label is randomly placed among the instances in the positive bag.
 """
 
 
-def create_bags(
-    input_data, input_labels, positive_class, bag_count, instance_count
-):
+def create_bags(input_data, input_labels, positive_class, bag_count, instance_count):
     # Set up bags.
     bags = []
     bag_labels = []
@@ -111,9 +109,7 @@ def create_bags(
 
     for _ in range(bag_count):
         # Pick a fixed size random subset of samples.
-        index = np.random.choice(
-            input_data.shape[0], instance_count, replace=False
-        )
+        index = np.random.choice(input_data.shape[0], instance_count, replace=False)
         instances_data = input_data[index]
         instances_labels = input_labels[index]
 
@@ -245,9 +241,7 @@ class MILAttentionLayer(layers.Layer):
 
     def call(self, inputs):
         # Assigning variables from the number of inputs.
-        instances = [
-            self.compute_attention_scores(instance) for instance in inputs
-        ]
+        instances = [self.compute_attention_scores(instance) for instance in inputs]
 
         # Stack instances into a single tensor.
         instances = ops.stack(instances)
@@ -263,9 +257,7 @@ class MILAttentionLayer(layers.Layer):
         original_instance = instance
 
         # tanh(v*h_k^T)
-        instance = ops.tanh(
-            ops.tensordot(instance, self.v_weight_params, axes=1)
-        )
+        instance = ops.tanh(ops.tensordot(instance, self.v_weight_params, axes=1))
 
         # for learning non-linear relations efficiently.
         if self.use_gated:
@@ -300,7 +292,7 @@ def plot(data, labels, bag_class, predictions=None, attention_weights=None):
       attention_weights: Attention weights for each instance within the input data.
       If you don't specify anything, the values won't be displayed.
     """
-    return  ## TODO
+    return ## TODO
     labels = np.array(labels).reshape(-1)
 
     if bag_class == "positive":
@@ -507,16 +499,12 @@ def predict(data, labels, trained_models):
         models_predictions.append(predictions)
 
         # Create intermediate model to get MIL attention layer weights.
-        intermediate_model = keras.Model(
-            model.input, model.get_layer("alpha").output
-        )
+        intermediate_model = keras.Model(model.input, model.get_layer("alpha").output)
 
         # Predict MIL attention layer weights.
         intermediate_predictions = intermediate_model.predict(data)
 
-        attention_weights = np.squeeze(
-            np.swapaxes(intermediate_predictions, 1, 0)
-        )
+        attention_weights = np.squeeze(np.swapaxes(intermediate_predictions, 1, 0))
         models_attention_weights.append(attention_weights)
 
         loss, accuracy = model.evaluate(data, labels, verbose=0)
@@ -535,9 +523,7 @@ def predict(data, labels, trained_models):
 
 
 # Evaluate and predict classes and attention scores on validation data.
-class_predictions, attention_params = predict(
-    val_data, val_labels, trained_models
-)
+class_predictions, attention_params = predict(val_data, val_labels, trained_models)
 
 # Plot some results from our validation data.
 plot(

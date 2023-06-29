@@ -32,7 +32,7 @@ import tensorflow as tf
 import keras_core as keras
 from keras_core import layers
 from keras_core.layers import Lambda
-
+    
 """
 ## Prepare the data
 """
@@ -183,9 +183,7 @@ class Patches(layers.Layer):
             padding="VALID",
         )
         patch_dims = patches.shape[-1]
-        patches = tf.reshape(
-            patches, [batch_size, self.num_patches, patch_dims]
-        )
+        patches = tf.reshape(patches, [batch_size, self.num_patches, patch_dims])
         return patches
 
 
@@ -209,9 +207,7 @@ instead of batch normalization.
 
 
 class MLPMixerLayer(layers.Layer):
-    def __init__(
-        self, num_patches, hidden_units, dropout_rate, *args, **kwargs
-    ):
+    def __init__(self, num_patches, hidden_units, dropout_rate, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.mlp1 = keras.Sequential(
@@ -261,10 +257,7 @@ takes around 8 seconds per epoch.
 """
 
 mlpmixer_blocks = keras.Sequential(
-    [
-        MLPMixerLayer(num_patches, embedding_dim, dropout_rate)
-        for _ in range(num_blocks)
-    ]
+    [MLPMixerLayer(num_patches, embedding_dim, dropout_rate) for _ in range(num_blocks)]
 )
 learning_rate = 0.005
 mlpmixer_classifier = build_classifier(mlpmixer_blocks)
@@ -299,9 +292,7 @@ in the Transformer block with a parameter-free 2D Fourier transformation layer:
 
 
 class FNetLayer(layers.Layer):
-    def __init__(
-        self, num_patches, embedding_dim, dropout_rate, *args, **kwargs
-    ):
+    def __init__(self, num_patches, embedding_dim, dropout_rate, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ffn = keras.Sequential(
@@ -341,10 +332,7 @@ takes around 8 seconds per epoch.
 """
 
 fnet_blocks = keras.Sequential(
-    [
-        FNetLayer(num_patches, embedding_dim, dropout_rate)
-        for _ in range(num_blocks)
-    ]
+    [FNetLayer(num_patches, embedding_dim, dropout_rate) for _ in range(num_blocks)]
 )
 learning_rate = 0.001
 fnet_classifier = build_classifier(fnet_blocks, positional_encoding=True)
@@ -375,9 +363,7 @@ The SGU enables cross-patch interactions across the spatial (channel) dimension,
 
 
 class gMLPLayer(layers.Layer):
-    def __init__(
-        self, num_patches, embedding_dim, dropout_rate, *args, **kwargs
-    ):
+    def __init__(self, num_patches, embedding_dim, dropout_rate, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.channel_projection1 = keras.Sequential(
@@ -430,10 +416,7 @@ takes around 9 seconds per epoch.
 """
 
 gmlp_blocks = keras.Sequential(
-    [
-        gMLPLayer(num_patches, embedding_dim, dropout_rate)
-        for _ in range(num_blocks)
-    ]
+    [gMLPLayer(num_patches, embedding_dim, dropout_rate) for _ in range(num_blocks)]
 )
 learning_rate = 0.003
 gmlp_classifier = build_classifier(gmlp_blocks)

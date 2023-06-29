@@ -93,7 +93,12 @@ class DTypePolicy:
         return cls(**config)
 
 
-@keras_core_export("keras_core.mixed_precision.set_dtype_policy")
+@keras_core_export(
+    [
+        "keras_core.mixed_precision.set_dtype_policy",
+        "keras_core.mixed_precision.set_global_policy",
+    ]
+)
 def set_dtype_policy(policy):
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
