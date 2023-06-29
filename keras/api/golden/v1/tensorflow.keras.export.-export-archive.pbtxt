@@ -18,7 +18,7 @@ tf_class {
   }
   member_method {
     name: "track"
-    argspec: "args=[\'self\', \'layer\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'resource\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
     name: "write_out"

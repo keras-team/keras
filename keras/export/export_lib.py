@@ -99,33 +99,35 @@ class ExportArchive(tf.__internal__.tracking.AutoTrackable):
         self.non_trainable_variables = []
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
-    def track(self, layer):
-        """Track the variables (and other resources) of a layer or model."""
-        if not isinstance(layer, base_layer.Layer):
+    def track(self, resource):
+        """Track the variables (and other assets) of a layer or model."""
+        if not isinstance(resource, tf.__internal__.tracking.Trackable):
             raise ValueError(
-                "Invalid layer type. Expected an instance of "
-                "`keras.layers.Layer` or `keras.Model`. "
-                f"Received instead an object of type '{type(layer)}'. "
-                f"Object received: {layer}"
+                "Invalid resource type. Expected an instance of a "
+                "TensorFlow `Trackable` (such as a Keras `Layer` or `Model`). "
+                f"Received instead an object of type '{type(resource)}'. "
+                f"Object received: {resource}"
             )
-        if not layer.built:
-            raise ValueError(
-                "The layer provided has not yet been built. "
-                "It must be built before export."
-            )
+        if isinstance(resource, base_layer.Layer):
+            if not resource.built:
+                raise ValueError(
+                    "The layer provided has not yet been built. "
+                    "It must be built before export."
+                )
 
         # Layers in `_tracked` are not part of the trackables that get saved,
         # because we're creating the attribute in a
         # no_automatic_dependency_tracking scope.
         if not hasattr(self, "_tracked"):
             self._tracked = []
-        self._tracked.append(layer)
+        self._tracked.append(resource)
 
-        # Variables in the lists below are actually part of the trackables
-        # that get saved, because the lists are created in __init__.
-        self.variables += layer.variables
-        self.trainable_variables += layer.trainable_variables
-        self.non_trainable_variables += layer.non_trainable_variables
+        if isinstance(resource, base_layer.Layer):
+            # Variables in the lists below are actually part of the trackables
+            # that get saved, because the lists are created in __init__.
+            self.variables += resource.variables
+            self.trainable_variables += resource.trainable_variables
+            self.non_trainable_variables += resource.non_trainable_variables
 
     def add_endpoint(self, name, fn, input_signature=None):
         """Register a new serving endpoint.
