@@ -205,9 +205,12 @@ class LayerNormalization(Layer):
         # Compute the batch normalization.
         inv = 1 / ops.sqrt(variance + self.epsilon)
         if scale is not None:
+            scale = ops.cast(scale, inputs.dtype)
             inv = inv * scale
-
-        x = offset - mean * inv if offset is not None else -mean * inv
+        x = -mean * inv
+        if offset is not None:
+            offset = ops.cast(offset, inputs.dtype)
+            x = offset + x
         outputs = inputs * ops.cast(inv, inputs.dtype) + ops.cast(
             x, inputs.dtype
         )

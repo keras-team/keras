@@ -203,6 +203,14 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
             knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (None, 2, 2, 3)
         )
 
+        # test with negative axis
+        self.assertEqual(knp.take(x, 1, axis=-2).shape, (None, 3))
+
+        # test with multi-dimensional indices
+        x = KerasTensor([None, 3, None, 5])
+        indices = KerasTensor([6, 7])
+        self.assertEqual(knp.take(x, indices, axis=2).shape, (None, 3, 6, 7, 5))
+
     def test_take_along_axis(self):
         x = KerasTensor([None, 3])
         indices = KerasTensor([1, 3])
@@ -585,6 +593,11 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.take(x, 1).shape, ())
         self.assertEqual(knp.take(x, [1, 2]).shape, (2,))
         self.assertEqual(knp.take(x, [[1, 2], [1, 2]], axis=1).shape, (2, 2, 2))
+
+        # test with multi-dimensional indices
+        x = KerasTensor([2, 3, 4, 5])
+        indices = KerasTensor([6, 7])
+        self.assertEqual(knp.take(x, indices, axis=2).shape, (2, 3, 6, 7, 5))
 
     def test_take_along_axis(self):
         x = KerasTensor([2, 3])
@@ -1979,6 +1992,21 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(knp.Take()(x, indices), np.take(x, indices))
         self.assertAllClose(knp.Take()(x, 0), np.take(x, 0))
         self.assertAllClose(knp.Take(axis=1)(x, 0), np.take(x, 0, axis=1))
+
+        # test with multi-dimensional indices
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal((2, 3, 4, 5))
+        indices = rng.integers(0, 4, (6, 7))
+        self.assertAllClose(
+            knp.take(x, indices, axis=2),
+            np.take(x, indices, axis=2),
+        )
+
+        # test with negative axis
+        self.assertAllClose(
+            knp.take(x, indices, axis=-2),
+            np.take(x, indices, axis=-2),
+        )
 
     def test_take_along_axis(self):
         x = np.arange(24).reshape([1, 2, 3, 4])
