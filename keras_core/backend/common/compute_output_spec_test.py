@@ -5,7 +5,7 @@ from keras_core import testing
 
 
 def example_fn(x):
-    x = (x + 2) * backend.numpy.ones(x.shape)
+    x = (x + 2) * backend.numpy.ones_like(x)
     x = backend.numpy.stack([x, x], axis=-1)
     return x
 
@@ -54,3 +54,11 @@ class ComputeOutputSpecTest(testing.TestCase):
         self.assertTrue(isinstance(out, backend.KerasTensor))
         self.assertTrue(instance.canary)
         self.assertEqual(out.shape, (2, 3, 2))
+
+        instance = Container()
+        out = backend.compute_output_spec(
+            instance.example_meta_fn, backend.KerasTensor((2, None))
+        )
+        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertTrue(instance.canary)
+        self.assertEqual(out.shape, (2, None, 2))
