@@ -14,7 +14,7 @@ def torch_seed_generator(seed):
     seed_val, _ = draw_seed(seed)
     device = get_device()
     if device == "meta":
-        # Generator is not support by the meta device.
+        # Generator is not supported by the meta device.
         return None
     generator = torch.Generator(device=get_device())
     generator.manual_seed(int(seed_val))

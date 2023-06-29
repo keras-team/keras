@@ -10,9 +10,6 @@ from keras_core import ops
 from keras_core import optimizers
 
 
-keras_core.config.disable_traceback_filtering()
-
-
 class MyDense(layers.Layer):
     def __init__(self, units, name=None):
         super().__init__(name=name)
