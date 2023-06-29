@@ -86,6 +86,8 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
             return self.update_step(grad, var, learning_rate)
 
         for grad, var in grads_and_vars:
+            if isinstance(var, backend.Variable):
+                var = var.value
             distribution.extended.update(
                 var, apply_grad_to_update_var, args=(grad,), group=False
             )

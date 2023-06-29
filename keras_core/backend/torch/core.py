@@ -345,6 +345,4 @@ def while_loop(
 
 
 def stop_gradient(variable):
-    # We can't use `.requires_grad_(False)` here since it only
-    # works when the tensor is a leaf node in the graph.
-    return variable.detach()
+    return variable.requires_grad_(False)
