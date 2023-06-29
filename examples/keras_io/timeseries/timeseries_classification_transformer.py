@@ -148,7 +148,9 @@ model.compile(
 )
 model.summary()
 
-callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
+callbacks = [
+    keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
+]
 
 model.fit(
     x_train,

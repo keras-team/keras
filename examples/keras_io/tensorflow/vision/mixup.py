@@ -140,7 +140,8 @@ certain cases, it may not help improve the performance as well.
 
 # First create the new dataset using our `mix_up` utility
 train_ds_mu = train_ds.map(
-    lambda ds_one, ds_two: mix_up(ds_one, ds_two, alpha=0.2), num_parallel_calls=AUTO
+    lambda ds_one, ds_two: mix_up(ds_one, ds_two, alpha=0.2),
+    num_parallel_calls=AUTO,
 )
 
 # Let's preview 9 samples from the dataset
@@ -160,7 +161,9 @@ for i, (image, label) in enumerate(zip(sample_images[:9], sample_labels[:9])):
 def get_training_model():
     model = keras.Sequential(
         [
-            layers.Conv2D(16, (5, 5), activation="relu", input_shape=(28, 28, 1)),
+            layers.Conv2D(
+                16, (5, 5), activation="relu", input_shape=(28, 28, 1)
+            ),
             layers.MaxPooling2D(pool_size=(2, 2)),
             layers.Conv2D(32, (5, 5), activation="relu"),
             layers.MaxPooling2D(pool_size=(2, 2)),
@@ -187,7 +190,9 @@ initial_model.save_weights("initial_weights.weights.h5")
 
 model = get_training_model()
 model.load_weights("initial_weights.weights.h5")
-model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
 model.fit(train_ds_mu, validation_data=val_ds, epochs=EPOCHS)
 _, test_acc = model.evaluate(test_ds)
 print("Test accuracy: {:.2f}%".format(test_acc * 100))
@@ -198,7 +203,9 @@ print("Test accuracy: {:.2f}%".format(test_acc * 100))
 
 model = get_training_model()
 model.load_weights("initial_weights.weights.h5")
-model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
 # Notice that we are NOT using the mixed up dataset here
 model.fit(train_ds_one, validation_data=val_ds, epochs=EPOCHS)
 _, test_acc = model.evaluate(test_ds)
