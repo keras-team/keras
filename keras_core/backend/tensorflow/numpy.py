@@ -446,7 +446,9 @@ def reciprocal(x):
 
 
 def repeat(x, repeats, axis=None):
-    return tfnp.repeat(x, repeats, axis=axis)
+    # tfnp.repeat has trouble with dynamic Tensors in compiled function.
+    # tf.repeat does not.
+    return tf.repeat(x, repeats, axis=axis)
 
 
 def reshape(x, new_shape):
