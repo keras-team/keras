@@ -96,7 +96,9 @@ def append(
 
 
 def arange(start, stop=None, step=1, dtype=None):
-    return tfnp.arange(start, stop, step=step, dtype=dtype)
+    # tfnp.arange has trouble with dynamic Tensors in compiled function.
+    # tf.range does not.
+    return tf.range(start, stop, delta=step, dtype=dtype)
 
 
 def arccos(x):
