@@ -214,21 +214,21 @@ def compute_output_spec(fn, *args, **kwargs):
             # which  should give a "zero flop" way to trace shape, but does
             # not have universal support with torch operations.
             with device_scope("meta"):
-                args, kwargs = nest.map_structure(
+                meta_args, meta_kwargs = nest.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
-                return fn(*args, **kwargs)
+                return fn(*meta_args, **meta_kwargs)
         except:
             with device_scope(get_default_device()):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.
-                args, kwargs = nest.map_structure(
+                eager_args, eager_kwargs = nest.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
-                return fn(*args, **kwargs)
+                return fn(*eager_args, **eager_kwargs)
 
     with StatelessScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
