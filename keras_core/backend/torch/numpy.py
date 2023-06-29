@@ -750,14 +750,7 @@ def take(x, indices, axis=None):
         # This case is equivalent to embedding lookup.
         return torch.nn.functional.embedding(indices, x)
     if axis is not None:
-        # make sure axis is non-negative
-        axis = len(x.shape) + axis if axis < 0 else axis
-        shape = x.shape[:axis] + indices.shape + x.shape[axis + 1 :]
-        # ravel the `indices` since `index_select` expects `indices`
-        # to be a vector (1-D tensor).
-        indices = indices.ravel()
-        out = torch.index_select(x, dim=axis, index=indices).squeeze(axis)
-        return out.reshape(shape)
+        return torch.index_select(x, dim=axis, index=indices).squeeze(axis)
     return torch.take(x, index=indices)
 
 

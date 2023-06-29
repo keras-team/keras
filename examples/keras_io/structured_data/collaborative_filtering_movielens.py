@@ -40,6 +40,7 @@ from zipfile import ZipFile
 import keras_core as keras
 from keras_core import layers
 from keras_core import ops
+
 """
 ## First, load the data and apply preprocessing
 """
@@ -97,7 +98,11 @@ print(
 df = df.sample(frac=1, random_state=42)
 x = df[["user", "movie"]].values
 # Normalize the targets between 0 and 1. Makes it easy to train.
-y = df["rating"].apply(lambda x: (x - min_rating) / (max_rating - min_rating)).values
+y = (
+    df["rating"]
+    .apply(lambda x: (x - min_rating) / (max_rating - min_rating))
+    .values
+)
 # Assuming training on 90% of the data and validating on 10%.
 train_indices = int(0.9 * df.shape[0])
 x_train, x_val, y_train, y_val = (
@@ -204,7 +209,8 @@ user_movie_array = np.hstack(
 ratings = model.predict(user_movie_array).flatten()
 top_ratings_indices = ratings.argsort()[-10:][::-1]
 recommended_movie_ids = [
-    movie_encoded2movie.get(movies_not_watched[x][0]) for x in top_ratings_indices
+    movie_encoded2movie.get(movies_not_watched[x][0])
+    for x in top_ratings_indices
 ]
 
 print("Showing recommendations for user: {}".format(user_id))

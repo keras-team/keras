@@ -2814,16 +2814,16 @@ class Take(Operation):
 
     def compute_output_spec(self, x, indices):
         x_shape = list(x.shape)
-        if isinstance(indices, KerasTensor):
-            indices_shape = list(indices.shape)
-        else:
-            indices_shape = list(getattr(np.array(indices), "shape", []))
+        indices_shape = list(getattr(np.array(indices), "shape", []))
         if self.axis is None:
             return KerasTensor(indices_shape, dtype=x.dtype)
 
-        # make sure axis is non-negative
-        axis = len(x_shape) + self.axis if self.axis < 0 else self.axis
-        output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
+        if self.axis == -1:
+            output_shape = x_shape[:-1] + indices_shape
+        else:
+            output_shape = (
+                x_shape[: self.axis] + indices_shape + x_shape[self.axis + 1 :]
+            )
         return KerasTensor(output_shape, dtype=x.dtype)
 
 

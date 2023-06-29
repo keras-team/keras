@@ -2,13 +2,15 @@ import numpy as np
 
 import keras_core
 from keras_core import Model
-from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
 from keras_core import losses
 from keras_core import metrics
 from keras_core import ops
 from keras_core import optimizers
+
+
+keras_core.config.disable_traceback_filtering()
 
 
 class MyDense(layers.Layer):

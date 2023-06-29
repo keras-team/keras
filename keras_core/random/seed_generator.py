@@ -44,9 +44,8 @@ def draw_seed(seed):
         seed_state = seed.state
         # Use * 1 to create a copy
         new_seed_value = seed_state.value * 1
-        seed.state.assign(seed_state + np.array([0, 1], dtype="uint32"))
-        if backend.backend() == "torch":
-            return backend.convert_to_numpy(new_seed_value)
+        increment = backend.convert_to_tensor(np.array([0, 1]), dtype="uint32")
+        seed.state.assign(seed_state + increment)
         return new_seed_value
     elif isinstance(seed, int):
         return convert_to_tensor([seed, 0], dtype="uint32")

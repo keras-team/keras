@@ -71,14 +71,18 @@ image_size = 64  # We'll resize input images to this size.
 patch_size = 2  # Size of the patches to be extract from the input images.
 num_patches = (image_size // patch_size) ** 2  # Size of the data array.
 latent_dim = 256  # Size of the latent array.
-projection_dim = 256  # Embedding size of each element in the data and latent arrays.
+projection_dim = (
+    256  # Embedding size of each element in the data and latent arrays.
+)
 num_heads = 8  # Number of Transformer heads.
 ffn_units = [
     projection_dim,
     projection_dim,
 ]  # Size of the Transformer Feedforward network.
 num_transformer_blocks = 4
-num_iterations = 2  # Repetitions of the cross-attention and Transformer modules.
+num_iterations = (
+    2  # Repetitions of the cross-attention and Transformer modules.
+)
 classifier_units = [
     projection_dim,
     num_classes,
@@ -205,13 +209,19 @@ def create_cross_attention_module(
 ):
     inputs = {
         # Recieve the latent array as an input of shape [1, latent_dim, projection_dim].
-        "latent_array": layers.Input(shape=(latent_dim, projection_dim), name="latent_array"),
+        "latent_array": layers.Input(
+            shape=(latent_dim, projection_dim), name="latent_array"
+        ),
         # Recieve the data_array (encoded image) as an input of shape [batch_size, data_dim, projection_dim].
-        "data_array": layers.Input(shape=(data_dim, projection_dim), name="data_array"),
+        "data_array": layers.Input(
+            shape=(data_dim, projection_dim), name="data_array"
+        ),
     }
 
     # Apply layer norm to the inputs
-    latent_array = layers.LayerNormalization(epsilon=1e-6)(inputs["latent_array"])
+    latent_array = layers.LayerNormalization(epsilon=1e-6)(
+        inputs["latent_array"]
+    )
     data_array = layers.LayerNormalization(epsilon=1e-6)(inputs["data_array"])
 
     # Create query tensor: [1, latent_dim, projection_dim].

@@ -96,9 +96,7 @@ def append(
 
 
 def arange(start, stop=None, step=1, dtype=None):
-    # tfnp.arange has trouble with dynamic Tensors in compiled function.
-    # tf.range does not.
-    return tf.range(start, stop, delta=step, dtype=dtype)
+    return tfnp.arange(start, stop, step=step, dtype=dtype)
 
 
 def arccos(x):
@@ -446,9 +444,7 @@ def reciprocal(x):
 
 
 def repeat(x, repeats, axis=None):
-    # tfnp.repeat has trouble with dynamic Tensors in compiled function.
-    # tf.repeat does not.
-    return tf.repeat(x, repeats, axis=axis)
+    return tfnp.repeat(x, repeats, axis=axis)
 
 
 def reshape(x, new_shape):

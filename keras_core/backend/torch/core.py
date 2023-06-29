@@ -39,10 +39,14 @@ def device_scope(device):
         global_state.set_global_attribute("torch_device", previous_device)
 
 
+def get_default_device():
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def get_device():
     device = global_state.get_global_attribute("torch_device", None)
     if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        get_default_device()
     return device
 
 
@@ -216,14 +220,15 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
                 return fn(*args, **kwargs)
         except:
-            # If the `"meta"` device placement fails, fall back to tracing
-            # eagerly with tensors on the default device. This will be
-            # more robust, but more expensive.
-            args, kwargs = nest.map_structure(
-                lambda x: convert_keras_tensor_to_torch(x, fill_value),
-                (args, kwargs),
-            )
-            return fn(*args, **kwargs)
+            with device_scope(get_default_device()):
+                # If the `"meta"` device placement fails, fall back to tracing
+                # eagerly with tensors on the default device. This will be
+                # more robust, but more expensive.
+                args, kwargs = nest.map_structure(
+                    lambda x: convert_keras_tensor_to_torch(x, fill_value),
+                    (args, kwargs),
+                )
+                return fn(*args, **kwargs)
 
     with StatelessScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
