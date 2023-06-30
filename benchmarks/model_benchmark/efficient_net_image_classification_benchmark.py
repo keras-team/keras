@@ -19,8 +19,8 @@ from absl import logging
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
 
 import keras_core as keras
-from keras_core.applications import EfficientNetV2B0
 
+flags.DEFINE_string("model", "EfficientNetV2B0", "The model to benchmark.")
 flags.DEFINE_integer("epochs", 1, "The number of epochs.")
 flags.DEFINE_integer("batch_size", 4, "Batch Size.")
 flags.DEFINE_string(
@@ -34,6 +34,12 @@ FLAGS = flags.FLAGS
 BATCH_SIZE = 32
 IMAGE_SIZE = (224, 224)
 CHANNELS = 3
+
+MODEL_MAP = {
+    "EfficientNetV2B0": keras.applications.EfficientNetV2B0,
+    "Xception": keras.applications.Xception,
+    "ResNet50V2": keras.applications.ResNet50V2,
+}
 
 
 def load_data():
@@ -55,7 +61,6 @@ def load_data():
             preprocess_inputs, num_parallel_calls=tf.data.AUTOTUNE
         )
         .batch(FLAGS.batch_size)
-        .cache()
         .prefetch(tf.data.AUTOTUNE)
     )
     val_dataset = (
@@ -68,8 +73,9 @@ def load_data():
 
 
 def load_model():
+    model_class = MODEL_MAP[FLAGS.model]
     # Load the EfficientNetV2B0 model and add a classification head.
-    model = EfficientNetV2B0(include_top=False, weights="imagenet")
+    model = model_class(include_top=False, weights="imagenet")
     classifier = keras.models.Sequential(
         [
             keras.Input([IMAGE_SIZE[0], IMAGE_SIZE[1], CHANNELS]),

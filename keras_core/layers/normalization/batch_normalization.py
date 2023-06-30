@@ -221,8 +221,10 @@ class BatchNormalization(Layer):
                 )
             )
         else:
-            moving_mean = ops.reshape(self.moving_mean, broadcast_shape)
-            moving_variance = ops.reshape(self.moving_variance, broadcast_shape)
+            moving_mean = ops.cast(self.moving_mean, inputs.dtype)
+            moving_variance = ops.cast(self.moving_variance, inputs.dtype)
+            moving_mean = ops.reshape(moving_mean, broadcast_shape)
+            moving_variance = ops.reshape(moving_variance, broadcast_shape)
             outputs = (inputs - moving_mean) / ops.sqrt(
                 moving_variance + self.epsilon
             )
