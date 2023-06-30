@@ -46,7 +46,7 @@ def get_default_device():
 def get_device():
     device = global_state.get_global_attribute("torch_device", None)
     if device is None:
-        get_default_device()
+        return get_default_device()
     return device
 
 
