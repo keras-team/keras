@@ -1,8 +1,6 @@
 import re
 import warnings
 
-import numpy as np
-
 from keras_core import backend
 from keras_core import initializers
 from keras_core import ops
