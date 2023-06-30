@@ -27,8 +27,7 @@ Synchronicity keeps the model convergence behavior identical to what you would s
 single-device training.
 
 Specifically, this guide teaches you how to use PyTorch's `DistributedDataParallel`
-module wrapper to train Keras
-models on multiple GPUs, with minimal changes to your code,
+module wrapper to train Keras, with minimal changes to your code,
 on multiple GPUs (typically 2 to 16) installed on a single machine (single host,
 multi-device training). This is the most common setup for researchers and small-scale
 industry workflows.
