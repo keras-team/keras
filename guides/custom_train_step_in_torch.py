@@ -460,8 +460,6 @@ class GAN(keras.Model):
 Let's test-drive it:
 """
 
-keras.config.disable_traceback_filtering()
-
 # Prepare the dataset. We use both the training & test MNIST digits.
 batch_size = 64
 (x_train, _), (x_test, _) = keras.datasets.mnist.load_data()
