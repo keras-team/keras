@@ -26,7 +26,8 @@ where the different replicas of the model stay in sync after each batch they pro
 Synchronicity keeps the model convergence behavior identical to what you would see for
 single-device training.
 
-Specifically, this guide teaches you how to use the `tf.distribute` API to train Keras
+Specifically, this guide teaches you how to use PyTorch's `DistributedDataParallel`
+module wrapper to train Keras
 models on multiple GPUs, with minimal changes to your code,
 on multiple GPUs (typically 2 to 16) installed on a single machine (single host,
 multi-device training). This is the most common setup for researchers and small-scale
@@ -229,10 +230,6 @@ def prepare_dataloader(dataset, current_gpu_index, num_gpus, batch_size):
 def per_device_launch_fn(current_gpu_index, num_gpu):
     # Setup the process groups
     setup_device(current_gpu_index, num_gpu)
-
-    #################################################################
-    ######## Writing a torch training loop for a Keras model ########
-    #################################################################
 
     dataset = get_dataset()
     model = get_model()
