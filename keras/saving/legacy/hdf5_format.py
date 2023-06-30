@@ -141,6 +141,9 @@ def save_model_to_hdf5(model, filepath, overwrite=True, include_optimizer=True):
         if opened_new_file:
             f.close()
 
+        # Remove legacy serialization attribute after H5 saving complete
+        delattr(model, "use_legacy_config")
+
 
 def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model_to_hdf5`.
