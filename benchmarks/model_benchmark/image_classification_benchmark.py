@@ -1,11 +1,19 @@
-"""Image classification benchmark with EfficientNetV2B0.
+"""Image classification benchmark.
+
+This script runs image classification benchmark with "dogs vs cats" datasets. It 
+supports the following 3 models:
+- EfficientNetV2B0
+- Xception
+- ResNet50V2
 
 To run the benchmark, make sure you are in model_benchmark/ directory, and run
 the command below:
 
-python3 -m model_benchmark.efficient_net_image_classification_benchmark \
+python3 -m model_benchmark.image_classification_benchmark \
+    --model="EfficientNetV2B0" \
     --epochs=2 \
-    --batch_size=32
+    --batch_size=32 \
+    --mixed_precision_policy="mixed_float16"
 """
 
 import time
@@ -93,7 +101,7 @@ def main(_):
     logging.info(
         "Benchmarking configs...\n"
         "=========================\n"
-        f"MODEL: EfficientNetV2B0\n"
+        f"MODEL: {FLAGS.model}\n"
         f"TASK: image classification/dogs-vs-cats \n"
         f"BATCH_SIZE: {FLAGS.batch_size}\n"
         f"EPOCHS: {FLAGS.epochs}\n"
