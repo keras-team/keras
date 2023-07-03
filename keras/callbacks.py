@@ -2889,8 +2889,14 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         if not logs:
             return
 
-        train_logs = {k: v for k, v in logs.items() if not k.startswith("val_")}
-        val_logs = {k: v for k, v in logs.items() if k.startswith("val_")}
+        train_logs = dict()
+        val_logs = dict()
+        for k, v in logs.items():
+            if k.startswith("val_"):
+                val_logs[k] = v
+            else:
+                train_logs[k] = v
+
         train_logs = self._collect_learning_rate(train_logs)
         if self.write_steps_per_second:
             train_logs["steps_per_second"] = self._compute_steps_per_second()
