@@ -10,9 +10,7 @@ else:
     BackendOptimizer = base_optimizer.BaseOptimizer
 
 
-keras_core_export(["keras_core.Optimizer", "keras_core.optimizers.Optimizer"])
-
-
+@keras_core_export(["keras_core.Optimizer", "keras_core.optimizers.Optimizer"])
 class Optimizer(BackendOptimizer):
     pass
 

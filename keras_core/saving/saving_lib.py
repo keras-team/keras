@@ -42,7 +42,7 @@ def save_model(model, filepath, weights_format="h5"):
 
     - JSON-based configuration file (config.json): Records of model, layer, and
         other trackables' configuration.
-    - NPZ-based trackable state files, found in respective directories, such as
+    - H5-based trackable state files, found in respective directories, such as
         model/states.npz, model/dense_layer/states.npz, etc.
     - Metadata file.
 

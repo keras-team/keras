@@ -6,11 +6,61 @@ from tensorflow.io import gfile
 from keras_core.api_export import keras_core_export
 from keras_core.saving import saving_lib
 from keras_core.saving.legacy import legacy_h5_format
+from keras_core.utils import io_utils
 
 try:
     import h5py
 except ImportError:
     h5py = None
+
+
+@keras_core_export(
+    ["keras_core.saving.save_model", "keras_core.models.save_model"]
+)
+def save_model(model, filepath, overwrite=True):
+    """Saves a model as a `.keras` file.
+
+    Args:
+        model: Keras model instance to be saved.
+        filepath: `str` or `pathlib.Path` object. Path where to save the model.
+        overwrite: Whether we should overwrite any existing model at the target
+            location, or instead ask the user via an interactive prompt.
+
+    Example:
+
+    ```python
+    model = keras_core.Sequential(
+        [
+            keras_core.layers.Dense(5, input_shape=(3,)),
+            keras_core.layers.Softmax(),
+        ],
+    )
+    model.save("model.keras")
+    loaded_model = keras_core.saving.load_model("model.keras")
+    x = keras.random.uniform((10, 3))
+    assert np.allclose(model.predict(x), loaded_model.predict(x))
+    ```
+
+    Note that `model.save()` is an alias for `keras_core.saving.save_model()`.
+
+    The saved `.keras` file contains:
+
+    - The model's configuration (architecture)
+    - The model's weights
+    - The model's optimizer's state (if any)
+
+    Thus models can be reinstantiated in the exact same state.
+    """
+    # If file exists and should not be overwritten.
+    try:
+        exists = os.path.exists(filepath)
+    except TypeError:
+        exists = False
+    if exists and not overwrite:
+        proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+        if not proceed:
+            return
+    saving_lib.save_model(model, filepath)
 
 
 @keras_core_export(

@@ -1,7 +1,8 @@
 """Image classification benchmark.
 
-This script runs image classification benchmark with "dogs vs cats" datasets. It 
-supports the following 3 models:
+This script runs image classification benchmark with "dogs vs cats" datasets.
+It supports the following 3 models:
+
 - EfficientNetV2B0
 - Xception
 - ResNet50V2
