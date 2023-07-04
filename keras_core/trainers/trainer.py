@@ -75,6 +75,10 @@ class Trainer:
         self._loss_tracker = metrics_module.Mean(name="loss")
         self.steps_per_execution = steps_per_execution
 
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
+
         self._compile_config = serialization_lib.SerializableDict(
             optimizer=optimizer,
             loss=loss,

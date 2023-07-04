@@ -536,3 +536,30 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         out2 = model.predict_on_batch(np.ones((2, 20)))
         out3 = model.predict_on_batch(np.ones((2, 20)))
         self.assertGreater(5, np.sum(np.abs(out2 - out3)))
+
+    def test_recompile(self):
+        inputs = layers.Input((2,))
+        outputs = layers.Dense(3)(inputs)
+        model = keras_core.Model(inputs, outputs)
+        model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
+        history_1 = model.fit(np.ones((3, 2)), np.ones((3, 3))).history
+        eval_out_1 = model.evaluate(
+            np.ones((3, 2)), np.ones((3, 3)), return_dict=True
+        )
+        model.compile(optimizer="sgd", loss="mse", metrics=["mae"])
+        history_2 = model.fit(np.ones((3, 2)), np.ones((3, 3))).history
+        eval_out_2 = model.evaluate(
+            np.ones((3, 2)), np.ones((3, 3)), return_dict=True
+        )
+        self.assertEqual(
+            sorted(list(history_1.keys())), ["loss", "mean_squared_error"]
+        )
+        self.assertEqual(
+            sorted(list(eval_out_1.keys())), ["loss", "mean_squared_error"]
+        )
+        self.assertEqual(
+            sorted(list(history_2.keys())), ["loss", "mean_absolute_error"]
+        )
+        self.assertEqual(
+            sorted(list(eval_out_2.keys())), ["loss", "mean_absolute_error"]
+        )
