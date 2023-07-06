@@ -1022,6 +1022,12 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             tf.one_hot(indices_2d, 4, axis=1),
         )
 
+        # Test 1D one-hot with negative inputs
+        indices_1d = np.array([0, -1, -1, 3])
+        self.assertAllClose(
+            knn.one_hot(indices_1d, 4), tf.one_hot(indices_1d, 4)
+        )
+
     def test_binary_crossentropy(self):
         # Test with from_logits=False
         target = np.array([[0.1], [0.9], [0.2], [1.0]])
