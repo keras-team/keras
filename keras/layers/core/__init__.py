@@ -27,6 +27,7 @@ from keras.layers.core.tf_op_layer import ClassMethod
 from keras.layers.core.tf_op_layer import InstanceMethod
 from keras.layers.core.tf_op_layer import InstanceProperty
 from keras.layers.core.tf_op_layer import SlicingOpLambda
+from keras.layers.core.tf_op_layer import TFClassMethodDispatcher
 from keras.layers.core.tf_op_layer import TFOpLambda
 from keras.layers.core.tf_op_layer import _delegate_method
 from keras.layers.core.tf_op_layer import _delegate_property
