@@ -179,7 +179,7 @@ class Sequential(Model):
             kwargs = {}
             if layer._call_has_mask_arg():
                 kwargs["mask"] = mask
-            if layer._call_has_training_arg():
+            if layer._call_has_training_arg() and training is not None:
                 kwargs["training"] = training
             outputs = layer(inputs, **kwargs)
             inputs = outputs
