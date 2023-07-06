@@ -606,11 +606,18 @@ class Layer(BackendLayer, Operation):
             # Wasn't passed explicitly: use context value
             training = call_context.training
             if training is None:
-                # Get signature default value; else False
-                training = call_spec.arguments_dict.get("training", False)
+                # Get signature default value
+                training = call_spec.arguments_dict.get("training", None)
         call_context.training = training
         if self._call_has_training_arg():
-            kwargs["training"] = training
+            if training is not None:
+                # Only populate arg if it has a concrete value
+                kwargs["training"] = training
+            elif "training" in kwargs:
+                # In some cases the value None may have been passed explicitly
+                # (e.g. by a parent Sequential).
+                # That's invalid, so don't propagate it.
+                kwargs.pop("training")
 
         ##############################
         # 6. Populate mask argument(s)

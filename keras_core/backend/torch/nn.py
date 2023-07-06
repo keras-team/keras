@@ -9,9 +9,6 @@ from keras_core.backend.common.backend_utils import (
 from keras_core.backend.config import epsilon
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
-from keras_core.backend.torch.numpy import expand_dims
-from keras_core.backend.torch.numpy import maximum
-from keras_core.backend.torch.numpy import where
 from keras_core.utils.argument_validation import standardize_tuple
 
 
@@ -519,13 +516,7 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
     # Axis is the output axis. By default, PyTorch, outputs to last axis.
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
-
-    # Torch one_hot does not natively handle negative values, so we add some
-    # manual handling for negatives in the input to one_hot by using max(x, 0).
-    # The output will have some invalid results, so we set them back to 0 using
-    # `where` afterwards.
-    output = tnn.one_hot(maximum(x, 0), num_classes)
-    output = where(expand_dims(x, axis=-1) >= 0, output, 0)
+    output = tnn.one_hot(x, num_classes)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
     if axis != -1 and axis != dims:

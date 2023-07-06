@@ -11,6 +11,8 @@ GLOBAL_CUSTOM_NAMES = {}
     [
         "keras_core.saving.CustomObjectScope",
         "keras_core.saving.custom_object_scope",
+        "keras_core.utils.CustomObjectScope",
+        "keras_core.utils.custom_object_scope",
     ]
 )
 class CustomObjectScope:
@@ -63,7 +65,10 @@ custom_object_scope = CustomObjectScope
 
 
 @keras_core_export(
-    "keras_core.saving.get_custom_objects",
+    [
+        "keras_core.saving.get_custom_objects",
+        "keras_core.utils.get_custom_objects",
+    ]
 )
 def get_custom_objects():
     """Retrieves a live reference to the global dictionary of custom objects.
@@ -86,7 +91,10 @@ def get_custom_objects():
 
 
 @keras_core_export(
-    "keras_core.saving.register_keras_serializable",
+    [
+        "keras_core.saving.register_keras_serializable",
+        "keras_core.utils.register_keras_serializable",
+    ]
 )
 def register_keras_serializable(package="Custom", name=None):
     """Registers an object with the Keras serialization framework.
@@ -147,7 +155,12 @@ def register_keras_serializable(package="Custom", name=None):
     return decorator
 
 
-@keras_core_export("keras_core.saving.get_registered_name")
+@keras_core_export(
+    [
+        "keras_core.saving.get_registered_name",
+        "keras_core.utils.get_registered_name",
+    ]
+)
 def get_registered_name(obj):
     """Returns the name registered to an object within the Keras framework.
 
@@ -168,7 +181,12 @@ def get_registered_name(obj):
         return obj.__name__
 
 
-@keras_core_export("keras_core.saving.get_registered_object")
+@keras_core_export(
+    [
+        "keras_core.saving.get_registered_object",
+        "keras_core.utils.get_registered_object",
+    ]
+)
 def get_registered_object(name, custom_objects=None, module_objects=None):
     """Returns the class associated with `name` if it is registered with Keras.
 
