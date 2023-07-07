@@ -1,4 +1,4 @@
-# Keras Core: a new multi-backend Keras
+# Keras Core: A new multi-backend Keras
 
 Keras Core is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
 
@@ -10,7 +10,7 @@ Once ready, this package will become Keras 3.0 and subsume `tf.keras`.
 
 ## Local installation
 
-Keras Core is compatible with Linux and MacOS systems. To install it locally:
+Keras Core is compatible with Linux and MacOS systems. To install a local development version:
 
 1. Install dependencies:
 
@@ -37,9 +37,20 @@ to configure your backend. Available backend options are: `"tensorflow"`, `"jax"
 export KERAS_BACKEND="jax"
 ```
 
+In Colab, you can do:
+
+```python
+import os
+os.environ["KERAS_BACKEND"] = "jax"
+
+import keras_core as keras
+```
+
 ## Backwards compatibility
 
-Keras Core is intend to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend).
+Keras Core is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
+existing `tf.keras` code, change the `keras` imports to `keras_core`, make sure that your calls to `model.save()` are using
+the up-to-date `.keras` format, and you're done.
 
 If your `tf.keras` model does not include custom compoments, you can start running it on top of JAX or PyTorch immediately.
 
@@ -47,7 +58,7 @@ If it does include custom components (e.g. custom layers or a custom `train_step
 to a backend-agnostic implementation in just a few minutes.
 
 In addition, Keras models can consume datasets in any format, regardless of the backend you're using:
-you can train your models with your existing tf.data.Dataset pipelines or Torch DataLoaders.
+you can train your models with your existing `tf.data.Dataset` pipelines or PyTorch `DataLoaders`.
 
 ## Why use Keras Core?
 
@@ -59,7 +70,3 @@ e.g. the scalability and performance of JAX or the production ecosystem options 
 - Make your ML code future-proof by avoiding framework lock-in.
 - As a PyTorch user: get access to power and usability of Keras, at last!
 - As a JAX user: get access to a fully-featured, battle-tested, well-documented modeling and training library.
-
-## Credits
-
-TODO
