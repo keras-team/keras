@@ -113,7 +113,7 @@ def train(model, train_loader, num_epochs, optimizer, loss_fn):
 
 def setup(current_gpu_index, num_gpu):
     # Device setup
-    os.environ["MASTER_ADDR"] = "keras-core-torch"
+    os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "56492"
     device = torch.device("cuda:{}".format(current_gpu_index))
     dist.init_process_group(
