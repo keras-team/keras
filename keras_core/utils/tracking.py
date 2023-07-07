@@ -1,3 +1,5 @@
+from functools import wraps
+
 from keras_core.backend.common.global_state import get_global_attribute
 from keras_core.backend.common.global_state import set_global_attribute
 
@@ -16,6 +18,7 @@ def is_tracking_enabled():
 
 
 def no_automatic_dependency_tracking(fn):
+    @wraps(fn)
     def wrapper(*args, **kwargs):
         with DotNotTrackScope():
             return fn(*args, **kwargs)

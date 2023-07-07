@@ -390,11 +390,51 @@ class Layer(BackendLayer, Operation):
         self._track_variable(variable)
         return variable
 
-    def add_weight(self, *args, **kwargs):
-        return self.add_variable(*args, **kwargs)
+    def add_weight(
+        self,
+        shape,
+        initializer,
+        dtype=None,
+        trainable=True,
+        regularizer=None,
+        constraint=None,
+        name=None,
+    ):
+        """Add a weight variable to the layer.
+
+        Alias of `add_variable()`.
+
+        Args:
+            shape: Shape tuple for the variable.
+                Must be fully-defined (no `None` entries).
+            initializer: Initializer object to use to
+                populate the initial variable value,
+                or string name of a built-in initializer
+                (e.g. `"random_normal"`).
+            dtype: Dtype of the variable to create,
+                e.g. `"float32"`.
+            trainable: Boolean, whether the variable should
+                be trainable via backprop or whether its
+                updates are managed manually.
+            constraint: Contrainst object to call on the
+                variable after any optimizer update,
+                or string name of a built-in constraint.
+            name: String name of the variable. Useful
+                for debugging purposes.
+        """
+        return self.add_variable(
+            shape=shape,
+            initializer=initializer,
+            dtype=dtype,
+            trainable=trainable,
+            regularizer=regularizer,
+            constraint=constraint,
+            name=name,
+        )
 
     @property
     def trainable(self):
+        """Settable boolean, whether this layer should be trainable or not."""
         return self._trainable
 
     @trainable.setter
@@ -453,6 +493,7 @@ class Layer(BackendLayer, Operation):
 
     @property
     def weights(self):
+        """List of weight variables of the layer."""
         # Return only "own weights" of all Layers, recursively.
         # Also deduplicate them.
         weights = []
@@ -470,20 +511,32 @@ class Layer(BackendLayer, Operation):
 
     @property
     def trainable_weights(self):
+        """List of trainable weight variables of the layer.
+
+        These are the weights that get updated by the optimizer
+        during training.
+        """
         if not self.trainable:
             return []
         return [v for v in self.weights if v.trainable]
 
     @property
     def non_trainable_weights(self):
+        """List of non-trainable weight variables of the layer.
+
+        Non-trainable weights may include batch normalization statistics,
+        metric variables, or RNG seed variables.
+        """
         if not self.trainable:
             return self.weights
         return [v for v in self.weights if not v.trainable]
 
     def get_weights(self):
+        """Return the values of `layer.weights` as a list of NumPy arrays."""
         return [v.numpy() for v in self.weights]
 
     def set_weights(self, weights):
+        """Sets the values of `layer.weights` from a list of NumPy arrays."""
         layer_weights = self.weights
         if len(layer_weights) != len(weights):
             raise ValueError(
@@ -832,6 +885,18 @@ class Layer(BackendLayer, Operation):
         return NotImplementedError
 
     def add_loss(self, loss):
+        """Can be called inside of the `call()` method to add a scalar loss.
+
+        Example:
+
+        ```python
+        class MyLayer(Layer):
+            ...
+            def call(self, x):
+                self.add_loss(ops.sum(x))
+                return x
+        ```
+        """
         # Eager only.
         losses = nest.flatten(loss)
         for x in losses:
@@ -862,6 +927,7 @@ class Layer(BackendLayer, Operation):
 
     @property
     def losses(self):
+        """List of scalar losses added via `add_loss()` during layer call."""
         losses = self._get_own_losses()
         for layer in self._layers:
             losses.extend(layer._get_own_losses())

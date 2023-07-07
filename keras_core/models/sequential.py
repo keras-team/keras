@@ -68,6 +68,11 @@ class Sequential(Model):
             self._maybe_rebuild()
 
     def add(self, layer, rebuild=True):
+        """Adds a layer instance on top of the layer stack.
+
+        Args:
+            layer: layer instance.
+        """
         # Legacy case: if the first layer has an input_shape arg,
         # use it to build an InputLayer.
         if not self._layers:
@@ -107,6 +112,7 @@ class Sequential(Model):
             self._functional = None
 
     def pop(self, rebuild=True):
+        """Removes the last layer in the model."""
         layer = self._layers.pop()
         self.built = False
         self._tracker.locked = False

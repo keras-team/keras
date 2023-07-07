@@ -5,6 +5,48 @@ from keras_core.backend.common import global_state
 
 @keras_core_export("keras_core.mixed_precision.DTypePolicy")
 class DTypePolicy:
+    """A dtype policy for a Keras layer.
+
+    A dtype policy determines a layer's computation and variable dtypes. Each
+    layer has a policy. Policies can be passed to the `dtype` argument of layer
+    constructors, or a global policy can be set with
+    `keras_core.mixed_precision.set_dtype_policy`.
+
+    Args:
+        name: The policy name, which determines the compute and variable dtypes.
+            Can be any dtype name, such as `"float32"` or `"float64"`,
+            which causes both the compute and variable dtypes
+            will be that dtype.
+            Can also be the string `"mixed_float16"` or `"mixed_bfloat16"`,
+            which causes the compute dtype to be `float16` or `bfloat16`
+            and the variable dtype to be `float32`.
+
+    Typically you only need to interact with dtype policies when using mixed
+    precision, which is the use of float16 or bfloat16 for computations and
+    float32 for variables. This is why the term `mixed_precision` appears in the
+    API name. Mixed precision can be enabled by passing `"mixed_float16"` or
+    `"mixed_bfloat16"` to `keras_core.mixed_precision.set_dtype_policy()`.
+
+    >>> keras_core.mixed_precision.set_dtype_policy("mixed_float16")
+    >>> layer1 = keras_core.layers.Dense(10)
+    >>> layer1.dtype_policy  # layer1 will automatically use mixed precision
+    <DTypePolicy "mixed_float16">
+    >>> # Can optionally override layer to use float32
+    >>> # instead of mixed precision.
+    >>> layer2 = keras_core.layers.Dense(10, dtype="float32")
+    >>> layer2.dtype_policy
+    <DTypePolicy "float32">
+    >>> # Set policy back to initial float32.
+    >>> keras_core.mixed_precision.set_dtype_policy('float32')
+
+    In the example above, passing `dtype="float32"` to the layer is
+    equivalent to passing
+    `dtype=keras_core.mixed_precision.DTypePolicy("float32")`.
+    In general, passing a dtype policy name to a layer is equivalent
+    to passing the corresponding policy, so it is never necessary
+    to explicitly construct a `DTypePolicy` object.
+    """
+
     def __init__(self, name):
         if not isinstance(name, str):
             raise TypeError(
@@ -100,6 +142,12 @@ class DTypePolicy:
     ]
 )
 def set_dtype_policy(policy):
+    """Sets the default dtype policy globally.
+
+    Example:
+
+    >>> keras_core.mixed_precision.set_dtype_policy("mixed_float16")
+    """
     if not isinstance(policy, DTypePolicy):
         if isinstance(policy, str):
             policy = DTypePolicy(policy)
@@ -116,6 +164,7 @@ def set_dtype_policy(policy):
 
 @keras_core_export("keras_core.mixed_precision.dtype_policy")
 def dtype_policy():
+    """Returns the current default dtype policy object."""
     policy = global_state.get_global_setting("dtype_policy", None)
     if policy is None:
         policy = DTypePolicy(backend.floatx())

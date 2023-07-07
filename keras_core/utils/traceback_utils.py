@@ -2,6 +2,7 @@ import inspect
 import os
 import traceback
 import types
+from functools import wraps
 
 from tensorflow import errors as tf_errors
 from tensorflow import nest
@@ -108,6 +109,7 @@ def _process_traceback_frames(tb):
 def filter_traceback(fn):
     """Filter out Keras-internal traceback frames in exceptions raised by fn."""
 
+    @wraps(fn)
     def error_handler(*args, **kwargs):
         if not is_traceback_filtering_enabled():
             return fn(*args, **kwargs)
@@ -141,6 +143,7 @@ def inject_argument_info_in_traceback(fn, object_name=None):
         A wrapped version of `fn`.
     """
 
+    @wraps(fn)
     def error_handler(*args, **kwargs):
         if not is_traceback_filtering_enabled():
             return fn(*args, **kwargs)

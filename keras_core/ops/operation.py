@@ -124,10 +124,7 @@ class Operation:
         """Returns the config of the object.
 
         An object config is a Python dictionary (serializable)
-        containing the information needed to re-insstantiate it.
-
-        Returns:
-            Python dictionary.
+        containing the information needed to re-instantiate it.
         """
         config = {
             "name": self.name,

@@ -261,6 +261,43 @@ class Model(Trainer, Layer):
 
     @traceback_utils.filter_traceback
     def save(self, filepath, overwrite=True, save_format="keras"):
+        """Saves a model as a `.keras` file.
+
+        Args:
+            filepath: `str` or `pathlib.Path` object.
+                Path where to save the model. Must end in `.keras`.
+            overwrite: Whether we should overwrite any existing model
+                at the target location, or instead ask the user
+                via an interactive prompt.
+            save_format: Format to use, as a string. Only the `"keras"`
+                format is supported at this time.
+
+        Example:
+
+        ```python
+        model = keras_core.Sequential(
+            [
+                keras_core.layers.Dense(5, input_shape=(3,)),
+                keras_core.layers.Softmax(),
+            ],
+        )
+        model.save("model.keras")
+        loaded_model = keras_core.saving.load_model("model.keras")
+        x = keras.random.uniform((10, 3))
+        assert np.allclose(model.predict(x), loaded_model.predict(x))
+        ```
+
+        Note that `model.save()` is an alias for
+        `keras_core.saving.save_model()`.
+
+        The saved `.keras` file contains:
+
+        - The model's configuration (architecture)
+        - The model's weights
+        - The model's optimizer's state (if any)
+
+        Thus models can be reinstantiated in the exact same state.
+        """
         if save_format in ["h5", "tf"]:
             raise ValueError(
                 "`'h5'` and `'t5'` formats are no longer supported via the "
@@ -289,6 +326,15 @@ class Model(Trainer, Layer):
 
     @traceback_utils.filter_traceback
     def save_weights(self, filepath, overwrite=True):
+        """Saves all layer weights to a `.weights.h5` file.
+
+        Args:
+            filepath: `str` or `pathlib.Path` object.
+                Path where to save the model. Must end in `.weights.h5`.
+            overwrite: Whether we should overwrite any existing model
+                at the target location, or instead ask the user
+                via an interactive prompt.
+        """
         if not str(filepath).endswith(".weights.h5"):
             raise ValueError(
                 "The filename must end in `.weights.h5`. "
@@ -306,6 +352,31 @@ class Model(Trainer, Layer):
 
     @traceback_utils.filter_traceback
     def load_weights(self, filepath, skip_mismatch=False, **kwargs):
+        """Load weights from a file saved via `save_weights()`.
+
+        Weights are loaded based on the network's
+        topology. This means the architecture should be the same as when the
+        weights were saved. Note that layers that don't have weights are not
+        taken into account in the topological ordering, so adding or removing
+        layers is fine as long as they don't have weights.
+
+        **Partial weight loading**
+
+        If you have modified your model, for instance by adding a new layer
+        (with weights) or by changing the shape of the weights of a layer,
+        you can choose to ignore errors and continue loading
+        by setting `skip_mismatch=True`. In this case any layer with
+        mismatching weights will be skipped. A warning will be displayed
+        for each skipped layer.
+
+        Args:
+            filepath: String, path to the weights file to load.
+                It can either be a `.weights.h5` file
+                or a legacy `.h5` weights file.
+            skip_mismatch: Boolean, whether to skip loading of layers where
+                there is a mismatch in the number of weights, or a mismatch in
+                the shape of the weights.
+        """
         saving_api.load_weights(
             self, filepath, skip_mismatch=skip_mismatch, **kwargs
         )
