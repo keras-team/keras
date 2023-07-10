@@ -27,6 +27,22 @@ class InitializersTest(testing.TestCase):
 
         self.run_class_serialization_test(initializer)
 
+        # Test that a fixed seed yields the same results each call.
+        initializer = initializers.RandomNormal(
+            mean=mean, stddev=stddev, seed=1337
+        )
+        values = initializer(shape=shape)
+        next_values = initializer(shape=shape)
+        self.assertAllClose(values, next_values)
+
+        # Test that a SeedGenerator yields different results each call.
+        initializer = initializers.RandomNormal(
+            mean=mean, stddev=stddev, seed=backend.random.SeedGenerator(1337)
+        )
+        values = initializer(shape=shape)
+        next_values = initializer(shape=shape)
+        self.assertNotAllClose(values, next_values)
+
         # Test serialization with SeedGenerator
         initializer = initializers.RandomNormal(
             mean=mean, stddev=stddev, seed=backend.random.SeedGenerator(1337)

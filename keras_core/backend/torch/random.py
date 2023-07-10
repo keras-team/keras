@@ -11,13 +11,13 @@ from keras_core.random.seed_generator import make_default_seed
 
 
 def torch_seed_generator(seed):
-    seed_val, _ = draw_seed(seed)
+    first_seed, second_seed = draw_seed(seed)
     device = get_device()
     if device == "meta":
         # Generator is not supported by the meta device.
         return None
     generator = torch.Generator(device=get_device())
-    generator.manual_seed(int(seed_val))
+    generator.manual_seed(int(first_seed + second_seed))
     return generator
 
 
