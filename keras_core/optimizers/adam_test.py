@@ -1,5 +1,6 @@
 import numpy as np
 
+import keras_core
 from keras_core import backend
 from keras_core import testing
 from keras_core.optimizers.adam import Adam
@@ -72,3 +73,11 @@ class AdamTest(testing.TestCase):
         grad = [np.array([100.0, 100.0])]
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_ema(self):
+        # TODO: test correctness
+        model = keras_core.Sequential([keras_core.layers.Dense(10)])
+        model.compile(optimizer=Adam(use_ema=True), loss="mse")
+        x = keras_core.ops.zeros((1, 5))
+        y = keras_core.ops.zeros((1, 10))
+        model.fit(x, y)

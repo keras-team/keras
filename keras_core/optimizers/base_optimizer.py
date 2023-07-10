@@ -111,8 +111,18 @@ class BaseOptimizer:
 
     @tracking.no_automatic_dependency_tracking
     def build(self, variables):
+        if self.use_ema:
+            self._model_variables_moving_average = []
+            self._ema_vars_initialized = False
         for i, variable in enumerate(variables):
             self._trainable_variables_indices[self._var_key(variable)] = i
+            if self.use_ema:
+                self._model_variables_moving_average.append(
+                    self.add_variable_from_reference(
+                        variable,
+                        "average",
+                    )
+                )
         self._trainable_variables = variables[:]
         self.built = True
 
@@ -461,9 +471,14 @@ class BaseOptimizer:
             for var, average in zip(
                 var_list, self._model_variables_moving_average
             ):
-                average.assign(
-                    self.ema_momentum * average + (1 - self.ema_momentum) * var
-                )
+                if self._ema_vars_initialized:
+                    average.assign(
+                        self.ema_momentum * average
+                        + (1 - self.ema_momentum) * var
+                    )
+                else:
+                    average.assign(var)
+            self._ema_vars_initialized = True
 
     def _overwrite_model_variables_with_average_value(self, var_list):
         """Overwrite model variables with its moving average."""
