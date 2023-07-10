@@ -1,6 +1,6 @@
-from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras_core.random.seed_generator import SeedGenerator
 
 
 @keras_core_export("keras_core.layers.RandomBrightness")
@@ -75,7 +75,7 @@ class RandomBrightness(TFDataLayer):
         self._set_factor(factor)
         self._set_value_range(value_range)
         self.seed = seed
-        self.generator = backend.random.SeedGenerator(seed)
+        self.generator = SeedGenerator(seed)
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
@@ -136,11 +136,7 @@ class RandomBrightness(TFDataLayer):
                 f"inputs.shape={images.shape}"
             )
 
-        if backend.backend() != self.backend._backend:
-            seed_generator = self.backend.random.SeedGenerator(self.seed)
-        else:
-            seed_generator = self.generator
-
+        seed_generator = self._get_seed_generator(self.backend._backend)
         rgb_delta = self.backend.random.uniform(
             minval=self._factor[0],
             maxval=self._factor[1],

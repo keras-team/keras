@@ -2,7 +2,9 @@ from tensorflow import nest
 
 from keras_core import backend
 from keras_core.layers.layer import Layer
+from keras_core.random.seed_generator import SeedGenerator
 from keras_core.utils import backend_utils
+from keras_core.utils import tracking
 
 
 class TFDataLayer(Layer):
@@ -42,3 +44,15 @@ class TFDataLayer(Layer):
                     self._convert_input_args = True
             return outputs
         return super().__call__(inputs, **kwargs)
+
+    @tracking.no_automatic_dependency_tracking
+    def _get_seed_generator(self, backend=None):
+        if backend is None or backend == self.backend._backend:
+            return self.generator
+        if not hasattr(self, "_backend_generators"):
+            self._backend_generators = {}
+        if backend in self._backend_generators:
+            return self._backend_generators[backend]
+        seed_generator = SeedGenerator(self.seed, backend=self.backend)
+        self._backend_generators[backend] = seed_generator
+        return seed_generator

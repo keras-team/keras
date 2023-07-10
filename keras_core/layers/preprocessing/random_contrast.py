@@ -1,6 +1,6 @@
-from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras_core.random.seed_generator import SeedGenerator
 
 
 @keras_core_export("keras_core.layers.RandomContrast")
@@ -56,15 +56,12 @@ class RandomContrast(TFDataLayer):
                 f"Received: factor={factor}"
             )
         self.seed = seed
-        self.generator = backend.random.SeedGenerator(seed)
+        self.generator = SeedGenerator(seed)
 
     def call(self, inputs, training=True):
         inputs = self.backend.cast(inputs, self.compute_dtype)
         if training:
-            if backend.backend() != self.backend._backend:
-                seed_generator = self.backend.random.SeedGenerator(self.seed)
-            else:
-                seed_generator = self.generator
+            seed_generator = self._get_seed_generator(self.backend._backend)
             factor = self.backend.random.uniform(
                 shape=(),
                 minval=1.0 - self.lower,
