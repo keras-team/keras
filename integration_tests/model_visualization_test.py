@@ -1,5 +1,5 @@
 import keras_core
-from keras_core.utils.model_visualization import plot_model
+from keras_core.utils import plot_model
 
 
 def plot_sequential_model():
@@ -208,18 +208,18 @@ def plot_nested_functional_model():
     inputs = keras_core.Input((3,))
     x = keras_core.layers.Dense(4, activation="relu")(inputs)
     x = keras_core.layers.Dense(4, activation="relu")(x)
-    outputs = keras_core.layers.Dense(4, activation="relu")(x)
+    outputs = keras_core.layers.Dense(3, activation="relu")(x)
     inner_model = keras_core.Model(inputs, outputs)
 
     inputs = keras_core.Input((3,))
-    x = keras_core.layers.Dense(4, activation="relu", trainable=False)(inputs)
+    x = keras_core.layers.Dense(3, activation="relu", trainable=False)(inputs)
     residual = x
     x = inner_model(x)
     x += residual
     residual = x
     x = keras_core.layers.Dense(4, activation="relu")(x)
     x = keras_core.layers.Dense(4, activation="relu")(x)
-    x = keras_core.layers.Dense(4, activation="relu")(x)
+    x = keras_core.layers.Dense(3, activation="relu")(x)
     x += residual
     x = keras_core.layers.Dropout(0.5)(x)
     outputs = keras_core.layers.Dense(1, activation="sigmoid")(x)
