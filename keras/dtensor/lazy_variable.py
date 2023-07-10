@@ -20,6 +20,7 @@ import threading
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import tensor
 from tensorflow.python.ops import gen_resource_variable_ops
 from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import variable_scope
@@ -121,7 +122,7 @@ class LazyInitVariable(resource_variable_ops.BaseResourceVariable):
             )
 
         if (
-            isinstance(initial_value, ops.Tensor)
+            isinstance(initial_value, tensor.Tensor)
             and hasattr(initial_value, "graph")
             and initial_value.graph.building_function
         ):
