@@ -11,7 +11,6 @@ package(
     # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
-        "//third_party/tensorflow/cc/saved_model:__pkg__",  # For unit tests.
         "//third_party/tensorflow/python:__pkg__",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/saved_model:__pkg__",  # For unit tests.
