@@ -124,8 +124,6 @@ class AdamW(optimizer.Optimizer):
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
-        beta_1_power = None
-        beta_2_power = None
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
         local_step = ops.cast(self.iterations + 1, variable.dtype)
