@@ -1,6 +1,6 @@
 from tensorflow import nest
 
-from keras_core import backend
+import keras_core.backend
 from keras_core.layers.layer import Layer
 from keras_core.random.seed_generator import SeedGenerator
 from keras_core.utils import backend_utils
@@ -22,7 +22,7 @@ class TFDataLayer(Layer):
 
     def __call__(self, inputs, **kwargs):
         if backend_utils.in_tf_graph() and not isinstance(
-            inputs, backend.KerasTensor
+            inputs, keras_core.backend.KerasTensor
         ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
@@ -47,7 +47,7 @@ class TFDataLayer(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _get_seed_generator(self, backend=None):
-        if backend is None or backend == self.backend._backend:
+        if backend is None or backend == keras_core.backend.backend():
             return self.generator
         if not hasattr(self, "_backend_generators"):
             self._backend_generators = {}
