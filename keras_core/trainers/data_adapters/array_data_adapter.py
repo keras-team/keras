@@ -304,7 +304,7 @@ def convert_to_arrays(arrays, dtype=None):
             # `torch.Tensor`, as well as any other tensor-like object that has
             # added numpy support.
             if hasattr(x, "__array__"):
-                x = np.array(x, dtype=dtype)
+                x = backend.convert_to_numpy(x).astype(dtype)
             else:
                 raise ValueError(
                     "Expected a NumPy array, tf.Tensor, tf.RaggedTensor, "
