@@ -31,10 +31,10 @@ class Functional(Function, Model):
     Example:
 
     ```
-    inputs = {'x1': keras_core.Input(shape=(10,)),
-              'x2': keras_core.Input(shape=(1,))}
+    inputs = {'x1': keras_core.Input(shape=(10,), name='x1'),
+              'x2': keras_core.Input(shape=(1,), name='x2')}
     t = keras_core.layers.Dense(1, activation='relu')(inputs['x1'])
-    outputs = keras_core.layers.Add()([t, inputs['x2'])
+    outputs = keras_core.layers.Add()([t, inputs['x2']])
     model = keras_core.Model(inputs, outputs)
     ```
 
