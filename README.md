@@ -52,7 +52,7 @@ Keras Core is intended to work as a drop-in replacement for `tf.keras` (when usi
 existing `tf.keras` code, change the `keras` imports to `keras_core`, make sure that your calls to `model.save()` are using
 the up-to-date `.keras` format, and you're done.
 
-If your `tf.keras` model does not include custom compoments, you can start running it on top of JAX or PyTorch immediately.
+If your `tf.keras` model does not include custom components, you can start running it on top of JAX or PyTorch immediately.
 
 If it does include custom components (e.g. custom layers or a custom `train_step()`), it is usually possible to convert it
 to a backend-agnostic implementation in just a few minutes.
