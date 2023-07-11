@@ -3,6 +3,12 @@ import re
 import shutil
 
 import rich
+import rich.console
+import rich.markup
+
+# See https://github.com/keras-team/keras-core/issues/448
+# for below imports
+import rich.table
 from tensorflow import nest
 
 from keras_core import backend
