@@ -193,7 +193,6 @@ class BaseOptimizer:
 
         `variables` can be provided on the first call to build the optimizer.
         """
-        grads = list(grads)
         if len(grads) == 0:
             # It is possible that the grad is empty. In this case,
             # `apply_gradients` is a no-op.
@@ -224,16 +223,15 @@ class BaseOptimizer:
                 self.built = True
             self._check_variables_are_known(trainable_variables)
 
-        grads_and_vars = list(zip(grads, self._trainable_variables))
-
         with ops.name_scope(self.name):
             # Filter empty gradients.
-            grads_and_vars = self._filter_empty_gradients(grads_and_vars)
-            if len(list(grads_and_vars)) == 0:
+            grads, trainable_variables = self._filter_empty_gradients(
+                grads, trainable_variables
+            )
+            if len(list(grads)) == 0:
                 return
 
             # Apply clipping and weight decay.
-            grads, trainable_variables = zip(*grads_and_vars)
             grads = self._clip_gradients(grads)
             self._apply_weight_decay(trainable_variables)
 
@@ -363,19 +361,27 @@ class BaseOptimizer:
             return self._learning_rate(self.iterations)
         return self._learning_rate
 
-    def _filter_empty_gradients(self, grads_and_vars):
-        filtered = [(g, v) for g, v in grads_and_vars if g is not None]
-        if not filtered:
-            raise ValueError("No gradients provided for any variable.")
-        if len(filtered) < len(grads_and_vars):
-            missing_grad_vars = [v for g, v in grads_and_vars if g is None]
-            warnings.warn(
-                "Gradients do not exist for variables "
-                f"{[v.name for v in missing_grad_vars]} when minimizing the "
-                "loss. If you're using `model.compile()`, did you forget to "
-                "provide a `loss` argument?"
-            )
-        return filtered
+    def _filter_empty_gradients(self, grads, vars):
+        for grad in grads:
+            if grad is None:
+                # Filtering is required.
+                filtered = [
+                    (g, v) for g, v in zip(grads, vars) if g is not None
+                ]
+                if not filtered:
+                    raise ValueError("No gradients provided for any variable.")
+                if len(filtered) < len(grads):
+                    missing_grad_vars = [
+                        v for g, v in zip(grads, vars) if g is None
+                    ]
+                    warnings.warn(
+                        "Gradients do not exist for variables "
+                        f"{[v.name for v in missing_grad_vars]} when "
+                        "minimizing the loss. If using `model.compile()`, "
+                        "did you forget to provide a `loss` argument?"
+                    )
+                return zip(*filtered)
+        return grads, vars
 
     def _clip_gradients(self, grads):
         if self.clipnorm and self.clipnorm > 0:

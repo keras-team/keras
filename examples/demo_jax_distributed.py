@@ -157,7 +157,13 @@ devices = mesh_utils.create_device_mesh((8,))
 # data will be split along the batch axis
 data_mesh = Mesh(devices, axis_names=("batch",))  # naming axes of the mesh
 # naming axes of the sharded partition
-data_sharding = NamedSharding(data_mesh,P("batch",),)
+data_sharding = NamedSharding(
+    data_mesh,
+    P(
+        "batch",
+    ),
+)
+
 # all variables will be replicated on all devices
 var_mesh = Mesh(devices, axis_names=("_"))
 # in NamedSharding, axes that are not mentioned are replicated (all axes here)
@@ -269,7 +275,7 @@ def train_step(train_state, x, y):
     )
 
     trainable_variables, optimizer_variables = optimizer.stateless_apply(
-        train_state.optimizer_variables, grads, train_state.trainable_variables
+        grads, train_state.trainable_variables, train_state.optimizer_variables
     )
 
     return loss_value, TrainingState(
