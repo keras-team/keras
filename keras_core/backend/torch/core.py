@@ -11,7 +11,7 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 
 DYNAMIC_SHAPES_OK = True
-
+DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 TORCH_DTYPES = {
     "float16": torch.float16,
@@ -39,20 +39,14 @@ def device_scope(device):
         global_state.set_global_attribute("torch_device", previous_device)
 
 
-def get_default_device():
-    return "cuda" if torch.cuda.is_available() else "cpu"
-
-
 def get_device():
     device = global_state.get_global_attribute("torch_device", None)
     if device is None:
-        return get_default_device()
+        return DEFAULT_DEVICE
     return device
 
 
 def to_torch_dtype(dtype):
-    if dtype in [value for key, value in TORCH_DTYPES.items()]:
-        return dtype
     dtype = standardize_dtype(dtype)
     dtype = TORCH_DTYPES.get(dtype, None)
     if dtype is None:
@@ -114,32 +108,32 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None):
-    dtype = to_torch_dtype(dtype or getattr(x, "dtype", None))
-    device = get_device()
-    if isinstance(x, int):
-        dtype = torch.int32
-    if isinstance(x, float):
-        dtype = torch.float32
+    if is_tensor(x):
+        if dtype is None:
+            return x
+        return x.to(to_torch_dtype(dtype))
     if isinstance(x, Variable):
         # TorchDynamo has bugs supporting nn.Parameter type check.
         # Return it directly instead of pass it to the rest of the logic in the
         # function.
         return x.value
-    if is_tensor(x):
-        if dtype and dtype != x.dtype:
-            x = x.to(dtype)
-        return x.to(device)
-
+    if isinstance(x, int):
+        return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+    if isinstance(x, float):
+        return torch.as_tensor(x, dtype=torch.float32, device=get_device())
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
         x = np.array(x)
     elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
         # Handle list or tuple of torch tensors
         return torch.stack([convert_to_tensor(x1) for x1 in x])
-    if isinstance(x, np.ndarray) and x.dtype == np.uint32:
-        # Torch backend does not support uint32.
-        x = x.astype(np.int64)
-    return torch.as_tensor(x, dtype=dtype, device=device)
+    if isinstance(x, np.ndarray):
+        if x.dtype == np.uint32:
+            # Torch backend does not support uint32.
+            x = x.astype(np.int64)
+        dtype = dtype or x.dtype
+    dtype = to_torch_dtype(dtype)
+    return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 
 def convert_to_numpy(x):
@@ -170,7 +164,10 @@ def cast(x, dtype):
     if isinstance(x, KerasVariable):
         x = x.value
     if is_tensor(x):
-        return x.to(dtype)
+        if x.dtype == dtype:
+            return x
+        else:
+            return x.to(dtype)
     return convert_to_tensor(x, dtype)
 
 
@@ -220,7 +217,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
                 return fn(*meta_args, **meta_kwargs)
         except:
-            with device_scope(get_default_device()):
+            with device_scope(DEFAULT_DEVICE):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.
