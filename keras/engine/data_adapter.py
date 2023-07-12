@@ -1271,6 +1271,13 @@ class DataHandler:
         self._insufficient_data = False
         self._model = model
 
+        if steps_per_epoch == 0:
+            raise ValueError(
+                "Unexpected value for `steps_per_epoch`. Received value is 0. "
+                "Please check the docstring for `model.fit()` for supported "
+                "values."
+            )
+
         self._steps_per_epoch = steps_per_epoch
 
         # `steps_per_execution_value` is the cached initial value.
@@ -1307,6 +1314,9 @@ class DataHandler:
         self._configure_dataset_and_inferred_steps(
             strategy, x, steps_per_epoch, class_weight, distribute
         )
+
+        if self._inferred_steps == 0:
+            raise ValueError("Expected input data to be non-empty.")
 
     def _configure_dataset_and_inferred_steps(
         self, strategy, x, steps_per_epoch, class_weight, distribute
