@@ -94,7 +94,7 @@ class TrainingTest(test_combinations.TestCase):
         model = sequential.Sequential([layers_module.Dense(1)])
         model.compile("sgd", "mse", run_eagerly=test_utils.should_run_eagerly())
         with self.assertRaisesRegex(
-            ValueError, "Unexpected result of `train_function`.*"
+            ValueError, "Expected input data to be non-empty."
         ):
             model.fit(x=np.array([]), y=np.array([]))
 
@@ -2534,7 +2534,7 @@ class TestExceptionsAndWarnings(test_combinations.TestCase):
         model.compile(loss="mse")
 
         with self.assertRaisesRegex(
-            ValueError, "Unexpected result of `predict_function`.*"
+            ValueError, "Expected input data to be non-empty."
         ):
             model.predict(np.array([]))
 
