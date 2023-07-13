@@ -70,6 +70,7 @@ def is_interactive_logging_enabled():
     )
 
 
+@logging.skip_log_prefix
 def print_msg(message, line_break=True):
     """Print the message to absl logging or stdout."""
     if is_interactive_logging_enabled():

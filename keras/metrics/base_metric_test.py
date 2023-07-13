@@ -224,7 +224,7 @@ class MeanTest(test_combinations.TestCase):
         @tf.function
         def reset_in_fn():
             m.reset_state()
-            return m.update_state(100)
+            m.update_state(100)
 
         for _ in range(5):
             self.evaluate(reset_in_fn())

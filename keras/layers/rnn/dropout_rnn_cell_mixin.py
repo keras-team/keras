@@ -57,7 +57,7 @@ class DropoutRNNCellMixin:
         ensure same mask is used every time.
 
         Also the caches are created without tracking. Since they are not
-        picklable by python when deepcopy, we don't want
+        pickleable by python when deepcopy, we don't want
         `layer._obj_reference_counts_dict` to track it by default.
         """
         self._dropout_mask_cache = backend.ContextValueCache(

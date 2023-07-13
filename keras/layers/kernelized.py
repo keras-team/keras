@@ -126,8 +126,8 @@ class RandomFourierFeatures(base_layer.Layer):
         factor of the corresponding kernel approximated by the layer (see
         concrete definitions above). When provided, it should be a positive
         float. If None, a default value is used: if the kernel initializer is
-        set to "gaussian", `scale` defaults to `sqrt(input_dim / 2)`, otherwise,
-        it defaults to 1.0.  Both the approximation error of the kernel and the
+        set to "gaussian", `scale` becomes `sqrt(input_dim / 2)`, otherwise,
+        it becomes 1.0.  Both the approximation error of the kernel and the
         classification quality are sensitive to this parameter. If `trainable`
         is set to `True`, this parameter is learned end-to-end during training
         and the provided value serves as the initial value.
@@ -135,6 +135,7 @@ class RandomFourierFeatures(base_layer.Layer):
           by making `scale` trainable, the resulting optimization problem is
           no longer convex (even if the loss function used by the linear model
           is convex).
+        Defaults to `None`.
       trainable: Whether the scaling parameter of the layer should be trainable.
         Defaults to `False`.
       name: String, name to use for this layer.

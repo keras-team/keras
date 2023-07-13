@@ -26,6 +26,7 @@ from keras.engine import input_layer
 from keras.engine import training
 from keras.engine import training_utils
 from keras.saving import serialization_lib
+from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
@@ -52,18 +53,11 @@ class Sequential(functional.Functional):
     Examples:
 
     ```python
-    # Optionally, the first layer can receive an `input_shape` argument:
-    model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
-    # Afterwards, we do automatic shape inference:
-    model.add(tf.keras.layers.Dense(4))
-
-    # This is identical to the following:
     model = tf.keras.Sequential()
     model.add(tf.keras.Input(shape=(16,)))
     model.add(tf.keras.layers.Dense(8))
 
-    # Note that you can also omit the `input_shape` argument.
+    # Note that you can also omit the initial `Input`.
     # In that case the model doesn't have any weights until the first call
     # to a training/evaluation method (since it isn't yet built):
     model = tf.keras.Sequential()
@@ -71,13 +65,13 @@ class Sequential(functional.Functional):
     model.add(tf.keras.layers.Dense(4))
     # model.weights not created yet
 
-    # Whereas if you specify the input shape, the model gets built
+    # Whereas if you specify an `Input`, the model gets built
     # continuously as you are adding layers:
     model = tf.keras.Sequential()
-    model.add(tf.keras.layers.Dense(8, input_shape=(16,)))
+    model.add(tf.keras.Input(shape=(16,)))
     model.add(tf.keras.layers.Dense(4))
     len(model.weights)
-    # Returns "4"
+    # Returns "2"
 
     # When using the delayed-build pattern (no input shape specified), you can
     # choose to manually build your model by calling
@@ -441,14 +435,15 @@ class Sequential(functional.Functional):
 
     def get_config(self):
         layer_configs = []
+        serialize_obj_fn = serialization_lib.serialize_keras_object
+        if getattr(self, "use_legacy_config", None):
+            serialize_obj_fn = legacy_serialization.serialize_keras_object
         for layer in super().layers:
             # `super().layers` include the InputLayer if available (it is
             # filtered out of `self.layers`). Note that
             # `self._self_tracked_trackables` is managed by the tracking
             # infrastructure and should not be used.
-            layer_configs.append(
-                serialization_lib.serialize_keras_object(layer)
-            )
+            layer_configs.append(serialize_obj_fn(layer))
         config = training.Model.get_config(self)
         config["name"] = self.name
         config["layers"] = copy.deepcopy(layer_configs)

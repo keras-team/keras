@@ -121,6 +121,23 @@ class TestDeferredSequential(test_combinations.TestCase):
         _ = extractor(np.random.random((4, 6)))
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
+    def test_saving_keras_v3(self):
+        model = get_model()
+        model(np.random.random((3, 6)))  # Build model
+
+        path = os.path.join(self.get_temp_dir(), "model_path.keras")
+        model.save(path)
+        new_model = keras.models.load_model(path)
+        model_layers = model._flatten_layers(include_self=True, recursive=False)
+        new_model_layers = new_model._flatten_layers(
+            include_self=True, recursive=False
+        )
+        for layer1, layer2 in zip(model_layers, new_model_layers):
+            self.assertEqual(layer1.name, layer2.name)
+            for w1, w2 in zip(layer1.weights, layer2.weights):
+                self.assertAllClose(w1, w2)
+
+    @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_saving_savedmodel(self):
         model = get_model()
         model(np.random.random((3, 6)))  # Build model

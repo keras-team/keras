@@ -87,7 +87,7 @@ model.compile(loss='categorical_crossentropy',
 ```
 
 If you need to, you can further configure your optimizer. The Keras philosophy is to keep simple things simple,
-while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code via subclassing).
+while allowing the user to be fully in control when they need to be (the ultimate control being the easy extensibility of the source code via subclassing).
 
 ```python
 model.compile(loss=tf.keras.losses.categorical_crossentropy,
@@ -121,7 +121,7 @@ Keras follows the principle of **progressive disclosure of complexity**: it make
 yet it makes it possible to handle arbitrarily advanced use cases,
 only requiring incremental learning at each step.
 
-In much the same way that you were able to train & evaluate a simple neural network above in a few lines,
+In pretty much the same way that you were able to train & evaluate a simple neural network above in a few lines,
 you can use Keras to quickly develop new training procedures or exotic model architectures.
 Here's a low-level training loop example, combining Keras functionality with the TensorFlow `GradientTape`:
 

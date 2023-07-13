@@ -261,7 +261,7 @@ class TopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
     Args:
       k: (Optional) Number of top elements to look at for computing accuracy.
-        Defaults to 5.
+        Defaults to `5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -307,7 +307,7 @@ class SparseTopKCategoricalAccuracy(base_metric.MeanMetricWrapper):
 
     Args:
       k: (Optional) Number of top elements to look at for computing accuracy.
-        Defaults to 5.
+        Defaults to `5`.
       name: (Optional) string name of the metric instance.
       dtype: (Optional) data type of the metric result.
 
@@ -482,7 +482,7 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
       y_true: The ground truth values.
       y_pred: The prediction values.
       k: (Optional) Number of top elements to look at for computing accuracy.
-        Defaults to 5.
+        Defaults to `5`.
 
     Returns:
       Top K categorical accuracy value.
@@ -514,7 +514,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
       y_true: tensor of true targets.
       y_pred: tensor of predicted targets.
       k: (Optional) Number of top elements to look at for computing accuracy.
-        Defaults to 5.
+        Defaults to `5`.
 
     Returns:
       Sparse top K categorical accuracy value.

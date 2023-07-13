@@ -60,6 +60,9 @@ class AutoCastVariableSpec(tf.types.experimental.TraceType):
         """Use the AutoCastVariable value itself as a placeholder."""
         return self._value
 
+    def _cast(self, value, _):
+        return value
+
     def _to_tensors(self, value):
         return []
 

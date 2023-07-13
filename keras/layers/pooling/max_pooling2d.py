@@ -23,7 +23,7 @@ from keras.layers.pooling.base_pooling2d import Pooling2D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.MaxPool2D", "keras.layers.MaxPooling2D")
+@keras_export("keras.layers.MaxPooling2D", "keras.layers.MaxPool2D")
 class MaxPooling2D(Pooling2D):
     """Max pooling operation for 2D spatial data.
 
@@ -127,9 +127,10 @@ class MaxPooling2D(Pooling2D):
         `(batch, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
         `(batch, channels, height, width)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
 
     Input shape:
       - If `data_format='channels_last'`:

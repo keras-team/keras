@@ -2233,7 +2233,7 @@ class LearningPhaseTest(test_combinations.TestCase):
         layer = image_preprocessing.RandomWidth(0.5, seed=123)
         shape = (12, 12, 3)
         img = np.random.random((12,) + shape)
-        out = layer(img)  # Default to training=True
+        out = layer(img)  # Defaults to training=True
         self.assertNotEqual(tuple(int(i) for i in out.shape[1:]), shape)
 
         out = layer(img, training=True)
@@ -2249,7 +2249,7 @@ class LearningPhaseTest(test_combinations.TestCase):
 
         shape = (12, 12, 3)
         img = np.random.random((12,) + shape)
-        out = seq(img)  # Default to training=True
+        out = seq(img)  # Defaults to training=True
         self.assertNotEqual(tuple(int(i) for i in out.shape[1:]), shape)
 
         out = seq(img, training=True)

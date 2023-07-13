@@ -46,41 +46,43 @@ def timeseries_dataset_from_array(
     to produce batches of timeseries inputs and targets.
 
     Args:
-      data: Numpy array or eager tensor
-        containing consecutive data points (timesteps).
-        Axis 0 is expected to be the time dimension.
-      targets: Targets corresponding to timesteps in `data`.
-        `targets[i]` should be the target
-        corresponding to the window that starts at index `i`
-        (see example 2 below).
-        Pass None if you don't have target data (in this case the dataset will
-        only yield the input data).
-      sequence_length: Length of the output sequences (in number of timesteps).
-      sequence_stride: Period between successive output sequences.
-        For stride `s`, output samples would
-        start at index `data[i]`, `data[i + s]`, `data[i + 2 * s]`, etc.
-      sampling_rate: Period between successive individual timesteps
-        within sequences. For rate `r`, timesteps
-        `data[i], data[i + r], ... data[i + sequence_length]`
-        are used for creating a sample sequence.
-      batch_size: Number of timeseries samples in each batch
-        (except maybe the last one). If `None`, the data will not be batched
-        (the dataset will yield individual samples).
-      shuffle: Whether to shuffle output samples,
-        or instead draw them in chronological order.
-      seed: Optional int; random seed for shuffling.
-      start_index: Optional int; data points earlier (exclusive)
-        than `start_index` will not be used
-        in the output sequences. This is useful to reserve part of the
-        data for test or validation.
-      end_index: Optional int; data points later (exclusive) than `end_index`
-        will not be used in the output sequences.
-        This is useful to reserve part of the data for test or validation.
+        data: Numpy array or eager tensor
+            containing consecutive data points (timesteps).
+            Axis 0 is expected to be the time dimension.
+        targets: Targets corresponding to timesteps in `data`.
+            `targets[i]` should be the target
+            corresponding to the window that starts at index `i`
+            (see example 2 below).
+            Pass `None` if you don't have target data (in this case the dataset
+            will only yield the input data).
+        sequence_length: Length of the output sequences
+            (in number of timesteps).
+        sequence_stride: Period between successive output sequences.
+            For stride `s`, output samples would
+            start at index `data[i]`, `data[i + s]`, `data[i + 2 * s]`, etc.
+        sampling_rate: Period between successive individual timesteps
+            within sequences. For rate `r`, timesteps
+            `data[i], data[i + r], ... data[i + sequence_length]`
+            are used for creating a sample sequence.
+        batch_size: Number of timeseries samples in each batch
+            (except maybe the last one). If `None`, the data will not be batched
+            (the dataset will yield individual samples).
+        shuffle: Whether to shuffle output samples,
+            or instead draw them in chronological order.
+        seed: Optional int; random seed for shuffling.
+        start_index: Optional int; data points earlier (exclusive)
+            than `start_index` will not be used
+            in the output sequences. This is useful to reserve part of the
+            data for test or validation.
+        end_index: Optional int; data points later (exclusive) than `end_index`
+            will not be used in the output sequences.
+            This is useful to reserve part of the data for test or validation.
 
     Returns:
-      A tf.data.Dataset instance. If `targets` was passed, the dataset yields
-      tuple `(batch_of_sequences, batch_of_targets)`. If not, the dataset yields
-      only `batch_of_sequences`.
+
+    A `tf.data.Dataset` instance. If `targets` was passed, the dataset yields
+    tuple `(batch_of_sequences, batch_of_targets)`. If not, the dataset yields
+    only `batch_of_sequences`.
 
     Example 1:
 
@@ -134,17 +136,17 @@ def timeseries_dataset_from_array(
 
     sample_length = 20
     input_dataset = tf.keras.utils.timeseries_dataset_from_array(
-      X, None, sequence_length=sample_length, sequence_stride=sample_length)
+        X, None, sequence_length=sample_length, sequence_stride=sample_length)
     target_dataset = tf.keras.utils.timeseries_dataset_from_array(
-      Y, None, sequence_length=sample_length, sequence_stride=sample_length)
+        Y, None, sequence_length=sample_length, sequence_stride=sample_length)
 
     for batch in zip(input_dataset, target_dataset):
-      inputs, targets = batch
-      assert np.array_equal(inputs[0], X[:sample_length])
+        inputs, targets = batch
+        assert np.array_equal(inputs[0], X[:sample_length])
 
-      # second sample equals output timestamps 20-40
-      assert np.array_equal(targets[1], Y[sample_length:2*sample_length])
-      break
+        # second sample equals output timestamps 20-40
+        assert np.array_equal(targets[1], Y[sample_length:2*sample_length])
+        break
     ```
     """
     if start_index:

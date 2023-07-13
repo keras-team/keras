@@ -39,10 +39,11 @@ pip install -r requirements.txt
 pip uninstall -y keras-nightly
 
 # LD Library Path needs to be same as TensorFlow Ubuntu Docker build -
-# https://github.com/tensorflow/build/blob/master/tf_sig_build_dockerfiles/Dockerfile
-export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda-11.1/lib64"
-export TF_CUDA_COMPUTE_CAPABILITIES=6.0
-TF_CUDA_CONFIG_REPO="@ubuntu16.04-py3-gcc7_manylinux2010-cuda10.1-cudnn7-tensorrt6.0_config_cuda"
+# https://github.com/tensorflow/tensorflow/blob/master/tensorflow/tools/tf_sig_build_dockerfiles/
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/tensorrt/lib"
+CUDA_TOOLKIT_PATH="/usr/local/cuda-11.8"
+TF_CUDA_CONFIG_REPO="@ubuntu20.04-gcc9_manylinux2014-cuda11.8-cudnn8.6-tensorrt8.4_config_cuda"
+TF_CUDA_COMPUTE_CAPABILITIES="sm_35,sm_50,sm_60,sm_70,sm_75,compute_80"
 
 tag_filters="gpu,-no_gpu,-nogpu,-benchmark-test,-no_oss,-oss_excluded,-oss_serial,-no_gpu_presubmit"
 # There are only 4 GPU available on the local test machine.
@@ -57,8 +58,9 @@ bazel test --test_timeout 300,600,1200,3600 --test_output=errors --keep_going \
    --build_tests_only \
    --action_env=TF_CUDA_COMPUTE_CAPABILITIES="${TF_CUDA_COMPUTE_CAPABILITIES}" \
    --action_env=TF_CUDA_CONFIG_REPO="${TF_CUDA_CONFIG_REPO}" \
-   --action_env=TF_CUDA_VERSION=10 \
-   --action_env=TF_CUDNN_VERSION=7 \
+   --action_env=TF_CUDA_VERSION=11 \
+   --action_env=TF_CUDNN_VERSION=8 \
+   --action_env=CUDA_TOOLKIT_PATH="${CUDA_TOOLKIT_PATH}" \
    --test_env=TF_GPU_COUNT=${TF_GPU_COUNT} \
    --test_env=TF_TESTS_PER_GPU=${TF_TESTS_PER_GPU} \
    --build_tag_filters="${tag_filters}" \

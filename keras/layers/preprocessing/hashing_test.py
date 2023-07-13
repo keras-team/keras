@@ -414,6 +414,30 @@ class HashingTest(test_combinations.TestCase):
         new_output_data = loaded_model(input_data)
         self.assertAllClose(new_output_data, original_output_data)
 
+    @test_utils.run_v2_only
+    def test_save_keras_v3(self):
+        input_data = np.array(
+            ["omar", "stringer", "marlo", "wire", "skywalker"]
+        )
+
+        inputs = keras.Input(shape=(None,), dtype=tf.string)
+        outputs = hashing.Hashing(num_bins=100)(inputs)
+        model = keras.Model(inputs=inputs, outputs=outputs)
+
+        original_output_data = model(input_data)
+
+        # Save the model to disk.
+        output_path = os.path.join(self.get_temp_dir(), "tf_keras_model.keras")
+        model.save(output_path, save_format="keras_v3")
+        loaded_model = keras.models.load_model(output_path)
+
+        # Ensure that the loaded model is unique (so that the save/load is real)
+        self.assertIsNot(model, loaded_model)
+
+        # Validate correctness of the new model.
+        new_output_data = loaded_model(input_data)
+        self.assertAllClose(new_output_data, original_output_data)
+
     @parameterized.named_parameters(
         (
             "list_input",

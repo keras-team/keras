@@ -22,7 +22,7 @@ from keras.layers.pooling.base_global_pooling2d import GlobalPooling2D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.GlobalMaxPool2D", "keras.layers.GlobalMaxPooling2D")
+@keras_export("keras.layers.GlobalMaxPooling2D", "keras.layers.GlobalMaxPool2D")
 class GlobalMaxPooling2D(GlobalPooling2D):
     """Global max pooling operation for spatial data.
 
@@ -30,7 +30,7 @@ class GlobalMaxPooling2D(GlobalPooling2D):
 
     >>> input_shape = (2, 4, 5, 3)
     >>> x = tf.random.normal(input_shape)
-    >>> y = tf.keras.layers.GlobalMaxPool2D()(x)
+    >>> y = tf.keras.layers.GlobalMaxPooling2D()(x)
     >>> print(y.shape)
     (2, 3)
 
@@ -42,9 +42,10 @@ class GlobalMaxPooling2D(GlobalPooling2D):
         `(batch, height, width, channels)` while `channels_first`
         corresponds to inputs with shape
         `(batch, channels, height, width)`.
-        It defaults to the `image_data_format` value found in your
-        Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "channels_last".
+        When unspecified, uses
+        `image_data_format` value found in your Keras config file at
+         `~/.keras/keras.json` (if exists) else 'channels_last'.
+        Defaults to 'channels_last'.
       keepdims: A boolean, whether to keep the spatial dimensions or not.
         If `keepdims` is `False` (default), the rank of the tensor is reduced
         for spatial dimensions.

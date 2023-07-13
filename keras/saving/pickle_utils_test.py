@@ -42,7 +42,8 @@ class TestPickleProtocol(test_combinations.TestCase):
         ),
     )
     def test_built_models(self, serializer):
-        """Built models should be copyable and picklable for all model types."""
+        """Built models should be copyable and pickleable for all model
+        types."""
         if not tf.__internal__.tf2.enabled():
             self.skipTest(
                 "pickle model only available in v2 when tf format is used."

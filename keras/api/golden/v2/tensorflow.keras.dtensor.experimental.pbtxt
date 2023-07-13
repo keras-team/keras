@@ -8,8 +8,4 @@ tf_module {
     name: "optimizers"
     mtype: "<type \'module\'>"
   }
-  member_method {
-    name: "layout_map_scope"
-    argspec: "args=[], varargs=args, keywords=kwds, defaults=None"
-  }
 }

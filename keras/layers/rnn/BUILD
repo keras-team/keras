@@ -7,6 +7,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/tensorflow_models/official/projects/residual_mobilenet/modeling/backbones:__pkg__",
@@ -396,6 +397,9 @@ cuda_py_test(
     srcs = ["gru_lstm_test.py"],
     python_version = "PY3",
     shard_count = 2,
+    tags = [
+        "no_oss",  # TODO(b/277925387)
+    ],
     deps = [
         ":gru",
         ":lstm",
@@ -414,6 +418,9 @@ cuda_py_test(
     srcs = ["gru_test.py"],
     python_version = "PY3",
     shard_count = 12,
+    tags = [
+        "no_oss",  # TODO(b/277925387)
+    ],
     deps = [
         ":gru_lstm_utils",
         "//:expect_absl_installed",
@@ -559,6 +566,7 @@ cuda_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_oss",  # TODO(b/277925387)
         "no_windows_gpu",
     ],
     deps = [

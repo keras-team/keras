@@ -2,6 +2,7 @@
 #   Contains Keras models to Estimator converter
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
     ],

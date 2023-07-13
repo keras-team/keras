@@ -30,20 +30,20 @@ class ELU(Layer):
     It follows:
 
     ```
-      f(x) =  alpha * (exp(x) - 1.) for x < 0
-      f(x) = x for x >= 0
+        f(x) =  alpha * (exp(x) - 1.) for x < 0
+        f(x) = x for x >= 0
     ```
 
     Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the samples axis)
-      when using this layer as the first layer in a model.
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
     Output shape:
-      Same shape as the input.
+        Same shape as the input.
 
     Args:
-      alpha: Scale for the negative factor.
+        alpha: Scale for the negative factor.
     """
 
     def __init__(self, alpha=1.0, **kwargs):

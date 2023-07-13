@@ -295,6 +295,23 @@ class WideDeepModelTest(test_combinations.TestCase):
         )
         self.assertEqual(cloned_wide_deep_model.activation, my_activation)
 
+    def test_export(self):
+        input1 = input_layer.Input(shape=(1,))
+        output1 = linear.LinearModel()(input1)
+        linear_model = training.Model(input1, output1)
+
+        input2 = input_layer.Input(shape=(1,))
+        output2 = core.Dense(units=1)(input2)
+        dnn_model = training.Model(input2, output2)
+
+        wide_deep_model = wide_deep.WideDeepModel(linear_model, dnn_model)
+        wide_deep_model.compile(optimizer=["adam", "adam"])
+
+        output = wide_deep_model([input1, input2])
+        model = training.Model([input1, input2], output)
+        model.compile()
+        model.export(self.get_temp_dir())
+
 
 if __name__ == "__main__":
     tf.test.main()

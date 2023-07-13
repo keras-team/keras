@@ -4,7 +4,15 @@
 
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
+# copybara:uncomment_begin(google-only)
+# load(
+#     "//third_party/tensorflow/dtensor:build_defs.bzl",
+#     "dtensor_test",
+# )
+# copybara:uncomment_end
+
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//learning/brain/distribute/experimental/auto_distribute:__pkg__",
@@ -111,6 +119,7 @@ tf_py_test(
 tf_py_test(
     name = "mnist_model_test",
     srcs = ["mnist_model_test.py"],
+    shard_count = 2,
     tags = [
         "requires-net:external",
     ],
@@ -196,16 +205,28 @@ tf_py_test(
     ],
 )
 
-tf_py_test(
-    name = "strategy_integration_test",
-    srcs = ["strategy_integration_test.py"],
-    tags = ["no_oss"],
-    deps = [
-        ":integration_test_utils",
-        ":test_util",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
-    ],
-)
+# copybara:uncomment_begin(google-only)
+# dtensor_test(
+#     name = "strategy_integration_test",
+#     srcs = ["strategy_integration_test.py"],
+#     shard_count = {
+#         "CPU": 2,
+#         "GPU": 4,
+#         "TPU": 2,
+#     },
+#     tags = ["no_oss"],
+#     deps = [
+#         ":integration_test_utils",
+#         ":test_util",
+#         "//:expect_absl_installed",
+#         "//keras:backend",
+#         "//keras/mixed_precision:mixed_precision_experimental",
+#         "//keras/optimizers",
+#         "//keras/utils:tf_utils",
+#         "//:expect_numpy_installed",
+#         "//:expect_tensorflow_installed",
+#         "//third_party/tensorflow/dtensor/python/tests:test_util",
+#         "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
+#     ],
+# )
+# copybara:uncomment_end

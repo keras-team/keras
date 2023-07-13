@@ -66,6 +66,9 @@ from keras.utils.data_utils import pad_sequences
 from keras.utils.sidecar_evaluator import SidecarEvaluator
 from keras.utils.sidecar_evaluator import SidecarEvaluatorModelExport
 
+# Timed Thread
+from keras.utils.timed_threads import TimedThread
+
 # Visualization related
 from keras.utils.vis_utils import model_to_dot
 from keras.utils.vis_utils import plot_model

@@ -41,8 +41,8 @@ class Embedding(Layer):
     and `tf.keras.layers.IntegerLookup` preprocessing layers can help prepare
     inputs for an `Embedding` layer.
 
-    This layer accepts `tf.Tensor` and `tf.RaggedTensor` inputs. It cannot be
-    called with `tf.SparseTensor` input.
+    This layer accepts `tf.Tensor`, `tf.RaggedTensor` and `tf.SparseTensor`
+    input.
 
     Example:
 

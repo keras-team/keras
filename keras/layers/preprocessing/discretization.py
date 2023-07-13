@@ -164,8 +164,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         0.01). Higher values of epsilon increase the quantile approximation, and
         hence result in more unequal buckets, but could improve performance
         and resource consumption.
-      output_mode: Specification for the output of the layer. Defaults to
-        `"int"`.  Values can be `"int"`, `"one_hot"`, `"multi_hot"`, or
+      output_mode: Specification for the output of the layer. Values can be
+       `"int"`, `"one_hot"`, `"multi_hot"`, or
         `"count"` configuring the layer as follows:
           - `"int"`: Return the discretized bin indices directly.
           - `"one_hot"`: Encodes each individual element in the input into an
@@ -180,9 +180,10 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
             will be `(..., num_tokens)`.
           - `"count"`: As `"multi_hot"`, but the int array contains a count of
             the number of times the bin index appeared in the sample.
+        Defaults to `"int"`.
       sparse: Boolean. Only applicable to `"one_hot"`, `"multi_hot"`,
         and `"count"` output modes. If True, returns a `SparseTensor` instead of
-        a dense `Tensor`. Defaults to False.
+        a dense `Tensor`. Defaults to `False`.
 
     Examples:
 

@@ -392,7 +392,7 @@ class NormalizationAdaptTest(
         {"adapted": True},
         {"adapted": False},
     )
-    def test_saved_model_tf(self, adapted):
+    def test_saving_tf(self, adapted):
         input_data = [[0.0], [2.0], [0.0], [2.0]]
         expected_output = [[-1.0], [1.0], [-1.0], [1.0]]
 
@@ -422,10 +422,10 @@ class NormalizationAdaptTest(
         self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.product(
-        save_format=["tf", "h5"],
+        save_format=["tf", "h5", "keras_v3"],
         adapt=[True, False],
     )
-    def test_saved_model_keras(self, save_format, adapt):
+    def test_saving_keras(self, save_format, adapt):
         input_data = [[0.0], [2.0], [0.0], [2.0]]
         expected_output = [[-1.0], [1.0], [-1.0], [1.0]]
 
@@ -443,7 +443,13 @@ class NormalizationAdaptTest(
         self.assertAllClose(output_data, expected_output)
 
         # Save the model to disk.
-        output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
+        output_path = os.path.join(self.get_temp_dir(), "tf_keras_model")
+        if save_format == "keras_v3":
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            output_path += ".keras"
         model.save(output_path, save_format=save_format)
         loaded_model = keras.models.load_model(
             output_path, custom_objects={"Normalization": cls}
@@ -457,10 +463,10 @@ class NormalizationAdaptTest(
         self.assertAllClose(new_output_data, expected_output)
 
     @parameterized.product(
-        save_format=["tf", "h5"],
+        save_format=["tf", "h5", "keras_v3"],
         adapt=[True, False],
     )
-    def test_saved_model_keras_invert(self, save_format, adapt):
+    def test_saving_keras_invert(self, save_format, adapt):
         expected_output = [[0.0], [2.0], [0.0], [2.0]]
         input_data = [[-1.0], [1.0], [-1.0], [1.0]]
 
@@ -478,9 +484,13 @@ class NormalizationAdaptTest(
         self.assertAllClose(output_data, expected_output)
 
         # Save the model to disk.
-        output_path = os.path.join(
-            self.get_temp_dir(), "tf_keras_saved_model_invert"
-        )
+        output_path = os.path.join(self.get_temp_dir(), "tf_keras_model_invert")
+        if save_format == "keras_v3":
+            if not tf.__internal__.tf2.enabled():
+                self.skipTest(
+                    "TF2 must be enabled to use the new `.keras` saving."
+                )
+            output_path += ".keras"
         model.save(output_path, save_format=save_format)
         loaded_model = keras.models.load_model(
             output_path, custom_objects={"Normalization": cls}

@@ -19,8 +19,8 @@ import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
 from keras import backend
+from keras import mixed_precision
 from keras.dtensor import integration_test_utils
-from keras.dtensor import test_util
 from keras.optimizers import adam
 from keras.utils import tf_utils
 
@@ -30,6 +30,7 @@ from keras.utils import tf_utils
 from tensorflow.python.distribute.experimental import (
     mirrored_strategy as dtensor_mirrored_strategy,
 )
+from tensorflow.dtensor.python.tests import test_util
 
 
 class TrainingTest(test_util.DTensorBaseTest):
@@ -40,23 +41,41 @@ class TrainingTest(test_util.DTensorBaseTest):
         global_ids = test_util.create_device_ids_array((2,))
         local_device_ids = np.ravel(global_ids).tolist()
         mesh_dict = {
-            "CPU": tf.experimental.dtensor.Mesh(
+            device: tf.experimental.dtensor.Mesh(
                 ["batch"],
                 global_ids,
                 local_device_ids,
-                test_util.create_device_list((2,), "CPU"),
+                test_util.create_device_list((2,), device),
             )
+            for device in ("CPU", "GPU", "TPU")
         }
         self.mesh = self.configTestMesh(mesh_dict)
+
+    def tearDown(self):
+        super().tearDown()
+        # clean up the mixed precision setting if any.
+        mixed_precision.set_global_policy("float32")
 
     @parameterized.product(
         run_eagerly=[True, False],
         jit_compile=[True, False],
         optimizer_creator=[lambda: adam.Adam(), lambda: "adam"],
+        enable_mixed_precision=[True, False],
     )
-    def test_model_fit(self, run_eagerly, jit_compile, optimizer_creator):
+    def test_model_fit(
+        self,
+        run_eagerly,
+        jit_compile,
+        optimizer_creator,
+        enable_mixed_precision,
+    ):
         if run_eagerly and jit_compile:
             self.skipTest("run_eagerly can't run with jit_compile")
+        if enable_mixed_precision and self.mesh.device_type() != "GPU":
+            self.skipTest("Only run mixed_precision on GPU for performance")
+
+        if enable_mixed_precision:
+            mixed_precision.set_global_policy("mixed_float16")
         dtensor_strategy = dtensor_mirrored_strategy.MirroredStrategy(
             mesh=self.mesh
         )
@@ -89,7 +108,10 @@ class TrainingTest(test_util.DTensorBaseTest):
             np.random.uniform(size=(batch_size, 28, 28, 1)).astype(np.float32)
         )
         self.assertEqual(prediction.shape, (batch_size, 10))
-        self.assertEqual(prediction.dtype, tf.float32)
+        if enable_mixed_precision:
+            self.assertEqual(prediction.dtype, tf.float16)
+        else:
+            self.assertEqual(prediction.dtype, tf.float32)
 
 
 if __name__ == "__main__":

@@ -1811,6 +1811,207 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
 
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
+class CategoricalFocalCrossentropyTest(tf.test.TestCase):
+    def test_config(self):
+
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            name="focal_cce",
+            reduction=losses_utils.ReductionV2.SUM,
+            alpha=0.25,
+            gamma=2.0,
+        )
+        self.assertEqual(cce_obj.name, "focal_cce")
+        self.assertEqual(cce_obj.reduction, losses_utils.ReductionV2.SUM)
+        self.assertEqual(cce_obj.alpha, 0.25)
+        self.assertEqual(cce_obj.gamma, 2.0)
+
+        # Test alpha as a list
+        cce_obj = losses.CategoricalFocalCrossentropy(alpha=[0.25, 0.5, 0.75])
+        self.assertEqual(cce_obj.alpha, [0.25, 0.5, 0.75])
+
+    def test_all_correct_unweighted(self):
+        y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=tf.int64)
+        y_pred = tf.constant(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            dtype=tf.float32,
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(alpha=0.25, gamma=2.0)
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
+
+    def test_unweighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype=tf.float32,
+        )
+        loss = cce_obj(y_true, y_pred)
+        self.assertAlmostEqual(self.evaluate(loss), 0.02059, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        self.assertAlmostEqual(self.evaluate(loss), 0.000345, 3)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype=tf.float32,
+        )
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.047368, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        self.assertAlmostEqual(self.evaluate(loss), 0.000794, 4)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = tf.constant(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]],
+            dtype=tf.float32,
+        )
+        sample_weight = tf.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.06987, 3)
+
+        # Test with logits.
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.001933, 3)
+
+    def test_no_reduction(self):
+        y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        logits = tf.constant(
+            [[8.0, 1.0, 1.0], [0.0, 9.0, 1.0], [2.0, 3.0, 5.0]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, reduction=losses_utils.ReductionV2.NONE
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose(
+            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
+            self.evaluate(loss),
+            3,
+        )
+
+    def test_label_smoothing(self):
+        logits = tf.constant([[4.9, -0.5, 2.05]])
+        y_true = tf.constant([[1, 0, 0]])
+        label_smoothing = 0.1
+
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+
+        expected_value = 0.06685
+        self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
+
+    def test_label_smoothing_ndarray(self):
+        logits = np.asarray([[4.9, -0.5, 2.05]])
+        y_true = np.asarray([[1, 0, 0]])
+        label_smoothing = 0.1
+
+        cce_obj = losses.CategoricalFocalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing
+        )
+        loss = cce_obj(y_true, logits)
+
+        expected_value = 0.06685
+        self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
+
+    def test_shape_mismatch(self):
+        y_true = tf.constant([[0], [1], [2]])
+        y_pred = tf.constant(
+            [[0.9, 0.05, 0.05], [0.5, 0.89, 0.6], [0.05, 0.01, 0.94]]
+        )
+
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        with self.assertRaisesRegex(ValueError, "Shapes .+ are incompatible"):
+            cce_obj(y_true, y_pred)
+
+    def test_ragged_tensors(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = tf.ragged.constant([[[1, 0, 0], [0, 1, 0]], [[0, 0, 1]]])
+        y_pred = tf.ragged.constant(
+            [[[0.9, 0.05, 0.05], [0.5, 0.89, 0.6]], [[0.05, 0.01, 0.94]]],
+            dtype=tf.float32,
+        )
+        # batch losses [[0.1054, 0.8047], [0.0619]]
+        sample_weight = tf.constant([[1.2], [3.4]], shape=(2, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        self.assertAlmostEqual(self.evaluate(loss), 0.024754, 3)
+
+        # Test with logits.
+        logits = tf.ragged.constant(
+            [[[8.0, 1.0, 1.0], [0.0, 9.0, 1.0]], [[2.0, 3.0, 5.0]]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.00117, 3)
+
+    def test_ragged_tensors_ragged_sample_weights(self):
+        cce_obj = losses.CategoricalFocalCrossentropy()
+        y_true = tf.ragged.constant([[[1, 0, 0], [0, 1, 0]], [[0, 0, 1]]])
+        y_pred = tf.ragged.constant(
+            [[[0.9, 0.05, 0.05], [0.05, 0.89, 0.06]], [[0.05, 0.01, 0.94]]],
+            dtype=tf.float32,
+        )
+        sample_weight = tf.ragged.constant(
+            [[1.2, 3.4], [5.6]], dtype=tf.float32
+        )
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.0006088, 4)
+
+        # Test with logits.
+        logits = tf.ragged.constant(
+            [[[8.0, 1.0, 1.0], [0.0, 9.0, 1.0]], [[2.0, 3.0, 5.0]]]
+        )
+        cce_obj = losses.CategoricalFocalCrossentropy(from_logits=True)
+
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        self.assertAlmostEqual(self.evaluate(loss), 0.001933, 3)
+
+    def test_binary_labels(self):
+        # raise a warning if the shape of y_true and y_pred are all (None, 1).
+        # categorical_crossentropy shouldn't be used with binary labels.
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            cce_obj = losses.CategoricalFocalCrossentropy()
+            cce_obj(tf.constant([[1.0], [0.0]]), tf.constant([[1.0], [1.0]]))
+            self.assertIs(w[-1].category, SyntaxWarning)
+            self.assertIn(
+                "In loss categorical_focal_crossentropy, expected ",
+                str(w[-1].message),
+            )
+
+
+@test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class SparseCategoricalCrossentropyTest(tf.test.TestCase):
     def test_config(self):
         cce_obj = losses.SparseCategoricalCrossentropy(

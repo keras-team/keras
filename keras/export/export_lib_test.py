@@ -402,7 +402,7 @@ class ExportArchiveTest(tf.test.TestCase, parameterized.TestCase):
             export_archive.write_out(temp_filepath)
 
         # Invalid object type
-        with self.assertRaisesRegex(ValueError, "Invalid layer type"):
+        with self.assertRaisesRegex(ValueError, "Invalid resource type"):
             export_archive = export_lib.ExportArchive()
             export_archive.track("model")
 

@@ -30,6 +30,21 @@ try:
 except ImportError:
     h5py = None
 
+is_oss = True
+
+
+def _support_gcs_uri(filepath, save_format, is_oss):
+    """Supports GCS URIs through bigstore via a temporary file."""
+    gs_filepath = None
+    if str(filepath).startswith("gs://") and save_format != "tf":
+        gs_filepath = filepath
+        if not is_oss:
+            gs_filepath = filepath.replace("gs://", "/bigstore/")
+        filepath = os.path.join(
+            saving_lib.get_temp_dir(), os.path.basename(gs_filepath)
+        )
+    return gs_filepath, filepath
+
 
 @keras_export("keras.saving.save_model", "keras.models.save_model")
 def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
@@ -118,21 +133,10 @@ def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     """
     save_format = get_save_format(filepath, save_format)
 
+    # Supports GCS URIs through bigstore via a temporary file
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+
     # Deprecation warnings
-    if save_format == "tf":
-        warnings.warn(
-            "You are saving your model as a TensorFlow SavedModel via "
-            "`model.save()`. This is no longer a recommended workflow.\n\n"
-            "* If you intend to be able to reload the exact same model in a "
-            "Python runtime, we recommend using the native Keras format, "
-            "e.g. `model.save('my_model.keras')`.\n\n"
-            "* If you intend to export a SavedModel artifact for inference "
-            "(e.g. via TF-Serving), we recommend using "
-            "`model.export('my_export_artifact')`. If you want to further "
-            "customize SavedModel serving endpoints you can also use the "
-            "low-level `keras.export.ExportArchive` class.",
-            stacklevel=2,
-        )
     if save_format == "h5":
         warnings.warn(
             "You are saving your model as an HDF5 file via `model.save()`. "
@@ -213,7 +217,35 @@ def load_model(
     It is recommended that you use layer attributes to
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
-    if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
+    # Supports GCS URIs by copying data to temporary file
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+    if gs_filepath is not None:
+        tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
+
+    is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
+        filepath
+    )
+
+    # Support for remote zip files
+    if (
+        saving_lib.is_remote_path(filepath)
+        and not tf.io.gfile.isdir(filepath)
+        and not is_keras_zip
+    ):
+        local_path = os.path.join(
+            saving_lib.get_temp_dir(), os.path.basename(filepath)
+        )
+
+        # Copy from remote to temporary local directory
+        tf.io.gfile.copy(filepath, local_path, overwrite=True)
+
+        # Switch filepath to local zipfile for loading model
+        if zipfile.is_zipfile(local_path):
+            filepath = local_path
+            is_keras_zip = True
+
+    if is_keras_zip:
         if kwargs:
             raise ValueError(
                 "The following argument(s) are not supported "
@@ -233,6 +265,10 @@ def load_model(
 
 
 def save_weights(model, filepath, overwrite=True, **kwargs):
+    # Supports GCS URIs through bigstore via a temporary file
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+
     if str(filepath).endswith(".weights.h5"):
         # If file exists and should not be overwritten.
         try:
@@ -251,6 +287,12 @@ def save_weights(model, filepath, overwrite=True, **kwargs):
 
 
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
+    # Supports GCS URIs by copying data to temporary file
+    save_format = get_save_format(filepath, save_format=None)
+    gs_filepath, filepath = _support_gcs_uri(filepath, save_format, is_oss)
+    if gs_filepath is not None:
+        tf.io.gfile.copy(gs_filepath, filepath, overwrite=True)
+
     if str(filepath).endswith(".keras") and zipfile.is_zipfile(filepath):
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch

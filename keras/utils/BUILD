@@ -4,6 +4,7 @@
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = ["//keras:friends"],
     licenses = ["notice"],
@@ -27,6 +28,7 @@ py_library(
         ":np_utils",
         ":sidecar_evaluator",
         ":text_dataset",
+        ":timed_threads",
         ":timeseries_dataset",
         ":vis_utils",
     ],
@@ -317,6 +319,12 @@ py_library(
         "//keras:backend",
         "//keras/layers",
     ],
+)
+
+py_library(
+    name = "timed_threads",
+    srcs = ["timed_threads.py"],
+    srcs_version = "PY3",
 )
 
 tf_py_test(
@@ -664,6 +672,19 @@ tf_py_test(
         ":feature_space",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+        "//keras/testing_infra:test_utils",
+    ],
+)
+
+tf_py_test(
+    name = "timed_threads_test",
+    size = "small",
+    srcs = ["timed_threads_test.py"],
+    deps = [
+        ":timed_threads",
+        "//:expect_tensorflow_installed",
+        "//keras",
         "//keras/testing_infra:test_combinations",
         "//keras/testing_infra:test_utils",
     ],

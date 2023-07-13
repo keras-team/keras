@@ -32,20 +32,20 @@ class ThresholdedReLU(Layer):
     It follows:
 
     ```
-      f(x) = x for x > theta
-      f(x) = 0 otherwise`
+        f(x) = x for x > theta
+        f(x) = 0 otherwise`
     ```
 
     Input shape:
-      Arbitrary. Use the keyword argument `input_shape`
-      (tuple of integers, does not include the samples axis)
-      when using this layer as the first layer in a model.
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
     Output shape:
-      Same shape as the input.
+        Same shape as the input.
 
     Args:
-      theta: Float >= 0. Threshold location of activation.
+        theta: Float >= 0. Threshold location of activation.
     """
 
     def __init__(self, theta=1.0, **kwargs):
