@@ -1,6 +1,8 @@
 # Description:
 #   Contains the Keras datasets package (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
+
 package(
     # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [

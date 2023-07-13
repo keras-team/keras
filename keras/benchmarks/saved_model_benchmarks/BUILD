@@ -1,6 +1,7 @@
 # Description:
 #   Implementation of Keras benchmarks.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(

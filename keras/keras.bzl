@@ -1,5 +1,7 @@
 """Keras common starlark macros."""
 
+# Placeholder: load aliased py_test
+
 # Macro to run Keras py_tests against pip installation.
 def py_test(deps = [], data = [], kernels = [], **kwargs):
     native.py_test(

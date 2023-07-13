@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras preprocess layers (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # buildifier: disable=same-origin-load

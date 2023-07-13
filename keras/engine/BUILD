@@ -1,6 +1,8 @@
 # Description:
 #   Contains the Keras engine API (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 

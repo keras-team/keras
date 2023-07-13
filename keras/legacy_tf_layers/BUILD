@@ -1,6 +1,8 @@
 # Description:
 #   Contains the legacy TF layers (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 load("@org_keras//keras:keras.bzl", "cuda_py_test")

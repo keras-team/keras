@@ -1,6 +1,7 @@
 # Description:
 #   Implementation of benchmarks on Keras layers.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(

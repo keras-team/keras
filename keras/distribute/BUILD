@@ -2,6 +2,7 @@
 #   keras/distribute package is intended to serve as the centralized place for things
 #   related to dist-strat used by Keras..
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load

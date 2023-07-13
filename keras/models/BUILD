@@ -1,5 +1,6 @@
 # Keras models
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
