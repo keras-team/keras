@@ -46,6 +46,7 @@ from keras_core.trainers.data_adapters import generator_data_adapter
 from keras_core.trainers.data_adapters import py_dataset_adapter
 from keras_core.trainers.data_adapters import tf_dataset_adapter
 from keras_core.trainers.data_adapters import torch_data_adapter
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 class EpochIterator:
@@ -60,11 +61,6 @@ class EpochIterator:
         class_weight=None,
         steps_per_execution=1,
     ):
-        try:
-            import tensorflow as tf
-        except ImportError:
-            tf = None
-
         self.steps_per_epoch = steps_per_epoch
         self.steps_per_execution = steps_per_execution
         if steps_per_epoch:
@@ -80,7 +76,7 @@ class EpochIterator:
                 batch_size=batch_size,
                 steps=steps_per_epoch,
             )
-        elif tf is not None and isinstance(x, tf.data.Dataset):
+        elif tf.available and isinstance(x, tf.data.Dataset):
             self.data_adapter = tf_dataset_adapter.TFDatasetAdapter(
                 x, class_weight=class_weight
             )
@@ -164,11 +160,6 @@ class EpochIterator:
         return iterator
 
     def enumerate_epoch(self, return_type="np"):
-        try:
-            import tensorflow as tf
-        except ImportError:
-            tf = None
-
         buffer = []
         if self.steps_per_epoch:
             if not self._current_iterator:
@@ -179,10 +170,10 @@ class EpochIterator:
                 if self._insufficient_data:
                     break
 
-                if tf is None:
-                    errors = (StopIteration,)
-                else:
+                if tf.available:
                     errors = (StopIteration, tf.errors.OutOfRangeError)
+                else:
+                    errors = (StopIteration,)
 
                 try:
                     data = next(self._current_iterator)
