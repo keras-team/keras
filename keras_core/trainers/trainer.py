@@ -44,7 +44,7 @@ class Trainer:
             )
         else:
             self._compile_loss = None
-        if metrics is not None:
+        if metrics is not None or weighted_metrics is not None:
             self._compile_metrics = CompileMetrics(
                 metrics, weighted_metrics, output_names=output_names
             )
