@@ -85,7 +85,6 @@ def save_model(model, filepath, weights_format="h5"):
             "date_saved": datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S"),
         }
     )
-    # TODO(rameshsampath): Need a better logic for local vs remote path
     if file_utils.is_remote_path(filepath):
         # Remote path. Zip to local drive and copy to remote
         zip_filepath = os.path.join(get_temp_dir(), "tmp_model.keras")
