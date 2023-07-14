@@ -555,7 +555,7 @@ def relu(x):
 
 
 def hard_sigmoid(x):
-    return layers.Activation('hard_sigmoid')(x)
+    return layers.Activation("hard_sigmoid")(x)
 
 
 def hard_swish(x):
