@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -103,6 +102,14 @@ class Discretization(Layer):
         dtype=None,
         **kwargs,
     ):
+        try:
+            import tensorflow as tf
+        except ImportError:
+            raise ImportError(
+                "Layer Discretization requires TensorFlow. "
+                "Install it via `pip install tensorflow`."
+            )
+
         super().__init__(name=name, dtype=dtype)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
@@ -186,6 +193,8 @@ class Discretization(Layer):
         return backend.KerasTensor(shape=inputs.shape, dtype="int32")
 
     def __call__(self, inputs):
+        import tensorflow as tf
+
         if not isinstance(inputs, (tf.Tensor, np.ndarray, backend.KerasTensor)):
             inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         if not self.built:

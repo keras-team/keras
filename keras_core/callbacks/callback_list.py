@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
@@ -34,7 +34,7 @@ class CallbackList(Callback):
             **params: If provided, parameters will be passed to each `Callback`
                 via `Callback.set_params`.
         """
-        self.callbacks = nest.flatten(callbacks) if callbacks else []
+        self.callbacks = tree.flatten(callbacks) if callbacks else []
         self._add_default_callbacks(add_history, add_progbar)
 
         if model:

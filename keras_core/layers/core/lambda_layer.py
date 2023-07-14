@@ -1,7 +1,7 @@
 import inspect
 import types
 
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -92,7 +92,7 @@ class Lambda(Layer):
                     input_shape,
                 )
                 output_spec = backend.compute_output_spec(self.call, inputs)
-                return nest.map_structure(lambda x: x.shape, output_spec)
+                return tree.map_structure(lambda x: x.shape, output_spec)
             except:
                 raise NotImplementedError(
                     "We could not automatically infer the shape of "
@@ -104,7 +104,7 @@ class Lambda(Layer):
             return self._output_shape(input_shape)
 
         # Output shapes are passed directly and don't include batch dimension.
-        batch_size = nest.flatten(input_shape)[0]
+        batch_size = tree.flatten(input_shape)[0]
 
         def _add_batch(shape):
             return (batch_size,) + shape

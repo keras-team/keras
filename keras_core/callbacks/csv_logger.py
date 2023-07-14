@@ -2,7 +2,6 @@ import collections
 import csv
 
 import numpy as np
-from tensorflow.io import gfile
 
 from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
@@ -41,13 +40,13 @@ class CSVLogger(Callback):
 
     def on_train_begin(self, logs=None):
         if self.append:
-            if gfile.exists(self.filename):
-                with gfile.GFile(self.filename, "r") as f:
+            if file_utils.exists(self.filename):
+                with file_utils.File(self.filename, "r") as f:
                     self.append_header = not bool(len(f.readline()))
             mode = "a"
         else:
             mode = "w"
-        self.csv_file = gfile.GFile(self.filename, mode)
+        self.csv_file = file_utils.File(self.filename, mode)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}

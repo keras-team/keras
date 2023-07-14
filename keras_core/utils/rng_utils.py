@@ -1,9 +1,9 @@
 import random
 
 import numpy as np
-import tensorflow as tf
 
 from keras_core.api_export import keras_core_export
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.utils.set_random_seed")
@@ -43,3 +43,4 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
+    # TODO: also seed other backends.

@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import ops
 from keras_core.api_export import keras_core_export
@@ -89,7 +89,7 @@ class StackedRNNCells(Layer):
         # Call the cells in order and store the returned states.
         new_states = []
         for cell, states in zip(self.cells, states):
-            states = list(states) if nest.is_nested(states) else [states]
+            states = list(states) if tree.is_nested(states) else [states]
             if isinstance(cell, Layer) and cell._call_has_training_arg():
                 kwargs["training"] = training
             else:
@@ -115,7 +115,7 @@ class StackedRNNCells(Layer):
                 output_dim = cell.state_size[0]
             else:
                 output_dim = cell.state_size
-            batch_size = nest.flatten(input_shape)[0]
+            batch_size = tree.flatten(input_shape)[0]
             input_shape = (batch_size, output_dim)
         self.built = True
 

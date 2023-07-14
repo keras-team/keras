@@ -1,5 +1,4 @@
 import numpy as np
-from tensorflow.io import gfile
 
 from keras_core import backend
 from keras_core import initializers
@@ -390,7 +389,7 @@ def ConvNeXt(
     Returns:
         A model instance.
     """
-    if not (weights in {"imagenet", None} or gfile.exists(weights)):
+    if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
             "`None` (random initialization), `imagenet` "

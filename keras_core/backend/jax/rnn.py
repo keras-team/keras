@@ -1,8 +1,9 @@
+import tree
 from jax import lax
 from jax import numpy as jnp
-from tensorflow import nest
 
 from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.utils.nest import pack_sequence_as
 
 
 def rnn(
@@ -25,9 +26,9 @@ def rnn(
         return jnp.transpose(input_t, axes)
 
     if not time_major:
-        inputs = nest.map_structure(swap_batch_timestep, inputs)
+        inputs = tree.map_structure(swap_batch_timestep, inputs)
 
-    flattened_inputs = nest.flatten(inputs)
+    flattened_inputs = tree.flatten(inputs)
     time_steps = flattened_inputs[0].shape[0]
 
     if mask is not None:
@@ -42,11 +43,11 @@ def rnn(
         constants = []
 
     def _expand_mask(mask_t, input_t, fixed_dim=1):
-        if nest.is_nested(mask_t):
+        if tree.is_nested(mask_t):
             raise ValueError(
                 f"mask_t is expected to be tensor, but got {mask_t}"
             )
-        if nest.is_nested(input_t):
+        if tree.is_nested(input_t):
             raise ValueError(
                 f"input_t is expected to be tensor, but got {input_t}"
             )
@@ -74,8 +75,8 @@ def rnn(
                 input_t.reverse()
             return input_t
 
-        if nest.is_nested(inputs):
-            processed_input = nest.map_structure(
+        if tree.is_nested(inputs):
+            processed_input = tree.map_structure(
                 _process_single_input_t, inputs
             )
         else:
@@ -83,7 +84,7 @@ def rnn(
 
         def _get_input_tensor(time):
             inp = [t_[time] for t_ in processed_input]
-            return nest.pack_sequence_as(inputs, inp)
+            return pack_sequence_as(inputs, inp)
 
         if mask is not None:
             mask_list = unstack(mask)
@@ -105,8 +106,8 @@ def rnn(
 
                 output = jnp.where(tiled_mask_t, output, prev_output)
 
-                flat_states = nest.flatten(states)
-                flat_new_states = nest.flatten(new_states)
+                flat_states = tree.flatten(states)
+                flat_new_states = tree.flatten(new_states)
                 tiled_mask_t = tuple(
                     _expand_mask(mask_t, s) for s in flat_states
                 )
@@ -116,7 +117,7 @@ def rnn(
                         tiled_mask_t, flat_new_states, flat_states
                     )
                 )
-                states = nest.pack_sequence_as(states, flat_final_states)
+                states = pack_sequence_as(states, flat_final_states)
 
                 if return_all_outputs:
                     successive_outputs.append(output)
@@ -195,7 +196,7 @@ def rnn(
         last_output = outputs[-1]
 
     if not time_major:
-        outputs = nest.map_structure(swap_batch_timestep, outputs)
+        outputs = tree.map_structure(swap_batch_timestep, outputs)
 
     return last_output, outputs, new_states
 

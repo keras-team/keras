@@ -2,13 +2,14 @@ import contextlib
 
 import numpy as np
 import torch
-from tensorflow import nest
+import tree
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import global_state
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.utils.nest import pack_sequence_as
 
 DYNAMIC_SHAPES_OK = True
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -211,7 +212,7 @@ def compute_output_spec(fn, *args, **kwargs):
             # which  should give a "zero flop" way to trace shape, but does
             # not have universal support with torch operations.
             with device_scope("meta"):
-                meta_args, meta_kwargs = nest.map_structure(
+                meta_args, meta_kwargs = tree.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
@@ -221,7 +222,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
                 # more robust, but more expensive.
-                eager_args, eager_kwargs = nest.map_structure(
+                eager_args, eager_kwargs = tree.map_structure(
                     lambda x: convert_keras_tensor_to_torch(x, fill_value),
                     (args, kwargs),
                 )
@@ -230,13 +231,13 @@ def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():
         outputs = symbolic_call(fn, args, kwargs, fill_value=83)
 
-        none_in_shape = any(map(has_none_shape, nest.flatten((args, kwargs))))
+        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
         if none_in_shape:
             outputs_1 = outputs
             outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
 
-            flat_out_1 = nest.flatten(outputs_1)
-            flat_out_2 = nest.flatten(outputs_2)
+            flat_out_1 = tree.flatten(outputs_1)
+            flat_out_2 = tree.flatten(outputs_2)
 
             flat_out = []
             for x1, x2 in zip(flat_out_1, flat_out_2):
@@ -245,9 +246,9 @@ def compute_output_spec(fn, *args, **kwargs):
                     if e != shape[i]:
                         shape[i] = None
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
-            outputs = nest.pack_sequence_as(outputs_1, flat_out)
+            outputs = pack_sequence_as(outputs_1, flat_out)
 
-        output_spec = nest.map_structure(convert_torch_to_keras_tensor, outputs)
+        output_spec = tree.map_structure(convert_torch_to_keras_tensor, outputs)
     return output_spec
 
 

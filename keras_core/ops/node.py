@@ -1,6 +1,6 @@
 import collections
 
-from tensorflow import nest
+import tree
 
 from keras_core.backend import KerasTensor
 from keras_core.ops.symbolic_arguments import SymbolicArguments
@@ -43,7 +43,7 @@ class Node:
     ):
         self.operation = operation
         self.arguments = SymbolicArguments(*call_args, **call_kwargs)
-        self.outputs = [] if outputs is None else nest.flatten(outputs)
+        self.outputs = [] if outputs is None else tree.flatten(outputs)
         for x in self.outputs:
             if not isinstance(x, KerasTensor):
                 raise ValueError(

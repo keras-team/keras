@@ -1,5 +1,3 @@
-import tensorflow as tf
-
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
@@ -85,6 +83,14 @@ class CategoryEncoding(Layer):
     """
 
     def __init__(self, num_tokens=None, output_mode="multi_hot", **kwargs):
+        try:
+            import tensorflow as tf
+        except ImportError:
+            raise ImportError(
+                "Layer CategoryEncoding requires TensorFlow. "
+                "Install it via `pip install tensorflow`."
+            )
+
         super().__init__(**kwargs)
 
         # Support deprecated names for output_modes.

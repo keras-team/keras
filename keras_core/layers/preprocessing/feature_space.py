@@ -1,5 +1,4 @@
-from tensorflow import data as tf_data
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import layers
@@ -504,6 +503,8 @@ class FeatureSpace(Layer):
         return adaptable_preprocessors
 
     def adapt(self, dataset):
+        from tensorflow import data as tf_data
+
         if not isinstance(dataset, tf_data.Dataset):
             raise ValueError(
                 "`adapt()` can only be called on a tf.data.Dataset. "
@@ -614,8 +615,8 @@ class FeatureSpace(Layer):
         ]
 
         for name, feature, spec in zip(all_names, all_features, all_specs):
-            if nest.is_nested(feature):
-                dtype = nest.flatten(feature)[0].dtype
+            if tree.is_nested(feature):
+                dtype = tree.flatten(feature)[0].dtype
             else:
                 dtype = feature.dtype
             dtype = backend.standardize_dtype(dtype)

@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tree
 
 from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
@@ -8,6 +8,8 @@ class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
     def __init__(self, dataset, class_weight=None):
+        import tensorflow as tf
+
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
                 "Expected argument `dataset` to be a tf.data.Dataset. "
@@ -21,7 +23,7 @@ class TFDatasetAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         for batch in self._dataset:
-            yield tf.nest.map_structure(lambda x: x.numpy(), batch)
+            yield tree.map_structure(lambda x: x.numpy(), batch)
 
     def get_tf_dataset(self):
         return self._dataset
@@ -36,7 +38,7 @@ class TFDatasetAdapter(DataAdapter):
 
     @property
     def batch_size(self):
-        first_element_spec = tf.nest.flatten(self._dataset.element_spec)[0]
+        first_element_spec = tree.flatten(self._dataset.element_spec)[0]
         return first_element_spec.shape[0]
 
     @property
@@ -62,6 +64,8 @@ def make_class_weight_map_fn(class_weight):
         A function that can be used with `tf.data.Dataset.map` to apply class
         weighting.
     """
+    import tensorflow as tf
+
     class_weight_tensor = tf.convert_to_tensor(
         [
             class_weight.get(int(c), 1.0)
@@ -77,7 +81,7 @@ def make_class_weight_map_fn(class_weight):
                 "You cannot `class_weight` and `sample_weight` "
                 "at the same time."
             )
-        if tf.nest.is_nested(y):
+        if tree.is_nested(y):
             raise ValueError(
                 "`class_weight` is only supported for Models with a single "
                 "output."

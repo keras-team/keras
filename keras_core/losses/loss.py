@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import ops
@@ -34,10 +34,10 @@ class Loss:
 
         with ops.name_scope(self.name):
             dtype = backend.floatx()
-            y_pred = nest.map_structure(
+            y_pred = tree.map_structure(
                 lambda x: ops.convert_to_tensor(x, dtype=dtype), y_pred
             )
-            y_true = nest.map_structure(
+            y_true = tree.map_structure(
                 lambda x: ops.convert_to_tensor(x, dtype=dtype), y_true
             )
 

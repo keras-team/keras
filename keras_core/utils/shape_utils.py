@@ -6,7 +6,7 @@ def is_shape_tuple(x):
 
 
 def map_shape_structure(fn, struct):
-    """Variant of nest.map_structure that operates on shape tuples."""
+    """Variant of tree.map_structure that operates on shape tuples."""
     if is_shape_tuple(struct):
         return fn(tuple(struct))
     if isinstance(struct, list):

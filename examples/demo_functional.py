@@ -7,9 +7,15 @@ from keras_core import metrics
 from keras_core import optimizers
 
 inputs = layers.Input((100,))
-x = layers.Dense(128, activation="relu")(inputs)
+x = layers.Dense(512, activation="relu")(inputs)
 residual = x
-x = layers.Dense(128, activation="relu")(x)
+x = layers.Dense(512, activation="relu")(x)
+x = layers.Dense(512, activation="relu")(x)
+x += residual
+x = layers.Dense(512, activation="relu")(x)
+residual = x
+x = layers.Dense(512, activation="relu")(x)
+x = layers.Dense(512, activation="relu")(x)
 x += residual
 outputs = layers.Dense(16)(x)
 model = Model(inputs, outputs)

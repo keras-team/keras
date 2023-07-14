@@ -1,7 +1,5 @@
 import warnings
 
-from tensorflow.io import gfile
-
 from keras_core import backend
 from keras_core import layers
 from keras_core.api_export import keras_core_export
@@ -109,7 +107,7 @@ def MobileNetV2(
     Returns:
         A model instance.
     """
-    if not (weights in {"imagenet", None} or gfile.exists(weights)):
+    if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
             "`None` (random initialization), `imagenet` "

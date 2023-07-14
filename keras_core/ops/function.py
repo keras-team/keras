@@ -1,10 +1,11 @@
 import collections
 
-from tensorflow import nest
+import tree
 
 from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.ops.operation import Operation
+from keras_core.utils.nest import pack_sequence_as
 
 
 @keras_core_export("keras_core.Function")
@@ -45,10 +46,10 @@ class Function(Operation):
     def __init__(self, inputs, outputs, name=None):
         super().__init__(name=name)
 
-        self._inputs_struct = nest.map_structure(lambda x: x, inputs)
-        self._outputs_struct = nest.map_structure(lambda x: x, outputs)
-        self._inputs = nest.flatten(inputs)
-        self._outputs = nest.flatten(outputs)
+        self._inputs_struct = tree.map_structure(lambda x: x, inputs)
+        self._outputs_struct = tree.map_structure(lambda x: x, outputs)
+        self._inputs = tree.flatten(inputs)
+        self._outputs = tree.flatten(outputs)
 
         (nodes, nodes_by_depth, operations, operations_by_depth) = map_graph(
             self._inputs, self._outputs
@@ -75,12 +76,12 @@ class Function(Operation):
         # Check if input shapes are identical to ref input shapes,
         # if so take a shortcut.
         shortcut = True
-        for x, x_ref in zip(nest.flatten(inputs), self._inputs):
+        for x, x_ref in zip(tree.flatten(inputs), self._inputs):
             if x.shape != x_ref.shape:
                 shortcut = False
                 break
         if shortcut:
-            return nest.map_structure(
+            return tree.map_structure(
                 lambda x: KerasTensor(shape=x.shape, dtype=x.dtype),
                 self._outputs_struct,
             )
@@ -103,7 +104,7 @@ class Function(Operation):
         At each node we compute outputs via
         `operation_fn(node.operation)(*args, **kwargs)`.
         """
-        inputs = nest.flatten(inputs)
+        inputs = tree.flatten(inputs)
 
         # Dictionary mapping reference tensors to computed tensors.
         tensor_dict = {}
@@ -127,18 +128,18 @@ class Function(Operation):
                 outputs = operation_fn(node.operation)(*args, **kwargs)
 
                 # Update tensor_dict.
-                for x, y in zip(node.outputs, nest.flatten(outputs)):
+                for x, y in zip(node.outputs, tree.flatten(outputs)):
                     tensor_dict[id(x)] = y
 
         output_tensors = []
         for x in self.outputs:
             output_tensors.append(tensor_dict[id(x)])
 
-        return nest.pack_sequence_as(self._outputs_struct, output_tensors)
+        return pack_sequence_as(self._outputs_struct, output_tensors)
 
     def _assert_input_compatibility(self, inputs):
         try:
-            nest.assert_same_structure(
+            tree.assert_same_structure(
                 inputs, self._inputs_struct, check_types=False
             )
         except ValueError:
@@ -147,7 +148,7 @@ class Function(Operation):
                 f"Expected input structure: {self._inputs_struct}\n"
                 f"Received input structure: {inputs}"
             )
-        for x, x_ref in zip(nest.flatten(inputs), self._inputs):
+        for x, x_ref in zip(tree.flatten(inputs), self._inputs):
             if len(x.shape) != len(x_ref.shape):
                 raise ValueError(
                     f"{self.__class__.__name__} was passed "
@@ -265,7 +266,7 @@ def map_graph(inputs, outputs):
     operations_with_complete_input = []  # To provide a better error msg.
     for depth in depth_keys:
         for node in nodes_by_depth[depth]:
-            for x in nest.flatten(node.input_tensors):
+            for x in tree.flatten(node.input_tensors):
                 if x not in computable_tensors:
                     operation = node.operation
                     raise ValueError(
@@ -276,7 +277,7 @@ def map_graph(inputs, outputs):
                     )
                 operations_with_complete_input.append(operation.name)
 
-            for x in nest.flatten(node.outputs):
+            for x in tree.flatten(node.outputs):
                 computable_tensors.add(x)
 
     # Ensure name unicity, which will be crucial for serialization
@@ -317,7 +318,7 @@ def _build_map(outputs):
     nodes_in_progress = set()
     nodes_in_decreasing_depth = []  # nodes from inputs -> outputs.
     operation_indices = {}  # operation -> in traversal order.
-    for output in nest.flatten(outputs):
+    for output in tree.flatten(outputs):
         _build_map_helper(
             output,
             finished_nodes,

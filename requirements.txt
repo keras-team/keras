@@ -18,3 +18,4 @@ google
 tensorboard-plugin-profile
 rich
 build
+dm-tree

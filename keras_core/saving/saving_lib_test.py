@@ -379,7 +379,7 @@ class SavingTest(testing.TestCase):
     #     with mock.patch(
     #         "re.match", autospec=True
     #     ) as mock_re_match, mock.patch(
-    #         "tensorflow.compat.v2.io.gfile.copy", autospec=True
+    #         "tensorflow.compat.v2.io.file_utils.copy", autospec=True
     #     ) as mock_copy:
     #         # Mock Remote Path check to true to test gfile copy logic
     #         mock_re_match.return_value = True

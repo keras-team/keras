@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 import keras_core.backend
 from keras_core.layers.layer import Layer
@@ -26,7 +26,7 @@ class TFDataLayer(Layer):
         ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")
-            inputs = nest.map_structure(
+            inputs = tree.map_structure(
                 lambda x: self.backend.convert_to_tensor(
                     x, dtype=self.compute_dtype
                 ),

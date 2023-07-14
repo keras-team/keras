@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import tensorflow as tf
+import tree
 from tensorflow.python.eager import context as tf_context
 
 from keras_core import callbacks as callbacks_module
@@ -449,7 +450,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     batch_outputs,
                 )
             else:
-                tf.__internal__.nest.map_structure_up_to(
+                tree.map_structure_up_to(
                     batch_outputs,
                     lambda output, batch_output: output.append(batch_output),
                     outputs,
@@ -486,7 +487,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 outputs = append_to_outputs(batch_outputs, outputs)
                 callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
-        outputs = tf.__internal__.nest.map_structure_up_to(
+        outputs = tree.map_structure_up_to(
             batch_outputs, potentially_ragged_concat, outputs
         )
         return tf.nest.map_structure(convert_to_np_if_not_ragged, outputs)

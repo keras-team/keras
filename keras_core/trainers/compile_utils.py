@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import losses as losses_module
@@ -214,7 +214,7 @@ class CompileMetrics(metrics_module.Metric):
                 flat_metrics.append(None)
             else:
                 if isinstance(metrics, dict):
-                    metrics = nest.flatten(metrics)
+                    metrics = tree.flatten(metrics)
                 if not isinstance(metrics, list):
                     metrics = [metrics]
                 if not all(is_function_like(m) for m in metrics):
@@ -306,7 +306,7 @@ class CompileMetrics(metrics_module.Metric):
                 if name in y:
                     result.append(y[name])
             return result
-        return nest.flatten(y)
+        return tree.flatten(y)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         if not self.built:
@@ -446,7 +446,7 @@ class CompileLoss(losses_module.Loss):
                     )
         if num_outputs == 1:
             if isinstance(loss, dict):
-                loss = nest.flatten(loss)
+                loss = tree.flatten(loss)
             if isinstance(loss, list) and len(loss) == 1:
                 loss = loss[0]
             if not is_function_like(loss):
@@ -456,10 +456,10 @@ class CompileLoss(losses_module.Loss):
                     f"Received instead:\nloss={loss} of type {type(loss)}"
                 )
 
-        if is_function_like(loss) and nest.is_nested(y_pred):
+        if is_function_like(loss) and tree.is_nested(y_pred):
             # The model has multiple outputs but only one loss fn
             # was provided. Broadcast loss to all outputs.
-            loss = nest.map_structure(lambda x: loss, y_pred)
+            loss = tree.map_structure(lambda x: loss, y_pred)
 
         # Iterate over all possible loss formats:
         # plain function, list/tuple, dict
@@ -478,7 +478,7 @@ class CompileLoss(losses_module.Loss):
             else:
                 flat_loss_weights.append(1.0)
         elif isinstance(loss, (list, tuple)):
-            loss = nest.flatten(loss)
+            loss = tree.flatten(loss)
             if len(loss) != len(y_pred):
                 raise ValueError(
                     "For a model with multiple outputs, "
@@ -597,7 +597,7 @@ class CompileLoss(losses_module.Loss):
                 if name in y:
                     result.append(y[name])
             return result
-        return nest.flatten(y)
+        return tree.flatten(y)
 
     def call(self, y_true, y_pred, sample_weight=None):
         if not self.built:

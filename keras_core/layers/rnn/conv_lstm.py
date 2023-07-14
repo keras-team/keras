@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import activations
 from keras_core import backend
@@ -549,7 +549,7 @@ class ConvLSTM(RNN):
         return output_shape
 
     def compute_mask(self, _, mask):
-        mask = nest.flatten(mask)[0]
+        mask = tree.flatten(mask)[0]
         output_mask = mask if self.return_sequences else None
         if self.return_state:
             state_mask = [None, None]

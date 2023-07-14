@@ -1,7 +1,7 @@
 import inspect
 import textwrap
 
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -93,7 +93,7 @@ class Operation:
         # serializable types.
         supported_types = (str, int, float, bool, type(None))
         try:
-            flat_arg_values = nest.flatten(kwargs)
+            flat_arg_values = tree.flatten(kwargs)
             auto_config = True
             for value in flat_arg_values:
                 if not isinstance(value, supported_types):

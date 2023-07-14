@@ -19,7 +19,7 @@ import collections
 import inspect
 import warnings
 
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import initializers
@@ -612,13 +612,13 @@ class Layer(BackendLayer, Operation):
             return x
 
         if self._convert_input_args:
-            args = nest.map_structure(maybe_convert, args)
-            kwargs = nest.map_structure(maybe_convert, kwargs)
+            args = tree.map_structure(maybe_convert, args)
+            kwargs = tree.map_structure(maybe_convert, kwargs)
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
-            for arg in nest.flatten(args):
+            for arg in tree.flatten(args):
                 if not isinstance(arg, KerasTensor) and not backend.is_tensor(
                     arg
                 ):
@@ -675,7 +675,7 @@ class Layer(BackendLayer, Operation):
             ):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                mask = nest.map_structure(
+                mask = tree.map_structure(
                     lambda x: getattr(x, "_keras_mask", None),
                     only_tensor_arg,
                 )
@@ -685,7 +685,7 @@ class Layer(BackendLayer, Operation):
                 expected_mask_arg_name = f"{k}_mask"
                 if expected_mask_arg_name in call_spec.argument_names:
                     if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = nest.map_structure(
+                        mask = tree.map_structure(
                             lambda x: getattr(x, "_keras_mask", None), v
                         )
                         kwargs[expected_mask_arg_name] = mask
@@ -705,7 +705,7 @@ class Layer(BackendLayer, Operation):
                     self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
-                    for output in nest.flatten(outputs):
+                    for output in tree.flatten(outputs):
                         if backend.is_tensor(output):
                             self.add_loss(self.activity_regularizer(output))
 
@@ -898,7 +898,7 @@ class Layer(BackendLayer, Operation):
         ```
         """
         # Eager only.
-        losses = nest.flatten(loss)
+        losses = tree.flatten(loss)
         for x in losses:
             if not backend.is_tensor(x):
                 raise ValueError(
@@ -1193,7 +1193,7 @@ class Layer(BackendLayer, Operation):
         return layers
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask):
-        flat_outputs = nest.flatten(outputs)
+        flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
             getattr(x, "_keras_mask", None) is not None for x in flat_outputs
@@ -1205,7 +1205,7 @@ class Layer(BackendLayer, Operation):
         if output_masks is None:
             return
 
-        flat_masks = nest.flatten(output_masks)
+        flat_masks = tree.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
             if getattr(tensor, "_keras_mask", None) is None:
                 try:
@@ -1259,8 +1259,8 @@ class CallSpec:
                 tensor_args.append(value)
                 tensor_arg_names.append(name)
                 tensor_arg_dict[name] = value
-            elif nest.is_nested(value):
-                flat_values = nest.flatten(value)
+            elif tree.is_nested(value):
+                flat_values = tree.flatten(value)
                 if all(is_backend_tensor_or_symbolic(x) for x in flat_values):
                     tensor_args.append(value)
                     tensor_arg_names.append(name)
@@ -1316,7 +1316,7 @@ def get_shapes_dict(call_spec):
             # Do not include catch-alls in shapes dict
             continue
         if k in call_spec.nested_tensor_argument_names:
-            shapes_dict[f"{k}_shape"] = nest.map_structure(
+            shapes_dict[f"{k}_shape"] = tree.map_structure(
                 lambda x: backend.standardize_shape(x.shape), v
             )
         else:

@@ -9,7 +9,7 @@ import rich.markup
 # See https://github.com/keras-team/keras-core/issues/448
 # for below imports
 import rich.table
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core.utils import dtype_utils
@@ -86,7 +86,7 @@ def format_layer_shape(layer):
 
     for i in range(len(layer._inbound_nodes)):
         outputs = layer._inbound_nodes[i].output_tensors
-        output_shapes = nest.map_structure(
+        output_shapes = tree.map_structure(
             lambda x: format_shape(x.shape), outputs
         )
     if len(output_shapes) == 1:
@@ -153,7 +153,7 @@ def print_summary(
         nodes = []
         for v in nodes_by_depth:
             if (len(v) > 1) or (
-                len(v) == 1 and len(nest.flatten(v[0].input_tensors)) > 1
+                len(v) == 1 and len(tree.flatten(v[0].input_tensors)) > 1
             ):
                 # if the model has multiple nodes
                 # or if the nodes have multiple inbound_layers

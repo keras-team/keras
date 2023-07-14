@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import ops
@@ -259,7 +259,7 @@ class RNN(Layer):
         # This is because the mask for an RNN is of size [batch, time_steps, 1],
         # and specifies which time steps should be skipped, and a time step
         # must be skipped for all inputs.
-        mask = nest.flatten(mask)[0]
+        mask = tree.flatten(mask)[0]
         output_mask = mask if self.return_sequences else None
         if self.return_state:
             state_mask = [None for _ in self.state_size]
@@ -288,7 +288,7 @@ class RNN(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
-        self.states = nest.map_structure(
+        self.states = tree.map_structure(
             lambda value: backend.Variable(
                 value, trainable=False, dtype=self.variable_dtype
             ),
@@ -306,7 +306,7 @@ class RNN(Layer):
             ]
 
         # RNN expect the states in a list, even if single state.
-        if not nest.is_nested(init_state):
+        if not tree.is_nested(init_state):
             init_state = [init_state]
         # Force the state to be a list in case it is a namedtuple eg
         # LSTMStateTuple.
@@ -328,11 +328,11 @@ class RNN(Layer):
 
         def step(inputs, states):
             output, new_states = self.cell(inputs, states, **cell_kwargs)
-            if not nest.is_nested(new_states):
+            if not tree.is_nested(new_states):
                 new_states = [new_states]
             return output, new_states
 
-        if not nest.is_nested(initial_state):
+        if not tree.is_nested(initial_state):
             initial_state = [initial_state]
 
         return backend.rnn(
@@ -375,14 +375,14 @@ class RNN(Layer):
                     batch_size=ops.shape(sequences)[0]
                 )
         # RNN expect the states in a list, even if single state.
-        if not nest.is_nested(initial_state):
+        if not tree.is_nested(initial_state):
             initial_state = [initial_state]
         initial_state = list(initial_state)
 
         # Cast states to compute dtype.
         # Note that states may be deeply nested
         # (e.g. in the stacked cells case).
-        initial_state = nest.map_structure(
+        initial_state = tree.map_structure(
             lambda x: backend.convert_to_tensor(x, dtype=self.compute_dtype),
             initial_state,
         )
@@ -397,7 +397,7 @@ class RNN(Layer):
 
         if self.stateful:
             for self_state, state in zip(
-                nest.flatten(self.states), nest.flatten(states)
+                tree.flatten(self.states), tree.flatten(states)
             ):
                 self_state.assign(state)
 

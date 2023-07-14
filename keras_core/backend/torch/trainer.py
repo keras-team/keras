@@ -1,8 +1,8 @@
 import warnings
 
 import numpy as np
-import tensorflow as tf
 import torch
+import tree
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
@@ -157,7 +157,7 @@ class TorchTrainer(base_trainer.Trainer):
                     return KerasTensor(v.shape, standardize_dtype(v.dtype))
                 return v
 
-            data_batch = tf.nest.map_structure(to_symbolic_input, data_batch)
+            data_batch = tree.map_structure(to_symbolic_input, data_batch)
             (
                 x,
                 y,
@@ -442,12 +442,12 @@ class TorchTrainer(base_trainer.Trainer):
 
         def append_to_outputs(batch_outputs, outputs):
             if outputs is None:
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda batch_output: [batch_output],
                     batch_outputs,
                 )
             else:
-                tf.__internal__.nest.map_structure_up_to(
+                tree.map_structure_up_to(
                     batch_outputs,
                     lambda output, batch_output: output.append(batch_output),
                     outputs,
@@ -467,10 +467,8 @@ class TorchTrainer(base_trainer.Trainer):
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
-        outputs = tf.nest.map_structure(backend.convert_to_numpy, outputs)
-        return tf.__internal__.nest.map_structure_up_to(
-            batch_outputs, np.concatenate, outputs
-        )
+        outputs = tree.map_structure(backend.convert_to_numpy, outputs)
+        return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
         self,
@@ -500,7 +498,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_train_function()
 
         logs = self.train_function([data])
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -521,7 +519,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_test_function()
 
         logs = self.test_function([data])
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -529,7 +527,7 @@ class TorchTrainer(base_trainer.Trainer):
     def predict_on_batch(self, x):
         self.make_predict_function()
         batch_outputs = self.predict_function((x,))
-        batch_outputs = tf.nest.map_structure(
+        batch_outputs = tree.map_structure(
             backend.convert_to_numpy, batch_outputs
         )
         return batch_outputs

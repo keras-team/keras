@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core.api_export import keras_core_export
 from keras_core.utils.naming import auto_name
@@ -232,7 +232,7 @@ class KerasTensor:
 def any_symbolic_tensors(args=None, kwargs=None):
     args = args or ()
     kwargs = kwargs or {}
-    for x in nest.flatten((args, kwargs)):
+    for x in tree.flatten((args, kwargs)):
         if isinstance(x, KerasTensor):
             return True
     return False

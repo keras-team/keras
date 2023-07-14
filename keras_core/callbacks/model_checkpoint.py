@@ -3,7 +3,6 @@ import re
 import warnings
 
 import numpy as np
-from tensorflow.io import gfile
 
 from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
@@ -219,8 +218,8 @@ class ModelCheckpoint(Callback):
         filepath = self._get_file_path(epoch, batch, logs)
         # Create host directory if it doesn't exist.
         dirname = os.path.dirname(filepath)
-        if dirname and not gfile.exists(dirname):
-            gfile.makedirs(dirname)
+        if dirname and not file_utils.exists(dirname):
+            file_utils.makedirs(dirname)
 
         try:
             if self.save_best_only:
@@ -302,7 +301,7 @@ class ModelCheckpoint(Callback):
 
     def _checkpoint_exists(self, filepath):
         """Returns whether the checkpoint `filepath` refers to exists."""
-        return gfile.exists(filepath)
+        return file_utils.exists(filepath)
 
     def _get_most_recently_modified_file_matching_pattern(self, pattern):
         """Returns the most recently modified filepath matching pattern.
@@ -357,7 +356,7 @@ class ModelCheckpoint(Callback):
         n_file_with_latest_mod_time = 0
         file_path_with_largest_file_name = None
 
-        if gfile.exists(dir_name):
+        if file_utils.exists(dir_name):
             for file_name in os.listdir(dir_name):
                 # Only consider if `file_name` matches the pattern.
                 if re.match(base_name_regex, file_name):

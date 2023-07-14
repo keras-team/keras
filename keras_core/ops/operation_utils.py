@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from tensorflow import nest
+import tree
 
 
 def compute_pooling_output_shape(
@@ -227,7 +227,7 @@ def get_source_inputs(tensor):
         node = operation._inbound_nodes[node_index]
         if node.is_input:
             # Reached input node, stop recursion.
-            return nest.flatten(node.input_tensors)
+            return tree.flatten(node.input_tensors)
         else:
             source_tensors = []
             for tensor in node.input_tensors:

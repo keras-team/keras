@@ -1,4 +1,7 @@
 import tensorflow as tf
+import tree
+
+from keras_core.utils.nest import pack_sequence_as
 
 
 def rnn(
@@ -83,9 +86,9 @@ def rnn(
         return tf.transpose(input_t, axes)
 
     if not time_major:
-        inputs = tf.nest.map_structure(swap_batch_timestep, inputs)
+        inputs = tree.map_structure(swap_batch_timestep, inputs)
 
-    flattened_inputs = tf.nest.flatten(inputs)
+    flattened_inputs = tree.flatten(inputs)
     time_steps = flattened_inputs[0].shape[0]
     time_steps_t = tf.shape(flattened_inputs[0])[0]
 
@@ -110,11 +113,11 @@ def rnn(
     # That's what the tile call does, it just repeats the mask along its
     # second dimension n times.
     def _expand_mask(mask_t, input_t, fixed_dim=1):
-        if tf.nest.is_nested(mask_t):
+        if tree.is_nested(mask_t):
             raise ValueError(
                 f"mask_t is expected to be tensor, but got {mask_t}"
             )
-        if tf.nest.is_nested(input_t):
+        if tree.is_nested(input_t):
             raise ValueError(
                 f"input_t is expected to be tensor, but got {input_t}"
             )
@@ -142,8 +145,8 @@ def rnn(
                 input_t.reverse()
             return input_t
 
-        if tf.nest.is_nested(inputs):
-            processed_input = tf.nest.map_structure(
+        if tree.is_nested(inputs):
+            processed_input = tree.map_structure(
                 _process_single_input_t, inputs
             )
         else:
@@ -151,7 +154,7 @@ def rnn(
 
         def _get_input_tensor(time):
             inp = [t_[time] for t_ in processed_input]
-            return tf.nest.pack_sequence_as(inputs, inp)
+            return pack_sequence_as(inputs, inp)
 
         if mask is not None:
             mask_list = tf.unstack(mask)
@@ -173,8 +176,8 @@ def rnn(
 
                 output = tf.where(tiled_mask_t, output, prev_output)
 
-                flat_states = tf.nest.flatten(states)
-                flat_new_states = tf.nest.flatten(new_states)
+                flat_states = tree.flatten(states)
+                flat_new_states = tree.flatten(new_states)
                 tiled_mask_t = tuple(
                     _expand_mask(mask_t, s) for s in flat_states
                 )
@@ -184,7 +187,7 @@ def rnn(
                         tiled_mask_t, flat_new_states, flat_states
                     )
                 )
-                states = tf.nest.pack_sequence_as(states, flat_final_states)
+                states = pack_sequence_as(states, flat_final_states)
 
                 if return_all_outputs:
                     successive_outputs.append(output)
@@ -248,7 +251,7 @@ def rnn(
         # Get the time(0) input and compute the output for that, the output will
         # be used to determine the dtype of output tensor array. Don't read from
         # input_ta due to TensorArray clear_after_read default to True.
-        input_time_zero = tf.nest.pack_sequence_as(
+        input_time_zero = pack_sequence_as(
             inputs, [inp[0] for inp in flattened_inputs]
         )
         # output_time_zero is used to determine the cell output shape and its
@@ -265,7 +268,7 @@ def rnn(
                 element_shape=out.shape,
                 tensor_array_name=f"output_ta_{i}",
             )
-            for i, out in enumerate(tf.nest.flatten(output_time_zero))
+            for i, out in enumerate(tree.flatten(output_time_zero))
         )
 
         time = tf.constant(0, dtype="int32", name="time")
@@ -329,7 +332,7 @@ def rnn(
             # Mask for the T output will be base on the output of T - 1. In the
             # case T = 0, a zero filled tensor will be used.
             flat_zero_output = tuple(
-                tf.zeros_like(o) for o in tf.nest.flatten(output_time_zero)
+                tf.zeros_like(o) for o in tree.flatten(output_time_zero)
             )
 
             def _step(time, output_ta_t, prev_output, *states):
@@ -346,31 +349,29 @@ def rnn(
                 """
                 current_input = tuple(ta.read(time) for ta in input_ta)
                 # maybe set shape.
-                current_input = tf.nest.pack_sequence_as(inputs, current_input)
+                current_input = pack_sequence_as(inputs, current_input)
                 mask_t = masking_fn(time)
                 output, new_states = step_function(
                     current_input, tuple(states) + tuple(constants)
                 )
                 # mask output
-                flat_output = tf.nest.flatten(output)
+                flat_output = tree.flatten(output)
                 flat_mask_output = (
                     flat_zero_output
                     if zero_output_for_mask
-                    else tf.nest.flatten(prev_output)
+                    else tree.flatten(prev_output)
                 )
                 flat_new_output = compute_masked_output(
                     mask_t, flat_output, flat_mask_output
                 )
 
                 # mask states
-                flat_state = tf.nest.flatten(states)
-                flat_new_state = tf.nest.flatten(new_states)
+                flat_state = tree.flatten(states)
+                flat_new_state = tree.flatten(new_states)
                 flat_final_state = compute_masked_output(
                     mask_t, flat_new_state, flat_state
                 )
-                new_states = tf.nest.pack_sequence_as(
-                    new_states, flat_final_state
-                )
+                new_states = pack_sequence_as(new_states, flat_final_state)
 
                 ta_index_to_write = time if return_all_outputs else 0
                 output_ta_t = tuple(
@@ -403,22 +404,20 @@ def rnn(
                     Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
                 """
                 current_input = tuple(ta.read(time) for ta in input_ta)
-                current_input = tf.nest.pack_sequence_as(inputs, current_input)
+                current_input = pack_sequence_as(inputs, current_input)
                 output, new_states = step_function(
                     current_input, tuple(states) + tuple(constants)
                 )
-                flat_new_state = tf.nest.flatten(new_states)
+                flat_new_state = tree.flatten(new_states)
 
-                flat_output = tf.nest.flatten(output)
+                flat_output = tree.flatten(output)
                 ta_index_to_write = time if return_all_outputs else 0
                 output_ta_t = tuple(
                     ta.write(ta_index_to_write, out)
                     for ta, out in zip(output_ta_t, flat_output)
                 )
 
-                new_states = tf.nest.pack_sequence_as(
-                    initial_states, flat_new_state
-                )
+                new_states = pack_sequence_as(initial_states, flat_new_state)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
             final_outputs = tf.while_loop(
@@ -433,11 +432,11 @@ def rnn(
         outputs = tuple(o.stack() for o in output_ta)
         last_output = tuple(o[-1] for o in outputs)
 
-        outputs = tf.nest.pack_sequence_as(output_time_zero, outputs)
-        last_output = tf.nest.pack_sequence_as(output_time_zero, last_output)
+        outputs = pack_sequence_as(output_time_zero, outputs)
+        last_output = pack_sequence_as(output_time_zero, last_output)
 
     if not time_major:
-        outputs = tf.nest.map_structure(swap_batch_timestep, outputs)
+        outputs = tree.map_structure(swap_batch_timestep, outputs)
 
     return last_output, outputs, new_states
 

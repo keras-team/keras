@@ -1,6 +1,6 @@
 import itertools
 
-import tensorflow as tf
+import tree
 
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
@@ -8,9 +8,10 @@ from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 class GeneratorDataAdapter(DataAdapter):
     """Adapter for Python generators."""
 
-    def __init__(self, x):
-        data, generator = peek_and_restore(x)
+    def __init__(self, generator):
+        data, generator = peek_and_restore(generator)
         self.generator = generator
+        self._output_signature = None
         if not isinstance(data, tuple):
             raise ValueError(
                 "When passing a Python generator to a Keras model, "
@@ -19,6 +20,12 @@ class GeneratorDataAdapter(DataAdapter):
                 "(inputs, targets, sample_weights). "
                 f"Received: {data}"
             )
+
+    def _set_tf_output_signature(self):
+        import tensorflow as tf
+
+        data, generator = peek_and_restore(self.generator)
+        self.generator = generator
 
         def get_tensor_spec(x):
             shape = x.shape
@@ -33,13 +40,17 @@ class GeneratorDataAdapter(DataAdapter):
             shape[0] = None  # The batch size is not guaranteed to be static.
             return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
 
-        self._output_signature = tf.nest.map_structure(get_tensor_spec, data)
+        self._output_signature = tree.map_structure(get_tensor_spec, data)
 
     def get_numpy_iterator(self):
         for batch in self.generator:
             yield batch
 
     def get_tf_dataset(self):
+        import tensorflow as tf
+
+        if self._output_signature is None:
+            self._set_tf_output_signature()
         ds = tf.data.Dataset.from_generator(
             self.get_numpy_iterator,
             output_signature=self._output_signature,

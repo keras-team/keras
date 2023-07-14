@@ -1,12 +1,13 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-from tensorflow import nest
+import tree
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.utils.nest import pack_sequence_as
 
 DYNAMIC_SHAPES_OK = True
 
@@ -89,7 +90,7 @@ def compute_output_spec(fn, *args, **kwargs):
             return x
 
         # Third, find out if there are dynamic shapes
-        maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
+        maybe_symbolic_args, maybe_symbolic_kwargs = tree.map_structure(
             index_all_ktensors, (maybe_symbolic_args, maybe_symbolic_kwargs)
         )
         none_count = 0
@@ -115,7 +116,7 @@ def compute_output_spec(fn, *args, **kwargs):
         jax_out = None
         if none_count:
             try:
-                ms_args_1, ms_kwargs_1 = nest.map_structure(
+                ms_args_1, ms_kwargs_1 = tree.map_structure(
                     lambda x: convert_keras_tensor_to_jax(x, fill_value=83),
                     (maybe_symbolic_args, maybe_symbolic_kwargs),
                 )
@@ -123,7 +124,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     *ms_args_1, **ms_kwargs_1
                 )
 
-                ms_args_2, ms_kwargs_2 = nest.map_structure(
+                ms_args_2, ms_kwargs_2 = tree.map_structure(
                     lambda x: convert_keras_tensor_to_jax(x, fill_value=89),
                     (maybe_symbolic_args, maybe_symbolic_kwargs),
                 )
@@ -131,8 +132,8 @@ def compute_output_spec(fn, *args, **kwargs):
                     *ms_args_2, **ms_kwargs_2
                 )
 
-                flat_out_1 = nest.flatten(jax_out_1)
-                flat_out_2 = nest.flatten(jax_out_2)
+                flat_out_1 = tree.flatten(jax_out_1)
+                flat_out_2 = tree.flatten(jax_out_2)
 
                 flat_out = []
                 for x1, x2 in zip(flat_out_1, flat_out_2):
@@ -148,7 +149,7 @@ def compute_output_spec(fn, *args, **kwargs):
                         )
                     else:
                         flat_out.append(x1)
-                jax_out = nest.pack_sequence_as(jax_out_1, flat_out)
+                jax_out = pack_sequence_as(jax_out_1, flat_out)
             except:
                 # Errors can happen when the filled dimensions
                 # are not compatible with the function
@@ -162,7 +163,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 pass
 
         if jax_out is None:
-            maybe_symbolic_args, maybe_symbolic_kwargs = nest.map_structure(
+            maybe_symbolic_args, maybe_symbolic_kwargs = tree.map_structure(
                 convert_keras_tensor_to_jax,
                 (maybe_symbolic_args, maybe_symbolic_kwargs),
             )
@@ -175,7 +176,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 return KerasTensor(x.shape, x.dtype)
             return x
 
-        output_shape = nest.map_structure(
+        output_shape = tree.map_structure(
             convert_jax_spec_to_keras_tensor, jax_out
         )
     return output_shape

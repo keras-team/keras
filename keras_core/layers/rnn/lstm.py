@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import activations
 from keras_core import backend
@@ -493,7 +493,7 @@ class LSTM(RNN):
         self.input_spec = InputSpec(ndim=3)
 
     def inner_loop(self, sequences, initial_state, mask, training=False):
-        if nest.is_nested(mask):
+        if tree.is_nested(mask):
             mask = mask[0]
 
         if not self.dropout and not self.recurrent_dropout:

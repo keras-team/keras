@@ -1,11 +1,10 @@
 import os
 import zipfile
 
-from tensorflow.io import gfile
-
 from keras_core.api_export import keras_core_export
 from keras_core.saving import saving_lib
 from keras_core.saving.legacy import legacy_h5_format
+from keras_core.utils import file_utils
 from keras_core.utils import io_utils
 
 try:
@@ -111,7 +110,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     # Support for remote zip files
     if (
         saving_lib.is_remote_path(filepath)
-        and not gfile.isdir(filepath)
+        and not file_utils.isdir(filepath)
         and not is_keras_zip
     ):
         local_path = os.path.join(
@@ -119,7 +118,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         )
 
         # Copy from remote to temporary local directory
-        gfile.copy(filepath, local_path, overwrite=True)
+        file_utils.copy(filepath, local_path, overwrite=True)
 
         # Switch filepath to local zipfile for loading model
         if zipfile.is_zipfile(local_path):

@@ -1,8 +1,8 @@
 import os
 
 import pytest
+import tree
 from tensorflow import data as tf_data
-from tensorflow import nest
 
 from keras_core import backend
 from keras_core import layers
@@ -33,7 +33,7 @@ class FeatureSpaceTest(testing.TestCase):
         if as_dataset:
             return tf_data.Dataset.from_tensor_slices(data)
         elif as_tf_tensors:
-            return nest.map_structure(ops.convert_to_tensor, data)
+            return tree.map_structure(ops.convert_to_tensor, data)
         elif as_labeled_dataset:
             labels = [0, 1, 0, 1, 0, 0, 1, 0, 1, 1]
             return tf_data.Dataset.from_tensor_slices((data, labels))

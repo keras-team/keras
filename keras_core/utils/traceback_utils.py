@@ -4,8 +4,7 @@ import traceback
 import types
 from functools import wraps
 
-from tensorflow import errors as tf_errors
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -142,6 +141,10 @@ def inject_argument_info_in_traceback(fn, object_name=None):
     Returns:
         A wrapped version of `fn`.
     """
+    if backend.backend() == "tensorflow":
+        from tensorflow import errors as tf_errors
+    else:
+        tf_errors = None
 
     @wraps(fn)
     def error_handler(*args, **kwargs):
@@ -168,7 +171,7 @@ def inject_argument_info_in_traceback(fn, object_name=None):
             arguments_context = []
             for arg in list(signature.parameters.values()):
                 if arg.name in bound_signature.arguments:
-                    value = nest.map_structure(
+                    value = tree.map_structure(
                         format_argument_value,
                         bound_signature.arguments[arg.name],
                     )
@@ -178,11 +181,11 @@ def inject_argument_info_in_traceback(fn, object_name=None):
             if arguments_context:
                 arguments_context = "\n".join(arguments_context)
                 # Get original error message and append information to it.
-                if isinstance(e, tf_errors.OpError):
+                if tf_errors is not None and isinstance(e, tf_errors.OpError):
                     message = e.message
                 elif e.args:
                     # Canonically, the 1st argument in an exception is the error
-                    # message.  This works for all built-in Python exceptions.
+                    # message. This works for all built-in Python exceptions.
                     message = e.args[0]
                 else:
                     message = ""
@@ -195,7 +198,7 @@ def inject_argument_info_in_traceback(fn, object_name=None):
                 )
 
                 # Reraise exception, with added context
-                if isinstance(e, tf_errors.OpError):
+                if tf_errors is not None and isinstance(e, tf_errors.OpError):
                     new_e = e.__class__(e.node_def, e.op, message, e.error_code)
                 else:
                     try:

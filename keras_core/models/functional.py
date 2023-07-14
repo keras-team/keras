@@ -2,7 +2,7 @@ import copy
 import inspect
 import warnings
 
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import ops
@@ -192,14 +192,14 @@ class Functional(Function, Model):
 
     @property
     def input_shape(self):
-        input_shapes = nest.map_structure(lambda x: x.shape, self.inputs)
+        input_shapes = tree.map_structure(lambda x: x.shape, self.inputs)
         if isinstance(input_shapes, list) and len(input_shapes) == 1:
             return input_shapes[0]
         return input_shapes
 
     @property
     def output_shape(self):
-        output_shapes = nest.map_structure(lambda x: x.shape, self.outputs)
+        output_shapes = tree.map_structure(lambda x: x.shape, self.outputs)
         if isinstance(output_shapes, list) and len(output_shapes) == 1:
             return output_shapes[0]
         return output_shapes
@@ -210,13 +210,13 @@ class Functional(Function, Model):
     def _flatten_to_reference_inputs(self, inputs, allow_extra_keys=True):
         if isinstance(inputs, dict):
             ref_inputs = self._inputs_struct
-            if not nest.is_nested(ref_inputs):
+            if not tree.is_nested(ref_inputs):
                 ref_inputs = [self._inputs_struct]
             if isinstance(ref_inputs, dict):
                 # In the case that the graph is constructed with dict input
                 # tensors, We will use the original dict key to map with the
                 # keys in the input data. Note that the model.inputs is using
-                # nest.flatten to process the input tensors, which means the
+                # tree.flatten to process the input tensors, which means the
                 # dict input tensors are ordered by their keys.
                 ref_input_names = sorted(ref_inputs.keys())
             else:
@@ -237,7 +237,7 @@ class Functional(Function, Model):
             # construction.
             return [inputs[n] for n in ref_input_names]
         # Otherwise both ref inputs and inputs will already be in same order.
-        return nest.flatten(inputs)
+        return tree.flatten(inputs)
 
     def _convert_inputs_to_tensors(self, flat_inputs):
         flat_dtypes = [x.dtype for x in self._inputs]
@@ -640,6 +640,6 @@ def deserialize_node(node_data, created_layers):
             return inbound_node.output_tensors[inbound_tensor_index]
         return x
 
-    args = nest.map_structure(convert_revived_tensor, args)
-    kwargs = nest.map_structure(convert_revived_tensor, kwargs)
+    args = tree.map_structure(convert_revived_tensor, args)
+    kwargs = tree.map_structure(convert_revived_tensor, kwargs)
     return args, kwargs

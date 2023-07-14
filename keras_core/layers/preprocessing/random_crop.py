@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -53,6 +52,14 @@ class RandomCrop(Layer):
     """
 
     def __init__(self, height, width, seed=None, name=None, **kwargs):
+        try:
+            import tensorflow as tf
+        except ImportError:
+            raise ImportError(
+                "Layer RandomCrop requires TensorFlow. "
+                "Install it via `pip install tensorflow`."
+            )
+
         super().__init__(name=name, **kwargs)
         self.seed = seed or backend.random.make_default_seed()
         self.layer = tf.keras.layers.RandomCrop(
@@ -67,6 +74,8 @@ class RandomCrop(Layer):
         self._allow_non_tensor_positional_args = True
 
     def call(self, inputs, training=True):
+        import tensorflow as tf
+
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         outputs = self.layer.call(inputs, training=training)

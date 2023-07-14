@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tree
 
 from keras_core.trainers.data_adapters.data_adapter import DataAdapter
 
@@ -22,12 +22,14 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
-            yield tuple(tf.nest.map_structure(lambda x: x.numpy(), batch))
+            yield tuple(tree.map_structure(lambda x: x.numpy(), batch))
 
     def get_torch_dataloader(self):
         return self._dataloader
 
     def get_tf_dataset(self):
+        import tensorflow as tf
+
         output_signature = self.peek_and_get_tensor_spec()
         return tf.data.Dataset.from_generator(
             self.get_numpy_iterator,
@@ -35,6 +37,8 @@ class TorchDataLoaderAdapter(DataAdapter):
         )
 
     def peek_and_get_tensor_spec(self):
+        import tensorflow as tf
+
         batch_data = next(iter(self._dataloader))
 
         def get_tensor_spec(x):
@@ -54,7 +58,7 @@ class TorchDataLoaderAdapter(DataAdapter):
             dtype = str(x.dtype).replace("torch.", "")
             return tf.TensorSpec(shape=shape, dtype=dtype)
 
-        return tuple(tf.nest.map_structure(get_tensor_spec, batch_data))
+        return tuple(tree.map_structure(get_tensor_spec, batch_data))
 
     @property
     def num_batches(self):

@@ -1,6 +1,6 @@
 import copy
 
-from tensorflow import nest
+import tree
 
 from keras_core.api_export import keras_core_export
 from keras_core.layers.core.input_layer import InputLayer
@@ -193,7 +193,7 @@ class Sequential(Model):
             def _get_mask_from_keras_tensor(kt):
                 return getattr(kt, "_keras_mask", None)
 
-            mask = nest.map_structure(_get_mask_from_keras_tensor, outputs)
+            mask = tree.map_structure(_get_mask_from_keras_tensor, outputs)
         return outputs
 
     @property

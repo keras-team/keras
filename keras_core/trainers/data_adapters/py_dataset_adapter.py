@@ -8,7 +8,7 @@ import weakref
 from contextlib import closing
 
 import numpy as np
-import tensorflow as tf
+import tree
 
 from keras_core.api_export import keras_core_export
 from keras_core.trainers.data_adapters import data_adapter_utils
@@ -185,11 +185,10 @@ class PyDatasetAdapter(DataAdapter):
         self.class_weight = class_weight
         self.enqueuer = None
         self.shuffle = shuffle
+        self._output_signature = None
 
-        # Grab the first example
-        batch = self.py_dataset[0]
-        # Run checks on it and format it
-        batch = self._standardize_batch(batch)
+    def _set_tf_output_signature(self):
+        import tensorflow as tf
 
         def get_tensor_spec(x):
             shape = x.shape
@@ -203,7 +202,11 @@ class PyDatasetAdapter(DataAdapter):
             shape[0] = None  # The batch size is not guaranteed to be static.
             return tf.TensorSpec(shape=shape, dtype=x.dtype.name)
 
-        self._output_signature = tf.nest.map_structure(get_tensor_spec, batch)
+        # Grab the first example
+        batch = self.py_dataset[0]
+        # Run checks on it and format it
+        batch = self._standardize_batch(batch)
+        self._output_signature = tree.map_structure(get_tensor_spec, batch)
 
     def _standardize_batch(self, batch):
         if isinstance(batch, np.ndarray):
@@ -270,6 +273,11 @@ class PyDatasetAdapter(DataAdapter):
                 self.enqueuer.stop()
 
     def get_tf_dataset(self):
+        import tensorflow as tf
+
+        if self._output_signature is None:
+            self._set_tf_output_signature()
+
         ds = tf.data.Dataset.from_generator(
             self.get_numpy_iterator,
             output_signature=self._output_signature,

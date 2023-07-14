@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -134,7 +134,7 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if not input_spec:
         return
 
-    input_spec = nest.flatten(input_spec)
+    input_spec = tree.flatten(input_spec)
     if isinstance(inputs, dict):
         # Flatten `inputs` by reference order if input spec names are provided
         names = [spec.name for spec in input_spec]
@@ -151,7 +151,7 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
                 list_inputs.append(inputs[name])
             inputs = list_inputs
 
-    inputs = nest.flatten(inputs)
+    inputs = tree.flatten(inputs)
     if len(input_spec) != len(inputs):
         raise ValueError(
             f"Layer '{layer_name}' expected {len(input_spec)} input(s). "

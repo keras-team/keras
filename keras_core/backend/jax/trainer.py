@@ -1,6 +1,6 @@
 import jax
 import numpy as np
-import tensorflow as tf  # for nest
+import tree
 
 from keras_core import backend
 from keras_core import callbacks as callbacks_module
@@ -250,7 +250,7 @@ class JAXTrainer(base_trainer.Trainer):
                     state,
                     [single_step_data],
                 )
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda t1, t2: jax.numpy.concatenate([t1, t2]),
                     outputs,
                     step_outputs,
@@ -583,12 +583,12 @@ class JAXTrainer(base_trainer.Trainer):
 
         def append_to_outputs(batch_outputs, outputs):
             if outputs is None:
-                outputs = tf.nest.map_structure(
+                outputs = tree.map_structure(
                     lambda batch_output: [batch_output],
                     batch_outputs,
                 )
             else:
-                tf.__internal__.nest.map_structure_up_to(
+                tree.map_structure_up_to(
                     batch_outputs,
                     lambda output, batch_output: output.append(batch_output),
                     outputs,
@@ -606,9 +606,7 @@ class JAXTrainer(base_trainer.Trainer):
             outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
-        return tf.__internal__.nest.map_structure_up_to(
-            batch_outputs, np.concatenate, outputs
-        )
+        return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
 
     def train_on_batch(
         self,
@@ -665,7 +663,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
 
         # Format return values
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -704,7 +702,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
 
         # Format return values.
-        logs = tf.nest.map_structure(lambda x: np.array(x), logs)
+        logs = tree.map_structure(lambda x: np.array(x), logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -720,9 +718,7 @@ class JAXTrainer(base_trainer.Trainer):
         non_trainable_variables = self.non_trainable_variables
         state = (trainable_variables, non_trainable_variables)
         batch_outputs, state = self.predict_function(state, [x])
-        batch_outputs = tf.nest.map_structure(
-            lambda x: np.array(x), batch_outputs
-        )
+        batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
     def jax_state_sync(self):

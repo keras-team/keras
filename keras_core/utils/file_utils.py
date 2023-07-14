@@ -10,6 +10,7 @@ from urllib.request import urlretrieve
 
 from keras_core.api_export import keras_core_export
 from keras_core.utils import io_utils
+from keras_core.utils.module_utils import gfile
 from keras_core.utils.progbar import Progbar
 
 
@@ -379,3 +380,54 @@ def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
         return True
     else:
         return False
+
+
+# Below are gfile utils
+
+
+def exists(path):
+    if gfile.available:
+        return gfile.exists(path)
+    return os.path.exists(path)
+
+
+def File(fname, mode="r"):
+    if gfile.available:
+        return gfile.GFile(fname, mode=mode)
+    return open(fname, mode=mode)
+
+
+def join(path, *paths):
+    if gfile.available:
+        return gfile.join(path, *paths)
+    return os.path.join(path, *paths)
+
+
+def isdir(path):
+    if gfile.available:
+        return gfile.isdir(path)
+    return os.path.isdir(path)
+
+
+def rmtree(path):
+    if gfile.available:
+        return gfile.rmtree(path)
+    return shutil.rmtree
+
+
+def listdir(path):
+    if gfile.available:
+        return gfile.listdir(path)
+    return os.listdir(path)
+
+
+def copy(src, dst):
+    if gfile.available:
+        return gfile.copy(src, dst)
+    return shutil.copy(src, dst)
+
+
+def makedirs(path):
+    if gfile.available:
+        return gfile.makedirs(path)
+    return os.makedirs(path)

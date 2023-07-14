@@ -1,5 +1,3 @@
-import tensorflow as tf
-
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
@@ -76,6 +74,14 @@ class HashedCrossing(Layer):
         dtype=None,
         **kwargs,
     ):
+        try:
+            import tensorflow as tf
+        except ImportError:
+            raise ImportError(
+                "Layer HashedCrossing requires TensorFlow. "
+                "Install it via `pip install tensorflow`."
+            )
+
         if output_mode == "int" and dtype is None:
             dtype = "int64"
         super().__init__(name=name, dtype=dtype)

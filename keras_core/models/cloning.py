@@ -1,4 +1,4 @@
-from tensorflow import nest
+import tree
 
 from keras_core import backend
 from keras_core import utils
@@ -252,14 +252,14 @@ def _clone_functional_model(model, input_tensors=None, clone_function=None):
         )
 
     if input_tensors is not None:
-        input_tensors = nest.flatten(input_tensors)
+        input_tensors = tree.flatten(input_tensors)
         if not all(isinstance(x, backend.KerasTensor) for x in input_tensors):
             raise ValueError(
                 "All entries in `input_tensors` must be KerasTensors. "
                 f"Received invalid values: inputs_tensors={input_tensors}"
             )
     else:
-        input_tensors = nest.map_structure(
+        input_tensors = tree.map_structure(
             lambda x: Input(x.shape, dtype=x.dtype, name=x.name), model.input
         )
 

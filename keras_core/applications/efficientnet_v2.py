@@ -1,8 +1,6 @@
 import copy
 import math
 
-from tensorflow.io import gfile
-
 from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
@@ -892,7 +890,7 @@ def EfficientNetV2(
     if blocks_args == "default":
         blocks_args = DEFAULT_BLOCKS_ARGS[model_name]
 
-    if not (weights in {"imagenet", None} or gfile.exists(weights)):
+    if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "
             "`None` (random initialization), `imagenet` "

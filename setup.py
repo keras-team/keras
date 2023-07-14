@@ -42,6 +42,7 @@ setup(
         "rich",
         "namex",
         "h5py",
+        "dm-tree",
     ],
     # Supported Python versions
     python_requires=">=3.8",
