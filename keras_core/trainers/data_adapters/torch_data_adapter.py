@@ -28,7 +28,7 @@ class TorchDataLoaderAdapter(DataAdapter):
         return self._dataloader
 
     def get_tf_dataset(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         output_signature = self.peek_and_get_tensor_spec()
         return tf.data.Dataset.from_generator(
@@ -37,7 +37,7 @@ class TorchDataLoaderAdapter(DataAdapter):
         )
 
     def peek_and_get_tensor_spec(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         batch_data = next(iter(self._dataloader))
 

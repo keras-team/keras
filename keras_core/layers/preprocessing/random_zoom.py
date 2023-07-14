@@ -4,6 +4,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.RandomZoom")
@@ -97,9 +98,7 @@ class RandomZoom(Layer):
         name=None,
         **kwargs,
     ):
-        try:
-            import tensorflow as tf
-        except ImportError:
+        if not tf.available:
             raise ImportError(
                 "Layer RandomZoom requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
@@ -122,8 +121,6 @@ class RandomZoom(Layer):
         self.supports_jit = False
 
     def call(self, inputs, training=True):
-        import tensorflow as tf
-
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
         outputs = self.layer.call(inputs, training=training)

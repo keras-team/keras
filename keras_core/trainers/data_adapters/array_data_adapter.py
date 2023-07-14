@@ -107,7 +107,7 @@ class ArrayDataAdapter(DataAdapter):
             yield tree.map_structure(lambda x: x[start:stop], inputs)
 
     def get_tf_dataset(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         inputs = self._inputs
         shuffle = self._shuffle
@@ -302,7 +302,7 @@ def convert_to_arrays(arrays, dtype=None):
             elif isinstance(x, pandas.DataFrame):
                 x = x.to_numpy(dtype=dtype)
         if is_tf_ragged_tensor(x):
-            import tensorflow as tf
+            from keras_core.utils.module_utils import tensorflow as tf
 
             return tf.cast(x, dtype=dtype)
         if not isinstance(x, np.ndarray):

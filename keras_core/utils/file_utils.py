@@ -1,6 +1,7 @@
 import hashlib
 import os
 import pathlib
+import re
 import shutil
 import tarfile
 import urllib
@@ -382,52 +383,91 @@ def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
         return False
 
 
-# Below are gfile utils
+def is_remote_path(filepath):
+    """Returns `True` for paths that represent a remote GCS location."""
+    # TODO: improve generality.
+    if re.match(r"^(/cns|/cfs|/gcs|.*://).*$", str(filepath)):
+        return True
+    return False
+
+
+# Below are gfile-replacement utils.
+
+
+def _raise_if_no_gfile(path):
+    raise ValueError(
+        "Handling remote paths requires installing TensorFlow "
+        f"(in order to use gfile). Received path: {path}"
+    )
 
 
 def exists(path):
-    if gfile.available:
-        return gfile.exists(path)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.exists(path)
+        else:
+            _raise_if_no_gfile(path)
     return os.path.exists(path)
 
 
-def File(fname, mode="r"):
-    if gfile.available:
-        return gfile.GFile(fname, mode=mode)
-    return open(fname, mode=mode)
+def File(path, mode="r"):
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.GFile(path, mode=mode)
+        else:
+            _raise_if_no_gfile(path)
+    return open(path, mode=mode)
 
 
 def join(path, *paths):
-    if gfile.available:
-        return gfile.join(path, *paths)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.join(path, *paths)
+        else:
+            _raise_if_no_gfile(path)
     return os.path.join(path, *paths)
 
 
 def isdir(path):
-    if gfile.available:
-        return gfile.isdir(path)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.isdir(path)
+        else:
+            _raise_if_no_gfile(path)
     return os.path.isdir(path)
 
 
 def rmtree(path):
-    if gfile.available:
-        return gfile.rmtree(path)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.rmtree(path)
+        else:
+            _raise_if_no_gfile(path)
     return shutil.rmtree
 
 
 def listdir(path):
-    if gfile.available:
-        return gfile.listdir(path)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.listdir(path)
+        else:
+            _raise_if_no_gfile(path)
     return os.listdir(path)
 
 
 def copy(src, dst):
-    if gfile.available:
-        return gfile.copy(src, dst)
+    if is_remote_path(src) or is_remote_path(dst):
+        if gfile.available:
+            return gfile.copy(src, dst)
+        else:
+            _raise_if_no_gfile(f"src={src} dst={dst}")
     return shutil.copy(src, dst)
 
 
 def makedirs(path):
-    if gfile.available:
-        return gfile.makedirs(path)
+    if is_remote_path(path):
+        if gfile.available:
+            return gfile.makedirs(path)
+        else:
+            _raise_if_no_gfile(path)
     return os.makedirs(path)

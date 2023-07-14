@@ -6,6 +6,7 @@ from keras_core import backend
 from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.Normalization")
@@ -216,8 +217,6 @@ class Normalization(Layer):
                 data is batched, and if that assumption doesn't hold, the mean
                 and variance may be incorrectly computed.
         """
-        import tensorflow as tf
-
         if isinstance(data, np.ndarray) or backend.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):

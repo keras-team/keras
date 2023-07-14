@@ -8,7 +8,7 @@ class TFDatasetAdapter(DataAdapter):
     """Adapter that handles `tf.data.Dataset`."""
 
     def __init__(self, dataset, class_weight=None):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
@@ -64,7 +64,7 @@ def make_class_weight_map_fn(class_weight):
         A function that can be used with `tf.data.Dataset.map` to apply class
         weighting.
     """
-    import tensorflow as tf
+    from keras_core.utils.module_utils import tensorflow as tf
 
     class_weight_tensor = tf.convert_to_tensor(
         [

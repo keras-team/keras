@@ -4,6 +4,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.StringLookup")
@@ -307,9 +308,7 @@ class StringLookup(Layer):
         dtype=None,
         **kwargs,
     ):
-        try:
-            import tensorflow as tf
-        except ImportError:
+        if not tf.available:
             raise ImportError(
                 "Layer StringLookup requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
@@ -443,8 +442,6 @@ class StringLookup(Layer):
         self.layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
     def call(self, inputs):
-        import tensorflow as tf
-
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
         outputs = self.layer.call(inputs)

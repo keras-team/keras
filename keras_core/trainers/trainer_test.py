@@ -513,7 +513,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         reason="Only tensorflow supports raggeds",
     )
     def test_trainer_with_raggeds(self, model_class):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         def loss_fn(y, y_pred, sample_weight=None):
             return 0

@@ -109,7 +109,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
 
     # Support for remote zip files
     if (
-        saving_lib.is_remote_path(filepath)
+        file_utils.is_remote_path(filepath)
         and not file_utils.isdir(filepath)
         and not is_keras_zip
     ):

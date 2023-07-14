@@ -5,7 +5,7 @@ from keras_core import backend as backend_module
 
 def in_tf_graph():
     if "tensorflow" in sys.modules:
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         return not tf.executing_eagerly()
     return False

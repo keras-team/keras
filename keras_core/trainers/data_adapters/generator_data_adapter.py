@@ -22,7 +22,7 @@ class GeneratorDataAdapter(DataAdapter):
             )
 
     def _set_tf_output_signature(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         data, generator = peek_and_restore(self.generator)
         self.generator = generator
@@ -47,7 +47,7 @@ class GeneratorDataAdapter(DataAdapter):
             yield batch
 
     def get_tf_dataset(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         if self._output_signature is None:
             self._set_tf_output_signature()

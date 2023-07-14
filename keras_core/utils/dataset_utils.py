@@ -1,4 +1,5 @@
 from keras_core.api_export import keras_core_export
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.utils.split_dataset")
@@ -35,8 +36,6 @@ def split_dataset(
     >>> int(right_ds.cardinality())
     200
     """
-    import tensorflow as tf
-
     # TODO: long-term, port implementation.
     return tf.keras.utils.split_dataset(
         dataset,
@@ -181,8 +180,6 @@ def image_dataset_from_directory(
     - if `color_mode` is `"rgba"`,
         there are 4 channels in the image tensors.
     """
-    import tensorflow as tf
-
     # TODO: long-term, port implementation.
     return tf.keras.utils.image_dataset_from_directory(
         directory,
@@ -331,8 +328,6 @@ def timeseries_dataset_from_array(
         break
     ```
     """
-    import tensorflow as tf
-
     # TODO: long-term, port implementation.
     return tf.keras.utils.timeseries_dataset_from_array(
         data,
@@ -452,8 +447,6 @@ def text_dataset_from_directory(
         of shape `(batch_size, num_classes)`, representing a one-hot
         encoding of the class index.
     """
-    import tensorflow as tf
-
     # TODO: long-term, port implementation.
     return tf.keras.utils.text_dataset_from_directory(
         directory,
@@ -574,8 +567,6 @@ def audio_dataset_from_directory(
       of shape `(batch_size, num_classes)`, representing a one-hot
       encoding of the class index.
     """
-    import tensorflow as tf
-
     # TODO: long-term, port implementation.
     return tf.keras.utils.audio_dataset_from_directory(
         directory,

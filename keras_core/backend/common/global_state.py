@@ -83,7 +83,7 @@ def clear_session():
     GLOBAL_SETTINGS_TRACKER = threading.local()
 
     if backend.backend() == "tensorflow":
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
         if tf.executing_eagerly():

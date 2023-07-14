@@ -17,7 +17,7 @@ except ImportError:
 # backend framework we are not currently using just to do type-checking.
 ARRAY_TYPES = (np.ndarray,)
 if backend.backend() == "tensorflow":
-    import tensorflow as tf
+    from keras_core.utils.module_utils import tensorflow as tf
 
     ARRAY_TYPES = ARRAY_TYPES + (np.ndarray, tf.RaggedTensor)
 if pandas:

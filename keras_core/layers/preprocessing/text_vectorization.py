@@ -5,6 +5,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.saving import serialization_lib
 from keras_core.utils import backend_utils
+from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.TextVectorization")
@@ -212,9 +213,7 @@ class TextVectorization(Layer):
         name=None,
         **kwargs,
     ):
-        try:
-            import tensorflow as tf
-        except ImportError:
+        if not tf.available:
             raise ImportError(
                 "Layer TextVectorization requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
@@ -366,8 +365,6 @@ class TextVectorization(Layer):
         self.layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
     def call(self, inputs):
-        import tensorflow as tf
-
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
         outputs = self.layer.call(inputs)

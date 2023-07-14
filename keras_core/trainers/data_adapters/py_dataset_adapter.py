@@ -188,7 +188,7 @@ class PyDatasetAdapter(DataAdapter):
         self._output_signature = None
 
     def _set_tf_output_signature(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         def get_tensor_spec(x):
             shape = x.shape
@@ -273,7 +273,7 @@ class PyDatasetAdapter(DataAdapter):
                 self.enqueuer.stop()
 
     def get_tf_dataset(self):
-        import tensorflow as tf
+        from keras_core.utils.module_utils import tensorflow as tf
 
         if self._output_signature is None:
             self._set_tf_output_signature()
