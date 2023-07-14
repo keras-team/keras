@@ -111,6 +111,9 @@ from keras.layers.normalization.spectral_normalization import (
     SpectralNormalization,
 )  # noqa: E501
 
+# Audio preprocessing layers.
+from keras.layers.preprocessing.audio_preprocessing import MelSpectrogram
+
 # Preprocessing layers.
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
