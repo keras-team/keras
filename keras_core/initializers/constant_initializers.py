@@ -30,7 +30,6 @@ class Constant(Initializer):
         self.value = float(value)
 
     def __call__(self, shape, dtype=None):
-        dtype = standardize_dtype(dtype)
         return self.value * ops.ones(shape=shape, dtype=dtype)
 
     def get_config(self):
