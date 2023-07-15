@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras_core import ops
+from keras_core import random
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
@@ -85,7 +86,7 @@ class RandomCrop(Layer):
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = ops.core.convert_to_tensor(backend.convert_to_numpy(inputs))
+            inputs = backend.convert_to_tensor(backend.convert_to_numpy(inputs))
 
         input_shape = ops.shape(inputs)
         h_diff = input_shape[self.height_axis] - self.height
@@ -93,7 +94,7 @@ class RandomCrop(Layer):
 
         def random_crop():
             dtype = input_shape.dtype
-            rands = tf.random.uniform([2], 0, dtype.max, dtype)
+            rands = random.uniform([2], 0, dtype.max, dtype)
             h_start = rands[0] % (h_diff + 1)
             w_start = rands[1] % (w_diff + 1)
             return tf.image.crop_to_bounding_box(
