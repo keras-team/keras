@@ -3,8 +3,12 @@ import numpy as np
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.utils import backend_utils
+from keras_core.utils import backend_utils, image_utils
 from keras_core.utils.module_utils import tensorflow as tf
+
+
+H_AXIS = -3
+W_AXIS = -2
 
 
 @keras_core_export("keras_core.layers.RandomCrop")
@@ -60,13 +64,9 @@ class RandomCrop(Layer):
             )
 
         super().__init__(name=name, **kwargs)
+        self.height = height
+        self.width = width
         self.seed = seed or backend.random.make_default_seed()
-        self.layer = tf.keras.layers.RandomCrop(
-            height=height,
-            width=width,
-            seed=self.seed,
-            name=name,
-        )
         self.supports_masking = False
         self.supports_jit = False
         self._convert_input_args = False
@@ -75,7 +75,33 @@ class RandomCrop(Layer):
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
-        outputs = self.layer.call(inputs, training=training)
+
+        input_shape = tf.shape(inputs)
+        h_diff = input_shape[H_AXIS] - self.height
+        w_diff = input_shape[W_AXIS] - self.width
+
+        def random_crop():
+            dtype = input_shape.dtype
+            rands = tf.random.uniform([2], 0, dtype.max, dtype)
+            h_start = rands[0] % (h_diff + 1)
+            w_start = rands[1] % (w_diff + 1)
+            return tf.image.crop_to_bounding_box(
+                inputs, h_start, w_start, self.height, self.width
+            )
+
+        def resize():
+            outputs = image_utils.smart_resize(
+                inputs, [self.height, self.width]
+            )
+            # smart_resize will always output float32, so we need to re-cast.
+            return tf.cast(outputs, self.compute_dtype)
+
+        outputs = tf.cond(
+            tf.reduce_all((training, h_diff >= 0, w_diff >= 0)),
+            random_crop,
+            resize,
+        )
+
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
@@ -84,9 +110,14 @@ class RandomCrop(Layer):
         return outputs
 
     def compute_output_shape(self, input_shape):
-        return tuple(self.layer.compute_output_shape(input_shape))
+        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape[H_AXIS] = self.height
+        input_shape[W_AXIS] = self.width
+        return tf.TensorShape(input_shape)
 
     def get_config(self):
-        config = self.layer.get_config()
-        config.update({"seed": self.seed})
+        config = super().get_config()
+        config.update(
+            {"height": self.height, "width": self.width, "seed": self.seed}
+        )
         return config
