@@ -85,7 +85,7 @@ class RandomCrop(Layer):
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
+            inputs = ops.core.convert_to_tensor(backend.convert_to_numpy(inputs))
 
         input_shape = ops.shape(inputs)
         h_diff = input_shape[self.height_axis] - self.height
