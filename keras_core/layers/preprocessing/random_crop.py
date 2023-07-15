@@ -124,7 +124,7 @@ class RandomCrop(Layer):
         input_shape = tf.TensorShape(input_shape).as_list()
         input_shape[self.height_axis] = self.height
         input_shape[self.width_axis] = self.width
-        return tf.TensorShape(input_shape)
+        return tuple(input_shape)
 
     def get_config(self):
         config = super().get_config()
