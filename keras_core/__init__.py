@@ -15,5 +15,4 @@ from keras_core.layers import Layer
 from keras_core.models import Functional
 from keras_core.models import Model
 from keras_core.models import Sequential
-
-__version__ = "0.1.0"
+from keras_core.version import __version__
