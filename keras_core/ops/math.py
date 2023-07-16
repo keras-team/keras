@@ -1,9 +1,4 @@
-"""
-segment_sum
-top_k
-in_top_k
-logsumexp
-"""
+"""Commonly used math operations not included in NumPy."""
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
@@ -52,12 +47,11 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
         represents the sum of the corresponding segment in `data`.
 
     Example:
-    ```python
+
     >>> data = keras_core.ops.convert_to_tensor([1, 2, 3, 4, 5, 6])
     >>> segment_ids = keras_core.ops.convert_to_tensor([0, 1, 0, 1, 0, 1])
     >>> segment_sum(data, segment_ids)
     array([9 12], shape=(2,), dtype=int32)
-    ```
     """
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
@@ -101,14 +95,14 @@ def top_k(x, k, sorted=True):
         top-k values in the input tensor.
 
     Example:
-    ```python
+
     >>> x = keras_core.ops.convert_to_tensor([5, 2, 7, 1, 9, 3])
     >>> values, indices = top_k(x, k=3)
     >>> print(values)
     array([9 7 5], shape=(3,), dtype=int32)
     >>> print(indices)
     array([4 2 0], shape=(3,), dtype=int32)
-    ```
+
     """
     if any_symbolic_tensors((x,)):
         return TopK(k, sorted).symbolic_call(x)
@@ -139,17 +133,16 @@ def in_top_k(targets, predictions, k):
     Returns:
         A boolean tensor of the same shape as `targets`, where each element
         indicates whether the corresponding target is in the top-k predictions.
-        
+
     Example:
-    ```python
+
     >>> targets = keras_core.ops.convert_to_tensor([2, 5, 3])
     >>> predictions = keras_core.ops.convert_to_tensor(
-                                                    [[0.1, 0.4, 0.6, 0.9, 0.5],
-                                                    [0.1, 0.7, 0.9, 0.8, 0.3],
-                                                    [0.1, 0.6, 0.9, 0.9, 0.5]])
+    ... [[0.1, 0.4, 0.6, 0.9, 0.5],
+    ...  [0.1, 0.7, 0.9, 0.8, 0.3],
+    ...  [0.1, 0.6, 0.9, 0.9, 0.5]])
     >>> in_top_k(targets, predictions, k=3)
     array([ True False  True], shape=(3,), dtype=bool)
-    ```
     """
     if any_symbolic_tensors((targets, predictions)):
         return InTopK(k).symbolic_call(targets, predictions)
@@ -187,11 +180,10 @@ def logsumexp(x, axis=None, keepdims=False):
         elements in `x`.
 
     Example:
-    ```python
+
     >>> x = keras_core.ops.convert_to_tensor([1., 2., 3.])
     >>> logsumexp(x)
-    array(3.407606, shape=(), dtype=float32)
-    ```
+    3.407606
     """
     if any_symbolic_tensors((x,)):
         return Logsumexp(axis, keepdims).symbolic_call(x)
@@ -256,14 +248,13 @@ def qr(x, mode="reduced"):
         triangular matrix R.
 
     Example:
-    ```python
+
     >>> x = keras_core.ops.convert_to_tensor([[1., 2.], [3., 4.], [5., 6.]])
     >>> q, r = qr(x)
     >>> print(q)
     array([[-0.16903079  0.897085]
-     [-0.5070925   0.2760267 ]
-     [-0.8451542  -0.34503305]], shape=(3, 2), dtype=float32)
-    ```
+           [-0.5070925   0.2760267 ]
+           [-0.8451542  -0.34503305]], shape=(3, 2), dtype=float32)
     """
 
     if any_symbolic_tensors((x,)):
