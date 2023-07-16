@@ -1,13 +1,21 @@
-# Tensorflow.
 tensorflow
-
-# Torch.
-# TODO: Use Torch CPU, remove after resolving Cuda version differences with TF
+# TODO: Use Torch CPU
+# Remove after resolving Cuda version differences with TF
 torch>=2.0.1+cpu
 torchvision>=0.15.1
-
-# Jax.
 jax[cpu]
-
-# Common deps.
--r requirements-common.txt
+namex
+black>=22
+flake8
+isort
+pytest
+pandas
+absl-py
+requests
+h5py
+protobuf
+google
+tensorboard-plugin-profile
+rich
+build
+dm-tree

@@ -228,13 +228,6 @@ if "KERAS_BACKEND" in os.environ:
         _BACKEND = _backend
 
 
-if _BACKEND != "tensorflow":
-    # If we are not running on the tensorflow backend, we should stop tensorflow
-    # from using all available GPU memory. See
-    # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
-    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-
-
 @keras_core_export(
     [
         "keras_core.config.backend",
