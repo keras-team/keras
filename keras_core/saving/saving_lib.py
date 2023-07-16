@@ -20,8 +20,7 @@ from keras_core.saving.serialization_lib import deserialize_keras_object
 from keras_core.saving.serialization_lib import serialize_keras_object
 from keras_core.utils import file_utils
 from keras_core.utils import naming
-
-keras_version = "0.0.0"  # TODO
+from keras_core.version import __version__ as keras_version
 
 try:
     import h5py

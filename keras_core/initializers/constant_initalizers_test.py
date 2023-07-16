@@ -1,0 +1,43 @@
+import numpy as np
+
+from keras_core import backend
+from keras_core import initializers
+from keras_core import testing
+
+
+class ConstantInitializersTest(testing.TestCase):
+    def test_zeros_initializer(self):
+        shape = (3, 3)
+
+        initializer = initializers.Zeros()
+        values = initializer(shape=shape)
+        self.assertEqual(values.shape, shape)
+        np_values = backend.convert_to_numpy(values).data
+        self.assertEqual(np_values, np.zeros(shape=shape))
+
+        self.run_class_serialization_test(initializer)
+
+    def test_ones_initializer(self):
+        shape = (3, 3)
+
+        initializer = initializers.Ones()
+        values = initializer(shape=shape)
+        self.assertEqual(values.shape, shape)
+        np_values = backend.convert_to_numpy(values).data
+        self.assertEqual(np_values, np.ones(shape=shape))
+
+        self.run_class_serialization_test(initializer)
+
+    def test_constant_initializer(self):
+        shape = (3, 3)
+        constant_value = 6.0
+
+        initializer = initializers.Constant(value=constant_value)
+        values = initializer(shape=shape)
+        self.assertEqual(values.shape, shape)
+        np_values = backend.convert_to_numpy(values).data
+        self.assertEqual(
+            np_values, np.full(shape=shape, fill_value=constant_value)
+        )
+
+        self.run_class_serialization_test(initializer)

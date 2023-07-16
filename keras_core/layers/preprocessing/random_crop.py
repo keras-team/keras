@@ -1,12 +1,9 @@
 import numpy as np
 
-from keras_core import ops
-from keras_core import random
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
-from keras_core.utils import image_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -55,9 +52,7 @@ class RandomCrop(Layer):
             `name` and `dtype`.
     """
 
-    def __init__(
-        self, height, width, seed=None, data_format=None, name=None, **kwargs
-    ):
+    def __init__(self, height, width, seed=None, name=None, **kwargs):
         if not tf.available:
             raise ImportError(
                 "Layer RandomCrop requires TensorFlow. "
@@ -65,20 +60,13 @@ class RandomCrop(Layer):
             )
 
         super().__init__(name=name, **kwargs)
-        self.height = height
-        self.width = width
         self.seed = seed or backend.random.make_default_seed()
-        self.data_format = (
-            "channels_last" if data_format is None else "channels_first"
+        self.layer = tf.keras.layers.RandomCrop(
+            height=height,
+            width=width,
+            seed=self.seed,
+            name=name,
         )
-
-        if self.data_format == "channels_first":
-            self.heigh_axis = -2
-            self.width_axis = -1
-        elif self.data_format == "channels_last":
-            self.height_axis = -3
-            self.width_axis = -2
-
         self.supports_masking = False
         self.supports_jit = False
         self._convert_input_args = False
@@ -86,47 +74,8 @@ class RandomCrop(Layer):
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = backend.convert_to_tensor(backend.convert_to_numpy(inputs))
-
-        input_shape = ops.shape(inputs)
-        is_batched = len(input_shape) > 3
-        inputs = ops.expand_dims(inputs, axis=0) if not is_batched else inputs
-
-        h_diff = input_shape[self.height_axis] - self.height
-        w_diff = input_shape[self.width_axis] - self.width
-
-        def random_crop():
-            dtype = input_shape.dtype
-            rands = random.uniform([2], 0, dtype.max, dtype, seed=self.seed)
-            h_start = rands[0] % (h_diff + 1)
-            w_start = rands[1] % (w_diff + 1)
-            if self.data_format == "channels_last":
-                return inputs[
-                    :,
-                    h_start : h_start + self.height,
-                    w_start : w_start + self.width,
-                ]
-            else:
-                return inputs[
-                    :,
-                    :,
-                    h_start : h_start + self.height,
-                    w_start : w_start + self.width,
-                ]
-
-        def resize():
-            outputs = image_utils.smart_resize(
-                inputs, [self.height, self.width]
-            )
-            # smart_resize will always output float32, so we need to re-cast.
-            return ops.cast(outputs, self.compute_dtype)
-
-        outputs = ops.cond(
-            tf.reduce_all((training, h_diff >= 0, w_diff >= 0)),
-            random_crop,
-            resize,
-        )
-
+            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
+        outputs = self.layer.call(inputs, training=training)
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
@@ -134,15 +83,10 @@ class RandomCrop(Layer):
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 
-    def compute_output_shape(self, input_shape, *args, **kwargs):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        input_shape[self.height_axis] = self.height
-        input_shape[self.width_axis] = self.width
-        return tuple(input_shape)
+    def compute_output_shape(self, input_shape):
+        return tuple(self.layer.compute_output_shape(input_shape))
 
     def get_config(self):
-        config = super().get_config()
-        config.update(
-            {"height": self.height, "width": self.width, "seed": self.seed}
-        )
+        config = self.layer.get_config()
+        config.update({"seed": self.seed})
         return config

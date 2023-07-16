@@ -30,6 +30,30 @@ class Scatter(Operation):
 
 @keras_core_export("keras_core.ops.scatter")
 def scatter(indices, values, shape):
+    """Returns a tensor of shape `shape` where `indices` are set to `values`.
+
+    At a high level, this operation does `zeros[indices] = updates` and
+    returns the output. It is equivalent to:
+
+    ```python
+    zeros = keras_core.ops.zeros(shape)
+    output = keras_core.ops.scatter_update(zeros, indices, values)
+    ```
+
+    Args:
+        indices: A tensor or list/tuple specifying
+            indices for the values in `values`.
+        updates: A tensor, the values to be set at `indices`.
+        shape: Shape of the output tensor.
+
+    Example:
+
+    >>> indices = [[0, 1], [1, 1]]
+    >>> values = np.array([1., 1.])
+    >>> keras_core.ops.scatter(indices, values, shape=(2, 2))
+    array([[0., 1.],
+           [0., 1.]])
+    """
     if any_symbolic_tensors((indices, values, shape)):
         return Scatter().symbolic_call(indices, values, shape)
     return backend.core.scatter(indices, values, shape)
@@ -229,7 +253,6 @@ def while_loop(
     >>> keras_core.ops.while_loop(cond, body, [i])[0]
     10
     """
-
     return backend.core.while_loop(
         cond,
         body,
@@ -273,7 +296,22 @@ def stop_gradient(variable):
 
 @keras_core_export("keras_core.ops.shape")
 def shape(x):
-    """Gets the shape of the tensor input."""
+    """Gets the shape of the tensor input.
+
+    Args:
+        x: A tensor. This function will try to access the `shape` attribute of
+            the input tensor.
+
+    Returns:
+        A tuple of integers or None values, indicating the shape of the input
+            tensor.
+
+    Example:
+
+    >>> x = keras_core.zeros((8, 12))
+    >>> keras_core.ops.shape(x)
+    (8, 12)
+    """
     if any_symbolic_tensors((x,)):
         return x.shape
     return backend.core.shape(x)
@@ -281,8 +319,22 @@ def shape(x):
 
 @keras_core_export("keras_core.ops.cast")
 def cast(x, dtype):
-    """Cast a tensor to the desired dtype."""
+    """Cast a tensor to the desired dtype.
+
+    Args:
+        x: A tensor or variable.
+        dtype: The target type.
+
+    Returns:
+        A tensor of the specified `dtype`.
+
+    Example:
+
+    >>> x = keras_core.ops.arange(4)
+    >>> x = keras_core.ops.cast(x, dtype="float16")
+    """
     dtype = backend.standardize_dtype(dtype)
+
     if any_symbolic_tensors((x,)):
         return backend.KerasTensor(shape=x.shape, dtype=dtype)
     return backend.core.cast(x, dtype)
@@ -290,15 +342,35 @@ def cast(x, dtype):
 
 @keras_core_export("keras_core.ops.convert_to_tensor")
 def convert_to_tensor(x, dtype=None):
-    """Convert a NumPy array to a tensor."""
+    """Convert a NumPy array to a tensor.
+
+    Args:
+        x: A NumPy array.
+        dtype: The target type.
+
+    Returns:
+        A tensor of the specified `dtype`.
+
+    Example:
+
+    >>> x = np.array([1, 2, 3])
+    >>> y = keras_core.ops.convert_to_tensor(x)
+    """
     return backend.convert_to_tensor(x, dtype=dtype)
 
 
 @keras_core_export("keras_core.ops.convert_to_numpy")
 def convert_to_numpy(x):
-    """Convert a tensor to a NumPy array."""
+    """Convert a tensor to a NumPy array.
+
+    Args:
+        x: A tensor.
+
+    Returns:
+        A NumPy array.
+    """
     if any_symbolic_tensors((x,)):
-        # This will raise a `ValueError` defined in the `KerasTensor` class. We
-        # trigger it rather than duplicate it here.
+        # This will raise a `ValueError` defined in the `KerasTensor` class.
+        # We trigger it rather than duplicate it here.
         return np.array(x)
     return backend.convert_to_numpy(x)
