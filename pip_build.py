@@ -60,7 +60,7 @@ def build():
         namex.generate_api_files(package, code_directory="src", verbose=True)
 
         # Make sure to export the __version__ string
-        from keras_core.src import __version__  # noqa: E402
+        from keras_core.src.version import __version__  # noqa: E402
 
         with open(os.path.join(package, "__init__.py")) as f:
             init_contents = f.read()
