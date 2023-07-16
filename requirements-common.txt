@@ -1,0 +1,15 @@
+namex
+black>=22
+flake8
+isort
+pytest
+pandas
+absl-py
+requests
+h5py
+protobuf
+google
+tensorboard-plugin-profile
+rich
+build
+dm-tree
