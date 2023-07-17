@@ -21,7 +21,7 @@ class SGDTest(testing.TestCase):
     def test_single_step(self):
         optimizer = SGD(learning_rate=0.5)
         self.assertEqual(len(optimizer.variables), 2)
-        grads = ops.array([1.0, 6.0, 7.0, 2.0])
+        grads = np.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.build([vars])
         optimizer.apply_gradients(zip([grads], [vars]))
@@ -32,7 +32,7 @@ class SGDTest(testing.TestCase):
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
-            ops.zeros(()),
+            np.zeros(()),
             backend.Variable(2.0),
             backend.Variable(2.0, name="exclude"),
             backend.Variable(2.0),
@@ -56,8 +56,8 @@ class SGDTest(testing.TestCase):
         optimizer = SGD(nesterov=True)
 
         x = backend.Variable(np.ones([10]))
-        grads = ops.arange(0.1, 1.1, 0.1)
-        first_grads = ops.full((10,), 0.01)
+        grads = np.arange(0.1, 1.1, 0.1)
+        first_grads = np.full((10,), 0.01)
 
         # fmt: off
         golden = np.array(
