@@ -118,13 +118,16 @@ class RandomCrop(TFDataLayer):
 
         def resize():
             outputs = image_utils.smart_resize(
-                inputs, [self.height, self.width]
+                inputs,
+                [self.height, self.width],
+                data_format=self.data_format,
+                backend_module=backend.backend(),
             )
             # smart_resize will always output float32, so we need to re-cast.
             return ops.cast(outputs, self.compute_dtype)
 
         outputs = ops.cond(
-            tf.reduce_all((training, h_diff >= 0, w_diff >= 0)),
+            ops.all((training, h_diff >= 0, w_diff >= 0)),
             random_crop,
             resize,
         )
@@ -152,4 +155,5 @@ class RandomCrop(TFDataLayer):
                 "data_format": self.data_format,
             }
         )
+        ops.all
         return config
