@@ -1,5 +1,3 @@
-import numpy as np
-
 from keras_core import backend
 from keras_core import random
 from keras_core.api_export import keras_core_export
