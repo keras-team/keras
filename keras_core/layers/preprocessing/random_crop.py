@@ -2,10 +2,10 @@ import numpy as np
 
 from keras_core import ops
 from keras_core import random
+from keras_core.random.seed_generator import SeedGenerator
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
-from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
 from keras_core.utils import image_utils
 from keras_core.utils.module_utils import tensorflow as tf
@@ -69,6 +69,7 @@ class RandomCrop(TFDataLayer):
         self.height = height
         self.width = width
         self.seed = seed or backend.random.make_default_seed()
+        self.seed_generator = SeedGenerator(seed)
         self.data_format = backend.standardize_data_format(data_format)
 
         if self.data_format == "channels_first":
@@ -96,7 +97,9 @@ class RandomCrop(TFDataLayer):
 
         def random_crop():
             dtype = input_shape.dtype
-            rands = random.uniform([2], 0, dtype.max, dtype, seed=self.seed)
+            rands = random.uniform(
+                [2], 0, dtype.max, dtype, seed=self.self.seed_generator
+            )
             h_start = rands[0] % (h_diff + 1)
             w_start = rands[1] % (w_diff + 1)
             if self.data_format == "channels_last":
