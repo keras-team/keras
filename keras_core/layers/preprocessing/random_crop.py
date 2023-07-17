@@ -86,11 +86,11 @@ class RandomCrop(TFDataLayer):
 
     def call(self, inputs, training=True):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = backend.convert_to_tensor(backend.convert_to_numpy(inputs))
+            inputs = self.backend.convert_to_tensor(backend.convert_to_numpy(inputs))
 
-        input_shape = ops.shape(inputs)
+        input_shape = self.backend.shape(inputs)
         is_batched = len(input_shape) > 3
-        inputs = ops.expand_dims(inputs, axis=0) if not is_batched else inputs
+        inputs = self.backend.expand_dims(inputs, axis=0) if not is_batched else inputs
 
         h_diff = input_shape[self.height_axis] - self.height
         w_diff = input_shape[self.width_axis] - self.width
@@ -121,22 +121,22 @@ class RandomCrop(TFDataLayer):
                 inputs,
                 [self.height, self.width],
                 data_format=self.data_format,
-                backend_module=backend.backend(),
+                backend_module=self.backend,
             )
             # smart_resize will always output float32, so we need to re-cast.
-            return ops.cast(outputs, self.compute_dtype)
+            return self.backend.cast(outputs, self.compute_dtype)
 
-        outputs = ops.cond(
-            ops.all((training, h_diff >= 0, w_diff >= 0)),
+        outputs = self.backend.cond(
+            self.backend.all((training, h_diff >= 0, w_diff >= 0)),
             random_crop,
             resize,
         )
 
         if (
-            backend.backend() != "tensorflow"
+            self.backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
         ):
-            outputs = backend.convert_to_tensor(outputs)
+            outputs = self.backend.convert_to_tensor(outputs)
         return outputs
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
