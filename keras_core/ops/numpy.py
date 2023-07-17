@@ -147,7 +147,7 @@ from keras_core.ops.operation_utils import reduce_shape
 
 def broadcast_shapes(shape1, shape2):
     """Broadcast input shapes to a unified shape.
-    
+
     Convert to list for mutability.
 
     Args:
@@ -155,9 +155,10 @@ def broadcast_shapes(shape1, shape2):
         shape2: A tuple or list of integers.
 
     Returns:
-        output_shape (list of int or None): The broadcasted shape.
+        output_shape (list of integers or `None`): The broadcasted shape.
 
     Example:
+
     >>> broadcast_shapes((5, 3), (1, 3))
     [5, 3]
     """
