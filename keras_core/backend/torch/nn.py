@@ -467,15 +467,13 @@ def conv_transpose(
     if isinstance(dilation_rate, int):
         dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
     for i, value in enumerate(padding_values):
-        total_padding = value[0] + value[1]
+        both_side_padding = value[0]
+        longer_side_padding = value[1] - value[0]
         padding_arg.append(
             dilation_rate[i] * (kernel_spatial_shape[i] - 1)
-            - total_padding // 2
+            - both_side_padding,
         )
-        if total_padding % 2 == 0:
-            output_padding_arg.append(0)
-        else:
-            output_padding_arg.append(1)
+        output_padding_arg.append(longer_side_padding)
 
     if num_spatial_dims == 1:
         outputs = tnn.conv_transpose1d(
