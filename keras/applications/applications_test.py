@@ -14,6 +14,8 @@
 # ==============================================================================
 """Integration tests for Keras applications."""
 
+import os
+
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
@@ -36,6 +38,7 @@ from keras.applications import resnet_v2
 from keras.applications import vgg16
 from keras.applications import vgg19
 from keras.applications import xception
+from keras.testing_infra import test_utils
 
 MODEL_LIST_NO_NASNET = [
     (resnet.ResNet50, 2048),
@@ -238,6 +241,19 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
             minimalistic=minimalistic,
             include_top=include_top,
         )
+
+    @parameterized.parameters(MODEL_LIST)
+    @test_utils.run_v2_only
+    def test_model_checkpoint(self, app, _):
+        model = app(weights=None)
+
+        checkpoint = tf.train.Checkpoint(model=model)
+        checkpoint_manager = tf.train.CheckpointManager(
+            checkpoint,
+            directory=os.path.join(self.get_temp_dir(), model.name),
+            max_to_keep=1,
+        )
+        checkpoint_manager.save(checkpoint_number=1)
 
 
 def _get_output_shape(model_fn):
