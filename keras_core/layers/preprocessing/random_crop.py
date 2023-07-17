@@ -140,7 +140,7 @@ class RandomCrop(TFDataLayer):
         return outputs
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
-        input_shape = tf.TensorShape(input_shape).as_list()
+        input_shape = list(input_shape)
         input_shape[self.height_axis] = self.height
         input_shape[self.width_axis] = self.width
         return tuple(input_shape)
