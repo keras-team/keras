@@ -4,6 +4,7 @@ from keras_core import ops
 from keras_core import random
 from keras_core import backend
 from keras_core.api_export import keras_core_export
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
 from keras_core.utils import image_utils
@@ -11,7 +12,7 @@ from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.RandomCrop")
-class RandomCrop(Layer):
+class RandomCrop(TFDataLayer):
     """A preprocessing layer which randomly crops images during training.
 
     During training, this layer will randomly choose a location to crop images
@@ -68,9 +69,7 @@ class RandomCrop(Layer):
         self.height = height
         self.width = width
         self.seed = seed or backend.random.make_default_seed()
-        self.data_format = (
-            "channels_last" if data_format is None else "channels_first"
-        )
+        self.data_format = backend.standardize_data_format(data_format)
 
         if self.data_format == "channels_first":
             self.heigh_axis = -2
@@ -143,6 +142,11 @@ class RandomCrop(Layer):
     def get_config(self):
         config = super().get_config()
         config.update(
-            {"height": self.height, "width": self.width, "seed": self.seed}
+            {
+                "height": self.height,
+                "width": self.width,
+                "seed": self.seed,
+                "data_format": self.data_format,
+            }
         )
         return config
