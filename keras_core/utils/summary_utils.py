@@ -192,8 +192,8 @@ def print_summary(
             relevant_nodes += v
 
     if show_trainable:
-        default_line_length += 8
-        positions = [p * 0.88 for p in positions] + [1.0]
+        default_line_length += 12
+        positions = [p * 0.90 for p in positions] + [1.0]
         header.append("Trainable")
         alignment.append("center")
 
@@ -262,11 +262,14 @@ def print_summary(
         if not sequential_like:
             fields.append(get_connections(layer))
         if show_trainable:
-            fields.append(
-                bold_text("Y", color=34)
-                if layer.trainable
-                else bold_text("N", color=9)
-            )
+            if layer.weights:
+                fields.append(
+                    bold_text("Y", color=34)
+                    if layer.trainable
+                    else bold_text("N", color=9)
+                )
+            else:
+                fields.append(bold_text("-"))
         return fields
 
     def print_layer(layer, nested_level=0):
