@@ -7,4 +7,3 @@ from keras_core.backend.common.variables import is_int_dtype
 from keras_core.backend.common.variables import standardize_dtype
 from keras_core.backend.common.variables import standardize_shape
 from keras_core.random import random
-convert
