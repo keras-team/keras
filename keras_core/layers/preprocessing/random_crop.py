@@ -132,7 +132,7 @@ class RandomCrop(TFDataLayer):
             return self.backend.cast(outputs, self.compute_dtype)
 
         outputs = self.backend.cond(
-            self.backend.all((training, h_diff >= 0, w_diff >= 0)),
+            self.backend.ops.all((training, h_diff >= 0, w_diff >= 0)),
             random_crop,
             resize,
         )
