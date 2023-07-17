@@ -315,8 +315,8 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         },
         {
             "filters": 6,
-            "kernel_size": 7,
-            "strides": 16,
+            "kernel_size": 2,
+            "strides": 3,
             "padding": "same",
             "output_padding": 2,
             "data_format": "channels_last",
@@ -361,7 +361,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dilation_rate=dilation_rate,
         )
 
-        inputs = np.random.normal(size=[2, 14, 14, 4])
+        inputs = np.random.normal(size=[2, 8, 8, 4])
         layer.build(input_shape=inputs.shape)
         tf_keras_layer.build(input_shape=inputs.shape)
 
