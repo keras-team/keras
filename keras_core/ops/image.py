@@ -55,7 +55,46 @@ class Resize(Operation):
 def resize(
     image, size, method="bilinear", antialias=False, data_format="channels_last"
 ):
-    # TODO: add docstring
+    """Resize images to size using the specified method.
+
+    Args:
+        image: Input image or batch of images. Must be 3D or 4D.
+        size: Size of output image in `(height, width)` format.
+        method: Interpolation method. Available methods are `"nearest"`,
+            `"bilinear"`, and `"bicubic"`. Defaults to `"bilinear"`.
+        antialias: Whether to use an antialiasing filter when downsampling an
+            image. Defaults to `False`.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs. `"channels_last"`
+            corresponds to inputs with shape `(batch, height, width, channels)`
+            while `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, weight)`. It defaults to the
+            `image_data_format` value found in your Keras config file at
+            `~/.keras/keras.json`. If you never set it, then it will be
+            `"channels_last"`.
+
+    Returns:
+        Resized image or batch of images.
+
+    Examples:
+
+    >>> x = np.random.random((2, 4, 4, 3)) # batch of 2 RGB images
+    >>> y = keras_core.ops.image.resize(x, (2, 2))
+    >>> y.shape
+    (2, 2, 2, 3)
+
+    >>> x = np.random.random((4, 4, 3)) # single RGB image
+    >>> y = keras_core.ops.image.resize(x, (2, 2))
+    >>> y.shape
+    (2, 2, 3)
+
+    >>> x = np.random.random((2, 3, 4, 4)) # batch of 2 RGB images
+    >>> y = keras_core.ops.image.resize(x, (2, 2),
+    ...     data_format="channels_first")
+    >>> y.shape
+    (2, 3, 2, 2)
+    """
+
     if any_symbolic_tensors((image,)):
         return Resize(
             size, method=method, antialias=antialias, data_format=data_format
