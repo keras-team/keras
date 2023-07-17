@@ -155,5 +155,4 @@ class RandomCrop(TFDataLayer):
                 "data_format": self.data_format,
             }
         )
-        ops.all
         return config
