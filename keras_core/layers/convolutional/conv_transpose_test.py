@@ -1,7 +1,9 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -131,6 +133,12 @@ class ConvTransposeBasicTest(testing.TestCase, parameterized.TestCase):
         input_shape,
         output_shape,
     ):
+        if (
+            data_format == "channels_first"
+            and backend.backend() == "tensorflow"
+        ):
+            pytest.skip("channels_first unsupported on CPU with TF")
+
         self.run_layer_test(
             layers.Conv2DTranspose,
             init_kwargs={
