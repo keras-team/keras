@@ -128,8 +128,22 @@ class InitializersTest(testing.TestCase):
         gain = 2.0
         seed = 1234
         initializer = initializers.OrthogonalInitializer(gain=gain, seed=seed)
-        _ = initializer(shape=shape)
-        # TODO: test correctness
+        values = initializer(shape=shape)
+        self.assertEqual(initializer.seed, seed)
+        self.assertEqual(initializer.gain, gain)
+
+        self.assertEqual(values.shape, shape)
+        array = np.array(values)
+        # Making sure that the columns have gain * unit norm value
+        for column in array.T:
+            self.assertAlmostEqual(np.linalg.norm(column), gain * 1.0)
+
+        # Making sure that each column is orthonormal to the other column
+        for i in range(array.shape[-1]):
+            for j in range(i + 1, array.shape[-1]):
+                self.assertAlmostEqual(
+                    np.dot(array[..., i], array[..., j]), 0.0
+                )
 
         self.run_class_serialization_test(initializer)
 
