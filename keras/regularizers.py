@@ -31,10 +31,10 @@ from tensorflow.python.util.tf_export import keras_export
 
 def _check_penalty_number(x):
     """check penalty number availability, raise ValueError if failed."""
-    if not isinstance(x, (float, int)):
+    if not isinstance(x, (float, int)) or x < 0:
         raise ValueError(
             f"Value {x} is not a valid regularization penalty number, "
-            "expected an int or float value."
+            "expected positive int or float value."
         )
 
     if math.isinf(x) or math.isnan(x):
