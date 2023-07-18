@@ -522,7 +522,7 @@ class GRU(RNN):
                 # implementation of the inner GRU loop. In the case of
                 # TF for instance, it will leverage cuDNN when feasible, and
                 # it will raise NotImplementedError otherwise.
-                return backend.gru(
+                out = backend.gru(
                     sequences,
                     initial_state,
                     mask,
@@ -536,6 +536,11 @@ class GRU(RNN):
                     unroll=self.unroll,
                     reset_after=self.cell.reset_after,
                 )
+                # We disable jit_compile for the model in this case,
+                # since cuDNN ops aren't XLA compatible.
+                if backend.backend() == "tensorflow":
+                    self.supports_jit = False
+                return out
             except NotImplementedError:
                 pass
         return super().inner_loop(

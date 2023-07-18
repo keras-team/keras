@@ -3,9 +3,13 @@ from keras_core.api_export import keras_core_export
 from keras_core.optimizers import base_optimizer
 
 if backend.backend() == "tensorflow":
-    from keras_core.backend.tensorflow import optimizer as tf_optimizer
+    from keras_core.backend.tensorflow.optimizer import TFOptimizer
 
-    BackendOptimizer = tf_optimizer.TFOptimizer
+    BackendOptimizer = TFOptimizer
+elif backend.backend() == "torch":
+    from keras_core.backend.torch.optimizers import TorchOptimizer
+
+    BackendOptimizer = TorchOptimizer
 else:
     BackendOptimizer = base_optimizer.BaseOptimizer
 
