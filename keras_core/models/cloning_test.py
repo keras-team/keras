@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras_core import layers
@@ -41,6 +42,7 @@ def get_subclassed_model():
     return ExampleModel()
 
 
+@pytest.mark.requires_trainable_backend
 class CloneModelTest(testing.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("functional", get_functional_model),

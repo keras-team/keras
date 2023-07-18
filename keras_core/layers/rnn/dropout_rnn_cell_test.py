@@ -1,3 +1,5 @@
+import pytest
+
 from keras_core import backend
 from keras_core import layers
 from keras_core import ops
@@ -50,6 +52,7 @@ class DropoutRNNCellTest(testing.TestCase):
         layer = layers.RNN(cell)
         self.assertEqual(len(layer.non_trainable_variables), 1)
 
+    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,

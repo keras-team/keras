@@ -3,6 +3,7 @@
 import math
 
 import numpy as np
+import pytest
 
 from keras_core import backend
 from keras_core import layers
@@ -13,6 +14,7 @@ from keras_core.optimizers import schedules
 
 
 class TestFitLRSchedulesFlow(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_fit_lr_correctness(self):
         model = Sequential(
             [

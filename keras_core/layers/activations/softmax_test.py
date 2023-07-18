@@ -1,10 +1,12 @@
 import numpy as np
+import pytest
 
 from keras_core import testing
 from keras_core.layers.activations import softmax
 
 
 class SoftmaxTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_softmax(self):
         self.run_layer_test(
             softmax.Softmax,

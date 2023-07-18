@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import backend
 from keras_core import layers
@@ -8,6 +9,7 @@ from keras_core.models.functional import Functional
 from keras_core.models.sequential import Sequential
 
 
+@pytest.mark.requires_trainable_backend
 class SequentialTest(testing.TestCase):
     def test_basic_flow_with_input(self):
         model = Sequential(name="seq")

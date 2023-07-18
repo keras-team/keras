@@ -1,10 +1,12 @@
 import numpy as np
+import pytest
 
 from keras_core import testing
 from keras_core.layers.activations import leaky_relu
 
 
 class LeakyReLUTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_leaky_relu(self):
         self.run_layer_test(
             leaky_relu.LeakyReLU,

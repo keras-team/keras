@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 import numpy as np
+import pytest
 
 import keras_core
 from keras_core import ops
@@ -130,6 +131,7 @@ def my_mean_squared_error(y_true, y_pred):
     return ops.mean(ops.square(y_pred - y_true), axis=-1)
 
 
+@pytest.mark.requires_trainable_backend
 class SavingTest(testing.TestCase):
     def _get_subclassed_model(self, compile=True):
         subclassed_model = CustomModelX()

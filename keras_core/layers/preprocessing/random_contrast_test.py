@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 
 from keras_core import backend
@@ -7,6 +8,7 @@ from keras_core import testing
 
 
 class RandomContrastTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomContrast,

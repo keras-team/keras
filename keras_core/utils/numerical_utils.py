@@ -29,6 +29,9 @@ def normalize(x, axis=-1, order=2):
         # NumPy input
         norm = np.atleast_1d(np.linalg.norm(x, order, axis))
         norm[norm == 0] = 1
+
+        # axis cannot be `None`
+        axis = axis or -1
         return x / np.expand_dims(norm, axis)
 
     # Backend tensor input

@@ -6,6 +6,7 @@ from keras_core import testing
 
 
 class ReshapeTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_reshape(self):
         self.run_layer_test(
             layers.Reshape,

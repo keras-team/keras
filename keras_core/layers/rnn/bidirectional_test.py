@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import initializers
 from keras_core import layers
@@ -6,6 +7,7 @@ from keras_core import testing
 
 
 class SimpleRNNTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.Bidirectional,

@@ -3,6 +3,7 @@ from unittest import mock
 
 import numpy as np
 
+from keras_core import backend
 from keras_core import callbacks
 from keras_core import layers
 from keras_core import testing
@@ -60,6 +61,8 @@ class TerminateOnNaNTest(testing.TestCase):
         if requests is None:
             self.skipTest("`requests` required to run this test")
 
+        if backend.backend() == "numpy":
+            self.skipTest("Trainer not implemented from NumPy backend.")
         TRAIN_SAMPLES = 10
         TEST_SAMPLES = 10
         INPUT_DIM = 3

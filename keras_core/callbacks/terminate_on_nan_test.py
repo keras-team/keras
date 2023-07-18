@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import callbacks
 from keras_core import initializers
@@ -9,6 +10,7 @@ from keras_core.utils import numerical_utils
 
 
 class TerminateOnNaNTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_TerminateOnNaN(self):
         TRAIN_SAMPLES = 10
         TEST_SAMPLES = 10

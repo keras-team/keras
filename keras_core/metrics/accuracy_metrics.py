@@ -9,7 +9,10 @@ def accuracy(y_true, y_pred):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.convert_to_tensor(y_true, dtype=y_pred.dtype)
     y_true, y_pred = squeeze_to_same_rank(y_true, y_pred)
-    return ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx())
+    return ops.mean(
+        ops.cast(ops.equal(y_true, y_pred), dtype=backend.floatx()),
+        axis=-1,
+    )
 
 
 @keras_core_export("keras_core.metrics.Accuracy")
@@ -135,7 +138,7 @@ def categorical_accuracy(y_true, y_pred):
         and (y_pred_rank is not None)
         and (len(y_true.shape) == len(y_pred.shape))
     ):
-        y_true = ops.squeeze(y_true, [-1])
+        y_true = ops.squeeze(y_true, -1)
         reshape_matches = True
     y_pred = ops.argmax(y_pred, axis=-1)
 
@@ -218,7 +221,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
         and (y_pred_rank is not None)
         and (len(y_true.shape) == len(y_pred.shape))
     ):
-        y_true = ops.squeeze(y_true, [-1])
+        y_true = ops.squeeze(y_true, -1)
         reshape_matches = True
     y_pred = ops.argmax(y_pred, axis=-1)
 
@@ -231,7 +234,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
         matches = ops.reshape(matches, new_shape=y_true_org_shape)
     # if shape is (num_samples, 1) squeeze
     if len(matches.shape) > 1 and matches.shape[-1] == 1:
-        matches = ops.squeeze(matches, [-1])
+        matches = ops.squeeze(matches, -1)
     return matches
 
 

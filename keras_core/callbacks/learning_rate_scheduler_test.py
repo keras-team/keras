@@ -1,3 +1,5 @@
+import pytest
+
 from keras_core import callbacks
 from keras_core import layers
 from keras_core import optimizers
@@ -29,6 +31,7 @@ class LearningRateSchedulerTest(testing.TestCase):
         self.x_train = x_train
         self.y_train = y_train
 
+    @pytest.mark.requires_trainable_backend
     def test_updates_learning_rate(self):
         lr_scheduler = callbacks.LearningRateScheduler(
             lambda step: 1.0 / (2.0 + step), verbose=1
@@ -43,6 +46,7 @@ class LearningRateSchedulerTest(testing.TestCase):
 
         self.assertEqual(self.model.optimizer.learning_rate.value, 0.5)
 
+    @pytest.mark.requires_trainable_backend
     def test_verbose_logging(self):
         lr_scheduler = callbacks.LearningRateScheduler(
             lambda step: 1.0 / (1.0 + step), verbose=1
@@ -59,6 +63,7 @@ class LearningRateSchedulerTest(testing.TestCase):
             expected_log = "LearningRateScheduler setting learning rate to 1.0"
             self.assertTrue(any(expected_log in log for log in logs.output))
 
+    @pytest.mark.requires_trainable_backend
     def test_schedule_dependent_on_previous_learning_rate(self):
         lr_scheduler = callbacks.LearningRateScheduler(lambda step, lr: lr / 2)
 
@@ -78,6 +83,7 @@ class LearningRateSchedulerTest(testing.TestCase):
             self.model.optimizer.learning_rate.value, initial_lr / 4.0
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_throws_when_optimizer_has_schedule(self):
         lr_scheduler = callbacks.LearningRateScheduler(lambda step, lr: lr / 2)
 

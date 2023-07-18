@@ -30,6 +30,7 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
             {"data_format": "channels_last"},
         ),
     )
+    @pytest.mark.requires_trainable_backend
     def test_cropping_3d(
         self,
         dim1_cropping,
@@ -88,6 +89,7 @@ class Cropping3DTest(testing.TestCase, parameterized.TestCase):
             {"data_format": "channels_last"},
         ),
     )
+    @pytest.mark.requires_trainable_backend
     def test_cropping_3d_with_same_cropping(
         self, cropping, data_format, expected
     ):

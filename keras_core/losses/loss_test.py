@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import backend
 from keras_core import losses as losses_module
@@ -39,6 +40,10 @@ class LossTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid value for argument"):
             ExampleLoss(reduction="abc")
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_mask(self):
         mask = np.array([True, False, True, True])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
@@ -84,6 +89,10 @@ class LossTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(loss.dtype), "float32")
         self.assertAllClose(loss, 0)  # No NaN.
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_mask_and_sample_weight(self):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
@@ -111,6 +120,10 @@ class LossTest(testing.TestCase):
     # @testing.parametrize(
     #     "uprank", ["mask", "sample_weight", "y_true", "y_pred"])
     # TODO: use parameterization decorator
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_rank_adjustment(self):
         for uprank in ["mask", "sample_weight", "ys"]:
             sample_weight = np.array([0.4, 0.3, 0.2, 0.1])

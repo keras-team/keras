@@ -21,6 +21,8 @@ elif backend.backend() == "tensorflow":
     from keras_core.backend.tensorflow.trainer import (
         TensorFlowTrainer as Trainer,
     )
+elif backend.backend() == "numpy":
+    from keras_core.backend.numpy.trainer import NumpyTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -70,6 +72,7 @@ class TrainingTestingLayer(layers.Layer, Trainer):
         return x * 0
 
 
+@pytest.mark.requires_trainable_backend
 class TestTrainer(testing.TestCase, parameterized.TestCase):
     def test_metric_tracking(self):
         class ModelWithMetric(layers.Dense, Trainer):

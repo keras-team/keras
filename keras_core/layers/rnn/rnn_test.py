@@ -69,6 +69,7 @@ class TwoStatesRNNCell(layers.Layer):
 
 
 class RNNTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,

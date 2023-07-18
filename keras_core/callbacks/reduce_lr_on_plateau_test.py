@@ -1,3 +1,5 @@
+import pytest
+
 from keras_core import callbacks
 from keras_core import layers
 from keras_core import optimizers
@@ -32,6 +34,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
         self.y_train = y_train
         self.y_test = y_test
 
+    @pytest.mark.requires_trainable_backend
     def test_reduces_lr_with_model_fit(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
             patience=1, factor=0.1, monitor="val_loss", min_delta=100
@@ -47,6 +50,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
         self.assertEqual(self.model.optimizer.learning_rate.value, 0.01)
 
+    @pytest.mark.requires_trainable_backend
     def test_throws_when_optimizer_has_schedule(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
             patience=1, factor=0.1, monitor="val_loss", min_delta=100
@@ -73,6 +77,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
                 epochs=2,
             )
 
+    @pytest.mark.requires_trainable_backend
     def test_verbose_logging(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
             patience=1, factor=0.1, monitor="val_loss", min_delta=100, verbose=1
@@ -90,6 +95,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
             expected_log = "ReduceLROnPlateau reducing learning rate to 0.01"
             self.assertTrue(any(expected_log in log for log in logs.output))
 
+    @pytest.mark.requires_trainable_backend
     def test_honors_min_lr(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
             patience=1,
@@ -109,6 +115,7 @@ class ReduceLROnPlateauTest(testing.TestCase):
 
         self.assertEqual(self.model.optimizer.learning_rate.value, 0.005)
 
+    @pytest.mark.requires_trainable_backend
     def test_cooldown(self):
         reduce_lr = callbacks.ReduceLROnPlateau(
             patience=1,

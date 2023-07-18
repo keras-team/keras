@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import layers
 from keras_core import models
@@ -6,6 +7,7 @@ from keras_core import testing
 
 
 class MaskingTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_masking_basics(self):
         self.run_layer_test(
             layers.Masking,
@@ -19,6 +21,7 @@ class MaskingTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.requires_trainable_backend
     def test_masking_correctness(self):
         x = np.array(
             [

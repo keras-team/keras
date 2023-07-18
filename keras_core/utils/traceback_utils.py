@@ -230,6 +230,8 @@ def format_argument_value(value):
             tensor_cls = "jnp.ndarray"
         elif backend.backend() == "torch":
             tensor_cls = "torch.Tensor"
+        elif backend.backend() == "numpy":
+            tensor_cls = "np.ndarray"
         else:
             tensor_cls = "array"
 

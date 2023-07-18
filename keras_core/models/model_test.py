@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras_core import layers
@@ -64,6 +65,7 @@ def _get_model_multi_outputs_dict():
     return model
 
 
+@pytest.mark.requires_trainable_backend
 class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_functional_rerouting(self):
         model = _get_model()

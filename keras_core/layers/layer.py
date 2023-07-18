@@ -44,6 +44,8 @@ elif backend.backend() == "jax":
     from keras_core.backend.jax.layer import JaxLayer as BackendLayer
 elif backend.backend() == "torch":
     from keras_core.backend.torch.layer import TorchLayer as BackendLayer
+elif backend.backend() == "numpy":
+    from keras_core.backend.numpy.layer import NumpyLayer as BackendLayer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
@@ -1235,6 +1237,12 @@ class Layer(BackendLayer, Operation):
         for tensor, mask in zip(flat_outputs, flat_masks):
             if getattr(tensor, "_keras_mask", None) is None:
                 try:
+                    # Numpy backend does not support masking.
+                    if backend.backend() == "numpy":
+                        warnings.warn(
+                            "The NumPy backend does not support masking at this"
+                            "time. Masks will be ignored."
+                        )
                     tensor._keras_mask = mask
                 except AttributeError:
                     # It's a C type.

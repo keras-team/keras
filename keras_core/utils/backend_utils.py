@@ -49,3 +49,11 @@ class DynamicBackend:
             from keras_core.backend import torch as torch_backend
 
             return getattr(torch_backend, name)
+        if self._backend == "numpy":
+            # TODO (ariG23498):
+            # The import `from keras_core.backend import numpy as numpy_backend`
+            # is not working. This is a temporary fix.
+            # The import is redirected to `keras_core.backend.numpy.numpy.py`
+            from keras_core import backend as numpy_backend
+
+            return getattr(numpy_backend, name)

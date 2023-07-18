@@ -1,12 +1,18 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 
 import keras_core
+from keras_core import backend
 from keras_core.testing import test_case
 from keras_core.utils import rng_utils
 
 
 class TestRandomSeedSetting(test_case.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support random seed setting.",
+    )
     def test_set_random_seed(self):
         def get_model_output():
             model = keras_core.Sequential(

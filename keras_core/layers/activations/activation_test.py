@@ -1,9 +1,12 @@
+import pytest
+
 from keras_core import activations
 from keras_core import layers
 from keras_core import testing
 
 
 class ActivationTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_activation_basics(self):
         self.run_layer_test(
             layers.Activation,

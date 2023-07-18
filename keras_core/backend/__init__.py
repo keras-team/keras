@@ -37,5 +37,12 @@ elif backend() == "jax":
 elif backend() == "torch":
     print_msg("Using PyTorch backend.")
     from keras_core.backend.torch import *  # noqa: F403
+elif backend() == "numpy":
+    print_msg(
+        "Using NumPy backend.\nThe NumPy backend does not support "
+        "training. It should only be used for inference, evaluation, "
+        "and debugging."
+    )
+    from keras_core.backend.numpy import *  # noqa: F403
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

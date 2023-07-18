@@ -264,6 +264,7 @@ class LayerTest(testing.TestCase):
         layer(layers.Input(batch_shape=(2, 2)))
         self.assertLen(layer.losses, 0)
 
+    @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
         class LossLayer(layers.Layer):
             def call(self, x):
@@ -378,6 +379,10 @@ class LayerTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(y.dtype), "float16")
         self.assertEqual(layer.kernel.dtype, "float32")
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_masking(self):
         class BasicMaskedLayer(layers.Layer):
             def __init__(self):

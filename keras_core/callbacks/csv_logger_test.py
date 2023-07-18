@@ -4,6 +4,7 @@ import re
 import tempfile
 
 import numpy as np
+import pytest
 
 from keras_core import callbacks
 from keras_core import initializers
@@ -19,6 +20,7 @@ BATCH_SIZE = 4
 
 
 class CSVLoggerTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_CSVLogger(self):
         OUTPUT_DIM = 1
         np.random.seed(1337)
@@ -126,6 +128,7 @@ class CSVLoggerTest(testing.TestCase):
                 else:
                     self.assertEqual(row["val_loss"], "NA")
 
+    @pytest.mark.requires_trainable_backend
     def test_stop_training_csv(self):
         # Test that using the CSVLogger callback with the TerminateOnNaN
         # callback does not result in invalid CSVs.

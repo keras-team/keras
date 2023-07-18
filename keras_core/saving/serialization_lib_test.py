@@ -3,6 +3,7 @@
 import json
 
 import numpy as np
+import pytest
 
 import keras_core
 from keras_core import ops
@@ -188,6 +189,7 @@ class SerializationLibTest(testing.TestCase):
     #     y2 = new_lmbda(x)
     #     self.assertAllClose(y1, y2, atol=1e-5)
 
+    @pytest.mark.requires_trainable_backend
     def test_dict_inputs_outputs(self):
         input_foo = keras_core.Input((2,), name="foo")
         input_bar = keras_core.Input((2,), name="bar")
@@ -223,6 +225,7 @@ class SerializationLibTest(testing.TestCase):
         self.assertIs(model.layers[2], model.layers[3].layer)
         self.assertIs(new_model.layers[2], new_model.layers[3].layer)
 
+    @pytest.mark.requires_trainable_backend
     def test_functional_subclass(self):
         class PlainFunctionalSubclass(keras_core.Model):
             pass

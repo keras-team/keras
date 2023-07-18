@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 
 from keras_core import testing
@@ -10,6 +11,7 @@ class ELUTest(testing.TestCase):
         elu_layer = elu.ELU()
         self.run_class_serialization_test(elu_layer)
 
+    @pytest.mark.requires_trainable_backend
     def test_elu(self):
         self.run_layer_test(
             elu.ELU,

@@ -7,6 +7,7 @@ from keras_core import testing
 
 
 class DropoutTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_dropout_basics(self):
         self.run_layer_test(
             layers.Dropout,

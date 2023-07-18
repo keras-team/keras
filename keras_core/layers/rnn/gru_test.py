@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras_core import initializers
@@ -7,6 +8,7 @@ from keras_core import testing
 
 
 class GRUTest(testing.TestCase, parameterized.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.GRU,

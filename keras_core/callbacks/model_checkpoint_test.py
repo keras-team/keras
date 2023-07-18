@@ -31,6 +31,7 @@ class ModelCheckpointTest(testing.TestCase):
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
     )
+    @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_options(self):
         def get_model():
             model = Sequential(
@@ -445,6 +446,7 @@ class ModelCheckpointTest(testing.TestCase):
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
     )
+    @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_loading(self):
         def get_model():
             inputs = layers.Input(shape=(INPUT_DIM,), batch_size=2)

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras_core import layers
 from keras_core import losses
@@ -162,7 +163,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     def test_slice_update(self):
         # Test 1D.
         inputs = np.array([0, 0, 0, 0, 0, 0, 0, 0])
-        start_indices = [1]
+        start_indices = np.array([1])
         updates = np.array([9, 10, 11, 12])
         self.assertAllClose(
             core.slice_update(inputs, start_indices, updates),
@@ -204,6 +205,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(x, np.ones((2, 3)) * 6)
         self.assertAllClose(y, np.ones((3, 2)) * 6)
 
+    @pytest.mark.requires_trainable_backend
     def test_stop_gradient(self):
         class ExampleLayer(layers.Layer):
             def __init__(self):

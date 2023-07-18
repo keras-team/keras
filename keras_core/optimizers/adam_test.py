@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import keras_core
 from keras_core import backend
@@ -75,6 +76,7 @@ class AdamTest(testing.TestCase):
         clipped_grad = optimizer._clip_gradients(grad)
         self.assertAllClose(clipped_grad[0], [1.0, 1.0])
 
+    @pytest.mark.requires_trainable_backend
     def test_ema(self):
         # TODO: test correctness
         model = keras_core.Sequential([keras_core.layers.Dense(10)])

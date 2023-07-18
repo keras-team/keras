@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 import tensorflow as tf
 
 import keras_core
@@ -52,6 +53,7 @@ def get_subclassed_model(keras):
     return model
 
 
+@pytest.mark.requires_trainable_backend
 class LegacyH5LoadingTest(testing.TestCase):
     def _check_reloading(self, ref_input, model, tf_keras_model):
         ref_output = tf_keras_model(ref_input)

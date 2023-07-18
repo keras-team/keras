@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import initializers
 from keras_core import layers
 from keras_core import testing
@@ -164,6 +166,10 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
             layer._output_dense.kernel,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_query_mask_progagation(self):
         """Test automatic propagation of the query's mask."""
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
@@ -175,6 +181,10 @@ class MultiHeadAttentionTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
     def test_masking(self, use_causal_mask):
         """Test that the value and causal masks are taken into account."""
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)

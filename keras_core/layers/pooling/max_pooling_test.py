@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 from absl.testing import parameterized
 
@@ -6,6 +7,7 @@ from keras_core import layers
 from keras_core import testing
 
 
+@pytest.mark.requires_trainable_backend
 class MaxPoolingBasicTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 4), (3, 4, 4)),

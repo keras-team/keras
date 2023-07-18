@@ -8,6 +8,7 @@ from keras_core import testing
 
 
 class PermuteTest(testing.TestCase):
+    @pytest.mark.requires_trainable_backend
     def test_permute(self):
         inputs = np.random.random((2, 3, 5)).astype("float32")
         expected_output = ops.convert_to_tensor(

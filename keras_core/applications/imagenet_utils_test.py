@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 import keras_core as keras
@@ -74,6 +75,7 @@ class TestImageNetUtils(testing.TestCase, parameterized.TestCase):
             {"testcase_name": "mode_caffe", "mode": "caffe"},
         ]
     )
+    @pytest.mark.requires_trainable_backend
     def test_preprocess_input_symbolic(self, mode):
         # Test image batch
         x = np.random.uniform(0, 255, (2, 10, 10, 3))

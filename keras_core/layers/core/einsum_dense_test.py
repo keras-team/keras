@@ -1,3 +1,4 @@
+import pytest
 from absl.testing import parameterized
 
 from keras_core import layers
@@ -227,6 +228,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             "expected_output_shape": (2, 3, 4, 2),
         },
     )
+    @pytest.mark.requires_trainable_backend
     def test_einsum_dense_basics(
         self,
         equation,
