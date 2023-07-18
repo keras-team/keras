@@ -95,7 +95,7 @@ class RandomCrop(TFDataLayer):
         w_diff = input_shape[self.width_axis] - self.width
 
         def random_crop():
-            dtype = input_shape.dtype
+            dtype = self.compute_dtype
             rands = random.uniform(
                 [2], 0, dtype.max, dtype, seed=self.self.seed_generator
             )
