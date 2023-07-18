@@ -29,6 +29,9 @@ class ActivityRegularization(Layer):
     Args:
       l1: L1 regularization factor (positive float).
       l2: L2 regularization factor (positive float).
+      
+      Note: Both l1 and l2 also accepts integers and 
+      they internally converted into floats.
 
     Input shape:
       Arbitrary. Use the keyword argument `input_shape`
