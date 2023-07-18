@@ -90,21 +90,30 @@ class RandomCrop(TFDataLayer):
 
         def random_crop():
             # input_dtype_max = (2 ** dtype_utils.dtype_size(inputs.dtype)) - 1
-            input_height, input_width = input_shape[self.height_axis], input_shape[self.width_axis]
-
-            h_start = ops.random.uniform(
-                (),
-                0,
-                maxval=input_height - self.height + 1,
-                dtype="int32",
-                seed=self.seed_generator,
+            input_height, input_width = (
+                input_shape[self.height_axis],
+                input_shape[self.width_axis],
             )
-            w_start = ops.random.uniform(
-                (),
-                0,
-                maxval=input_width - self.width + 1,
-                dtype="int32",
-                seed=self.seed_generator,
+
+            h_start = self.backend.cast(
+                ops.random.uniform(
+                    (),
+                    0,
+                    maxval=input_height - self.height + 1,
+                    dtype=inputs.dtype,
+                    seed=self.seed_generator,
+                ),
+                h_diff.dtype,
+            )
+            w_start = self.backend.cast(
+                ops.random.uniform(
+                    (),
+                    0,
+                    maxval=input_width - self.width + 1,
+                    dtype=inputs.dtype,
+                    seed=self.seed_generator,
+                ),
+                h_diff.dtype,
             )
             # rands = ops.random.uniform(
             #     [2], 0, input_dtype_max, inputs.dtype, seed=self.seed_generator
