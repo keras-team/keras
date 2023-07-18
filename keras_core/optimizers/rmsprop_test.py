@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras_core import backend
+from keras_core import ops
 from keras_core import testing
 from keras_core.optimizers.rmsprop import RMSprop
 
@@ -18,7 +19,7 @@ class RMSpropTest(testing.TestCase):
 
     def test_single_step(self):
         optimizer = RMSprop(learning_rate=0.5)
-        grads = np.array([1.0, 6.0, 7.0, 2.0])
+        grads = ops.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(
@@ -27,7 +28,7 @@ class RMSpropTest(testing.TestCase):
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
-            np.zeros(()),
+            ops.zeros(()),
             backend.Variable(2.0),
             backend.Variable(2.0, name="exclude"),
             backend.Variable(2.0),
@@ -51,8 +52,8 @@ class RMSpropTest(testing.TestCase):
         optimizer = RMSprop(centered=True)
 
         x = backend.Variable(np.ones([10]))
-        grads = np.arange(0.1, 1.1, 0.1)
-        first_grads = np.full((10,), 0.01)
+        grads = ops.arange(0.1, 1.1, 0.1)
+        first_grads = ops.full((10,), 0.01)
 
         golden = np.tile(
             [[0.9967], [0.9933], [0.9908], [0.9885], [0.9864]], (1, 10)
