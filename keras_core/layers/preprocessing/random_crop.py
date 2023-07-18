@@ -99,7 +99,7 @@ class RandomCrop(TFDataLayer):
                 ops.random.uniform(
                     (),
                     0,
-                    maxval=input_height - self.height + 1,
+                    maxval=float(input_height - self.height + 1),
                     dtype=inputs.dtype,
                     seed=self.seed_generator,
                 ),
@@ -109,7 +109,7 @@ class RandomCrop(TFDataLayer):
                 ops.random.uniform(
                     (),
                     0,
-                    maxval=input_width - self.width + 1,
+                    maxval=float(input_width - self.width + 1),
                     dtype=inputs.dtype,
                     seed=self.seed_generator,
                 ),
