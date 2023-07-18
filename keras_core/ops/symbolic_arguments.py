@@ -5,7 +5,7 @@ from keras_core.backend import KerasTensor
 
 class SymbolicArguments:
     def __init__(self, *args, **kwargs):
-        # TODO: validation
+
         self.args = tree.map_structure(lambda x: x, args)
         self.kwargs = tree.map_structure(lambda x: x, kwargs)
         self._flat_arguments = tree.flatten((self.args, self.kwargs))
