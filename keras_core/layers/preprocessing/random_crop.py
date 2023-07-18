@@ -1,5 +1,5 @@
 from keras_core import backend
-from keras_core import random
+from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.random.seed_generator import SeedGenerator
@@ -86,7 +86,7 @@ class RandomCrop(TFDataLayer):
         input_shape = self.backend.shape(inputs)
         is_batched = len(input_shape) > 3
         inputs = (
-            self.backend.expand_dims(inputs, axis=0)
+            self.backend.numpy.expand_dims(inputs, axis=0)
             if not is_batched
             else inputs
         )
@@ -95,12 +95,19 @@ class RandomCrop(TFDataLayer):
         w_diff = input_shape[self.width_axis] - self.width
 
         def random_crop():
-            dtype = self.compute_dtype
-            rands = random.uniform(
-                [2], 0, dtype.max, dtype, seed=self.self.seed_generator
+            # input_dtype = self.backend.numpy.dtype()
+            rands = ops.random.uniform(
+                [2], 0, inputs.dtype.max, inputs.dtype, seed=self.seed_generator
             )
-            h_start = rands[0] % (h_diff + 1)
-            w_start = rands[1] % (w_diff + 1)
+            original_dtype = h_diff.dtype
+            h_start = self.backend.cast(
+                rands[0] % self.backend.cast((h_diff + 1), self.compute_dtype),
+                original_dtype,
+            )
+            w_start = self.backend.cast(
+                rands[1] % self.backend.cast((w_diff + 1), self.compute_dtype),
+                original_dtype,
+            )
             if self.data_format == "channels_last":
                 return inputs[
                     :,
@@ -131,10 +138,7 @@ class RandomCrop(TFDataLayer):
             resize,
         )
 
-        if (
-            self.backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
+        if self.backend != "tensorflow" and not backend_utils.in_tf_graph():
             outputs = self.backend.convert_to_tensor(outputs)
         return outputs
 
