@@ -8,11 +8,13 @@ class TorchOptimizer(BaseOptimizer):
     def __new__(cls, *args, **kwargs):
         # Import locally to avoid circular imports.
         from keras_core.backend.torch.optimizers import torch_adam
+        from keras_core.backend.torch.optimizers import torch_adamw
         from keras_core.backend.torch.optimizers import torch_sgd
 
         OPTIMIZERS = {
             optimizers.SGD: torch_sgd.SGD,
             optimizers.Adam: torch_adam.Adam,
+            optimizers.AdamW: torch_adamw.AdamW,
         }
         if cls in OPTIMIZERS:
             return OPTIMIZERS[cls](*args, **kwargs)

@@ -1,10 +1,10 @@
-from keras_core import ops
 from keras_core.api_export import keras_core_export
+from keras_core.optimizers import adam
 from keras_core.optimizers import optimizer
 
 
 @keras_core_export(["keras_core.optimizers.AdamW"])
-class AdamW(optimizer.Optimizer):
+class AdamW(adam.Adam):
     """Optimizer that implements the AdamW algorithm.
 
     AdamW optimization is a stochastic gradient descent method that is based on
@@ -68,7 +68,12 @@ class AdamW(optimizer.Optimizer):
     ):
         super().__init__(
             learning_rate=learning_rate,
+            beta_1=beta_1,
+            beta_2=beta_2,
+            epsilon=epsilon,
+            amsgrad=amsgrad,
             name=name,
+            weight_decay=weight_decay,
             clipnorm=clipnorm,
             clipvalue=clipvalue,
             global_clipnorm=global_clipnorm,
@@ -76,90 +81,12 @@ class AdamW(optimizer.Optimizer):
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
         )
-        self.weight_decay = weight_decay
-        self.beta_1 = beta_1
-        self.beta_2 = beta_2
-        self.epsilon = epsilon
-        self.amsgrad = amsgrad
 
         if self.weight_decay is None:
             raise ValueError(
                 "Argument `weight_decay` must be a float. Received: "
                 "weight_decay=None"
             )
-
-    def build(self, var_list):
-        """Initialize optimizer variables.
-
-        AdamW optimizer has 3 types of variables: momentums, velocities and
-        velocity_hat (only set when amsgrad is applied),
-
-        Args:
-            var_list: list of model variables to build AdamW variables on.
-        """
-        if self.built:
-            return
-        super().build(var_list)
-        self._momentums = []
-        self._velocities = []
-        for var in var_list:
-            self._momentums.append(
-                self.add_variable_from_reference(
-                    reference_variable=var, name="m"
-                )
-            )
-            self._velocities.append(
-                self.add_variable_from_reference(
-                    reference_variable=var, name="v"
-                )
-            )
-        if self.amsgrad:
-            self._velocity_hats = []
-            for var in var_list:
-                self._velocity_hats.append(
-                    self.add_variable_from_reference(
-                        reference_variable=var, name="vhat"
-                    )
-                )
-
-    def update_step(self, gradient, variable, learning_rate):
-        """Update step given gradient and the associated model variable."""
-        lr = ops.cast(learning_rate, variable.dtype)
-        gradient = ops.cast(gradient, variable.dtype)
-        local_step = ops.cast(self.iterations + 1, variable.dtype)
-        beta_1_power = ops.power(
-            ops.cast(self.beta_1, variable.dtype), local_step
-        )
-        beta_2_power = ops.power(
-            ops.cast(self.beta_2, variable.dtype), local_step
-        )
-
-        m = self._momentums[self._get_variable_index(variable)]
-        v = self._velocities[self._get_variable_index(variable)]
-
-        alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
-
-        m.assign(m + (gradient - m) * (1 - self.beta_1))
-        v.assign(v + (ops.square(gradient) - v) * (1 - self.beta_2))
-        if self.amsgrad:
-            v_hat = self._velocity_hats[self._get_variable_index(variable)]
-            v_hat.assign(ops.maximum(v_hat, v))
-            v = v_hat
-        variable.assign(variable - (m * alpha) / (ops.sqrt(v) + self.epsilon))
-
-    def get_config(self):
-        config = super().get_config()
-
-        config.update(
-            {
-                "weight_decay": self.weight_decay,
-                "beta_1": self.beta_1,
-                "beta_2": self.beta_2,
-                "epsilon": self.epsilon,
-                "amsgrad": self.amsgrad,
-            }
-        )
-        return config
 
 
 AdamW.__doc__ = AdamW.__doc__.replace(
