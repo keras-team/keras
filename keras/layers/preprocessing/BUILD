@@ -265,6 +265,7 @@ distribute_py_test(
         "no_oss",  # b/189866692
         "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",  # b/155502591
@@ -290,6 +291,7 @@ distribute_py_test(
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notpu",  # TODO(b/210148622)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",
@@ -332,6 +334,7 @@ distribute_py_test(
         "no_oss",  # TODO(b/189956080)
         "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":discretization",
@@ -369,6 +372,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":hashing",
@@ -422,6 +426,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = ["no_oss"],
     deps = [
@@ -497,6 +502,7 @@ distribute_py_test(
     tags = [
         "no_oss",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":normalization",
@@ -530,10 +536,11 @@ distribute_py_test(
     disable_mlir_bridge = False,
     main = "text_vectorization_distribution_test.py",
     python_version = "PY3",
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",  # b/155502591

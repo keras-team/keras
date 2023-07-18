@@ -291,6 +291,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":distribute_strategy_test_lib",
