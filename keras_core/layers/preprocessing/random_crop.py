@@ -5,7 +5,7 @@ from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.random.seed_generator import SeedGenerator
 from keras_core.utils import backend_utils
 from keras_core.utils import image_utils
-from keras_core.utils.module_utils import tensorflow as tf
+from keras_core.utils import dtype_utils
 
 
 @keras_core_export("keras_core.layers.RandomCrop")
@@ -56,12 +56,6 @@ class RandomCrop(TFDataLayer):
     def __init__(
         self, height, width, seed=None, data_format=None, name=None, **kwargs
     ):
-        if not tf.available:
-            raise ImportError(
-                "Layer RandomCrop requires TensorFlow. "
-                "Install it via `pip install tensorflow`."
-            )
-
         super().__init__(name=name, **kwargs)
         self.height = height
         self.width = width
@@ -95,19 +89,35 @@ class RandomCrop(TFDataLayer):
         w_diff = input_shape[self.width_axis] - self.width
 
         def random_crop():
-            # input_dtype = self.backend.numpy.dtype()
-            rands = ops.random.uniform(
-                [2], 0, inputs.dtype.max, inputs.dtype, seed=self.seed_generator
+            # input_dtype_max = (2 ** dtype_utils.dtype_size(inputs.dtype)) - 1
+            input_height, input_width = input_shape[self.height_axis], input_shape[self.width_axis]
+
+            h_start = ops.random.uniform(
+                (),
+                0,
+                maxval=input_height - self.height + 1,
+                dtype="int32",
+                seed=self.seed_generator,
             )
-            original_dtype = h_diff.dtype
-            h_start = self.backend.cast(
-                rands[0] % self.backend.cast((h_diff + 1), self.compute_dtype),
-                original_dtype,
+            w_start = ops.random.uniform(
+                (),
+                0,
+                maxval=input_width - self.width + 1,
+                dtype="int32",
+                seed=self.seed_generator,
             )
-            w_start = self.backend.cast(
-                rands[1] % self.backend.cast((w_diff + 1), self.compute_dtype),
-                original_dtype,
-            )
+            # rands = ops.random.uniform(
+            #     [2], 0, input_dtype_max, inputs.dtype, seed=self.seed_generator
+            # )
+            # original_dtype = h_diff.dtype
+            # h_start = self.backend.cast(
+            #     rands[0] % self.backend.cast((h_diff + 1), self.compute_dtype),
+            #     original_dtype,
+            # )
+            # w_start = self.backend.cast(
+            #     rands[1] % self.backend.cast((w_diff + 1), self.compute_dtype),
+            #     original_dtype,
+            # )
             if self.data_format == "channels_last":
                 return inputs[
                     :,
