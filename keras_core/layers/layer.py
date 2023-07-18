@@ -84,8 +84,8 @@ class Layer(BackendLayer, Operation):
 
     Attributes:
         name: The name of the layer (string).
-        dtype: Dtype of the layer's weights. Alias of `layer.variable_dtype`.
-        variable_dtype: Dtype of the layer's weights.
+        dtype: The dtype of the layer's weights.
+        variable_dtype: Dtype of the layer's variables.
         compute_dtype: The dtype of the layer's computations.
             Layers automatically cast inputs to this dtype, which causes
             the computations and output to also be in this dtype.
@@ -374,19 +374,21 @@ class Layer(BackendLayer, Operation):
         constraint=None,
         name=None,
     ):
-        """Add a weight variable to the layer.
-
-        Alias of `add_weight()`.
-        """
-        return self.add_weight(
-            shape=shape,
+        # TODO: handle layout
+        self._check_super_called()
+        initializer = initializers.get(initializer)
+        variable = backend.Variable(
             initializer=initializer,
-            dtype=dtype,
+            shape=shape,
+            dtype=dtype or self.variable_dtype,
             trainable=trainable,
-            regularizer=regularizer,
-            constraint=constraint,
             name=name,
         )
+        # Will be added to layer.losses
+        variable.regularizer = regularizer
+        variable.constraint = constraint
+        self._track_variable(variable)
+        return variable
 
     def add_weight(
         self,
@@ -399,6 +401,8 @@ class Layer(BackendLayer, Operation):
         name=None,
     ):
         """Add a weight variable to the layer.
+
+        Alias of `add_variable()`.
 
         Args:
             shape: Shape tuple for the variable.
@@ -418,21 +422,15 @@ class Layer(BackendLayer, Operation):
             name: String name of the variable. Useful
                 for debugging purposes.
         """
-        # TODO: handle layout
-        self._check_super_called()
-        initializer = initializers.get(initializer)
-        variable = backend.Variable(
-            initializer=initializer,
+        return self.add_variable(
             shape=shape,
-            dtype=dtype or self.variable_dtype,
+            initializer=initializer,
+            dtype=dtype,
             trainable=trainable,
+            regularizer=regularizer,
+            constraint=constraint,
             name=name,
         )
-        # Will be added to layer.losses
-        variable.regularizer = regularizer
-        variable.constraint = constraint
-        self._track_variable(variable)
-        return variable
 
     @property
     def trainable(self):
@@ -461,13 +459,9 @@ class Layer(BackendLayer, Operation):
 
     @property
     def variables(self):
-        """List of all layer state, including metric variables and random seeds.
-
-        This extends `layer.weights` to include all state used by the layer
-        including state for metrics and `SeedGenerator`s.
-        """
-        # Return all `Variables` associate with the layer including metrics
-        # and random seeds. Also deduplicate them.
+        # Return only weights/rng state/metric variables
+        # of all Layers, recursively.
+        # Also deduplicate them.
         variables = []
         seen_ids = set()
         for v in self._trainable_variables + self._non_trainable_variables:
@@ -487,32 +481,20 @@ class Layer(BackendLayer, Operation):
 
     @property
     def trainable_variables(self):
-        """List of all trainable layer state.
-
-        This is equivalent to `layer.trainable_weights`.
-        """
         if not self.trainable:
             return []
         return [v for v in self.variables if v.trainable]
 
     @property
     def non_trainable_variables(self):
-        """List of all non-trainable layer state.
-
-        This extends `layer.non_trainable_weights` to include all state used by
-        the layer including state for metrics and `SeedGenerator`s.
-        """
         if not self.trainable:
             return self.variables
         return [v for v in self.variables if not v.trainable]
 
     @property
     def weights(self):
-        """List of all weight variables of the layer.
-
-        Unlike, `layer.variables` this excludes metric state and random seeds.
-        """
-        # Return only `Variables` directly owned by layers and sub-layers.
+        """List of weight variables of the layer."""
+        # Return only "own weights" of all Layers, recursively.
         # Also deduplicate them.
         weights = []
         seen_ids = set()
@@ -529,9 +511,10 @@ class Layer(BackendLayer, Operation):
 
     @property
     def trainable_weights(self):
-        """List of all trainable weight variables of the layer.
+        """List of trainable weight variables of the layer.
 
-        These are the weights that get updated by the optimizer during training.
+        These are the weights that get updated by the optimizer
+        during training.
         """
         if not self.trainable:
             return []
@@ -539,11 +522,10 @@ class Layer(BackendLayer, Operation):
 
     @property
     def non_trainable_weights(self):
-        """List of all non-trainable weight variables of the layer.
+        """List of non-trainable weight variables of the layer.
 
-        These are the weights that should not be updated by the optimizer during
-        training. Unlike, `layer.non_trainable_variables` this excludes metric
-        state and random seeds.
+        Non-trainable weights may include batch normalization statistics,
+        metric variables, or RNG seed variables.
         """
         if not self.trainable:
             return self.weights
@@ -573,7 +555,7 @@ class Layer(BackendLayer, Operation):
 
     @property
     def dtype(self):
-        """Alias of `layer.variable_dtype`."""
+        """The dtype of the state (weights) of the layer."""
         return self.variable_dtype
 
     @property
