@@ -13,3 +13,4 @@ tensorboard-plugin-profile
 rich
 build
 dm-tree
+pytest-cov
