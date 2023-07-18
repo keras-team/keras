@@ -2,6 +2,7 @@ import numpy as np
 
 import keras_core
 from keras_core import backend
+from keras_core import ops
 from keras_core import testing
 from keras_core.optimizers.adam import Adam
 
@@ -19,14 +20,14 @@ class AdamTest(testing.TestCase):
 
     def test_single_step(self):
         optimizer = Adam(learning_rate=0.5)
-        grads = np.array([1.0, 6.0, 7.0, 2.0])
+        grads = ops.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(vars, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
-            np.zeros(()),
+            ops.zeros(()),
             backend.Variable(2.0),
             backend.Variable(2.0, name="exclude"),
             backend.Variable(2.0),
@@ -50,8 +51,8 @@ class AdamTest(testing.TestCase):
         optimizer = Adam(amsgrad=True)
 
         x = backend.Variable(np.ones([10]))
-        grads = np.arange(0.1, 1.1, 0.1)
-        first_grads = np.full((10,), 0.01)
+        grads = ops.arange(0.1, 1.1, 0.1)
+        first_grads = ops.full((10,), 0.01)
 
         golden = np.tile(
             [[0.999], [0.9982], [0.9974], [0.9965], [0.9955]], (1, 10)

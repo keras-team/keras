@@ -1,29 +1,22 @@
 import torch
 
 from keras_core import optimizers
+from keras_core.backend.torch.optimizers import torch_parallel_optimizer
 
 
-class SGD(optimizers.SGD):
-    def _internal_apply_gradients(self, grads_and_vars):
-        grads, trainable_variables = zip(*grads_and_vars)
-
-        self._parallel_update_step(
-            grads,
-            [v.value for v in trainable_variables],
-            self._get_current_learning_rate(),
-        )
-        self.iterations.assign(self.iterations + 1)
-
+class SGD(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.SGD):
     def _parallel_update_step(
         self,
         grads,
         variables,
         learning_rate,
     ):
+        keras_variables = variables
+        variables = [v.value for v in variables]
         if self.momentum != 0:
             bufs = [
-                self.momentums[self._get_variable_index(variable.value)]
-                for variable in variables
+                self.momentums[self._get_variable_index(variable.value)].value
+                for variable in keras_variables
             ]
 
             for i in range(len(bufs)):
