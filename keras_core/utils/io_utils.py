@@ -58,6 +58,42 @@ def is_interactive_logging_enabled():
     return global_state.get_global_setting("interactive_logging", True)
 
 
+@keras_core_export(
+    [
+        "keras_core.config.set_logging_verbosity",
+        "keras_core.utils.set_logging_verbosity",
+    ]
+)
+def set_logging_verbosity(level):
+    """Sets the verbosity level for logging.
+    The log levels are as follows:
+
+        - "FATAL" (least verbose)
+        - "ERROR"
+        - "WARNING"
+        - "INFO"
+        - "DEBUG" (most verbose)
+
+    Args:
+        level: A string corresponding to the level of verbosity for logging.
+    """
+    valid_levels = {
+        "FATAL": logging.FATAL,
+        "ERROR": logging.ERROR,
+        "WARNING": logging.WARNING,
+        "INFO": logging.INFO,
+        "DEBUG": logging.DEBUG,
+    }
+    verbosity = valid_levels.get(level)
+    if verbosity is None:
+        raise ValueError(
+            "Please pass a valid level for logging verbosity. "
+            f"The valid levels are {valid_levels.keys()}. "
+            f"Received: {level}"
+        )
+    logging.set_verbosity(verbosity)
+
+
 def print_msg(message, line_break=True):
     """Print the message to absl logging or stdout."""
     if is_interactive_logging_enabled():

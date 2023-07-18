@@ -6,6 +6,25 @@ class TFLayer(tf.__internal__.tracking.AutoTrackable):
         """Can be overriden to perform post-build actions."""
         pass
 
+    def _trackable_children(self, save_type="checkpoint", **kwargs):
+        if save_type == "savedmodel":
+            # SavedModel needs to ignore the execution functions.
+            train_function = getattr(self, "train_function", None)
+            test_function = getattr(self, "test_function", None)
+            predict_function = getattr(self, "predict_function", None)
+            self.train_function = None
+            self.test_function = None
+            self.predict_function = None
+
+        children = super()._trackable_children(save_type, **kwargs)
+
+        if save_type == "savedmodel":
+            self.train_function = train_function
+            self.test_function = test_function
+            self.predict_function = predict_function
+
+        return children
+
     @property
     def _default_save_signature(self):
         """For SavedModel support: returns the default serving signature."""

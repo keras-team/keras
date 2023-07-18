@@ -83,8 +83,9 @@ class ReduceLROnPlateauTest(testing.TestCase):
             patience=1, factor=0.1, monitor="val_loss", min_delta=100, verbose=1
         )
         io_utils.disable_interactive_logging()
+        io_utils.set_logging_verbosity("INFO")
 
-        with self.assertLogs(level="INFO") as logs:
+        with self.assertLogs() as logs:
             self.model.fit(
                 self.x_train,
                 self.y_train,

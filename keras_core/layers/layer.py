@@ -295,11 +295,22 @@ class Layer(BackendLayer, Operation):
                 ),
             }
         )
+        if backend.backend() == "tensorflow":
+            # Remove attribute tracking for lists (TF-specific attribute)
+            _self_setattr_tracking = getattr(
+                self, "_self_setattr_tracking", True
+            )
+            self._self_setattr_tracking = False
+
         self._trainable_variables = trainable_variables
         self._non_trainable_variables = non_trainable_variables
         self._layers = layers
         self._metrics = metrics
         self._seed_generators = seed_generators
+
+        if backend.backend() == "tensorflow":
+            # Reset attribute tracking (TF-specific)
+            self._self_setattr_tracking = _self_setattr_tracking
 
     @property
     def input_spec(self):
