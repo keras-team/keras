@@ -57,9 +57,8 @@ class RMSprop(
                 self._momentums[self._get_variable_index(variable)].value
                 for variable in keras_variables
             ]
-            momentum_list = torch._foreach_add(
-                increments, momentum_list, alpha=self.momentum
-            )
+            torch._foreach_mul_(momentum_list, self.momentum)
+            torch._foreach_add_(momentum_list, increments)
             torch._foreach_add_(variables, momentum_list, alpha=-1)
         else:
             torch._foreach_add_(variables, increments, alpha=-1)

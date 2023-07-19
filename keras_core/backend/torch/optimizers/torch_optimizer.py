@@ -7,12 +7,14 @@ from keras_core.optimizers.base_optimizer import BaseOptimizer
 class TorchOptimizer(BaseOptimizer):
     def __new__(cls, *args, **kwargs):
         # Import locally to avoid circular imports.
+        from keras_core.backend.torch.optimizers import torch_adadelta
         from keras_core.backend.torch.optimizers import torch_adam
         from keras_core.backend.torch.optimizers import torch_adamw
         from keras_core.backend.torch.optimizers import torch_rmsprop
         from keras_core.backend.torch.optimizers import torch_sgd
 
         OPTIMIZERS = {
+            optimizers.Adadelta: torch_adadelta.Adadelta,
             optimizers.Adam: torch_adam.Adam,
             optimizers.AdamW: torch_adamw.AdamW,
             optimizers.RMSprop: torch_rmsprop.RMSprop,

@@ -15,7 +15,7 @@ class SGD(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.SGD):
         variables = [v.value for v in variables]
         if self.momentum != 0:
             bufs = [
-                self.momentums[self._get_variable_index(variable.value)].value
+                self.momentums[self._get_variable_index(variable)].value
                 for variable in keras_variables
             ]
 
