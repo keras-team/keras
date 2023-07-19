@@ -965,18 +965,25 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         output_shape = self.compute_output_shape(input_shape)
 
         try:
-            dtype = self.output.dtype
+            dtype = tf.nest.map_structure(lambda o: o.dtype, self.output)
+            return tf.nest.map_structure(
+                lambda s, d: tf.TensorSpec(dtype=d, shape=s),
+                output_shape,
+                dtype,
+            )
         except AttributeError:
             dtype = self._compute_dtype
 
-        if dtype is None:
-            input_dtypes = [s.dtype for s in tf.nest.flatten(input_signature)]
-            # Default behavior when self.dtype is None, is to use the first
-            # input's dtype.
-            dtype = input_dtypes[0]
-        return tf.nest.map_structure(
-            lambda s: tf.TensorSpec(dtype=dtype, shape=s), output_shape
-        )
+            if dtype is None:
+                input_dtypes = [
+                    s.dtype for s in tf.nest.flatten(input_signature)
+                ]
+                # Default behavior when self.dtype is None, is to use the
+                # first input's dtype.
+                dtype = input_dtypes[0]
+            return tf.nest.map_structure(
+                lambda s: tf.TensorSpec(dtype=dtype, shape=s), output_shape
+            )
 
     @generic_utils.default
     def compute_mask(self, inputs, mask=None):

@@ -1116,6 +1116,29 @@ class BaseLayerTest(test_combinations.TestCase):
         with self.assertRaises(NotImplementedError):
             config = layer.get_config()
 
+    def test_model_compute_output_signature_dtype_single_output(self):
+        inputs = input_layer.Input((None, None, 3), dtype="uint8")
+        outputs = layers.Rescaling(scale=1.0 / 255)(inputs)
+        outputs = layers.Activation("softmax", dtype="float64")(outputs)
+        model = training_lib.Model(inputs=inputs, outputs=outputs)
+        signature = model.compute_output_signature(
+            tf.TensorSpec(dtype="uint8", shape=[2, 16, 16, 3])
+        )
+        self.assertEqual(signature.dtype, "float64")
+
+    def test_model_compute_output_signature_dtype_multiple_outputs(self):
+        inputs = input_layer.Input((None, None, 3), dtype="uint8")
+        outputs = layers.Rescaling(scale=1.0 / 255)(inputs)
+        outputs0 = layers.Activation("softmax", dtype="float64")(outputs)
+        outputs1 = layers.Activation("softmax", dtype="float16")(outputs)
+        model = training_lib.Model(inputs=inputs, outputs=[outputs0, outputs1])
+        signature = model.compute_output_signature(
+            tf.TensorSpec(dtype="uint8", shape=[2, 16, 16, 3])
+        )
+        self.assertLen(signature, 2)
+        self.assertEqual(signature[0].dtype, "float64")
+        self.assertEqual(signature[1].dtype, "float16")
+
 
 @test_utils.run_v2_only
 class SymbolicSupportTest(test_combinations.TestCase):
@@ -1649,7 +1672,6 @@ class NameScopingTest(test_combinations.TestCase):
 )
 class AutographControlFlowTest(test_combinations.TestCase):
     def test_disabling_in_context_is_matched(self):
-
         test_obj = self
 
         class MyLayer(base_layer.Layer):
