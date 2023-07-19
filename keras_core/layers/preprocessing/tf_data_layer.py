@@ -22,7 +22,7 @@ class TFDataLayer(Layer):
 
     def __call__(self, inputs, **kwargs):
         if backend_utils.in_tf_graph() and not isinstance(
-            inputs, keras_core.backend.KerasTensor
+            inputs, keras_core.KerasTensor
         ):
             # We're in a TF graph, e.g. a tf.data pipeline.
             self.backend.set_backend("tensorflow")

@@ -10,6 +10,7 @@ from keras_core import ops
 from keras_core import optimizers
 from keras_core import regularizers
 from keras_core import utils
+from keras_core.backend import KerasTensor
 from keras_core.layers import Input
 from keras_core.layers import Layer
 from keras_core.models import Functional
