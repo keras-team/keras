@@ -4,6 +4,7 @@
 import numpy as np
 
 from keras_core import backend
+from keras_core import ops
 from keras_core import testing
 from keras_core.optimizers.adamax import Adamax
 
@@ -20,14 +21,14 @@ class AdamaxTest(testing.TestCase):
 
     def test_single_step(self):
         optimizer = Adamax(learning_rate=0.5)
-        grads = np.array([1.0, 6.0, 7.0, 2.0])
+        grads = ops.array([1.0, 6.0, 7.0, 2.0])
         vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
         optimizer.apply_gradients(zip([grads], [vars]))
         self.assertAllClose(vars, [0.5, 1.5, 2.5, 3.5], rtol=1e-4, atol=1e-4)
 
     def test_weight_decay(self):
         grads, var1, var2, var3 = (
-            np.zeros(()),
+            ops.zeros(()),
             backend.Variable(2.0),
             backend.Variable(2.0, name="exclude"),
             backend.Variable(2.0),
@@ -53,8 +54,8 @@ class AdamaxTest(testing.TestCase):
         )
 
         x = backend.Variable(np.ones([10]))
-        grads = np.arange(0.1, 1.1, 0.1)
-        first_grads = np.full((10,), 0.01)
+        grads = ops.arange(0.1, 1.1, 0.1)
+        first_grads = ops.full((10,), 0.01)
 
         # fmt: off
         golden = np.array(
