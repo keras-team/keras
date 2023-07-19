@@ -72,7 +72,9 @@ class Metric:
             values = ops.cast(values, self.dtype)
             if sample_weight is not None:
                 sample_weight = ops.cast(sample_weight, self.dtype)
-                sample_weight = ops.broadcast_to(sample_weight, values.shape)
+                sample_weight = ops.broadcast_to(
+                    sample_weight, ops.shape(values)
+                )
                 values = ops.multiply(values, sample_weight)
             self.true_positives.assign(self.true_positives + ops.sum(values))
 

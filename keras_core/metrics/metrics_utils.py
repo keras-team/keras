@@ -195,7 +195,7 @@ def _update_confusion_matrix_variables_optimized(
         sample_weights = 1.0
     else:
         sample_weights = ops.broadcast_to(
-            ops.cast(sample_weights, dtype=y_pred.dtype), y_pred.shape
+            ops.cast(sample_weights, dtype=y_pred.dtype), ops.shape(y_pred)
         )
         if not multi_label:
             sample_weights = ops.reshape(sample_weights, [-1])
@@ -203,7 +203,7 @@ def _update_confusion_matrix_variables_optimized(
         label_weights = 1.0
     else:
         label_weights = ops.expand_dims(label_weights, 0)
-        label_weights = ops.broadcast_to(label_weights, y_pred.shape)
+        label_weights = ops.broadcast_to(label_weights, ops.shape(y_pred))
         if not multi_label:
             label_weights = ops.reshape(label_weights, [-1])
     weights = ops.cast(
@@ -533,7 +533,7 @@ def update_confusion_matrix_variables(
 
     if label_weights is not None and not multi_label:
         label_weights = ops.expand_dims(label_weights, 0)
-        label_weights = ops.broadcast_to(label_weights, y_pred.shape)
+        label_weights = ops.broadcast_to(label_weights, ops.shape(y_pred))
         label_weights_tiled = ops.tile(
             ops.reshape(label_weights, thresh_tiles), data_tiles
         )

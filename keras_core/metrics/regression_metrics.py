@@ -428,7 +428,6 @@ class R2Score(reduction_metrics.Metric):
             shape=(),
             initializer=initializers.Zeros(),
             name="num_samples",
-            dtype="int32",
         )
         self._built = False
 
@@ -500,16 +499,19 @@ class R2Score(reduction_metrics.Metric):
             # Make sure there's a features dimension
             sample_weight = ops.expand_dims(sample_weight, axis=1)
 
-        sample_weight = ops.broadcast_to(sample_weight, y_true.shape)
+        sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
 
-        weighted_y_true = y_true * sample_weight
+        weighted_y_true = y_true * ops.cast(sample_weight, y_true.dtype)
         self.sum.assign(self.sum + ops.sum(weighted_y_true, axis=0))
         self.squared_sum.assign(
             self.squared_sum + ops.sum(y_true * weighted_y_true, axis=0)
         )
         self.total_mse.assign(
             self.total_mse
-            + ops.sum((y_true - y_pred) ** 2 * sample_weight, axis=0)
+            + ops.sum(
+                (y_true - y_pred) ** 2 * ops.cast(sample_weight, y_true.dtype),
+                axis=0,
+            )
         )
         self.count.assign(self.count + ops.sum(sample_weight, axis=0))
         self.num_samples.assign(self.num_samples + ops.size(y_true))

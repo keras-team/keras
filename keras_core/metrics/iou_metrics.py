@@ -106,7 +106,7 @@ class _IoUBase(Metric):
         if len(sample_weight.shape) > 1:
             sample_weight = ops.reshape(sample_weight, [-1])
 
-        sample_weight = ops.broadcast_to(sample_weight, y_true.shape)
+        sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
 
         if self.ignore_class is not None:
             ignore_class = ops.convert_to_tensor(
