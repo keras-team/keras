@@ -160,7 +160,7 @@ class UpSampling2D(Layer):
             x = ops.repeat(x, height_factor, axis=1)
             x = ops.repeat(x, width_factor, axis=2)
         else:
-            x = ops.image.resize(x, new_shape, method=interpolation)
+            x = ops.image.resize(x, new_shape, interpolation=interpolation)
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 3, 1, 2])
 

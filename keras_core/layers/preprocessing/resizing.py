@@ -81,7 +81,7 @@ class Resizing(TFDataLayer):
             outputs = self.backend.image.resize(
                 inputs,
                 size=size,
-                method=self.interpolation,
+                interpolation=self.interpolation,
                 data_format=self.data_format,
             )
         return outputs
