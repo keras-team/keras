@@ -354,7 +354,7 @@ class Amax(Operation):
 @keras_core_export(["keras_core.ops.amax", "keras_core.ops.numpy.amax"])
 def amax(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
-        return All(axis=axis, keepdims=keepdims).symbolic_call(x)
+        return Amax(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.amax(x, axis=axis, keepdims=keepdims)
 
 
@@ -379,7 +379,7 @@ class Amin(Operation):
 @keras_core_export(["keras_core.ops.amin", "keras_core.ops.numpy.amin"])
 def amin(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
-        return All(axis=axis, keepdims=keepdims).symbolic_call(x)
+        return Amin(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.amin(x, axis=axis, keepdims=keepdims)
 
 
