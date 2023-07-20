@@ -163,6 +163,26 @@ class MultiHeadAttentionTest(test_combinations.TestCase):
             keras.backend.eval(test_layer._output_dense.kernel),
         )
 
+    @parameterized.named_parameters(
+        ("bfloat16", tf.bfloat16),
+        ("float16", tf.float16),
+        ("float32", tf.float32),
+        ("float64", tf.float64),
+    )
+    def test_sublayer_dtypes(self, dtype):
+        test_layer = keras.layers.MultiHeadAttention(
+            num_heads=12, key_dim=64, dtype=dtype
+        )
+
+        query = keras.Input(shape=(40, 80), dtype=dtype)
+        # Build the layer
+        test_layer(query=query, value=query)
+
+        self.assertEqual(test_layer._query_dense.dtype, dtype)
+        self.assertEqual(test_layer._key_dense.dtype, dtype)
+        self.assertEqual(test_layer._value_dense.dtype, dtype)
+        self.assertEqual(test_layer._output_dense.dtype, dtype)
+
     def test_masked_attention_with_scores(self):
         """Test with a mask tensor."""
         test_layer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2)
