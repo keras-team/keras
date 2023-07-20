@@ -198,9 +198,9 @@ class Bidirectional(Wrapper):
         training=None,
     ):
         kwargs = {}
-        if self.forward_layer._call_has_training_arg():
+        if self.forward_layer._call_has_training_arg:
             kwargs["training"] = training
-        if self.forward_layer._call_has_mask_arg():
+        if self.forward_layer._call_has_mask_arg:
             kwargs["mask"] = mask
 
         if initial_state is not None:

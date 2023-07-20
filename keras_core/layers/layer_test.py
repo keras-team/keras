@@ -141,7 +141,7 @@ class LayerTest(testing.TestCase):
                 self.seed_gen = backend.random.SeedGenerator(seed=1337)
 
             def call(self, x):
-                return backend.random.dropout(x, rate=0.5, seed=self.seed_gen)
+                return x * backend.random.normal(x.shape, seed=self.seed_gen)
 
         layer = RNGLayer()
         self.assertEqual(layer.variables, [layer.seed_gen.state])
@@ -158,8 +158,8 @@ class LayerTest(testing.TestCase):
                 self.seed_gens.append(backend.random.SeedGenerator(seed=10))
 
             def call(self, x):
-                x = backend.random.dropout(x, rate=0.5, seed=self.seed_gens[0])
-                x = backend.random.dropout(x, rate=0.5, seed=self.seed_gens[1])
+                x = x * backend.random.normal(x.shape, seed=self.seed_gens[0])
+                x = x * backend.random.normal(x.shape, seed=self.seed_gens[1])
                 return x
 
         layer = RNGListLayer()

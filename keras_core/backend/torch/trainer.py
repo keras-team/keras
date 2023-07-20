@@ -27,7 +27,7 @@ class TorchTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         # Compute predictions
-        if self._call_has_training_arg():
+        if self._call_has_training_arg:
             y_pred = self(x, training=True)
         else:
             y_pred = self(x)
@@ -64,7 +64,7 @@ class TorchTrainer(base_trainer.Trainer):
             y,
             sample_weight,
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
-        if self._call_has_training_arg():
+        if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)
@@ -76,7 +76,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
-        if self._call_has_training_arg():
+        if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
             y_pred = self(x)

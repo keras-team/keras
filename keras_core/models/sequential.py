@@ -183,9 +183,9 @@ class Sequential(Model):
             # end of each iteration `inputs` is set to `outputs` to prepare for
             # the next layer.
             kwargs = {}
-            if layer._call_has_mask_arg():
+            if layer._call_has_mask_arg:
                 kwargs["mask"] = mask
-            if layer._call_has_training_arg() and training is not None:
+            if layer._call_has_training_arg and training is not None:
                 kwargs["training"] = training
             outputs = layer(inputs, **kwargs)
             inputs = outputs
