@@ -2068,6 +2068,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
         self.assertAllClose(knp.mean(x, axis=1), np.mean(x, axis=1))
+        self.assertAllClose(knp.mean(x, axis=()), np.mean(x, axis=()))
+        self.assertAllClose(knp.mean(x, axis=(1,)), np.mean(x, axis=(1,)))
         self.assertAllClose(
             knp.mean(x, axis=1, keepdims=True),
             np.mean(x, axis=1, keepdims=True),
@@ -2132,6 +2134,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.sum(x), np.sum(x))
         self.assertAllClose(knp.sum(x, axis=1), np.sum(x, axis=1))
+        self.assertAllClose(knp.sum(x, axis=(1,)), np.sum(x, axis=(1,)))
+        self.assertAllClose(knp.sum(x, axis=()), np.sum(x, axis=()))
         self.assertAllClose(
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
