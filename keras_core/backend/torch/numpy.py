@@ -44,6 +44,9 @@ def mean(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
     x = convert_to_tensor(x)
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
     # Conversion to float necessary for `torch.mean`
     x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
     return torch.mean(x, axis=axis, keepdims=keepdims)
@@ -886,6 +889,9 @@ def sum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
     x = convert_to_tensor(x)
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
     if axis is not None:
         return torch.sum(x, axis=axis, keepdim=keepdims)
     return torch.sum(x)

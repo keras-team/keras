@@ -95,9 +95,9 @@ class TimeDistributed(Wrapper):
 
         def step_function(i):
             kwargs = {}
-            if self.layer._call_has_mask_arg and mask is not None:
+            if self.layer._call_has_mask_arg() and mask is not None:
                 kwargs["mask"] = mask[i]
-            if self.layer._call_has_training_arg:
+            if self.layer._call_has_training_arg():
                 kwargs["training"] = training
             return self.layer.call(inputs[i], **kwargs)
 

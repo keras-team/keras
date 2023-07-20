@@ -90,7 +90,7 @@ class StackedRNNCells(Layer):
         new_states = []
         for cell, states in zip(self.cells, states):
             states = list(states) if tree.is_nested(states) else [states]
-            if isinstance(cell, Layer) and cell._call_has_training_arg:
+            if isinstance(cell, Layer) and cell._call_has_training_arg():
                 kwargs["training"] = training
             else:
                 kwargs.pop("training", None)
