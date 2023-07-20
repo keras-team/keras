@@ -323,7 +323,7 @@ class RNN(Layer):
 
     def inner_loop(self, sequences, initial_state, mask, training=False):
         cell_kwargs = {}
-        if isinstance(self.cell, Layer) and self.cell._call_has_training_arg():
+        if isinstance(self.cell, Layer) and self.cell._call_has_training_arg:
             cell_kwargs["training"] = training
 
         def step(inputs, states):

@@ -24,12 +24,6 @@ class SumTest(testing.TestCase):
         result = sum_obj.result()
         self.assertAllClose(result, 4.0, atol=1e-3)
 
-    def test_weighted_nd(self):
-        sum_obj = reduction_metrics.Sum(name="sum", dtype="float32")
-        sum_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 1], [1, 0]])
-        result = sum_obj.result()
-        self.assertAllClose(result, 9.0, atol=1e-3)
-
 
 class MeanTest(testing.TestCase):
     def test_config(self):
@@ -50,12 +44,6 @@ class MeanTest(testing.TestCase):
         mean_obj.update_state([1, 3, 5, 7], sample_weight=[1, 1, 0, 0])
         result = mean_obj.result()
         self.assertAllClose(result, 2.0, atol=1e-3)
-
-    def test_weighted_nd(self):
-        mean_obj = reduction_metrics.Mean(name="mean", dtype="float32")
-        mean_obj.update_state([[1, 3], [5, 7]], sample_weight=[[1, 1], [1, 0]])
-        result = mean_obj.result()
-        self.assertAllClose(result, 3.0, atol=1e-3)
 
 
 def mse(y_true, y_pred):

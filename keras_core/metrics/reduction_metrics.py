@@ -26,10 +26,6 @@ def reduce_to_samplewise_values(values, sample_weight, reduce_fn, dtype):
                 values, axis=list(range(weight_ndim, values_ndim))
             )
         values = values * sample_weight
-        if values_ndim > 1:
-            sample_weight = reduce_fn(
-                sample_weight, axis=list(range(1, weight_ndim))
-            )
 
     values_ndim = len(values.shape)
     if values_ndim > 1:
@@ -131,7 +127,9 @@ class Mean(Metric):
         else:
             num_samples = 1
         if sample_weight is not None:
-            num_samples = ops.sum(sample_weight)
+            num_samples = ops.sum(
+                ops.ones(shape=(num_samples,)) * sample_weight
+            )
         self.count.assign(self.count + ops.cast(num_samples, dtype=self.dtype))
 
     def reset_state(self):
