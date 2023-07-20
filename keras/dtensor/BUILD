@@ -2,6 +2,7 @@
 # Since DTensor is not a public API yet, all the DTensor related change
 # can't be exposed to public yet.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # copybara:uncomment_begin(google-only)

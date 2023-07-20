@@ -1,6 +1,8 @@
 # Description:
 #   Contains the Keras normalization layers (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 

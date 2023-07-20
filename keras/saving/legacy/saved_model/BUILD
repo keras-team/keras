@@ -18,6 +18,8 @@
 
 # buildifier: disable=same-origin-load
 
+# Placeholder: load unaliased py_library
+# Placeholder: load unaliased py_binary
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(

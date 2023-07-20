@@ -1,6 +1,7 @@
 # Description:
 #   Contains Keras integration tests that verify with other TF high level APIs.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tpu_py_test")

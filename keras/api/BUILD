@@ -1,6 +1,7 @@
 # Description:
 # Package for Keras.
 
+# Placeholder: load unaliased py_library
 load("//keras/api:api_gen.bzl", "gen_api_init_files")
 load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_FILES_V1")
 
