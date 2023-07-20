@@ -104,22 +104,34 @@ def random_crop(low_image, enhanced_image):
 def load_data(low_light_image_path, enhanced_image_path):
     low_light_image = read_image(low_light_image_path)
     enhanced_image = read_image(enhanced_image_path)
-    low_light_image, enhanced_image = random_crop(low_light_image, enhanced_image)
+    low_light_image, enhanced_image = random_crop(
+        low_light_image, enhanced_image
+    )
     return low_light_image, enhanced_image
 
 
 def get_dataset(low_light_images, enhanced_images):
-    dataset = tf.data.Dataset.from_tensor_slices((low_light_images, enhanced_images))
+    dataset = tf.data.Dataset.from_tensor_slices(
+        (low_light_images, enhanced_images)
+    )
     dataset = dataset.map(load_data, num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
     return dataset
 
 
-train_low_light_images = sorted(glob("./lol_dataset/our485/low/*"))[:MAX_TRAIN_IMAGES]
-train_enhanced_images = sorted(glob("./lol_dataset/our485/high/*"))[:MAX_TRAIN_IMAGES]
+train_low_light_images = sorted(glob("./lol_dataset/our485/low/*"))[
+    :MAX_TRAIN_IMAGES
+]
+train_enhanced_images = sorted(glob("./lol_dataset/our485/high/*"))[
+    :MAX_TRAIN_IMAGES
+]
 
-val_low_light_images = sorted(glob("./lol_dataset/our485/low/*"))[MAX_TRAIN_IMAGES:]
-val_enhanced_images = sorted(glob("./lol_dataset/our485/high/*"))[MAX_TRAIN_IMAGES:]
+val_low_light_images = sorted(glob("./lol_dataset/our485/low/*"))[
+    MAX_TRAIN_IMAGES:
+]
+val_enhanced_images = sorted(glob("./lol_dataset/our485/high/*"))[
+    MAX_TRAIN_IMAGES:
+]
 
 test_low_light_images = sorted(glob("./lol_dataset/eval15/low/*"))
 test_enhanced_images = sorted(glob("./lol_dataset/eval15/high/*"))
@@ -238,21 +250,20 @@ then used to rescale the input feature map.
 ![](https://i.imgur.com/Dl0IwQs.png)
 """
 
+
 class ChannelPooling(layers.Layer):
     def __init__(self, axis=-1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.axis = axis
         self.concat = layers.Concatenate(axis=self.axis)
-    
+
     def call(self, inputs):
         average_pooling = tf.expand_dims(
             tf.reduce_mean(inputs, axis=-1), axis=-1
         )
-        max_pooling = tf.expand_dims(
-            tf.reduce_max(inputs, axis=-1), axis=-1
-        )
+        max_pooling = tf.expand_dims(tf.reduce_max(inputs, axis=-1), axis=-1)
         return self.concat([average_pooling, max_pooling])
-    
+
     def get_config(self):
         config = super().get_config()
         config.update({"axis": self.axis})
@@ -288,7 +299,9 @@ def dual_attention_unit_block(input_tensor):
     )
     channel_attention = channel_attention_block(feature_map)
     spatial_attention = spatial_attention_block(feature_map)
-    concatenation = layers.Concatenate(axis=-1)([channel_attention, spatial_attention])
+    concatenation = layers.Concatenate(axis=-1)(
+        [channel_attention, spatial_attention]
+    )
     concatenation = layers.Conv2D(channels, kernel_size=(1, 1))(concatenation)
     return layers.Add()([input_tensor, concatenation])
 
@@ -315,9 +328,9 @@ Residual Block.
 
 def down_sampling_module(input_tensor):
     channels = list(input_tensor.shape)[-1]
-    main_branch = layers.Conv2D(channels, kernel_size=(1, 1), activation="relu")(
-        input_tensor
-    )
+    main_branch = layers.Conv2D(
+        channels, kernel_size=(1, 1), activation="relu"
+    )(input_tensor)
     main_branch = layers.Conv2D(
         channels, kernel_size=(3, 3), padding="same", activation="relu"
     )(main_branch)
@@ -330,9 +343,9 @@ def down_sampling_module(input_tensor):
 
 def up_sampling_module(input_tensor):
     channels = list(input_tensor.shape)[-1]
-    main_branch = layers.Conv2D(channels, kernel_size=(1, 1), activation="relu")(
-        input_tensor
-    )
+    main_branch = layers.Conv2D(
+        channels, kernel_size=(1, 1), activation="relu"
+    )(input_tensor)
     main_branch = layers.Conv2D(
         channels, kernel_size=(3, 3), padding="same", activation="relu"
     )(main_branch)
@@ -360,7 +373,9 @@ def multi_scale_residual_block(input_tensor, channels):
         up_sampling_module(up_sampling_module(level3_dau)),
     )
     level2_skff = selective_kernel_feature_fusion(
-        down_sampling_module(level1_dau), level2_dau, up_sampling_module(level3_dau)
+        down_sampling_module(level1_dau),
+        level2_dau,
+        up_sampling_module(level3_dau),
     )
     level3_skff = selective_kernel_feature_fusion(
         down_sampling_module(down_sampling_module(level1_dau)),
@@ -374,7 +389,9 @@ def multi_scale_residual_block(input_tensor, channels):
         up_sampling_module(dual_attention_unit_block(level3_skff))
     )
     # SKFF 2
-    skff_ = selective_kernel_feature_fusion(level1_dau_2, level2_dau_2, level3_dau_2)
+    skff_ = selective_kernel_feature_fusion(
+        level1_dau_2, level2_dau_2, level3_dau_2
+    )
     conv = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(skff_)
     return layers.Add()([input_tensor, conv])
 
@@ -385,7 +402,9 @@ def multi_scale_residual_block(input_tensor, channels):
 
 
 def recursive_residual_group(input_tensor, num_mrb, channels):
-    conv1 = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(input_tensor)
+    conv1 = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(
+        input_tensor
+    )
     for _ in range(num_mrb):
         conv1 = multi_scale_residual_block(conv1, channels)
     conv2 = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(conv1)
@@ -394,7 +413,9 @@ def recursive_residual_group(input_tensor, num_mrb, channels):
 
 def mirnet_model(num_rrg, num_mrb, channels):
     input_tensor = keras.Input(shape=[None, None, 3])
-    x1 = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(input_tensor)
+    x1 = layers.Conv2D(channels, kernel_size=(3, 3), padding="same")(
+        input_tensor
+    )
     for _ in range(num_rrg):
         x1 = recursive_residual_group(x1, num_mrb, channels)
     conv = layers.Conv2D(3, kernel_size=(3, 3), padding="same")(x1)
@@ -425,7 +446,9 @@ def peak_signal_noise_ratio(y_true, y_pred):
 
 optimizer = keras.optimizers.Adam(learning_rate=1e-4)
 model.compile(
-    optimizer=optimizer, loss=charbonnier_loss, metrics=[peak_signal_noise_ratio]
+    optimizer=optimizer,
+    loss=charbonnier_loss,
+    metrics=[peak_signal_noise_ratio],
 )
 
 history = model.fit(
@@ -443,6 +466,7 @@ history = model.fit(
         )
     ],
 )
+
 
 def plot_history(value):
     plt.plot(history.history[value], label=f"train_{value}")

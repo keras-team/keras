@@ -33,6 +33,7 @@ In this example, we minimally implement the paper with close alignement to the a
 """
 
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import numpy as np
@@ -41,7 +42,6 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import keras_core as keras
 from keras_core import layers
-
 
 
 # Setting seed for reproducibiltiy
@@ -105,7 +105,9 @@ print(f"Testing samples: {len(x_test)}")
 
 AUTO = tf.data.AUTOTUNE
 train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-train_ds = train_ds.shuffle(config.buffer_size).batch(config.batch_size).prefetch(AUTO)
+train_ds = (
+    train_ds.shuffle(config.buffer_size).batch(config.batch_size).prefetch(AUTO)
+)
 
 val_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val))
 val_ds = val_ds.batch(config.batch_size).prefetch(AUTO)
@@ -136,7 +138,9 @@ def get_augmentation_model():
     """Build the data augmentation model."""
     data_augmentation = keras.Sequential(
         [
-            layers.Resizing(config.input_shape[0] + 20, config.input_shape[0] + 20),
+            layers.Resizing(
+                config.input_shape[0] + 20, config.input_shape[0] + 20
+            ),
             layers.RandomCrop(config.image_size, config.image_size),
             layers.RandomFlip("horizontal"),
             layers.Rescaling(1 / 255.0),
@@ -394,7 +398,9 @@ class ShiftViTBlock(layers.Layer):
 
     def call(self, x, training=False):
         # Split the feature maps
-        x_splits = tf.split(x, num_or_size_splits=self.C // self.num_div, axis=-1)
+        x_splits = tf.split(
+            x, num_or_size_splits=self.C // self.num_div, axis=-1
+        )
 
         # Shift the feature maps
         x_splits[0] = self.get_shift_pad(x_splits[0], mode="left")
@@ -407,7 +413,9 @@ class ShiftViTBlock(layers.Layer):
 
         # Add the residual connection
         shortcut = x
-        x = shortcut + self.drop_path(self.mlp(self.layer_norm(x)), training=training)
+        x = shortcut + self.drop_path(
+            self.mlp(self.layer_norm(x)), training=training
+        )
         return x
 
 
@@ -448,7 +456,11 @@ class PatchMerging(layers.Layer):
     def build(self, input_shape):
         filters = 2 * input_shape[-1]
         self.reduction = layers.Conv2D(
-            filters=filters, kernel_size=2, strides=2, padding="same", use_bias=False
+            filters=filters,
+            kernel_size=2,
+            strides=2,
+            padding="same",
+            use_bias=False,
         )
         self.layer_norm = layers.LayerNormalization(epsilon=self.epsilon)
 
@@ -515,7 +527,9 @@ class StackedShiftBlocks(layers.Layer):
         dpr = [
             x
             for x in np.linspace(
-                start=0, stop=self.stochastic_depth_rate, num=self.num_shift_blocks
+                start=0,
+                stop=self.stochastic_depth_rate,
+                num=self.num_shift_blocks,
             )
         ]
 
@@ -659,7 +673,9 @@ class ShiftViTModel(keras.Model):
             self.patch_projection.trainable_variables,
             self.global_avg_pool.trainable_variables,
         ]
-        train_vars = train_vars + [stage.trainable_variables for stage in self.stages]
+        train_vars = train_vars + [
+            stage.trainable_variables for stage in self.stages
+        ]
 
         # Optimize the gradients.
         grads = tape.gradient(total_loss, train_vars)

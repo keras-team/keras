@@ -98,6 +98,7 @@ class_names = [
 """
 
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import io
@@ -118,7 +119,9 @@ from IPython.display import Audio
 keras.utils.set_random_seed(SEED)
 
 # Where to download the dataset
-DATASET_DESTINATION = os.path.join(CACHE_DIR if CACHE_DIR else "~/.keras/", "datasets")
+DATASET_DESTINATION = os.path.join(
+    CACHE_DIR if CACHE_DIR else "~/.keras/", "datasets"
+)
 
 """
 ## Yamnet Model
@@ -182,7 +185,9 @@ We will ignore the other two.
 """
 
 dataframe = pd.read_csv(
-    line_index_file, names=["id", "filename", "transcript"], usecols=["filename"]
+    line_index_file,
+    names=["id", "filename", "transcript"],
+    usecols=["filename"],
 )
 dataframe.head()
 
@@ -206,20 +211,26 @@ accent.
 # - Shuffle samples
 def preprocess_dataframe(dataframe):
     # Remove leading space in filename column
-    dataframe["filename"] = dataframe.apply(lambda row: row["filename"].strip(), axis=1)
+    dataframe["filename"] = dataframe.apply(
+        lambda row: row["filename"].strip(), axis=1
+    )
 
     # Create gender agnostic labels based on the filename first 2 letters
     dataframe["label"] = dataframe.apply(
-        lambda row: gender_agnostic_categories.index(row["filename"][:2]), axis=1
+        lambda row: gender_agnostic_categories.index(row["filename"][:2]),
+        axis=1,
     )
 
     # Add the file path to the name
     dataframe["filename"] = dataframe.apply(
-        lambda row: os.path.join(DATASET_DESTINATION, row["filename"] + ".wav"), axis=1
+        lambda row: os.path.join(DATASET_DESTINATION, row["filename"] + ".wav"),
+        axis=1,
     )
 
     # Shuffle the samples
-    dataframe = dataframe.sample(frac=1, random_state=SEED).reset_index(drop=True)
+    dataframe = dataframe.sample(frac=1, random_state=SEED).reset_index(
+        drop=True
+    )
 
     return dataframe
 
@@ -272,12 +283,16 @@ def load_16k_audio_wav(filename):
     file_content = tf.io.read_file(filename)
 
     # Decode audio wave
-    audio_wav, sample_rate = tf.audio.decode_wav(file_content, desired_channels=1)
+    audio_wav, sample_rate = tf.audio.decode_wav(
+        file_content, desired_channels=1
+    )
     audio_wav = tf.squeeze(audio_wav, axis=-1)
     sample_rate = tf.cast(sample_rate, dtype=tf.int64)
 
     # Resample to 16k
-    audio_wav = tfio.audio.resample(audio_wav, rate_in=sample_rate, rate_out=16000)
+    audio_wav = tfio.audio.resample(
+        audio_wav, rate_in=sample_rate, rate_out=16000
+    )
 
     return audio_wav
 
@@ -297,7 +312,9 @@ def filepath_to_embeddings(filename, label):
     labels = tf.repeat(label, embeddings_num)
 
     # Change labels for time-slots that are not speech into a new category 'other'
-    labels = tf.where(tf.argmax(scores, axis=1) == 0, label, len(class_names) - 1)
+    labels = tf.where(
+        tf.argmax(scores, axis=1) == 0, label, len(class_names) - 1
+    )
 
     # Using one-hot in order to use AUC
     return (embeddings, tf.one_hot(labels, len(class_names)))
@@ -350,11 +367,13 @@ def build_and_compile_model():
     x = keras.layers.Dense(384, activation="relu", name="dense_4")(x)
     x = keras.layers.Dropout(0.2, name="dropout_4")(x)
 
-    outputs = keras.layers.Dense(len(class_names), activation="softmax", name="ouput")(
-        x
-    )
+    outputs = keras.layers.Dense(
+        len(class_names), activation="softmax", name="ouput"
+    )(x)
 
-    model = keras.Model(inputs=inputs, outputs=outputs, name="accent_recognition")
+    model = keras.Model(
+        inputs=inputs, outputs=outputs, name="accent_recognition"
+    )
 
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=1.9644e-5),
@@ -529,7 +548,11 @@ confusion_mtx = tf.math.confusion_matrix(
 # Plot the confusion matrix
 plt.figure(figsize=(10, 8))
 sns.heatmap(
-    confusion_mtx, xticklabels=class_names, yticklabels=class_names, annot=True, fmt="g"
+    confusion_mtx,
+    xticklabels=class_names,
+    yticklabels=class_names,
+    annot=True,
+    fmt="g",
 )
 plt.xlabel("Prediction")
 plt.ylabel("Label")
@@ -614,7 +637,9 @@ yamnet_class_names = yamnet_class_names_from_csv(
 
 def calculate_number_of_non_speech(scores):
     number_of_non_speech = tf.math.reduce_sum(
-        tf.where(tf.math.argmax(scores, axis=1, output_type=tf.int32) != 0, 1, 0)
+        tf.where(
+            tf.math.argmax(scores, axis=1, output_type=tf.int32) != 0, 1, 0
+        )
     )
 
     return number_of_non_speech
@@ -674,7 +699,10 @@ plt.xlim([0, len(audio_wav)])
 # Plot the log-mel spectrogram (returned by the model).
 plt.subplot(3, 1, 2)
 plt.imshow(
-    mel_spectrogram.numpy().T, aspect="auto", interpolation="nearest", origin="lower"
+    mel_spectrogram.numpy().T,
+    aspect="auto",
+    interpolation="nearest",
+    origin="lower",
 )
 
 # Plot and label the model output scores for the top-scoring classes.

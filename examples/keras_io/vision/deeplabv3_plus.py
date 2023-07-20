@@ -60,12 +60,18 @@ a smaller subset of 200 images for training our model in this example.
 IMAGE_SIZE = 512
 BATCH_SIZE = 4
 NUM_CLASSES = 20
-DATA_DIR = "./instance-level_human_parsing/instance-level_human_parsing/Training"
+DATA_DIR = (
+    "./instance-level_human_parsing/instance-level_human_parsing/Training"
+)
 NUM_TRAIN_IMAGES = 1000
 NUM_VAL_IMAGES = 50
 
-train_images = sorted(glob(os.path.join(DATA_DIR, "Images/*")))[:NUM_TRAIN_IMAGES]
-train_masks = sorted(glob(os.path.join(DATA_DIR, "Category_ids/*")))[:NUM_TRAIN_IMAGES]
+train_images = sorted(glob(os.path.join(DATA_DIR, "Images/*")))[
+    :NUM_TRAIN_IMAGES
+]
+train_masks = sorted(glob(os.path.join(DATA_DIR, "Category_ids/*")))[
+    :NUM_TRAIN_IMAGES
+]
 val_images = sorted(glob(os.path.join(DATA_DIR, "Images/*")))[
     NUM_TRAIN_IMAGES : NUM_VAL_IMAGES + NUM_TRAIN_IMAGES
 ]
@@ -197,7 +203,9 @@ def DeeplabV3Plus(image_size, num_classes):
         size=(image_size // x.shape[1], image_size // x.shape[2]),
         interpolation="bilinear",
     )(x)
-    model_output = layers.Conv2D(num_classes, kernel_size=(1, 1), padding="same")(x)
+    model_output = layers.Conv2D(
+        num_classes, kernel_size=(1, 1), padding="same"
+    )(x)
     return keras.Model(inputs=model_input, outputs=model_output)
 
 
@@ -305,7 +313,9 @@ def plot_predictions(images_list, colormap, model):
     for image_file in images_list:
         image_tensor = read_image(image_file)
         prediction_mask = infer(image_tensor=image_tensor, model=model)
-        prediction_colormap = decode_segmentation_masks(prediction_mask, colormap, 20)
+        prediction_colormap = decode_segmentation_masks(
+            prediction_mask, colormap, 20
+        )
         overlay = get_overlay(image_tensor, prediction_colormap)
         plot_samples_matplotlib(
             [image_tensor, overlay, prediction_colormap], figsize=(18, 14)

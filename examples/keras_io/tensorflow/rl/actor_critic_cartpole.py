@@ -41,7 +41,8 @@ remains upright. The agent, therefore, must learn to keep the pole from falling 
 """
 
 import os
-os.environ['KERAS_BACKEND'] = 'tensorflow'
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import keras_core as keras
 from keras_core import layers
@@ -57,7 +58,9 @@ gamma = 0.99  # Discount factor for past rewards
 max_steps_per_episode = 10000
 env = gym.make("CartPole-v1", new_step_api=True)  # Create the environment
 env.reset(seed=seed)
-eps = np.finfo(np.float32).eps.item()  # Smallest number such that 1.0 + eps != 1.0
+eps = np.finfo(
+    np.float32
+).eps.item()  # Smallest number such that 1.0 + eps != 1.0
 
 """
 ## Implement Actor Critic network

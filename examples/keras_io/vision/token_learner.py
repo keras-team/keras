@@ -219,7 +219,9 @@ crucial to make TokenLearner work, especially when we are significantly reducing
 
 def token_learner(inputs, number_of_tokens=NUM_TOKENS):
     # Layer normalize the inputs.
-    x = layers.LayerNormalization(epsilon=LAYER_NORM_EPS)(inputs)  # (B, H, W, C)
+    x = layers.LayerNormalization(epsilon=LAYER_NORM_EPS)(
+        inputs
+    )  # (B, H, W, C)
 
     # Applying Conv2D => Reshape => Permute
     # The reshape and permute is done to help with the next steps of
@@ -267,7 +269,9 @@ def token_learner(inputs, number_of_tokens=NUM_TOKENS):
 
     # Reshape the input to align it with the output of the conv block.
     num_filters = inputs.shape[-1]
-    inputs = layers.Reshape((1, -1, num_filters))(inputs)  # inputs == (B, 1, H*W, C)
+    inputs = layers.Reshape((1, -1, num_filters))(
+        inputs
+    )  # inputs == (B, 1, H*W, C)
 
     # Element-Wise multiplication of the attention maps and the inputs
     attended_inputs = (
@@ -312,7 +316,9 @@ def transformer(encoded_patches):
 """
 
 
-def create_vit_classifier(use_token_learner=True, token_learner_units=NUM_TOKENS):
+def create_vit_classifier(
+    use_token_learner=True, token_learner_units=NUM_TOKENS
+):
     inputs = layers.Input(shape=INPUT_SHAPE)  # (B, H, W, C)
 
     # Augment data.
@@ -356,7 +362,9 @@ def create_vit_classifier(use_token_learner=True, token_learner_units=NUM_TOKENS
             )  # (B, num_tokens, c)
 
     # Layer normalization and Global average pooling.
-    representation = layers.LayerNormalization(epsilon=LAYER_NORM_EPS)(encoded_patches)
+    representation = layers.LayerNormalization(epsilon=LAYER_NORM_EPS)(
+        encoded_patches
+    )
     representation = layers.GlobalAvgPool1D()(representation)
 
     # Classify outputs.
@@ -391,7 +399,9 @@ def run_experiment(model):
         loss="sparse_categorical_crossentropy",
         metrics=[
             keras.metrics.SparseCategoricalAccuracy(name="accuracy"),
-            keras.metrics.SparseTopKCategoricalAccuracy(5, name="top-5-accuracy"),
+            keras.metrics.SparseTopKCategoricalAccuracy(
+                5, name="top-5-accuracy"
+            ),
         ],
     )
 

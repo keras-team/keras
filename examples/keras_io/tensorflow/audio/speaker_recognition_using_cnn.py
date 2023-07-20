@@ -40,6 +40,7 @@ installed `ffmpg`.
 """
 
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import shutil
@@ -53,7 +54,9 @@ from IPython.display import display, Audio
 
 # Get the data from https://www.kaggle.com/kongaevans/speaker-recognition-dataset/download
 # and save it to the 'Downloads' folder in your HOME directory
-DATASET_ROOT = os.path.join(os.path.expanduser("~"), "Downloads/16000_pcm_speeches")
+DATASET_ROOT = os.path.join(
+    os.path.expanduser("~"), "Downloads/16000_pcm_speeches"
+)
 
 # The folders in which we will put the audio samples and the noise samples
 AUDIO_SUBFOLDER = "audio"
@@ -265,8 +268,12 @@ def add_noise(audio, noises=None, scale=0.5):
         noise = tf.gather(noises, tf_rnd, axis=0)
 
         # Get the amplitude proportion between the audio and the noise
-        prop = tf.math.reduce_max(audio, axis=1) / tf.math.reduce_max(noise, axis=1)
-        prop = tf.repeat(tf.expand_dims(prop, axis=1), tf.shape(audio)[1], axis=1)
+        prop = tf.math.reduce_max(audio, axis=1) / tf.math.reduce_max(
+            noise, axis=1
+        )
+        prop = tf.repeat(
+            tf.expand_dims(prop, axis=1), tf.shape(audio)[1], axis=1
+        )
 
         # Adding the rescaled noise to audio
         audio = audio + noise * prop * scale
@@ -316,7 +323,9 @@ for label, name in enumerate(class_names):
     labels += [label] * len(speaker_sample_paths)
 
 print(
-    "Found {} files belonging to {} classes.".format(len(audio_paths), len(class_names))
+    "Found {} files belonging to {} classes.".format(
+        len(audio_paths), len(class_names)
+    )
 )
 
 # Shuffle
@@ -337,9 +346,9 @@ valid_labels = labels[-num_val_samples:]
 
 # Create 2 datasets, one for training and the other for validation
 train_ds = paths_and_labels_to_dataset(train_audio_paths, train_labels)
-train_ds = train_ds.shuffle(buffer_size=BATCH_SIZE * 8, seed=SHUFFLE_SEED).batch(
-    BATCH_SIZE
-)
+train_ds = train_ds.shuffle(
+    buffer_size=BATCH_SIZE * 8, seed=SHUFFLE_SEED
+).batch(BATCH_SIZE)
 
 valid_ds = paths_and_labels_to_dataset(valid_audio_paths, valid_labels)
 valid_ds = valid_ds.shuffle(buffer_size=32 * 8, seed=SHUFFLE_SEED).batch(32)
@@ -393,7 +402,9 @@ def build_model(input_shape, num_classes):
     x = keras.layers.Dense(256, activation="relu")(x)
     x = keras.layers.Dense(128, activation="relu")(x)
 
-    outputs = keras.layers.Dense(num_classes, activation="softmax", name="output")(x)
+    outputs = keras.layers.Dense(
+        num_classes, activation="softmax", name="output"
+    )(x)
 
     return keras.models.Model(inputs=inputs, outputs=outputs)
 
@@ -404,7 +415,9 @@ model.summary()
 
 # Compile the model using Adam's default learning rate
 model.compile(
-    optimizer="Adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"]
+    optimizer="Adam",
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"],
 )
 
 # Add callbacks:
@@ -412,7 +425,9 @@ model.compile(
 # 'ModelCheckPoint' to always keep the model that has the best val_accuracy
 model_save_filename = "model.keras"
 
-earlystopping_cb = keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
+earlystopping_cb = keras.callbacks.EarlyStopping(
+    patience=10, restore_best_weights=True
+)
 mdlcheckpoint_cb = keras.callbacks.ModelCheckpoint(
     model_save_filename, monitor="val_accuracy", save_best_only=True
 )

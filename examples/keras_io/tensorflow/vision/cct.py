@@ -40,6 +40,7 @@ code snippets from another example,
 """
 
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 from keras_core import layers
@@ -145,7 +146,11 @@ class CCTTokenizer(layers.Layer):
         # are flattened to form sequences.
         reshaped = tf.reshape(
             outputs,
-            (-1, tf.shape(outputs)[1] * tf.shape(outputs)[2], tf.shape(outputs)[-1]),
+            (
+                -1,
+                tf.shape(outputs)[1] * tf.shape(outputs)[2],
+                tf.shape(outputs)[-1],
+            ),
         )
         return reshaped
 
@@ -166,12 +171,14 @@ class CCTTokenizer(layers.Layer):
         else:
             return None
 
+
 """
 ## Sequence Pooling
 Another recipe introduced in CCT is attention pooling or sequence pooling. In ViT, only
 the feature map corresponding to the class token is pooled and is then used for the
 subsequent classification task (or any other downstream task).
 """
+
 
 class SequencePooling(layers.Layer):
     def __init__(self):
@@ -181,8 +188,8 @@ class SequencePooling(layers.Layer):
     def call(self, x):
         attention_weights = tf.nn.softmax(self.attention(x), axis=1)
         weighted_representation = tf.matmul(
-        attention_weights, x, transpose_a=True
-    )
+            attention_weights, x, transpose_a=True
+        )
         return tf.squeeze(weighted_representation, -2)
 
 
@@ -251,8 +258,6 @@ data_augmentation = keras.Sequential(
 In CCT, outputs from the Transformers encoder are weighted and then passed on to the final task-specific layer (in
 this example, we do classification).
 """
-
-
 
 
 def create_cct_model(
