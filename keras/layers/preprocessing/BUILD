@@ -257,6 +257,9 @@ distribute_py_test(
     name = "category_encoding_distribution_test",
     srcs = ["category_encoding_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "category_encoding_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -265,7 +268,6 @@ distribute_py_test(
         "no_oss",  # b/189866692
         "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",  # b/155502591
@@ -284,6 +286,9 @@ distribute_py_test(
 distribute_py_test(
     name = "image_preprocessing_distribution_test",
     srcs = ["image_preprocessing_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "image_preprocessing_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -291,7 +296,6 @@ distribute_py_test(
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notpu",  # TODO(b/210148622)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",
@@ -326,6 +330,9 @@ tf_py_test(
 distribute_py_test(
     name = "discretization_distribution_test",
     srcs = ["discretization_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "discretization_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -334,7 +341,6 @@ distribute_py_test(
         "no_oss",  # TODO(b/189956080)
         "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":discretization",
@@ -366,13 +372,15 @@ distribute_py_test(
     name = "hashing_distribution_test",
     srcs = ["hashing_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "hashing_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":hashing",
@@ -420,13 +428,15 @@ distribute_py_test(
     name = "index_lookup_distribution_test",
     srcs = ["index_lookup_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = ["no_oss"],
     deps = [
@@ -496,13 +506,15 @@ tf_py_test(
 distribute_py_test(
     name = "normalization_distribution_test",
     srcs = ["normalization_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "normalization_distribution_test.py",
     python_version = "PY3",
     shard_count = 8,
     tags = [
         "no_oss",
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":normalization",
@@ -534,13 +546,15 @@ distribute_py_test(
     name = "text_vectorization_distribution_test",
     srcs = ["text_vectorization_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "text_vectorization_distribution_test.py",
     python_version = "PY3",
     shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
-        "requires-mem:28g",  # spawns multiple processes.
     ],
     tpu_tags = [
         "no_oss",  # b/155502591
