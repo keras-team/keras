@@ -542,7 +542,7 @@ def operation_fn(operation, training):
     def call(*args, **kwargs):
         if (
             hasattr(operation, "_call_has_training_arg")
-            and operation._call_has_training_arg()
+            and operation._call_has_training_arg
             and training is not None
         ):
             kwargs["training"] = training
