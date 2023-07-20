@@ -7,6 +7,7 @@ from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_padding,
 )
 from keras_core.backend.config import epsilon
+from keras_core.backend.torch.core import cast
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
 from keras_core.backend.torch.numpy import expand_dims
@@ -534,6 +535,15 @@ def one_hot(x, num_classes, axis=-1, dtype="float32"):
             new_axes_order[ax] -= 1
         output = output.permute(new_axes_order)
     return output
+
+
+def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+    reduction_axis = 1 if len(x.shape) > 1 else 0
+    outputs = torch.amax(
+        one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
+        dim=reduction_axis,
+    )
+    return outputs
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):

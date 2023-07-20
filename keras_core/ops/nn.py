@@ -1198,3 +1198,51 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     return backend.nn.sparse_categorical_crossentropy(
         target, output, from_logits=from_logits, axis=axis
     )
+
+
+class MultiHot(Operation):
+    def __init__(self, num_tokens=None, axis=-1, dtype=None, name=None):
+        super().__init__(name)
+        self.num_tokens = num_tokens
+        self.axis = axis
+        self.dtype = dtype or backend.floatx()
+
+    def call(self, inputs):
+        return backend.nn.multi_hot(
+            inputs,
+            num_classes=self.num_tokens,
+            axis=self.axis,
+            dtype=self.dtype,
+        )
+
+    def compute_output_spec(self, inputs):
+        x_shape = list(getattr(inputs, "shape", []))
+        if self.axis == -1:
+            x_shape.append(self.num_tokens)
+        elif self.axis >= 0 and self.axis < len(x_shape):
+            x_shape.insert(self.axis, self.num_tokens)
+        else:
+            raise ValueError(
+                f"axis must be -1 or between [0, {len(inputs.shape)}), but "
+                f"received {self.axis}."
+            )
+
+        if len(x_shape) == 2:
+            x_shape = [x_shape[-1]]
+        else:
+            x_shape = [x_shape[0]] + x_shape[2:]
+
+        return KerasTensor(x_shape, dtype=inputs.dtype)
+
+
+@keras_core_export(
+    [
+        "keras_core.ops.multi_hot",
+        "keras_core.ops.nn.multi_hot",
+    ]
+)
+def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
+    if any_symbolic_tensors((inputs,)):
+        return MultiHot(num_tokens, axis, dtype).symbolic_call(inputs)
+
+    return backend.nn.multi_hot(inputs, num_tokens, axis, dtype)

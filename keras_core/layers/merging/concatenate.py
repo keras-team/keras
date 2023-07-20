@@ -51,6 +51,21 @@ class Concatenate(Merge):
         shape_set = set()
 
         for i in range(len(reduced_inputs_shapes)):
+            # Convert self.axis to positive axis for each input
+            # in case self.axis is a negative number
+            concat_axis = self.axis % len(reduced_inputs_shapes[i])
+            #  Skip batch axis.
+            for axis, axis_value in enumerate(reduced_inputs_shapes[i][1:],
+                                              start=1):
+                # Remove squeezable axes (axes with value of 1)
+                # if not in the axis that will be used for concatenation
+                # otherwise leave it.
+                # This approach allows building the layer,
+                # but if tensor shapes are not the same when
+                # calling, an exception will be raised.
+                if axis != concat_axis and axis_value == 1:
+                    del reduced_inputs_shapes[i][axis]
+
             del reduced_inputs_shapes[i][self.axis]
             shape_set.add(tuple(reduced_inputs_shapes[i]))
 
