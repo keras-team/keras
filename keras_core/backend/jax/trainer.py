@@ -30,7 +30,7 @@ class JAXTrainer(base_trainer.Trainer):
     ):
         """This method is stateless and is intended for use with jax.grad."""
         kwargs = {}
-        if self._call_has_training_arg:
+        if self._call_has_training_arg():
             kwargs["training"] = training
         y_pred, non_trainable_variables, losses = self.stateless_call(
             trainable_variables,
@@ -167,7 +167,7 @@ class JAXTrainer(base_trainer.Trainer):
     def predict_step(self, state, data):
         trainable_variables, non_trainable_variables = state
         kwargs = {}
-        if self._call_has_training_arg:
+        if self._call_has_training_arg():
             kwargs["training"] = False
 
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)

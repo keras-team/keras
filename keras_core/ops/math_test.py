@@ -54,6 +54,24 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(q.shape, qref_shape)
         self.assertEqual(r.shape, rref_shape)
 
+    def test_fft(self):
+        real = KerasTensor((None, 4, 3), dtype="float32")
+        imag = KerasTensor((None, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.fft((real, imag))
+        ref = np.fft.fft(np.ones((2, 4, 3)))
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(real_output.shape, ref_shape)
+        self.assertEqual(imag_output.shape, ref_shape)
+
+    def test_fft2(self):
+        real = KerasTensor((None, 4, 3), dtype="float32")
+        imag = KerasTensor((None, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.fft2((real, imag))
+        ref = np.fft.fft2(np.ones((2, 4, 3)))
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(real_output.shape, ref_shape)
+        self.assertEqual(imag_output.shape, ref_shape)
+
 
 class MathOpsStaticShapeTest(testing.TestCase):
     @pytest.mark.skipif(
@@ -99,6 +117,22 @@ class MathOpsStaticShapeTest(testing.TestCase):
         qref, rref = np.linalg.qr(np.ones((4, 3)), mode="complete")
         self.assertEqual(q.shape, qref.shape)
         self.assertEqual(r.shape, rref.shape)
+
+    def test_fft(self):
+        real = KerasTensor((2, 4, 3), dtype="float32")
+        imag = KerasTensor((2, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.fft((real, imag))
+        ref = np.fft.fft(np.ones((2, 4, 3)))
+        self.assertEqual(real_output.shape, ref.shape)
+        self.assertEqual(imag_output.shape, ref.shape)
+
+    def test_fft2(self):
+        real = KerasTensor((2, 4, 3), dtype="float32")
+        imag = KerasTensor((2, 4, 3), dtype="float32")
+        real_output, imag_output = kmath.fft2((real, imag))
+        ref = np.fft.fft2(np.ones((2, 4, 3)))
+        self.assertEqual(real_output.shape, ref.shape)
+        self.assertEqual(imag_output.shape, ref.shape)
 
 
 class MathOpsCorrectnessTest(testing.TestCase):
@@ -226,3 +260,27 @@ class MathOpsCorrectnessTest(testing.TestCase):
         qref, rref = np.linalg.qr(x, mode="complete")
         self.assertAllClose(qref, q)
         self.assertAllClose(rref, r)
+
+    def test_fft(self):
+        real = np.random.random((2, 4, 3))
+        imag = np.random.random((2, 4, 3))
+        complex_arr = real + 1j * imag
+
+        real_output, imag_output = kmath.fft((real, imag))
+        ref = np.fft.fft(complex_arr)
+        real_ref = np.real(ref)
+        imag_ref = np.imag(ref)
+        self.assertAllClose(real_ref, real_output)
+        self.assertAllClose(imag_ref, imag_output)
+
+    def test_fft2(self):
+        real = np.random.random((2, 4, 3))
+        imag = np.random.random((2, 4, 3))
+        complex_arr = real + 1j * imag
+
+        real_output, imag_output = kmath.fft2((real, imag))
+        ref = np.fft.fft2(complex_arr)
+        real_ref = np.real(ref)
+        imag_ref = np.imag(ref)
+        self.assertAllClose(real_ref, real_output)
+        self.assertAllClose(imag_ref, imag_output)

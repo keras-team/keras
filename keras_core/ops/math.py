@@ -260,3 +260,141 @@ def qr(x, mode="reduced"):
     if any_symbolic_tensors((x,)):
         return Qr(mode=mode).symbolic_call(x)
     return backend.math.qr(x, mode=mode)
+
+
+class FFT(Operation):
+    def compute_output_spec(self, a):
+        if not isinstance(a, (tuple, list)) or len(a) != 2:
+            raise ValueError(
+                "Input `a` should be a tuple of two tensors - real and "
+                f"imaginary. Received: a={a}"
+            )
+
+        real, imag = a
+        # Both real and imaginary parts should have the same shape.
+        if real.shape != imag.shape:
+            raise ValueError(
+                "Input `a` should be a tuple of two tensors - real and "
+                "imaginary. Both the real and imaginary parts should have the "
+                f"same shape. Received: a[0].shape = {real.shape}, "
+                f"a[1].shape = {imag.shape}"
+            )
+
+        # We are calculating 1D FFT. Hence, rank >= 1.
+        if len(real.shape) < 1:
+            raise ValueError(
+                f"Input should have rank >= 1. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        # The axis along which we are calculating FFT should be fully-defined.
+        m = real.shape[-1]
+        if m is None:
+            raise ValueError(
+                f"Input should have its {self.axis}th axis fully-defined. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        return (
+            KerasTensor(shape=real.shape, dtype=real.dtype),
+            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.fft(x)
+
+
+class FFT2(Operation):
+    def compute_output_spec(self, a):
+        if not isinstance(a, (tuple, list)) or len(a) != 2:
+            raise ValueError(
+                "Input `a` should be a tuple of two tensors - real and "
+                f"imaginary. Received: a={a}"
+            )
+
+        real, imag = a
+        # Both real and imaginary parts should have the same shape.
+        if real.shape != imag.shape:
+            raise ValueError(
+                "Input `a` should be a tuple of two tensors - real and "
+                "imaginary. Both the real and imaginary parts should have the "
+                f"same shape. Received: a[0].shape = {real.shape}, "
+                f"a[1].shape = {imag.shape}"
+            )
+        # We are calculating 2D FFT. Hence, rank >= 2.
+        if len(real.shape) < 2:
+            raise ValueError(
+                f"Input should have rank >= 2. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        # The axes along which we are calculating FFT should be fully-defined.
+        m = real.shape[-1]
+        n = real.shape[-2]
+        if m is None or n is None:
+            raise ValueError(
+                f"Input should have its {self.axes} axes fully-defined. "
+                f"Received: input.shape = {real.shape}"
+            )
+
+        return (
+            KerasTensor(shape=real.shape, dtype=real.dtype),
+            KerasTensor(shape=imag.shape, dtype=imag.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.fft2(x)
+
+
+@keras_core_export("keras_core.ops.fft")
+def fft(a):
+    """Computes the Fast Fourier Transform along last axis of input.
+
+    Args:
+        a: Tuple of the real and imaginary parts of the input tensor. Both
+            tensors in the tuple should be of floating type.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        output tensor.
+
+    Example:
+
+    >>> a = (
+    ...     keras_core.ops.convert_to_tensor([1., 2.]),
+    ...     keras_core.ops.convert_to_tensor([0., 1.]),
+    ... )
+    >>> fft(x)
+    (array([ 3., -1.], dtype=float32), array([ 1., -1.], dtype=float32))
+    """
+    if any_symbolic_tensors(a):
+        return FFT().symbolic_call(a)
+    return backend.math.fft(a)
+
+
+@keras_core_export("keras_core.ops.fft2")
+def fft2(a):
+    """Computes the 2D Fast Fourier Transform along the last two axes of input.
+
+    Args:
+        a: Tuple of the real and imaginary parts of the input tensor. Both
+            tensors in the tuple should be of floating type.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        output.
+
+    Example:
+
+    >>> x = (
+    ...     keras_core.ops.convert_to_tensor([[1., 2.], [2., 1.]]),
+    ...     keras_core.ops.convert_to_tensor([[0., 1.], [1., 0.]]),
+    ... )
+    >>> fft2(x)
+    (array([[ 6.,  0.],
+        [ 0., -2.]], dtype=float32), array([[ 2.,  0.],
+        [ 0., -2.]], dtype=float32))
+    """
+    if any_symbolic_tensors(a):
+        return FFT2().symbolic_call(a)
+    return backend.math.fft2(a)

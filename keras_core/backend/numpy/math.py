@@ -1,5 +1,8 @@
 import numpy as np
 
+from keras_core.backend.jax.math import fft as jax_fft
+from keras_core.backend.jax.math import fft2 as jax_fft2
+
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     if num_segments is None:
@@ -74,3 +77,13 @@ def qr(x, mode="reduced"):
             f"Received: mode={mode}"
         )
     return np.linalg.qr(x, mode=mode)
+
+
+def fft(a):
+    real, imag = jax_fft(a)
+    return np.array(real), np.array(imag)
+
+
+def fft2(a):
+    real, imag = jax_fft2(a)
+    return np.array(real), np.array(imag)
