@@ -201,32 +201,90 @@ class KerasTensor:
 
         return ops.Power().symbolic_call(other, self)
 
+    def __floordiv__(self, other):
+        from keras_core import ops
+
+        return ops.FloorDiv().symbolic_call(self, other)
+
+    def __rfloordiv__(self, other):
+        from keras_core import ops
+
+        return ops.FloorDiv().symbolic_call(other, self)
+
+    def __mod__(self, other):
+        from keras_core import ops
+
+        return ops.Mod().symbolic_call(self, other)
+
+    def __rmod__(self, other):
+        from keras_core import ops
+
+        return ops.Mod().symbolic_call(other, self)
+
+    def __lt__(self, other):
+        from keras_core import ops
+
+        return ops.Less().symbolic_call(self, other)
+
+    def __le__(self, other):
+        from keras_core import ops
+
+        return ops.LessEqual().symbolic_call(self, other)
+
+    def __gt__(self, other):
+        from keras_core import ops
+
+        return ops.Greater().symbolic_call(self, other)
+
+    def __ge__(self, other):
+        from keras_core import ops
+
+        return ops.GreaterEqual().symbolic_call(self, other)
+
+    def __ne__(self, other):
+        from keras_core import ops
+
+        return ops.NotEqual().symbolic_call(self, other)
+
+    def __and__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalAnd().symbolic_call(self, other)
+
+    def __rand__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalAnd().symbolic_call(other, self)
+
+    def __or__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalOr().symbolic_call(self, other)
+
+    def __ror__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalOr().symbolic_call(other, self)
+
+    def __invert__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalNot().symbolic_call(other, self)
+
+    def __xor__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalXor().symbolic_call(self, other)
+
+    def __rxor__(self, other):
+        from keras_core import ops
+
+        return ops.LogicalXor().symbolic_call(other, self)
+
     def __getitem__(self, key):
         from keras_core import ops
 
         return ops.GetItem().symbolic_call(self, key)
-
-    # TODO
-    #   "__floordiv__",
-    #   "__rfloordiv__",
-    #   "__mod__",
-    #   "__rmod__",
-    #   "__lt__",
-    #   "__le__",
-    #   "__gt__",
-    #   "__ge__",
-    #   "__ne__",
-    #   "__eq__",
-    #   "__and__",
-    #   "__rand__",
-    #   "__or__",
-    #   "__ror__",
-    #   "__xor__",
-    #   "__rxor__",
-    #   "__invert__",
-    #   "broadcast_to"
-    #   "astype"
-    #   a few more NumPy ones...
 
 
 def any_symbolic_tensors(args=None, kwargs=None):

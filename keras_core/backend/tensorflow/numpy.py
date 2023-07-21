@@ -600,3 +600,11 @@ def sum(x, axis=None, keepdims=False):
 
 def eye(N, M=None, k=0, dtype="float32"):
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
+
+
+def floor_divide(x1, x2):
+    return tfnp.floor_divide(x1, x2)
+
+
+def logical_xor(x1, x2):
+    return tfnp.logical_xor(x1, x2)

@@ -246,6 +246,16 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor([None, 3])
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
 
+    def test_floordiv(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
+
+    def test_xor(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.logical_xor(x, y).shape, (2, 3))
+
 
 class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
     def test_add(self):
@@ -629,6 +639,26 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
+
+    def test_floordiv(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.floor_divide(x, y).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.floor_divide(x, y)
+
+    def test_xor(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.logical_xor(x, y).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            y = KerasTensor([2, 3, 4])
+            knp.logical_xor(x, y)
 
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
@@ -2960,6 +2990,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([[4, 5, 6], [6, 5, 4]])
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
+
+    def test_floordiv(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        z = np.array([[[1, 2, 3], [3, 2, 1]]])
+        self.assertAllClose(knp.floor_divide(x, y), np.floor_divide(x, y))
+        self.assertAllClose(knp.floor_divide(x, z), np.floor_divide(x, z))
+
+        self.assertAllClose(knp.FloorDiv()(x, y), np.floor_divide(x, y))
+        self.assertAllClose(knp.FloorDiv()(x, z), np.floor_divide(x, z))
+
+    def test_xor(self):
+        x = np.array([[True, False], [True, True]])
+        y = np.array([[False, False], [True, False]])
+        self.assertAllClose(knp.logical_xor(x, y), np.logical_xor(x, y))
+        self.assertAllClose(knp.logical_xor(x, True), np.logical_xor(x, True))
+        self.assertAllClose(knp.logical_xor(True, x), np.logical_xor(True, x))
+
+        self.assertAllClose(knp.LogicalXor()(x, y), np.logical_xor(x, y))
+        self.assertAllClose(knp.LogicalXor()(x, True), np.logical_xor(x, True))
+        self.assertAllClose(knp.LogicalXor()(True, x), np.logical_xor(True, x))
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
