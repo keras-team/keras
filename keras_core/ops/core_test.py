@@ -48,6 +48,14 @@ class CoreOpsStaticShapeTest(testing.TestCase):
             core.slice_update(inputs, start_indices, updates).shape, (4, 4, 4)
         )
 
+    def test_fori_loop(self):
+        def body_fun(i, x):
+            return x + i
+
+        initial_value = KerasTensor((3, 5, 7))
+        result = core.fori_loop(0, 10, body_fun, initial_value)
+        self.assertEqual(result.shape, (3, 5, 7))
+
 
 class CoreOpsCorrectnessTest(testing.TestCase):
     def test_scatter(self):
@@ -204,6 +212,14 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x, y = core.while_loop(cond, body, (x, y), maximum_iterations=5)
         self.assertAllClose(x, np.ones((2, 3)) * 6)
         self.assertAllClose(y, np.ones((3, 2)) * 6)
+
+    def test_fori_loop(self):
+        def body_fun(i, x):
+            return x + i
+
+        initial_value = np.array(0)
+        result = core.fori_loop(0, 10, body_fun, initial_value)
+        self.assertAllClose(result, 45)
 
     @pytest.mark.requires_trainable_backend
     def test_stop_gradient(self):

@@ -163,5 +163,13 @@ def while_loop(
     )
 
 
+def fori_loop(lower, upper, body_fun, init_val):
+    return tf.while_loop(
+        lambda i, val: i < upper,
+        lambda i, val: (i + 1, body_fun(i, val)),
+        (lower, init_val),
+    )[1]
+
+
 def stop_gradient(variable):
     return tf.stop_gradient(variable)

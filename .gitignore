@@ -16,3 +16,4 @@ dist/**
 *.egg-info/*
 .vscode
 examples/**/*.jpg
+.python-version

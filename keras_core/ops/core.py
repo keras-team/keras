@@ -294,6 +294,54 @@ def stop_gradient(variable):
     return backend.core.stop_gradient(variable)
 
 
+class ForiLoop(Operation):
+    def __init__(self, lower, upper, body_fun):
+        super().__init__()
+        self.lower = lower
+        self.upper = upper
+        self.body_fun = body_fun
+
+    def call(self, init_val):
+        return backend.core.fori_loop(
+            self.lower,
+            self.upper,
+            self.body_fun,
+            init_val,
+        )
+
+    def compute_output_spec(self, init_val):
+        return KerasTensor(init_val.shape, dtype=init_val.dtype)
+
+
+@keras_core_export("keras_core.ops.fori_loop")
+def fori_loop(lower, upper, body_fun, init_val):
+    """For loop implementation.
+
+    Args:
+        lower: The initial value of the loop variable.
+        upper: The upper bound of the loop variable.
+        body_fun: A callable that represents the loop body. Must take two
+            arguments: the loop variable and the loop state. The loop state
+            should be updated and returned by this function.
+        init_val: The initial value of the loop state.
+
+    Returns:
+        The final state after the loop.
+
+    Example:
+
+    >>> lower = 0
+    >>> upper = 10
+    >>> body_fun = lambda i, s: (i + 1, s + i)
+    >>> init_val = 0
+    >>> keras_core.ops.fori_loop(lower, upper, body_fun, init_val)
+    45
+    """
+    if any_symbolic_tensors((lower, upper, init_val)):
+        return ForiLoop(lower, upper, body_fun).symbolic_call(init_val)
+    return backend.core.fori_loop(lower, upper, body_fun, init_val)
+
+
 @keras_core_export("keras_core.ops.shape")
 def shape(x):
     """Gets the shape of the tensor input.

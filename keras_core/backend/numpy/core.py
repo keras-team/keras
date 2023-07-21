@@ -208,5 +208,12 @@ def while_loop(
     return loop_vars
 
 
+def fori_loop(lower, upper, body_fun, init_val):
+    val = init_val
+    for i in range(lower, upper):
+        val = body_fun(i, val)
+    return val
+
+
 def stop_gradient(x):
     pass
