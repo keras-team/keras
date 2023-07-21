@@ -133,7 +133,7 @@ class InitializersTest(testing.TestCase):
         self.assertEqual(initializer.gain, gain)
 
         self.assertEqual(values.shape, shape)
-        array = np.array(values)
+        array = backend.convert_to_numpy(values)
         # Making sure that the columns have gain * unit norm value
         for column in array.T:
             self.assertAlmostEqual(np.linalg.norm(column), gain * 1.0)
