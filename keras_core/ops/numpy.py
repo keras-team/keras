@@ -3460,7 +3460,7 @@ def eye(N, M=None, k=0, dtype="float32"):
     return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 
-class FloorDiv(Operation):
+class FloorDivide(Operation):
     def call(self, x1, x2):
         return backend.numpy.floor_divide(x1, x2)
 
@@ -3476,7 +3476,7 @@ class FloorDiv(Operation):
 )
 def floor_divide(x1, x2):
     if any_symbolic_tensors((x1, x2)):
-        return FloorDiv().symbolic_call(x1, x2)
+        return FloorDivide().symbolic_call(x1, x2)
     return backend.numpy.floor_divide(x1, x2)
 
 
