@@ -97,3 +97,84 @@ class SavedModelTest(testing.TestCase):
             rtol=1e-4,
             atol=1e-4,
         )
+
+    def test_custom_model_and_layer(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class CustomLayer(layers.Layer):
+            def __call__(self, inputs):
+                return inputs
+
+        @object_registration.register_keras_serializable(package="my_package")
+        class Model(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.layer = CustomLayer()
+
+            @tf.function(input_signature=[tf.TensorSpec([None, 1])])
+            def call(self, inputs):
+                return self.layer(inputs)
+
+        model = Model()
+        inp = np.array([[1.0]])
+        result = model(inp)
+        path = os.path.join(self.get_temp_dir(), "my_keras_core_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        self.assertAllClose(
+            result,
+            restored_model.call(inp),
+            rtol=1e-4,
+            atol=1e-4,
+        )
+
+    def test_multi_input_model(self):
+        input_1 = layers.Input(shape=(3,))
+        input_2 = layers.Input(shape=(5,))
+        model = models.Model([input_1, input_2], [input_1, input_2])
+        path = os.path.join(self.get_temp_dir(), "my_keras_core_model")
+
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        input_arr_1 = np.random.random((1, 3)).astype("float32")
+        input_arr_2 = np.random.random((1, 5)).astype("float32")
+
+        outputs = restored_model.signatures["serving_default"](
+            inputs=tf.convert_to_tensor(input_arr_1, dtype=tf.float32),
+            inputs_1=tf.convert_to_tensor(input_arr_2, dtype=tf.float32),
+        )
+
+        self.assertAllClose(
+            input_arr_1, outputs["output_0"], rtol=1e-4, atol=1e-4
+        )
+        self.assertAllClose(
+            input_arr_2, outputs["output_1"], rtol=1e-4, atol=1e-4
+        )
+
+    def test_multi_input_custom_model_and_layer(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class CustomLayer(layers.Layer):
+            def __call__(self, *input_list):
+                self.add_loss(input_list[-2] * 2)
+                return sum(input_list)
+
+        @object_registration.register_keras_serializable(package="my_package")
+        class CustomModel(models.Model):
+            def build(self, input_shape):
+                super().build(input_shape)
+                self.layer = CustomLayer()
+
+            @tf.function
+            def call(self, *inputs):
+                inputs = list(inputs)
+                return self.layer(*inputs)
+
+        model = CustomModel()
+        inp = [
+            tf.constant(i, shape=[1, 1], dtype=tf.float32) for i in range(1, 4)
+        ]
+        expected = model(*inp)
+        path = os.path.join(self.get_temp_dir(), "my_keras_core_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        output = restored_model.call(*inp)
+        self.assertAllClose(expected, output, rtol=1e-4, atol=1e-4)

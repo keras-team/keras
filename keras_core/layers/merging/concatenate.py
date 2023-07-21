@@ -55,8 +55,9 @@ class Concatenate(Merge):
             # in case self.axis is a negative number
             concat_axis = self.axis % len(reduced_inputs_shapes[i])
             #  Skip batch axis.
-            for axis, axis_value in enumerate(reduced_inputs_shapes[i][1:],
-                                              start=1):
+            for axis, axis_value in enumerate(
+                reduced_inputs_shapes[i][1:], start=1
+            ):
                 # Remove squeezable axes (axes with value of 1)
                 # if not in the axis that will be used for concatenation
                 # otherwise leave it.
