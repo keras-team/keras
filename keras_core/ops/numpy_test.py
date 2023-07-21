@@ -2998,8 +2998,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.floor_divide(x, y), np.floor_divide(x, y))
         self.assertAllClose(knp.floor_divide(x, z), np.floor_divide(x, z))
 
-        self.assertAllClose(knp.FloorDiv()(x, y), np.floor_divide(x, y))
-        self.assertAllClose(knp.FloorDiv()(x, z), np.floor_divide(x, z))
+        self.assertAllClose(knp.FloorDivide()(x, y), np.floor_divide(x, y))
+        self.assertAllClose(knp.FloorDivide()(x, z), np.floor_divide(x, z))
 
     def test_xor(self):
         x = np.array([[True, False], [True, True]])
