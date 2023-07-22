@@ -458,6 +458,39 @@ class Amax(Operation):
 
 @keras_core_export(["keras_core.ops.amax", "keras_core.ops.numpy.amax"])
 def amax(x, axis=None, keepdims=False):
+    """Return the maximum of an array or maximum value along an axis.
+    
+    Args:
+        x: Input tensor.
+        axis: None or int or tuple of ints, optional 
+              Axis along which the maximum value of a array is found.
+              By default (`axis=None`) find the maximum value in all the 
+              dimensions of the input array.`axis` may be negative, in which 
+              case it counts for the last to the first axis.     
+        keep_dims: If `True`, axes which are reduced are left in the result as
+              dimensions with size one. With this option, the result will
+              broadcast correctly against the input array. Default is `False`.
+
+    Returns:
+        An array with the maximum value. If `axis` is None, the result is a scalar
+        value representing the maximum element in the entire array. If `axis` is
+        given, the result is an array with the maximum values along the specified
+        axis.
+
+    Examples:
+        >>> x = keras_core.ops.convert_to_tensor([[1, 3, 5],[2, 3, 6]])
+        >>> keras_core.ops.amax(x)
+        array(6, dtype=int32)
+
+        >>> x = keras_core.ops.convert_to_tensor([[1,6,8],[1,5,2]])
+        >>> keras_core.ops.amax(x, axis=0)
+        array([1,6,8], dtype=int32)
+
+        >>> x = keras_core.ops.convert_to_tensor([[1,6,8],[1,5,2]])
+        >>> keras_core.ops.amax(x, axis=1, keepdims=True)
+        array([[8],
+              [5]], dtype=int32)
+    """
     if any_symbolic_tensors((x,)):
         return Amax(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.amax(x, axis=axis, keepdims=keepdims)
