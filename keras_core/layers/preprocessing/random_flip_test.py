@@ -1,4 +1,5 @@
 import unittest.mock
+
 import numpy as np
 import tensorflow as tf
 from absl.testing import parameterized
@@ -12,9 +13,7 @@ from keras_core import utils
 class MockedRandomFlip(layers.RandomFlip):
     def call(self, inputs, training=True):
         with unittest.mock.patch.object(
-                self.backend.random,
-                "uniform",
-                return_value=0.1
+            self.backend.random, "uniform", return_value=0.1
         ):
             out = super().call(inputs, training=training)
         return out
