@@ -89,7 +89,6 @@ class RandomCrop(TFDataLayer):
         w_diff = input_shape[self.width_axis] - self.width
 
         def random_crop():
-            # input_dtype_max = (2 ** dtype_utils.dtype_size(inputs.dtype)) - 1
             input_height, input_width = (
                 input_shape[self.height_axis],
                 input_shape[self.width_axis],
@@ -115,18 +114,6 @@ class RandomCrop(TFDataLayer):
                 ),
                 h_diff.dtype,
             )
-            # rands = ops.random.uniform(
-            #     [2], 0, input_dtype_max, inputs.dtype, seed=self.seed_generator
-            # )
-            # original_dtype = h_diff.dtype
-            # h_start = self.backend.cast(
-            #     rands[0] % self.backend.cast((h_diff + 1), self.compute_dtype),
-            #     original_dtype,
-            # )
-            # w_start = self.backend.cast(
-            #     rands[1] % self.backend.cast((w_diff + 1), self.compute_dtype),
-            #     original_dtype,
-            # )
             if self.data_format == "channels_last":
                 return inputs[
                     :,
