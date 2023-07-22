@@ -24,9 +24,9 @@ pip install -r requirements.txt
 python pip_build.py --install
 ```
 
-Note that Keras Core strictly requires TensorFlow,
-in particular because it uses `tf.nest` to handle nested Python structures.
-In the future, we will make all backend frameworks optional.
+You should also install your backend of choice: `tensorflow`, `jax`, or `torch`.
+Note that `tensorflow` is required for using certain Keras Core features: certain preprocessing layers as
+well as `tf.data` pipelines.
 
 ## Configuring your backend
 
