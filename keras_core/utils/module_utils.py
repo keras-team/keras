@@ -14,9 +14,9 @@ class LazyModule:
         if self._available is None:
             try:
                 self.initialize()
+                self._available = True
             except ImportError:
                 self._available = False
-            self._available = True
         return self._available
 
     def initialize(self):
