@@ -345,7 +345,7 @@ def all(x, axis=None, keepdims=False):
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
             broadcast correctly against the input array. Default is `False`.
-    
+
     Returns:
         The tensor containing the logical AND reduction over the `axis`.
 
@@ -410,10 +410,10 @@ def any(x, axis=None, keepdims=False):
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
             broadcast correctly against the input array. Default is `False`.
-    
+
     Returns:
         The tensor containing the logical OR reduction over the `axis`.
-    
+
     Examples:
 
     >>> x = keras_core.ops.convert_to_tensor([True, False])
