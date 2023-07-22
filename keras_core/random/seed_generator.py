@@ -35,8 +35,10 @@ class SeedGenerator:
         else:
             self.backend = backend
 
+        self._initial_seed = seed
         if seed is None:
             seed = make_default_seed()
+
         if not isinstance(seed, int):
             raise ValueError(
                 "Argument `seed` must be an integer. " f"Received: seed={seed}"
