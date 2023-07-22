@@ -229,6 +229,22 @@ class Absolute(Operation):
 
 @keras_core_export(["keras_core.ops.absolute", "keras_core.ops.numpy.absolute"])
 def absolute(x):
+    """Compute the absolute value element-wise.
+
+    `keras_core.ops.abs` is a shorthand for this function.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        An array containing the absolute value of each element in x.
+
+    Example:
+
+    >>> x = keras_core.ops.convert_to_tensor([-1.2, 1.2])
+    >>> keras_core.ops.absolute(x)
+    array([1.2 1.2], shape=(2,), dtype=float32)
+    """
     if any_symbolic_tensors((x,)):
         return Absolute().symbolic_call(x)
     return backend.numpy.absolute(x)
@@ -240,6 +256,7 @@ class Abs(Absolute):
 
 @keras_core_export(["keras_core.ops.abs", "keras_core.ops.numpy.abs"])
 def abs(x):
+    """Shorthand for `keras_core.ops.absolute`."""
     return absolute(x)
 
 
@@ -256,6 +273,32 @@ class Add(Operation):
 
 @keras_core_export(["keras_core.ops.add", "keras_core.ops.numpy.add"])
 def add(x1, x2):
+    """Add arguments element-wise.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        The tensor containing the element-wise sum of `x1` and `x2`.
+
+    Examples:
+
+    >>> x1 = keras_core.ops.convert_to_tensor([1, 4])
+    >>> x2 = keras_core.ops.convert_to_tensor([5, 6])
+    >>> keras_core.ops.add(x1, x2)
+    array([ 6 10], shape=(2,), dtype=int32)
+
+    `keras_core.ops.add` also broadcasts shapes:
+    >>> x1 = keras_core.ops.convert_to_tensor(
+    ...     [[5, 4],
+    ...      [5, 6]]
+    ... )
+    >>> x2 = keras_core.ops.convert_to_tensor([5, 6])
+    >>> keras_core.ops.add(x1, x2)
+    array([[10 10]
+           [10 12]], shape=(2, 2), dtype=int32)
+    """
     if any_symbolic_tensors((x1, x2)):
         return Add().symbolic_call(x1, x2)
     return backend.numpy.add(x1, x2)
@@ -290,6 +333,37 @@ class All(Operation):
 
 @keras_core_export(["keras_core.ops.all", "keras_core.ops.numpy.all"])
 def all(x, axis=None, keepdims=False):
+    """Test whether all array elements along a given axis evaluate to `True`.
+
+    Args:
+        x: Input tensor.
+        axis: An integer or tuple of integers that represent the axis along
+            which a logical AND reduction is performed. The default
+            (`axis=None`) is to perform a logical AND over all the dimensions
+            of the input array. `axis` may be negative, in which case it counts
+            for the last to the first axis.
+        keepdims: If `True`, axes which are reduced are left in the result as
+            dimensions with size one. With this option, the result will
+            broadcast correctly against the input array. Default is `False`.
+    
+    Returns:
+        The tensor containing the logical AND reduction over the `axis`.
+
+    Examples:
+
+    >>> x = keras_core.ops.convert_to_tensor([True, False])
+    >>> keras_core.ops.all(x)
+    array(False, shape=(), dtype=bool)
+
+    >>> x = keras_core.ops.convert_to_tensor([[True, False], [True, True]])
+    >>> keras_core.ops.all(x, axis=0)
+    array([ True False], shape=(2,), dtype=bool)
+
+    `keepdims=True` outputs a tensor with dimensions reduced to one.
+    >>> x = keras_core.ops.convert_to_tensor([[True, False], [True, True]])
+    >>> keras_core.ops.all(x, keepdims=True)
+    array([[False]], shape=(1, 1), dtype=bool)
+    """
     if any_symbolic_tensors((x,)):
         return All(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
@@ -324,6 +398,37 @@ class Any(Operation):
 
 @keras_core_export(["keras_core.ops.any", "keras_core.ops.numpy.any"])
 def any(x, axis=None, keepdims=False):
+    """Test whether any array element along a given axis evaluates to True.
+
+    Args:
+        x: Input tensor.
+        axis: An integer or tuple of integers that represent the axis along
+            which a logical OR reduction is performed. The default
+            (`axis=None`) is to perform a logical OR over all the dimensions
+            of the input array. `axis` may be negative, in which case it counts
+            for the last to the first axis.
+        keepdims: If `True`, axes which are reduced are left in the result as
+            dimensions with size one. With this option, the result will
+            broadcast correctly against the input array. Default is `False`.
+    
+    Returns:
+        The tensor containing the logical OR reduction over the `axis`.
+    
+    Examples:
+
+    >>> x = keras_core.ops.convert_to_tensor([True, False])
+    >>> keras_core.ops.any(x)
+    array(True, shape=(), dtype=bool)
+
+    >>> x = keras_core.ops.convert_to_tensor([[True, False], [True, True]])
+    >>> keras_core.ops.any(x, axis=0)
+    array([ True  True], shape=(2,), dtype=bool)
+
+    `keepdims=True` outputs a tensor with dimensions reduced to one.
+    >>> x = keras_core.ops.convert_to_tensor([[True, False], [True, True]])
+    >>> keras_core.ops.all(x, keepdims=True)
+    array([[False]], shape=(1, 1), dtype=bool)
+    """
     if any_symbolic_tensors((x,)):
         return Any(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.any(x, axis=axis, keepdims=keepdims)
