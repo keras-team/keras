@@ -5,7 +5,6 @@ from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.random.seed_generator import SeedGenerator
 from keras_core.utils import backend_utils
 from keras_core.utils import image_utils
-from keras_core.utils import dtype_utils
 
 
 @keras_core_export("keras_core.layers.RandomCrop")
@@ -142,6 +141,12 @@ class RandomCrop(TFDataLayer):
             self.backend.numpy.all((training, h_diff >= 0, w_diff >= 0)),
             random_crop,
             resize,
+        )
+
+        outputs = (
+            self.backend.numpy.squeeze(outputs, axis=0)
+            if not is_batched
+            else outputs
         )
 
         if self.backend != "tensorflow" and not backend_utils.in_tf_graph():
