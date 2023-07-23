@@ -121,10 +121,12 @@ class ModelSubclassingTest(test_combinations.TestCase):
             model.weights,
             "Model should have no weights since it has not been built.",
         )
-        with self.assertRaisesRegex(
-            ValueError, "input shape is not one of the valid types"
-        ):
-            model.build(input_shape=tf.compat.v1.Dimension(input_dim))
+        self.assertRaises(
+            ValueError,
+            model.build,
+            input_shape=tf.compat.v1.Dimension(input_dim),
+            msg="input shape is not one of the valid types",
+        )
 
     def test_embed_dtype_with_subclass_build(self):
         class Embedding(keras.layers.Layer):
@@ -512,9 +514,9 @@ class ModelSubclassingTest(test_combinations.TestCase):
         model(x)
 
         if tf.executing_eagerly():
-            self.assertEqual(0, len(model.updates))
+            self.assertLen(model.updates, 0)
         else:
-            self.assertEqual(2, len(model.updates))
+            self.assertLen(model.updates, 2)
 
 
 class GraphSpecificModelSubclassingTests(tf.test.TestCase):
@@ -557,7 +559,6 @@ class GraphSpecificModelSubclassingTests(tf.test.TestCase):
             _ = model.evaluate(steps=10, verbose=0)
 
     def test_updates_and_losses_for_nested_models_in_subclassed_model(self):
-
         # Case 1: deferred-build sequential nested in subclass.
         class TestModel1(keras.Model):
             def __init__(self):
