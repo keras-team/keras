@@ -118,11 +118,11 @@ class RandomBrightness(TFDataLayer):
     def call(self, inputs, training=True):
         inputs = self.backend.cast(inputs, self.compute_dtype)
         if training:
-            return self._brightness_adjust(inputs)
+            return self._randomly_adjust_brightness(inputs)
         else:
             return inputs
 
-    def _brightness_adjust(self, images):
+    def _randomly_adjust_brightness(self, images):
         rank = len(images.shape)
         if rank == 3:
             rgb_delta_shape = (1, 1, 1)

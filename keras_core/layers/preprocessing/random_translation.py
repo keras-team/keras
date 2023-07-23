@@ -120,7 +120,6 @@ class RandomTranslation(TFDataLayer):
         self.seed = seed
         self.generator = SeedGenerator(seed)
         self.data_format = backend.standardize_data_format(data_format)
-
         self.supports_jit = False
 
     def _set_factor(self, factor, factor_name):
