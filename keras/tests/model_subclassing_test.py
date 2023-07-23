@@ -121,12 +121,10 @@ class ModelSubclassingTest(test_combinations.TestCase):
             model.weights,
             "Model should have no weights since it has not been built.",
         )
-        self.assertRaises(
-            ValueError,
-            model.build,
-            input_shape=tf.compat.v1.Dimension(input_dim),
-            msg="input shape is not one of the valid types",
-        )
+        with self.assertRaisesRegex(
+            ValueError, "input shape is not one of the valid types"
+        ):
+            model.build(input_shape=tf.compat.v1.Dimension(input_dim))
 
     def test_embed_dtype_with_subclass_build(self):
         class Embedding(keras.layers.Layer):
