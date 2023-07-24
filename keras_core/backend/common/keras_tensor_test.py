@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from jax import numpy as jnp
 
+from keras_core import backend
 from keras_core import ops
 from keras_core import testing
 from keras_core.backend.common import keras_tensor
@@ -37,10 +37,13 @@ class KerasTensorTest(testing.TestCase):
         ):
             np.array(x)
 
-        with self.assertRaisesRegex(
-            ValueError, "cannot be used as input to a JAX function"
-        ):
-            jnp.array(x)
+        if backend.backend() == "jax":
+            from jax import numpy as jnp
+
+            with self.assertRaisesRegex(
+                ValueError, "cannot be used as input to a JAX function"
+            ):
+                jnp.array(x)
 
         with self.assertRaisesRegex(
             ValueError, "cannot be used as input to a TensorFlow function"
