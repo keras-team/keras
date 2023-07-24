@@ -188,6 +188,9 @@ cuda_py_test(
 distribute_py_test(
     name = "ctl_correctness_test",
     srcs = ["ctl_correctness_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "ctl_correctness_test.py",
     shard_count = 10,
     tags = [
@@ -286,6 +289,9 @@ distribute_py_test(
     size = "medium",
     srcs = ["keras_premade_models_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     full_precision = True,
     main = "keras_premade_models_test.py",
     shard_count = 8,
@@ -446,6 +452,9 @@ distribute_py_test(
     name = "keras_metrics_test",
     srcs = ["keras_metrics_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "keras_metrics_test.py",
     shard_count = 8,
     tags = [
