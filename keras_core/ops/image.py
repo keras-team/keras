@@ -3,6 +3,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.backend import KerasTensor
 from keras_core.backend import any_symbolic_tensors
 from keras_core.ops.operation import Operation
+from keras_core.ops.operation_utils import compute_conv_output_shape
 
 
 class Resize(Operation):
@@ -244,3 +245,159 @@ def affine_transform(
         fill_value=fill_value,
         data_format=data_format,
     )
+
+
+class ExtractPatches(Operation):
+    def __init__(
+        self,
+        size,
+        strides=None,
+        dilation_rate=1,
+        padding="valid",
+        data_format="channels_last",
+    ):
+        super().__init__()
+        self.size = size
+        self.strides = strides
+        self.dilation_rate = dilation_rate
+        self.padding = padding
+        self.data_format = data_format
+
+    def call(self, image):
+        return _extract_patches(
+            image=image,
+            size=self.size,
+            strides=self.strides,
+            dilation_rate=self.dilation_rate,
+            padding=self.padding,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, image):
+        image_shape = image.shape
+        if not self.strides:
+            strides = (self.size[0], self.size[1])
+        if self.data_format == "channels_last":
+            channels_in = image.shape[-1]
+        else:
+            channels_in = image.shape[-3]
+        if len(image.shape) == 3:
+            image_shape = (1,) + image_shape
+        filters = self.size[0] * self.size[1] * channels_in
+        kernel_size = (self.size[0], self.size[1])
+        out_shape = compute_conv_output_shape(
+            image_shape,
+            filters,
+            kernel_size,
+            strides=strides,
+            padding=self.padding,
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate,
+        )
+        if len(image.shape) == 3:
+            out_shape = out_shape[1:]
+        return KerasTensor(shape=out_shape, dtype=image.dtype)
+
+
+@keras_core_export("keras_core.ops.image.extract_patches")
+def extract_patches(
+    image,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format="channels_last",
+):
+    """Extracts patches from the image(s).
+
+    Args:
+        image: Input image or batch of images. Must be 3D or 4D.
+        size: Patch size int or tuple (patch_height, patch_widht)
+        strides: strides along height and width. if not specified or
+                None it is same patch_size
+        dilation_rate: This is the input stride, specifying how far two
+            consecutive patch samples are in the input. For value other than 1,
+            strides must be 1. NOTE: `strides > 1` not supported in
+            conjunction with `dilation_rate > 1`
+        padding: The type of padding algorithm to use.
+            'same' or 'valid'.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs. `"channels_last"`
+            corresponds to inputs with shape `(batch, height, width, channels)`
+            while `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, weight)`. It defaults to the
+            `image_data_format` value found in your Keras config file at
+            `~/.keras/keras.json`. If you never set it, then it will be
+            `"channels_last"`.
+
+    Returns:
+        Extracted patches 3D (if not batched) or 4D (if batched)
+
+    Examples:
+
+    >>> image = np.random.random((1, 20, 20, 3)) # batch of 2 RGB images
+    >>> patches = keras_core.ops.image.extract_patches(image, (5, 5))
+    >>> patches.shape
+    (1, 4, 4, 75)
+    >>> image = np.random.random((20, 20, 3)) # batch of 2 RGB images
+    >>> patches = keras_core.ops.image.extract_patches(image, (3, 3), (1, 1))
+    >>> patches.shape
+    (4, 4, 75)
+    """
+    if any_symbolic_tensors((image,)):
+        return ExtractPatches(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        ).symbolic_call(image)
+
+    return _extract_patches(
+        image, size, strides, dilation_rate, padding, data_format=data_format
+    )
+
+
+def _extract_patches(
+    image,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format="channels_last",
+):
+    if isinstance(size, int):
+        patch_h = patch_w = size
+    elif len(size) == 2:
+        patch_h, patch_w = size[0], size[1]
+    else:
+        raise TypeError(
+            "invalid size argument "
+            f"int or tuple of length 2. Received {size}"
+        )
+    if data_format == "channels_last":
+        channels_in = image.shape[-1]
+    elif data_format == "channels_first":
+        channels_in = image.shape[-3]
+    if not strides:
+        strides = size
+    out_dim = patch_h * patch_w * channels_in
+    kernel = backend.numpy.eye(out_dim)
+    kernel = backend.numpy.reshape(
+        kernel, (patch_h, patch_w, channels_in, out_dim)
+    )
+    _unbatched = False
+    if len(image.shape) == 3:
+        _unbatched = True
+        image = backend.numpy.expand_dims(image, axis=0)
+    patches = backend.nn.conv(
+        inputs=image,
+        kernel=kernel,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
+    if _unbatched:
+        patches = backend.numpy.squeeze(patches, axis=0)
+    return patches

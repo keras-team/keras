@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from absl.testing import parameterized
+import pytest
 
 from keras_core import backend
 from keras_core import testing
@@ -24,6 +25,12 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.affine_transform(x, transform)
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
+    def test_extract_patches(self):
+        x = KerasTensor([None, 20, 20, 3])
+        p_h, p_w = 5, 5
+        out = kimage.extract_patches(x, (p_h, p_w))
+        self.assertEqual(out.shape, (None, 4, 4, 75))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_resize(self):
@@ -36,6 +43,12 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         transform = KerasTensor([8])
         out = kimage.affine_transform(x, transform)
         self.assertEqual(out.shape, (20, 20, 3))
+
+    def test_extract_patches(self):
+        x = KerasTensor([20, 20, 3])
+        p_h, p_w = 5, 5
+        out = kimage.extract_patches(x, (p_h, p_w))
+        self.assertEqual(out.shape, (4, 4, 75))
 
 
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -208,3 +221,71 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 self.assertAllClose(ref_out, out, atol=0.3)
         else:
             self.assertAllClose(ref_out, out, atol=0.3)
+
+    @parameterized.parameters(
+        [
+            ((5, 5), None, 1, "valid", "channels_last"),
+            ((3, 3), (2, 2), 1, "valid", "channels_last"),
+            ((5, 5), None, 1, "valid", "channels_first"),
+            ((3, 3), (2, 2), 1, "valid", "channels_first"),
+            ((5, 5), None, 1, "same", "channels_last"),
+            ((3, 3), (2, 2), 1, "same", "channels_last"),
+            ((5, 5), None, 1, "same", "channels_first"),
+            ((3, 3), (2, 2), 1, "same", "channels_first"),
+            ((5, 5), (1, 1), 3, "same", "channels_first"),
+            ((5, 5), (2, 2), 3, "same", "channels_first"),
+            ((5, 5), (2, 2), 3, "same", "channels_last"),
+        ]
+    )
+    def test_extract_patches(
+        self, size, strides, dilation_rate, padding, data_format
+    ):
+        if (
+            data_format == "channels_first"
+            and backend.backend() == "tensorflow"
+        ):
+            pytest.skip("channels_first unsupported on CPU with TF")
+
+        if (
+            isinstance(strides, tuple)
+            and backend.backend() == "tensorflow"
+            and dilation_rate > 1
+        ):
+            pytest.skip(
+                "dilation_rate>1 with strides>1 than not supported with TF"
+            )
+        if data_format == "channels_first":
+            image = np.random.uniform(size=(1, 3, 20, 20))
+        else:
+            image = np.random.uniform(size=(1, 20, 20, 3))
+        patch_h, patch_w = size[0], size[1]
+        if strides is None:
+            strides_h, strides_w = patch_h, patch_w
+        else:
+            strides_h, strides_w = strides[0], strides[1]
+
+        patches_out = kimage.extract_patches(
+            backend.convert_to_tensor(image, dtype="float32"),
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        )
+        if data_format == "channels_first":
+            patches_out = backend.numpy.transpose(
+                patches_out, axes=[0, 2, 3, 1]
+            )
+        if data_format == "channels_first":
+            image = np.transpose(image, [0, 2, 3, 1])
+        patches_ref = tf.image.extract_patches(
+            image,
+            sizes=(1, patch_h, patch_w, 1),
+            strides=(1, strides_h, strides_w, 1),
+            rates=(1, dilation_rate, dilation_rate, 1),
+            padding=padding.upper(),
+        )
+        self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
+        self.assertAllClose(
+            patches_ref.numpy(), backend.convert_to_numpy(patches_out), atol=0.3
+        )
