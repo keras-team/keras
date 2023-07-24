@@ -2652,6 +2652,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         # test max with initial
         self.assertAllClose(knp.max(x, initial=4), 4)
 
+        # test empty tensor
+        x = np.array([[]])
+        self.assertAllClose(knp.max(x, initial=1), np.max(x, initial=1))
+        self.assertAllClose(
+            knp.max(x, initial=1, keepdims=True),
+            np.max(x, initial=1, keepdims=True),
+        )
+
     def test_min(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.min(x), np.min(x))
@@ -2665,6 +2673,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         # test min with initial
         self.assertAllClose(knp.min(x, initial=0), 0)
+
+        # test empty tensor
+        x = np.array([[]])
+        self.assertAllClose(knp.min(x, initial=1), np.min(x, initial=1))
+        self.assertAllClose(
+            knp.min(x, initial=1, keepdims=True),
+            np.min(x, initial=1, keepdims=True),
+        )
 
     def test_meshgrid(self):
         x = np.array([1, 2, 3])

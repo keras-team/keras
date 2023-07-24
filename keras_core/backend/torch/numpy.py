@@ -55,7 +55,13 @@ def mean(x, axis=None, keepdims=False):
 def max(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
     if 0 in x.shape:
-        return 0
+        if initial is None:
+            raise ValueError("Cannot compute the max of an empty tensor.")
+        elif keepdims:
+            return torch.full((1,) * len(x.shape), initial)
+        else:
+            return torch.tensor(initial)
+
     if axis is None:
         result = torch.max(x)
     else:
@@ -550,6 +556,14 @@ def meshgrid(*x, indexing="xy"):
 
 def min(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
+    if 0 in x.shape:
+        if initial is None:
+            raise ValueError("Cannot compute the min of an empty tensor.")
+        elif keepdims:
+            return torch.full((1,) * len(x.shape), initial)
+        else:
+            return torch.tensor(initial)
+
     if axis is None:
         result = torch.min(x)
     else:
