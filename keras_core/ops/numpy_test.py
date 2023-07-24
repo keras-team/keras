@@ -2097,8 +2097,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
-        self.assertAllClose(knp.mean(x, axis=1), np.mean(x, axis=1))
         self.assertAllClose(knp.mean(x, axis=()), np.mean(x, axis=()))
+        self.assertAllClose(knp.mean(x, axis=1), np.mean(x, axis=1))
         self.assertAllClose(knp.mean(x, axis=(1,)), np.mean(x, axis=(1,)))
         self.assertAllClose(
             knp.mean(x, axis=1, keepdims=True),
@@ -2115,7 +2115,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
         self.assertAllClose(knp.all(x), np.all(x))
+        self.assertAllClose(knp.all(x, axis=()), np.all(x, axis=()))
         self.assertAllClose(knp.all(x, axis=1), np.all(x, axis=1))
+        self.assertAllClose(knp.all(x, axis=(1,)), np.all(x, axis=(1,)))
         self.assertAllClose(
             knp.all(x, axis=1, keepdims=True),
             np.all(x, axis=1, keepdims=True),
@@ -2131,7 +2133,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_any(self):
         x = np.array([[True, False, True], [True, True, True]])
         self.assertAllClose(knp.any(x), np.any(x))
+        self.assertAllClose(knp.any(x, axis=()), np.any(x, axis=()))
         self.assertAllClose(knp.any(x, axis=1), np.any(x, axis=1))
+        self.assertAllClose(knp.any(x, axis=(1,)), np.any(x, axis=(1,)))
         self.assertAllClose(
             knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
@@ -2147,7 +2151,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_var(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.var(x), np.var(x))
+        self.assertAllClose(knp.var(x, axis=()), np.var(x, axis=()))
         self.assertAllClose(knp.var(x, axis=1), np.var(x, axis=1))
+        self.assertAllClose(knp.var(x, axis=(1,)), np.var(x, axis=(1,)))
         self.assertAllClose(
             knp.var(x, axis=1, keepdims=True),
             np.var(x, axis=1, keepdims=True),
@@ -2163,9 +2169,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_sum(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.sum(x), np.sum(x))
+        self.assertAllClose(knp.sum(x, axis=()), np.sum(x, axis=()))
         self.assertAllClose(knp.sum(x, axis=1), np.sum(x, axis=1))
         self.assertAllClose(knp.sum(x, axis=(1,)), np.sum(x, axis=(1,)))
-        self.assertAllClose(knp.sum(x, axis=()), np.sum(x, axis=()))
         self.assertAllClose(
             knp.sum(x, axis=1, keepdims=True),
             np.sum(x, axis=1, keepdims=True),
@@ -2181,7 +2187,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_amax(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.amax(x), np.amax(x))
+        self.assertAllClose(knp.amax(x, axis=()), np.amax(x, axis=()))
         self.assertAllClose(knp.amax(x, axis=1), np.amax(x, axis=1))
+        self.assertAllClose(knp.amax(x, axis=(1,)), np.amax(x, axis=(1,)))
         self.assertAllClose(
             knp.amax(x, axis=1, keepdims=True),
             np.amax(x, axis=1, keepdims=True),
@@ -2197,7 +2205,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_amin(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.amin(x), np.amin(x))
+        self.assertAllClose(knp.amin(x, axis=()), np.amin(x, axis=()))
         self.assertAllClose(knp.amin(x, axis=1), np.amin(x, axis=1))
+        self.assertAllClose(knp.amin(x, axis=(1,)), np.amin(x, axis=(1,)))
         self.assertAllClose(
             knp.amin(x, axis=1, keepdims=True),
             np.amin(x, axis=1, keepdims=True),
@@ -2312,7 +2322,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         weights = np.ones([2, 3])
         weights_1d = np.ones([3])
         self.assertAllClose(knp.average(x), np.average(x))
+        self.assertAllClose(knp.average(x, axis=()), np.average(x, axis=()))
         self.assertAllClose(knp.average(x, axis=1), np.average(x, axis=1))
+        self.assertAllClose(knp.average(x, axis=(1,)), np.average(x, axis=(1,)))
         self.assertAllClose(
             knp.average(x, axis=1, weights=weights),
             np.average(x, axis=1, weights=weights),
@@ -2425,8 +2437,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([[0, 2, 3], [3, 2, 0]])
         self.assertAllClose(knp.count_nonzero(x), np.count_nonzero(x))
         self.assertAllClose(
+            knp.count_nonzero(x, axis=()), np.count_nonzero(x, axis=())
+        )
+        self.assertAllClose(
             knp.count_nonzero(x, axis=1),
             np.count_nonzero(x, axis=1),
+        )
+        self.assertAllClose(
+            knp.count_nonzero(x, axis=(1,)),
+            np.count_nonzero(x, axis=(1,)),
         )
 
         self.assertAllClose(
@@ -2806,7 +2825,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_prod(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.prod(x), np.prod(x))
+        self.assertAllClose(knp.prod(x, axis=()), np.prod(x, axis=()))
         self.assertAllClose(knp.prod(x, axis=1), np.prod(x, axis=1))
+        self.assertAllClose(knp.prod(x, axis=(1,)), np.prod(x, axis=(1,)))
         self.assertAllClose(
             knp.prod(x, axis=1, keepdims=True),
             np.prod(x, axis=1, keepdims=True),

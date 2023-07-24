@@ -134,7 +134,12 @@ def array(x, dtype=None):
 
 
 def average(x, axis=None, weights=None):
-    return tfnp.average(x, weights=weights, axis=axis)
+    if not isinstance(axis, (list, tuple)):
+        axis = (axis,)
+    for a in axis:
+        # `tfnp.average` does not handle multiple axes.
+        x = tfnp.average(x, weights=weights, axis=a)
+    return x
 
 
 def broadcast_to(x, shape):

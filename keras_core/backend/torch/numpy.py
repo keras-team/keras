@@ -106,38 +106,46 @@ def abs(x):
 
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is not None:
-        if isinstance(axis, list):
-            axis = axis[-1]
-        return torch.all(x, dim=axis, keepdim=keepdims)
-    else:
+    if axis is None:
         return torch.all(x)
+    if not isinstance(axis, (list, tuple)):
+        axis = (axis,)
+    for a in axis:
+        # `torch.all` does not handle multiple axes.
+        x = torch.all(x, dim=a, keepdim=keepdims)
+    return x
 
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is not None:
-        if isinstance(axis, list):
-            axis = axis[-1]
-        return torch.any(x, dim=axis, keepdim=keepdims)
-    else:
+    if axis is None:
         return torch.any(x)
+    if not isinstance(axis, (list, tuple)):
+        axis = (axis,)
+    for a in axis:
+        # `torch.any` does not handle multiple axes.
+        x = torch.any(x, dim=a, keepdim=keepdims)
+    return x
 
 
 def amax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is not None:
-        return torch.amax(x, dim=axis, keepdim=keepdims)
-    else:
+    if axis is None:
         return torch.amax(x)
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
+    return torch.amax(x, dim=axis, keepdim=keepdims)
 
 
 def amin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is not None:
-        return torch.amin(x, dim=axis, keepdim=keepdims)
-    else:
+    if axis is None:
         return torch.amin(x)
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
+    return torch.amin(x, dim=axis, keepdim=keepdims)
 
 
 def append(
@@ -209,6 +217,9 @@ def average(x, axis=None, weights=None):
     x = convert_to_tensor(x)
     # Conversion to float necessary for `torch.mean`
     x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return x
     if weights is not None:
         weights = convert_to_tensor(weights)
         return torch.sum(torch.mul(x, weights), dim=axis) / torch.sum(
@@ -268,6 +279,9 @@ def cos(x):
 
 def count_nonzero(x, axis=None):
     x = convert_to_tensor(x)
+    if axis == () or axis == []:
+        # Torch handles the empty axis case differently from numpy.
+        return cast(torch.ne(x, 0), "int32")
     return torch.count_nonzero(x, dim=axis).T
 
 
@@ -647,9 +661,12 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     dtype = to_torch_dtype(dtype)
     if axis is None:
         return torch.prod(x, dtype=dtype)
-    elif isinstance(axis, list):
-        axis = axis[-1]
-    return torch.prod(x, dim=axis, keepdim=keepdims, dtype=dtype)
+    if not isinstance(axis, (list, tuple)):
+        axis = (axis,)
+    for a in axis:
+        # `torch.prod` does not handle multiple axes.
+        x = torch.prod(x, dim=a, keepdim=keepdims, dtype=dtype)
+    return x
 
 
 def ravel(x):
@@ -895,6 +912,9 @@ def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x, dtype="float32")
     # Conversion to float necessary for `torch.var`
     x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
+    if axis == [] or axis == ():
+        # Torch handles the empty axis case differently from numpy.
+        return zeros_like(x)
     # Bessel correction removed for numpy compatibility
     return torch.var(x, dim=axis, keepdim=keepdims, correction=0)
 
