@@ -1478,7 +1478,6 @@ class RNNTest(test_combinations.TestCase):
         self.assertAllClose(y_np, x_np[:, 1, :])
 
     def test_zero_output_for_masking(self):
-
         for unroll in [True, False]:
             cell = keras.layers.SimpleRNNCell(5)
             x = keras.Input((5, 5))
@@ -1682,7 +1681,6 @@ class RNNTest(test_combinations.TestCase):
 
     def test_stateful_rnn_with_customized_get_initial_state(self):
         class TestCell(keras.layers.AbstractRNNCell):
-
             state_size = 1
             output_size = 2
 
@@ -1701,6 +1699,27 @@ class RNNTest(test_combinations.TestCase):
         output, state = model.predict(x)
         self.assertAllClose(output, np.ones((4, 2)))
         self.assertAllClose(state, np.ones((4, 1)))
+
+    def test_stateful_rnn_with_customized_dtype(self):
+        class TestCell(keras.layers.AbstractRNNCell):
+            state_size = 1
+            output_size = 2
+
+            def get_initial_state(
+                self, inputs=None, batch_size=None, dtype=None
+            ):
+                return np.ones((batch_size, 1), dtype=np.float16)
+
+            def call(self, inputs, states):
+                return inputs, states
+
+        layer = keras.layers.RNN(TestCell(), stateful=True, return_state=True)
+        inputs = keras.Input(shape=(10, 2), batch_size=4)
+        model = keras.Model(inputs, layer(inputs))
+        x = np.ones((4, 10, 2), dtype=np.float16)
+        output, state = model.predict(x)
+        self.assertAllClose(output, np.ones((4, 2), dtype=np.float16))
+        self.assertAllClose(state, np.ones((4, 1), dtype=np.float16))
 
     def test_input_dim_length(self):
         simple_rnn = keras.layers.SimpleRNN(5, input_length=10, input_dim=8)
