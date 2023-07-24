@@ -56,6 +56,21 @@ class ModuleTest(tf.test.TestCase):
         self.assertNotEmpty(m.submodules)
         self.assertLen(m.variables, 2)
 
+    def test_subclass_model(self):
+        class Model(tf.keras.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = tf.keras.layers.Dense(units=1)
+
+            def call(self, inputs, training=None, mask=None):
+                return self.dense(inputs)
+
+        model = Model()
+        self.assertLen(model.submodules, 1)  # For the dense layer
+        model.compile(loss="mse", optimizer="sgd")
+        # Make sure the compiled metric doesn't break tf.module
+        self.assertLen(model.submodules, 1)
+
 
 if __name__ == "__main__":
     tf.test.main()

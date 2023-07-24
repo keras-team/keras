@@ -181,6 +181,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 "_test_counter",
                 "_predict_counter",
                 "_steps_per_execution",
+                "_compiled_trainable_state",
             ),
             base_layer.Layer._TF_MODULE_IGNORED_PROPERTIES,
         )
