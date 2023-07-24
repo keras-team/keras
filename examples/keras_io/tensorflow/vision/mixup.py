@@ -2,7 +2,7 @@
 Title: MixUp augmentation for image classification
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
 Date created: 2021/03/06
-Last modified: 2021/03/06
+Last modified: 2023/07/24
 Description: Data augmentation using the mixup technique for image classification.
 Accelerator: GPU
 """
@@ -37,10 +37,15 @@ processing, speech, and so on.
 """
 
 import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-from keras_core import layers
 import keras_core as keras
+import matplotlib.pyplot as plt
+
+from keras_core import layers
+
+# TF imports related to tf.data preprocessing 
+from tensorflow import data as tf_data
+from tensorflow import image as tf_image
+from tensorflow.random import gamma as tf_random_gamma
 
 """
 ## Prepare the dataset
@@ -53,17 +58,17 @@ be used for other classification datasets as well.
 
 x_train = x_train.astype("float32") / 255.0
 x_train = np.reshape(x_train, (-1, 28, 28, 1))
-y_train = tf.one_hot(y_train, 10)
+y_train = keras.ops.one_hot(y_train, 10)
 
 x_test = x_test.astype("float32") / 255.0
 x_test = np.reshape(x_test, (-1, 28, 28, 1))
-y_test = tf.one_hot(y_test, 10)
+y_test = keras.ops.one_hot(y_test, 10)
 
 """
 ## Define hyperparameters
 """
 
-AUTO = tf.data.AUTOTUNE
+AUTO = tf_data.AUTOTUNE
 BATCH_SIZE = 64
 EPOCHS = 10
 
@@ -77,22 +82,22 @@ x_val, y_val = x_train[:val_samples], y_train[:val_samples]
 new_x_train, new_y_train = x_train[val_samples:], y_train[val_samples:]
 
 train_ds_one = (
-    tf.data.Dataset.from_tensor_slices((new_x_train, new_y_train))
+    tf_data.Dataset.from_tensor_slices((new_x_train, new_y_train))
     .shuffle(BATCH_SIZE * 100)
     .batch(BATCH_SIZE)
 )
 train_ds_two = (
-    tf.data.Dataset.from_tensor_slices((new_x_train, new_y_train))
+    tf_data.Dataset.from_tensor_slices((new_x_train, new_y_train))
     .shuffle(BATCH_SIZE * 100)
     .batch(BATCH_SIZE)
 )
 # Because we will be mixing up the images and their corresponding labels, we will be
 # combining two shuffled datasets from the same training data.
-train_ds = tf.data.Dataset.zip((train_ds_one, train_ds_two))
+train_ds = tf_data.Dataset.zip((train_ds_one, train_ds_two))
 
-val_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(BATCH_SIZE)
+val_ds = tf_data.Dataset.from_tensor_slices((x_val, y_val)).batch(BATCH_SIZE)
 
-test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(BATCH_SIZE)
+test_ds = tf_data.Dataset.from_tensor_slices((x_test, y_test)).batch(BATCH_SIZE)
 
 """
 ## Define the mixup technique function
@@ -105,8 +110,8 @@ the same dataset, and apply a lambda value within the [0, 1] range sampled from 
 
 
 def sample_beta_distribution(size, concentration_0=0.2, concentration_1=0.2):
-    gamma_1_sample = tf.random.gamma(shape=[size], alpha=concentration_1)
-    gamma_2_sample = tf.random.gamma(shape=[size], alpha=concentration_0)
+    gamma_1_sample = tf_random_gamma(shape=[size], alpha=concentration_1)
+    gamma_2_sample = tf_random_gamma(shape=[size], alpha=concentration_0)
     return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
 
 
@@ -114,12 +119,12 @@ def mix_up(ds_one, ds_two, alpha=0.2):
     # Unpack two datasets
     images_one, labels_one = ds_one
     images_two, labels_two = ds_two
-    batch_size = tf.shape(images_one)[0]
+    batch_size = keras.backend.shape(images_one)[0]
 
     # Sample lambda and reshape it to do the mixup
     l = sample_beta_distribution(batch_size, alpha, alpha)
-    x_l = tf.reshape(l, (batch_size, 1, 1, 1))
-    y_l = tf.reshape(l, (batch_size, 1))
+    x_l = keras.ops.reshape(l, (batch_size, 1, 1, 1))
+    y_l = keras.ops.reshape(l, (batch_size, 1))
 
     # Perform mixup on both images and labels by combining a pair of images/labels
     # (one from each dataset) into one image/label
