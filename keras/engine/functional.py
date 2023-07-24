@@ -130,7 +130,6 @@ class Functional(training_lib.Model):
         itertools.chain(
             (
                 "_layer_call_argspecs",
-                "_compiled_trainable_state",
                 "_output_mask_cache",
                 "_output_tensor_cache",
                 "_output_shape_cache",
