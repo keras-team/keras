@@ -3,6 +3,8 @@ import math
 import numpy as np
 import tree
 
+from keras_core.api_export import keras_core_export
+
 
 def compute_pooling_output_shape(
     input_shape,
@@ -236,6 +238,7 @@ def reduce_shape(shape, axis=None, keepdims=False):
         return output_shape
 
 
+@keras_core_export("keras_core.utils.get_source_inputs")
 def get_source_inputs(tensor):
     """Returns the list of input tensors necessary to compute `tensor`.
 

@@ -313,14 +313,13 @@ def extract_patches(
     Args:
         image: Input image or batch of images. Must be 3D or 4D.
         size: Patch size int or tuple (patch_height, patch_widht)
-        strides: strides along height and width. if not specified or
-                None it is same patch_size
+        strides: strides along height and width. If not specified, or
+            if `None`, it defaults to the same value as `size`.
         dilation_rate: This is the input stride, specifying how far two
             consecutive patch samples are in the input. For value other than 1,
-            strides must be 1. NOTE: `strides > 1` not supported in
+            strides must be 1. NOTE: `strides > 1` is not supported in
             conjunction with `dilation_rate > 1`
-        padding: The type of padding algorithm to use.
-            'same' or 'valid'.
+        padding: The type of padding algorithm to use: `"same"` or `"valid"`.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
             corresponds to inputs with shape `(batch, height, width, channels)`
@@ -372,8 +371,8 @@ def _extract_patches(
         patch_h, patch_w = size[0], size[1]
     else:
         raise TypeError(
-            "invalid size argument "
-            f"int or tuple of length 2. Received {size}"
+            "Invalid `size` argument. Expected an "
+            f"int or a tuple of length 2. Received: size={size}"
         )
     if data_format == "channels_last":
         channels_in = image.shape[-1]

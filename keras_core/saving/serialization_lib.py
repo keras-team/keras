@@ -112,7 +112,12 @@ def record_object_after_deserialization(obj, obj_id):
     id_to_obj_map[obj_id] = obj
 
 
-@keras_core_export("keras_core.saving.serialize_keras_object")
+@keras_core_export(
+    [
+        "keras_core.saving.serialize_keras_object",
+        "keras_core.utils.serialize_keras_object",
+    ]
+)
 def serialize_keras_object(obj):
     """Retrieve the config dict by serializing the Keras object.
 
@@ -368,7 +373,10 @@ def serialize_dict(obj):
 
 
 @keras_core_export(
-    "keras_core.saving.deserialize_keras_object",
+    [
+        "keras_core.saving.deserialize_keras_object",
+        "keras_core.utils.deserialize_keras_object",
+    ]
 )
 def deserialize_keras_object(
     config, custom_objects=None, safe_mode=True, **kwargs

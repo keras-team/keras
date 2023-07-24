@@ -1,7 +1,7 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 from absl.testing import parameterized
-import pytest
 
 from keras_core import backend
 from keras_core import testing
