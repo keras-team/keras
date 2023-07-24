@@ -99,20 +99,20 @@ class RandomCrop(TFDataLayer):
                     (),
                     0,
                     maxval=float(input_height - self.height + 1),
-                    dtype=inputs.dtype,
+                    dtype="int",
                     seed=seed_generator,
                 ),
-                "int32",
+                "int",
             )
             w_start = self.backend.cast(
                 ops.random.uniform(
                     (),
                     0,
                     maxval=float(input_width - self.width + 1),
-                    dtype=inputs.dtype,
+                    dtype="int",
                     seed=seed_generator,
                 ),
-                "int32",
+                "int",
             )
             if self.data_format == "channels_last":
                 return inputs[
