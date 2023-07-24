@@ -81,7 +81,7 @@ def build():
 
         # Find the .whl file path
         for fname in os.listdir(dist_directory):
-            if fname.endswith(".whl"):
+            if __version__ in fname and fname.endswith(".whl"):
                 whl_path = os.path.abspath(os.path.join(dist_directory, fname))
         print(f"Build successful. Wheel file available at {whl_path}")
     finally:
