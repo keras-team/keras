@@ -28,7 +28,7 @@ def serialize(constraint):
     return serialization_lib.serialize_keras_object(constraint)
 
 
-@keras_core_export("keras_core.initializers.deserialize")
+@keras_core_export("keras_core.constraints.deserialize")
 def deserialize(config, custom_objects=None):
     """Return a Keras constraint object via its config."""
     return serialization_lib.deserialize_keras_object(
