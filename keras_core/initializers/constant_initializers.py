@@ -4,7 +4,9 @@ from keras_core.backend import standardize_dtype
 from keras_core.initializers.initializer import Initializer
 
 
-@keras_core_export("keras_core.initializers.Constant")
+@keras_core_export(
+    ["keras_core.initializers.Constant", "keras_core.initializers.constant"]
+)
 class Constant(Initializer):
     """Initializer that generates tensors with constant values.
 
@@ -37,7 +39,9 @@ class Constant(Initializer):
         return {"value": self.value}
 
 
-@keras_core_export("keras_core.initializers.Zeros")
+@keras_core_export(
+    ["keras_core.initializers.Zeros", "keras_core.initializers.zeros"]
+)
 class Zeros(Initializer):
     """Initializer that generates tensors initialized to 0.
 
@@ -67,7 +71,9 @@ class Zeros(Initializer):
         return ops.zeros(shape, dtype=dtype)
 
 
-@keras_core_export("keras_core.initializers.Ones")
+@keras_core_export(
+    ["keras_core.initializers.Ones", "keras_core.initializers.ones"]
+)
 class Ones(Initializer):
     """Initializer that generates tensors initialized to 1.
 
@@ -97,3 +103,52 @@ class Ones(Initializer):
         """
         dtype = standardize_dtype(dtype)
         return ops.ones(shape, dtype=dtype)
+
+
+@keras_core_export(
+    [
+        "keras_core.initializers.IdentityInitializer",
+        "keras_core.initializers.Identity",
+        "keras_core.initializers.identity",
+    ]
+)
+class Identity(Initializer):
+    """Initializer that generates the identity matrix.
+
+    Only usable for generating 2D matrices.
+
+    Examples:
+
+    >>> # Standalone usage:
+    >>> initializer = Identity()
+    >>> values = initializer(shape=(2, 2))
+
+    >>> # Usage in a Keras layer:
+    >>> initializer = Identity()
+    >>> layer = Dense(3, kernel_initializer=initializer)
+
+    Args:
+        gain: Multiplicative factor to apply to the identity matrix.
+    """
+
+    def __init__(self, gain=1.0):
+        self.gain = gain
+
+    def __call__(self, shape, dtype=None):
+        """Returns a tensor object initialized as specified by the initializer.
+
+        Args:
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. Only numeric or boolean dtypes
+                are supported. If not specified, `keras_core.backend.floatx()`
+                is used, which default to `float32` unless you configured it
+                otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
+            **kwargs: Additional keyword arguments.
+        """
+        if len(shape) != 2:
+            raise ValueError(
+                "Identity matrix initializer can only be used for 2D matrices. "
+                f"Received: shape={shape} of rank {len(shape)}."
+            )
+        dtype = standardize_dtype(dtype)
+        return self.gain * ops.eye(*shape, dtype=dtype)

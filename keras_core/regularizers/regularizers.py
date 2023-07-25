@@ -167,7 +167,9 @@ class Regularizer:
         raise NotImplementedError(f"{self} does not implement get_config()")
 
 
-@keras_core_export("keras_core.regularizers.L1L2")
+@keras_core_export(
+    ["keras_core.regularizers.L1L2", "keras_core.regularizers.l1_l2"]
+)
 class L1L2(Regularizer):
     """A regularizer that applies both L1 and L2 regularization penalties.
 

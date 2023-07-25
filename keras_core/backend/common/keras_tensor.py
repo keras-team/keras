@@ -296,7 +296,9 @@ def any_symbolic_tensors(args=None, kwargs=None):
     return False
 
 
-@keras_core_export("keras_core.utils.is_keras_tensor")
+@keras_core_export(
+    ["keras_core.utils.is_keras_tensor", "keras_core.backend.is_keras_tensor"]
+)
 def is_keras_tensor(x):
     """Returns whether `x` is a Keras tensor.
 

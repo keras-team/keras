@@ -1106,6 +1106,11 @@ def categorical_hinge(y_true, y_pred):
     [
         "keras_core.metrics.mean_squared_error",
         "keras_core.losses.mean_squared_error",
+        # Legacy aliases
+        "keras_core._legacy.losses.mse",
+        "keras_core._legacy.losses.MSE",
+        "keras_core._legacy.metrics.mse",
+        "keras_core._legacy.metrics.MSE",
     ]
 )
 def mean_squared_error(y_true, y_pred):
@@ -1140,6 +1145,11 @@ def mean_squared_error(y_true, y_pred):
     [
         "keras_core.metrics.mean_absolute_error",
         "keras_core.losses.mean_absolute_error",
+        # Legacy aliases
+        "keras_core._legacy.losses.MAE",
+        "keras_core._legacy.losses.mae",
+        "keras_core._legacy.metrics.MAE",
+        "keras_core._legacy.metrics.mae",
     ]
 )
 def mean_absolute_error(y_true, y_pred):
@@ -1172,6 +1182,11 @@ def mean_absolute_error(y_true, y_pred):
     [
         "keras_core.metrics.mean_absolute_percentage_error",
         "keras_core.losses.mean_absolute_percentage_error",
+        # Legacy aliases
+        "keras_core._legacy.losses.mape",
+        "keras_core._legacy.losses.MAPE",
+        "keras_core._legacy.metrics.mape",
+        "keras_core._legacy.metrics.MAPE",
     ]
 )
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -1213,6 +1228,11 @@ def mean_absolute_percentage_error(y_true, y_pred):
     [
         "keras_core.metrics.mean_squared_logarithmic_error",
         "keras_core.losses.mean_squared_logarithmic_error",
+        # Legacy aliases
+        "keras_core._legacy.losses.msle",
+        "keras_core._legacy.losses.MSLE",
+        "keras_core._legacy.metrics.msle",
+        "keras_core._legacy.metrics.MSLE",
     ]
 )
 def mean_squared_logarithmic_error(y_true, y_pred):
@@ -1342,7 +1362,13 @@ def huber(y_true, y_pred, delta=1.0):
 
 
 @keras_core_export(
-    ["keras_core.losses.log_cosh", "keras_core.metrics.log_cosh"]
+    [
+        "keras_core.losses.log_cosh",
+        "keras_core.metrics.log_cosh",
+        # Legacy aliases
+        "keras_core._legacy.losses.logcosh",
+        "keras_core._legacy.metrics.logcosh",
+    ]
 )
 def log_cosh(y_true, y_pred):
     """Logarithm of the hyperbolic cosine of the prediction error.
@@ -1386,6 +1412,13 @@ def log_cosh(y_true, y_pred):
     [
         "keras_core.metrics.kl_divergence",
         "keras_core.losses.kl_divergence",
+        # Legacy aliases
+        "keras_core._legacy.losses.KLD",
+        "keras_core._legacy.losses.kld",
+        "keras_core._legacy.losses.kullback_leibler_divergence",
+        "keras_core._legacy.metrics.KLD",
+        "keras_core._legacy.metrics.kld",
+        "keras_core._legacy.metrics.kullback_leibler_divergence",
     ]
 )
 def kl_divergence(y_true, y_pred):

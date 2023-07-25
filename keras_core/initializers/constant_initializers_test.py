@@ -12,8 +12,8 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Zeros()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values).data
-        self.assertEqual(np_values, np.zeros(shape=shape))
+        np_values = backend.convert_to_numpy(values)
+        self.assertAllClose(np_values, np.zeros(shape=shape))
 
         self.run_class_serialization_test(initializer)
 
@@ -23,8 +23,8 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Ones()
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values).data
-        self.assertEqual(np_values, np.ones(shape=shape))
+        np_values = backend.convert_to_numpy(values)
+        self.assertAllClose(np_values, np.ones(shape=shape))
 
         self.run_class_serialization_test(initializer)
 
@@ -35,9 +35,21 @@ class ConstantInitializersTest(testing.TestCase):
         initializer = initializers.Constant(value=constant_value)
         values = initializer(shape=shape)
         self.assertEqual(values.shape, shape)
-        np_values = backend.convert_to_numpy(values).data
-        self.assertEqual(
+        np_values = backend.convert_to_numpy(values)
+        self.assertAllClose(
             np_values, np.full(shape=shape, fill_value=constant_value)
         )
+
+        self.run_class_serialization_test(initializer)
+
+    def test_identity_initializer(self):
+        shape = (3, 3)
+        gain = 2
+
+        initializer = initializers.Identity(gain=gain)
+        values = initializer(shape=shape)
+        self.assertEqual(values.shape, shape)
+        np_values = backend.convert_to_numpy(values)
+        self.assertAllClose(np_values, np.eye(*shape) * gain)
 
         self.run_class_serialization_test(initializer)

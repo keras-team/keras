@@ -2,6 +2,7 @@ import inspect
 
 from keras_core.api_export import keras_core_export
 from keras_core.initializers.constant_initializers import Constant
+from keras_core.initializers.constant_initializers import Identity
 from keras_core.initializers.constant_initializers import Ones
 from keras_core.initializers.constant_initializers import Zeros
 from keras_core.initializers.initializer import Initializer

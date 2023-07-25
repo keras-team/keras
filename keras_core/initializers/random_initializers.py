@@ -7,7 +7,12 @@ from keras_core.initializers.initializer import Initializer
 from keras_core.saving import serialization_lib
 
 
-@keras_core_export("keras_core.initializers.RandomNormal")
+@keras_core_export(
+    [
+        "keras_core.initializers.RandomNormal",
+        "keras_core.initializers.random_normal",
+    ]
+)
 class RandomNormal(Initializer):
     """Random normal initializer.
 
@@ -59,7 +64,12 @@ class RandomNormal(Initializer):
         return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
 
 
-@keras_core_export("keras_core.initializers.TruncatedNormal")
+@keras_core_export(
+    [
+        "keras_core.initializers.TruncatedNormal",
+        "keras_core.initializers.truncated_normal",
+    ]
+)
 class TruncatedNormal(Initializer):
     """Initializer that generates a truncated normal distribution.
 
@@ -114,7 +124,12 @@ class TruncatedNormal(Initializer):
         return {"mean": self.mean, "stddev": self.stddev, "seed": seed_config}
 
 
-@keras_core_export("keras_core.initializers.RandomUniform")
+@keras_core_export(
+    [
+        "keras_core.initializers.RandomUniform",
+        "keras_core.initializers.random_uniform",
+    ]
+)
 class RandomUniform(Initializer):
     """Random uniform initializer.
 
@@ -170,7 +185,12 @@ class RandomUniform(Initializer):
         }
 
 
-@keras_core_export("keras_core.initializers.VarianceScaling")
+@keras_core_export(
+    [
+        "keras_core.initializers.VarianceScaling",
+        "keras_core.initializers.variance_scaling",
+    ]
+)
 class VarianceScaling(Initializer):
     """Initializer that adapts its scale to the shape of its input tensors.
 
@@ -285,7 +305,12 @@ class VarianceScaling(Initializer):
         }
 
 
-@keras_core_export("keras_core.initializers.GlorotUniform")
+@keras_core_export(
+    [
+        "keras_core.initializers.GlorotUniform",
+        "keras_core.initializers.glorot_uniform",
+    ]
+)
 class GlorotUniform(VarianceScaling):
     """The Glorot uniform initializer, also called Xavier uniform initializer.
 
@@ -329,7 +354,12 @@ class GlorotUniform(VarianceScaling):
         }
 
 
-@keras_core_export("keras_core.initializers.GlorotNormal")
+@keras_core_export(
+    [
+        "keras_core.initializers.GlorotNormal",
+        "keras_core.initializers.glorot_normal",
+    ]
+)
 class GlorotNormal(VarianceScaling):
     """The Glorot normal initializer, also called Xavier normal initializer.
 
@@ -377,7 +407,12 @@ class GlorotNormal(VarianceScaling):
         }
 
 
-@keras_core_export("keras_core.initializers.LecunNormal")
+@keras_core_export(
+    [
+        "keras_core.initializers.LecunNormal",
+        "keras_core.initializers.lecun_normal",
+    ]
+)
 class LecunNormal(VarianceScaling):
     """Lecun normal initializer.
 
@@ -425,7 +460,12 @@ class LecunNormal(VarianceScaling):
         }
 
 
-@keras_core_export("keras_core.initializers.LecunUniform")
+@keras_core_export(
+    [
+        "keras_core.initializers.LecunUniform",
+        "keras_core.initializers.lecun_uniform",
+    ]
+)
 class LecunUniform(VarianceScaling):
     """Lecun uniform initializer.
 
@@ -469,7 +509,9 @@ class LecunUniform(VarianceScaling):
         }
 
 
-@keras_core_export("keras_core.initializers.HeNormal")
+@keras_core_export(
+    ["keras_core.initializers.HeNormal", "keras_core.initializers.he_normal"]
+)
 class HeNormal(VarianceScaling):
     """He normal initializer.
 
@@ -513,7 +555,9 @@ class HeNormal(VarianceScaling):
         }
 
 
-@keras_core_export("keras_core.initializers.HeUniform")
+@keras_core_export(
+    ["keras_core.initializers.HeUniform", "keras_core.initializers.he_uniform"]
+)
 class HeUniform(VarianceScaling):
     """He uniform variance scaling initializer.
 
@@ -589,6 +633,7 @@ def compute_fans(shape):
     [
         "keras_core.initializers.OrthogonalInitializer",
         "keras_core.initializers.Orthogonal",
+        "keras_core.initializers.orthogonal",
     ]
 )
 class OrthogonalInitializer(Initializer):
