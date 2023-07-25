@@ -53,9 +53,9 @@ def get_model():
     # Make a simple convnet with batch normalization and dropout.
     inputs = keras.Input(shape=(28, 28, 1))
     x = keras.layers.Rescaling(1.0 / 255.0)(inputs)
-    x = keras.layers.Conv2D(
-        filters=12, kernel_size=3, padding="same", use_bias=False
-    )(x)
+    x = keras.layers.Conv2D(filters=12, kernel_size=3, padding="same", use_bias=False)(
+        x
+    )
     x = keras.layers.BatchNormalization(scale=False, center=True)(x)
     x = keras.layers.ReLU()(x)
     x = keras.layers.Conv2D(
@@ -94,8 +94,6 @@ def get_dataset():
     x_train = np.expand_dims(x_train, -1)
     x_test = np.expand_dims(x_test, -1)
     print("x_train shape:", x_train.shape)
-    print(x_train.shape[0], "train samples")
-    print(x_test.shape[0], "test samples")
 
     # Create a TensorDataset
     dataset = torch.utils.data.TensorDataset(
@@ -113,6 +111,7 @@ a GPU (note the calls to `.cuda()`).
 def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
     for epoch in range(num_epochs):
         running_loss = 0.0
+        running_loss_count = 0
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda(non_blocking=True)
             targets = targets.cuda(non_blocking=True)
@@ -127,15 +126,13 @@ def train_model(model, dataloader, num_epochs, optimizer, loss_fn):
             optimizer.step()
 
             running_loss += loss.item()
+            running_loss_count += 1
 
-            # Print loss statistics
-            if (batch_idx + 1) % 10 == 0:
-                print(
-                    f"Epoch {epoch + 1}/{num_epochs}, "
-                    f"Batch {batch_idx + 1}/{len(dataloader)}, "
-                    f"Loss: {running_loss / 10}"
-                )
-                running_loss = 0.0
+        # Print loss statistics
+        print(
+            f"Epoch {epoch + 1}/{num_epochs}, "
+            f"Loss: {running_loss / running_loss_count}"
+        )
 
 
 """
@@ -169,7 +166,7 @@ To do single-host, multi-device synchronous training with a Keras model, you wou
 the `torch.nn.parallel.DistributedDataParallel` module wrapper.
 Here's how it works:
 
-- We use `torch.multiprocessing.spawn` to spawn multiple Python processes, one
+- We use `torch.multiprocessing.start_processes` to start multiple Python processes, one
 per device. Each process will run the `per_device_launch_fn` function.
 - The `per_device_launch_fn` function does the following:
     - It uses `torch.distributed.init_process_group` and `torch.cuda.set_device`
@@ -234,9 +231,7 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
     model = get_model()
 
     # prepare the dataloader
-    dataloader = prepare_dataloader(
-        dataset, current_gpu_index, num_gpu, batch_size
-    )
+    dataloader = prepare_dataloader(dataset, current_gpu_index, num_gpu, batch_size)
 
     # Instantiate the torch optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -256,15 +251,17 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
 
 
 """
-Time to spawn:
+Time to start multiple processes:
 """
 
-if __name__ == '__main__':
-    torch.multiprocessing.spawn(
+if __name__ == "__main__":
+    # We use the "fork" method rather than "spawn" to support notebooks
+    torch.multiprocessing.start_processes(
         per_device_launch_fn,
         args=(num_gpu,),
         nprocs=num_gpu,
         join=True,
+        start_method="fork",
     )
 
 """
