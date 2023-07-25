@@ -1,7 +1,10 @@
+import types
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 import tree
+from jax.tree_util import Partial
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
@@ -68,12 +71,14 @@ def compute_output_spec(fn, *args, **kwargs):
         built_in_types = (type(None), int, float, str, bool, complex, bytes)
 
         # First, separate symbolic args from other args
+        static_args_idx = []
         static_args = []
         maybe_symbolic_args = []
         static_kwargs = {}
         maybe_symbolic_kwargs = {}
-        for arg in args:
+        for idx, arg in enumerate(args):
             if isinstance(arg, built_in_types):
+                static_args_idx.append(idx)
                 static_args.append(arg)
             else:
                 maybe_symbolic_args.append(arg)
@@ -108,10 +113,43 @@ def compute_output_spec(fn, *args, **kwargs):
                             shape[i] = fill_value
                 jax_tensor = jax.ShapeDtypeStruct(shape, dtype=x.dtype)
                 return jax_tensor
+            if isinstance(x, types.FunctionType):
+
+                def _fn(*args, **kwargs):
+                    out = x(*args, **kwargs)
+                    out = convert_keras_tensor_to_jax(
+                        out, fill_value=fill_value
+                    )
+                    return out
+
+                return Partial(_fn)
+            if isinstance(x, dict):
+                return {
+                    k: convert_keras_tensor_to_jax(v, fill_value=fill_value)
+                    for k, v in x.items()
+                }
+            if isinstance(x, list):
+                return [
+                    convert_keras_tensor_to_jax(xi, fill_value=fill_value)
+                    for xi in x
+                ]
             return x
 
         def wrapped_fn(*args, **kwargs):
-            return fn(*args, *static_args, **kwargs, **static_kwargs)
+            rec_args = []
+            idx_static = 0
+            idx_sym = 0
+            i = 0
+            while idx_static < len(static_args) or idx_sym < len(args):
+                if i in static_args_idx:
+                    rec_args.append(static_args[idx_static])
+                    idx_static += 1
+                else:
+                    rec_args.append(args[idx_sym])
+                    idx_sym += 1
+
+                i += 1
+            return fn(*rec_args, **kwargs, **static_kwargs)
 
         jax_out = None
         if none_count:

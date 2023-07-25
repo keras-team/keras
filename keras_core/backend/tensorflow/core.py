@@ -1,3 +1,5 @@
+import types
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
@@ -107,6 +109,14 @@ def compute_output_spec(fn, *args, **kwargs):
                     return tf.compat.v1.placeholder(
                         shape=x.shape, dtype=x.dtype
                     )
+                if isinstance(x, types.FunctionType):
+
+                    def _fn(*x_args, **x_kwargs):
+                        out = x(*x_args, **x_kwargs)
+                        out = convert_keras_tensor_to_tf(out)
+                        return out
+
+                    return _fn
                 return x
 
             args, kwargs = tf.nest.map_structure(

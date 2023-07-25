@@ -263,3 +263,38 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
+
+    def test_cond(self):
+        t = ops.cond(True, lambda: 0, lambda: 1)
+        self.assertEqual(t, 0)
+        f = ops.cond(False, lambda: 0, lambda: 1)
+        self.assertEqual(f, 1)
+
+        for val in [True, False]:
+            out = ops.cond(
+                val,
+                lambda: KerasTensor((16, 3)),
+                lambda: KerasTensor((16, 3)),
+            )
+            self.assertEqual((16, 3), out.shape)
+
+        out = ops.cond(
+            KerasTensor((), dtype="bool"),
+            lambda: ops.ones((1, 3)),
+            lambda: ops.zeros((1, 3)),
+        )
+        self.assertEqual((1, 3), out.shape)
+
+        out = ops.cond(
+            KerasTensor((), dtype="bool"),
+            lambda: KerasTensor((3,)),
+            lambda: KerasTensor((3,)),
+        )
+        self.assertEqual((3,), out.shape)
+
+        with self.assertRaises(ValueError):
+            ops.cond(
+                KerasTensor((), dtype="bool"),
+                lambda: KerasTensor((3,)),
+                lambda: KerasTensor((4,)),
+            )
