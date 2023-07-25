@@ -65,7 +65,6 @@ class Zeros(Initializer):
                 are supported. If not specified, `keras_core.backend.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
-            **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)
         return ops.zeros(shape, dtype=dtype)
@@ -99,7 +98,6 @@ class Ones(Initializer):
                 are supported. If not specified, `keras_core.backend.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
-            **kwargs: Additional keyword arguments.
         """
         dtype = standardize_dtype(dtype)
         return ops.ones(shape, dtype=dtype)
@@ -143,7 +141,6 @@ class Identity(Initializer):
                 are supported. If not specified, `keras_core.backend.floatx()`
                 is used, which default to `float32` unless you configured it
                 otherwise (via `keras_core.backend.set_floatx(float_dtype)`).
-            **kwargs: Additional keyword arguments.
         """
         if len(shape) != 2:
             raise ValueError(
