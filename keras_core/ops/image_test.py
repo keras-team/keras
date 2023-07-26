@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import scipy.ndimage
 import tensorflow as tf
 from absl.testing import parameterized
 
@@ -49,6 +50,57 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         p_h, p_w = 5, 5
         out = kimage.extract_patches(x, (p_h, p_w))
         self.assertEqual(out.shape, (4, 4, 75))
+
+
+AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
+    "nearest": 0,
+    "bilinear": 1,
+}
+AFFINE_TRANSFORM_FILL_MODES = {
+    "constant": "grid-constant",
+    "nearest": "nearest",
+    "wrap": "grid-wrap",
+    "mirror": "mirror",
+    "reflect": "reflect",
+}
+
+
+def _compute_affine_transform_coordinates(image, transform):
+    need_squeeze = False
+    if len(image.shape) == 3:  # unbatched
+        need_squeeze = True
+        image = np.expand_dims(image, axis=0)
+        transform = np.expand_dims(transform, axis=0)
+    batch_size = image.shape[0]
+    # get indices
+    meshgrid = np.meshgrid(
+        *[np.arange(size) for size in image.shape[1:]], indexing="ij"
+    )
+    indices = np.concatenate(
+        [np.expand_dims(x, axis=-1) for x in meshgrid], axis=-1
+    )
+    indices = np.tile(indices, (batch_size, 1, 1, 1, 1))
+    # swap the values
+    transform[:, 4], transform[:, 0] = (
+        transform[:, 0].copy(),
+        transform[:, 4].copy(),
+    )
+    transform[:, 5], transform[:, 2] = (
+        transform[:, 2].copy(),
+        transform[:, 5].copy(),
+    )
+    # deal with transform
+    transform = np.pad(transform, pad_width=[[0, 0], [0, 1]], constant_values=1)
+    transform = np.reshape(transform, (batch_size, 3, 3))
+    offset = np.pad(transform[:, 0:2, 2], pad_width=[[0, 0], [0, 1]])
+    transform[:, 0:2, 2] = 0
+    # transform the indices
+    coordinates = np.einsum("Bhwij, Bjk -> Bhwik", indices, transform)
+    coordinates = np.moveaxis(coordinates, source=-1, destination=1)
+    coordinates += np.reshape(a=offset, newshape=(*offset.shape, 1, 1, 1))
+    if need_squeeze:
+        coordinates = np.squeeze(coordinates, axis=0)
+    return coordinates
 
 
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -135,22 +187,34 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ("nearest", "nearest", "channels_last"),
             ("bilinear", "wrap", "channels_last"),
             ("nearest", "wrap", "channels_last"),
+            ("bilinear", "mirror", "channels_last"),
+            ("nearest", "mirror", "channels_last"),
             ("bilinear", "reflect", "channels_last"),
             ("nearest", "reflect", "channels_last"),
             ("bilinear", "constant", "channels_first"),
         ]
     )
     def test_affine_transform(self, interpolation, fill_mode, data_format):
-        if fill_mode == "wrap" and backend.backend() == "torch":
+        if backend.backend() == "torch" and fill_mode == "wrap":
             self.skipTest(
-                "Applying affine transform with fill_mode=wrap is not support"
-                " in torch backend"
+                "In torch backend, applying affine_transform with "
+                "fill_mode=wrap is not supported"
             )
-        if fill_mode == "wrap" and backend.backend() in ("jax", "numpy"):
+        if backend.backend() == "torch" and fill_mode == "reflect":
             self.skipTest(
-                "The numerical results of applying affine transform with "
-                "fill_mode=wrap in tensorflow is inconsistent with jax and "
-                "numpy backends"
+                "In torch backend, applying affine_transform with "
+                "fill_mode=reflect is redirected to fill_mode=mirror"
+            )
+        if backend.backend() == "tensorflow" and fill_mode == "mirror":
+            self.skipTest(
+                "In tensorflow backend, applying affine_transform with "
+                "fill_mode=mirror is not supported"
+            )
+        if backend.backend() == "tensorflow" and fill_mode == "wrap":
+            self.skipTest(
+                "In tensorflow backend, the numerical results of applying "
+                "affine_transform with fill_mode=wrap is inconsistent with"
+                "scipy"
             )
 
         # Unbatched case
@@ -169,24 +233,18 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         if data_format == "channels_first":
             x = np.transpose(x, (1, 2, 0))
-        ref_out = tf.raw_ops.ImageProjectiveTransformV3(
-            images=tf.expand_dims(x, axis=0),
-            transforms=tf.cast(tf.expand_dims(transform, axis=0), tf.float32),
-            output_shape=tf.shape(x)[:-1],
-            fill_value=0,
-            interpolation=interpolation.upper(),
-            fill_mode=fill_mode.upper(),
+        coordinates = _compute_affine_transform_coordinates(x, transform)
+        ref_out = scipy.ndimage.map_coordinates(
+            x,
+            coordinates,
+            order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+            mode=AFFINE_TRANSFORM_FILL_MODES[fill_mode],
+            prefilter=False,
         )
-        ref_out = ref_out[0]
         if data_format == "channels_first":
             ref_out = np.transpose(ref_out, (2, 0, 1))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        if backend.backend() == "torch":
-            # TODO: cannot pass with torch backend
-            with self.assertRaises(AssertionError):
-                self.assertAllClose(ref_out, out, atol=0.3)
-        else:
-            self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=0.3)
 
         # Batched case
         if data_format == "channels_first":
@@ -204,23 +262,24 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         if data_format == "channels_first":
             x = np.transpose(x, (0, 2, 3, 1))
-        ref_out = tf.raw_ops.ImageProjectiveTransformV3(
-            images=x,
-            transforms=tf.cast(transform, tf.float32),
-            output_shape=tf.shape(x)[1:-1],
-            fill_value=0,
-            interpolation=interpolation.upper(),
-            fill_mode=fill_mode.upper(),
+        coordinates = _compute_affine_transform_coordinates(x, transform)
+        ref_out = np.stack(
+            [
+                scipy.ndimage.map_coordinates(
+                    x[i],
+                    coordinates[i],
+                    order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+                    mode=AFFINE_TRANSFORM_FILL_MODES[fill_mode],
+                    prefilter=False,
+                )
+                for i in range(x.shape[0])
+            ],
+            axis=0,
         )
         if data_format == "channels_first":
             ref_out = np.transpose(ref_out, (0, 3, 1, 2))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        if backend.backend() == "torch":
-            # TODO: cannot pass with torch backend
-            with self.assertRaises(AssertionError):
-                self.assertAllClose(ref_out, out, atol=0.3)
-        else:
-            self.assertAllClose(ref_out, out, atol=0.3)
+        self.assertAllClose(ref_out, out, atol=0.3)
 
     @parameterized.parameters(
         [

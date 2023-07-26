@@ -34,9 +34,9 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         expected_output = np.asarray(
             [
                 [0, 0, 0, 0, 0],
-                [0, 5, 7, 9, 0],
-                [0, 10, 12, 14, 0],
-                [0, 20, 22, 24, 0],
+                [0, 2.7, 4.5, 6.3, 0],
+                [0, 10.2, 12.0, 13.8, 0],
+                [0, 17.7, 19.5, 21.3, 0],
                 [0, 0, 0, 0, 0],
             ]
         )
@@ -48,7 +48,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             init_kwargs={
                 "height_factor": (0.5, 0.5),
                 "width_factor": (0.8, 0.8),
-                "interpolation": "nearest",
+                "interpolation": "bilinear",
                 "fill_mode": "constant",
             },
             input_shape=None,
@@ -62,11 +62,11 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
         expected_output = np.asarray(
             [
-                [6, 7, 7, 8, 8],
-                [11, 12, 12, 13, 13],
-                [11, 12, 12, 13, 13],
-                [16, 17, 17, 18, 18],
-                [16, 17, 17, 18, 18],
+                [6.0, 6.5, 7.0, 7.5, 8.0],
+                [8.5, 9.0, 9.5, 10.0, 10.5],
+                [11.0, 11.5, 12.0, 12.5, 13.0],
+                [13.5, 14.0, 14.5, 15.0, 15.5],
+                [16.0, 16.5, 17.0, 17.5, 18.0],
             ]
         )
         expected_output = backend.convert_to_tensor(
@@ -77,7 +77,8 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             init_kwargs={
                 "height_factor": (-0.5, -0.5),
                 "width_factor": (-0.5, -0.5),
-                "interpolation": "nearest",
+                "interpolation": "bilinear",
+                "fill_mode": "constant",
             },
             input_shape=None,
             input_data=input_image,

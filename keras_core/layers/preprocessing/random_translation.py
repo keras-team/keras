@@ -48,17 +48,23 @@ class RandomTranslation(TFDataLayer):
             left by 20%, and shifted right by 30%. `width_factor=0.2` results
             in an output height shifted left or right by 20%.
         fill_mode: Points outside the boundaries of the input are filled
-            according to the given mode
-            (one of `{"constant", "reflect", "wrap", "nearest"}`).
-            - *reflect*: `(d c b a | a b c d | d c b a)` The input is extended
-                by reflecting about the edge of the last pixel.
-            - *constant*: `(k k k k | a b c d | k k k k)` The input is extended
-                by filling all values beyond the edge with the same constant
-                value k = 0.
-            - *wrap*: `(a b c d | a b c d | a b c d)` The input is extended by
-                wrapping around to the opposite edge.
-            - *nearest*: `(a a a a | a b c d | d d d d)` The input is extended
-                by the nearest pixel.
+            according to the given mode. Available methods are `"constant"`,
+            `"nearest"`, `"wrap"` and `"reflect"`. Defaults to `"constant"`.
+            - `"reflect"`: `(d c b a | a b c d | d c b a)`
+                The input is extended by reflecting about the edge of the last
+                pixel.
+            - `"constant"`: `(k k k k | a b c d | k k k k)`
+                The input is extended by filling all values beyond
+                the edge with the same constant value k specified by
+                `fill_value`.
+            - `"wrap"`: `(a b c d | a b c d | a b c d)`
+                The input is extended by wrapping around to the opposite edge.
+            - `"nearest"`: `(a a a a | a b c d | d d d d)`
+                The input is extended by the nearest pixel.
+            Note that when using torch backend, `"reflect"` is redirected to
+            `"mirror"` `(c d c b | a b c d | c b a b)` because torch does not
+            support `"reflect"`.
+            Note that torch backend does not support `"wrap"`.
         interpolation: Interpolation mode. Supported values: `"nearest"`,
             `"bilinear"`.
         seed: Integer. Used to create a random seed.
