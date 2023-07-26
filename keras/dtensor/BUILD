@@ -26,6 +26,9 @@ package(
 py_library(
     name = "dtensor",
     srcs = ["__init__.py"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
 )
 
 tf_py_test(
