@@ -456,15 +456,15 @@ def gru(
     time_major=False,
     reset_after=True,
 ):
-    args_supported = _do_gru_arguments_support_cudnn(
-        activation=activation,
-        recurrent_activation=recurrent_activation,
-        unroll=unroll,
-        bias=bias,
+    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
         reset_after=reset_after,
     )
-    inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    if not args_supported or not inputs_supported or not _is_gpu_available():
+    if not cudnn_supported or not inputs_supported:
         raise NotImplementedError
 
     from keras_core.backend.tensorflow import Variable
@@ -500,7 +500,7 @@ def _do_gru_arguments_support_cudnn(
     activation,
     recurrent_activation,
     unroll,
-    bias,
+    use_bias,
     reset_after,
 ):
     from keras_core import activations
@@ -511,7 +511,7 @@ def _do_gru_arguments_support_cudnn(
         and recurrent_activation
         in (activations.sigmoid, tf.sigmoid, ops.sigmoid)
         and not unroll
-        and bias is not None
+        and use_bias
         and reset_after
     )
 
@@ -520,7 +520,7 @@ def _do_lstm_arguments_support_cudnn(
     activation,
     recurrent_activation,
     unroll,
-    bias,
+    use_bias,
 ):
     from keras_core import activations
     from keras_core import ops
@@ -530,7 +530,7 @@ def _do_lstm_arguments_support_cudnn(
         and recurrent_activation
         in (activations.sigmoid, tf.sigmoid, ops.sigmoid)
         and not unroll
-        and bias is not None
+        and use_bias
     )
 
 
@@ -776,6 +776,31 @@ def _cudnn_gru(
     )
 
 
+def cudnn_ok(
+    activation,
+    recurrent_activation,
+    unroll,
+    use_bias,
+    reset_after=None,
+):
+    if reset_after is None:
+        args_supported = _do_lstm_arguments_support_cudnn(
+            activation=activation,
+            recurrent_activation=recurrent_activation,
+            unroll=unroll,
+            use_bias=use_bias,
+        )
+    else:
+        args_supported = _do_gru_arguments_support_cudnn(
+            activation=activation,
+            recurrent_activation=recurrent_activation,
+            unroll=unroll,
+            use_bias=use_bias,
+            reset_after=reset_after,
+        )
+    return args_supported and _is_gpu_available()
+
+
 def lstm(
     inputs,
     initial_state_h,
@@ -791,14 +816,11 @@ def lstm(
     unroll=False,
     time_major=False,
 ):
-    args_supported = _do_lstm_arguments_support_cudnn(
-        activation=activation,
-        recurrent_activation=recurrent_activation,
-        unroll=unroll,
-        bias=bias,
-    )
     inputs_supported = _do_rnn_inputs_support_cudnn(mask, time_major)
-    if not args_supported or not inputs_supported or not _is_gpu_available():
+    cudnn_supported = cudnn_ok(
+        activation, recurrent_activation, unroll, use_bias=bias is not None
+    )
+    if not cudnn_supported or not inputs_supported:
         raise NotImplementedError
 
     from keras_core.backend.tensorflow import Variable

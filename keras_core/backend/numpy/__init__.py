@@ -15,6 +15,7 @@ from keras_core.backend.numpy.core import is_tensor
 from keras_core.backend.numpy.core import name_scope
 from keras_core.backend.numpy.core import shape
 from keras_core.backend.numpy.core import vectorized_map
+from keras_core.backend.numpy.rnn import cudnn_ok
 from keras_core.backend.numpy.rnn import gru
 from keras_core.backend.numpy.rnn import lstm
 from keras_core.backend.numpy.rnn import rnn

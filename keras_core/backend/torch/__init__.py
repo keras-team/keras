@@ -34,6 +34,7 @@ from keras_core.backend.torch.core import shape
 from keras_core.backend.torch.core import stop_gradient
 from keras_core.backend.torch.core import to_torch_dtype
 from keras_core.backend.torch.core import vectorized_map
+from keras_core.backend.torch.rnn import cudnn_ok
 from keras_core.backend.torch.rnn import gru
 from keras_core.backend.torch.rnn import lstm
 from keras_core.backend.torch.rnn import rnn

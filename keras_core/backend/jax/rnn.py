@@ -201,6 +201,10 @@ def rnn(
     return last_output, outputs, new_states
 
 
+def cudnn_ok(*args, **kwargs):
+    return False
+
+
 def lstm(*args, **kwargs):
     raise NotImplementedError
 

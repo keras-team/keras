@@ -234,3 +234,7 @@ def numpy_scan(f, init, xs, reverse=False, mask=None):
         outputs = np.flip(outputs, axis=0)
 
     return states, outputs
+
+
+def cudnn_ok(*args, **kwargs):
+    return False

@@ -18,6 +18,7 @@ from keras_core.backend.tensorflow.core import scatter
 from keras_core.backend.tensorflow.core import shape
 from keras_core.backend.tensorflow.core import stop_gradient
 from keras_core.backend.tensorflow.core import vectorized_map
+from keras_core.backend.tensorflow.rnn import cudnn_ok
 from keras_core.backend.tensorflow.rnn import gru
 from keras_core.backend.tensorflow.rnn import lstm
 from keras_core.backend.tensorflow.rnn import rnn

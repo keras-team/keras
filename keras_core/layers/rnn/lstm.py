@@ -491,6 +491,10 @@ class LSTM(RNN):
             **kwargs,
         )
         self.input_spec = InputSpec(ndim=3)
+        if backend.backend() == "tensorflow" and backend.cudnn_ok(
+            activation, recurrent_activation, unroll, use_bias
+        ):
+            self.supports_jit = False
 
     def inner_loop(self, sequences, initial_state, mask, training=False):
         if tree.is_nested(mask):
