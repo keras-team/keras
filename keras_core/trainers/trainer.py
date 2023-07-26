@@ -100,7 +100,14 @@ class Trainer:
 
     @jit_compile.setter
     def jit_compile(self, value):
-        self._jit_compile = value
+        if value and not model_supports_jit(self):
+            warnings.warn(
+                "Model doesn't support `jit_compile=True`. "
+                "Proceeding with `jit_compile=False`."
+            )
+            self._jit_compile = False
+        else:
+            self._jit_compile = value
 
     @property
     def run_eagerly(self):
