@@ -6,8 +6,11 @@ import tree
 
 from keras_core import backend
 from keras_core import ops
+from keras_core.backend.common import global_state
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
+from keras_core.legacy.saving import saving_utils
+from keras_core.legacy.saving import serialization as legacy_serialization
 from keras_core.models.model import Model
 from keras_core.ops.function import Function
 from keras_core.ops.function import make_node_key
@@ -384,7 +387,11 @@ class Functional(Function, Model):
                     if node_data is not None:
                         filtered_inbound_nodes.append(node_data)
 
-            layer_config = serialization_lib.serialize_keras_object(operation)
+            serialize_obj_fn = serialization_lib.serialize_keras_object
+            if global_state.get_global_attribute("use_legacy_config", False):
+                # Legacy format serialization used for H5 and SavedModel
+                serialize_obj_fn = legacy_serialization.serialize_keras_object
+            layer_config = serialize_obj_fn(operation)
             layer_config["name"] = operation.name
             layer_config["inbound_nodes"] = filtered_inbound_nodes
             layer_configs.append(layer_config)
@@ -459,9 +466,16 @@ class Functional(Function, Model):
             layer_name = layer_data["name"]
 
             # Instantiate layer.
-            layer = serialization_lib.deserialize_keras_object(
-                layer_data, custom_objects=custom_objects
-            )
+            if "module" not in layer_data:
+                # Legacy format deserialization (no "module" key)
+                # used for H5 and SavedModel formats
+                layer = saving_utils.model_from_config(
+                    layer_data, custom_objects=custom_objects
+                )
+            else:
+                layer = serialization_lib.deserialize_keras_object(
+                    layer_data, custom_objects=custom_objects
+                )
             created_layers[layer_name] = layer
 
             # Gather layer inputs.

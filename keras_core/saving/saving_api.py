@@ -1,9 +1,11 @@
 import os
 import zipfile
 
+from absl import logging
+
 from keras_core.api_export import keras_core_export
+from keras_core.legacy.saving import legacy_h5_format
 from keras_core.saving import saving_lib
-from keras_core.saving.legacy import legacy_h5_format
 from keras_core.utils import file_utils
 from keras_core.utils import io_utils
 
@@ -16,7 +18,7 @@ except ImportError:
 @keras_core_export(
     ["keras_core.saving.save_model", "keras_core.models.save_model"]
 )
-def save_model(model, filepath, overwrite=True):
+def save_model(model, filepath, overwrite=True, save_format=None, **kwargs):
     """Saves a model as a `.keras` file.
 
     Args:
@@ -50,16 +52,46 @@ def save_model(model, filepath, overwrite=True):
 
     Thus models can be reinstantiated in the exact same state.
     """
-    # If file exists and should not be overwritten.
-    try:
-        exists = os.path.exists(filepath)
-    except TypeError:
-        exists = False
-    if exists and not overwrite:
-        proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
-        if not proceed:
-            return
-    saving_lib.save_model(model, filepath)
+    save_format = get_save_format(filepath, save_format)
+    include_optimizer = kwargs.pop("include_optimizer", True)
+    if kwargs:
+        raise ValueError(
+            "The following argument(s) are not supported: "
+            f"{list(kwargs.keys())}"
+        )
+
+    # Deprecation warnings
+    if save_format == "h5":
+        logging.warning(
+            "You are saving your model as an HDF5 file via `model.save()`. "
+            "This file format is considered legacy. "
+            "We recommend using instead the native Keras format, "
+            "e.g. `model.save('my_model.keras')`."
+        )
+
+    if save_format == "keras":
+        # If file exists and should not be overwritten.
+        try:
+            exists = os.path.exists(filepath)
+        except TypeError:
+            exists = False
+        if exists and not overwrite:
+            proceed = io_utils.ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        saving_lib.save_model(model, filepath)
+    elif save_format == "h5":
+        legacy_h5_format.save_model_to_hdf5(
+            model, filepath, overwrite, include_optimizer
+        )
+    else:
+        # TODO(nkovela): Replace code route when SavedModel format is supported
+        raise ValueError(
+            "Invalid filepath extension for saving. "
+            "Please add either a `.keras` extension for the native Keras "
+            f"format (recommended) or a `.h5` extension. "
+            f"Received: filepath = {filepath}."
+        )
 
 
 @keras_core_export(
@@ -101,7 +133,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     It is recommended that you use layer attributes to
     access specific variables, e.g. `model.get_layer("dense_1").kernel`.
     """
-    from keras_core.saving import saving_lib
+    save_format = get_save_format(filepath, save_format=None)
 
     is_keras_zip = str(filepath).endswith(".keras") and zipfile.is_zipfile(
         filepath
@@ -132,12 +164,12 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             compile=compile,
             safe_mode=safe_mode,
         )
+    if save_format == "h5":
+        return legacy_h5_format.load_model_from_hdf5(filepath)
     else:
-        raise ValueError(
-            "The file you are trying to load does not appear to "
-            "be a valid `.keras` model file. If it is a legacy "
-            "`.h5` or SavedModel file, do note that these formats "
-            "are not supported in Keras Core."
+        # TODO(nkovela): Replace code route when SavedModel format is supported
+        raise NotImplementedError(
+            "The SavedModel format is not currently supported."
         )
 
 
@@ -177,3 +209,38 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "Keras Core only supports V3 `.keras` and `.weights.h5` "
             "files."
         )
+
+
+def get_save_format(filepath, save_format):
+    if save_format:
+        if save_format == "keras_v3":
+            return "keras"
+        if save_format == "keras":
+            return "keras"
+        else:
+            return "h5"
+        if save_format in ("h5", "hdf5"):
+            return "h5"
+        if save_format in ("tf", "tensorflow"):
+            return "tf"
+
+        raise ValueError(
+            "Unknown `save_format` argument. Expected one of "
+            "'keras', 'tf', or 'h5'. "
+            f"Received: save_format{save_format}"
+        )
+
+    # No save format specified: infer from filepath.
+
+    if str(filepath).endswith(".keras"):
+        return "keras"
+    else:
+        return "h5"
+
+    if str(filepath).endswith((".h5", ".hdf5")):
+        return "h5"
+
+    if h5py is not None and isinstance(filepath, h5py.File):
+        return "h5"
+
+    return "tf"

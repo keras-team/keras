@@ -26,3 +26,19 @@ class OptimizerTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             optimizers.get("typo")
+
+    def test_set_weights(self):
+        x = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        optimizer_1 = optimizers.Adam()
+        grads = backend.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        optimizer_1.apply_gradients(zip([grads], [x]))
+        optimizer_2 = optimizers.Adam()
+        with self.assertRaisesRegex(ValueError, "You are calling*"):
+            optimizer_2.set_weights(optimizer_1.variables)
+        optimizer_2.build([x])
+        optimizer_2.set_weights(optimizer_1.variables)
+        for i in range(len(optimizer_1.variables)):
+            self.assertAllClose(
+                optimizer_1.variables[i],
+                optimizer_2.variables[i],
+            )

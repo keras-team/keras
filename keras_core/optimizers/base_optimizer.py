@@ -329,6 +329,24 @@ class BaseOptimizer:
                 )
             self._learning_rate.assign(learning_rate)
 
+    def set_weights(self, weights):
+        """Set the weights of the optimizer."""
+        if not self.built:
+            raise ValueError(
+                "You are calling `set_weights()` on an optimizer that has not "
+                "yet been built. Please call "
+                "`optimizer.build(trainable_variables)` to create the "
+                "optimizer weights before calling `set_weights()`."
+            )
+        for variable, weight in zip(self._variables, weights):
+            if variable.shape != weight.shape:
+                raise ValueError(
+                    f"Optimizer variable {self._var_key(variable)} has shape "
+                    f"{str(variable.shape)} not compatible with provided "
+                    f"weight shape {str(weight.shape)}."
+                )
+            variable.assign(weight)
+
     def save_own_variables(self, store):
         """Get the state of this optimizer object."""
         for i, variable in enumerate(self.variables):
