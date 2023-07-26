@@ -121,11 +121,12 @@ class Patches(layers.Layer):
         num_patches_w = width // self.patch_size
         patches = keras.ops.image.extract_patches(images, size=self.patch_size)
         patches = ops.reshape(
-            patches, (
+            patches,
+            (
                 batch_size,
                 num_patches_h * num_patches_w,
                 self.patch_size * self.patch_size * channels,
-            )
+            ),
         )
         return patches
 

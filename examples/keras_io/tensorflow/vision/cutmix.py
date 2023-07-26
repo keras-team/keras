@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt
 
 from keras_core import layers
 
-# TF imports related to tf.data preprocessing 
+# TF imports related to tf.data preprocessing
 from tensorflow import clip_by_value
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image
@@ -354,7 +354,9 @@ initial_model.save_weights("initial_weights.weights.h5")
 model = training_model()
 model.load_weights("initial_weights.weights.h5")
 
-model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
 model.fit(train_ds_cmu, validation_data=test_ds, epochs=15)
 
 test_loss, test_accuracy = model.evaluate(test_ds)
@@ -366,7 +368,9 @@ print("Test accuracy: {:.2f}%".format(test_accuracy * 100))
 
 model = training_model()
 model.load_weights("initial_weights.weights.h5")
-model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.compile(
+    loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+)
 model.fit(train_ds_simple, validation_data=test_ds, epochs=15)
 
 test_loss, test_accuracy = model.evaluate(test_ds)

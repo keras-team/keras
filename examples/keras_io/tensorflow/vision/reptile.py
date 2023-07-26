@@ -19,6 +19,7 @@ difference between weights trained on a mini-batch of never-seen-before data and
 model weights prior to training over a fixed number of meta-iterations.
 """
 import os
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import keras_core as keras

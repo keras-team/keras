@@ -40,7 +40,7 @@ from datasets import load_dataset
 from collections import Counter
 from conlleval import evaluate
 
-# imports for data preprocessing 
+# imports for data preprocessing
 from tensorflow import data as tf_data
 from tensorflow import strings as tf_strings
 
@@ -82,7 +82,9 @@ class TokenAndPositionEmbedding(layers.Layer):
         self.token_emb = keras.layers.Embedding(
             input_dim=vocab_size, output_dim=embed_dim
         )
-        self.pos_emb = keras.layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
+        self.pos_emb = keras.layers.Embedding(
+            input_dim=maxlen, output_dim=embed_dim
+        )
 
     def call(self, inputs):
         maxlen = keras.ops.backend.shape(inputs)[-1]
@@ -99,10 +101,18 @@ class TokenAndPositionEmbedding(layers.Layer):
 
 class NERModel(keras.Model):
     def __init__(
-        self, num_tags, vocab_size, maxlen=128, embed_dim=32, num_heads=2, ff_dim=32
+        self,
+        num_tags,
+        vocab_size,
+        maxlen=128,
+        embed_dim=32,
+        num_heads=2,
+        ff_dim=32,
     ):
         super().__init__()
-        self.embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+        self.embedding_layer = TokenAndPositionEmbedding(
+            maxlen, vocab_size, embed_dim
+        )
         self.transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
         self.dropout1 = layers.Dropout(0.1)
         self.ff = layers.Dense(ff_dim, activation="relu")
@@ -166,7 +176,9 @@ have a total of 10 labels: 9 from the NER dataset and one for padding.
 def make_tag_lookup_table():
     iob_labels = ["B", "I"]
     ner_labels = ["PER", "ORG", "LOC", "MISC"]
-    all_labels = [(label1, label2) for label2 in ner_labels for label1 in iob_labels]
+    all_labels = [
+        (label1, label2) for label2 in ner_labels for label1 in iob_labels
+    ]
     all_labels = ["-".join([a, b]) for a, b in all_labels]
     all_labels = ["[PAD]", "O"] + all_labels
     return dict(zip(range(0, len(all_labels) + 1), all_labels))
@@ -215,7 +227,8 @@ print(list(train_data.take(1).as_numpy_iterator()))
 We will be using the following map function to transform the data in the dataset:
 """
 
-# Data preprocessing using Tensorflow 
+
+# Data preprocessing using Tensorflow
 def map_record_to_training_data(record):
     record = tf_strings.split(record, sep="\t")
     length = tf_strings.to_number(record[0], out_type="int32")

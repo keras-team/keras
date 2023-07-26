@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 
 from keras_core import layers
 
-# TF imports related to tf.data preprocessing 
+# TF imports related to tf.data preprocessing
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image
 from tensorflow.random import gamma as tf_random_gamma
