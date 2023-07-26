@@ -3,6 +3,8 @@ black>=22
 flake8
 isort
 pytest
+numpy
+scipy
 pandas
 absl-py
 requests

@@ -1,5 +1,5 @@
-# Tensorflow.
-tensorflow
+# Tensorflow
+tensorflow>=2.13.0
 
 # Torch.
 # TODO: Use Torch CPU, remove after resolving Cuda version differences with TF
