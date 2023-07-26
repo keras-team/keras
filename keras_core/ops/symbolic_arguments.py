@@ -9,7 +9,7 @@ class SymbolicArguments:
         self.kwargs = tree.map_structure(lambda x: x, kwargs)
         self._flat_arguments = tree.flatten((self.args, self.kwargs))
 
-        # Used to avoid expensive `nest` operations in the most common case.
+        # Used to avoid expensive `tree` operations in the most common case.
         if (
             not self.kwargs
             and len(self.args) == 1
