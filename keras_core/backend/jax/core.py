@@ -287,3 +287,10 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 def stop_gradient(variable):
     return jax.lax.stop_gradient(variable)
+
+
+def unstack(x, num=None, axis=0):
+    return [
+        jax.lax.index_in_dim(x, i, axis, keepdims=False)
+        for i in range(x.shape[axis])
+    ]
