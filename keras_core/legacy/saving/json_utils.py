@@ -184,7 +184,6 @@ def get_json_type(obj):
     #     return obj.__wrapped__
 
     if tf.available and isinstance(obj, tf.TypeSpec):
-
         from tensorflow.python.framework import type_spec_registry
 
         try:
