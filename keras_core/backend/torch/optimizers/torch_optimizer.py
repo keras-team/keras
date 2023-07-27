@@ -12,6 +12,7 @@ class TorchOptimizer(BaseOptimizer):
         from keras_core.backend.torch.optimizers import torch_adam
         from keras_core.backend.torch.optimizers import torch_adamax
         from keras_core.backend.torch.optimizers import torch_adamw
+        from keras_core.backend.torch.optimizers import torch_lion
         from keras_core.backend.torch.optimizers import torch_nadam
         from keras_core.backend.torch.optimizers import torch_rmsprop
         from keras_core.backend.torch.optimizers import torch_sgd
@@ -22,6 +23,7 @@ class TorchOptimizer(BaseOptimizer):
             optimizers.Adam: torch_adam.Adam,
             optimizers.Adamax: torch_adamax.Adamax,
             optimizers.AdamW: torch_adamw.AdamW,
+            optimizers.Lion: torch_lion.Lion,
             optimizers.Nadam: torch_nadam.Nadam,
             optimizers.RMSprop: torch_rmsprop.RMSprop,
             optimizers.SGD: torch_sgd.SGD,
