@@ -48,11 +48,10 @@ def get_device():
 
 
 def to_torch_dtype(dtype):
-    dtype = standardize_dtype(dtype)
-    dtype = TORCH_DTYPES.get(dtype, None)
-    if dtype is None:
+    standardized_dtype = TORCH_DTYPES.get(standardize_dtype(dtype), None)
+    if standardized_dtype is None:
         raise ValueError(f"Unsupported dtype for PyTorch: {dtype}")
-    return dtype
+    return standardized_dtype
 
 
 class Variable(KerasVariable):

@@ -10,15 +10,19 @@ import keras_core as keras
 keras.config.disable_traceback_filtering()
 
 inputs = layers.Input((100,))
-x = layers.Dense(512, activation="relu")(inputs)
+x = layers.Dense(1024, activation="relu")(inputs)
 residual = x
-x = layers.Dense(512, activation="relu")(x)
-x = layers.Dense(512, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
 x += residual
-x = layers.Dense(512, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
 residual = x
-x = layers.Dense(512, activation="relu")(x)
-x = layers.Dense(512, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
+x += residual
+residual = x
+x = layers.Dense(1024, activation="relu")(x)
+x = layers.Dense(1024, activation="relu")(x)
 x += residual
 outputs = layers.Dense(16)(x)
 model = Model(inputs, outputs)

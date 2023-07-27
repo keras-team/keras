@@ -4,6 +4,7 @@ from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import backend_utils
+from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -26,7 +27,7 @@ class Hashing(Layer):
     [SipHash64](https://github.com/google/highwayhash) hash function, with
     the `salt` value serving as additional input to the hash function.
 
-    **Note:** This layer wraps `tf.keras.layers.Hashing`. It cannot
+    **Note:** This layer internally uses TensorFlow. It cannot
     be used as part of the compiled computation graph of a model with
     any backend other than TensorFlow.
     It can however be used with any backend when running eagerly.
@@ -141,7 +142,6 @@ class Hashing(Layer):
         salt=None,
         output_mode="int",
         sparse=False,
-        name=None,
         **kwargs,
     ):
         if not tf.available:
@@ -150,16 +150,43 @@ class Hashing(Layer):
                 "Install it via `pip install tensorflow`."
             )
 
-        super().__init__(name=name)
-        self.layer = tf.keras.layers.Hashing(
-            num_bins=num_bins,
-            mask_value=mask_value,
-            salt=salt,
-            output_mode=output_mode,
-            sparse=sparse,
-            name=name,
-            **kwargs,
-        )
+        # By default, output int32 when output_mode='int' and floats otherwise.
+        if "dtype" not in kwargs or kwargs["dtype"] is None:
+            kwargs["dtype"] = (
+                "int64" if output_mode == "int" else backend.floatx()
+            )
+
+        super().__init__(**kwargs)
+
+        if num_bins is None or num_bins <= 0:
+            raise ValueError(
+                "The `num_bins` for `Hashing` cannot be `None` or "
+                f"non-positive values. Received: num_bins={num_bins}."
+            )
+
+        if output_mode == "int" and not kwargs["dtype"] in ("int32", "int64"):
+            raise ValueError(
+                'When `output_mode="int"`, `dtype` should be an integer '
+                f"type, 'int32' or 'in64'. Received: dtype={kwargs['dtype']}"
+            )
+
+        # 'output_mode' must be one of (INT, ONE_HOT, MULTI_HOT, COUNT)
+        accepted_output_modes = ("int", "one_hot", "multi_hot", "count")
+        if output_mode not in accepted_output_modes:
+            raise ValueError(
+                "Invalid value for argument `output_mode`. "
+                f"Expected one of {accepted_output_modes}. "
+                f"Received: output_mode={output_mode}"
+            )
+
+        if sparse and output_mode == "int":
+            raise ValueError(
+                "`sparse` may only be true if `output_mode` is "
+                '`"one_hot"`, `"multi_hot"`, or `"count"`. '
+                f"Received: sparse={sparse} and "
+                f"output_mode={output_mode}"
+            )
+
         self.num_bins = num_bins
         self.mask_value = mask_value
         self.strong_hash = True if salt is not None else False
@@ -168,13 +195,13 @@ class Hashing(Layer):
         self.salt = None
         if salt is not None:
             if isinstance(salt, (tuple, list)) and len(salt) == 2:
-                self.salt = salt
+                self.salt = list(salt)
             elif isinstance(salt, int):
                 self.salt = [salt, salt]
             else:
                 raise ValueError(
-                    "The `salt` argument for `Hashing` can only be a tuple "
-                    "of 2 integers, or a single integer. "
+                    "The `salt` argument for `Hashing` can only be a tuple of "
+                    "size 2 integers, or a single integer. "
                     f"Received: salt={salt}."
                 )
         self._convert_input_args = False
@@ -182,9 +209,25 @@ class Hashing(Layer):
         self.supports_jit = False
 
     def call(self, inputs):
-        if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
+        if not isinstance(
+            inputs, (tf.Tensor, tf.SparseTensor, tf.RaggedTensor)
+        ):
             inputs = tf.convert_to_tensor(np.array(inputs))
-        outputs = self.layer.call(inputs)
+        if isinstance(inputs, tf.SparseTensor):
+            indices = tf.SparseTensor(
+                indices=inputs.indices,
+                values=self._hash_values_to_bins(inputs.values),
+                dense_shape=inputs.dense_shape,
+            )
+        else:
+            indices = self._hash_values_to_bins(inputs)
+        outputs = tf_utils.encode_categorical_inputs(
+            indices,
+            output_mode=self.output_mode,
+            depth=self.num_bins,
+            sparse=self.sparse,
+            dtype=self.dtype,
+        )
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
@@ -192,8 +235,41 @@ class Hashing(Layer):
             outputs = backend.convert_to_tensor(outputs)
         return outputs
 
+    def _hash_values_to_bins(self, values):
+        """Converts a non-sparse tensor of values to bin indices."""
+        hash_bins = self.num_bins
+        mask = None
+        # If mask_value is set, the zeroth bin is reserved for it.
+        if self.mask_value is not None and hash_bins > 1:
+            hash_bins -= 1
+            mask = tf.equal(values, self.mask_value)
+        # Convert all values to strings before hashing.
+        if values.dtype.is_integer:
+            values = tf.as_string(values)
+        # Hash the strings.
+        if self.strong_hash:
+            values = tf.strings.to_hash_bucket_strong(
+                values, hash_bins, name="hash", key=self.salt
+            )
+        else:
+            values = tf.strings.to_hash_bucket_fast(
+                values, hash_bins, name="hash"
+            )
+        if mask is not None:
+            values = tf.add(values, tf.ones_like(values))
+            values = tf.where(mask, tf.zeros_like(values), values)
+        return values
+
     def compute_output_spec(self, inputs):
-        return backend.KerasTensor(shape=inputs.shape, dtype="int32")
+        if self.output_mode == "int":
+            return backend.KerasTensor(shape=inputs.shape, dtype=self.dtype)
+        if len(inputs.shape) >= 1:
+            base_shape = tuple(inputs.shape)[:-1]
+        else:
+            base_shape = ()
+        return backend.KerasTensor(
+            shape=base_shape + (self.num_bins,), dtype=self.dtype
+        )
 
     def get_config(self):
         config = super().get_config()
