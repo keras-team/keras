@@ -61,7 +61,7 @@ class Merge(Layer):
 
     def build(self, input_shape):
         # Used purely for shape validation.
-        if not isinstance(input_shape[0], tuple):
+        if not isinstance(input_shape[0], (tuple, list)):
             raise ValueError(
                 "A merge layer should be called on a list of inputs. "
                 f"Received: input_shape={input_shape} (not a list of shapes)"
