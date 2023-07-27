@@ -166,8 +166,8 @@ def save_model(model, filepath, weights_format="h5"):
     )
     # TODO(rameshsampath): Need a better logic for local vs remote path
     if is_remote_path(filepath):
-        # Remote path. Zip to local drive and copy to remote
-        zip_filepath = os.path.join(get_temp_dir(), "tmp_model.keras")
+        # Remote path. Zip to local memory byte io and copy to remote
+        zip_filepath = io.BytesIO()
     else:
         zip_filepath = filepath
     try:
@@ -205,10 +205,8 @@ def save_model(model, filepath, weights_format="h5"):
             asset_store.close()
 
         if is_remote_path(filepath):
-            # Using tf.io.gfile context manager doesn't close zip file when
-            # writing to GCS. Hence writing to local and copying to filepath.
-            tf.io.gfile.copy(zip_filepath, filepath, overwrite=True)
-            os.remove(zip_filepath)
+            with tf.io.gfile.GFile(filepath, "wb") as f:
+                f.write(zip_filepath.getvalue())
     except Exception as e:
         raise e
     finally:
