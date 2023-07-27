@@ -232,7 +232,7 @@ All layers you've seen so far in this guide work with all Keras backends.
 The `keras.ops` namespace gives you access to:
 
 - The NumPy API, e.g. `ops.matmul`, `ops.sum`, `ops.reshape`, `ops.stack`, etc.
-- Neural networks-specific APIs such as `ops.softmax`, `ops`.conv`, `ops.binary_crossentropy`, `ops.relu`, etc.
+- Neural networks-specific APIs such as `ops.softmax`, `ops.conv`, `ops.binary_crossentropy`, `ops.relu`, etc.
 
 You can also use backend-native APIs in your layers (such as `tf.nn` functions),
 but if you do this, then your layer will only be usable with the backend in question.
