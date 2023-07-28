@@ -1,5 +1,11 @@
+import numpy as np
+
 from keras_core.api_export import keras_core_export
+from keras_core.utils import dataset_utils
+from keras_core.utils import image_utils
 from keras_core.utils.module_utils import tensorflow as tf
+
+ALLOWLIST_FORMATS = (".bmp", ".gif", ".jpeg", ".jpg", ".png")
 
 
 @keras_core_export(
@@ -136,20 +142,231 @@ def image_dataset_from_directory(
     - if `color_mode` is `"rgba"`,
         there are 4 channels in the image tensors.
     """
-    # TODO: long-term, port implementation.
-    return tf.keras.utils.image_dataset_from_directory(
+    if labels not in ("inferred", None):
+        if not isinstance(labels, (list, tuple)):
+            raise ValueError(
+                "`labels` argument should be a list/tuple of integer labels, "
+                "of the same size as the number of image files in the target "
+                "directory. If you wish to infer the labels from the "
+                "subdirectory "
+                'names in the target directory, pass `labels="inferred"`. '
+                "If you wish to get a dataset that only contains images "
+                f"(no labels), pass `labels=None`. Received: labels={labels}"
+            )
+        if class_names:
+            raise ValueError(
+                "You can only pass `class_names` if "
+                f'`labels="inferred"`. Received: labels={labels}, and '
+                f"class_names={class_names}"
+            )
+    if label_mode not in {"int", "categorical", "binary", None}:
+        raise ValueError(
+            '`label_mode` argument must be one of "int", '
+            '"categorical", "binary", '
+            f"or None. Received: label_mode={label_mode}"
+        )
+    if labels is None or label_mode is None:
+        labels = None
+        label_mode = None
+    if color_mode == "rgb":
+        num_channels = 3
+    elif color_mode == "rgba":
+        num_channels = 4
+    elif color_mode == "grayscale":
+        num_channels = 1
+    else:
+        raise ValueError(
+            '`color_mode` must be one of {"rgb", "rgba", "grayscale"}. '
+            f"Received: color_mode={color_mode}"
+        )
+
+    interpolation = interpolation.lower()
+    supported_interpolations = (
+        "bilinear",
+        "nearest",
+        "bicubic",
+        "area",
+        "lanczos3",
+        "lanczos5",
+        "gaussian",
+        "mitchellcubic",
+    )
+    if interpolation not in supported_interpolations:
+        raise ValueError(
+            "Argument `interpolation` should be one of "
+            f"{supported_interpolations}. "
+            f"Received: interpolation={interpolation}"
+        )
+
+    dataset_utils.check_validation_split_arg(
+        validation_split, subset, shuffle, seed
+    )
+
+    if seed is None:
+        seed = np.random.randint(1e6)
+    image_paths, labels, class_names = dataset_utils.index_directory(
         directory,
-        labels=labels,
-        label_mode=label_mode,
+        labels,
+        formats=ALLOWLIST_FORMATS,
         class_names=class_names,
-        color_mode=color_mode,
-        batch_size=batch_size,
-        image_size=image_size,
         shuffle=shuffle,
         seed=seed,
-        validation_split=validation_split,
-        subset=subset,
-        interpolation=interpolation,
         follow_links=follow_links,
-        crop_to_aspect_ratio=crop_to_aspect_ratio,
     )
+
+    if label_mode == "binary" and len(class_names) != 2:
+        raise ValueError(
+            'When passing `label_mode="binary"`, there must be exactly 2 '
+            f"class_names. Received: class_names={class_names}"
+        )
+
+    if subset == "both":
+        (
+            image_paths_train,
+            labels_train,
+        ) = dataset_utils.get_training_or_validation_split(
+            image_paths, labels, validation_split, "training"
+        )
+        (
+            image_paths_val,
+            labels_val,
+        ) = dataset_utils.get_training_or_validation_split(
+            image_paths, labels, validation_split, "validation"
+        )
+        if not image_paths_train:
+            raise ValueError(
+                f"No training images found in directory {directory}. "
+                f"Allowed formats: {ALLOWLIST_FORMATS}"
+            )
+        if not image_paths_val:
+            raise ValueError(
+                f"No validation images found in directory {directory}. "
+                f"Allowed formats: {ALLOWLIST_FORMATS}"
+            )
+        train_dataset = paths_and_labels_to_dataset(
+            image_paths=image_paths_train,
+            image_size=image_size,
+            num_channels=num_channels,
+            labels=labels_train,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            interpolation=interpolation,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
+        )
+        val_dataset = paths_and_labels_to_dataset(
+            image_paths=image_paths_val,
+            image_size=image_size,
+            num_channels=num_channels,
+            labels=labels_val,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            interpolation=interpolation,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
+        )
+
+        if batch_size is not None:
+            if shuffle:
+                # Shuffle locally at each iteration
+                train_dataset = train_dataset.shuffle(
+                    buffer_size=batch_size * 8, seed=seed
+                )
+            train_dataset = train_dataset.batch(batch_size)
+            val_dataset = val_dataset.batch(batch_size)
+        else:
+            if shuffle:
+                train_dataset = train_dataset.shuffle(
+                    buffer_size=1024, seed=seed
+                )
+
+        train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+        val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+
+        # Users may need to reference `class_names`.
+        train_dataset.class_names = class_names
+        val_dataset.class_names = class_names
+
+        # Include file paths for images as attribute.
+        train_dataset.file_paths = image_paths_train
+        val_dataset.file_paths = image_paths_val
+        dataset = [train_dataset, val_dataset]
+    else:
+        image_paths, labels = dataset_utils.get_training_or_validation_split(
+            image_paths, labels, validation_split, subset
+        )
+        if not image_paths:
+            raise ValueError(
+                f"No images found in directory {directory}. "
+                f"Allowed formats: {ALLOWLIST_FORMATS}"
+            )
+
+        dataset = paths_and_labels_to_dataset(
+            image_paths=image_paths,
+            image_size=image_size,
+            num_channels=num_channels,
+            labels=labels,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            interpolation=interpolation,
+            crop_to_aspect_ratio=crop_to_aspect_ratio,
+        )
+
+        if batch_size is not None:
+            if shuffle:
+                # Shuffle locally at each iteration
+                dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+            dataset = dataset.batch(batch_size)
+        else:
+            if shuffle:
+                dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+        # Users may need to reference `class_names`.
+        dataset.class_names = class_names
+
+        # Include file paths for images as attribute.
+        dataset.file_paths = image_paths
+    return dataset
+
+
+def paths_and_labels_to_dataset(
+    image_paths,
+    image_size,
+    num_channels,
+    labels,
+    label_mode,
+    num_classes,
+    interpolation,
+    crop_to_aspect_ratio=False,
+):
+    """Constructs a dataset of images and labels."""
+    # TODO(fchollet): consider making num_parallel_calls settable
+    path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
+    args = (image_size, num_channels, interpolation, crop_to_aspect_ratio)
+    img_ds = path_ds.map(
+        lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
+    )
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset(
+            labels, label_mode, num_classes
+        )
+        img_ds = tf.data.Dataset.zip((img_ds, label_ds))
+    return img_ds
+
+
+def load_image(
+    path, image_size, num_channels, interpolation, crop_to_aspect_ratio=False
+):
+    """Load an image from a path and resize it."""
+    img = tf.io.read_file(path)
+    img = tf.image.decode_image(
+        img, channels=num_channels, expand_animations=False
+    )
+    if crop_to_aspect_ratio:
+        img = image_utils.smart_resize(
+            img, image_size, interpolation=interpolation
+        )
+    else:
+        img = tf.image.resize(img, image_size, method=interpolation)
+    img.set_shape((image_size[0], image_size[1], num_channels))
+    return img

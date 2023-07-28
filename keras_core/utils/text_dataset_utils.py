@@ -1,4 +1,7 @@
+import numpy as np
+
 from keras_core.api_export import keras_core_export
+from keras_core.utils import dataset_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -106,17 +109,160 @@ def text_dataset_from_directory(
         of shape `(batch_size, num_classes)`, representing a one-hot
         encoding of the class index.
     """
-    # TODO: long-term, port implementation.
-    return tf.keras.utils.text_dataset_from_directory(
+    if labels not in ("inferred", None):
+        if not isinstance(labels, (list, tuple)):
+            raise ValueError(
+                "`labels` argument should be a list/tuple of integer labels, "
+                "of the same size as the number of text files in the target "
+                "directory. If you wish to infer the labels from the "
+                "subdirectory names in the target directory, "
+                'pass `labels="inferred"`. '
+                "If you wish to get a dataset that only contains text samples "
+                f"(no labels), pass `labels=None`. Received: labels={labels}"
+            )
+        if class_names:
+            raise ValueError(
+                "You can only pass `class_names` if "
+                f'`labels="inferred"`. Received: labels={labels}, and '
+                f"class_names={class_names}"
+            )
+    if label_mode not in {"int", "categorical", "binary", None}:
+        raise ValueError(
+            '`label_mode` argument must be one of "int", '
+            '"categorical", "binary", '
+            f"or None. Received: label_mode={label_mode}"
+        )
+    if labels is None or label_mode is None:
+        labels = None
+        label_mode = None
+    dataset_utils.check_validation_split_arg(
+        validation_split, subset, shuffle, seed
+    )
+
+    if seed is None:
+        seed = np.random.randint(1e6)
+    file_paths, labels, class_names = dataset_utils.index_directory(
         directory,
-        labels=labels,
-        label_mode=label_mode,
+        labels,
+        formats=(".txt",),
         class_names=class_names,
-        batch_size=batch_size,
-        max_length=max_length,
         shuffle=shuffle,
         seed=seed,
-        validation_split=validation_split,
-        subset=subset,
         follow_links=follow_links,
     )
+
+    if label_mode == "binary" and len(class_names) != 2:
+        raise ValueError(
+            'When passing `label_mode="binary"`, there must be exactly 2 '
+            f"class_names. Received: class_names={class_names}"
+        )
+
+    if subset == "both":
+        (
+            file_paths_train,
+            labels_train,
+        ) = dataset_utils.get_training_or_validation_split(
+            file_paths, labels, validation_split, "training"
+        )
+        (
+            file_paths_val,
+            labels_val,
+        ) = dataset_utils.get_training_or_validation_split(
+            file_paths, labels, validation_split, "validation"
+        )
+        if not file_paths_train:
+            raise ValueError(
+                f"No training text files found in directory {directory}. "
+                "Allowed format: .txt"
+            )
+        if not file_paths_val:
+            raise ValueError(
+                f"No validation text files found in directory {directory}. "
+                "Allowed format: .txt"
+            )
+        train_dataset = paths_and_labels_to_dataset(
+            file_paths=file_paths_train,
+            labels=labels_train,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            max_length=max_length,
+        )
+        val_dataset = paths_and_labels_to_dataset(
+            file_paths=file_paths_val,
+            labels=labels_val,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            max_length=max_length,
+        )
+
+        train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+        val_dataset = val_dataset.prefetch(tf.data.AUTOTUNE)
+        if batch_size is not None:
+            if shuffle:
+                # Shuffle locally at each iteration
+                train_dataset = train_dataset.shuffle(
+                    buffer_size=batch_size * 8, seed=seed
+                )
+            train_dataset = train_dataset.batch(batch_size)
+            val_dataset = val_dataset.batch(batch_size)
+        else:
+            if shuffle:
+                train_dataset = train_dataset.shuffle(
+                    buffer_size=1024, seed=seed
+                )
+        # Users may need to reference `class_names`.
+        train_dataset.class_names = class_names
+        val_dataset.class_names = class_names
+        dataset = [train_dataset, val_dataset]
+    else:
+        file_paths, labels = dataset_utils.get_training_or_validation_split(
+            file_paths, labels, validation_split, subset
+        )
+        if not file_paths:
+            raise ValueError(
+                f"No text files found in directory {directory}. "
+                "Allowed format: .txt"
+            )
+        dataset = paths_and_labels_to_dataset(
+            file_paths=file_paths,
+            labels=labels,
+            label_mode=label_mode,
+            num_classes=len(class_names),
+            max_length=max_length,
+        )
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        if batch_size is not None:
+            if shuffle:
+                # Shuffle locally at each iteration
+                dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
+            dataset = dataset.batch(batch_size)
+        else:
+            if shuffle:
+                dataset = dataset.shuffle(buffer_size=1024, seed=seed)
+        # Users may need to reference `class_names`.
+        dataset.class_names = class_names
+    return dataset
+
+
+def paths_and_labels_to_dataset(
+    file_paths, labels, label_mode, num_classes, max_length
+):
+    """Constructs a dataset of text strings and labels."""
+    path_ds = tf.data.Dataset.from_tensor_slices(file_paths)
+    string_ds = path_ds.map(
+        lambda x: path_to_string_content(x, max_length),
+        num_parallel_calls=tf.data.AUTOTUNE,
+    )
+    if label_mode:
+        label_ds = dataset_utils.labels_to_dataset(
+            labels, label_mode, num_classes
+        )
+        string_ds = tf.data.Dataset.zip((string_ds, label_ds))
+    return string_ds
+
+
+def path_to_string_content(path, max_length):
+    txt = tf.io.read_file(path)
+    if max_length is not None:
+        txt = tf.strings.substr(txt, 0, max_length)
+    return txt
