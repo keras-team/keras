@@ -3,7 +3,6 @@
 import datetime
 import io
 import json
-import os
 import tempfile
 import warnings
 import zipfile
@@ -85,8 +84,8 @@ def save_model(model, filepath, weights_format="h5"):
         }
     )
     if file_utils.is_remote_path(filepath):
-        # Remote path. Zip to local drive and copy to remote
-        zip_filepath = os.path.join(get_temp_dir(), "tmp_model.keras")
+        # Remote path. Zip to local memory byte io and copy to remote
+        zip_filepath = io.BytesIO()
     else:
         zip_filepath = filepath
 
@@ -122,10 +121,8 @@ def save_model(model, filepath, weights_format="h5"):
         asset_store.close()
 
     if file_utils.is_remote_path(filepath):
-        # Using gfile context manager doesn't close zip file when
-        # writing to GCS. Hence writing to local and copying to filepath.
-        file_utils.copy(zip_filepath, filepath, overwrite=True)
-        os.remove(zip_filepath)
+        with file_utils.File(filepath, "wb") as f:
+            f.write(zip_filepath.getvalue())
 
 
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
