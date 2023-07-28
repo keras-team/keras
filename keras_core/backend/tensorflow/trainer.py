@@ -337,6 +337,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
                         distribute_strategy=self.distribute_strategy,
+                        steps_per_execution=self.steps_per_execution,
                     )
                 val_logs = self.evaluate(
                     x=val_x,
@@ -401,6 +402,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 steps_per_epoch=steps,
                 shuffle=False,
                 distribute_strategy=self.distribute_strategy,
+                steps_per_execution=self.steps_per_execution,
             )
 
         # Container that configures and calls callbacks.
@@ -442,6 +444,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
             steps_per_epoch=steps,
             shuffle=False,
             distribute_strategy=self.distribute_strategy,
+            steps_per_execution=self.steps_per_execution,
         )
 
         # Container that configures and calls callbacks.
