@@ -363,8 +363,13 @@ def load_image(
         img, channels=num_channels, expand_animations=False
     )
     if crop_to_aspect_ratio:
+        from keras_core.backend import tensorflow as tf_backend
+
         img = image_utils.smart_resize(
-            img, image_size, interpolation=interpolation
+            img,
+            image_size,
+            interpolation=interpolation,
+            backend_module=tf_backend,
         )
     else:
         img = tf.image.resize(img, image_size, method=interpolation)
