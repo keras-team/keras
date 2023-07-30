@@ -173,9 +173,19 @@ def arccos(x):
     return torch.arccos(x)
 
 
+def arccosh(x):
+    x = convert_to_tensor(x)
+    return torch.arccosh(x)
+
+
 def arcsin(x):
     x = convert_to_tensor(x)
     return torch.arcsin(x)
+
+
+def arcsinh(x):
+    x = convert_to_tensor(x)
+    return torch.arcsinh(x)
 
 
 def arctan(x):
@@ -186,6 +196,11 @@ def arctan(x):
 def arctan2(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.arctan2(x1, x2)
+
+
+def arctanh(x):
+    x = convert_to_tensor(x)
+    return torch.arctanh(x)
 
 
 def argmax(x, axis=None):
@@ -275,6 +290,11 @@ def copy(x):
 def cos(x):
     x = convert_to_tensor(x)
     return torch.cos(x)
+
+
+def cosh(x):
+    x = convert_to_tensor(x)
+    return torch.cosh(x)
 
 
 def count_nonzero(x, axis=None):
@@ -729,6 +749,11 @@ def sin(x):
     return torch.sin(x)
 
 
+def sinh(x):
+    x = convert_to_tensor(x)
+    return torch.sinh(x)
+
+
 def size(x):
     x_shape = convert_to_tensor(tuple(x.shape))
     return torch.prod(x_shape)
@@ -804,6 +829,11 @@ def take_along_axis(x, indices, axis=None):
 def tan(x):
     x = convert_to_tensor(x)
     return torch.tan(x)
+
+
+def tanh(x):
+    x = convert_to_tensor(x)
+    return torch.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
