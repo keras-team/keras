@@ -57,21 +57,6 @@ def sigmoid(x):
     return backend.nn.sigmoid(x)
 
 
-class Tanh(Operation):
-    def call(self, x):
-        return backend.nn.tanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.tanh", "keras_core.ops.nn.tanh"])
-def tanh(x):
-    if any_symbolic_tensors((x,)):
-        return Tanh().symbolic_call(x)
-    return backend.nn.tanh(x)
-
-
 class Softplus(Operation):
     def call(self, x):
         return backend.nn.softplus(x)

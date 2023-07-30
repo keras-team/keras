@@ -105,8 +105,16 @@ def arccos(x):
     return tfnp.arccos(x)
 
 
+def arccosh(x):
+    return tfnp.arccosh(x)
+
+
 def arcsin(x):
     return tfnp.arcsin(x)
+
+
+def arcsinh(x):
+    return tfnp.arcsinh(x)
 
 
 def arctan(x):
@@ -115,6 +123,10 @@ def arctan(x):
 
 def arctan2(x1, x2):
     return tfnp.arctan2(x1, x2)
+
+
+def arctanh(x):
+    return tfnp.arctanh(x)
 
 
 def argmax(x, axis=None):
@@ -172,6 +184,10 @@ def copy(x):
 
 def cos(x):
     return tfnp.cos(x)
+
+
+def cosh(x):
+    return tfnp.cosh(x)
 
 
 def count_nonzero(x, axis=None):
@@ -472,6 +488,10 @@ def sin(x):
     return tfnp.sin(x)
 
 
+def sinh(x):
+    return tfnp.sinh(x)
+
+
 def size(x):
     return tfnp.size(x)
 
@@ -506,6 +526,10 @@ def take_along_axis(x, indices, axis=None):
 
 def tan(x):
     return tfnp.tan(x)
+
+
+def tanh(x):
+    return tfnp.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):

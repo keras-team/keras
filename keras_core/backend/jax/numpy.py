@@ -107,8 +107,16 @@ def arccos(x):
     return jnp.arccos(x)
 
 
+def arccosh(x):
+    return jnp.arccosh(x)
+
+
 def arcsin(x):
     return jnp.arcsin(x)
+
+
+def arcsinh(x):
+    return jnp.arcsinh(x)
 
 
 def arctan(x):
@@ -117,6 +125,10 @@ def arctan(x):
 
 def arctan2(x1, x2):
     return jnp.arctan2(x1, x2)
+
+
+def arctanh(x):
+    return jnp.arctanh(x)
 
 
 def argmax(x, axis=None):
@@ -169,6 +181,10 @@ def copy(x):
 
 def cos(x):
     return jnp.cos(x)
+
+
+def cosh(x):
+    return jnp.cosh(x)
 
 
 def count_nonzero(x, axis=None):
@@ -441,6 +457,10 @@ def sin(x):
     return jnp.sin(x)
 
 
+def sinh(x):
+    return jnp.sinh(x)
+
+
 def size(x):
     return jnp.size(x)
 
@@ -477,6 +497,10 @@ def take_along_axis(x, indices, axis=None):
 
 def tan(x):
     return jnp.tan(x)
+
+
+def tanh(x):
+    return jnp.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
