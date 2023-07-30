@@ -53,9 +53,9 @@ def get_model():
     # Make a simple convnet with batch normalization and dropout.
     inputs = keras.Input(shape=(28, 28, 1))
     x = keras.layers.Rescaling(1.0 / 255.0)(inputs)
-    x = keras.layers.Conv2D(
-        filters=12, kernel_size=3, padding="same", use_bias=False
-    )(x)
+    x = keras.layers.Conv2D(filters=12, kernel_size=3, padding="same", use_bias=False)(
+        x
+    )
     x = keras.layers.BatchNormalization(scale=False, center=True)(x)
     x = keras.layers.ReLU()(x)
     x = keras.layers.Conv2D(
@@ -231,9 +231,7 @@ def per_device_launch_fn(current_gpu_index, num_gpu):
     model = get_model()
 
     # prepare the dataloader
-    dataloader = prepare_dataloader(
-        dataset, current_gpu_index, num_gpu, batch_size
-    )
+    dataloader = prepare_dataloader(dataset, current_gpu_index, num_gpu, batch_size)
 
     # Instantiate the torch optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

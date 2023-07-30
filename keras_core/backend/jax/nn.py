@@ -14,66 +14,82 @@ from keras_core.backend.jax.core import convert_to_tensor
 
 
 def relu(x):
+    x = convert_to_tensor(x)
     return jnn.relu(x)
 
 
 def relu6(x):
+    x = convert_to_tensor(x)
     return jnn.relu6(x)
 
 
 def sigmoid(x):
+    x = convert_to_tensor(x)
     return jnn.sigmoid(x)
 
 
 def tanh(x):
+    x = convert_to_tensor(x)
     return jnn.tanh(x)
 
 
 def softplus(x):
+    x = convert_to_tensor(x)
     return jnn.softplus(x)
 
 
 def softsign(x):
+    x = convert_to_tensor(x)
     return jnn.soft_sign(x)
 
 
 def silu(x):
+    x = convert_to_tensor(x)
     return jnn.silu(x)
 
 
 def swish(x):
+    x = convert_to_tensor(x)
     return jnn.swish(x)
 
 
 def log_sigmoid(x):
+    x = convert_to_tensor(x)
     return jnn.log_sigmoid(x)
 
 
 def leaky_relu(x, negative_slope=0.2):
+    x = convert_to_tensor(x)
     return jnn.leaky_relu(x, negative_slope=negative_slope)
 
 
 def hard_sigmoid(x):
+    x = convert_to_tensor(x)
     return jnn.hard_sigmoid(x)
 
 
 def elu(x, alpha=1.0):
+    x = convert_to_tensor(x)
     return jnn.elu(x, alpha=alpha)
 
 
 def selu(x):
+    x = convert_to_tensor(x)
     return jnn.selu(x)
 
 
 def gelu(x, approximate=True):
+    x = convert_to_tensor(x)
     return jnn.gelu(x, approximate)
 
 
 def softmax(x, axis=None):
+    x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
 
 
 def log_softmax(x, axis=-1):
+    x = convert_to_tensor(x)
     return jnn.log_softmax(x, axis=axis)
 
 
@@ -389,6 +405,7 @@ def conv_transpose(
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32"):
+    x = convert_to_tensor(x)
     return jnn.one_hot(x, num_classes, axis=axis, dtype=dtype)
 
 

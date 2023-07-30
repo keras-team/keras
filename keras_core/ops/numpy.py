@@ -10,12 +10,9 @@ amin
 append
 arange
 arccos
-arccosh
 arcsin
-arcsinh
 arctan
 arctan2
-arctanh
 argmax
 argmin
 argsort
@@ -30,7 +27,6 @@ conj
 conjugate
 copy
 cos
-cosh
 count_nonzero
 cross
 cumprod
@@ -106,7 +102,6 @@ roll
 round
 sign
 sin
-sinh
 size
 sort
 split
@@ -121,7 +116,6 @@ swapaxes
 take
 take_along_axis
 tan
-tanh
 tensordot
 tile
 trace
@@ -719,28 +713,6 @@ def arccos(x):
     return backend.numpy.arccos(x)
 
 
-class Arccosh(Operation):
-    def call(self, x):
-        return backend.numpy.arccosh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-def arccosh(x):
-    """Inverse hyperbolic cosine, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Arccosh().symbolic_call(x)
-    return backend.numpy.arccosh(x)
-
-
 class Arcsin(Operation):
     def call(self, x):
         return backend.numpy.arcsin(x)
@@ -768,29 +740,6 @@ def arcsin(x):
     if any_symbolic_tensors((x,)):
         return Arcsin().symbolic_call(x)
     return backend.numpy.arcsin(x)
-
-
-class Arcsinh(Operation):
-    def call(self, x):
-        return backend.numpy.arcsinh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.arcsinh", "keras_core.ops.numpy.arcsinh"])
-def arcsinh(x):
-    """Inverse hyperbolic sine, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Arcsinh().symbolic_call(x)
-    return backend.numpy.arcsinh(x)
 
 
 class Arctan(Operation):
@@ -875,29 +824,6 @@ def arctan2(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Arctan2().symbolic_call(x1, x2)
     return backend.numpy.arctan2(x1, x2)
-
-
-class Arctanh(Operation):
-    def call(self, x):
-        return backend.numpy.arctanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.arctanh", "keras_core.ops.numpy.arctanh"])
-def arctanh(x):
-    """Inverse hyperbolic tangent, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Arctanh().symbolic_call(x)
-    return backend.numpy.arctanh(x)
 
 
 class Argmax(Operation):
@@ -1361,29 +1287,6 @@ def cos(x):
     if any_symbolic_tensors((x,)):
         return Cos().symbolic_call(x)
     return backend.numpy.cos(x)
-
-
-class Cosh(Operation):
-    def call(self, x):
-        return backend.numpy.cosh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.cosh", "keras_core.ops.numpy.cosh"])
-def cosh(x):
-    """Hyperbolic cosine, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Cosh().symbolic_call(x)
-    return backend.numpy.cosh(x)
 
 
 class CountNonzero(Operation):
@@ -3212,29 +3115,6 @@ def sin(x):
     return backend.numpy.sin(x)
 
 
-class Sinh(Operation):
-    def call(self, x):
-        return backend.numpy.sinh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.sinh", "keras_core.ops.numpy.sinh"])
-def sinh(x):
-    """Hyperbolic sine, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Sinh().symbolic_call(x)
-    return backend.numpy.sinh(x)
-
-
 class Size(Operation):
     def call(self, x):
         return backend.numpy.size(x)
@@ -3494,29 +3374,6 @@ def tan(x):
     if any_symbolic_tensors((x,)):
         return Tan().symbolic_call(x)
     return backend.numpy.tan(x)
-
-
-class Tanh(Operation):
-    def call(self, x):
-        return backend.numpy.tanh(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.tanh", "keras_core.ops.numpy.tanh"])
-def tanh(x):
-    """Hyperbolic tangent, element-wise.
-
-    Arguments:
-        x: Input tensor.
-
-    Returns:
-        Output tensor of same shape as x.
-    """
-    if any_symbolic_tensors((x,)):
-        return Tanh().symbolic_call(x)
-    return backend.numpy.tanh(x)
 
 
 class Tensordot(Operation):

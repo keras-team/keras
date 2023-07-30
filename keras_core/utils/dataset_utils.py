@@ -218,7 +218,7 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
         if is_batched(dataset):
             dataset = dataset.unbatch()
         return iter(dataset)
-    # torch dataset iterator might be required to change
+
     elif is_torch_dataset(dataset):
         return iter(dataset)
     elif dataset_type_spec == np.ndarray:
