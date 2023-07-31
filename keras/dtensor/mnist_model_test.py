@@ -64,15 +64,11 @@ class MnistTest(test_util.DTensorBaseTest):
         self.assertEqual(train_losses, sorted(train_losses, reverse=True))
 
     def test_model_fit(self):
-        if self.mesh.device_type() == "GPU":
-            self.skipTest("TODO(b/292596476)")
-
         layout_map = layout_map_lib.LayoutMap(self.mesh)
         with layout_map.scope():
             model = integration_test_utils.get_model()
 
         optimizer = adam.Adam(learning_rate=0.001, mesh=self.mesh)
-        optimizer.build(model.trainable_variables)
 
         global_batch_size = 64
         model.compile(
