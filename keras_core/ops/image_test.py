@@ -31,6 +31,8 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         p_h, p_w = 5, 5
         out = kimage.extract_patches(x, (p_h, p_w))
         self.assertEqual(out.shape, (None, 4, 4, 75))
+        out = kimage.extract_patches(x, 5)
+        self.assertEqual(out.shape, (None, 4, 4, 75))
 
 
 class ImageOpsStaticShapeTest(testing.TestCase):
@@ -49,6 +51,8 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([20, 20, 3])
         p_h, p_w = 5, 5
         out = kimage.extract_patches(x, (p_h, p_w))
+        self.assertEqual(out.shape, (4, 4, 75))
+        out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (4, 4, 75))
 
 
@@ -310,9 +314,7 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             and backend.backend() == "tensorflow"
             and dilation_rate > 1
         ):
-            pytest.skip(
-                "dilation_rate>1 with strides>1 than not supported with TF"
-            )
+            pytest.skip("dilation_rate>1 with strides>1 not supported with TF")
         if data_format == "channels_first":
             image = np.random.uniform(size=(1, 3, 20, 20))
         else:
