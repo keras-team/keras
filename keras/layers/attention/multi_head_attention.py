@@ -407,6 +407,7 @@ class MultiHeadAttention(Layer):
             activity_regularizer=self._activity_regularizer,
             kernel_constraint=self._kernel_constraint,
             bias_constraint=self._bias_constraint,
+            dtype=self._dtype_policy,
         )
         # Create new clone of kernel/bias initializer, so that we don't reuse
         # the initializer instance, which could lead to same init value since
@@ -474,8 +475,12 @@ class MultiHeadAttention(Layer):
                 attn_scores_rank - len(self._attention_axes), attn_scores_rank
             )
         )
-        self._softmax = activation.Softmax(axis=norm_axes)
-        self._dropout_layer = regularization.Dropout(rate=self._dropout)
+        self._softmax = activation.Softmax(
+            axis=norm_axes, dtype=self._dtype_policy
+        )
+        self._dropout_layer = regularization.Dropout(
+            rate=self._dropout, dtype=self._dtype_policy
+        )
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
         # Normalize the attention scores to probabilities.
@@ -525,17 +530,14 @@ class MultiHeadAttention(Layer):
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.
         attention_scores = tf.einsum(self._dot_product_equation, key, query)
-
         attention_scores = self._masked_softmax(
             attention_scores, attention_mask
         )
-
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         attention_scores_dropout = self._dropout_layer(
             attention_scores, training=training
         )
-
         # `context_layer` = [B, T, N, H]
         attention_output = tf.einsum(
             self._combine_equation, attention_scores_dropout, value
@@ -702,7 +704,6 @@ class MultiHeadAttention(Layer):
         )
 
     def compute_output_shape(self, query_shape, value_shape, key_shape=None):
-
         if key_shape is None:
             key_shape = value_shape
 
