@@ -43,12 +43,13 @@ import json
 import math
 import keras_cv
 import keras_core as keras
-from keras_core import operations as ops
+from keras_core import ops
 from keras_core import losses
 from keras_core import optimizers
 from keras_core.optimizers import schedules
 from keras_core import metrics
 import tensorflow as tf
+from tensorflow import data as tf_data
 import tensorflow_datasets as tfds
 import numpy as np
 
@@ -87,10 +88,10 @@ Now that our classifier is built, let's apply it to this cute cat picture!
 """
 
 filepath = keras.utils.get_file(origin="https://i.imgur.com/9i63gLN.jpg")
-image = keras.utils.image_utils.load_img(filepath)
+image = keras.utils.load_img(filepath)
 image = np.array(image)
 keras_cv.visualization.plot_image_gallery(
-    [image], rows=1, cols=1, value_range=(0, 255), show=True, scale=4
+    image[None, ...], rows=1, cols=1, value_range=(0, 255), show=True, scale=4
 )
 
 """Next, let's get some predictions from our classifier:"""
@@ -143,7 +144,7 @@ First, let's get started by loading some data:
 
 BATCH_SIZE = 32
 IMAGE_SIZE = (224, 224)
-AUTOTUNE = tf.data.AUTOTUNE
+AUTOTUNE = tf_data.AUTOTUNE
 tfds.disable_progress_bar()
 
 data, dataset_info = tfds.load(
@@ -161,12 +162,12 @@ num_classes = dataset_info.features["label"].num_classes
 resizing = keras_cv.layers.Resizing(
     IMAGE_SIZE[0], IMAGE_SIZE[1], crop_to_aspect_ratio=True
 )
+encoder = keras.layers.CategoryEncoding(num_classes, "one_hot", dtype="int32")
 
 
 def preprocess_inputs(image, label):
-    image = tf.cast(image, tf.float32)
     # Staticly resize images as we only iterate the dataset once.
-    return resizing(image), tf.one_hot(label, num_classes)
+    return resizing(image), encoder(label)
 
 
 # Shuffle the dataset to increase diversity of batches.
@@ -232,16 +233,18 @@ NUM_CLASSES = 101
 # Change epochs to 100~ to fully train.
 EPOCHS = 1
 
+encoder = keras.layers.CategoryEncoding(NUM_CLASSES, "one_hot", dtype="int32")
+
 
 def package_inputs(image, label):
-    return {"images": image, "labels": tf.one_hot(label, NUM_CLASSES)}
+    return {"images": image, "labels": encoder(label)}
 
 
 train_ds, eval_ds = tfds.load(
     "caltech101", split=["train", "test"], as_supervised="true"
 )
-train_ds = train_ds.map(package_inputs, num_parallel_calls=tf.data.AUTOTUNE)
-eval_ds = eval_ds.map(package_inputs, num_parallel_calls=tf.data.AUTOTUNE)
+train_ds = train_ds.map(package_inputs, num_parallel_calls=tf_data.AUTOTUNE)
+eval_ds = eval_ds.map(package_inputs, num_parallel_calls=tf_data.AUTOTUNE)
 
 train_ds = train_ds.shuffle(BATCH_SIZE * 16)
 
@@ -425,7 +428,7 @@ What does this look like in practice?  Let's check it out:
 
 cut_mix = keras_cv.layers.CutMix()
 # CutMix needs to modify both images and labels
-inputs = {"images": image_batch, "labels": label_batch}
+inputs = {"images": image_batch, "labels": tf.cast(label_batch, "float32")}
 
 keras_cv.visualization.plot_image_gallery(
     cut_mix(inputs)["images"],
@@ -453,7 +456,7 @@ Let's see it in action:
 
 mix_up = keras_cv.layers.MixUp()
 # MixUp needs to modify both images and labels
-inputs = {"images": image_batch, "labels": label_batch}
+inputs = {"images": image_batch, "labels": tf.cast(label_batch, "float32")}
 
 keras_cv.visualization.plot_image_gallery(
     mix_up(inputs)["images"],
@@ -477,8 +480,8 @@ augmenters += [cut_mix_or_mix_up]
 
 """Now let's apply our final augmenter to the training data:"""
 
-augmenter = tf.keras.Sequential(augmenters)
-train_ds = train_ds.map(augmenter, num_parallel_calls=tf.data.AUTOTUNE)
+augmenter = keras_cv.layers.Augmenter(augmenters)
+train_ds = train_ds.map(augmenter, num_parallel_calls=tf_data.AUTOTUNE)
 
 image_batch = next(iter(train_ds.take(1)))["images"]
 keras_cv.visualization.plot_image_gallery(
@@ -498,12 +501,12 @@ evaluation metric.
 inference_resizing = keras_cv.layers.Resizing(
     IMAGE_SIZE[0], IMAGE_SIZE[1], crop_to_aspect_ratio=True
 )
-eval_ds = eval_ds.map(inference_resizing, num_parallel_calls=tf.data.AUTOTUNE)
+eval_ds = eval_ds.map(inference_resizing, num_parallel_calls=tf_data.AUTOTUNE)
 
 inference_resizing = keras_cv.layers.Resizing(
     IMAGE_SIZE[0], IMAGE_SIZE[1], crop_to_aspect_ratio=True
 )
-eval_ds = eval_ds.map(inference_resizing, num_parallel_calls=tf.data.AUTOTUNE)
+eval_ds = eval_ds.map(inference_resizing, num_parallel_calls=tf_data.AUTOTUNE)
 
 image_batch = next(iter(eval_ds.take(1)))["images"]
 keras_cv.visualization.plot_image_gallery(
@@ -522,8 +525,8 @@ def unpackage_dict(inputs):
     return inputs["images"], inputs["labels"]
 
 
-train_ds = train_ds.map(unpackage_dict, num_parallel_calls=tf.data.AUTOTUNE)
-eval_ds = eval_ds.map(unpackage_dict, num_parallel_calls=tf.data.AUTOTUNE)
+train_ds = train_ds.map(unpackage_dict, num_parallel_calls=tf_data.AUTOTUNE)
+eval_ds = eval_ds.map(unpackage_dict, num_parallel_calls=tf_data.AUTOTUNE)
 
 """Data augmentation is by far the hardest piece of training a modern
 classifier.
@@ -577,7 +580,7 @@ def lr_warmup_cosine_decay(
 
 
 class WarmUpCosineDecay(
-    schedules.learning_rate_schedule.LearningRateSchedule
+    schedules.LearningRateSchedule
 ):
     def __init__(
         self, warmup_steps, total_steps, hold, start_lr=0.0, target_lr=1e-2
