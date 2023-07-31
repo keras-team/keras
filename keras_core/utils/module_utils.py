@@ -29,6 +29,8 @@ class LazyModule:
             )
 
     def __getattr__(self, name):
+        if name == "_api_export_path":
+            raise AttributeError
         if self.module is None:
             self.initialize()
         return getattr(self.module, name)
