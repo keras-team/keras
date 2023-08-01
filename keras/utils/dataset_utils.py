@@ -399,8 +399,8 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`left_size` should be either a positive integer "
             f"smaller than {total_length}, or a float "
-            "within the range '[0, 1] (excluding the boundary values 0 and 1)'. Received: left_size="
-            f"{left_size}"
+            "within the range '[0, 1] (excluding the boundary values 0 and 1)'."
+            f"Received: left_size = {left_size}"
         )
 
     # check right_size is non-negative and less than 1 and less than
@@ -414,8 +414,8 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`right_size` should be either a positive integer "
             f"and smaller than {total_length} or a float "
-            "within the range '[0, 1] (excluding the boundary values 0 and 1)'. Received: right_size="
-            f"{right_size}"
+            "within the range '[0, 1] (excluding the boundary values 0 and 1)'."
+            f"Received: right_size = {right_size}"
         )
 
     # check sum of left_size and right_size is less than or equal to
