@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 
 from keras_core import testing
 from keras_core.layers.activations import prelu
@@ -22,6 +21,9 @@ class PReLUTest(testing.TestCase):
         )
 
     def test_prelu_correctness(self):
+        def np_prelu(x, alpha):
+            return (x > 0) * x + (x <= 0) * alpha * x
+
         inputs = np.random.randn(2, 10, 5, 3)
         prelu_layer = prelu.PReLU(
             alpha_initializer="glorot_uniform",
@@ -29,18 +31,9 @@ class PReLUTest(testing.TestCase):
             alpha_constraint="non_neg",
             shared_axes=(1, 2),
         )
-        tf_prelu_layer = tf.keras.layers.PReLU(
-            alpha_initializer="glorot_uniform",
-            alpha_regularizer="l1",
-            alpha_constraint="non_neg",
-            shared_axes=(1, 2),
-        )
-
         prelu_layer.build(inputs.shape)
-        tf_prelu_layer.build(inputs.shape)
 
         weights = np.random.random((1, 1, 3))
         prelu_layer.alpha.assign(weights)
-        tf_prelu_layer.alpha.assign(weights)
-
-        self.assertAllClose(prelu_layer(inputs), tf_prelu_layer(inputs))
+        ref_out = np_prelu(inputs, weights)
+        self.assertAllClose(prelu_layer(inputs), ref_out)
