@@ -271,8 +271,6 @@ class ExtractPatches(Operation):
         data_format="channels_last",
     ):
         super().__init__()
-        if isinstance(size, int):
-            size = (size, size)
         self.size = size
         self.strides = strides
         self.dilation_rate = dilation_rate
@@ -350,16 +348,14 @@ def extract_patches(
 
     Examples:
 
-    >>> image = np.random.random(
-    ...     (2, 20, 20, 3)
-    ... ).astype("float32") # batch of 2 RGB images
+    >>> image = np.random.random((1, 20, 20, 3)) # batch of 2 RGB images
     >>> patches = keras_core.ops.image.extract_patches(image, (5, 5))
     >>> patches.shape
-    (2, 4, 4, 75)
-    >>> image = np.random.random((20, 20, 3)).astype("float32") # 1 RGB image
+    (1, 4, 4, 75)
+    >>> image = np.random.random((20, 20, 3)) # batch of 2 RGB images
     >>> patches = keras_core.ops.image.extract_patches(image, (3, 3), (1, 1))
     >>> patches.shape
-    (18, 18, 27)
+    (4, 4, 75)
     """
     if any_symbolic_tensors((image,)):
         return ExtractPatches(

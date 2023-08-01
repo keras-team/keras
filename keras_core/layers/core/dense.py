@@ -87,14 +87,12 @@ class Dense(Layer):
     def build(self, input_shape):
         input_dim = input_shape[-1]
         self.kernel = self.add_weight(
-            name="kernel",
             shape=(input_dim, self.units),
             initializer=self.kernel_initializer,
             regularizer=self.kernel_regularizer,
         )
         if self.use_bias:
             self.bias = self.add_weight(
-                name="bias",
                 shape=(self.units,),
                 initializer=self.bias_initializer,
                 regularizer=self.bias_regularizer,

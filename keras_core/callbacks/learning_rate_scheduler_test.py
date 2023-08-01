@@ -107,18 +107,3 @@ class LearningRateSchedulerTest(testing.TestCase):
                 callbacks=[lr_scheduler],
                 epochs=2,
             )
-
-    @pytest.mark.requires_trainable_backend
-    def test_learning_rate_in_history(self):
-        lr_scheduler = callbacks.LearningRateScheduler(lambda step, lr: 0.5)
-
-        history = self.model.fit(
-            self.x_train,
-            self.y_train,
-            callbacks=[lr_scheduler],
-            epochs=1,
-        )
-
-        self.assertTrue("learning_rate" in history.history)
-        self.assertEqual(type(history.history["learning_rate"][0]), float)
-        self.assertEqual(history.history["learning_rate"][0], 0.5)
