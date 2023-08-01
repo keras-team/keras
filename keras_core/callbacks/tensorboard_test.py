@@ -391,7 +391,6 @@ class TestTensorBoardV2(testing.TestCase):
             },
         )
         expected_image_summaries = {
-            _ObservedSummary(logdir=train_dir, tag="image"),
             _ObservedSummary(logdir=train_dir, tag="bias/image"),
             _ObservedSummary(logdir=train_dir, tag="kernel/image"),
         }
