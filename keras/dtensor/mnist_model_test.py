@@ -72,7 +72,10 @@ class MnistTest(test_util.DTensorBaseTest):
 
         global_batch_size = 64
         model.compile(
-            loss="CategoricalCrossentropy", optimizer=optimizer, metrics="acc"
+            loss="CategoricalCrossentropy",
+            optimizer=optimizer,
+            metrics="acc",
+            steps_per_execution=5,
         )
         train_ds, eval_ds = integration_test_utils.get_mnist_datasets(
             integration_test_utils.NUM_CLASS, global_batch_size
