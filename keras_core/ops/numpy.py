@@ -38,6 +38,7 @@ cumsum
 diag
 diagonal
 diff
+digitize
 divide
 dot
 dtype
@@ -1629,6 +1630,43 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         axis1=axis1,
         axis2=axis2,
     )
+
+
+class Digitize(Operation):
+    def call(self, x, bins):
+        return backend.numpy.digitize(x, bins)
+
+    def compute_output_spec(self, x, bins):
+        bins_shape = bins.shape
+        if len(bins_shape) > 1:
+            raise ValueError(
+                "`bins` must be an array of one dimension, but recieved `bins` "
+                f"of shape {bins_shape}."
+            )
+        return KerasTensor(x.shape, dtype="int")
+
+
+@keras_core_export(["keras_core.ops.digitize", "keras_core.ops.numpy.digitize"])
+def digitize(x, bins):
+    """Returns the indices of the bins to which each value in `x` belongs.
+
+    Args:
+        x: Input array to be binned.
+        bins: Array of bins. It has to be one-dimensional and monotonically
+            increasing.
+
+    Returns:
+        Output array of indices, of same shape as x.
+
+    Examples:
+        >>> x = np.array([0.0, 1.0, 3.0, 1.6])
+        >>> bins = np.array([0.0, 3.0, 4.5, 7.0])
+        >>> keras_core.ops.digitize(x, bins)
+        array([1, 1, 2, 1])
+    """
+    if any_symbolic_tensors((x, bins)):
+        return Digitize().symbolic_call(x, bins)
+    return backend.numpy.digitize(x, bins)
 
 
 class Dot(Operation):

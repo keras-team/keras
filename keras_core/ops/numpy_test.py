@@ -3,6 +3,7 @@ from tensorflow.python.ops.numpy_ops import np_config
 
 from keras_core import backend
 from keras_core import testing
+from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.ops import numpy as knp
 
@@ -659,6 +660,17 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor([2, 3])
             y = KerasTensor([2, 3, 4])
             knp.logical_xor(x, y)
+
+    def test_digitize(self):
+        x = KerasTensor((2, 3))
+        bins = KerasTensor((3,))
+        self.assertEqual(knp.digitize(x, bins).shape, (2, 3))
+        self.assertTrue(knp.digitize(x, bins).dtype == standardize_dtype("int"))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor([2, 3])
+            bins = KerasTensor([2, 3, 4])
+            knp.digitize(x, bins)
 
 
 class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
@@ -2139,6 +2151,46 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         y = np.array([4, 5, 6])
         self.assertAllClose(knp.where(x > 1, x, y), np.where(x > 1, x, y))
         self.assertAllClose(knp.Where()(x > 1, x, y), np.where(x > 1, x, y))
+
+    def test_digitize(self):
+        x = np.array([0.0, 1.0, 3.0, 1.6])
+        bins = np.array([0.0, 3.0, 4.5, 7.0])
+        self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
+        self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
+        self.assertTrue(
+            standardize_dtype(knp.digitize(x, bins).dtype)
+            == standardize_dtype("int")
+        )
+        self.assertTrue(
+            standardize_dtype(knp.Digitize()(x, bins).dtype)
+            == standardize_dtype("int")
+        )
+
+        x = np.array([0.2, 6.4, 3.0, 1.6])
+        bins = np.array([0.0, 1.0, 2.5, 4.0, 10.0])
+        self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
+        self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
+        self.assertTrue(
+            standardize_dtype(knp.digitize(x, bins).dtype)
+            == standardize_dtype("int")
+        )
+        self.assertTrue(
+            standardize_dtype(knp.Digitize()(x, bins).dtype)
+            == standardize_dtype("int")
+        )
+
+        x = np.array([1, 4, 10, 15])
+        bins = np.array([4, 10, 14, 15])
+        self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
+        self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
+        self.assertTrue(
+            standardize_dtype(knp.digitize(x, bins).dtype)
+            == standardize_dtype("int")
+        )
+        self.assertTrue(
+            standardize_dtype(knp.Digitize()(x, bins).dtype)
+            == standardize_dtype("int")
+        )
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
