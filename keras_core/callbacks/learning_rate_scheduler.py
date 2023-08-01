@@ -76,4 +76,6 @@ class LearningRateScheduler(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs["learning_rate"] = self.model.optimizer.learning_rate.value
+        logs["learning_rate"] = float(
+            backend.convert_to_numpy(self.model.optimizer.learning_rate)
+        )
