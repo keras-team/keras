@@ -60,6 +60,58 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+class SegmentMax(Operation):
+    def __init__(self, num_segments=None, sorted=False):
+        super().__init__()
+        self.num_segments = num_segments
+        self.sorted = sorted
+
+    def compute_output_spec(self, data, segment_ids):
+        num_segments = self.num_segments
+        output_shape = (num_segments,) + tuple(data.shape[1:])
+        return KerasTensor(shape=output_shape, dtype=data.dtype)
+
+    def call(self, data, segment_ids):
+        return backend.math.segment_max(
+            data,
+            segment_ids,
+            num_segments=self.num_segments,
+            sorted=self.sorted,
+        )
+
+
+@keras_core_export("keras_core.ops.segment_max")
+def segment_max(data, segment_ids, num_segments=None, sorted=False):
+    """Computes the max of segments in a tensor.
+
+    Args:
+        data: Input tensor.
+        segment_ids: A 1-D tensor containing segment indices for each
+            element in `data`.
+        num_segments: An integer representing the total number of
+            segments. If not specified, it is inferred from the maximum
+            value in `segment_ids`.
+        sorted: A boolean indicating whether `segment_ids` is sorted.
+            Default is `False`.
+
+    Returns:
+        A tensor containing the max of segments, where each element
+        represents the max of the corresponding segment in `data`.
+
+    Example:
+
+    >>> data = keras_core.ops.convert_to_tensor([1, 2, 3, 4, 5, 6])
+    >>> segment_ids = keras_core.ops.convert_to_tensor([0, 1, 0, 1, 0, 1])
+    >>> segment_max(data, segment_ids)
+    array([9 12], shape=(2,), dtype=int32)
+    """
+    if any_symbolic_tensors((data,)):
+        return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
+    return backend.math.segment_max(
+        data, segment_ids, num_segments=num_segments, sorted=sorted
+    )
+
+
 class TopK(Operation):
     def __init__(self, k, sorted=False):
         super().__init__()

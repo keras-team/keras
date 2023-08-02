@@ -13,6 +13,17 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+def segment_max(data, segment_ids, num_segments=None, sorted=False):
+    if num_segments is None:
+        raise ValueError(
+            "Argument `num_segments` must be set when using the JAX backend. "
+            "Received: num_segments=None"
+        )
+    return jax.ops.segment_max(
+        data, segment_ids, num_segments, indices_are_sorted=sorted
+    )
+
+
 def top_k(x, k, sorted=True):
     # Jax does not supported `sorted`, but in the case where `sorted=False`,
     # order is not guaranteed, so OK to return sorted output.

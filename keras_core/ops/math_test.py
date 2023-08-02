@@ -20,6 +20,17 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         outputs = kmath.segment_sum(data, segment_ids, num_segments=5)
         self.assertEqual(outputs.shape, (5, 4))
 
+    def test_segment_max(self):
+        data = KerasTensor((None, 4), dtype="float32")
+        segment_ids = KerasTensor((10,), dtype="int32")
+        outputs = kmath.segment_max(data, segment_ids)
+        self.assertEqual(outputs.shape, (None, 4))
+
+        data = KerasTensor((None, 4), dtype="float32")
+        segment_ids = KerasTensor((10,), dtype="int32")
+        outputs = kmath.segment_max(data, segment_ids, num_segments=5)
+        self.assertEqual(outputs.shape, (5, 4))
+
     def test_top_k(self):
         x = KerasTensor((None, 2, 3))
         values, indices = kmath.top_k(x, k=1)
@@ -88,6 +99,22 @@ class MathOpsStaticShapeTest(testing.TestCase):
         data = KerasTensor((10, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
         outputs = kmath.segment_sum(data, segment_ids, num_segments=5)
+        self.assertEqual(outputs.shape, (5, 4))
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="JAX does not support `num_segments=None`.",
+    )
+    def test_segment_max(self):
+        data = KerasTensor((10, 4), dtype="float32")
+        segment_ids = KerasTensor((10,), dtype="int32")
+        outputs = kmath.segment_max(data, segment_ids)
+        self.assertEqual(outputs.shape, (None, 4))
+
+    def test_segment_max_explicit_num_segments(self):
+        data = KerasTensor((10, 4), dtype="float32")
+        segment_ids = KerasTensor((10,), dtype="int32")
+        outputs = kmath.segment_max(data, segment_ids, num_segments=5)
         self.assertEqual(outputs.shape, (5, 4))
 
     def test_topk(self):
@@ -180,6 +207,53 @@ class MathOpsCorrectnessTest(testing.TestCase):
         outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
         expected = tf.math.unsorted_segment_sum(
             data, segment_ids, num_segments=4
+        )
+        self.assertAllClose(outputs, expected)
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="JAX does not support `num_segments=None`.",
+    )
+    def test_segment_max(self):
+        # Test 1D case.
+        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
+        outputs = kmath.segment_max(data, segment_ids)
+        expected = tf.math.segment_max(data, segment_ids)
+        self.assertAllClose(outputs, expected)
+
+        # Test N-D case.
+        data = np.random.rand(9, 3, 3)
+        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
+        outputs = kmath.segment_max(data, segment_ids)
+        expected = tf.math.segment_max(data, segment_ids)
+        self.assertAllClose(outputs, expected)
+
+    def test_segment_max_explicit_num_segments(self):
+        # Test 1D case.
+        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
+        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
+        expected = tf.math.unsorted_segment_max(
+            data, segment_ids, num_segments=3
+        )
+        self.assertAllClose(outputs, expected)
+
+        # Test 1D with -1 case.
+        data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
+        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
+        expected = tf.math.unsorted_segment_max(
+            data, segment_ids, num_segments=3
+        )
+        self.assertAllClose(outputs, expected)
+
+        # Test N-D case.
+        data = np.random.rand(9, 3, 3)
+        segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
+        outputs = kmath.segment_max(data, segment_ids, num_segments=3)
+        expected = tf.math.unsorted_segment_max(
+            data, segment_ids, num_segments=3
         )
         self.assertAllClose(outputs, expected)
 
