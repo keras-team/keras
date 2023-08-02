@@ -19,7 +19,7 @@ def enable_interactive_logging():
     This provides the best experience when using Keras in an interactive
     environment such as a shell or a notebook.
     """
-    global_state.set_global_setting("interactive_logging", True)
+    global_state.set_global_attribute("interactive_logging", True)
 
 
 @keras_core_export(
@@ -35,7 +35,7 @@ def disable_interactive_logging():
     This is the best option when using Keras in a non-interactive
     way, such as running a training or inference job on a server.
     """
-    global_state.set_global_setting("interactive_logging", False)
+    global_state.set_global_attribute("interactive_logging", False)
 
 
 @keras_core_export(
@@ -55,7 +55,7 @@ def is_interactive_logging_enabled():
         Boolean, `True` if interactive logging is enabled,
         and `False` otherwise.
     """
-    return global_state.get_global_setting("interactive_logging", True)
+    return global_state.get_global_attribute("interactive_logging", True)
 
 
 def set_logging_verbosity(level):

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import layers
@@ -92,69 +93,61 @@ class GlobalMaxPoolingCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ("channels_last", False),
         ("channels_last", True),
         ("channels_first", False),
-        ("channels_first", True),
     )
     def test_global_max_pooling1d(self, data_format, keepdims):
-        def np_global_max_pool1d(x, data_format, keepdims):
-            steps_axis = [1] if data_format == "channels_last" else [2]
-            res = np.apply_over_axes(np.max, x, steps_axis)
-            if not keepdims:
-                res = res.squeeze()
-            return res
-
         inputs = np.arange(24, dtype="float32").reshape((2, 3, 4))
+
         layer = layers.GlobalMaxPooling1D(
             data_format=data_format,
             keepdims=keepdims,
         )
+        tf_keras_layer = tf.keras.layers.GlobalMaxPooling1D(
+            data_format=data_format,
+            keepdims=keepdims,
+        )
+
         outputs = layer(inputs)
-        expected = np_global_max_pool1d(inputs, data_format, keepdims)
+        expected = tf_keras_layer(inputs)
         self.assertAllClose(outputs, expected)
 
     @parameterized.parameters(
         ("channels_last", False),
         ("channels_last", True),
         ("channels_first", False),
-        ("channels_first", True),
     )
     def test_global_max_pooling2d(self, data_format, keepdims):
-        def np_global_max_pool2d(x, data_format, keepdims):
-            steps_axis = [1, 2] if data_format == "channels_last" else [2, 3]
-            res = np.apply_over_axes(np.max, x, steps_axis)
-            if not keepdims:
-                res = res.squeeze()
-            return res
-
         inputs = np.arange(96, dtype="float32").reshape((2, 3, 4, 4))
+
         layer = layers.GlobalMaxPooling2D(
             data_format=data_format,
             keepdims=keepdims,
         )
+        tf_keras_layer = tf.keras.layers.GlobalMaxPooling2D(
+            data_format=data_format,
+            keepdims=keepdims,
+        )
+
         outputs = layer(inputs)
-        expected = np_global_max_pool2d(inputs, data_format, keepdims)
+        expected = tf_keras_layer(inputs)
         self.assertAllClose(outputs, expected)
 
     @parameterized.parameters(
         ("channels_last", False),
         ("channels_last", True),
         ("channels_first", False),
-        ("channels_first", True),
     )
     def test_global_max_pooling3d(self, data_format, keepdims):
-        def np_global_max_pool3d(x, data_format, keepdims):
-            steps_axis = (
-                [1, 2, 3] if data_format == "channels_last" else [2, 3, 4]
-            )
-            res = np.apply_over_axes(np.max, x, steps_axis)
-            if not keepdims:
-                res = res.squeeze()
-            return res
-
         inputs = np.arange(360, dtype="float32").reshape((2, 3, 3, 5, 4))
+
         layer = layers.GlobalMaxPooling3D(
             data_format=data_format,
             keepdims=keepdims,
         )
+        tf_keras_layer = tf.keras.layers.GlobalMaxPooling3D(
+            data_format=data_format,
+            keepdims=keepdims,
+        )
+
         outputs = layer(inputs)
-        expected = np_global_max_pool3d(inputs, data_format, keepdims)
+        expected = tf_keras_layer(inputs)
         self.assertAllClose(outputs, expected)

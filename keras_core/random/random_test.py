@@ -4,9 +4,10 @@ from absl.testing import parameterized
 
 import keras_core
 from keras_core import backend
+from keras_core import ops
 from keras_core import testing
-from keras_core.ops import numpy as knp
 from keras_core.random import random
+from keras_core.random import seed_generator
 
 
 class RandomTest(testing.TestCase, parameterized.TestCase):
@@ -37,8 +38,8 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         res = random.uniform(shape, minval=minval, maxval=maxval, seed=seed)
         self.assertEqual(res.shape, shape)
         self.assertEqual(res.shape, np_res.shape)
-        self.assertLessEqual(knp.max(res), maxval)
-        self.assertGreaterEqual(knp.max(res), minval)
+        self.assertLessEqual(ops.max(res), maxval)
+        self.assertGreaterEqual(ops.max(res), minval)
 
     @parameterized.parameters(
         {"seed": 10, "num_samples": 1, "batch_size": 1},
@@ -79,8 +80,8 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(res.shape, shape)
         self.assertEqual(res.shape, np_res.shape)
-        self.assertLessEqual(knp.max(res), max)
-        self.assertGreaterEqual(knp.max(res), min)
+        self.assertLessEqual(ops.max(res), max)
+        self.assertGreaterEqual(ops.max(res), min)
         # Torch has incomplete dtype support for uints; will remap some dtypes.
         if keras_core.backend.backend() != "torch":
             self.assertEqual(backend.standardize_dtype(res.dtype), dtype)
@@ -102,15 +103,15 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertEqual(res.shape, tuple(shape))
         self.assertEqual(res.shape, np_res.shape)
-        self.assertLessEqual(knp.max(res), mean + 2 * stddev)
-        self.assertGreaterEqual(knp.max(res), mean - 2 * stddev)
+        self.assertLessEqual(ops.max(res), mean + 2 * stddev)
+        self.assertGreaterEqual(ops.max(res), mean - 2 * stddev)
 
     def test_dropout(self):
-        x = knp.ones((3, 5))
+        x = ops.ones((3, 5))
         self.assertAllClose(random.dropout(x, rate=0, seed=0), x)
         x_res = random.dropout(x, rate=0.8, seed=0)
-        self.assertGreater(knp.max(x_res), knp.max(x))
-        self.assertGreater(knp.sum(x_res == 0), 2)
+        self.assertGreater(ops.max(x_res), ops.max(x))
+        self.assertGreater(ops.sum(x_res == 0), 2)
 
     @pytest.mark.skipif(
         keras_core.backend.backend() != "jax",
@@ -120,7 +121,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         import jax
         import jax.numpy as jnp
 
-        x = knp.ones(3)
+        x = ops.ones(3)
 
         @jax.jit
         def train_step(x):
@@ -128,12 +129,11 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
                 x = keras_core.layers.Dropout(rate=0.1)(x, training=True)
             return x
 
-        keras_core.utils.traceback_utils.disable_traceback_filtering()
         x = train_step(x)
-        assert isinstance(x, jnp.ndarray)
+        self.assertTrue(isinstance(x, jnp.ndarray))
 
     def test_dropout_noise_shape(self):
-        inputs = knp.ones((2, 3, 5, 7))
+        inputs = ops.ones((2, 3, 5, 7))
         x = random.dropout(
             inputs, rate=0.3, noise_shape=[None, 3, 5, None], seed=0
         )
@@ -153,3 +153,47 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(rng.dtype, jnp.uint32)
         x = random.randint((3, 5), 0, 10, seed=rng)
         self.assertTrue(isinstance(x, jnp.ndarray))
+
+    def test_global_seed_generator(self):
+        # Check that unseeded RNG calls use and update global_rng_state()
+        # and that this works across traced function boundaries
+
+        def random_numbers(seed):
+            rng_state = seed_generator.global_rng_state()
+            rng_state.assign(seed)
+            x = random.normal((), seed=None)
+            y = random.normal((), seed=None)
+            return x, y, rng_state.value
+
+        if backend.backend() == "jax":
+            import jax
+
+            random_numbers = jax.jit(random_numbers)
+        elif backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            random_numbers = tf.function(jit_compile=True)(random_numbers)
+
+        seed = ops.zeros((2,))
+        seed0 = ops.convert_to_numpy(seed)
+        x1, y1, seed = random_numbers(seed)
+        seed1 = ops.convert_to_numpy(seed)
+        x2, y2, seed = random_numbers(seed)
+        seed2 = ops.convert_to_numpy(seed)
+        x3, y3, seed = random_numbers(seed)
+        seed3 = ops.convert_to_numpy(seed)
+
+        self.assertNotEqual(seed0[1], seed1[1])
+        self.assertNotEqual(seed1[1], seed2[1])
+        self.assertNotEqual(seed2[1], seed3[1])
+
+        self.assertGreater(np.abs(x1 - y1), 1e-4)
+        self.assertGreater(np.abs(x1 - y1), 1e-4)
+        self.assertGreater(np.abs(x2 - y2), 1e-4)
+        self.assertGreater(np.abs(x3 - y3), 1e-4)
+        self.assertGreater(np.abs(x1 - x2), 1e-4)
+        self.assertGreater(np.abs(x1 - x3), 1e-4)
+        self.assertGreater(np.abs(x2 - x3), 1e-4)
+        self.assertGreater(np.abs(y1 - y2), 1e-4)
+        self.assertGreater(np.abs(y1 - y3), 1e-4)
+        self.assertGreater(np.abs(y2 - y3), 1e-4)

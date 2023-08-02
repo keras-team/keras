@@ -45,20 +45,22 @@ class SafeModeScope:
 
     def __enter__(self):
         self.original_value = in_safe_mode()
-        global_state.set_global_setting("safe_mode_saving", self.safe_mode)
+        global_state.set_global_attribute("safe_mode_saving", self.safe_mode)
 
     def __exit__(self, *args, **kwargs):
-        global_state.set_global_setting("safe_mode_saving", self.original_value)
+        global_state.set_global_attribute(
+            "safe_mode_saving", self.original_value
+        )
 
 
 @keras_core_export("keras_core.config.enable_unsafe_deserialization")
 def enable_unsafe_deserialization():
     """Disables safe mode globally, allowing deserialization of lambdas."""
-    global_state.set_global_setting("safe_mode_saving", False)
+    global_state.set_global_attribute("safe_mode_saving", False)
 
 
 def in_safe_mode():
-    return global_state.get_global_setting("safe_mode_saving")
+    return global_state.get_global_attribute("safe_mode_saving")
 
 
 class ObjectSharingScope:

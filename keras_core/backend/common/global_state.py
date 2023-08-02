@@ -20,19 +20,6 @@ def get_global_attribute(name, default=None, set_to_default=False):
     return attr
 
 
-def set_global_setting(name, value):
-    setattr(GLOBAL_SETTINGS_TRACKER, name, value)
-
-
-def get_global_setting(name, default=None, set_to_default=False):
-    attr = getattr(GLOBAL_SETTINGS_TRACKER, name, None)
-    if attr is None and default is not None:
-        attr = default
-        if set_to_default:
-            set_global_setting(name, attr)
-    return attr
-
-
 @keras_core_export(
     ["keras_core.utils.clear_session", "keras_core.backend.clear_session"]
 )
