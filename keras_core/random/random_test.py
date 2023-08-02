@@ -138,3 +138,18 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
             inputs, rate=0.3, noise_shape=[None, 3, 5, None], seed=0
         )
         self.assertEqual(x.shape, (2, 3, 5, 7))
+
+    @pytest.mark.skipif(
+        keras_core.backend.backend() != "jax",
+        reason="This test requires `jax` as the backend.",
+    )
+    def test_jax_rngkey_seed(self):
+        import jax
+        import jax.numpy as jnp
+
+        seed = 1234
+        rng = jax.random.PRNGKey(seed)
+        self.assertEqual(rng.shape, (2,))
+        self.assertEqual(rng.dtype, jnp.uint32)
+        x = random.randint((3, 5), 0, 10, seed=rng)
+        assert isinstance(x, jnp.ndarray)

@@ -6,23 +6,30 @@ from keras_core.random.seed_generator import draw_seed
 from keras_core.random.seed_generator import make_default_seed
 
 
+def jax_draw_seed(seed):
+    if isinstance(seed, jax.Array):
+        return seed
+    else:
+        return draw_seed(seed)
+
+
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     sample = jax.random.normal(seed, shape=shape, dtype=dtype)
     return sample * stddev + mean
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     return jax.random.uniform(
         seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
     )
 
 
 def categorical(logits, num_samples, dtype="int32", seed=None):
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     output_shape = list(logits.shape)
     output_shape[1] = num_samples
     output_shape = tuple(output_shape)
@@ -33,7 +40,7 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     return jax.random.randint(
         seed, shape=shape, dtype=dtype, minval=minval, maxval=maxval
     )
@@ -41,7 +48,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     sample = jax.random.truncated_normal(
         seed, shape=shape, lower=-2.0, upper=2.0, dtype=dtype
     )
@@ -62,7 +69,7 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    seed = draw_seed(seed)
+    seed = jax_draw_seed(seed)
     keep_prob = 1.0 - rate
     # The `noise_shape` may contain `None` so we need to convert it
     # into a concrete shape before passing it on to jax.
