@@ -109,7 +109,7 @@ def global_rng_state():
 
     In JAX, if you're using unseeded random ops, be mindful that
     their outputs will be unchanged across different calls of
-    traced function (e.g. a `jax.jit`-transformed function) since
+    a traced function (e.g. a `jax.jit`-transformed function) since
     traced functions in JAX are fully stateless. To get
     different outputs across different calls, you will need to pass the
     global RNG state in and out of the function boundary, like this:
