@@ -226,7 +226,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
-    return cast(jnp.digitize(x, bins), "int64")
+    return jnp.digitize(x, bins)
 
 
 def dot(x, y):

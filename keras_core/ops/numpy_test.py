@@ -665,7 +665,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         bins = KerasTensor((3,))
         self.assertEqual(knp.digitize(x, bins).shape, (2, 3))
-        self.assertTrue(knp.digitize(x, bins).dtype == standardize_dtype("int"))
+        self.assertTrue(knp.digitize(x, bins).dtype == "int32")
 
         with self.assertRaises(ValueError):
             x = KerasTensor([2, 3])
@@ -2158,12 +2158,10 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
         self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
         self.assertTrue(
-            standardize_dtype(knp.digitize(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.digitize(x, bins).dtype) == "int32"
         )
         self.assertTrue(
-            standardize_dtype(knp.Digitize()(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
 
         x = np.array([0.2, 6.4, 3.0, 1.6])
@@ -2171,12 +2169,10 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
         self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
         self.assertTrue(
-            standardize_dtype(knp.digitize(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.digitize(x, bins).dtype) == "int32"
         )
         self.assertTrue(
-            standardize_dtype(knp.Digitize()(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
 
         x = np.array([1, 4, 10, 15])
@@ -2184,12 +2180,10 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(knp.digitize(x, bins), np.digitize(x, bins))
         self.assertAllClose(knp.Digitize()(x, bins), np.digitize(x, bins))
         self.assertTrue(
-            standardize_dtype(knp.digitize(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.digitize(x, bins).dtype) == "int32"
         )
         self.assertTrue(
-            standardize_dtype(knp.Digitize()(x, bins).dtype)
-            == standardize_dtype("int")
+            standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
 
 

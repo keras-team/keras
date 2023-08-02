@@ -1640,10 +1640,10 @@ class Digitize(Operation):
         bins_shape = bins.shape
         if len(bins_shape) > 1:
             raise ValueError(
-                "`bins` must be an array of one dimension, but recieved `bins` "
-                f"of shape {bins_shape}."
+                f"`bins` must be a 1D array. Received: bins={bins} "
+                f"with shape bins.shape={bins_shape}"
             )
-        return KerasTensor(x.shape, dtype="int")
+        return KerasTensor(x.shape, dtype="int32")
 
 
 @keras_core_export(["keras_core.ops.digitize", "keras_core.ops.numpy.digitize"])
@@ -1658,11 +1658,12 @@ def digitize(x, bins):
     Returns:
         Output array of indices, of same shape as x.
 
-    Examples:
-        >>> x = np.array([0.0, 1.0, 3.0, 1.6])
-        >>> bins = np.array([0.0, 3.0, 4.5, 7.0])
-        >>> keras_core.ops.digitize(x, bins)
-        array([1, 1, 2, 1])
+    Example:
+
+    >>> x = np.array([0.0, 1.0, 3.0, 1.6])
+    >>> bins = np.array([0.0, 3.0, 4.5, 7.0])
+    >>> keras_core.ops.digitize(x, bins)
+    array([1, 1, 2, 1])
     """
     if any_symbolic_tensors((x, bins)):
         return Digitize().symbolic_call(x, bins)
