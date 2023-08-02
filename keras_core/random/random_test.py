@@ -152,4 +152,4 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(rng.shape, (2,))
         self.assertEqual(rng.dtype, jnp.uint32)
         x = random.randint((3, 5), 0, 10, seed=rng)
-        assert isinstance(x, jnp.ndarray)
+        self.assertTrue(isinstance(x, jnp.ndarray))
