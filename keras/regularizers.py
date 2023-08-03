@@ -34,7 +34,7 @@ def _check_penalty_number(x):
     if not isinstance(x, (float, int)) or x < 0:
         raise ValueError(
             f"Value {x} is not a valid regularization penalty number, "
-            "expected positive int or float value."
+            "expected non-negative int or float value."
         )
 
     if math.isinf(x) or math.isnan(x):
