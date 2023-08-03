@@ -57,7 +57,7 @@ class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters([1, 2, 3])
     def test_normalize(self, order):
         xnp = np.random.random((3, 3))
-        xb = backend.random.uniform((3, 3))
+        xb = backend.random.uniform((3, 3), seed=1337)
 
         # Test NumPy
         out = numerical_utils.normalize(xnp, axis=-1, order=order)

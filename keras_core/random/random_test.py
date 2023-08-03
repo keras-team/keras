@@ -197,3 +197,5 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertGreater(np.abs(y1 - y2), 1e-4)
         self.assertGreater(np.abs(y1 - y3), 1e-4)
         self.assertGreater(np.abs(y2 - y3), 1e-4)
+
+        seed_generator.global_rng_state().assign(seed)
