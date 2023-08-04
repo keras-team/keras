@@ -17,6 +17,7 @@ from keras_core.optimizers.optimizer import Optimizer
 from keras_core.saving.serialization_lib import ObjectSharingScope
 from keras_core.saving.serialization_lib import deserialize_keras_object
 from keras_core.saving.serialization_lib import serialize_keras_object
+from keras_core.trainers.compile_utils import CompileMetrics
 from keras_core.utils import file_utils
 from keras_core.utils import naming
 from keras_core.version import __version__ as keras_version
@@ -252,7 +253,14 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 
 
 def _walk_trackable(trackable):
-    if isinstance(trackable, Layer):
+    from keras_core.models import Functional
+    from keras_core.models import Sequential
+
+    if isinstance(trackable, Sequential):
+        obj_type = "Sequential"
+    elif isinstance(trackable, Functional):
+        obj_type = "Functional"
+    elif isinstance(trackable, Layer):
         obj_type = "Layer"
     elif isinstance(trackable, Optimizer):
         obj_type = "Optimizer"
@@ -264,7 +272,7 @@ def _walk_trackable(trackable):
         raise ValueError(f"Invalid obj_type: {obj_type}")
     attr_skiplist = get_attr_skiplist(obj_type)
 
-    for child_attr in dir(trackable):
+    for child_attr in sorted(dir(trackable)):
         if child_attr.startswith("__") or child_attr in attr_skiplist:
             continue
         try:
@@ -276,7 +284,11 @@ def _walk_trackable(trackable):
 
 
 def _save_state(
-    trackable, weights_store, assets_store, inner_path, visited_trackables
+    trackable,
+    weights_store,
+    assets_store,
+    inner_path,
+    visited_trackables,
 ):
     # If the trackable has already been saved, skip it.
     if id(trackable) in visited_trackables:
@@ -592,19 +604,30 @@ def get_attr_skiplist(obj_type):
     )
     if skiplist is not None:
         return skiplist
+
+    skiplist = [
+        "_self_unconditional_dependency_names",
+    ]
     if obj_type == "Layer":
         ref_obj = Layer()
-        skiplist = dir(ref_obj)
+        skiplist += dir(ref_obj)
+    elif obj_type == "Functional":
+        ref_obj = Layer()
+        skiplist += dir(ref_obj) + ["operations", "_operations"]
+    elif obj_type == "Sequential":
+        ref_obj = Layer()
+        skiplist += dir(ref_obj) + ["_functional"]
     elif obj_type == "Metric":
-        ref_obj = Metric()
-        skiplist = dir(ref_obj)
+        ref_obj_a = Metric()
+        ref_obj_b = CompileMetrics([], [])
+        skiplist += dir(ref_obj_a) + dir(ref_obj_b)
     elif obj_type == "Optimizer":
         ref_obj = Optimizer(1.0)
-        skiplist = dir(ref_obj)
+        skiplist += dir(ref_obj)
         skiplist.remove("variables")
     elif obj_type == "Loss":
         ref_obj = Loss()
-        skiplist = dir(ref_obj)
+        skiplist += dir(ref_obj)
     else:
         raise ValueError(f"Invalid obj_type: {obj_type}")
     global_state.set_global_attribute(

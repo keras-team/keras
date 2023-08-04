@@ -7,6 +7,7 @@ from keras_core import backend
 from keras_core import utils
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.models.variable_mapping import map_trackable_variables
 from keras_core.saving import saving_api
 from keras_core.saving import saving_lib
 from keras_core.trainers import trainer as base_trainer
@@ -506,6 +507,13 @@ class Model(Trainer, Layer):
                 f"Received config={config}\n\n"
                 f"Error encountered during deserialization: {e}"
             )
+
+    def _get_variable_map(self):
+        store = {}
+        map_trackable_variables(
+            self, store=store, inner_path="", visited_trackables=set()
+        )
+        return store
 
 
 @keras_core_export("keras_core.models.model_from_json")

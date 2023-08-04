@@ -68,7 +68,10 @@ class Sum(Metric):
     def __init__(self, name="sum", dtype=None):
         super().__init__(name=name, dtype=dtype)
         self.total = self.add_variable(
-            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+            shape=(),
+            initializer=initializers.Zeros(),
+            dtype=self.dtype,
+            name="total",
         )
 
     def update_state(self, values, sample_weight=None):
@@ -115,10 +118,16 @@ class Mean(Metric):
     def __init__(self, name="mean", dtype=None):
         super().__init__(name=name, dtype=dtype)
         self.total = self.add_variable(
-            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+            shape=(),
+            initializer=initializers.Zeros(),
+            dtype=self.dtype,
+            name="total",
         )
         self.count = self.add_variable(
-            shape=(), initializer=initializers.Zeros(), dtype=self.dtype
+            shape=(),
+            initializer=initializers.Zeros(),
+            dtype=self.dtype,
+            name="count",
         )
 
     def update_state(self, values, sample_weight=None):

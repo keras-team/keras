@@ -20,7 +20,7 @@ class MyDense(keras_core.layers.Layer):
     def __init__(self, units, **kwargs):
         super().__init__(**kwargs)
         self.units = units
-        self.nested_layer = keras_core.layers.Dense(self.units)
+        self.nested_layer = keras_core.layers.Dense(self.units, name="dense")
 
     def build(self, input_shape):
         self.additional_weights = [
@@ -85,8 +85,8 @@ class LayerWithCustomSaving(MyDense):
 class CustomModelX(keras_core.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dense1 = MyDense(1)
-        self.dense2 = MyDense(1)
+        self.dense1 = MyDense(1, name="my_dense_1")
+        self.dense2 = MyDense(1, name="my_dense_2")
 
     def call(self, inputs):
         out = self.dense1(inputs)
@@ -131,66 +131,74 @@ def my_mean_squared_error(y_true, y_pred):
     return ops.mean(ops.square(y_pred - y_true), axis=-1)
 
 
+def _get_subclassed_model(compile=True):
+    subclassed_model = CustomModelX(name="custom_model_x")
+    if compile:
+        subclassed_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras_core.metrics.Hinge(), "mse"],
+        )
+    return subclassed_model
+
+
+def _get_custom_sequential_model(compile=True):
+    sequential_model = keras_core.Sequential([MyDense(1), MyDense(1)])
+    if compile:
+        sequential_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras_core.metrics.Hinge(), "mse"],
+        )
+    return sequential_model
+
+
+def _get_basic_sequential_model(compile=True):
+    sequential_model = keras_core.Sequential(
+        [
+            keras_core.layers.Dense(1, name="dense_1"),
+            keras_core.layers.Dense(1, name="dense_2"),
+        ]
+    )
+    if compile:
+        sequential_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras_core.metrics.Hinge(), "mse"],
+        )
+    return sequential_model
+
+
+def _get_custom_functional_model(compile=True):
+    inputs = keras_core.Input(shape=(4,), batch_size=2)
+    x = MyDense(1, name="first_dense")(inputs)
+    outputs = MyDense(1, name="second_dense")(x)
+    functional_model = keras_core.Model(inputs, outputs)
+    if compile:
+        functional_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras_core.metrics.Hinge(), "mse"],
+        )
+    return functional_model
+
+
+def _get_basic_functional_model(compile=True):
+    inputs = keras_core.Input(shape=(4,), batch_size=2)
+    x = keras_core.layers.Dense(1, name="first_dense")(inputs)
+    outputs = keras_core.layers.Dense(1, name="second_dense")(x)
+    functional_model = keras_core.Model(inputs, outputs)
+    if compile:
+        functional_model.compile(
+            optimizer="adam",
+            loss=my_mean_squared_error,
+            metrics=[keras_core.metrics.Hinge(), "mse"],
+        )
+    return functional_model
+
+
 @pytest.mark.requires_trainable_backend
 class SavingTest(testing.TestCase):
-    def _get_subclassed_model(self, compile=True):
-        subclassed_model = CustomModelX()
-        if compile:
-            subclassed_model.compile(
-                optimizer="adam",
-                loss=my_mean_squared_error,
-                metrics=[keras_core.metrics.Hinge(), "mse"],
-            )
-        return subclassed_model
-
-    def _get_custom_sequential_model(self, compile=True):
-        sequential_model = keras_core.Sequential([MyDense(1), MyDense(1)])
-        if compile:
-            sequential_model.compile(
-                optimizer="adam",
-                loss=my_mean_squared_error,
-                metrics=[keras_core.metrics.Hinge(), "mse"],
-            )
-        return sequential_model
-
-    def _get_basic_sequential_model(self, compile=True):
-        sequential_model = keras_core.Sequential(
-            [keras_core.layers.Dense(1), keras_core.layers.Dense(1)]
-        )
-        if compile:
-            sequential_model.compile(
-                optimizer="adam",
-                loss=my_mean_squared_error,
-                metrics=[keras_core.metrics.Hinge(), "mse"],
-            )
-        return sequential_model
-
-    def _get_custom_functional_model(self, compile=True):
-        inputs = keras_core.Input(shape=(4,), batch_size=2)
-        x = MyDense(1, name="first_dense")(inputs)
-        outputs = MyDense(1, name="second_dense")(x)
-        functional_model = keras_core.Model(inputs, outputs)
-        if compile:
-            functional_model.compile(
-                optimizer="adam",
-                loss=my_mean_squared_error,
-                metrics=[keras_core.metrics.Hinge(), "mse"],
-            )
-        return functional_model
-
-    def _get_basic_functional_model(self, compile=True):
-        inputs = keras_core.Input(shape=(4,), batch_size=2)
-        x = keras_core.layers.Dense(1, name="first_dense")(inputs)
-        outputs = keras_core.layers.Dense(1, name="second_dense")(x)
-        functional_model = keras_core.Model(inputs, outputs)
-        if compile:
-            functional_model.compile(
-                optimizer="adam",
-                loss=my_mean_squared_error,
-                metrics=[keras_core.metrics.Hinge(), "mse"],
-            )
-        return functional_model
-
     def _test_inference_after_instantiation(self, model):
         x_ref = np.random.random((2, 4))
         y_ref = model(x_ref)
@@ -204,23 +212,23 @@ class SavingTest(testing.TestCase):
         self.assertAllClose(y_ref, loaded_model(x_ref))
 
     def test_inference_after_instantiation_subclassed(self):
-        model = self._get_subclassed_model(compile=False)
+        model = _get_subclassed_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def test_inference_after_instantiation_basic_sequential(self):
-        model = self._get_basic_sequential_model(compile=False)
+        model = _get_basic_sequential_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def test_inference_after_instantiation_basic_functional(self):
-        model = self._get_basic_functional_model(compile=False)
+        model = _get_basic_functional_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def test_inference_after_instantiation_custom_sequential(self):
-        model = self._get_custom_sequential_model(compile=False)
+        model = _get_custom_sequential_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def test_inference_after_instantiation_custom_functional(self):
-        model = self._get_custom_functional_model(compile=False)
+        model = _get_custom_functional_model(compile=False)
         self._test_inference_after_instantiation(model)
 
     def _test_compile_preserved(self, model):
@@ -256,23 +264,23 @@ class SavingTest(testing.TestCase):
             self.assertAllClose(ref_m, m)
 
     def test_compile_preserved_subclassed(self):
-        model = self._get_subclassed_model(compile=True)
+        model = _get_subclassed_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_compile_preserved_basic_sequential(self):
-        model = self._get_basic_sequential_model(compile=True)
+        model = _get_basic_sequential_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_compile_preserved_custom_sequential(self):
-        model = self._get_custom_sequential_model(compile=True)
+        model = _get_custom_sequential_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_compile_preserved_basic_functional(self):
-        model = self._get_basic_functional_model(compile=True)
+        model = _get_basic_functional_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_compile_preserved_custom_functional(self):
-        model = self._get_custom_functional_model(compile=True)
+        model = _get_custom_functional_model(compile=True)
         self._test_compile_preserved(model)
 
     def test_saving_preserve_unbuilt_state(self):
@@ -286,7 +294,7 @@ class SavingTest(testing.TestCase):
 
     def test_saved_module_paths_and_class_names(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model.keras")
-        subclassed_model = self._get_subclassed_model()
+        subclassed_model = _get_subclassed_model()
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
@@ -393,7 +401,7 @@ class SavingTest(testing.TestCase):
 
     def test_load_model_api_endpoint(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         ref_input = np.random.random((2, 4))
         ref_output = model.predict(ref_input)
         model.save(temp_filepath)
@@ -404,36 +412,36 @@ class SavingTest(testing.TestCase):
         temp_filepath = Path(
             os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
         )
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         ref_input = np.random.random((2, 4))
         ref_output = model.predict(ref_input)
         saving_lib.save_weights_only(model, temp_filepath)
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
         # Test with Model method
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_load_weights_only_with_keras_file(self):
         # Test loading weights from whole saved model
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         ref_input = np.random.random((2, 4))
         ref_output = model.predict(ref_input)
         saving_lib.save_model(model, temp_filepath)
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
         # Test with Model method
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
     def test_compile_arg(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
-        model = self._get_basic_functional_model()
+        model = _get_basic_functional_model()
         model.compile("sgd", "mse")
         model.fit(np.random.random((2, 4)), np.random.random((2, 1)))
         saving_lib.save_model(model, temp_filepath)
@@ -445,7 +453,7 @@ class SavingTest(testing.TestCase):
 
     # def test_overwrite(self):
     #     temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
-    #     model = self._get_basic_functional_model()
+    #     model = _get_basic_functional_model()
     #     model.save(temp_filepath)
     #     model.save(temp_filepath, overwrite=True)
     #     with self.assertRaises(EOFError):
@@ -454,7 +462,7 @@ class SavingTest(testing.TestCase):
     #     temp_filepath = os.path.join(
     #         self.get_temp_dir(), "mymodel.weights.h5"
     #     )
-    #     model = self._get_basic_functional_model()
+    #     model = _get_basic_functional_model()
     #     model.save_weights(temp_filepath)
     #     model.save_weights(temp_filepath, overwrite=True)
     #     with self.assertRaises(EOFError):

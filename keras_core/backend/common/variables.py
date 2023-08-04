@@ -11,7 +11,14 @@ class KerasVariable:
     def __init__(
         self, initializer, shape=None, dtype=None, trainable=True, name=None
     ):
-        self.name = name or auto_name(self.__class__.__name__)
+        name = name or auto_name(self.__class__.__name__)
+        if not isinstance(name, str) or "/" in name:
+            raise ValueError(
+                "Argument `name` must be a string and "
+                "cannot contain character `/`. "
+                f"Received: name={name}"
+            )
+        self.name = name
         dtype = standardize_dtype(dtype)
         self._dtype = dtype
         self._shape = None
