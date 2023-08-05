@@ -411,32 +411,40 @@ def smart_resize(
 
     if data_format == "channels_last":
         if len(img.shape) == 4:
-            img = img[
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-                :,
-            ]
+            img = backend_module.core.slice(img, backend_module.numpy.stack([0, crop_box_hstart, crop_box_wstart, 0]), backend_module.numpy.stack([backend_module.shape(img)[0], crop_height, crop_width, backend_module.shape(img)[3]]))
+        
+            # img = img[
+            #     :,
+            #     crop_box_hstart : crop_box_hstart + crop_height,
+            #     crop_box_wstart : crop_box_wstart + crop_width,
+            #     :,
+            # ]
         else:
-            img = img[
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-                :,
-            ]
+            img = backend_module.core.slice(img, backend_module.numpy.stack([crop_box_hstart, crop_box_wstart, 0]), backend_module.numpy.stack([crop_height, crop_width, backend_module.shape(img)[2]]))
+
+            # img = img[
+            #     crop_box_hstart : crop_box_hstart + crop_height,
+            #     crop_box_wstart : crop_box_wstart + crop_width,
+            #     :,
+            # ]
     else:
         if len(img.shape) == 4:
-            img = img[
-                :,
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-            ]
+            img = backend_module.core.slice(img, backend_module.numpy.stack([0, 0, crop_box_hstart, crop_box_wstart]), backend_module.numpy.stack([backend_module.shape(img)[0], backend_module.shape(img)[1], crop_height, crop_width]))
+
+            # img = img[
+            #     :,
+            #     :,
+            #     crop_box_hstart : crop_box_hstart + crop_height,
+            #     crop_box_wstart : crop_box_wstart + crop_width,
+            # ]
         else:
-            img = img[
-                :,
-                crop_box_hstart : crop_box_hstart + crop_height,
-                crop_box_wstart : crop_box_wstart + crop_width,
-            ]
+            img = backend_module.core.slice(img, backend_module.numpy.stack([0, crop_box_hstart, crop_box_wstart]), backend_module.numpy.stack([backend_module.shape(img)[0], crop_height, crop_width]))
+
+            # img = img[
+            #     :,
+            #     crop_box_hstart : crop_box_hstart + crop_height,
+            #     crop_box_wstart : crop_box_wstart + crop_width,
+            # ]
 
     img = backend_module.image.resize(
         img, size=size, interpolation=interpolation, data_format=data_format

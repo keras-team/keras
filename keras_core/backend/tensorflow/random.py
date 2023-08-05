@@ -25,8 +25,8 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     seed = tf_draw_seed(seed)
     return tf.random.stateless_uniform(
         shape=shape,
-        minval=minval,
-        maxval=maxval,
+        minval=tf.cast(minval, dtype),
+        maxval=tf.cast(maxval, dtype),
         dtype=dtype,
         seed=seed,
     )

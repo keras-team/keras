@@ -63,7 +63,8 @@ def categorical(logits, num_samples, dtype="int32", seed=None):
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     dtype = to_torch_dtype(dtype)
-    if len(shape) == 0:
+    requested_shape = shape
+    if len(requested_shape) == 0:
         shape = (1,)
     # Do not use generator during symbolic execution.
     if get_device() == "meta":
@@ -75,6 +76,9 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         )
 
     output = (maxval - minval) * rand_tensor + minval
+
+    if len(requested_shape) == 0:
+        return output[0]
     return output
 
 

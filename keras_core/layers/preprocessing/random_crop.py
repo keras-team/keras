@@ -3,7 +3,6 @@ from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.random.seed_generator import SeedGenerator
-from keras_core.utils import backend_utils
 from keras_core.utils import image_utils
 
 
@@ -24,14 +23,6 @@ class RandomCrop(TFDataLayer):
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
     of integer or floating point dtype. By default, the layer will output
     floats.
-
-    **Note:** This layer wraps `tf.keras.layers.RandomCrop`. It cannot
-    be used as part of the compiled computation graph of a model with
-    any backend other than TensorFlow.
-    It can however be used with any backend when running eagerly.
-    It can also always be used as part of an input preprocessing pipeline
-    with any backend (outside the model itself), which is how we recommend
-    to use this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -78,11 +69,8 @@ class RandomCrop(TFDataLayer):
         inputs = self.backend.cast(inputs, self.compute_dtype)
         input_shape = self.backend.shape(inputs)
         is_batched = len(input_shape) > 3
-        inputs = (
-            self.backend.numpy.expand_dims(inputs, axis=0)
-            if not is_batched
-            else inputs
-        )
+        if not is_batched:
+            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
 
         h_diff = input_shape[self.height_axis] - self.height
         w_diff = input_shape[self.width_axis] - self.width
@@ -94,33 +82,28 @@ class RandomCrop(TFDataLayer):
             )
 
             seed_generator = self._get_seed_generator(self.backend._backend)
-            h_start = self.backend.cast(
-                ops.random.uniform(
-                    (),
-                    0,
-                    maxval=float(input_height - self.height + 1),
-                    dtype="int",
-                    seed=seed_generator,
-                ),
-                "int",
-            )
-            w_start = self.backend.cast(
-                ops.random.uniform(
-                    (),
-                    0,
-                    maxval=float(input_width - self.width + 1),
-                    dtype="int",
-                    seed=seed_generator,
-                ),
-                "int",
-            )
+            h_start = self.backend.cast(self.backend.random.uniform(
+                (),
+                0,
+                maxval=float(input_height - self.height + 1),
+                seed=seed_generator,
+            ), "int32")
+            w_start = self.backend.cast(self.backend.random.uniform(
+                (),
+                0,
+                maxval=float(input_width - self.width + 1),
+                seed=seed_generator,
+            ), "int32")
             if self.data_format == "channels_last":
+                # return self.backend.core.slice(inputs, self.backend.numpy.stack([0, h_start, w_start, 0]), self.backend.numpy.stack([self.backend.shape(inputs)[0], self.height, self.width, self.backend.shape(inputs)[3]]))
                 return inputs[
                     :,
                     h_start : h_start + self.height,
                     w_start : w_start + self.width,
+                    :,
                 ]
             else:
+                # return self.backend.core.slice(inputs, self.backend.numpy.stack([0, 0, h_start, w_start]), self.backend.numpy.stack([self.backend.shape(inputs)[0], self.backend.shape(inputs)[1], self.height, self.width]))
                 return inputs[
                     :,
                     :,
@@ -138,20 +121,15 @@ class RandomCrop(TFDataLayer):
             # smart_resize will always output float32, so we need to re-cast.
             return self.backend.cast(outputs, self.compute_dtype)
 
+        predicate = self.backend.numpy.all(self.backend.numpy.stack([training, h_diff >= 0, w_diff >= 0]))
         outputs = self.backend.cond(
-            self.backend.numpy.all((training, h_diff >= 0, w_diff >= 0)),
+            predicate,
             random_crop,
             resize,
         )
 
-        outputs = (
-            self.backend.numpy.squeeze(outputs, axis=0)
-            if not is_batched
-            else outputs
-        )
-
-        if self.backend != "tensorflow" and not backend_utils.in_tf_graph():
-            outputs = self.backend.convert_to_tensor(outputs)
+        if not is_batched:
+            outputs = self.backend.numpy.squeeze(outputs, axis=0)
         return outputs
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
