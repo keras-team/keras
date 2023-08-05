@@ -2,13 +2,12 @@ import numpy as np
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
-from keras_core.utils import backend_utils
-from keras_core.utils.module_utils import tensorflow as tf
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras_core.random.seed_generator import SeedGenerator
 
 
 @keras_core_export("keras_core.layers.RandomRotation")
-class RandomRotation(Layer):
+class RandomRotation(TFDataLayer):
     """A preprocessing layer which randomly rotates images during training.
 
     This layer will apply random rotations to each image, filling empty space
@@ -21,14 +20,6 @@ class RandomRotation(Layer):
     Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
     of integer or floating point dtype.
     By default, the layer will output floats.
-
-    **Note:** This layer wraps `tf.keras.layers.RandomRotation`. It cannot
-    be used as part of the compiled computation graph of a model with
-    any backend other than TensorFlow.
-    It can however be used with any backend when running eagerly.
-    It can also always be used as part of an input preprocessing pipeline
-    with any backend (outside the model itself), which is how we recommend
-    to use this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -76,6 +67,17 @@ class RandomRotation(Layer):
             the boundaries when `fill_mode="constant"`.
     """
 
+    _FACTOR_VALIDATION_ERROR = (
+        "The `factor` argument should be a number (or a list of two numbers) "
+        "in the range [-1.0, 1.0]. "
+    )
+    _VALUE_RANGE_VALIDATION_ERROR = (
+        "The `value_range` argument should be a list of two numbers. "
+    )
+
+    _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
+    _SUPPORTED_INTERPOLATION = ("nearest", "bilinear")
+
     def __init__(
         self,
         factor,
@@ -83,45 +85,168 @@ class RandomRotation(Layer):
         interpolation="bilinear",
         seed=None,
         fill_value=0.0,
-        name=None,
+        value_range=(0, 255),
+        data_format=None,
         **kwargs,
     ):
-        if not tf.available:
-            raise ImportError(
-                "Layer RandomRotation requires TensorFlow. "
-                "Install it via `pip install tensorflow`."
+        super().__init__(**kwargs)
+        self.seed = seed
+        self.generator = SeedGenerator(seed)
+        self._set_factor(factor)
+        self._set_value_range(value_range)
+        self.data_format = backend.standardize_data_format(data_format)
+        self.fill_mode = fill_mode
+        self.interpolation = interpolation
+        self.fill_value = fill_value
+
+        self.supports_jit = False
+
+        if self.fill_mode not in self._SUPPORTED_FILL_MODE:
+            raise NotImplementedError(
+                f"Unknown `fill_mode` {fill_mode}. Expected of one "
+                f"{self._SUPPORTED_FILL_MODE}."
+            )
+        if self.interpolation not in self._SUPPORTED_INTERPOLATION:
+            raise NotImplementedError(
+                f"Unknown `interpolation` {interpolation}. Expected of one "
+                f"{self._SUPPORTED_INTERPOLATION}."
             )
 
-        super().__init__(name=name, **kwargs)
-        self.seed = seed or backend.random.make_default_seed()
-        self.layer = tf.keras.layers.RandomRotation(
-            factor=factor,
-            fill_mode=fill_mode,
-            interpolation=interpolation,
-            seed=self.seed,
-            fill_value=fill_value,
-            name=name,
-            **kwargs,
-        )
-        self.supports_jit = False
-        self._convert_input_args = False
-        self._allow_non_tensor_positional_args = True
+    def _set_value_range(self, value_range):
+        if not isinstance(value_range, (tuple, list)):
+            raise ValueError(
+                self.value_range_VALIDATION_ERROR
+                + f"Received: value_range={value_range}"
+            )
+        if len(value_range) != 2:
+            raise ValueError(
+                self.value_range_VALIDATION_ERROR
+                + f"Received: value_range={value_range}"
+            )
+        self.value_range = sorted(value_range)
 
-    def call(self, inputs, training=True):
-        if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
-        outputs = self.layer.call(inputs, training=training)
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
+    def _set_factor(self, factor):
+        if isinstance(factor, (tuple, list)):
+            if len(factor) != 2:
+                raise ValueError(
+                    self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
+                )
+            self._check_factor_range(factor[0])
+            self._check_factor_range(factor[1])
+            self._factor = sorted(factor)
+        elif isinstance(factor, (int, float)):
+            self._check_factor_range(factor)
+            factor = abs(factor)
+            self._factor = [-factor, factor]
+        else:
+            raise ValueError(
+                self._FACTOR_VALIDATION_ERROR + f"Received: factor={factor}"
+            )
+
+    def _check_factor_range(self, input_number):
+        if input_number > 1.0 or input_number < -1.0:
+            raise ValueError(
+                self._FACTOR_VALIDATION_ERROR
+                + f"Received: input_number={input_number}"
+            )
+
+    """
+    Assume an angle ø, then rotation matrix is defined by
+    | cos(ø)   -sin(ø)  x_offset |
+    | sin(ø)    cos(ø)  y_offset |
+    |   0         0         1    |
+
+    This function is returning the 8 elements barring the final 1 as a 1D array
+    """
+
+    def _get_rotation_matrix(self, inputs):
+        input_shape = len(inputs.shape)
+        if input_shape == 4:
+            if self.data_format == "channels_last":
+                batch_size = inputs.shape[0]
+                image_height = inputs.shape[1]
+                image_width = inputs.shape[2]
+            else:
+                batch_size = inputs.shape[1]
+                image_height = inputs.shape[2]
+                image_width = inputs.shape[3]
+        else:
+            batch_size = 1
+            if self.data_format == "channels_last":
+                image_height = inputs.shape[0]
+                image_width = inputs.shape[1]
+            else:
+                image_height = inputs.shape[1]
+                image_width = inputs.shape[2]
+
+        lower = self._factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
+        upper = self._factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
+
+        seed_generator = self._get_seed_generator(self.backend._backend)
+        angle = self.backend.random.uniform(
+            shape=(batch_size,),
+            minval=lower,
+            maxval=upper,
+            seed=seed_generator,
+        )
+
+        cos_theta = self.backend.numpy.cos(angle)
+        sin_theta = self.backend.numpy.sin(angle)
+
+        x_offset = (
+            (image_width - 1)
+            - (cos_theta * (image_width - 1) - sin_theta * (image_height - 1))
+        ) / 2.0
+
+        y_offset = (
+            (image_height - 1)
+            - (sin_theta * (image_width - 1) + cos_theta * (image_height - 1))
+        ) / 2.0
+
+        outputs = self.backend.numpy.concatenate(
+            [
+                self.backend.numpy.cos(angle)[:, None],
+                -self.backend.numpy.sin(angle)[:, None],
+                x_offset[:, None],
+                self.backend.numpy.sin(angle)[:, None],
+                self.backend.numpy.cos(angle)[:, None],
+                y_offset[:, None],
+                self.backend.numpy.zeros((batch_size, 2)),
+            ],
+            axis=1,
+        )
+        if input_shape == 3:
+            outputs = self.backend.numpy.squeeze(outputs, axis=0)
         return outputs
 
+    def call(self, inputs, training=True):
+        inputs = self.backend.cast(inputs, self.compute_dtype)
+        if training:
+            rotation_matrix = self._get_rotation_matrix(inputs)
+            transformed_image = self.backend.image.affine_transform(
+                image=inputs,
+                transform=rotation_matrix,
+                interpolation=self.interpolation,
+                fill_mode=self.fill_mode,
+                fill_value=self.fill_value,
+                data_format=self.data_format,
+            )
+            return transformed_image
+        else:
+            return inputs
+
     def compute_output_shape(self, input_shape):
-        return tuple(self.layer.compute_output_shape(input_shape))
+        return input_shape
 
     def get_config(self):
-        config = self.layer.get_config()
-        config.update({"seed": self.seed})
-        return config
+        config = {
+            "factor": self._factor,
+            "value_range": self.value_range,
+            "data_format": self.data_format,
+            "fill_mode": self.fill_mode,
+            "fill_value": self.fill_value,
+            "interpolation": self.interpolation,
+            "seed": self.seed,
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
