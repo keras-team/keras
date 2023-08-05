@@ -1,10 +1,9 @@
 # Tensorflow
-tensorflow>=2.13.0
+tensorflow-cpu>=2.13.0
 
 # Torch.
-# TODO: Use Torch CPU, remove after resolving Cuda version differences with TF
 torch>=2.0.1+cpu
-torchvision>=0.15.1
+torchvision>=0.15.1+cpu
 
 # Jax.
 jax[cpu]
