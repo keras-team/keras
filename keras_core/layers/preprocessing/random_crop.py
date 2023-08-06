@@ -1,5 +1,4 @@
 from keras_core import backend
-from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.random.seed_generator import SeedGenerator
@@ -82,34 +81,46 @@ class RandomCrop(TFDataLayer):
             )
 
             seed_generator = self._get_seed_generator(self.backend._backend)
-            h_start = self.backend.cast(self.backend.random.uniform(
-                (),
-                0,
-                maxval=float(input_height - self.height + 1),
-                seed=seed_generator,
-            ), "int32")
-            w_start = self.backend.cast(self.backend.random.uniform(
-                (),
-                0,
-                maxval=float(input_width - self.width + 1),
-                seed=seed_generator,
-            ), "int32")
+            h_start = self.backend.cast(
+                self.backend.random.uniform(
+                    (),
+                    0,
+                    maxval=float(input_height - self.height + 1),
+                    seed=seed_generator,
+                ),
+                "int32",
+            )
+            w_start = self.backend.cast(
+                self.backend.random.uniform(
+                    (),
+                    0,
+                    maxval=float(input_width - self.width + 1),
+                    seed=seed_generator,
+                ),
+                "int32",
+            )
             if self.data_format == "channels_last":
-                # return self.backend.core.slice(inputs, self.backend.numpy.stack([0, h_start, w_start, 0]), self.backend.numpy.stack([self.backend.shape(inputs)[0], self.height, self.width, self.backend.shape(inputs)[3]]))
-                return inputs[
-                    :,
-                    h_start : h_start + self.height,
-                    w_start : w_start + self.width,
-                    :,
-                ]
+                return self.backend.core.slice(
+                    inputs,
+                    self.backend.numpy.stack([0, h_start, w_start, 0]),
+                    [
+                        self.backend.shape(inputs)[0],
+                        self.height,
+                        self.width,
+                        self.backend.shape(inputs)[3],
+                    ],
+                )
             else:
-                # return self.backend.core.slice(inputs, self.backend.numpy.stack([0, 0, h_start, w_start]), self.backend.numpy.stack([self.backend.shape(inputs)[0], self.backend.shape(inputs)[1], self.height, self.width]))
-                return inputs[
-                    :,
-                    :,
-                    h_start : h_start + self.height,
-                    w_start : w_start + self.width,
-                ]
+                return self.backend.core.slice(
+                    inputs,
+                    self.backend.numpy.stack([0, 0, h_start, w_start]),
+                    [
+                        self.backend.shape(inputs)[0],
+                        self.backend.shape(inputs)[1],
+                        self.height,
+                        self.width,
+                    ],
+                )
 
         def resize():
             outputs = image_utils.smart_resize(
@@ -121,12 +132,21 @@ class RandomCrop(TFDataLayer):
             # smart_resize will always output float32, so we need to re-cast.
             return self.backend.cast(outputs, self.compute_dtype)
 
-        predicate = self.backend.numpy.all(self.backend.numpy.stack([training, h_diff >= 0, w_diff >= 0]))
-        outputs = self.backend.cond(
-            predicate,
-            random_crop,
-            resize,
-        )
+        if isinstance(h_diff, int) and isinstance(w_diff, int):
+            if training and h_diff >= 0 and w_diff >= 0:
+                outputs = random_crop()
+            else:
+                outputs = resize()
+        else:
+            predicate = self.backend.numpy.logical_and(
+                training,
+                self.backend.numpy.logical_and(h_diff >= 0, w_diff >= 0),
+            )
+            outputs = self.backend.cond(
+                predicate,
+                random_crop,
+                resize,
+            )
 
         if not is_batched:
             outputs = self.backend.numpy.squeeze(outputs, axis=0)
