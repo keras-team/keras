@@ -34,7 +34,7 @@ class StringLookup(index_lookup.IndexLookup):
 
     This layer translates a set of arbitrary strings into integer output via a
     table-based vocabulary lookup. This layer will perform no splitting or
-    transformation of input strings. For a layer than can split and tokenize
+    transformation of input strings. For a layer that can split and tokenize
     natural language, see the `tf.keras.layers.TextVectorization` layer.
 
     The vocabulary for the layer must be either supplied on construction or
@@ -82,7 +82,7 @@ class StringLookup(index_lookup.IndexLookup):
         indices. Defaults to `"[UNK]"`.
       vocabulary: Optional. Either an array of strings or a string path to a
         text file. If passing an array, can pass a tuple, list, 1D numpy array,
-        or 1D tensor containing the string vocbulary terms. If passing a file
+        or 1D tensor containing the string vocabulary terms. If passing a file
         path, the file should contain one line per term in the vocabulary. If
         this argument is set, there is no need to `adapt()` the layer.
       idf_weights: Only valid when `output_mode` is `"tf_idf"`. A tuple, list,
@@ -114,13 +114,13 @@ class StringLookup(index_lookup.IndexLookup):
             find the value in each token slot.
         For `"int"` output, any shape of input and output is supported. For all
         other output modes, currently only output up to rank 2 is supported.
-        Defaults to `"int"`
+        Defaults to `"int"`.
       pad_to_max_tokens: Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, the output will have its feature axis
         padded to `max_tokens` even if the number of unique tokens in the
         vocabulary is less than max_tokens, resulting in a tensor of shape
         [batch_size, max_tokens] regardless of vocabulary size. Defaults to
-        False.
+        `False`.
       sparse: Boolean. Only applicable when `output_mode` is `"multi_hot"`,
         `"count"`, or `"tf_idf"`. If True, returns a `SparseTensor` instead of a
         dense `Tensor`. Defaults to `False`.
