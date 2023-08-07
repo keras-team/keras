@@ -1,9 +1,9 @@
 """
 Title: Compact Convolutional Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 Date created: 2021/06/30
-Last modified: 2023/07/17
+Last modified: 2023/08/07
 Description: Compact Convolutional Transformers for efficient image classification.
 Accelerator: GPU
 """
@@ -39,15 +39,10 @@ code snippets from another example,
 ## Imports
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "tensorflow"
-
 from keras_core import layers
 import keras_core as keras
 
 import matplotlib.pyplot as plt
-import tensorflow as tf
 import numpy as np
 
 """
@@ -135,7 +130,7 @@ class CCTTokenizer(layers.Layer):
             )
             self.conv_model.add(layers.ZeroPadding2D(padding))
             self.conv_model.add(
-                layers.MaxPool2D(pooling_kernel_size, pooling_stride, "same")
+                layers.MaxPooling2D(pooling_kernel_size, pooling_stride, "same")
             )
 
         self.positional_emb = positional_emb
@@ -144,32 +139,77 @@ class CCTTokenizer(layers.Layer):
         outputs = self.conv_model(images)
         # After passing the images through our mini-network the spatial dimensions
         # are flattened to form sequences.
-        reshaped = tf.reshape(
+        reshaped = keras.ops.reshape(
             outputs,
             (
                 -1,
-                tf.shape(outputs)[1] * tf.shape(outputs)[2],
-                tf.shape(outputs)[-1],
+                keras.ops.shape(outputs)[1] * keras.ops.shape(outputs)[2],
+                keras.ops.shape(outputs)[-1],
             ),
         )
         return reshaped
 
-    def positional_embedding(self, image_size):
-        # Positional embeddings are optional in CCT. Here, we calculate
-        # the number of sequences and initialize an `Embedding` layer to
-        # compute the positional embeddings later.
-        if self.positional_emb:
-            dummy_inputs = tf.ones((1, image_size, image_size, 3))
-            dummy_outputs = self.call(dummy_inputs)
-            sequence_length = tf.shape(dummy_outputs)[1]
-            projection_dim = tf.shape(dummy_outputs)[-1]
 
-            embed_layer = layers.Embedding(
-                input_dim=sequence_length, output_dim=projection_dim
+"""
+Positional embeddings are optional in CCT. If we want to use them, we can use
+the Layer defined below.
+"""
+
+
+class PositionEmbedding(keras.layers.Layer):
+    def __init__(
+        self,
+        sequence_length,
+        initializer="glorot_uniform",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        if sequence_length is None:
+            raise ValueError(
+                "`sequence_length` must be an Integer, received `None`."
             )
-            return embed_layer, sequence_length
-        else:
-            return None
+        self.sequence_length = int(sequence_length)
+        self.initializer = keras.initializers.get(initializer)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "sequence_length": self.sequence_length,
+                "initializer": keras.initializers.serialize(self.initializer),
+            }
+        )
+        return config
+
+    def build(self, input_shape):
+        feature_size = input_shape[-1]
+        self.position_embeddings = self.add_weight(
+            name="embeddings",
+            shape=[self.sequence_length, feature_size],
+            initializer=self.initializer,
+            trainable=True,
+        )
+
+        super().build(input_shape)
+
+    def call(self, inputs, start_index=0):
+        shape = keras.ops.shape(inputs)
+        feature_length = shape[-1]
+        sequence_length = shape[-2]
+        # trim to match the length of the input sequence, which might be less
+        # than the sequence_length of the layer.
+        position_embeddings = keras.ops.convert_to_tensor(
+            self.position_embeddings
+        )
+        position_embeddings = keras.ops.slice(
+            position_embeddings,
+            (start_index, 0),
+            (sequence_length, feature_length),
+        )
+        return keras.ops.broadcast_to(position_embeddings, shape)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 """
@@ -186,11 +226,12 @@ class SequencePooling(layers.Layer):
         self.attention = layers.Dense(1)
 
     def call(self, x):
-        attention_weights = tf.nn.softmax(self.attention(x), axis=1)
-        weighted_representation = tf.matmul(
-            attention_weights, x, transpose_a=True
+        attention_weights = keras.ops.softmax(self.attention(x), axis=1)
+        attention_weights = keras.ops.transpose(
+            attention_weights, axes=(0, 2, 1)
         )
-        return tf.squeeze(weighted_representation, -2)
+        weighted_representation = keras.ops.matmul(attention_weights, x)
+        return keras.ops.squeeze(weighted_representation, -2)
 
 
 """
@@ -214,9 +255,9 @@ class StochasticDepth(layers.Layer):
     def call(self, x, training=None):
         if training:
             keep_prob = 1 - self.drop_prob
-            shape = (tf.shape(x)[0],) + (1,) * (tf.shape(x).shape[0] - 1)
-            random_tensor = keep_prob + tf.random.uniform(shape, 0, 1)
-            random_tensor = tf.floor(random_tensor)
+            shape = (keras.ops.shape(x)[0],) + (1,) * (len(x.shape) - 1)
+            random_tensor = keep_prob + keras.random.random.uniform(shape, 0, 1)
+            random_tensor = keras.ops.floor(random_tensor)
             return (x / keep_prob) * random_tensor
         return x
 
@@ -228,7 +269,7 @@ class StochasticDepth(layers.Layer):
 
 def mlp(x, hidden_units, dropout_rate):
     for units in hidden_units:
-        x = layers.Dense(units, activation=tf.nn.gelu)(x)
+        x = layers.Dense(units, activation=keras.ops.gelu)(x)
         x = layers.Dropout(dropout_rate)(x)
     return x
 
@@ -278,10 +319,10 @@ def create_cct_model(
 
     # Apply positional embedding.
     if positional_emb:
-        pos_embed, seq_length = cct_tokenizer.positional_embedding(image_size)
-        positions = tf.range(start=0, limit=seq_length, delta=1)
-        position_embeddings = pos_embed(positions)
-        encoded_patches += position_embeddings
+        sequence_length = encoded_patches.shape[1]
+        encoded_patches += PositionEmbedding(sequence_length=sequence_length)(
+            encoded_patches
+        )
 
     # Calculate Stochastic Depth probabilities.
     dpr = [x for x in np.linspace(0, stochastic_depth_rate, transformer_layers)]
@@ -383,7 +424,7 @@ plt.show()
 
 """
 The CCT model we just trained has just **0.4 million** parameters, and it gets us to
-~78% top-1 accuracy within 30 epochs. The plot above shows no signs of overfitting as
+~79% top-1 accuracy within 30 epochs. The plot above shows no signs of overfitting as
 well. This means we can train this network for longer (perhaps with a bit more
 regularization) and may obtain even better performance. This performance can further be
 improved by additional recipes like cosine decay learning rate schedule, other data augmentation
