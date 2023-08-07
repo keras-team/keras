@@ -44,26 +44,37 @@ class RandomFlip(TFDataLayer):
         self.seed = seed
         self.generator = SeedGenerator(seed)
         self.mode = mode
-        self.supports_jit = False
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
 
     def _randomly_flip_inputs(self, inputs):
+        unbatched = len(inputs.shape) == 3
+        if unbatched:
+            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+        batch_size = self.backend.shape(inputs)[0]
         flipped_outputs = inputs
         seed_generator = self._get_seed_generator(self.backend._backend)
         if self.mode == HORIZONTAL or self.mode == HORIZONTAL_AND_VERTICAL:
-            flipped_outputs = self.backend.cond(
-                self.backend.random.uniform(shape=(), seed=seed_generator)
+            flipped_outputs = self.backend.numpy.where(
+                self.backend.random.uniform(
+                    shape=(batch_size,), seed=seed_generator
+                )
                 <= 0.5,
-                lambda: self.backend.numpy.flip(flipped_outputs, axis=-2),
-                lambda: flipped_outputs,
+                self.backend.numpy.flip(flipped_outputs, axis=-2),
+                flipped_outputs,
             )
         if self.mode == VERTICAL or self.mode == HORIZONTAL_AND_VERTICAL:
-            flipped_outputs = self.backend.cond(
-                self.backend.random.uniform(shape=(), seed=seed_generator)
+            flipped_outputs = self.backend.numpy.where(
+                self.backend.random.uniform(
+                    shape=(batch_size,), seed=seed_generator
+                )
                 <= 0.5,
-                lambda: self.backend.numpy.flip(flipped_outputs, axis=-3),
-                lambda: flipped_outputs,
+                self.backend.numpy.flip(flipped_outputs, axis=-3),
+                flipped_outputs,
+            )
+        if unbatched:
+            flipped_outputs = self.backend.numpy.squeeze(
+                flipped_outputs, axis=0
             )
         return flipped_outputs
 

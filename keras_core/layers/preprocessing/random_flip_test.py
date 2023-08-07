@@ -12,8 +12,15 @@ from keras_core import utils
 
 class MockedRandomFlip(layers.RandomFlip):
     def call(self, inputs, training=True):
+        unbatched = len(inputs.shape) == 3
+        batch_size = 1 if unbatched else self.backend.shape(inputs)[0]
+        mocked_value = self.backend.numpy.full(
+            (batch_size,), 0.1, dtype="float32"
+        )
         with unittest.mock.patch.object(
-            self.backend.random, "uniform", return_value=0.1
+            self.backend.random,
+            "uniform",
+            return_value=mocked_value,
         ):
             out = super().call(inputs, training=training)
         return out
@@ -26,6 +33,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
         ("random_flip_both", "horizontal_and_vertical"),
     )
     def test_random_flip(self, mode):
+        run_training_check = False if backend.backend() == "numpy" else True
         self.run_layer_test(
             layers.RandomFlip,
             init_kwargs={
@@ -34,10 +42,11 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             input_shape=(2, 3, 4),
             expected_output_shape=(2, 3, 4),
             supports_masking=False,
-            run_training_check=False,
+            run_training_check=run_training_check,
         )
 
     def test_random_flip_horizontal(self):
+        run_training_check = False if backend.backend() == "numpy" else True
         utils.set_random_seed(0)
         self.run_layer_test(
             MockedRandomFlip,
@@ -48,10 +57,11 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
             input_data=np.asarray([[[2, 3, 4], [5, 6, 7]]]),
             expected_output=backend.convert_to_tensor([[[5, 6, 7], [2, 3, 4]]]),
             supports_masking=False,
-            run_training_check=False,
+            run_training_check=run_training_check,
         )
 
     def test_random_flip_vertical(self):
+        run_training_check = False if backend.backend() == "numpy" else True
         utils.set_random_seed(0)
         self.run_layer_test(
             MockedRandomFlip,
@@ -64,7 +74,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
                 [[[5, 6, 7]], [[2, 3, 4]]]
             ),
             supports_masking=False,
-            run_training_check=False,
+            run_training_check=run_training_check,
         )
 
     def test_tf_data_compatibility(self):
