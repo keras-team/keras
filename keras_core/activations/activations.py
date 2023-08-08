@@ -429,7 +429,7 @@ def log_softmax(x, axis=-1):
     is applied along.
 
     Args:
-        x : Input tensor.
+        x: Input tensor.
         axis: Integer, axis along which the softmax is applied.
     """
     return ops.log_softmax(x, axis=axis)
