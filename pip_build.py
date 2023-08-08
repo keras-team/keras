@@ -35,7 +35,7 @@ def ignore_files(_, filenames):
     return [f for f in filenames if f.endswith("_test.py")]
 
 
-def build():
+def build(root_path):
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
 
@@ -43,7 +43,6 @@ def build():
     try:
         # Copy sources (`keras_core/` directory and setup files) to build
         # directory
-        root_path = pathlib.Path(__file__).parent.resolve()
         os.chdir(root_path)
         os.mkdir(build_directory)
         shutil.copytree(
@@ -181,6 +180,7 @@ if __name__ == "__main__":
         help="Whether to install the generated wheel file.",
     )
     args = parser.parse_args()
-    whl_path = build()
+    root_path = pathlib.Path(__file__).parent.resolve()
+    whl_path = build(root_path)
     if whl_path and args.install:
         install_whl(whl_path)
