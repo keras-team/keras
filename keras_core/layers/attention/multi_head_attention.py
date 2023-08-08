@@ -4,7 +4,6 @@ import string
 
 import numpy as np
 
-from keras_core import backend
 from keras_core import constraints
 from keras_core import initializers
 from keras_core import ops
@@ -314,9 +313,7 @@ class MultiHeadAttention(Layer):
         )
         self._softmax = Softmax(axis=norm_axes)
         self._dropout_layer = Dropout(rate=self._dropout)
-        self._inverse_sqrt_key_dim = backend.convert_to_tensor(
-            1.0 / math.sqrt(float(self._key_dim))
-        )
+        self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
         # Normalize the attention scores to probabilities.
