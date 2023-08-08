@@ -527,6 +527,35 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
+    def test_api_errors(self):
+        from keras_core.saving import saving_api
+
+        model = _get_basic_functional_model()
+
+        # Saving API errors
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel")
+        with self.assertRaisesRegex(ValueError, "argument is deprecated"):
+            saving_api.save_model(model, temp_filepath, save_format="keras")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.notkeras")
+        with self.assertRaisesRegex(ValueError, "Invalid filepath extension"):
+            saving_api.save_model(model, temp_filepath)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        with self.assertRaisesRegex(ValueError, "are not supported"):
+            saving_api.save_model(model, temp_filepath, invalid_arg="hello")
+
+        # Loading API errors
+        temp_filepath = os.path.join(self.get_temp_dir(), "non_existent.keras")
+        with self.assertRaisesRegex(
+            ValueError, "Please ensure the file is an accessible"
+        ):
+            _ = saving_api.load_model(temp_filepath)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "my_saved_model")
+        with self.assertRaisesRegex(ValueError, "File format not supported"):
+            _ = saving_api.load_model(temp_filepath)
+
 
 # def test_safe_mode(self):
 #     temp_filepath = os.path.join(self.get_temp_dir(), "unsafe_model.keras")
