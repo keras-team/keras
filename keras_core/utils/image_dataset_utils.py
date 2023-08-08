@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras_core.api_export import keras_core_export
+from keras_core.backend.config import standardize_data_format
 from keras_core.utils import dataset_utils
 from keras_core.utils import image_utils
 from keras_core.utils.module_utils import tensorflow as tf
@@ -29,6 +30,7 @@ def image_dataset_from_directory(
     interpolation="bilinear",
     follow_links=False,
     crop_to_aspect_ratio=False,
+    data_format=None,
 ):
     """Generates a `tf.data.Dataset` from image files in a directory.
 
@@ -111,6 +113,8 @@ def image_dataset_from_directory(
             (of size `image_size`) that matches the target aspect ratio. By
             default (`crop_to_aspect_ratio=False`), aspect ratio may not be
             preserved.
+        data_format: If None uses keras_core.config.image_data_format()
+            otherwise either 'channel_last' or 'channel_first'.
 
     Returns:
 
@@ -142,6 +146,7 @@ def image_dataset_from_directory(
     - if `color_mode` is `"rgba"`,
         there are 4 channels in the image tensors.
     """
+
     if labels not in ("inferred", None):
         if not isinstance(labels, (list, tuple)):
             raise ValueError(
@@ -220,6 +225,8 @@ def image_dataset_from_directory(
             f"class_names. Received: class_names={class_names}"
         )
 
+    data_format = standardize_data_format(data_format=data_format)
+
     if subset == "both":
         (
             image_paths_train,
@@ -252,7 +259,9 @@ def image_dataset_from_directory(
             num_classes=len(class_names),
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            data_format=data_format,
         )
+
         val_dataset = paths_and_labels_to_dataset(
             image_paths=image_paths_val,
             image_size=image_size,
@@ -262,6 +271,7 @@ def image_dataset_from_directory(
             num_classes=len(class_names),
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            data_format=data_format,
         )
 
         if batch_size is not None:
@@ -288,6 +298,7 @@ def image_dataset_from_directory(
         # Include file paths for images as attribute.
         train_dataset.file_paths = image_paths_train
         val_dataset.file_paths = image_paths_val
+
         dataset = [train_dataset, val_dataset]
     else:
         image_paths, labels = dataset_utils.get_training_or_validation_split(
@@ -308,6 +319,7 @@ def image_dataset_from_directory(
             num_classes=len(class_names),
             interpolation=interpolation,
             crop_to_aspect_ratio=crop_to_aspect_ratio,
+            data_format=data_format,
         )
 
         if batch_size is not None:
@@ -320,12 +332,12 @@ def image_dataset_from_directory(
                 dataset = dataset.shuffle(buffer_size=1024, seed=seed)
 
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
-
         # Users may need to reference `class_names`.
         dataset.class_names = class_names
 
         # Include file paths for images as attribute.
         dataset.file_paths = image_paths
+
     return dataset
 
 
@@ -337,12 +349,19 @@ def paths_and_labels_to_dataset(
     label_mode,
     num_classes,
     interpolation,
+    data_format,
     crop_to_aspect_ratio=False,
 ):
     """Constructs a dataset of images and labels."""
     # TODO(fchollet): consider making num_parallel_calls settable
     path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
-    args = (image_size, num_channels, interpolation, crop_to_aspect_ratio)
+    args = (
+        image_size,
+        num_channels,
+        interpolation,
+        data_format,
+        crop_to_aspect_ratio,
+    )
     img_ds = path_ds.map(
         lambda x: load_image(x, *args), num_parallel_calls=tf.data.AUTOTUNE
     )
@@ -355,7 +374,12 @@ def paths_and_labels_to_dataset(
 
 
 def load_image(
-    path, image_size, num_channels, interpolation, crop_to_aspect_ratio=False
+    path,
+    image_size,
+    num_channels,
+    interpolation,
+    data_format,
+    crop_to_aspect_ratio=False,
 ):
     """Load an image from a path and resize it."""
     img = tf.io.read_file(path)
@@ -369,6 +393,7 @@ def load_image(
             img,
             image_size,
             interpolation=interpolation,
+            data_format=data_format,
             backend_module=tf_backend,
         )
     else:
