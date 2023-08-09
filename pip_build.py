@@ -156,17 +156,18 @@ def build_and_save_output(root_path, __version__):
         shutil.copy(fpath, dist_directory)
 
     # Find the .whl file path
+    whl_path = None
     for fname in os.listdir(dist_directory):
         if __version__ in fname and fname.endswith(".whl"):
             whl_path = os.path.abspath(os.path.join(dist_directory, fname))
     print(f"Build successful. Wheel file available at {whl_path}")
+    return whl_path
 
 
 def build(root_path):
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
 
-    whl_path = None
     try:
         copy_source_to_build_directory(root_path)
         run_namex_conversion()
@@ -174,11 +175,10 @@ def build(root_path):
         from keras_core.src.version import __version__  # noqa: E402
 
         export_version_string(__version__)
-        build_and_save_output(root_path, __version__)
+        return build_and_save_output(root_path, __version__)
     finally:
         # Clean up: remove the build directory (no longer needed)
         shutil.rmtree(build_directory)
-    return whl_path
 
 
 def install_whl(whl_fpath):
