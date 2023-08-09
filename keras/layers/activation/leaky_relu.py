@@ -55,14 +55,17 @@ class LeakyReLU(Layer):
 
     Args:
         alpha: Float >= `0.`. Negative slope coefficient. Defaults to `0.3`.
+        **NOTE**: If alpha is given an int value then it will be casted to
+        float internally.
 
     """
 
     def __init__(self, alpha=0.3, **kwargs):
         super().__init__(**kwargs)
-        if alpha is None:
+        if alpha is None or alpha < 0 :
             raise ValueError(
-                "The alpha value of a Leaky ReLU layer cannot be None, "
+                "The alpha value of a Leaky ReLU layer cannot be None and"
+                "also cannot be a negative value"
                 f"Expecting a float. Received: {alpha}"
             )
         self.supports_masking = True
