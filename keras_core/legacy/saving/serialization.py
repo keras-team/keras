@@ -1,7 +1,7 @@
 """Legacy serialization logic for Keras models."""
-
 import contextlib
 import inspect
+import json
 import threading
 import weakref
 
@@ -484,6 +484,12 @@ def deserialize_keras_object(
             arg_spec = inspect.getfullargspec(cls.from_config)
             custom_objects = custom_objects or {}
 
+            # TODO(nkovela): Swap find and replace args during Keras 3.0 release
+            # Replace keras refs with keras_core
+            cls_config = _find_replace_nested_dict(
+                cls_config, "keras.", "keras_core."
+            )
+
             if "custom_objects" in arg_spec.args:
                 deserialized_obj = cls.from_config(
                     cls_config,
@@ -558,3 +564,10 @@ def validate_config(config):
 def is_default(method):
     """Check if a method is decorated with the `default` wrapper."""
     return getattr(method, "_is_default", False)
+
+
+def _find_replace_nested_dict(config, find, replace):
+    dict_str = json.dumps(config)
+    dict_str = dict_str.replace(find, replace)
+    config = json.loads(dict_str)
+    return config

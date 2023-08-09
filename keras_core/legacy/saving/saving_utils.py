@@ -1,3 +1,4 @@
+import json
 import threading
 
 import tree
@@ -6,7 +7,7 @@ from absl import logging
 from keras_core import backend
 from keras_core import layers
 from keras_core import losses
-from keras_core import metrics
+from keras_core import metrics as metrics_module
 from keras_core import models
 from keras_core import optimizers
 from keras_core.legacy.saving import serialization
@@ -45,6 +46,21 @@ def model_from_config(config, custom_objects=None):
         MODULE_OBJECTS.ALL_OBJECTS["Functional"] = models.Functional
         MODULE_OBJECTS.ALL_OBJECTS["Model"] = models.Model
         MODULE_OBJECTS.ALL_OBJECTS["Sequential"] = models.Sequential
+
+    batch_input_shape = config["config"].pop("batch_input_shape", None)
+    if batch_input_shape is not None:
+        if config["class_name"] == "InputLayer":
+            config["config"]["batch_shape"] = batch_input_shape
+        else:
+            config["config"]["input_shape"] = batch_input_shape
+
+    axis = config["config"].pop("axis", None)
+    if axis is not None and isinstance(axis, list) and len(axis) == 1:
+        config["config"]["axis"] = int(axis[0])
+
+    # TODO(nkovela): Swap find and replace args during Keras 3.0 release
+    # Replace keras refs with keras_core
+    config = _find_replace_nested_dict(config, "keras.", "keras_core.")
 
     return serialization.deserialize_keras_object(
         config,
@@ -95,12 +111,18 @@ def compile_args_from_training_config(training_config, custom_objects=None):
     with object_registration.CustomObjectScope(custom_objects):
         optimizer_config = training_config["optimizer_config"]
         optimizer = optimizers.deserialize(optimizer_config)
+        # Ensure backwards compatibility for optimizers in legacy H5 files
+        optimizer = _resolve_compile_arguments_compat(
+            optimizer, optimizer_config, optimizers
+        )
 
         # Recover losses.
         loss = None
         loss_config = training_config.get("loss", None)
         if loss_config is not None:
             loss = _deserialize_nested_config(losses.deserialize, loss_config)
+            # Ensure backwards compatibility for losses in legacy H5 files
+            loss = _resolve_compile_arguments_compat(loss, loss_config, losses)
 
         # Recover metrics.
         metrics = None
@@ -108,6 +130,10 @@ def compile_args_from_training_config(training_config, custom_objects=None):
         if metrics_config is not None:
             metrics = _deserialize_nested_config(
                 _deserialize_metric, metrics_config
+            )
+            # Ensure backwards compatibility for metrics in legacy H5 files
+            metrics = _resolve_compile_arguments_compat(
+                metrics, metrics_config, metrics_module
             )
 
         # Recover weighted metrics.
@@ -177,7 +203,27 @@ def _deserialize_metric(metric_config):
         # special case handling for these in compile, based on model output
         # shape.
         return metric_config
-    return metrics.deserialize(metric_config)
+    return metrics_module.deserialize(metric_config)
+
+
+def _find_replace_nested_dict(config, find, replace):
+    dict_str = json.dumps(config)
+    dict_str = dict_str.replace(find, replace)
+    config = json.loads(dict_str)
+    return config
+
+
+def _resolve_compile_arguments_compat(obj, obj_config, module):
+    """Resolves backwards compatiblity issues with training config arguments.
+
+    This helper function accepts built-in Keras modules such as optimizers,
+    losses, and metrics to ensure an object being deserialized is compatible
+    with Keras Core built-ins. For legacy H5 files saved within Keras Core,
+    this does nothing.
+    """
+    if isinstance(obj, str) and obj not in module.ALL_OBJECTS_DICT:
+        obj = module.get(obj_config["config"]["name"])
+    return obj
 
 
 def try_build_compiled_arguments(model):

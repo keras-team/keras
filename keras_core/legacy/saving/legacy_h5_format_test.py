@@ -107,7 +107,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model)
 
-    def test_functional_model_weights(self):
+    def test_functional_model(self):
         model = get_functional_model(keras_core)
         ref_input = np.random.random((2, 3))
         self._check_reloading_model(ref_input, model)
@@ -121,3 +121,45 @@ class LegacyH5WholeModelTest(testing.TestCase):
         model.compile(optimizer="rmsprop", loss="mse")
         ref_input = np.random.random((1, 3))
         self._check_reloading_model(ref_input, model)
+
+
+@pytest.mark.requires_trainable_backend
+class LegacyH5BackwardsCompatTest(testing.TestCase):
+    def _check_reloading_model(self, ref_input, model, tf_keras_model):
+        # Whole model file
+        ref_output = tf_keras_model(ref_input)
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.h5")
+        tf_keras_model.save(temp_filepath)
+        loaded = legacy_h5_format.load_model_from_hdf5(temp_filepath)
+        output = loaded(ref_input)
+        self.assertAllClose(ref_output, output, atol=1e-5)
+
+    def test_sequential_model(self):
+        model = get_sequential_model(keras_core)
+        tf_keras_model = get_sequential_model(tf.keras)
+        ref_input = np.random.random((2, 3))
+        self._check_reloading_model(ref_input, model, tf_keras_model)
+
+    def test_functional_model(self):
+        tf_keras_model = get_functional_model(tf.keras)
+        model = get_functional_model(keras_core)
+        ref_input = np.random.random((2, 3))
+        self._check_reloading_model(ref_input, model, tf_keras_model)
+
+    def test_compiled_model_with_various_layers(self):
+        model = models.Sequential()
+        model.add(layers.Dense(2, input_shape=(3,)))
+        model.add(layers.RepeatVector(3))
+        model.add(layers.TimeDistributed(layers.Dense(3)))
+        model.compile(optimizer="rmsprop", loss="mse")
+
+        tf_keras_model = tf.keras.Sequential()
+        tf_keras_model.add(tf.keras.layers.Dense(2, input_shape=(3,)))
+        tf_keras_model.add(tf.keras.layers.RepeatVector(3))
+        tf_keras_model.add(
+            tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(3))
+        )
+        tf_keras_model.compile(optimizer="rmsprop", loss="mse")
+
+        ref_input = np.random.random((1, 3))
+        self._check_reloading_model(ref_input, model, tf_keras_model)
