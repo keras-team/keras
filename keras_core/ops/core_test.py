@@ -330,3 +330,14 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         for o, o_e in zip(out, out_ex):
             o = ops.convert_to_numpy(o)
             self.assertAllClose(o, o_e)
+
+    def test_cast(self):
+        x = ops.ones((2,), dtype="float32")
+        y = ops.cast(x, "float16")
+        self.assertIn("float16", str(y.dtype))
+
+        x = ops.KerasTensor((2,), dtype="float32")
+        y = ops.cast(x, "float16")
+        self.assertEqual("float16", y.dtype)
+        self.assertEqual(x.shape, y.shape)
+        self.assertTrue(hasattr(y, "_keras_history"))

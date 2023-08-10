@@ -421,6 +421,18 @@ def shape(x):
     return backend.core.shape(x)
 
 
+class Cast(Operation):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = backend.standardize_dtype(dtype)
+
+    def call(self, x):
+        return backend.core.cast(x, self.dtype)
+
+    def compute_output_spec(self, x):
+        return backend.KerasTensor(shape=x.shape, dtype=self.dtype)
+
+
 @keras_core_export("keras_core.ops.cast")
 def cast(x, dtype):
     """Cast a tensor to the desired dtype.
@@ -440,7 +452,7 @@ def cast(x, dtype):
     dtype = backend.standardize_dtype(dtype)
 
     if any_symbolic_tensors((x,)):
-        return backend.KerasTensor(shape=x.shape, dtype=dtype)
+        return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
 
 
