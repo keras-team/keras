@@ -144,23 +144,24 @@ class SGD(optimizer.Optimizer):
         if hasattr(self, "_built") and self._built:
             return
         self.momentums = []
-        for var in var_list:
-            self.momentums.append(
-                self.add_variable_from_reference(
-                    model_variable=var, variable_name="m"
+        if self.momentum != 0:
+            for var in var_list:
+                self.momentums.append(
+                    self.add_variable_from_reference(
+                        model_variable=var, variable_name="m"
+                    )
                 )
-            )
         self._built = True
 
     def update_step(self, gradient, variable):
         """Update step given gradient and the associated model variable."""
         lr = tf.cast(self.learning_rate, variable.dtype)
         m = None
-        var_key = self._var_key(variable)
-        momentum = tf.cast(self.momentum, variable.dtype)
-        m = self.momentums[self._index_dict[var_key]]
+        if self.momentum != 0:
+            var_key = self._var_key(variable)
+            momentum = tf.cast(self.momentum, variable.dtype)
+            m = self.momentums[self._index_dict[var_key]]
 
-        # TODO(b/204321487): Add nesterov acceleration.
         if isinstance(gradient, tf.IndexedSlices):
             # Sparse gradients.
             add_value = tf.IndexedSlices(
@@ -177,7 +178,7 @@ class SGD(optimizer.Optimizer):
             else:
                 variable.scatter_add(add_value)
         else:
-            # Dense gradients
+            # Dense gradients.
             if m is not None:
                 m.assign(-gradient * lr + m * momentum)
                 if self.nesterov:
