@@ -443,9 +443,9 @@ def gelu(x, approximate=True):
 
 
 class Softmax(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=-1):
         super().__init__()
-        self.axis = axis if axis is not None else -1
+        self.axis = axis
 
     def call(self, x):
         return backend.nn.softmax(x, axis=self.axis)
@@ -455,16 +455,16 @@ class Softmax(Operation):
 
 
 @keras_core_export(["keras_core.ops.softmax", "keras_core.ops.nn.softmax"])
-def softmax(x, axis=None):
+def softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     return backend.nn.softmax(x, axis=axis)
 
 
 class LogSoftmax(Operation):
-    def __init__(self, axis=None):
+    def __init__(self, axis=-1):
         super().__init__()
-        self.axis = axis if axis is not None else -1
+        self.axis = axis
 
     def call(self, x):
         return backend.nn.log_softmax(x, axis=self.axis)
@@ -479,7 +479,7 @@ class LogSoftmax(Operation):
         "keras_core.ops.nn.log_softmax",
     ]
 )
-def log_softmax(x, axis=None):
+def log_softmax(x, axis=-1):
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     return backend.nn.log_softmax(x, axis=axis)

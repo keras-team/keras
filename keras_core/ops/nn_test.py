@@ -688,7 +688,7 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
-            knn.softmax(x),
+            knn.softmax(x, axis=None),  # Reduce on all axes.
             [[0.045015, 0.122364, 0.33262], [0.045015, 0.122364, 0.33262]],
         )
         self.assertAllClose(
@@ -702,11 +702,18 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 [0.09003057, 0.24472848, 0.66524094],
             ],
         )
+        self.assertAllClose(
+            knn.softmax(x),  # Default axis should be -1.
+            [
+                [0.09003057, 0.24472848, 0.66524094],
+                [0.09003057, 0.24472848, 0.66524094],
+            ],
+        )
 
     def test_log_softmax(self):
         x = np.array([[1, 2, 3], [1, 2, 3]], dtype=np.float32)
         self.assertAllClose(
-            knn.log_softmax(x),
+            knn.log_softmax(x, axis=None),  # Reduce on all axes.
             [
                 [-3.100753, -2.100753, -1.100753],
                 [-3.100753, -2.100753, -1.100753],
@@ -721,6 +728,13 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(
             knn.log_softmax(x, axis=-1),
+            [
+                [-2.407606, -1.407606, -0.407606],
+                [-2.407606, -1.407606, -0.407606],
+            ],
+        )
+        self.assertAllClose(
+            knn.log_softmax(x),  # Default axis should be -1.
             [
                 [-2.407606, -1.407606, -0.407606],
                 [-2.407606, -1.407606, -0.407606],
