@@ -582,6 +582,7 @@ def squeeze(x, axis=None):
 
 
 def transpose(x, axes=None):
+    x = convert_to_tensor(x)
     return jnp.transpose(x, axes=axes)
 
 
