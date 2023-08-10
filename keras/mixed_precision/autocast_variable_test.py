@@ -43,6 +43,33 @@ maybe_distribute = tf.__internal__.test.combinations.combine(
 def get_var(val, dtype, name=None):
     return tf.Variable(val, dtype=dtype, name=name)
 
+def checkpoint_test_helper(test_case, distribution, enable_async_ckpt):
+    with test_case.test_session():
+        with distribution.scope():
+            x = get_var(1.0, tf.float32)
+            x = autocast_variable.create_autocast_variable(x)
+        test_case.evaluate(x.initializer)
+        test_case.evaluate(x.assign(123.0))
+
+        checkpoint = tf.train.Checkpoint(x=x)
+        ckpt_options = tf.train.CheckpointOptions(
+                experimental_enable_async_checkpoint=enable_async_ckpt)
+        prefix = os.path.join(test_case.get_temp_dir(), "ckpt")
+        save_path = checkpoint.save(prefix, options=ckpt_options)
+        test_case.evaluate(x.assign(234.0))
+        test_case.assertNotAllClose(123.0, x.read_value())
+        checkpoint.restore(save_path).assert_consumed().run_restore_ops()
+        test_case.assertEqual(test_case.evaluate(x), 123.0)
+
+        # Another round of saving/restoring to ensure that the logic of
+        # _copy_trackable_to_cpu works when a copy is already created in
+        # object_map.
+        test_case.evaluate(x.assign(345.0))
+        save_path = checkpoint.save(prefix, options=ckpt_options)
+        test_case.evaluate(x.assign(456.0))
+        checkpoint.restore(save_path).assert_consumed().run_restore_ops()
+        test_case.assertEqual(test_case.evaluate(x), 345.0)
+
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(mode=["graph", "eager"])
@@ -512,19 +539,11 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_checkpoint(self, distribution):
-        with self.test_session():
-            with distribution.scope():
-                x = get_var(1.0, tf.float32)
-                x = autocast_variable.create_autocast_variable(x)
-            self.evaluate(x.initializer)
-            self.evaluate(x.assign(123.0))
+        checkpoint_test_helper(self, distribution, enable_async_ckpt=False)
 
-            checkpoint = tf.train.Checkpoint(x=x)
-            prefix = os.path.join(self.get_temp_dir(), "ckpt")
-            save_path = checkpoint.save(prefix)
-            self.evaluate(x.assign(234.0))
-            checkpoint.restore(save_path).assert_consumed().run_restore_ops()
-            self.assertEqual(self.evaluate(x), 123.0)
+    @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+    def test_asyncCheckpoint(self, distribution):
+        checkpoint_test_helper(self, distribution, enable_async_ckpt=True)
 
     @tf.__internal__.distribute.combinations.generate(maybe_distribute)
     def test_invalid_wrapped_variable(self, distribution):

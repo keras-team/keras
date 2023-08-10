@@ -426,6 +426,17 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
         object_map[self] = object_map[self._variable]
         return resource_list
 
+    def _copy_trackable_to_cpu(self, object_map):
+        """For implementing `Trackable`."""
+        # Create a copy of `self._variable` to object_map, then create a new
+        # copy of self that wraps the **copy** of `self._variable`.
+        # When updating value, only the lowest-level variable will actually
+        # update, since `AutoCastVariable` here is like a shell.
+        self._variable._copy_trackable_to_cpu(object_map)  # pylint:disable=protected-access
+        if self not in object_map:
+            # If not populated already, populate self into the object map
+            object_map[self] = AutoCastVariable(object_map[self._variable])
+
     # TODO(reedwm): Maybe encode the fact the variable is an AutoCastVariable in
     # to_proto().
     def to_proto(self, export_scope=None):
