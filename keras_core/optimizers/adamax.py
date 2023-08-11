@@ -64,6 +64,7 @@ class Adamax(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="adamax",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -75,6 +76,7 @@ class Adamax(optimizer.Optimizer):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
+            **kwargs,
         )
         self.beta_1 = beta_1
         self.beta_2 = beta_2

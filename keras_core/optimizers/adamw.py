@@ -65,6 +65,7 @@ class AdamW(adam.Adam):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="adamw",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -80,6 +81,7 @@ class AdamW(adam.Adam):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
+            **kwargs,
         )
 
         if self.weight_decay is None:

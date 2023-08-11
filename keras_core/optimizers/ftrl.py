@@ -92,6 +92,7 @@ class Ftrl(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="ftrl",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -103,6 +104,7 @@ class Ftrl(optimizer.Optimizer):
             use_ema=use_ema,
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
+            **kwargs,
         )
 
         if initial_accumulator_value < 0.0:

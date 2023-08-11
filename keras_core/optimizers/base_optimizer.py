@@ -22,8 +22,16 @@ class BaseOptimizer:
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name=None,
+        **kwargs,
     ):
         self._lock = False
+
+        if kwargs.pop("decay", None) is not None:
+            warnings.warn(
+                "Argument `decay` is no longer supported and will be ignored."
+            )
+        if kwargs:
+            raise ValueError(f"Argument(s) not recognized: {kwargs}")
 
         self.name = name
         self.weight_decay = weight_decay

@@ -50,6 +50,7 @@ class Adadelta(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="adadelta",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -61,6 +62,7 @@ class Adadelta(optimizer.Optimizer):
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
             name=name,
+            **kwargs,
         )
         self.rho = rho
         self.epsilon = epsilon

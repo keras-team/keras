@@ -65,6 +65,7 @@ class RMSprop(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=100,
         name="rmsprop",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -76,6 +77,7 @@ class RMSprop(optimizer.Optimizer):
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
             name=name,
+            **kwargs,
         )
         self.rho = rho
         self.momentum = momentum

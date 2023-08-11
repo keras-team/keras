@@ -45,6 +45,7 @@ class Adagrad(optimizer.Optimizer):
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
         name="adagrad",
+        **kwargs,
     ):
         super().__init__(
             learning_rate=learning_rate,
@@ -56,6 +57,7 @@ class Adagrad(optimizer.Optimizer):
             ema_momentum=ema_momentum,
             ema_overwrite_frequency=ema_overwrite_frequency,
             name=name,
+            **kwargs,
         )
         self.initial_accumulator_value = initial_accumulator_value
         self.epsilon = epsilon
