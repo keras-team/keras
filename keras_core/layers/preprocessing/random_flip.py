@@ -57,7 +57,7 @@ class RandomFlip(TFDataLayer):
         if self.mode == HORIZONTAL or self.mode == HORIZONTAL_AND_VERTICAL:
             flipped_outputs = self.backend.numpy.where(
                 self.backend.random.uniform(
-                    shape=(batch_size,), seed=seed_generator
+                    shape=(batch_size, 1, 1, 1), seed=seed_generator
                 )
                 <= 0.5,
                 self.backend.numpy.flip(flipped_outputs, axis=-2),
@@ -66,7 +66,7 @@ class RandomFlip(TFDataLayer):
         if self.mode == VERTICAL or self.mode == HORIZONTAL_AND_VERTICAL:
             flipped_outputs = self.backend.numpy.where(
                 self.backend.random.uniform(
-                    shape=(batch_size,), seed=seed_generator
+                    shape=(batch_size, 1, 1, 1), seed=seed_generator
                 )
                 <= 0.5,
                 self.backend.numpy.flip(flipped_outputs, axis=-3),
