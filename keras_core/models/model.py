@@ -448,12 +448,42 @@ class Model(Trainer, Layer):
         return json.dumps(model_config, **kwargs)
 
     def export(self, filepath, format="tf_saved_model"):
-        raise NotImplementedError(
-            "The export() method is not yet supported. It will "
-            "be added in the next version. For the time being, you "
-            "can use `tf.saved_model.save(model)` to save a "
-            "TensorFlow SavedModel for your Keras Core model."
-        )
+        """[TF backend only]* Create a TF SavedModel artifact for inference
+        (e.g. via TF-Serving).
+
+        **Note:** This can currently only be used with the TF backend.
+
+        This method lets you export a model to a lightweight SavedModel artifact
+        that contains the model's forward pass only (its `call()` method)
+        and can be served via e.g. TF-Serving. The forward pass is registered
+        under the name `serve()` (see example below).
+
+        The original code of the model (including any custom layers you may
+        have used) is *no longer* necessary to reload the artifact -- it is
+        entirely standalone.
+
+        Args:
+            filepath: `str` or `pathlib.Path` object. Path where to save
+                the artifact.
+
+        Example:
+
+        ```python
+        # Create the artifact
+        model.export("path/to/location")
+
+        # Later, in a different process / environment...
+        reloaded_artifact = tf.saved_model.load("path/to/location")
+        predictions = reloaded_artifact.serve(input_data)
+        ```
+
+        If you would like to customize your serving endpoints, you can
+        use the lower-level `keras_core.export.ExportArchive` class. The
+        `export()` method relies on `ExportArchive` internally.
+        """
+        from keras_core.export import export_lib
+
+        export_lib.export_model(self, filepath)
 
     @classmethod
     def from_config(cls, config, custom_objects=None):

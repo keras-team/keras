@@ -87,11 +87,6 @@ class FunctionalTest(testing.TestCase):
         ):
             model = Functional({"aa": [input_a], "bb": input_b}, outputs)
 
-        with self.assertRaisesRegex(
-            ValueError, "all keys in the dict must match the names"
-        ):
-            model = Functional({"aa": input_a, "bb": input_b}, outputs)
-
         model = Functional({"a": input_a, "b": input_b}, outputs)
 
         # Eager call

@@ -101,8 +101,7 @@ class Functional(Function, Model):
                         f"including invalid value {v} of type {type(v)}"
                     )
                 if k != v.name:
-                    # TODO: maybe make this a warning
-                    raise ValueError(
+                    warnings.warn(
                         "When providing `inputs` as a dict, all keys in the "
                         "dict must match the names of the corresponding "
                         f"tensors. Received key '{k}' mapping to value {v} "
