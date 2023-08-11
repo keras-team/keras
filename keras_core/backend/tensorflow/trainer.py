@@ -560,7 +560,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     def predict_on_batch(self, x):
         self.make_predict_function()
-        batch_outputs = self.predict_function((x,))
+        batch_outputs = self.predict_function([(x,)])
         batch_outputs = tf.nest.map_structure(
             convert_to_np_if_not_ragged, batch_outputs
         )

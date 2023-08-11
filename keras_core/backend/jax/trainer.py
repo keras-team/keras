@@ -717,7 +717,7 @@ class JAXTrainer(base_trainer.Trainer):
         trainable_variables = self.trainable_variables
         non_trainable_variables = self.non_trainable_variables
         state = (trainable_variables, non_trainable_variables)
-        batch_outputs, state = self.predict_function(state, [x])
+        batch_outputs, state = self.predict_function(state, [(x,)])
         batch_outputs = tree.map_structure(lambda x: np.array(x), batch_outputs)
         return batch_outputs
 
