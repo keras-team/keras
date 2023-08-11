@@ -157,7 +157,10 @@ class Sequential(Model):
                     f"with input_shape {input_shape}"
                 )
         else:
-            self._layers = [InputLayer(batch_shape=input_shape)] + self._layers
+            dtype = self._layers[0].compute_dtype
+            self._layers = [
+                InputLayer(batch_shape=input_shape, dtype=dtype)
+            ] + self._layers
 
         # Build functional model
         inputs = self._layers[0].output

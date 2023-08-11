@@ -1,8 +1,10 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 
 from keras_core import backend
 from keras_core import layers
+from keras_core import models
 from keras_core import testing
 
 
@@ -82,3 +84,21 @@ class TextVectorizationTest(testing.TestCase):
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string tensors."
+    )
+    def test_tf_as_first_sequential_layer(self):
+        layer = layers.TextVectorization(
+            max_tokens=10,
+            output_mode="int",
+            output_sequence_length=3,
+        )
+        layer.set_vocabulary(["baz", "bar", "foo"])
+        model = models.Sequential(
+            [
+                layer,
+                layers.Embedding(5, 4),
+            ]
+        )
+        model(tf.convert_to_tensor([["foo qux bar"], ["qux baz"]]))

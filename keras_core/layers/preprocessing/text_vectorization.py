@@ -250,8 +250,21 @@ class TextVectorization(Layer):
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False
 
-    def compute_output_shape(self, input_shape):
-        return tuple(self.layer.compute_output_shape(input_shape))
+    @property
+    def compute_dtype(self):
+        return "string"
+
+    @property
+    def variable_dtype(self):
+        return "string"
+
+    def compute_output_spec(self, inputs):
+        output_shape = tuple(self.layer.compute_output_shape(inputs.shape))
+        if self.layer._output_mode == "int":
+            output_dtype = "int64"
+        else:
+            output_dtype = backend.floatx()
+        return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, batch_size=None, steps=None):
         """Computes a vocabulary of string terms from tokens in a dataset.
