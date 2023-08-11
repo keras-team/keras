@@ -51,11 +51,6 @@ def silu(x, beta=1.0):
     return x * sigmoid(beta * x)
 
 
-def swish(x):
-    x = convert_to_tensor(x)
-    return silu(x, beta=1)
-
-
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return tnn.logsigmoid(x)
@@ -89,26 +84,24 @@ def gelu(x, approximate=True):
     return tnn.gelu(x)
 
 
-def softmax(x, axis=-1):
-    x = convert_to_tensor(x)
+def softmax(x, axis=None):
+    logits = convert_to_tensor(x)
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
-        output = torch.reshape(x, [-1])
-        output = tnn.softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.softmax(x, dim=axis)
+        logits_exp = torch.exp(logits)
+        return logits_exp / torch.sum(logits_exp)
+    return tnn.softmax(logits, dim=axis)
 
 
-def log_softmax(x, axis=-1):
-    x = convert_to_tensor(x)
+def log_softmax(x, axis=None):
+    logits = convert_to_tensor(x)
     if axis is None:
         # Unlike numpy, PyTorch will handle axis=None as axis=-1.
         # We need this workaround for the reduction on every dim.
-        output = torch.reshape(x, [-1])
-        output = tnn.log_softmax(output, dim=-1)
-        return torch.reshape(output, x.shape)
-    return tnn.log_softmax(x, dim=axis)
+        logits_exp = torch.exp(logits)
+        return logits - torch.log(torch.sum(logits_exp))
+    return tnn.log_softmax(logits, dim=axis)
 
 
 def _compute_padding_length(

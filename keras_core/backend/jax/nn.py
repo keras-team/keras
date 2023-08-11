@@ -48,11 +48,6 @@ def silu(x):
     return jnn.silu(x)
 
 
-def swish(x):
-    x = convert_to_tensor(x)
-    return jnn.swish(x)
-
-
 def log_sigmoid(x):
     x = convert_to_tensor(x)
     return jnn.log_sigmoid(x)
@@ -83,7 +78,7 @@ def gelu(x, approximate=True):
     return jnn.gelu(x, approximate)
 
 
-def softmax(x, axis=-1):
+def softmax(x, axis=None):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
 

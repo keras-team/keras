@@ -186,7 +186,14 @@ class Silu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_core_export(["keras_core.ops.silu", "keras_core.ops.nn.silu"])
+@keras_core_export(
+    [
+        "keras_core.ops.silu",
+        "keras_core.ops.nn.silu",
+        "keras_core.ops.swish",
+        "keras_core.ops.nn.swish",
+    ]
+)
 def silu(x):
     """Sigmoid-weighted linear unit activation function.
 
@@ -209,21 +216,6 @@ def silu(x):
     if any_symbolic_tensors((x,)):
         return Silu().symbolic_call(x)
     return backend.nn.silu(x)
-
-
-class Swish(Operation):
-    def call(self, x):
-        return backend.nn.swish(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export(["keras_core.ops.swish", "keras_core.ops.nn.swish"])
-def swish(x):
-    if any_symbolic_tensors((x,)):
-        return Swish().symbolic_call(x)
-    return backend.nn.swish(x)
 
 
 class LogSigmoid(Operation):
@@ -443,9 +435,9 @@ def gelu(x, approximate=True):
 
 
 class Softmax(Operation):
-    def __init__(self, axis=-1):
+    def __init__(self, axis=None):
         super().__init__()
-        self.axis = axis
+        self.axis = axis if axis is not None else -1
 
     def call(self, x):
         return backend.nn.softmax(x, axis=self.axis)
@@ -455,16 +447,16 @@ class Softmax(Operation):
 
 
 @keras_core_export(["keras_core.ops.softmax", "keras_core.ops.nn.softmax"])
-def softmax(x, axis=-1):
+def softmax(x, axis=None):
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     return backend.nn.softmax(x, axis=axis)
 
 
 class LogSoftmax(Operation):
-    def __init__(self, axis=-1):
+    def __init__(self, axis=None):
         super().__init__()
-        self.axis = axis
+        self.axis = axis if axis is not None else -1
 
     def call(self, x):
         return backend.nn.log_softmax(x, axis=self.axis)
@@ -479,7 +471,7 @@ class LogSoftmax(Operation):
         "keras_core.ops.nn.log_softmax",
     ]
 )
-def log_softmax(x, axis=-1):
+def log_softmax(x, axis=None):
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     return backend.nn.log_softmax(x, axis=axis)
