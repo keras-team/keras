@@ -29,6 +29,7 @@ from keras.engine.input_layer import Input
 from keras.engine.input_layer import InputLayer
 from keras.optimizers import optimizer_v1
 from keras.saving.legacy import serialization
+from keras.saving.legacy.saved_model.utils import keras_option_scope
 from keras.saving.object_registration import CustomObjectScope
 from keras.utils import generic_utils
 from keras.utils import version_utils
@@ -209,9 +210,18 @@ def _clone_functional_model(model, input_tensors=None, layer_fn=_clone_layer):
             f"Received: layer_fn={layer_fn}"
         )
 
-    model_configs, created_layers = _clone_layers_and_model_config(
-        model, new_input_layers, layer_fn
-    )
+    # For affected g3 users who need to default to old serialization in cloning
+    if getattr(model, "use_legacy_config", False):
+        with keras_option_scope(
+            save_traces=False, in_tf_saved_model_scope=True
+        ):
+            model_configs, created_layers = _clone_layers_and_model_config(
+                model, new_input_layers, layer_fn
+            )
+    else:
+        model_configs, created_layers = _clone_layers_and_model_config(
+            model, new_input_layers, layer_fn
+        )
     # Reconstruct model from the config, using the cloned layers.
     (
         input_tensors,
@@ -474,12 +484,13 @@ def clone_model(model, input_tensors=None, clone_function=None):
             model (except `InputLayer` instances). It takes as argument the
             layer instance to be cloned, and returns the corresponding layer
             instance to be used in the model copy. If unspecified, this callable
-            defaults to the following serialization/deserialization function:
+            becomes the following serialization/deserialization function:
             `lambda layer: layer.__class__.from_config(layer.get_config())`.
             By passing a custom callable, you can customize your copy of the
             model, e.g. by wrapping certain layers of interest (you might want
             to replace all `LSTM` instances with equivalent
             `Bidirectional(LSTM(...))` instances, for example).
+            Defaults to `None`.
 
     Returns:
       An instance of `Model` reproducing the behavior

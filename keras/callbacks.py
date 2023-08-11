@@ -1366,6 +1366,14 @@ class ModelCheckpoint(Callback):
                     f"Got {options}."
                 )
         else:
+            if filepath and filepath.endswith(".keras") and options is not None:
+                raise ValueError(
+                    "The native Keras format does not support "
+                    "the `options` argument. Please remove "
+                    "the `options` argument, or use the SavedModel "
+                    "format by removing the `.keras` extension from "
+                    "the model filepath."
+                )
             if options is None or isinstance(
                 options, tf.saved_model.SaveOptions
             ):
@@ -1511,9 +1519,12 @@ class ModelCheckpoint(Callback):
             self.epochs_since_last_save = 0
             filepath = self._get_file_path(epoch, batch, logs)
 
-            # Create host directory if it doesn't exist.
             dirname = os.path.dirname(filepath)
-            if dirname and not tf.io.gfile.exists(dirname):
+            if (
+                dirname
+                and not dirname.startswith("gs://")
+                and not tf.io.gfile.exists(dirname)
+            ):
                 tf.io.gfile.makedirs(dirname)
 
             try:
@@ -1563,6 +1574,8 @@ class ModelCheckpoint(Callback):
                         self.model.save_weights(
                             filepath, overwrite=True, options=self._options
                         )
+                    elif filepath.endswith(".keras"):
+                        self.model.save(filepath, overwrite=True)
                     else:
                         self.model.save(
                             filepath, overwrite=True, options=self._options
@@ -1889,9 +1902,21 @@ class BackupAndRestore(Callback):
         self._training_state.restore()
 
     def on_train_batch_begin(self, batch, logs=None):
+        # Skip batch update for PSS Strategy
+        if isinstance(
+            self.model.distribute_strategy,
+            tf.distribute.ParameterServerStrategy,
+        ):
+            return
         self._training_state._ckpt_saved_batch.assign(batch)
 
     def on_train_batch_end(self, batch, logs=None):
+        # Skip batch update for PSS Strategy
+        if isinstance(
+            self.model.distribute_strategy,
+            tf.distribute.ParameterServerStrategy,
+        ):
+            return
         self._training_state.backup_if_preempted()
         if self.save_freq and self.save_freq != "epoch":
             self._batches_count += 1
@@ -2586,13 +2611,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
                 # If the train_function is a `tf.function`, we can write out a
                 # graph
                 if hasattr(train_fn, "function_spec"):
-                    # TODO(b/243822285): Use _variable_creation_fn directly.
-                    if hasattr(train_fn, "_concrete_stateful_fn"):
-                        tf.summary.graph(train_fn._concrete_stateful_fn.graph)
-                    else:
-                        tf.summary.graph(
-                            train_fn._concrete_variable_creation_fn.graph
-                        )
+                    tf.summary.graph(
+                        train_fn._concrete_variable_creation_fn.graph
+                    )
 
     def _write_keras_model_summary(self):
         """Writes Keras graph network summary to TensorBoard."""
@@ -2868,8 +2889,14 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         if not logs:
             return
 
-        train_logs = {k: v for k, v in logs.items() if not k.startswith("val_")}
-        val_logs = {k: v for k, v in logs.items() if k.startswith("val_")}
+        train_logs = dict()
+        val_logs = dict()
+        for k, v in logs.items():
+            if k.startswith("val_"):
+                val_logs[k] = v
+            else:
+                train_logs[k] = v
+
         train_logs = self._collect_learning_rate(train_logs)
         if self.write_steps_per_second:
             train_logs["steps_per_second"] = self._compute_steps_per_second()

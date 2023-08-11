@@ -67,9 +67,10 @@ class LocallyConnected1D(Layer):
           `channels_first`. The ordering of the dimensions in the inputs.
           `channels_last` corresponds to inputs with shape `(batch, length,
           channels)` while `channels_first` corresponds to inputs with shape
-          `(batch, channels, length)`. It defaults to the `image_data_format`
-          value found in your Keras config file at `~/.keras/keras.json`. If you
-          never set it, then it will be "channels_last".
+          `(batch, channels, length)`. When unspecified, uses
+          `image_data_format` value found in your Keras config file at
+          `~/.keras/keras.json` (if exists) else 'channels_last'.
+          Defaults to 'channels_last'.
         activation: Activation function to use. If you don't specify anything,
           no activation is applied (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.

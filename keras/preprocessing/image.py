@@ -1225,9 +1225,9 @@ class ImageDataGenerator:
           `fill_mode = "constant"`.
         horizontal_flip: Boolean. Randomly flip inputs horizontally.
         vertical_flip: Boolean. Randomly flip inputs vertically.
-        rescale: rescaling factor. Defaults to None. If None or 0, no rescaling
+        rescale: rescaling factor. If None or 0, no rescaling
           is applied, otherwise we multiply the data by the value provided
-          (after applying all other transformations).
+          (after applying all other transformations). Defaults to `None`.
         preprocessing_function: function that will be applied on each input. The
           function will run after the image is resized and augmented.
             The function should take one argument: one image (Numpy tensor with
@@ -1236,9 +1236,9 @@ class ImageDataGenerator:
           "channels_last". "channels_last" mode means that the images should
           have shape `(samples, height, width, channels)`, "channels_first" mode
           means that the images should have shape `(samples, channels, height,
-          width)`.  It defaults to the `image_data_format` value found in your
-          Keras config file at `~/.keras/keras.json`. If you never set it, then
-          it will be "channels_last".
+          width)`. When unspecified, uses `image_data_format` value found in
+          your Keras config file at `~/.keras/keras.json` (if exists) else
+          'channels_last'. Defaults to "channels_last".
         validation_split: Float. Fraction of images reserved for validation
           (strictly between 0 and 1).
         dtype: Dtype to use for the generated arrays.
@@ -1580,70 +1580,71 @@ class ImageDataGenerator:
         """Takes the path to a directory & generates batches of augmented data.
 
         Args:
-            directory: string, path to the target directory. It should contain
-              one subdirectory per class. Any PNG, JPG, BMP, PPM or TIF images
-              inside each of the subdirectories directory tree will be included
-              in the generator. See [this script](
-              https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d)
-              for more details.
-            target_size: Tuple of integers `(height, width)`, defaults to `(256,
-              256)`. The dimensions to which all images found will be resized.
-            color_mode: One of "grayscale", "rgb", "rgba". Default: "rgb".
-              Whether the images will be converted to have 1, 3, or 4 channels.
-            classes: Optional list of class subdirectories (e.g. `['dogs',
-              'cats']`). Default: None. If not provided, the list of classes
-              will be automatically inferred from the subdirectory
-              names/structure under `directory`, where each subdirectory will be
-              treated as a different class (and the order of the classes, which
-              will map to the label indices, will be alphanumeric). The
-              dictionary containing the mapping from class names to class
-              indices can be obtained via the attribute `class_indices`.
-            class_mode: One of "categorical", "binary", "sparse",
-                "input", or None. Default: "categorical".
-                Determines the type of label arrays that are returned:
-                - "categorical" will be 2D one-hot encoded labels,
-                - "binary" will be 1D binary labels,
-                    "sparse" will be 1D integer labels,
-                - "input" will be images identical
-                    to input images (mainly used to work with autoencoders).
-                - If None, no labels are returned
-                  (the generator will only yield batches of image data,
-                  which is useful to use with `model.predict_generator()`).
-                  Please note that in case of class_mode None,
-                  the data still needs to reside in a subdirectory
-                  of `directory` for it to work correctly.
-            batch_size: Size of the batches of data (default: 32).
-            shuffle: Whether to shuffle the data (default: True) If set to
-              False, sorts the data in alphanumeric order.
-            seed: Optional random seed for shuffling and transformations.
-            save_to_dir: None or str (default: None). This allows you to
-              optionally specify a directory to which to save the augmented
-              pictures being generated (useful for visualizing what you are
-              doing).
-            save_prefix: Str. Prefix to use for filenames of saved pictures
-              (only relevant if `save_to_dir` is set).
-            save_format: one of "png", "jpeg", "bmp", "pdf", "ppm", "gif",
-              "tif", "jpg" (only relevant if `save_to_dir` is set). Default:
-              "png".
-            follow_links: Whether to follow symlinks inside
-                class subdirectories (default: False).
-            subset: Subset of data (`"training"` or `"validation"`) if
-              `validation_split` is set in `ImageDataGenerator`.
-            interpolation: Interpolation method used to resample the image if
-              the target size is different from that of the loaded image.
-              Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
-              If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
-              supported. If PIL version 3.4.0 or newer is installed, `"box"` and
-              `"hamming"` are also supported. By default, `"nearest"` is used.
-            keep_aspect_ratio: Boolean, whether to resize images to a target
-              size without aspect ratio distortion. The image is cropped in
-              the center with target aspect ratio before resizing.
+          directory: string, path to the target directory. It should contain
+            one subdirectory per class. Any PNG, JPG, BMP, PPM or TIF images
+            inside each of the subdirectories directory tree will be included
+            in the generator. See [this script](
+            https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d)
+            for more details.
+          target_size: Tuple of integers `(height, width)`. The dimensions to
+            which all images found will be resized. Defaults to `(256,256)`.
+          color_mode: One of "grayscale", "rgb", "rgba". Default: "rgb".
+            Whether the images will be converted to have 1, 3, or 4 channels.
+          classes: Optional list of class subdirectories (e.g. `['dogs',
+            'cats']`). Default: None. If not provided, the list of classes
+            will be automatically inferred from the subdirectory
+            names/structure under `directory`, where each subdirectory will be
+            treated as a different class (and the order of the classes, which
+            will map to the label indices, will be alphanumeric). The
+            dictionary containing the mapping from class names to class
+            indices can be obtained via the attribute `class_indices`.
+          class_mode: One of "categorical", "binary", "sparse",
+            "input", or None.
+            Determines the type of label arrays that are returned:
+              - "categorical" will be 2D one-hot encoded labels,
+              - "binary" will be 1D binary labels,
+              - "sparse" will be 1D integer labels,
+              - "input" will be images identical
+                to input images (mainly used to work with autoencoders).
+              - If None, no labels are returned
+                (the generator will only yield batches of image data,
+                which is useful to use with `model.predict_generator()`).
+                Please note that in case of class_mode None,
+                the data still needs to reside in a subdirectory
+                of `directory` for it to work correctly.
+              Defaults to "categorical".
+          batch_size: Size of the batches of data. Defaults to `32`.
+          shuffle: Whether to shuffle the data If `False`, sorts the
+            data in alphanumeric order. Defaults to `True`.
+          seed: Optional random seed for shuffling and transformations.
+          save_to_dir: None or str (default: None). This allows you to
+            optionally specify a directory to which to save the augmented
+            pictures being generated (useful for visualizing what you are
+            doing).
+          save_prefix: Str. Prefix to use for filenames of saved pictures
+            (only relevant if `save_to_dir` is set).
+          save_format: one of "png", "jpeg", "bmp", "pdf", "ppm", "gif",
+            "tif", "jpg" (only relevant if `save_to_dir` is set).
+            Defaults to "png".
+          follow_links: Whether to follow symlinks inside
+            class subdirectories. Defaults to `False`.
+          subset: Subset of data (`"training"` or `"validation"`) if
+            `validation_split` is set in `ImageDataGenerator`.
+          interpolation: Interpolation method used to resample the image if
+            the target size is different from that of the loaded image.
+            Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+            If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
+            supported. If PIL version 3.4.0 or newer is installed, `"box"` and
+            `"hamming"` are also supported. Defaults to `"nearest"`.
+          keep_aspect_ratio: Boolean, whether to resize images to a target
+            size without aspect ratio distortion. The image is cropped in
+            the center with target aspect ratio before resizing.
 
         Returns:
-            A `DirectoryIterator` yielding tuples of `(x, y)`
-                where `x` is a numpy array containing a batch
-                of images with shape `(batch_size, *target_size, channels)`
-                and `y` is a numpy array of corresponding labels.
+          A `DirectoryIterator` yielding tuples of `(x, y)`
+            where `x` is a numpy array containing a batch
+            of images with shape `(batch_size, *target_size, channels)`
+            and `y` is a numpy array of corresponding labels.
         """
         return DirectoryIterator(
             directory,

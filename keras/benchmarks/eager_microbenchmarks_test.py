@@ -135,7 +135,6 @@ class MicroBenchmarksBase(tf.test.Benchmark):
         self._run(fn, 20)
 
     def benchmark_layers_embeddings_embedding_overhead(self):
-
         layer = tf.keras.layers.Embedding(1, 1)
         x = tf.zeros((1, 1), dtype="int32")
 
@@ -148,7 +147,6 @@ class MicroBenchmarksBase(tf.test.Benchmark):
 class KerasLayerCallOverheadBenchmarks(
     MicroBenchmarksBase, metaclass=tf.__internal__.test.ParameterizedBenchmark
 ):
-
     # The set of layers for benchmarking. To add benchmarks for new layers,
     # please add the parameter configs to "_benchmark_paramters".
 
@@ -225,7 +223,6 @@ class KerasLayerCallOverheadBenchmarks(
     ]
 
     def benchmark_layer(self, layer, input_shape, kwargs=None):
-
         x = tf.ones(input_shape)
 
         def fn():

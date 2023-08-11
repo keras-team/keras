@@ -1374,6 +1374,58 @@ class DataHandlerTest(test_combinations.TestCase):
                 class_weight={0: 0.5, 1: 1.0, 2: 1.5},
             )
 
+    @parameterized.named_parameters(("one_hot", True), ("sparse", False))
+    def test_class_weights_applied(self, one_hot):
+        num_channels = 3
+        num_classes = 5
+        batch_size = 2
+        image_width = 8
+
+        input_shape = (batch_size, image_width, image_width, num_channels)
+        output_shape = (batch_size, image_width, image_width)
+
+        x = tf.random.uniform(input_shape)
+        sparse_y = tf.random.uniform(
+            output_shape, maxval=num_classes, dtype=tf.int32
+        )
+
+        if one_hot:
+            y = tf.one_hot(sparse_y, num_classes)
+        else:
+            y = tf.expand_dims(sparse_y, axis=-1)
+
+        # Class weight is equal to class number + 1
+        class_weight = dict([(x, x + 1) for x in range(num_classes)])
+
+        sample_weight = np.array([1, 2])
+
+        data_handler = data_adapter.DataHandler(
+            x=x,
+            y=y,
+            class_weight=class_weight,
+            sample_weight=sample_weight,
+            batch_size=batch_size,
+            epochs=1,
+        )
+        returned_data = []
+        for _, iterator in data_handler.enumerate_epochs():
+            epoch_data = []
+            for _ in data_handler.steps():
+                epoch_data.append(next(iterator))
+            returned_data.append(epoch_data)
+        returned_data = self.evaluate(returned_data)
+
+        # We had only 1 batch and 1 epoch, so we extract x, y, sample_weight
+        result_x, result_y, result_sample_weight = returned_data[0][0]
+        self.assertAllEqual(x, result_x)
+        self.assertAllEqual(y, result_y)
+
+        # Because class weight = class + 1, resulting class weight = y + 1
+        # Sample weight is 1 for the first sample, 2 for the second,
+        # so we double the expected sample weight for the second sample.
+        self.assertAllEqual(sparse_y[0] + 1, result_sample_weight[0])
+        self.assertAllEqual(2 * (sparse_y[1] + 1), result_sample_weight[1])
+
     @parameterized.named_parameters(("numpy", True), ("dataset", False))
     def test_single_x_input_no_tuple_wrapping(self, use_numpy):
         x = np.ones((10, 1))
@@ -1389,6 +1441,37 @@ class DataHandlerTest(test_combinations.TestCase):
             for _ in data_handler.steps():
                 # Check that single x input is not wrapped in a tuple.
                 self.assertIsInstance(next(iterator), tf.Tensor)
+
+    def test_error_if_zero_steps_per_epoch(self):
+        data = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3]).batch(1)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unexpected value for `steps_per_epoch`. Received value is 0.",
+        ):
+            data_adapter.DataHandler(
+                data, initial_epoch=0, epochs=2, steps_per_epoch=0
+            )
+
+    def test_error_if_empty_array_input_data(self):
+        x = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+        y = np.array([0, 1, 1, 0])
+        idx = []
+
+        with self.assertRaisesWithLiteralMatch(
+            ValueError,
+            "Expected input data to be non-empty.",
+        ):
+            data_adapter.DataHandler(x[idx], y[idx])
+
+    def test_error_if_empty_dataset_input_data(self):
+        data = tf.data.Dataset.from_tensor_slices([]).batch(1)
+
+        with self.assertRaisesWithLiteralMatch(
+            ValueError,
+            "Expected input data to be non-empty.",
+        ):
+            data_adapter.DataHandler(data)
 
 
 class TestValidationSplit(test_combinations.TestCase):

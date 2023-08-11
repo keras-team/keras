@@ -54,20 +54,20 @@ class SGD(optimizer.Optimizer):
     ```
 
     Args:
-      learning_rate: A `Tensor`, floating point value, or a schedule that is a
-        `tf.keras.optimizers.schedules.LearningRateSchedule`, or a callable
-        that takes no arguments and returns the actual value to use. The
-        learning rate. Defaults to 0.001.
-      momentum: float hyperparameter >= 0 that accelerates gradient descent in
-        the relevant direction and dampens oscillations. Defaults to 0, i.e.,
-        vanilla gradient descent.
-      nesterov: boolean. Whether to apply Nesterov momentum.
-        Defaults to `False`.
+        learning_rate: A `Tensor`, floating point value, or a schedule that is a
+            `keras.optimizers.schedules.LearningRateSchedule`, or a callable
+            that takes no arguments and returns the actual value to use. The
+            learning rate. Defaults to 0.001.
+        momentum: float hyperparameter >= 0 that accelerates gradient descent in
+            the relevant direction and dampens oscillations.
+            Defaults to 0, i.e., vanilla gradient descent.
+        nesterov: boolean. Whether to apply Nesterov momentum.
+            Defaults to `False`.
       {{base_optimizer_keyword_args}}
 
     Usage:
 
-    >>> opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
+    >>> opt = tf.keras.optimizers.SGD(learning_rate=0.1)
     >>> var = tf.Variable(1.0)
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1
     >>> opt.minimize(loss, [var])
@@ -75,7 +75,7 @@ class SGD(optimizer.Optimizer):
     >>> var.numpy()
     0.9
 
-    >>> opt = tf.keras.optimizers.experimental.SGD(0.1, momentum=0.9)
+    >>> opt = tf.keras.optimizers.SGD(0.1, momentum=0.9)
     >>> var = tf.Variable(1.0)
     >>> val0 = var.value()
     >>> loss = lambda: (var ** 2)/2.0         # d(loss)/d(var1) = var1

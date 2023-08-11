@@ -1,9 +1,11 @@
 # Description:
 #   Contains the Keras save model API (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
         "//keras:friends",

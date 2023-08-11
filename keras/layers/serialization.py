@@ -50,6 +50,7 @@ from keras.layers.preprocessing import text_vectorization
 from keras.layers.rnn import cell_wrappers
 from keras.layers.rnn import gru
 from keras.layers.rnn import lstm
+from keras.metrics import base_metric
 from keras.saving import serialization_lib
 from keras.saving.legacy import serialization as legacy_serialization
 from keras.saving.legacy.saved_model import json_utils
@@ -208,6 +209,13 @@ def serialize(layer, use_legacy_format=False):
     pprint(tf.keras.layers.serialize(model))
     # prints the configuration of the model, as a dict.
     """
+    if isinstance(layer, base_metric.Metric):
+        raise ValueError(
+            f"Cannot serialize {layer} since it is a metric. "
+            "Please use the `keras.metrics.serialize()` and "
+            "`keras.metrics.deserialize()` APIs to serialize "
+            "and deserialize metrics."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(layer)
 

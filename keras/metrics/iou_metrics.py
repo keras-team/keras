@@ -67,7 +67,8 @@ class _IoUBase(base_metric.Metric):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) -1 is the dimension containing the logits.
+        Defaults to `-1`.
     """
 
     def __init__(
@@ -100,9 +101,9 @@ class _IoUBase(base_metric.Metric):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -197,7 +198,8 @@ class IoU(_IoUBase):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) -1 is the dimension containing the logits.
+        Defaults to `-1`.
 
     Standalone usage:
 
@@ -405,9 +407,9 @@ class BinaryIoU(IoU):
         Args:
           y_true: The ground truth values.
           y_pred: The predicted values.
-          sample_weight: Optional weighting of each example. Defaults to 1. Can
+          sample_weight: Optional weighting of each example. Can
             be a `Tensor` whose rank is either 0, or the same rank as `y_true`,
-            and must be broadcastable to `y_true`.
+            and must be broadcastable to `y_true`. Defaults to `1`.
 
         Returns:
           Update op.
@@ -465,7 +467,7 @@ class MeanIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using integers or
         dense floating point vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 
@@ -581,7 +583,7 @@ class OneHotIoU(IoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 
@@ -695,7 +697,7 @@ class OneHotMeanIoU(MeanIoU):
       sparse_y_pred: Whether predictions are encoded using natural numbers or
         probability distribution vectors. If `False`, the `tf.argmax` function
         will be used to determine each sample's most likely associated label.
-      axis: (Optional) Defaults to -1. The dimension containing the logits.
+      axis: (Optional) The dimension containing the logits. Defaults to `-1`.
 
     Standalone usage:
 

@@ -54,7 +54,7 @@ class Conv1DTranspose(Conv1D):
       kernel_size: An integer length of the 1D convolution window.
       strides: An integer specifying the stride of the convolution along the
         time dimension. Specifying a stride value != 1 is incompatible with
-        specifying a `dilation_rate` value != 1. Defaults to 1.
+        specifying a `dilation_rate` value != 1. Defaults to `1`.
       padding: one of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding with zeros
         evenly to the left/right or up/down of the input such that output has

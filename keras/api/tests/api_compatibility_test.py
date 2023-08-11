@@ -39,7 +39,6 @@ import tensorflow as tf
 from google.protobuf import message
 from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.tools.api.lib import api_objects_pb2
 from tensorflow.tools.api.lib import (
     python_object_to_proto_visitor,
@@ -262,14 +261,14 @@ class ApiCompatibilityTest(tf.test.TestCase):
         # If diffs are found, handle them based on flags.
         if diffs:
             diff_count = len(diffs)
-            logging.error(self._test_readme_message)
-            logging.error(
+            tf.compat.v1.logging.error(self._test_readme_message)
+            tf.compat.v1.logging.error(
                 "%d differences found between API and golden.", diff_count
             )
 
             if update_goldens:
                 # Write files if requested.
-                logging.warning(self._update_golden_warning)
+                tf.compat.v1.logging.warning(self._update_golden_warning)
 
                 # If the keys are only in expected, some objects are deleted.
                 # Remove files.
@@ -288,15 +287,17 @@ class ApiCompatibilityTest(tf.test.TestCase):
             else:
                 # Include the actual differences to help debugging.
                 for d, verbose_d in zip(diffs, verbose_diffs):
-                    logging.error("    %s", d)
-                    logging.error("    %s", verbose_d)
+                    tf.compat.v1.logging.error("    %s", d)
+                    tf.compat.v1.logging.error("    %s", verbose_d)
                 # Fail if we cannot fix the test by updating goldens.
                 self.fail(
                     "%d differences found between API and golden." % diff_count
                 )
 
         else:
-            logging.info("No differences found between API and golden.")
+            tf.compat.v1.logging.info(
+                "No differences found between API and golden."
+            )
 
     def _checkBackwardsCompatibility(
         self,

@@ -268,7 +268,7 @@ class TensorLikeDataAdapter(DataAdapter):
         _check_data_cardinality(inputs)
 
         # If batch_size is not passed but steps is, calculate from the input
-        # data.  Default to 32 for backwards compat.
+        # data.  Defaults to `32` for backwards compatibility.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -645,7 +645,7 @@ class CompositeTensorDataAdapter(DataAdapter):
             dataset = dataset.shuffle(num_samples)
 
         # If batch_size is not passed but steps is, calculate from the input
-        # data.  Default to 32 for backwards compatibility.
+        # data.  Defaults to `32` for backwards compatibility.
         if not batch_size:
             batch_size = int(math.ceil(num_samples / steps)) if steps else 32
 
@@ -1271,6 +1271,13 @@ class DataHandler:
         self._insufficient_data = False
         self._model = model
 
+        if steps_per_epoch == 0:
+            raise ValueError(
+                "Unexpected value for `steps_per_epoch`. Received value is 0. "
+                "Please check the docstring for `model.fit()` for supported "
+                "values."
+            )
+
         self._steps_per_epoch = steps_per_epoch
 
         # `steps_per_execution_value` is the cached initial value.
@@ -1307,6 +1314,9 @@ class DataHandler:
         self._configure_dataset_and_inferred_steps(
             strategy, x, steps_per_epoch, class_weight, distribute
         )
+
+        if self._inferred_steps == 0:
+            raise ValueError("Expected input data to be non-empty.")
 
     def _configure_dataset_and_inferred_steps(
         self, strategy, x, steps_per_epoch, class_weight, distribute
@@ -1715,21 +1725,24 @@ def _make_class_weight_map_fn(class_weight):
                 "output."
             )
 
-        if y.shape.rank > 2:
-            raise ValueError(
-                "`class_weight` not supported for 3+ dimensional targets."
+        if y.shape.rank >= 2:
+            y_classes = tf.__internal__.smart_cond.smart_cond(
+                backend.shape(y)[-1] > 1,
+                lambda: backend.argmax(y, axis=-1),
+                lambda: tf.cast(tf.round(tf.squeeze(y, axis=-1)), tf.int64),
             )
-
-        y_classes = tf.__internal__.smart_cond.smart_cond(
-            y.shape.rank == 2 and backend.shape(y)[1] > 1,
-            lambda: backend.argmax(y, axis=1),
-            lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64),
-        )
+        else:
+            # Special casing for rank 1, where we can guarantee sparse encoding.
+            y_classes = tf.cast(tf.round(y), tf.int64)
 
         cw = tf.gather(class_weight_tensor, y_classes)
         if sw is not None:
             cw = tf.cast(cw, sw.dtype)
             # `class_weight` and `sample_weight` are multiplicative.
+            # If class_weight has more than 2 dimensions, we need to reshape
+            # sample_weight to make broadcasting possible for multiplication.
+            rank_delta = cw.shape.rank - sw.shape.rank
+            sw = tf.reshape(sw, sw.shape + [1] * rank_delta)
             sw = sw * cw
         else:
             sw = cw

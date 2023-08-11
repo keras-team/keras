@@ -914,12 +914,8 @@ class RNN(base_layer.Layer):
                 )
 
             unique_state_names = iter(self._gen_state_names())
-
-            def assign_unique_var(x):
-                return backend.variable(x, name=next(unique_state_names))
-
             flat_states_variables = tf.nest.map_structure(
-                assign_unique_var, flat_init_state_values
+                lambda v: backend.variable(v, v.dtype, name=next(unique_state_names)), flat_init_state_values
             )
             self.states = tf.nest.pack_sequence_as(
                 self.cell.state_size, flat_states_variables

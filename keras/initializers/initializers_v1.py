@@ -29,35 +29,30 @@ _v1_identity = tf.compat.v1.initializers.identity
 _v1_glorot_uniform_initializer = tf.compat.v1.glorot_uniform_initializer
 _v1_glorot_normal_initializer = tf.compat.v1.glorot_normal_initializer
 
+keras_export(v1=["keras.initializers.Zeros", "keras.initializers.zeros"])(
+    _v1_zeros_initializer
+)
+keras_export(v1=["keras.initializers.Ones", "keras.initializers.ones"])(
+    _v1_ones_initializer
+)
+keras_export(v1=["keras.initializers.Constant", "keras.initializers.constant"])(
+    _v1_constant_initializer
+)
+keras_export(v1=["keras.initializers.VarianceScaling"])(
+    _v1_variance_scaling_initializer
+)
 keras_export(
-    v1=["keras.initializers.Zeros", "keras.initializers.zeros"],
-    allow_multiple_exports=True,
-)(_v1_zeros_initializer)
-keras_export(
-    v1=["keras.initializers.Ones", "keras.initializers.ones"],
-    allow_multiple_exports=True,
-)(_v1_ones_initializer)
-keras_export(
-    v1=["keras.initializers.Constant", "keras.initializers.constant"],
-    allow_multiple_exports=True,
-)(_v1_constant_initializer)
-keras_export(
-    v1=["keras.initializers.VarianceScaling"], allow_multiple_exports=True
-)(_v1_variance_scaling_initializer)
-keras_export(
-    v1=["keras.initializers.Orthogonal", "keras.initializers.orthogonal"],
-    allow_multiple_exports=True,
+    v1=["keras.initializers.Orthogonal", "keras.initializers.orthogonal"]
 )(_v1_orthogonal_initializer)
-keras_export(
-    v1=["keras.initializers.Identity", "keras.initializers.identity"],
-    allow_multiple_exports=True,
-)(_v1_identity)
-keras_export(
-    v1=["keras.initializers.glorot_uniform"], allow_multiple_exports=True
-)(_v1_glorot_uniform_initializer)
-keras_export(
-    v1=["keras.initializers.glorot_normal"], allow_multiple_exports=True
-)(_v1_glorot_normal_initializer)
+keras_export(v1=["keras.initializers.Identity", "keras.initializers.identity"])(
+    _v1_identity
+)
+keras_export(v1=["keras.initializers.glorot_uniform"])(
+    _v1_glorot_uniform_initializer
+)
+keras_export(v1=["keras.initializers.glorot_normal"])(
+    _v1_glorot_normal_initializer
+)
 
 
 @keras_export(
@@ -189,9 +184,9 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
 
     Args:
       minval: A python scalar or a scalar tensor. Lower bound of the range of
-        random values to generate.
+        random values to generate. Defaults to `-0.05`.
       maxval: A python scalar or a scalar tensor. Upper bound of the range of
-        random values to generate.  Defaults to 1 for float types.
+        random values to generate. Defaults to `0.05`.
       seed: A Python integer. Used to create random seeds. See
         `tf.compat.v1.set_random_seed` for behavior.
       dtype: Default data type, used if no `dtype` argument is provided when

@@ -142,13 +142,13 @@ def measure_performance(
       ValueError: If `x` is none or if `optimizer` is not provided or
       if `loss` is not provided or if `num_gpus` is negative.
     """
-    if "x" is None:
+    if x is None:
         raise ValueError("Input data is required.")
-    if "optimizer" is None:
+    elif optimizer is None:
         raise ValueError("Optimizer is required.")
-    if "loss" is None:
+    elif loss is None:
         raise ValueError("Loss function is required.")
-    if num_gpus < 0:
+    elif num_gpus < 0:
         raise ValueError("`num_gpus` cannot be negative")
 
     # TODO(xingyulong): we will add tfds support later and

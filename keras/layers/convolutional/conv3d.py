@@ -83,11 +83,11 @@ class Conv3D(Conv):
         `channels_last` corresponds to inputs with shape `batch_shape +
         (spatial_dim1, spatial_dim2, spatial_dim3, channels)` while
         `channels_first` corresponds to inputs with shape `batch_shape +
-        (channels, spatial_dim1, spatial_dim2, spatial_dim3)`. It defaults to
-        the `image_data_format` value found in your Keras config file at
-        `~/.keras/keras.json`. If you never set it, then it will be
-        "channels_last". Note that the `channels_first` format is currently not
-        supported by TensorFlow on CPU.
+        (channels, spatial_dim1, spatial_dim2, spatial_dim3)`. When unspecified,
+        uses `image_data_format` value found in your Keras config file at
+        `~/.keras/keras.json` (if exists) else 'channels_last'. Note that the
+        `channels_first` format is currently not supported by TensorFlow on CPU.
+        Defaults to 'channels_last'.
       dilation_rate: an integer or tuple/list of 3 integers, specifying the
         dilation rate to use for dilated convolution. Can be a single integer to
         specify the same value for all spatial dimensions. Currently, specifying

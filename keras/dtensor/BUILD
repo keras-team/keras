@@ -2,9 +2,18 @@
 # Since DTensor is not a public API yet, all the DTensor related change
 # can't be exposed to public yet.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
+# copybara:uncomment_begin(google-only)
+# load(
+#     "//third_party/tensorflow/dtensor:build_defs.bzl",
+#     "dtensor_test",
+# )
+# copybara:uncomment_end
+
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//learning/brain/distribute/experimental/auto_distribute:__pkg__",
@@ -17,6 +26,9 @@ package(
 py_library(
     name = "dtensor",
     srcs = ["__init__.py"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
 )
 
 tf_py_test(
@@ -108,21 +120,31 @@ tf_py_test(
     ],
 )
 
-tf_py_test(
-    name = "mnist_model_test",
-    srcs = ["mnist_model_test.py"],
-    tags = [
-        "requires-net:external",
-    ],
-    deps = [
-        ":integration_test_utils",
-        ":test_util",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/optimizers",
-        "//keras/utils:tf_utils",
-    ],
-)
+# copybara:uncomment_begin(google-only)
+# dtensor_test(
+#     name = "mnist_model_test",
+#     srcs = ["mnist_model_test.py"],
+#     env = {
+#         "CUDA_MODULE_LOADING": "LAZY",
+#         "TF_GPU_ALLOCATOR": "cuda_malloc_async",
+#     },
+#     tags = [
+#         "no_oss",
+#         "requires-net:external",
+#     ],
+#     deps = [
+#         ":dtensor",
+#         ":integration_test_utils",
+#         ":layout_map",
+#         ":test_util",
+#         "//keras:backend",
+#         "//keras/optimizers",
+#         "//keras/utils:tf_utils",
+#         "//:expect_numpy_installed",
+#         "//:expect_tensorflow_installed",
+#     ],
+# )
+# copybara:uncomment_end
 
 tf_py_test(
     name = "optimizers_test",
@@ -196,16 +218,28 @@ tf_py_test(
     ],
 )
 
-tf_py_test(
-    name = "strategy_integration_test",
-    srcs = ["strategy_integration_test.py"],
-    tags = ["no_oss"],
-    deps = [
-        ":integration_test_utils",
-        ":test_util",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
-    ],
-)
+# copybara:uncomment_begin(google-only)
+# dtensor_test(
+#     name = "strategy_integration_test",
+#     srcs = ["strategy_integration_test.py"],
+#     shard_count = {
+#         "CPU": 2,
+#         "GPU": 4,
+#         "TPU": 2,
+#     },
+#     tags = ["no_oss"],
+#     deps = [
+#         ":integration_test_utils",
+#         ":test_util",
+#         "//:expect_absl_installed",
+#         "//keras:backend",
+#         "//keras/mixed_precision:mixed_precision_experimental",
+#         "//keras/optimizers",
+#         "//keras/utils:tf_utils",
+#         "//:expect_numpy_installed",
+#         "//:expect_tensorflow_installed",
+#         "//third_party/tensorflow/dtensor/python/tests:test_util",
+#         "//third_party/tensorflow/python/distribute/experimental:mirrored_strategy",
+#     ],
+# )
+# copybara:uncomment_end

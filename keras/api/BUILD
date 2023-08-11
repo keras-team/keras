@@ -1,10 +1,12 @@
 # Description:
 # Package for Keras.
 
+# Placeholder: load unaliased py_library
 load("//keras/api:api_gen.bzl", "gen_api_init_files")
 load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_FILES_V1")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/py/tensorflow:__subpackages__",
@@ -73,9 +75,7 @@ keras_packages = [
     "keras.layers.core",
     "keras.layers.locally_connected",
     "keras.layers.merging",
-    "keras.layers.normalization.batch_normalization",
-    "keras.layers.normalization.batch_normalization_v1",
-    "keras.layers.normalization.layer_normalization",
+    "keras.layers.normalization",
     "keras.layers.preprocessing",
     "keras.layers.pooling",
     "keras.layers.regularization",

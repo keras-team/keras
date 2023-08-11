@@ -2,11 +2,13 @@
 #   keras/distribute package is intended to serve as the centralized place for things
 #   related to dist-strat used by Keras..
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     # TODO(scottzhu): Remove this deps when distribute test are converted to integration test.
     default_visibility = [
         "//keras:friends",
@@ -121,6 +123,19 @@ py_library(
 )
 
 cuda_py_test(
+    name = "model_checkpoint_test",
+    srcs = ["model_checkpoint_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        ":multi_worker_testing_utils",
+        ":worker_training_state",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+cuda_py_test(
     name = "worker_training_state_test",
     srcs = ["worker_training_state_test.py"],
     python_version = "PY3",
@@ -173,6 +188,9 @@ cuda_py_test(
 distribute_py_test(
     name = "ctl_correctness_test",
     srcs = ["ctl_correctness_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "ctl_correctness_test.py",
     shard_count = 10,
     tags = [
@@ -271,12 +289,16 @@ distribute_py_test(
     size = "medium",
     srcs = ["keras_premade_models_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     full_precision = True,
     main = "keras_premade_models_test.py",
     shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":distribute_strategy_test_lib",
@@ -430,6 +452,9 @@ distribute_py_test(
     name = "keras_metrics_test",
     srcs = ["keras_metrics_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "keras_metrics_test.py",
     shard_count = 8,
     tags = [
@@ -471,6 +496,7 @@ distribute_py_test(
     shard_count = 31,
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/277925387)
         "no_rocm",  # Would require size large, but that effectively disables the test for presubmits.
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
@@ -767,7 +793,7 @@ distribute_py_test(
     name = "parameter_server_exact_evaluation_test",
     srcs = ["parameter_server_exact_evaluation_test.py"],
     python_version = "PY3",
-    shard_count = 28,
+    shard_count = 29,
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # TODO(b/186361027)

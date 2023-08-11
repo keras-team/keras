@@ -337,22 +337,33 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
             ema_overwrite_frequency=3,
         )
 
-        var1, var2 = tf.Variable(2.0), tf.Variable(2.0)
+        # `var2` does not produce gradients.
+        var1, var2, var3 = tf.Variable(2.0), tf.Variable(2.0), tf.Variable(2.0)
         with tf.GradientTape() as tape:
-            loss = var1 + var2
-        grads = tape.gradient(loss, [var1, var2])
-        # First iteration: [var1, var2] = [1.0, 1.0]
-        optimizer.apply_gradients(zip(grads, [var1, var2]))
-        self.assertAllEqual([var1.numpy(), var2.numpy()], [1.0, 1.0])
+            loss = var1 + var3
+        grads = tape.gradient(loss, [var1, var2, var3])
+        # First iteration: [var1, var2, var3] = [1.0, 2.0, 1.0]
+        optimizer.apply_gradients(zip(grads, [var1, var2, var3]))
+        self.assertAllEqual(
+            [var1.numpy(), var2.numpy(), var3.numpy()],
+            [1.0, 2.0, 1.0],
+        )
 
-        # Second iteration: [var1, var2] = [0.0, 0.0]
-        optimizer.apply_gradients(zip(grads, [var1, var2]))
-        self.assertAllEqual([var1.numpy(), var2.numpy()], [0.0, 0.0])
+        # Second iteration: [var1, var2, var3] = [0.0, 2.0, 0.0]
+        optimizer.apply_gradients(zip(grads, [var1, var2, var3]))
+        self.assertAllEqual(
+            [var1.numpy(), var2.numpy(), var3.numpy()],
+            [0.0, 2.0, 0.0],
+        )
 
-        # Third iteration, without EMA, we should see [var1, var2] = [-1.0,
-        # -1.0], but overwriting results in [var1, var2] = [-0.125, -0.125].
-        optimizer.apply_gradients(zip(grads, [var1, var2]))
-        self.assertAllEqual([var1.numpy(), var2.numpy()], [-0.125, -0.125])
+        # Third iteration, without EMA, we should see [var1, var2, var3] =
+        # [-1.0, 2.0 -1.0], but overwriting results in [var1, var2] =
+        # [-0.125, 2.0, -0.125].
+        optimizer.apply_gradients(zip(grads, [var1, var2, var3]))
+        self.assertAllEqual(
+            [var1.numpy(), var2.numpy(), var3.numpy()],
+            [-0.125, 2.0, -0.125],
+        )
 
     def testGetAndFromConfig(self):
         class CustomLRSchedule(learning_rate_schedule.LearningRateSchedule):
@@ -525,6 +536,17 @@ class OptimizerFuntionalityTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(loaded_optimizer.learning_rate, 0.002)
         self.assertEqual(loaded_optimizer.clipnorm, 0.1)
         loaded_optimizer.build(loaded_model.trainable_variables)
+        self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
+
+        # Save in `.keras` format.
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(path)
+        loaded_model = keras.models.load_model(path)
+        loaded_model.load_weights(path)
+        loaded_optimizer = loaded_model.optimizer
+        self.assertEqual(type(optimizer), type(loaded_optimizer))
+        self.assertEqual(loaded_optimizer.learning_rate, 0.002)
+        self.assertEqual(loaded_optimizer.clipnorm, 0.1)
         self.assertAllClose(optimizer.variables, loaded_optimizer.variables)
 
     @parameterized.product(optimizer_fn=OPTIMIZER_FN)

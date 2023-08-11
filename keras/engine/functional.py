@@ -130,7 +130,6 @@ class Functional(training_lib.Model):
         itertools.chain(
             (
                 "_layer_call_argspecs",
-                "_compiled_trainable_state",
                 "_output_mask_cache",
                 "_output_tensor_cache",
                 "_output_shape_cache",
@@ -461,7 +460,11 @@ class Functional(training_lib.Model):
         dependencies.update(super()._trackable_children(save_type, **kwargs))
         return dependencies
 
-    def _lookup_dependency(self, name):
+    def _lookup_dependency(self, name, cached_dependencies=None):
+        if cached_dependencies:
+            return cached_dependencies.get(name)
+        # Fall back to slow lookup (`layer_checkpoint_dependencies` does a
+        # thorough check of all layer to see if they contain weights.)
         layer_dependencies = self._layer_checkpoint_dependencies
         if name in layer_dependencies:
             return layer_dependencies[name]
@@ -1555,8 +1558,11 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
     """
     config = config or {}
     serialize_obj_fn = serialization_lib.serialize_keras_object
-    if "module" not in config:
+    set_layers_legacy = False
+    # To be removed after full affected g3 user migration to Keras V3 Saving.
+    if getattr(network, "use_legacy_config", False):
         serialize_obj_fn = serialization.serialize_keras_object
+        set_layers_legacy = True
     serialize_layer_fn = serialize_layer_fn or serialize_obj_fn
     config["name"] = network.name
     node_conversion_map = {}
@@ -1582,6 +1588,8 @@ def get_network_config(network, serialize_layer_fn=None, config=None):
                     )
                     filtered_inbound_nodes.append(node_data)
 
+            if isinstance(layer, Functional) and set_layers_legacy:
+                layer.use_legacy_config = True
             layer_config = serialize_layer_fn(layer)
             layer_config["name"] = layer.name
             layer_config["inbound_nodes"] = filtered_inbound_nodes
@@ -1647,8 +1655,8 @@ class ModuleWrapper(base_layer.Layer):
         Args:
           module: The `tf.Module` instance to be wrapped.
           method_name: (Optional) str. The name of the method to use as the
-            forward pass of the module. If not set, defaults to '__call__' if
-            defined, or 'call'.
+            forward pass of the module. If not set, becomes '__call__' if
+            defined, or 'call'. Defaults to `None`.
           **kwargs: Additional keywrod arguments. See `tf.keras.layers.Layer`.
 
         Raises:

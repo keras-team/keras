@@ -473,6 +473,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "SpectralNormalization"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "StackedRNNCells"
     mtype: "<type \'type\'>"
   }

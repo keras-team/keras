@@ -2247,6 +2247,19 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
+    def test_categorical_focal_crossentropy_with_softmax(self):
+        t = backend.constant([[0, 1, 0]])
+        logits = backend.constant([[8.0, 1.0, 1.0]])
+        p = backend.softmax(logits)
+        p = tf.identity(tf.identity(p))
+        result = self.evaluate(
+            backend.categorical_focal_crossentropy(t, p, gamma=2.0)
+        )
+        self.assertArrayNear(result, [1.747], 1e-3)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
     def test_binary_focal_crossentropy_from_logits(self):
         t = backend.constant([[0, 1, 0]])
         logits = backend.constant([[8.0, 1.0, 1.0]])
@@ -2259,6 +2272,21 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
             )
         )
         self.assertArrayNear(result[0], [7.995, 0.022, 0.701], 1e-3)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    def test_categorical_focal_crossentropy_from_logits(self):
+        t = backend.constant([[0, 1, 0]])
+        logits = backend.constant([[8.0, 1.0, 1.0]])
+        result = self.evaluate(
+            backend.categorical_focal_crossentropy(
+                target=t,
+                output=logits,
+                from_logits=True,
+            )
+        )
+        self.assertArrayNear(result, [1.7472], 1e-3)
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -2278,6 +2306,25 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
         )
         non_focal_result = self.evaluate(backend.binary_crossentropy(t, p))
         self.assertArrayNear(focal_result[0], non_focal_result[0], 1e-3)
+
+    @test_combinations.generate(
+        test_combinations.combine(mode=["graph", "eager"])
+    )
+    def test_categorical_focal_crossentropy_no_focal_effect(self):
+        t = backend.constant([[0, 1, 0]])
+        logits = backend.constant([[8.0, 1.0, 1.0]])
+        p = backend.softmax(logits)
+        p = tf.identity(tf.identity(p))
+        focal_result = self.evaluate(
+            backend.categorical_focal_crossentropy(
+                target=t,
+                output=p,
+                gamma=0.0,
+                alpha=1.0,
+            )
+        )
+        non_focal_result = self.evaluate(backend.categorical_crossentropy(t, p))
+        self.assertArrayNear(focal_result, non_focal_result, 1e-3)
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -2368,7 +2415,7 @@ class TestCTC(tf.test.TestCase):
         log_prob_pred = backend.eval(log_prob_pred_tf)
         for i in range(top_paths):
             self.assertTrue(
-                np.alltrue(decode_truth[i] == backend.eval(decode_pred_tf[i]))
+                np.all(decode_truth[i] == backend.eval(decode_pred_tf[i]))
             )
         self.assertAllClose(log_prob_truth, log_prob_pred)
 

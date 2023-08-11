@@ -191,17 +191,26 @@ def generate_keras_api_files(package_directory, src_directory):
                         f"[!] Could not inspect symbol '{name}' from {module}."
                     )
                 continue
-            # If the symbol is a subclass of a non-registered symbol, skip it.
+            # If the symbol is a non-registered subclass of
+            # a registered symbol, skip it.
             skip = False
+
+            def has_same_metadata(a, b):
+                if (
+                    hasattr(a, "_keras_api_names")
+                    and hasattr(b, "_keras_api_names")
+                    and a._keras_api_names == b._keras_api_names
+                    and a._keras_api_names_v1 == b._keras_api_names_v1
+                ):
+                    return True
+                return False
+
             try:
                 classes = inspect.getmro(symbol)
                 if len(classes) >= 2:
                     parents = classes[1:]
                     for p in parents:
-                        if (
-                            hasattr(p, "_keras_api_names")
-                            and p._keras_api_names == symbol._keras_api_names
-                        ):
+                        if has_same_metadata(p, symbol):
                             skip = True
             except AttributeError:
                 # getmro will error out on a non-class
@@ -329,6 +338,7 @@ def build_pip_package(
     src_directory,
     dist_directory,
     is_nightly=False,
+    rc=None,
 ):
     # Build Keras with Bazel to get the protobuf .py files
     os.chdir(keras_root_directory)
@@ -374,6 +384,8 @@ def build_pip_package(
     if is_nightly:
         date = datetime.datetime.now()
         version += f".dev{date.strftime('%Y%m%d%H')}"
+    elif rc:
+        version += rc
     with open(os.path.join(package_directory, "__init__.py")) as f:
         init_contents = f.read()
     with open(os.path.join(package_directory, "__init__.py"), "w") as f:
@@ -424,6 +436,7 @@ def test_wheel(wheel_path, expected_version, requirements_path):
         f"pip3 install -r {requirements_path}\n"
         f"pip3 install {wheel_path} --force-reinstall\n"
         f"python3 -c 'import keras;{checks};print(keras.__version__)'\n"
+        f"python3 -c 'import tensorflow as tf;tf.compat.v1.layers.Dense'\n"
     )
     try:
         # Check version is correct
@@ -445,8 +458,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether this is for the `keras-nightly` package.",
     )
+    parser.add_argument(
+        "--RC",
+        type=str,
+        help="Whether this is for the release candidate.",
+    )
     args = parser.parse_args()
     is_nightly = args.nightly
+    rc = args.RC
 
     build_directory = os.path.join(tempfile.gettempdir(), TMP_BUILD_DIRNAME)
     keras_root_directory = pathlib.Path(__file__).parent.resolve()
@@ -461,7 +480,8 @@ if __name__ == "__main__":
             f"dist_directory={dist_directory}\n"
             f"package_directory={package_directory}\n"
             f"src_directory={src_directory}\n"
-            f"is_nightly={is_nightly}"
+            f"is_nightly={is_nightly}\n"
+            f"rc={rc}"
         )
     if os.path.exists(build_directory):
         raise ValueError(f"Directory already exists: {build_directory}")
@@ -477,6 +497,7 @@ if __name__ == "__main__":
             src_directory,
             dist_directory,
             is_nightly,
+            rc,
         )
         wheel_filename = [f for f in saved_filenames if f.endswith(".whl")][0]
         if VERBOSE:

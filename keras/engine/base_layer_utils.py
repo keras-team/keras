@@ -98,8 +98,8 @@ def make_variable(
         or "non_trainable_variables" (e.g. BatchNorm mean, stddev).
         Note, if the current variable scope is marked as non-trainable
         then this parameter is ignored and any added variables are also
-        marked as non-trainable. `trainable` defaults to `True` unless
-        `synchronization` is set to `ON_READ`.
+        marked as non-trainable. `trainable` becomes `True` unless
+        `synchronization` is set to `ON_READ`. Defaults to `None`.
       caching_device: Passed to `tf.Variable`.
       validate_shape: Passed to `tf.Variable`.
       constraint: Constraint instance (callable).

@@ -18,9 +18,12 @@
 
 # buildifier: disable=same-origin-load
 
+# Placeholder: load unaliased py_library
+# Placeholder: load unaliased py_binary
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras/layers/rnn:__pkg__",
         "//keras/saving:__subpackages__",

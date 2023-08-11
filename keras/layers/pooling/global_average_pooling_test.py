@@ -155,6 +155,16 @@ class GlobalAveragePoolingTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllEqual((2, 1, 4), output.shape)
         self.assertAllClose(output[0, 0], model_input[0, 0, :])
 
+    def test_global_average_pooling_1d_invalid_input_dimension(self):
+        with self.assertRaisesRegex(ValueError, r"""Incorrect input shape"""):
+            layer = keras.layers.GlobalAveragePooling1D()
+            layer.build((None, 0, 2))
+
+    def test_global_average_pooling_3d_invalid_input_dimension(self):
+        with self.assertRaisesRegex(ValueError, r"""Incorrect input shape"""):
+            layer = keras.layers.GlobalAveragePooling3D(keepdims=True)
+            layer.build((None, 0, 16, 16, 3))
+
 
 if __name__ == "__main__":
     tf.test.main()

@@ -1362,7 +1362,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
         assert not os.path.exists(filepath)
 
     @test_utils.run_v2_only
-    def test_ModelCheckpoint_subclass_save_weights_false(self):
+    def test_ModelCheckpoint_subclass_SavedModel_save_weights_false(self):
         model = test_utils.get_small_subclass_mlp(NUM_HIDDEN, NUM_CLASSES)
         model.compile(
             loss="categorical_crossentropy",
@@ -1387,6 +1387,33 @@ class KerasCallbacksTest(test_combinations.TestCase):
         model.fit(x_train, y_train, callbacks=cbks, epochs=1, verbose=0)
         # Check that the filepath is a SavedModel directory.
         self.assertIn("saved_model.pb", os.listdir(filepath))
+
+    @test_utils.run_v2_only
+    def test_ModelCheckpoint_subclass_KerasV3_save_weights_false(self):
+        model = test_utils.get_small_subclass_mlp(NUM_HIDDEN, NUM_CLASSES)
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="rmsprop",
+            metrics=["acc"],
+        )
+        temp_dir = self.get_temp_dir()
+        self.addCleanup(shutil.rmtree, temp_dir, ignore_errors=True)
+        filepath = os.path.join(temp_dir, "checkpoint.keras")
+        cbks = [
+            keras.callbacks.ModelCheckpoint(filepath, save_weights_only=False)
+        ]
+
+        (x_train, y_train), _ = test_utils.get_test_data(
+            train_samples=TRAIN_SAMPLES,
+            test_samples=TEST_SAMPLES,
+            input_shape=(INPUT_DIM,),
+            num_classes=NUM_CLASSES,
+        )
+        y_train = np_utils.to_categorical(y_train, num_classes=NUM_CLASSES)
+
+        model.fit(x_train, y_train, callbacks=cbks, epochs=1, verbose=0)
+
+        assert os.path.exists(filepath)
 
     def _get_dummy_resource_for_model_checkpoint_testing(self):
         def get_input_datasets():
@@ -1627,6 +1654,24 @@ class KerasCallbacksTest(test_combinations.TestCase):
             "Please specify a non-directory filepath for ModelCheckpoint.",
         ):
             model.fit(train_ds, epochs=1, callbacks=[callback])
+
+    def test_ModelCheckpoint_KerasV3_save_options_error(self):
+        (
+            model,
+            train_ds,
+            callback,
+            filepath,
+        ) = self._get_dummy_resource_for_model_checkpoint_testing()
+
+        temp_dir = self.get_temp_dir()
+        filepath = os.path.join(temp_dir, "temp.keras")
+
+        with self.assertRaisesRegex(
+            ValueError, "The native Keras format does not support"
+        ):
+            _ = keras.callbacks.ModelCheckpoint(
+                filepath=filepath, options=tf.saved_model.SaveOptions()
+            )
 
     def test_ModelCheckpoint_with_bad_path_placeholders(self):
         (

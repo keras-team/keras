@@ -20,6 +20,7 @@ For more examples see the base class `tf.keras.optimizers.Optimizer`.
 # Imports needed for deserialization.
 
 import platform
+import warnings
 
 import tensorflow.compat.v2 as tf
 from absl import logging
@@ -86,6 +87,22 @@ def serialize(optimizer, use_legacy_format=False):
     Returns:
       Python dict which contains the configuration of the input optimizer.
     """
+    if optimizer is None:
+        return None
+    if not isinstance(
+        optimizer,
+        (
+            base_optimizer.Optimizer,
+            Optimizer,
+            base_optimizer_legacy.OptimizerV2,
+        ),
+    ):
+        warnings.warn(
+            "The `keras.optimizers.serialize()` API should only be used for "
+            "objects of type `keras.optimizers.Optimizer`. Found an instance "
+            f"of type {type(optimizer)}, which may lead to improper "
+            "serialization."
+        )
     if use_legacy_format:
         return legacy_serialization.serialize_keras_object(optimizer)
     return serialize_keras_object(optimizer)
@@ -197,14 +214,14 @@ def deserialize(config, custom_objects=None, use_legacy_format=False, **kwargs):
 def convert_to_legacy_optimizer(optimizer):
     """Convert experimental optimizer to legacy optimizer.
 
-    This function takes in a `tf.keras.optimizers.experimental.Optimizer`
+    This function takes in a `keras.optimizers.Optimizer`
     instance and converts it to the corresponding
-    `tf.keras.optimizers.legacy.Optimizer` instance.
-    For example, `tf.keras.optimizers.experimental.Adam(...)` to
-    `tf.keras.optimizers.legacy.Adam(...)`.
+    `keras.optimizers.legacy.Optimizer` instance.
+    For example, `keras.optimizers.Adam(...)` to
+    `keras.optimizers.legacy.Adam(...)`.
 
     Args:
-        optimizer: An instance of `tf.keras.optimizers.experimental.Optimizer`.
+        optimizer: An instance of `keras.optimizers.Optimizer`.
     """
     # loss_scale_optimizer has a direct dependency of optimizer, import here
     # rather than top to avoid the cyclic dependency.
@@ -281,20 +298,11 @@ def get(identifier, **kwargs):
     ):
         return identifier
     elif isinstance(identifier, base_optimizer.Optimizer):
-        if tf.__internal__.tf2.enabled() and not is_arm_mac():
+        if tf.__internal__.tf2.enabled():
             return identifier
         else:
-            # If TF2 is disabled or on a M1 mac, we convert to the legacy
-            # optimizer. We observed a slowdown of optimizer on M1 Mac, so we
-            # fall back to the legacy optimizer for now, see b/263339144
-            # for more context.
-            optimizer_name = identifier.__class__.__name__
-            logging.warning(
-                "There is a known slowdown when using v2.11+ Keras optimizers "
-                "on M1/M2 Macs. Falling back to the "
-                "legacy Keras optimizer, i.e., "
-                f"`tf.keras.optimizers.legacy.{optimizer_name}`."
-            )
+            # If TF2 is disabled, we convert to the legacy
+            # optimizer.
             return convert_to_legacy_optimizer(identifier)
 
     # Wrap legacy TF optimizer instances

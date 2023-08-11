@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras preprocess layers (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # buildifier: disable=same-origin-load
@@ -8,6 +9,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
+    # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [
         "//keras:friends",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
@@ -256,6 +258,9 @@ distribute_py_test(
     name = "category_encoding_distribution_test",
     srcs = ["category_encoding_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "category_encoding_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -282,6 +287,9 @@ distribute_py_test(
 distribute_py_test(
     name = "image_preprocessing_distribution_test",
     srcs = ["image_preprocessing_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "image_preprocessing_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -323,6 +331,9 @@ tf_py_test(
 distribute_py_test(
     name = "discretization_distribution_test",
     srcs = ["discretization_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "discretization_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -362,6 +373,9 @@ distribute_py_test(
     name = "hashing_distribution_test",
     srcs = ["hashing_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "hashing_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -415,6 +429,9 @@ distribute_py_test(
     name = "index_lookup_distribution_test",
     srcs = ["index_lookup_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
     shard_count = 4,
@@ -490,6 +507,9 @@ tf_py_test(
 distribute_py_test(
     name = "normalization_distribution_test",
     srcs = ["normalization_distribution_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "normalization_distribution_test.py",
     python_version = "PY3",
     shard_count = 8,
@@ -527,9 +547,12 @@ distribute_py_test(
     name = "text_vectorization_distribution_test",
     srcs = ["text_vectorization_distribution_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "text_vectorization_distribution_test.py",
     python_version = "PY3",
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)

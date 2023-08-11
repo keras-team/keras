@@ -10,6 +10,7 @@ is required to Bazel build Keras.
 """
 
 load("@org_keras//keras:keras.bzl", "if_indexing_source_code")
+# Placeholder: load aliased py_binary
 
 def gen_api_init_files(
         name,
@@ -119,7 +120,7 @@ def gen_api_init_files(
             _make_cmd(api_gen_binary_target, flags, loading = "default"),
         ),
         srcs = srcs,
-        exec_tools = [":" + api_gen_binary_target],
+        tools = [":" + api_gen_binary_target],
         visibility = ["//visibility:public"],
     )
 

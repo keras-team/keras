@@ -25,6 +25,7 @@ import tensorflow.compat.v2 as tf
 import keras
 from keras.saving import serialization_lib
 from keras.saving.legacy import serialization
+from keras.testing_infra import test_utils
 from keras.utils import generic_utils
 from keras.utils import io_utils
 
@@ -324,6 +325,30 @@ class MaybeSharedObject:
     pass
 
 
+class CustomModelX(keras.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dense1 = keras.layers.Dense(1)
+        self.train_step_message = "This is my training step"
+
+    def call(self, inputs):
+        return self.dense1(inputs)
+
+    def train_step(self, data):
+        tf.print(self.train_step_message)
+        x, y = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x)
+            loss = self.compiled_loss(y, y_pred)
+
+        gradients = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+        return {}
+
+    def func_that_returns_one(self):
+        return 1
+
+
 class SharedObjectScopeTest(tf.test.TestCase):
     def test_shared_object_saving_scope_single_object_doesnt_export_id(self):
         with serialization.SharedObjectSavingScope() as scope:
@@ -375,33 +400,8 @@ class SharedObjectScopeTest(tf.test.TestCase):
             self.assertIsNotNone(scope_1.get_config(my_obj))
         self.assertIsNone(serialization._shared_object_saving_scope())
 
-    def test_custom_object_scope_correct_class(self):
-        train_step_message = "This is my training step"
+    def test_custom_object_scope_correct_class_saved_model(self):
         temp_dir = os.path.join(self.get_temp_dir(), "my_model")
-
-        class CustomModelX(keras.Model):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.dense1 = keras.layers.Dense(1)
-
-            def call(self, inputs):
-                return self.dense1(inputs)
-
-            def train_step(self, data):
-                tf.print(train_step_message)
-                x, y = data
-                with tf.GradientTape() as tape:
-                    y_pred = self(x)
-                    loss = self.compiled_loss(y, y_pred)
-
-                gradients = tape.gradient(loss, self.trainable_variables)
-                self.optimizer.apply_gradients(
-                    zip(gradients, self.trainable_variables)
-                )
-                return {}
-
-            def func_that_returns_one(self):
-                return 1
 
         subclassed_model = CustomModelX()
         subclassed_model.compile(optimizer="adam", loss="mse")
@@ -409,6 +409,7 @@ class SharedObjectScopeTest(tf.test.TestCase):
         x = np.random.random((100, 32))
         y = np.random.random((100, 1))
         subclassed_model.fit(x, y, epochs=1)
+
         subclassed_model.save(temp_dir, save_format="tf")
 
         with keras.utils.custom_object_scope({"CustomModelX": CustomModelX}):
@@ -419,9 +420,39 @@ class SharedObjectScopeTest(tf.test.TestCase):
         with self.captureWritesToStream(sys.stderr) as printed:
             loaded_model.fit(x, y, epochs=1)
             if tf.__internal__.tf2.enabled():
-                # `tf.print` message is only available in stderr in TF2. Check
-                # that custom `train_step` is used.
-                self.assertRegex(printed.contents(), train_step_message)
+                # `tf.print` message is only available in stderr in TF2.
+                # Check that custom `train_step` is used.
+                self.assertRegex(printed.contents(), "This is my training step")
+
+        # Check that the custom class does get used.
+        self.assertIsInstance(loaded_model, CustomModelX)
+        # Check that the custom method is available.
+        self.assertEqual(loaded_model.func_that_returns_one(), 1)
+
+    @test_utils.run_v2_only
+    def test_custom_object_scope_correct_class_keras_v3(self):
+        temp_dir = os.path.join(self.get_temp_dir(), "my_model.keras")
+
+        subclassed_model = CustomModelX()
+        subclassed_model.compile(optimizer="adam", loss="mse")
+
+        x = np.random.random((100, 32))
+        y = np.random.random((100, 1))
+        subclassed_model.fit(x, y, epochs=1)
+
+        subclassed_model.save(temp_dir, save_format="keras_v3")
+
+        with keras.utils.custom_object_scope({"CustomModelX": CustomModelX}):
+            loaded_model = keras.models.load_model(temp_dir)
+
+        io_utils.enable_interactive_logging()
+        # `tf.print` writes to stderr.
+        with self.captureWritesToStream(sys.stderr) as printed:
+            loaded_model.fit(x, y, epochs=1)
+            if tf.__internal__.tf2.enabled():
+                # `tf.print` message is only available in stderr in TF2.
+                # Check that custom `train_step` is used.
+                self.assertRegex(printed.contents(), "This is my training step")
 
         # Check that the custom class does get used.
         self.assertIsInstance(loaded_model, CustomModelX)

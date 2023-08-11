@@ -133,7 +133,7 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
         for k in kwargs:
             if k in legacy_kwargs:
                 raise ValueError(
-                    f"{k} is deprecated in the new Keras optimizer, please"
+                    f"{k} is deprecated in the new Keras optimizer, please "
                     "check the docstring for valid arguments, or use the "
                     "legacy optimizer, e.g., "
                     f"tf.keras.optimizers.legacy.{self.__class__.__name__}."
@@ -636,7 +636,6 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
                 # Lift variable creation to init scope to avoid environment
                 # issues.
                 self.build(trainable_variables)
-            grads_and_vars = list(zip(grads, trainable_variables))
             grads_and_vars = optimizer_utils.filter_empty_gradients(
                 grads_and_vars
             )
@@ -686,31 +685,21 @@ class _BaseOptimizer(tf.__internal__.tracking.AutoTrackable):
     def _update_model_variables_moving_average(self, var_list):
         """Update the stored moving average using the latest value."""
         if self.use_ema:
-            for var, average in zip(
-                var_list, self._model_variables_moving_average
-            ):
+            for var in var_list:
+                average = self._model_variables_moving_average[
+                    self._index_dict[self._var_key(var)]
+                ]
                 average.assign(
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
     def _overwrite_model_variables_with_average_value(self, var_list):
         """Overwrite model variables with its moving average."""
-        if len(var_list) != len(self._model_variables_moving_average):
-            raise ValueError(
-                f"The length of model variables ({len(var_list)}) to "
-                "override does not match the length of model variables "
-                "stored in the optimizer "
-                f"({len(self._model_variables_moving_average)}). Please "
-                "check if the optimizer was called on your model."
-            )
-        self._overwrite_model_variables_with_average_value_helper(var_list)
-
-    def _overwrite_model_variables_with_average_value_helper(self, var_list):
-        """Helper function that overwrites model variables."""
-        for var, average_var in zip(
-            var_list, self._model_variables_moving_average
-        ):
-            var.assign(average_var)
+        for var in var_list:
+            average = self._model_variables_moving_average[
+                self._index_dict[self._var_key(var)]
+            ]
+            var.assign(average)
 
     def finalize_variable_values(self, var_list):
         """Set the final value of model's trainable variables.
@@ -902,7 +891,7 @@ class Optimizer(_BaseOptimizer):
 
     ```python
     # Create an optimizer with the desired parameters.
-    opt = tf.keras.optimizers.experimental.SGD(learning_rate=0.1)
+    opt = keras.optimizers.SGD(learning_rate=0.1)
     var1, var2 = tf.Variable(1.0), tf.Variable(2.0)
     # `loss` is a callable that takes no argument and returns the value
     # to minimize.
@@ -1042,7 +1031,7 @@ class Optimizer(_BaseOptimizer):
 
     This optimizer class is `tf.distribute.Strategy` aware, which means it
     automatically sums gradients across all replicas. To aggregate gradients
-    yourself, call `apply_gradients` with `skip_aggregate_gradients` set to
+    yourself, call `apply_gradients` with `skip_gradients_aggregation` set to
     True.  This is useful if you need to process aggregated gradients.
 
     ```python
@@ -1057,7 +1046,7 @@ class Optimizer(_BaseOptimizer):
       # Custom logic to aggregate gradients.
       gradients = strategy.reduce("SUM", gradients, axis=None)
       opt.apply_gradients(zip(gradients, model.trainable_variables),
-          skip_aggregate_gradients=True)
+          skip_gradients_aggregation=True)
     ```
 
     ### Creating a custom optimizer
@@ -1185,9 +1174,12 @@ class Optimizer(_BaseOptimizer):
           List of (gradient, variable) pairs.
         """
         if self._mesh or self._run_with_dtensor:
-            raise NotImplementedError(
-                "Dtensor doesn't need to manually aggregate gradients"
+            logging.warning(
+                "Calling aggregate_gradients is unnecessary when the model "
+                "is used with DTensor, which includes aggregation of "
+                "replicated gradients as part of backward pass."
             )
+            return grads_and_vars
         else:
             return optimizer_utils.all_reduce_sum_gradients(grads_and_vars)
 
@@ -1264,8 +1256,8 @@ class Optimizer(_BaseOptimizer):
             grads_and_vars,
         )
 
-    def _overwrite_model_variables_with_average_value_helper(self, var_list):
-        """Helper function to _overwrite_model_variables_with_average_value.
+    def _overwrite_model_variables_with_average_value(self, var_list):
+        """Overwrite model variables with their moving average values.
 
         This function overwrites variables on each device.
         Args:
@@ -1273,17 +1265,16 @@ class Optimizer(_BaseOptimizer):
         """
         if self._mesh or self._run_with_dtensor:
             # Skip any usage of strategy logic for DTensor
-            super()._overwrite_model_variables_with_average_value_helper(
-                var_list
-            )
+            super()._overwrite_model_variables_with_average_value(var_list)
 
         strategy = self._distribution_strategy
         # Override model variable by the stored average value on all devices.
-        for var, average_var in zip(
-            var_list, self._model_variables_moving_average
-        ):
+        for var in var_list:
+            average = self._model_variables_moving_average[
+                self._index_dict[self._var_key(var)]
+            ]
             strategy.extended.update(
-                var, lambda a, b: a.assign(b), args=(average_var,)
+                var, lambda a, b: a.assign(b), args=(average,)
             )
 
     def _build_learning_rate(self, learning_rate):
@@ -1331,9 +1322,10 @@ class Optimizer(_BaseOptimizer):
                     self.ema_momentum * average + (1 - self.ema_momentum) * var
                 )
 
-            for var, average in zip(
-                var_list, self._model_variables_moving_average
-            ):
+            for var in var_list:
+                average = self._model_variables_moving_average[
+                    self._index_dict[self._var_key(var)]
+                ]
                 self._distribution_strategy.extended.update(
                     average, update_average, args=(var,), group=False
                 )

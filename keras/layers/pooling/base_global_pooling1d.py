@@ -31,6 +31,21 @@ class GlobalPooling1D(Layer):
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.keepdims = keepdims
 
+    def _validate_reduction_axis(self, input_shape, axes):
+        for axis in axes:
+            if input_shape[axis] == 0:
+                raise ValueError(
+                    f"Incorrect input shape {input_shape} "
+                    f"with dimension 0 at reduction axis {axis}."
+                )
+
+    def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
+        if self.data_format == "channels_last":
+            self._validate_reduction_axis(input_shape, [1])
+        else:
+            self._validate_reduction_axis(input_shape, [2])
+
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
         if self.data_format == "channels_first":

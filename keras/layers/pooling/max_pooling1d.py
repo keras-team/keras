@@ -24,7 +24,7 @@ from keras.layers.pooling.base_pooling1d import Pooling1D
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export("keras.layers.MaxPool1D", "keras.layers.MaxPooling1D")
+@keras_export("keras.layers.MaxPooling1D", "keras.layers.MaxPool1D")
 class MaxPooling1D(Pooling1D):
     """Max pooling operation for 1D temporal data.
 
