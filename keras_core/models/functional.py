@@ -419,137 +419,144 @@ class Functional(Function, Model):
         config["output_layers"] = map_tensors(self._outputs_struct)
         return copy.deepcopy(config)
 
-    @classmethod
-    def _from_config(cls, config, custom_objects=None):
-        """Instantiates a Model from its config (output of `get_config()`)."""
-        # Layer instances created during
-        # the graph reconstruction process
-        created_layers = {}
 
-        # Dictionary mapping layer instances to
-        # node data that specifies a layer call.
-        # It acts as a queue that maintains any unprocessed
-        # layer call until it becomes possible to process it
-        # (i.e. until the input tensors to the call all exist).
-        unprocessed_nodes = {}
+def functional_from_config(cls, config, custom_objects=None):
+    """Instantiates a Functional model from its config (from `get_config()`).
 
-        def add_unprocessed_node(layer, node_data):
-            """Add node to layer list
+    Args:
+        cls: Class of the model, e.g. a custom subclass of `Model`.
+        config: Output of `get_config()` for the original model instance.
+        custom_objects: Optional dict of custom objects.
 
-            Arg:
-                layer: layer object
-                node_data: Node data specifying layer call
-            """
-            if layer not in unprocessed_nodes:
-                unprocessed_nodes[layer] = [node_data]
-            else:
-                unprocessed_nodes[layer].append(node_data)
+    Returns:
+        An instance of `cls`.
+    """
+    # Layer instances created during
+    # the graph reconstruction process
+    created_layers = {}
 
-        def process_node(layer, node_data):
-            """Reconstruct node by linking to inbound layers
+    # Dictionary mapping layer instances to
+    # node data that specifies a layer call.
+    # It acts as a queue that maintains any unprocessed
+    # layer call until it becomes possible to process it
+    # (i.e. until the input tensors to the call all exist).
+    unprocessed_nodes = {}
 
-            Args:
-                layer: Layer to process
-                node_data: List of layer configs
-            """
-            args, kwargs = deserialize_node(node_data, created_layers)
-            # Call layer on its inputs, thus creating the node
-            # and building the layer if needed.
-            layer(*args, **kwargs)
+    def add_unprocessed_node(layer, node_data):
+        """Add node to layer list
 
-        def process_layer(layer_data):
-            """Deserializes a layer, then call it on appropriate inputs.
+        Arg:
+            layer: layer object
+            node_data: Node data specifying layer call
+        """
+        if layer not in unprocessed_nodes:
+            unprocessed_nodes[layer] = [node_data]
+        else:
+            unprocessed_nodes[layer].append(node_data)
 
-            Args:
-                layer_data: layer config dict.
-            """
-            layer_name = layer_data["name"]
+    def process_node(layer, node_data):
+        """Reconstruct node by linking to inbound layers
 
-            # Instantiate layer.
-            if "module" not in layer_data:
-                # Legacy format deserialization (no "module" key)
-                # used for H5 and SavedModel formats
-                layer = saving_utils.model_from_config(
-                    layer_data, custom_objects=custom_objects
-                )
-            else:
-                layer = serialization_lib.deserialize_keras_object(
-                    layer_data, custom_objects=custom_objects
-                )
-            created_layers[layer_name] = layer
+        Args:
+            layer: Layer to process
+            node_data: List of layer configs
+        """
+        args, kwargs = deserialize_node(node_data, created_layers)
+        # Call layer on its inputs, thus creating the node
+        # and building the layer if needed.
+        layer(*args, **kwargs)
 
-            # Gather layer inputs.
-            inbound_nodes_data = layer_data["inbound_nodes"]
-            for node_data in inbound_nodes_data:
-                # We don't process nodes (i.e. make layer calls)
-                # on the fly because the inbound node may not yet exist,
-                # in case of layer shared at different topological depths
-                # (e.g. a model such as A(B(A(B(x)))))
-                add_unprocessed_node(layer, node_data)
+    def process_layer(layer_data):
+        """Deserializes a layer, then call it on appropriate inputs.
 
-        # First, we create all layers and enqueue nodes to be processed
+        Args:
+            layer_data: layer config dict.
+        """
+        layer_name = layer_data["name"]
+
+        # Instantiate layer.
+        if "module" not in layer_data:
+            # Legacy format deserialization (no "module" key)
+            # used for H5 and SavedModel formats
+            layer = saving_utils.model_from_config(
+                layer_data, custom_objects=custom_objects
+            )
+        else:
+            layer = serialization_lib.deserialize_keras_object(
+                layer_data, custom_objects=custom_objects
+            )
+        created_layers[layer_name] = layer
+
+        # Gather layer inputs.
+        inbound_nodes_data = layer_data["inbound_nodes"]
+        for node_data in inbound_nodes_data:
+            # We don't process nodes (i.e. make layer calls)
+            # on the fly because the inbound node may not yet exist,
+            # in case of layer shared at different topological depths
+            # (e.g. a model such as A(B(A(B(x)))))
+            add_unprocessed_node(layer, node_data)
+
+    # First, we create all layers and enqueue nodes to be processed
+    for layer_data in config["layers"]:
+        process_layer(layer_data)
+
+    # Then we process nodes in order of layer depth.
+    # Nodes that cannot yet be processed (if the inbound node
+    # does not yet exist) are re-enqueued, and the process
+    # is repeated until all nodes are processed.
+    while unprocessed_nodes:
         for layer_data in config["layers"]:
-            process_layer(layer_data)
+            layer = created_layers[layer_data["name"]]
 
-        # Then we process nodes in order of layer depth.
-        # Nodes that cannot yet be processed (if the inbound node
-        # does not yet exist) are re-enqueued, and the process
-        # is repeated until all nodes are processed.
-        while unprocessed_nodes:
-            for layer_data in config["layers"]:
-                layer = created_layers[layer_data["name"]]
+            # Process all nodes in layer, if not yet processed
+            if layer in unprocessed_nodes:
+                node_data_list = unprocessed_nodes[layer]
 
-                # Process all nodes in layer, if not yet processed
-                if layer in unprocessed_nodes:
-                    node_data_list = unprocessed_nodes[layer]
+                # Process nodes in order
+                node_index = 0
+                while node_index < len(node_data_list):
+                    node_data = node_data_list[node_index]
+                    try:
+                        process_node(layer, node_data)
 
-                    # Process nodes in order
-                    node_index = 0
-                    while node_index < len(node_data_list):
-                        node_data = node_data_list[node_index]
-                        try:
-                            process_node(layer, node_data)
+                    # If the node does not have all inbound layers
+                    # available, stop processing and continue later
+                    except IndexError:
+                        break
 
-                        # If the node does not have all inbound layers
-                        # available, stop processing and continue later
-                        except IndexError:
-                            break
+                    node_index += 1
 
-                        node_index += 1
+                # If not all nodes processed then store unprocessed nodes
+                if node_index < len(node_data_list):
+                    unprocessed_nodes[layer] = node_data_list[node_index:]
+                # If all nodes processed remove the layer
+                else:
+                    del unprocessed_nodes[layer]
 
-                    # If not all nodes processed then store unprocessed nodes
-                    if node_index < len(node_data_list):
-                        unprocessed_nodes[layer] = node_data_list[node_index:]
-                    # If all nodes processed remove the layer
-                    else:
-                        del unprocessed_nodes[layer]
+    # Create lits of input and output tensors and return new class
+    name = config.get("name")
+    trainable = config.get("trainable")
 
-        # Create lits of input and output tensors and return new class
-        name = config.get("name")
-        trainable = config.get("trainable")
+    def get_tensor(layer_name, node_index, tensor_index):
+        assert layer_name in created_layers
+        layer = created_layers[layer_name]
+        layer_output_tensors = layer._inbound_nodes[node_index].output_tensors
+        return layer_output_tensors[tensor_index]
 
-        def get_tensor(layer_name, node_index, tensor_index):
-            assert layer_name in created_layers
-            layer = created_layers[layer_name]
-            layer_output_tensors = layer._inbound_nodes[
-                node_index
-            ].output_tensors
-            return layer_output_tensors[tensor_index]
+    def map_tensors(tensors):
+        if isinstance(tensors, dict):
+            return {k: get_tensor(*v) for k, v in tensors.items()}
+        else:
+            return [get_tensor(*v) for v in tensors]
 
-        def map_tensors(tensors):
-            if isinstance(tensors, dict):
-                return {k: get_tensor(*v) for k, v in tensors.items()}
-            else:
-                return [get_tensor(*v) for v in tensors]
-
-        input_tensors = map_tensors(config["input_layers"])
-        output_tensors = map_tensors(config["output_layers"])
-        return cls(
-            inputs=input_tensors,
-            outputs=output_tensors,
-            name=name,
-            trainable=trainable,
-        )
+    input_tensors = map_tensors(config["input_layers"])
+    output_tensors = map_tensors(config["output_layers"])
+    return cls(
+        inputs=input_tensors,
+        outputs=output_tensors,
+        name=name,
+        trainable=trainable,
+    )
 
 
 def operation_fn(operation, training):

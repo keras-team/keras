@@ -78,7 +78,7 @@ def gelu(x, approximate=True):
     return jnn.gelu(x, approximate)
 
 
-def softmax(x, axis=None):
+def softmax(x, axis=-1):
     x = convert_to_tensor(x)
     return jnn.softmax(x, axis=axis)
 
