@@ -230,7 +230,7 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    """While loop implemetation.
+    """While loop implementation.
 
     Args:
         cond: A callable that represents the termination condition of the loop.
