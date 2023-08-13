@@ -10,7 +10,6 @@ from keras_core.legacy.saving import serialization as legacy_serialization
 from keras_core.models.functional import Functional
 from keras_core.models.model import Model
 from keras_core.saving import serialization_lib
-from keras_core.utils import tracking
 
 
 @keras_core_export(["keras_core.Sequential", "keras_core.models.Sequential"])
