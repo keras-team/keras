@@ -106,7 +106,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     array([9 12], shape=(2,), dtype=int32)
     """
     if any_symbolic_tensors((data,)):
-        return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
+        return SegmentMax(num_segments, sorted).symbolic_call(data, segment_ids)
     return backend.math.segment_max(
         data, segment_ids, num_segments=num_segments, sorted=sorted
     )
