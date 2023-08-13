@@ -60,7 +60,6 @@ class Sequential(Model):
     ```
     """
 
-    @tracking.no_automatic_dependency_tracking
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
         self._functional = None

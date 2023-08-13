@@ -429,30 +429,6 @@ class Gelu(Operation):
 
 @keras_core_export(["keras_core.ops.gelu", "keras_core.ops.nn.gelu"])
 def gelu(x, approximate=True):
-    """Gaussian Error Linear Unit (GELU) activation function.
-
-    If `approximate` is `True`, it is defined as:
-    `f(x) = 0.5 * x * (1 + tanh(sqrt(2 / pi) * (x + 0.044715 * x^3)))`
-
-    Or if `approximate` is `False`, it is defined as:
-    `f(x) = x * P(X <= x) = 0.5 * x * (1 + erf(x / sqrt(2)))`,
-    where `P(X) ~ N(0, 1)`.
-
-    Args:
-        x: Input tensor.
-        approximate: Approximate version of GELU activation. Defaults to `True`.
-
-    Returns:
-        A tensor with the same shape as `x`.
-
-    Example:
-
-    >>> x = np.array([-1., 0., 1.])
-    >>> x_gelu = keras_core.ops.gelu(x)
-    >>> print(x_gelu)
-    array([-0.15865525, 0., 0.84134475], shape=(3,), dtype=float64)
-
-    """
     if any_symbolic_tensors((x,)):
         return Gelu(approximate).symbolic_call(x)
     return backend.nn.gelu(x, approximate)
@@ -472,32 +448,6 @@ class Softmax(Operation):
 
 @keras_core_export(["keras_core.ops.softmax", "keras_core.ops.nn.softmax"])
 def softmax(x, axis=-1):
-    """Softmax activation function.
-
-    The elements of the output vector lie within the range `(0, 1)`, and their
-    total sum is exactly 1 (excluding the floating point rounding error).
-
-    Each vector is processed independently. The `axis` argument specifies the
-    axis along which the function is applied within the input.
-
-    It is defined as:
-    `f(x) = exp(x) / sum(exp(x))`
-
-    Args:
-        x: Input tensor.
-        axis: Integer, axis along which the softmax is applied.
-
-    Returns:
-        A tensor with the same shape as `x`.
-
-    Example:
-
-    >>> x = np.array([-1., 0., 1.])
-    >>> x_softmax = keras_core.ops.softmax(x)
-    >>> print(x_softmax)
-    array([0.09003057, 0.24472847, 0.66524096], shape=(3,), dtype=float64)
-
-    """
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
     return backend.nn.softmax(x, axis=axis)
@@ -522,27 +472,6 @@ class LogSoftmax(Operation):
     ]
 )
 def log_softmax(x, axis=-1):
-    """Log-softmax activation function.
-
-    It is defined as:
-    `f(x) = x - max(x) - log(sum(exp(x - max(x))))`
-
-    Args:
-        x: Input tensor.
-        axis: Integer, axis along which the log-softmax is applied.
-            Defaults to `-1`.
-
-    Returns:
-        A tensor with the same shape as `x`.
-
-    Example:
-
-    >>> x = np.array([-1., 0., 1.])
-    >>> x_log_softmax = keras_core.ops.log_softmax(x)
-    >>> print(x_log_softmax)
-    array([-2.40760596, -1.40760596, -0.40760596], shape=(3,), dtype=float64)
-
-    """
     if any_symbolic_tensors((x,)):
         return LogSoftmax(axis).symbolic_call(x)
     return backend.nn.log_softmax(x, axis=axis)
