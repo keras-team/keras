@@ -12,7 +12,7 @@ elif backend.backend() == "numpy":
 
     BackendVariable = NumpyVariable
 else:
-    raise RuntimeError("Invalid backend.")
+    raise RuntimeError(f"Invalid backend: {backend.backend()}")
 
 
 @keras_core_export("keras_core.backend.Variable")
