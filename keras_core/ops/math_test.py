@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 
 from keras_core import backend
 from keras_core import testing
@@ -172,14 +171,23 @@ class MathOpsCorrectnessTest(testing.TestCase):
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_sum(data, segment_ids)
-        expected = tf.math.segment_sum(data, segment_ids)
+
+        # Segment 0: 1 + 2 = 3
+        # Segment 1: 3 + 4 + 5 = 12
+        # Segment 2: 6 + 7 + 8 = 21
+        expected = np.array([3, 12, 21], dtype=np.float32)
         self.assertAllClose(outputs, expected)
 
         # Test N-D case.
         data = np.random.rand(9, 3, 3)
         segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_sum(data, segment_ids)
-        expected = tf.math.segment_sum(data, segment_ids)
+
+        expected = np.zeros((3, 3, 3))
+        for i in range(data.shape[0]):
+            segment_id = segment_ids[i]
+            expected[segment_id] += data[i]
+
         self.assertAllClose(outputs, expected)
 
     def test_segment_sum_explicit_num_segments(self):
@@ -187,27 +195,33 @@ class MathOpsCorrectnessTest(testing.TestCase):
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-        expected = tf.math.unsorted_segment_sum(
-            data, segment_ids, num_segments=4
-        )
+        expected = np.array([3, 12, 21, 0], dtype=np.float32)
         self.assertAllClose(outputs, expected)
 
         # Test 1D with -1 case.
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
         outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-        expected = tf.math.unsorted_segment_sum(
-            data, segment_ids, num_segments=4
-        )
+
+        # Segment ID 0: First two elements (1 + 2) = 3
+        # Segment ID 1: Next two elements (3 + 4) = 7
+        # Segment ID -1: Ignore the next two elements, because segment ID is -1.
+        # Segment ID 2: Next two elements (6 + 7) = 13
+        # Segment ID 3: No elements, so output is 0.
+        expected = np.array([3, 7, 13, 0], dtype=np.float32)
         self.assertAllClose(outputs, expected)
 
         # Test N-D case.
         data = np.random.rand(9, 3, 3)
         segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_sum(data, segment_ids, num_segments=4)
-        expected = tf.math.unsorted_segment_sum(
-            data, segment_ids, num_segments=4
-        )
+
+        expected = np.zeros((4, 3, 3))
+        for i in range(data.shape[0]):
+            segment_id = segment_ids[i]
+            if segment_id != -1:
+                expected[segment_id] += data[i]
+
         self.assertAllClose(outputs, expected)
 
     @pytest.mark.skipif(
@@ -219,14 +233,23 @@ class MathOpsCorrectnessTest(testing.TestCase):
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_max(data, segment_ids)
-        expected = tf.math.segment_max(data, segment_ids)
+
+        # Segment ID 0: Max of the first two elements = 2
+        # Segment ID 1: Max of the next three elements = 5
+        # Segment ID 2: Max of the next three elements = 8
+        expected = np.array([2, 5, 8], dtype=np.float32)
+
         self.assertAllClose(outputs, expected)
 
         # Test N-D case.
         data = np.random.rand(9, 3, 3)
         segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_max(data, segment_ids)
-        expected = tf.math.segment_max(data, segment_ids)
+        expected = np.zeros((3, 3, 3))
+        for i in range(data.shape[0]):
+            segment_id = segment_ids[i]
+            expected[segment_id] = np.maximum(expected[segment_id], data[i])
+
         self.assertAllClose(outputs, expected)
 
     def test_segment_max_explicit_num_segments(self):
@@ -234,27 +257,32 @@ class MathOpsCorrectnessTest(testing.TestCase):
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-        expected = tf.math.unsorted_segment_max(
-            data, segment_ids, num_segments=3
-        )
+
+        # Segment ID 0: Max of the first two elements = 2
+        # Segment ID 1: Max of the next three elements = 5
+        # Segment ID 2: Max of the next three elements = 8
+        expected = np.array([2, 5, 8], dtype=np.float32)
+
         self.assertAllClose(outputs, expected)
 
         # Test 1D with -1 case.
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
         segment_ids = np.array([0, 0, 1, 1, -1, 2, 2, -1], dtype=np.int32)
         outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-        expected = tf.math.unsorted_segment_max(
-            data, segment_ids, num_segments=3
-        )
+        expected = np.array([2, 4, 7], dtype=np.float32)
+
         self.assertAllClose(outputs, expected)
 
         # Test N-D case.
         data = np.random.rand(9, 3, 3)
         segment_ids = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=np.int32)
         outputs = kmath.segment_max(data, segment_ids, num_segments=3)
-        expected = tf.math.unsorted_segment_max(
-            data, segment_ids, num_segments=3
-        )
+
+        expected = np.full((3, 3, 3), -np.inf)
+        for i in range(data.shape[0]):
+            segment_id = segment_ids[i]
+            expected[segment_id] = np.maximum(expected[segment_id], data[i])
+
         self.assertAllClose(outputs, expected)
 
     def test_top_k(self):
@@ -271,9 +299,17 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
         x = np.random.rand(5, 5)
         outputs = kmath.top_k(x, k=2)
-        expected = tf.math.top_k(x, k=2)
-        self.assertAllClose(outputs[0], expected[0])
-        self.assertAllClose(outputs[1], expected[1])
+
+        expected_values = np.zeros((5, 2))
+        expected_indices = np.zeros((5, 2), dtype=np.int32)
+
+        for i in range(x.shape[0]):
+            top_k_indices = np.argsort(x[i])[-2:][::-1]
+            expected_values[i] = x[i, top_k_indices]
+            expected_indices[i] = top_k_indices
+
+        self.assertAllClose(outputs[0], expected_values)
+        self.assertAllClose(outputs[1], expected_indices)
 
     def test_in_top_k(self):
         targets = np.array([1, 0, 2])
