@@ -1,11 +1,10 @@
 import tensorflow as tf
 
-from keras_core.backend.tensorflow import tf_utils
+from keras_core.utils import tf_utils
 
 
 class TFLayer(tf.__internal__.tracking.AutoTrackable):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         # Export-related attributes
         self._saved_model_inputs_spec = None
         self._saved_model_arg_spec = None
