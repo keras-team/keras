@@ -438,11 +438,11 @@ def update_confusion_matrix_variables(
 
     if multi_label:
         one_thresh = ops.equal(
-            ops.cast(1, dtype="int32"),
+            np.array(1, dtype="int32"),
             len(thresholds.shape),
         )
     else:
-        one_thresh = ops.cast(True, dtype="bool")
+        one_thresh = np.array(True, dtype="bool")
 
     invalid_keys = [
         key for key in variables_to_update if key not in list(ConfusionMatrix)
@@ -479,15 +479,24 @@ def update_confusion_matrix_variables(
             thresholds_with_epsilon=thresholds_with_epsilon,
         )
 
-    pred_shape = ops.shape(y_pred)
-    num_predictions = pred_shape[0]
-    if len(y_pred.shape) == 1:
-        num_labels = 1
+    if None in y_pred.shape:
+        pred_shape = ops.shape(y_pred)
+        num_predictions = pred_shape[0]
+        if len(y_pred.shape) == 1:
+            num_labels = 1
+        else:
+            num_labels = ops.cast(
+                ops.prod(ops.array(pred_shape[1:]), axis=0), "int32"
+            )
+        thresh_label_tile = ops.where(one_thresh, num_labels, 1)
     else:
-        num_labels = ops.cast(
-            ops.prod(ops.array(pred_shape[1:]), axis=0), "int32"
-        )
-    thresh_label_tile = ops.where(one_thresh, num_labels, 1)
+        pred_shape = y_pred.shape
+        num_predictions = pred_shape[0]
+        if len(y_pred.shape) == 1:
+            num_labels = 1
+        else:
+            num_labels = np.prod(pred_shape[1:], axis=0).astype("int32")
+        thresh_label_tile = np.where(one_thresh, num_labels, 1)
 
     # Reshape predictions and labels, adding a dim for thresholding.
     if multi_label:

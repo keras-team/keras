@@ -1109,6 +1109,19 @@ class RecallAtPrecisionTest(testing.TestCase, parameterized.TestCase):
         ):
             metrics.RecallAtPrecision(0.4, num_thresholds=-1)
 
+    def test_end_to_end(self):
+        # Test for https://github.com/keras-team/keras-core/issues/718
+        model = models.Sequential(
+            [
+                layers.Input((1,)),
+                layers.Dense(1),
+            ]
+        )
+        model.compile(
+            optimizer="rmsprop", loss="mse", metrics=[metrics.Precision()]
+        )
+        model.fit(np.ones((5, 1)), np.ones((5, 1)))
+
 
 class AUCTest(testing.TestCase):
     def setUp(self):
