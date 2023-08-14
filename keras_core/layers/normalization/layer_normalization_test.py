@@ -85,3 +85,11 @@ class LayerNormalizationTest(testing.TestCase):
 
         self.assertAllClose(ops.mean(out), 0.0, atol=1e-1)
         self.assertAllClose(ops.std(out), 1.0, atol=1e-1)
+
+    def test_output(self):
+        layer = layers.LayerNormalization(
+            dtype="float32", beta_initializer="ones", gamma_initializer="ones",
+        )
+        inputs = np.arange(5).astype("float32")[None, :]
+        out = layer(inputs)
+        self.assertAllClose(out, [[-0.41386, 0.29307, 1., 1.70693, 2.41386]])
