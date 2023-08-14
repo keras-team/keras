@@ -402,6 +402,10 @@ def unstack(x, num=None, axis=0):
 def shape(x):
     """Gets the shape of the tensor input.
 
+    Note: On the tensorflow backend, when `x` is a `tf.Tensor` with dynamic
+    shape, dimensions which are dynamic in the context of a compiled function
+    will have a `tf.Tensor` value instead of a static integer value.
+
     Args:
         x: A tensor. This function will try to access the `shape` attribute of
             the input tensor.
