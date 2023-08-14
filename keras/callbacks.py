@@ -40,6 +40,7 @@ from keras.utils import version_utils
 from keras.utils.data_utils import Sequence
 from keras.utils.generic_utils import Progbar
 from keras.utils.mode_keys import ModeKeys
+from keras.utils.timed_threads import TimedThread
 
 # isort: off
 from tensorflow.python.platform import tf_logging as logging
@@ -3306,3 +3307,119 @@ class LambdaCallback(Callback):
             self.on_train_begin = on_train_begin
         if on_train_end is not None:
             self.on_train_end = on_train_end
+
+
+@keras_export("keras.callbacks.experimental.UpdateEmbeddingCallback")
+class UpdateEmbeddingCallback(TimedThread, Callback):
+    """A callback to update the DynamicEmbedding layer at specific time
+    interval.
+
+    Updating the embedding matrix  would mean that the optimizer variables will
+    be reset in this callback and this could have potential side effects. This
+    means that any existing slot variables associated with the optimizer will
+    likely be discarded when the optimizer is rebuilt. This affects optimizers
+    that rely on states of optimizer slot variables.
+
+    Example:
+      ```
+        # Generate dummy data
+        train_data = np.array([
+            ['a', 'j', 'c', 'd', 'e'],
+            ['a', 'h', 'i', 'j', 'b'],
+            ['i', 'h', 'c', 'j', 'e'],
+        ])
+        train_labels = np.array([0, 1, 2])
+        vocab = tf.constant(['a', 'b', 'c', 'd', 'e'])
+        eviction_policy = 'LFU'
+        # Define the model
+        model = tf.keras.models.Sequential([
+            DynamicEmbedding(
+                input_dim=5,
+                output_dim=2,
+                input_length=5,
+                eviction_policy=eviction_policy,
+                initial_vocabulary=vocab,
+            ),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(3, activation='softmax'),
+        ])
+
+        # Compile the model
+        model.compile(
+            optimizer='adam',
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy'],
+        )
+        # update the vocabulary every 1 second
+        update_embedding_callback = UpdateEmbeddingCallback(
+            model.layers[0], interval=1
+        )
+        with update_embedding_callback:
+          result = model.fit(
+              train_data,
+              train_labels,
+              epochs=100,
+              batch_size=1,
+              callbacks=[update_embedding_callback],
+          )
+      ```
+    """
+
+    def __init__(self, dynamic_embedding_layer, interval):
+        """Initialize Timed Callback object.
+
+        Args:
+          dynamic_embedding_layer: The dynamic embedding
+            layer to be updated.
+          interval: the interval, in seconds, to wait between calls to the
+            thread function. The thread function here updates the embeddings
+            matrix and resets the optimizer states.
+        """
+        self._epoch = 0
+        TimedThread.__init__(self, interval)
+        Callback.__init__(self)
+        self._dynamic_embedding_layer = dynamic_embedding_layer
+        self.strategy = tf.distribute.get_strategy()
+
+    def on_interval(self):
+        try:
+            critical_section = tf.CriticalSection()
+
+            # Using `tf.CriticalSection` when updating embeddings using timed
+            # thread can help ensure thread safety and prevent race conditions
+            # in the shared variables.
+            def execute_critical_section():
+                critical_section.execute(
+                    lambda: self._dynamic_embedding_layer.update_embeddings(  # pylint: disable=g-long-lambda
+                        self.strategy
+                    )
+                )
+
+            # update embeddings across all devices if distributed training is
+            # used
+            self.strategy.run(execute_critical_section)
+            # update optimizer variables across all devices if distributed
+            # training is used.
+            self.strategy.run(
+                lambda: self._reset_optimizer()
+            )  # pylint: disable=unnecessary-lambda
+        except AttributeError:
+            logging.info(
+                "Time interval specified to the UpdateEmbeddingCallback may be"
+                " too small, please try increasing the value of `interval`."
+            )
+
+    def _reset_optimizer(self):
+        """Resetting the optimizer variables.
+
+        Resetting the optimizer variables is necessary after updating the
+        variable in the layer. This ensures that the optimizer is working with a
+        consistent internal state. This helps to prevent unexpected behavior and
+        can lead to more stable and faster training of the model.
+        """
+        for var in self.model.optimizer.variables():
+            if "dynamic_embedding" in var.name:
+                backend.set_value(var, backend.zeros_like(var))
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self._epoch = epoch

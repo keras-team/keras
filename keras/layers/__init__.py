@@ -73,6 +73,7 @@ from keras.layers.core.tf_op_layer import InstanceProperty
 from keras.layers.core.tf_op_layer import SlicingOpLambda
 from keras.layers.core.tf_op_layer import TFOpLambda
 
+
 # Locally-connected layers.
 from keras.layers.locally_connected.locally_connected1d import (
     LocallyConnected1D,

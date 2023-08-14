@@ -1,10 +1,6 @@
 path: "tensorflow.keras.callbacks.experimental"
 tf_module {
   member {
-    name: "BackupAndRestore"
-    mtype: "<type \'type\'>"
-  }
-  member {
     name: "UpdateEmbeddingCallback"
     mtype: "<type \'type\'>"
   }

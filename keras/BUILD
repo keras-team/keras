@@ -143,6 +143,7 @@ py_library(
         "//keras/protobuf:projector_config_proto_py_pb2",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
+        "//keras/utils:timed_threads",
     ],
 )
 
