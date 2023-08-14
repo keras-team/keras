@@ -198,10 +198,7 @@ class LayerNormalization(Layer):
 
         # Calculate the mean and variance last axis (layer activations).
         mean = ops.mean(inputs, axis=self.axis, keepdims=True)
-        # Don't use ops.var, as that would re-compute the mean from scratch.
-        variance = ops.mean(
-            ops.power(inputs - mean, 2), axis=self.axis, keepdims=True
-        )
+        variance = ops.var(inputs, axis=self.axis, keepdims=True)
 
         scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
 

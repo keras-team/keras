@@ -87,23 +87,7 @@ def is_tensor(x):
 
 
 def shape(x):
-    """Always return a tuple shape.
-
-    `tf.shape` will return a `tf.Tensor`, which differs from the tuple return
-    type on the torch and jax backends. We write our own method instead which
-    always returns a tuple, with integer values when the shape is known, and
-    tensor values when the shape is unknown (this is tf specific, as dynamic
-    shapes do not apply in other backends).
-    """
-    x = tf.convert_to_tensor(x)
-    dynamic = tf.shape(x)
-    if x.shape == tf.TensorShape(None):
-        raise ValueError(
-            "All tensors passed to `ops.shape` must have a statically known "
-            f"rank. Received: x={x} with unknown rank."
-        )
-    static = x.shape.as_list()
-    return tuple(dynamic[i] if s is None else s for i, s in enumerate(static))
+    return tf.shape(x)
 
 
 def cast(x, dtype):

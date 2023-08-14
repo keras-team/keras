@@ -7,7 +7,6 @@ from absl import logging
 
 from keras_core import backend
 from keras_core import optimizers
-from keras_core.backend.common import global_state
 from keras_core.legacy.saving import json_utils
 from keras_core.legacy.saving import saving_options
 from keras_core.legacy.saving import saving_utils
@@ -109,8 +108,7 @@ def load_model_from_hdf5(filepath, custom_objects=None, compile=True):
         custom_objects = {}
 
     gco = object_registration.GLOBAL_CUSTOM_OBJECTS
-    tlco = global_state.get_global_attribute("custom_objects_scope_dict", {})
-    custom_objects = {**custom_objects, **gco, **tlco}
+    custom_objects = {**custom_objects, **gco}
 
     opened_new_file = not isinstance(filepath, h5py.File)
     if opened_new_file:
