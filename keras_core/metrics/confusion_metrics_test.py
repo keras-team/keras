@@ -1109,6 +1109,7 @@ class RecallAtPrecisionTest(testing.TestCase, parameterized.TestCase):
         ):
             metrics.RecallAtPrecision(0.4, num_thresholds=-1)
 
+    @pytest.mark.requires_trainable_backend
     def test_end_to_end(self):
         # Test for https://github.com/keras-team/keras-core/issues/718
         model = models.Sequential(
