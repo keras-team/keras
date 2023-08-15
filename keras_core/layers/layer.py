@@ -604,6 +604,11 @@ class Layer(BackendLayer, Operation):
         return self.dtype_policy.variable_dtype
 
     @property
+    def input_dtype(self):
+        """The dtype layer inputs should be converted to."""
+        return self.dtype_policy.compute_dtype
+
+    @property
     def supports_masking(self):
         """Whether this layer supports computing a mask using `compute_mask`."""
         return self._supports_masking
@@ -627,20 +632,20 @@ class Layer(BackendLayer, Operation):
                 if (
                     self.autocast
                     and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.compute_dtype
+                    and x.dtype != self.input_dtype
                 ):
-                    x = backend.cast(x, dtype=self.compute_dtype)
+                    x = backend.cast(x, dtype=self.input_dtype)
                 return x
             elif isinstance(x, backend.KerasTensor):
                 if (
                     self.autocast
                     and backend.is_float_dtype(x.dtype)
-                    and x.dtype != self.compute_dtype
+                    and x.dtype != self.input_dtype
                 ):
-                    x.dtype = self.compute_dtype
+                    x.dtype = self.input_dtype
                 return x
             elif hasattr(x, "__array__"):
-                return backend.convert_to_tensor(x, dtype=self.compute_dtype)
+                return backend.convert_to_tensor(x, dtype=self.input_dtype)
             return x
 
         # Used to avoid expensive `tree` operations in the most common case.
@@ -648,7 +653,7 @@ class Layer(BackendLayer, Operation):
             kwargs
             or len(args) != 1
             or not backend.is_tensor(args[0])
-            or backend.standardize_dtype(args[0].dtype) != self.compute_dtype
+            or backend.standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             args = tree.map_structure(maybe_convert, args)
             kwargs = tree.map_structure(maybe_convert, kwargs)
@@ -1408,7 +1413,11 @@ def update_shapes_dict_for_target_fn(
     # Single arg: don't check names, pass first shape.
     if len(expected_names) == 1:
         key = expected_names[0]
-        input_shape = tuple(shapes_dict.values())[0]
+        values = tuple(shapes_dict.values())
+        if values:
+            input_shape = values[0]
+        else:
+            input_shape = None
         return {key: input_shape}
 
     # Multiple args: check that all names line up.

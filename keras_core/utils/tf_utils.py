@@ -108,7 +108,7 @@ def encode_categorical_inputs(
             bincounts.dense_shape,
         )
     else:
-        return tf.multiply(bincounts, idf_weights)
+        return tf.multiply(tf.cast(bincounts, idf_weights.dtype), idf_weights)
 
 
 def get_tensor_spec(t, dynamic_batch=False, name=None):

@@ -255,6 +255,15 @@ class Sequential(Model):
             f"Sequential model '{self.name}' has no defined outputs yet."
         )
 
+    @property
+    def input_dtype(self):
+        # Sequential.__call__ will try to convert its inputs
+        # to the dtype expected by its input layer, if any.
+        layers = self._layers
+        if layers and isinstance(layers[0], InputLayer):
+            return layers[0].dtype
+        return super().input_dtype
+
     def _is_layer_name_unique(self, layer):
         for ref_layer in self._layers:
             if layer.name == ref_layer.name and ref_layer is not layer:
