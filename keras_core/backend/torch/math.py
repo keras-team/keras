@@ -160,3 +160,8 @@ def fft2(a):
     complex_input = _get_complex_tensor_from_tuple(a)
     complex_output = torch.fft.fft2(complex_input)
     return complex_output.real, complex_output.imag
+
+
+def rsqrt(x):
+    x = convert_to_tensor(x)
+    return torch.rsqrt(x)

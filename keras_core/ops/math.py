@@ -450,3 +450,34 @@ def fft2(a):
     if any_symbolic_tensors(a):
         return FFT2().symbolic_call(a)
     return backend.math.fft2(a)
+
+
+class Rsqrt(Operation):
+    """Computes reciprocal of square root of x element-wise.
+
+    Args:
+        x: input tensor
+
+    Returns:
+        A tensor with the same type as `x`.
+
+    Example:
+
+    >>> x = keras_core.ops.convert_to_tensor([2., 3., -2.])
+    >>> rsqrt(x)
+    """
+
+    def call(self, x):
+        x = backend.convert_to_tensor(x)
+        return backend.math.rsqrt(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_core_export("keras_core.ops.rsqrt")
+def rsqrt(x):
+    if any_symbolic_tensors((x,)):
+        return Rsqrt().symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    return backend.math.rsqrt(x)
