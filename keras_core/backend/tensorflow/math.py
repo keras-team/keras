@@ -85,3 +85,7 @@ def fft2(a):
     complex_input = _get_complex_tensor_from_tuple(a)
     complex_output = tf.signal.fft2d(complex_input)
     return tf.math.real(complex_output), tf.math.imag(complex_output)
+
+
+def rsqrt(x):
+    return tf.math.rsqrt(x)
