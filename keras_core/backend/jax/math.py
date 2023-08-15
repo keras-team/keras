@@ -94,7 +94,3 @@ def fft2(a):
     complex_input = _get_complex_tensor_from_tuple(a)
     complex_output = jax.numpy.fft.fft2(complex_input)
     return jax.numpy.real(complex_output), jax.numpy.imag(complex_output)
-
-
-def rsqrt(x):
-    return jax.lax.rsqrt(x)

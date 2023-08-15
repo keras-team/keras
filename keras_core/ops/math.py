@@ -315,21 +315,21 @@ def qr(x, mode="reduced"):
 
 
 class FFT(Operation):
-    def compute_output_spec(self, a):
-        if not isinstance(a, (tuple, list)) or len(a) != 2:
+    def compute_output_spec(self, x):
+        if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
-                "Input `a` should be a tuple of two tensors - real and "
-                f"imaginary. Received: a={a}"
+                "Input `x` should be a tuple of two tensors - real and "
+                f"imaginary. Received: x={x}"
             )
 
-        real, imag = a
+        real, imag = x
         # Both real and imaginary parts should have the same shape.
         if real.shape != imag.shape:
             raise ValueError(
                 "Input `a` should be a tuple of two tensors - real and "
                 "imaginary. Both the real and imaginary parts should have the "
-                f"same shape. Received: a[0].shape = {real.shape}, "
-                f"a[1].shape = {imag.shape}"
+                f"same shape. Received: x[0].shape = {real.shape}, "
+                f"x[1].shape = {imag.shape}"
             )
 
         # We are calculating 1D FFT. Hence, rank >= 1.
@@ -357,21 +357,21 @@ class FFT(Operation):
 
 
 class FFT2(Operation):
-    def compute_output_spec(self, a):
-        if not isinstance(a, (tuple, list)) or len(a) != 2:
+    def compute_output_spec(self, x):
+        if not isinstance(x, (tuple, list)) or len(x) != 2:
             raise ValueError(
-                "Input `a` should be a tuple of two tensors - real and "
-                f"imaginary. Received: a={a}"
+                "Input `x` should be a tuple of two tensors - real and "
+                f"imaginary. Received: x={x}"
             )
 
-        real, imag = a
+        real, imag = x
         # Both real and imaginary parts should have the same shape.
         if real.shape != imag.shape:
             raise ValueError(
-                "Input `a` should be a tuple of two tensors - real and "
+                "Input `x` should be a tuple of two tensors - real and "
                 "imaginary. Both the real and imaginary parts should have the "
-                f"same shape. Received: a[0].shape = {real.shape}, "
-                f"a[1].shape = {imag.shape}"
+                f"same shape. Received: x[0].shape = {real.shape}, "
+                f"x[1].shape = {imag.shape}"
             )
         # We are calculating 2D FFT. Hence, rank >= 2.
         if len(real.shape) < 2:
@@ -399,11 +399,11 @@ class FFT2(Operation):
 
 
 @keras_core_export("keras_core.ops.fft")
-def fft(a):
+def fft(x):
     """Computes the Fast Fourier Transform along last axis of input.
 
     Args:
-        a: Tuple of the real and imaginary parts of the input tensor. Both
+        x: Tuple of the real and imaginary parts of the input tensor. Both
             tensors in the tuple should be of floating type.
 
     Returns:
@@ -412,24 +412,24 @@ def fft(a):
 
     Example:
 
-    >>> a = (
+    >>> x = (
     ...     keras_core.ops.convert_to_tensor([1., 2.]),
     ...     keras_core.ops.convert_to_tensor([0., 1.]),
     ... )
     >>> fft(x)
     (array([ 3., -1.], dtype=float32), array([ 1., -1.], dtype=float32))
     """
-    if any_symbolic_tensors(a):
-        return FFT().symbolic_call(a)
-    return backend.math.fft(a)
+    if any_symbolic_tensors(x):
+        return FFT().symbolic_call(x)
+    return backend.math.fft(x)
 
 
 @keras_core_export("keras_core.ops.fft2")
-def fft2(a):
+def fft2(x):
     """Computes the 2D Fast Fourier Transform along the last two axes of input.
 
     Args:
-        a: Tuple of the real and imaginary parts of the input tensor. Both
+        x: Tuple of the real and imaginary parts of the input tensor. Both
             tensors in the tuple should be of floating type.
 
     Returns:
@@ -447,37 +447,6 @@ def fft2(a):
         [ 0., -2.]], dtype=float32), array([[ 2.,  0.],
         [ 0., -2.]], dtype=float32))
     """
-    if any_symbolic_tensors(a):
-        return FFT2().symbolic_call(a)
-    return backend.math.fft2(a)
-
-
-class Rsqrt(Operation):
-    """Computes reciprocal of square root of x element-wise.
-
-    Args:
-        x: input tensor
-
-    Returns:
-        A tensor with the same type as `x`.
-
-    Example:
-
-    >>> x = keras_core.ops.convert_to_tensor([2., 3., -2.])
-    >>> rsqrt(x)
-    """
-
-    def call(self, x):
-        x = backend.convert_to_tensor(x)
-        return backend.math.rsqrt(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
-
-
-@keras_core_export("keras_core.ops.rsqrt")
-def rsqrt(x):
-    if any_symbolic_tensors((x,)):
-        return Rsqrt().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    return backend.math.rsqrt(x)
+    if any_symbolic_tensors(x):
+        return FFT2().symbolic_call(x)
+    return backend.math.fft2(x)
