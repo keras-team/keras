@@ -261,7 +261,7 @@ def get_source_inputs(tensor):
         node = operation._inbound_nodes[node_index]
         if node.is_input:
             # Reached input node, stop recursion.
-            return tree.flatten(node.input_tensors)
+            return tree.flatten(node.output_tensors)
         else:
             source_tensors = []
             for tensor in node.input_tensors:

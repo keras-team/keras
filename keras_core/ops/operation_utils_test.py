@@ -1,6 +1,7 @@
 from keras_core import backend
 from keras_core import ops
 from keras_core import testing
+from keras_core.layers.core import input_layer
 from keras_core.ops import operation_utils
 
 
@@ -12,3 +13,7 @@ class OperationUtilsTest(testing.TestCase):
         x += 2
         x = ops.square(x)
         self.assertEqual(operation_utils.get_source_inputs(x), [x1, x2])
+
+    def test_get_source_inputs_return_input_tensor(self):
+        inputs = input_layer.Input(shape=(10,))
+        self.assertIs(operation_utils.get_source_inputs(inputs)[0], inputs)
