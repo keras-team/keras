@@ -143,6 +143,7 @@ class EinsumDense(Layer):
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
+        self.supports_masking = True
 
     def build(self, input_shape):
         input_shape = tf.TensorShape(input_shape)
