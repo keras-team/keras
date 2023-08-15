@@ -3,7 +3,7 @@ Title: Learning to tokenize in Vision Transformers
 Authors: [Aritra Roy Gosthipaty](https://twitter.com/ariG23498), [Sayak Paul](https://twitter.com/RisingSayak) (equal contribution)
 Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/12/10
-Last modified: 2023/07/18
+Last modified: 2023/08/14
 Description: Adaptively generating a smaller number of tokens for Vision Transformers.
 Accelerator: GPU
 """
@@ -165,19 +165,25 @@ tokens.
 """
 
 
-def position_embedding(
-    projected_patches, num_patches=NUM_PATCHES, projection_dim=PROJECTION_DIM
-):
-    # Build the positions.
-    positions = ops.arange(start=0, stop=num_patches, step=1)
+class PatchEncoder(layers.Layer):
+    def __init__(self, num_patches, projection_dim):
+        super().__init__()
+        self.num_patches = num_patches
+        self.position_embedding = layers.Embedding(
+            input_dim=num_patches, output_dim=projection_dim
+        )
 
-    # Encode the positions with an Embedding layer.
-    encoded_positions = layers.Embedding(
-        input_dim=num_patches, output_dim=projection_dim
-    )(positions)
+    def call(self, patch):
+        positions = ops.expand_dims(
+            ops.arange(start=0, stop=self.num_patches, step=1), axis=0
+        )
+        encoded = patch + self.position_embedding(positions)
+        return encoded
 
-    # Add encoded positions to the projected patches.
-    return projected_patches + encoded_positions
+    def get_config(self):
+        config = super().get_config()
+        config.update({"num_patches": self.num_patches})
+        return config
 
 
 """
@@ -337,7 +343,9 @@ def create_vit_classifier(
     )  # (B, number_patches, projection_dim)
 
     # Add positional embeddings to the projected patches.
-    encoded_patches = position_embedding(
+    encoded_patches = PatchEncoder(
+        num_patches=NUM_PATCHES, projection_dim=PROJECTION_DIM
+    )(
         projected_patches
     )  # (B, number_patches, projection_dim)
     encoded_patches = layers.Dropout(0.1)(encoded_patches)
