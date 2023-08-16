@@ -13,6 +13,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras_core.utils import image_utils
 from keras_core.utils import io_utils
+from keras_core.utils.module_utils import scipy
 
 
 @keras_core_export("keras_core._legacy.preprocessing.image.Iterator")
@@ -1799,8 +1800,6 @@ def apply_affine_transform(
 
     DEPRECATED.
     """
-    from scipy import ndimage
-
     # Input sanity checks:
     # 1. x must 2D image with one or more channels (i.e., a 3D tensor)
     # 2. channels must be either first or last dimension
@@ -1883,7 +1882,7 @@ def apply_affine_transform(
         final_offset = transform_matrix[:2, 2]
 
         channel_images = [
-            ndimage.interpolation.affine_transform(
+            scipy.ndimage.interpolation.affine_transform(
                 x_channel,
                 final_affine_matrix,
                 final_offset,

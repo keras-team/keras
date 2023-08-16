@@ -1,8 +1,8 @@
 import jax
 import numpy as np
-import scipy.ndimage
 
 from keras_core.backend.numpy.core import convert_to_tensor
+from keras_core.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
