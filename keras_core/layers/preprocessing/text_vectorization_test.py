@@ -9,6 +9,8 @@ from keras_core import testing
 
 
 class TextVectorizationTest(testing.TestCase):
+    # TODO: increase coverage. Most features aren't being tested.
+
     def test_config(self):
         layer = layers.TextVectorization(
             output_mode="int",

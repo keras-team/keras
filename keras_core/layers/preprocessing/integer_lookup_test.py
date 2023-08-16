@@ -7,6 +7,8 @@ from keras_core import testing
 
 
 class IntegerLookupTest(testing.TestCase):
+    # TODO: increase coverage. Most features aren't being tested.
+
     def test_config(self):
         layer = layers.IntegerLookup(
             output_mode="int",

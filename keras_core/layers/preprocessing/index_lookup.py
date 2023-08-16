@@ -546,18 +546,22 @@ class IndexLookup(Layer):
     def variable_dtype(self):
         return self.vocabulary_dtype
 
+    def compute_output_shape(self, input_shape):
+        if self.output_mode == "int":
+            return input_shape
+        depth = (
+            self.max_tokens
+            if self.pad_to_max_tokens
+            else self._frozen_vocab_size
+        )
+        return (input_shape[0], depth)
+
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
             output_dtype = "int64"
-            output_shape = inputs.shape
         else:
             output_dtype = backend.floatx()
-            depth = (
-                self.max_tokens
-                if self.pad_to_max_tokens
-                else self._frozen_vocab_size
-            )
-            output_shape = (inputs.shape[0], depth)
+        output_shape = self.compute_output_shape(inputs.shape)
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
@@ -599,8 +603,11 @@ class IndexLookup(Layer):
 
         if self.output_mode == "tf_idf":
             # Dedupe each row of our dataset.
-            deduped_doc_data = [tf.unique(x)[0] for x in data]
-            deduped_doc_data = tf.concat(deduped_doc_data, axis=0)
+            if isinstance(data, tf.RaggedTensor):
+                deduped_doc_data = tf.map_fn(lambda x: tf.unique(x)[0], data)
+            else:
+                deduped_doc_data = [tf.unique(x)[0] for x in data]
+                deduped_doc_data = tf.concat(deduped_doc_data, axis=0)
             # Flatten and count tokens.
             tokens, counts = self._num_tokens(deduped_doc_data)
 

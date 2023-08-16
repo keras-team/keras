@@ -76,9 +76,12 @@ def validate_string_arg(
     caller_name,
     arg_name,
     allow_none=False,
+    allow_callables=False,
 ):
     """Validates the correctness of a string-based arg."""
     if allow_none and value is None:
+        return
+    elif allow_callables and callable(value):
         return
     elif isinstance(value, str) and value in allowable_strings:
         return

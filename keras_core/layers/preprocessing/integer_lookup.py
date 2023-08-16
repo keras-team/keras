@@ -40,7 +40,7 @@ class IntegerLookup(IndexLookup):
     `output_mode` is `"multi_hot"`, `"count"`, or `"tf_idf"` the vocabulary will
     begin with OOV indices and instances of the mask token will be dropped.
 
-    **Note:** This layer wraps `tf.keras.layers.IntegerLookup`. It cannot
+    **Note:** This layer uses TensorFlow internally. It cannot
     be used as part of the compiled computation graph of a model with
     any backend other than TensorFlow.
     It can however be used with any backend when running eagerly.
@@ -398,7 +398,9 @@ class IntegerLookup(IndexLookup):
         return config
 
     def call(self, inputs):
-        if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
+        if not isinstance(
+            inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
+        ):
             inputs = tf.convert_to_tensor(np.array(inputs))
         outputs = super().call(inputs)
         if (

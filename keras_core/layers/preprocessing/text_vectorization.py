@@ -3,7 +3,11 @@ import numpy as np
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.index_lookup import ensure_tensor
+from keras_core.layers.preprocessing.index_lookup import listify_tensors
+from keras_core.layers.preprocessing.string_lookup import StringLookup
 from keras_core.saving import serialization_lib
+from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
@@ -56,7 +60,7 @@ class TextVectorization(Layer):
        in this example, we should see something like `[["string", "to",
        "split"], ["another", "string", "to", "split"]]`.
 
-    **Note:** This layer wraps `tf.keras.layers.TextVectorization`. It cannot
+    **Note:** This layer uses TensorFlow internally. It cannot
     be used as part of the compiled computation graph of a model with
     any backend other than TensorFlow.
     It can however be used with any backend when running eagerly.
@@ -218,8 +222,6 @@ class TextVectorization(Layer):
                 "Layer TextVectorization requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-
-        super().__init__(name=name)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
                 "`sparse` can only be set to True with the "
@@ -230,21 +232,131 @@ class TextVectorization(Layer):
                 "`ragged` can only be set to True with the "
                 "TensorFlow backend."
             )
-        self.layer = tf.keras.layers.TextVectorization(
+
+        # 'standardize' must be one of
+        # (None, "lower_and_strip_punctuation", "lower", "strip_punctuation",
+        # callable)
+        argument_validation.validate_string_arg(
+            standardize,
+            allowable_strings=(
+                "lower_and_strip_punctuation",
+                "lower",
+                "strip_punctuation",
+            ),
+            caller_name=self.__class__.__name__,
+            arg_name="standardize",
+            allow_none=True,
+            allow_callables=True,
+        )
+
+        # 'split' must be one of (None, "whitespace", "character", callable)
+        argument_validation.validate_string_arg(
+            split,
+            allowable_strings=("whitespace", "character"),
+            caller_name=self.__class__.__name__,
+            arg_name="split",
+            allow_none=True,
+            allow_callables=True,
+        )
+
+        # Support deprecated names for output_modes.
+        if output_mode == "binary":
+            output_mode = "multi_hot"
+        if output_mode == "tf-idf":
+            output_mode = "tf_idf"
+        argument_validation.validate_string_arg(
+            output_mode,
+            allowable_strings=(
+                "int",
+                "one_hot",
+                "multi_hot",
+                "count",
+                "tf_idf",
+            ),
+            caller_name=self.__class__.__name__,
+            arg_name="output_mode",
+        )
+
+        # 'ngrams' must be one of (None, int, tuple(int))
+        if not (
+            ngrams is None
+            or isinstance(ngrams, int)
+            or isinstance(ngrams, tuple)
+            and all(isinstance(item, int) for item in ngrams)
+        ):
+            raise ValueError(
+                "`ngrams` must be None, an integer, or a tuple of "
+                f"integers. Received: ngrams={ngrams}"
+            )
+
+        # 'output_sequence_length' must be one of (None, int) and is only
+        # set if output_mode is "int"".
+        if output_mode == "int" and not (
+            isinstance(output_sequence_length, int)
+            or (output_sequence_length is None)
+        ):
+            raise ValueError(
+                "`output_sequence_length` must be either None or an "
+                "integer when `output_mode` is 'int'. Received: "
+                f"output_sequence_length={output_sequence_length}"
+            )
+
+        if output_mode != "int" and output_sequence_length is not None:
+            raise ValueError(
+                "`output_sequence_length` must not be set if `output_mode` is "
+                "not 'int'. "
+                f"Received output_sequence_length={output_sequence_length}."
+            )
+
+        if ragged and output_mode != "int":
+            raise ValueError(
+                "`ragged` must not be true if `output_mode` is "
+                f"`'int'`. Received: ragged={ragged} and "
+                f"output_mode={output_mode}"
+            )
+
+        if ragged and output_sequence_length is not None:
+            raise ValueError(
+                "`output_sequence_length` must not be set if ragged "
+                f"is True. Received: ragged={ragged} and "
+                f"output_sequence_length={output_sequence_length}"
+            )
+
+        self._max_tokens = max_tokens
+        self._standardize = standardize
+        self._split = split
+        self._ngrams_arg = ngrams
+        if isinstance(ngrams, int):
+            self._ngrams = tuple(range(1, ngrams + 1))
+        else:
+            self._ngrams = ngrams
+        self._ragged = ragged
+
+        self._output_mode = output_mode
+        self._output_sequence_length = output_sequence_length
+        self._encoding = encoding
+
+        # We save this hidden option to persist the fact
+        # that we have have a non-adaptable layer with a
+        # manually set vocab.
+        self._has_input_vocabulary = kwargs.pop(
+            "has_input_vocabulary", (vocabulary is not None)
+        )
+        vocabulary_size = kwargs.pop("vocabulary_size", None)
+
+        super().__init__(name=name, **kwargs)
+
+        self._lookup_layer = StringLookup(
             max_tokens=max_tokens,
-            standardize=standardize,
-            split=split,
-            ngrams=ngrams,
-            output_mode=output_mode,
-            output_sequence_length=output_sequence_length,
-            pad_to_max_tokens=pad_to_max_tokens,
             vocabulary=vocabulary,
             idf_weights=idf_weights,
+            pad_to_max_tokens=pad_to_max_tokens,
+            mask_token="",
+            output_mode=output_mode,
             sparse=sparse,
-            ragged=ragged,
+            has_input_vocabulary=self._has_input_vocabulary,
             encoding=encoding,
-            name=name,
-            **kwargs,
+            vocabulary_size=vocabulary_size,
         )
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
@@ -258,9 +370,19 @@ class TextVectorization(Layer):
     def variable_dtype(self):
         return "string"
 
+    def compute_output_shape(self, input_shape):
+        if self._output_mode == "int":
+            return (input_shape[0], self._output_sequence_length)
+        if self._split is None:
+            if len(input_shape) <= 1:
+                input_shape = tuple(input_shape) + (1,)
+        else:
+            input_shape = tuple(input_shape) + (None,)
+        return self._lookup_layer.compute_output_shape(input_shape)
+
     def compute_output_spec(self, inputs):
-        output_shape = tuple(self.layer.compute_output_shape(inputs.shape))
-        if self.layer._output_mode == "int":
+        output_shape = self.compute_output_shape(inputs.shape)
+        if self._output_mode == "int":
             output_dtype = "int64"
         else:
             output_dtype = backend.floatx()
@@ -287,34 +409,37 @@ class TextVectorization(Layer):
             data: The data to train on. It can be passed either as a
                 batched `tf.data.Dataset`, as a list of strings,
                 or as a NumPy array.
-            batch_size: Integer or `None`.
-                Number of samples per state update.
-                If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` if your data is in the
-                form of a `tf.data.Dataset`
-                (it is expected to be already batched).
             steps: Integer or `None`.
-                Total number of steps (batches of samples)
-                When training with input tensors such as
-                the default `None` is equal to
-                the number of samples in your dataset divided by
-                the batch size, or 1 if that cannot be determined.
+                Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
                 `adapt()` will run until the input dataset is exhausted.
                 When passing an infinitely
                 repeating dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
         """
-        self.layer.adapt(data, batch_size=batch_size, steps=steps)
+        self.reset_state()
+        if isinstance(data, tf.data.Dataset):
+            if steps is not None:
+                data = data.take(steps)
+            for batch in data:
+                self.update_state(batch)
+        else:
+            data = ensure_tensor(data, dtype="string")
+            if data.shape.rank == 1:
+                # A plain list of strings
+                # is treated as as many documents
+                data = tf.expand_dims(data, -1)
+            self.update_state(data)
+        self.finalize_state()
 
     def update_state(self, data):
-        self.layer.update_state(data)
+        self._lookup_layer.update_state(self._preprocess(data))
 
     def finalize_state(self):
-        self.layer.finalize_state()
+        self._lookup_layer.finalize_state()
 
     def reset_state(self):
-        self.layer.reset_state()
+        self._lookup_layer.reset_state()
 
     def get_vocabulary(self, include_special_tokens=True):
         """Returns the current vocabulary of the layer.
@@ -327,9 +452,7 @@ class TextVectorization(Layer):
                 returned vocabulary will not include any padding
                 or OOV tokens.
         """
-        return self.layer.get_vocabulary(
-            include_special_tokens=include_special_tokens
-        )
+        return self._lookup_layer.get_vocabulary(include_special_tokens)
 
     def vocabulary_size(self):
         """Gets the current size of the layer's vocabulary.
@@ -338,10 +461,28 @@ class TextVectorization(Layer):
             The integer size of the vocabulary, including optional
             mask and OOV indices.
         """
-        return self.layer.vocabulary_size()
+        return self._lookup_layer.vocabulary_size()
 
     def get_config(self):
-        return self.layer.get_config()
+        config = {
+            "max_tokens": self._lookup_layer.max_tokens,
+            "standardize": self._standardize,
+            "split": self._split,
+            "ngrams": self._ngrams_arg,
+            "output_mode": self._output_mode,
+            "output_sequence_length": self._output_sequence_length,
+            "pad_to_max_tokens": self._lookup_layer.pad_to_max_tokens,
+            "sparse": self._lookup_layer.sparse,
+            "ragged": self._ragged,
+            "vocabulary": listify_tensors(self._lookup_layer.input_vocabulary),
+            "idf_weights": listify_tensors(
+                self._lookup_layer.input_idf_weights
+            ),
+            "encoding": self._encoding,
+            "vocabulary_size": self.vocabulary_size(),
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
 
     @classmethod
     def from_config(cls, config):
@@ -375,12 +516,103 @@ class TextVectorization(Layer):
                 Must be set if `output_mode` is `"tf_idf"`.
                 Should not be set otherwise.
         """
-        self.layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
+        self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
+
+    def _preprocess(self, inputs):
+        inputs = ensure_tensor(inputs, dtype=tf.string)
+        if self._standardize in ("lower", "lower_and_strip_punctuation"):
+            inputs = tf.strings.lower(inputs)
+        if self._standardize in (
+            "strip_punctuation",
+            "lower_and_strip_punctuation",
+        ):
+            inputs = tf.strings.regex_replace(
+                inputs, r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']', ""
+            )
+        if callable(self._standardize):
+            inputs = self._standardize(inputs)
+
+        if self._split is not None:
+            # If we are splitting, we validate that the 1st axis is of dimension
+            # 1 and so can be squeezed out. We do this here instead of after
+            # splitting for performance reasons - it's more expensive to squeeze
+            # a ragged tensor.
+            if inputs.shape.rank > 1:
+                if inputs.shape[-1] != 1:
+                    raise ValueError(
+                        "When using `TextVectorization` to tokenize strings, "
+                        "the input rank must be 1 or the last shape dimension "
+                        f"must be 1. Received: inputs.shape={inputs.shape} "
+                        f"with rank={inputs.shape.rank}"
+                    )
+                else:
+                    inputs = tf.squeeze(inputs, axis=-1)
+            if self._split == "whitespace":
+                # This treats multiple whitespaces as one whitespace, and strips
+                # leading and trailing whitespace.
+                inputs = tf.strings.split(inputs)
+            elif self._split == "character":
+                inputs = tf.strings.unicode_split(inputs, "UTF-8")
+            elif callable(self._split):
+                inputs = self._split(inputs)
+
+        # Note that 'inputs' here can be either ragged or dense depending on the
+        # configuration choices for this Layer. The strings.ngrams op, however,
+        # does support both ragged and dense inputs.
+        if self._ngrams is not None:
+            inputs = tf.strings.ngrams(
+                inputs, ngram_width=self._ngrams, separator=" "
+            )
+        return inputs
 
     def call(self, inputs):
-        if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
+        if not isinstance(
+            inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
+        ):
             inputs = tf.convert_to_tensor(np.array(inputs))
-        outputs = self.layer.call(inputs)
+
+        inputs = self._preprocess(inputs)
+
+        # If we're not doing any output processing, return right away.
+        if self._output_mode is None:
+            outputs = inputs
+
+        lookup_data = self._lookup_layer.call(inputs)
+
+        # For any non-int output, we can return directly from the underlying
+        # layer.
+        if self._output_mode != "int":
+            outputs = lookup_data
+
+        if self._ragged:
+            outputs = lookup_data
+
+        # If we have a ragged tensor, we can pad during the conversion to dense.
+        if isinstance(lookup_data, tf.RaggedTensor):
+            shape = lookup_data.shape.as_list()
+            # If output sequence length is None, to_tensor will pad the last
+            # dimension to the bounding shape of the ragged dimension.
+            shape[-1] = self._output_sequence_length
+            outputs = lookup_data.to_tensor(default_value=0, shape=shape)
+            print("outputs (after conversion from ragged):", outputs)
+
+        # If we have a dense tensor, we need to pad/trim directly.
+        if self._output_sequence_length is not None:
+            # Maybe trim the output.
+            outputs = outputs[..., : self._output_sequence_length]
+
+            # Maybe pad the output. We need to be careful to use dynamic shape
+            # here as required_space_to_batch_paddings requires a fully known
+            # shape.
+            shape = tf.shape(outputs)
+            padded_shape = tf.concat(
+                (shape[:-1], [self._output_sequence_length]), 0
+            )
+            padding, _ = tf.required_space_to_batch_paddings(
+                shape, padded_shape
+            )
+            outputs = tf.pad(outputs, padding)
+
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
@@ -389,25 +621,13 @@ class TextVectorization(Layer):
         return outputs
 
     def save_own_variables(self, store):
-        if hasattr(self.layer, "save_own_variables"):
-            self.layer.save_own_variables(store)
-        else:
-            self.layer._save_own_variables(store)
+        self._lookup_layer.save_own_variables(store)
 
     def load_own_variables(self, store):
-        if hasattr(self.layer, "load_own_variables"):
-            self.layer.load_own_variables(store)
-        else:
-            self.layer._load_own_variables(store)
+        self._lookup_layer.load_own_variables(store)
 
     def save_assets(self, dir_path):
-        if hasattr(self.layer, "save_assets"):
-            self.layer.save_assets(dir_path)
-        else:
-            self.layer._save_assets(dir_path)
+        self._lookup_layer.save_assets(dir_path)
 
     def load_assets(self, dir_path):
-        if hasattr(self.layer, "save_assets"):
-            self.layer.load_assets(dir_path)
-        else:
-            self.layer._load_assets(dir_path)
+        self._lookup_layer.load_assets(dir_path)

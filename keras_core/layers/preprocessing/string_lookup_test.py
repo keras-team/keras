@@ -7,6 +7,8 @@ from keras_core import testing
 
 
 class StringLookupTest(testing.TestCase):
+    # TODO: increase coverage. Most features aren't being tested.
+
     def test_config(self):
         layer = layers.StringLookup(
             output_mode="int",
