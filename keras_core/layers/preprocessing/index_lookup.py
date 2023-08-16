@@ -560,9 +560,11 @@ class IndexLookup(Layer):
             output_shape = (inputs.shape[0], depth)
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
-    def adapt(self, data):
+    def adapt(self, data, steps=None):
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
+            if steps is not None:
+                data = data.take(steps)
             for batch in data:
                 self.update_state(batch)
         else:
@@ -766,7 +768,7 @@ class IndexLookup(Layer):
             lookup_checks.append(assertion)
         elif self.num_oov_indices > 1:
             # If we have multiple oov indices, we need a further hashing step.
-            if self._key_dtype.is_integer:
+            if tf.as_dtype(self._key_dtype).is_integer:
                 oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
             else:
                 oov_indices = tf.strings.to_hash_bucket_fast(

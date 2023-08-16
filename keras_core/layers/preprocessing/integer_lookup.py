@@ -2,13 +2,13 @@ import numpy as np
 
 from keras_core import backend
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
+from keras_core.layers.preprocessing.index_lookup import IndexLookup
 from keras_core.utils import backend_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.IntegerLookup")
-class IntegerLookup(Layer):
+class IntegerLookup(IndexLookup):
     """A preprocessing layer that maps integers to (possibly encoded) indices.
 
     This layer maps a set of arbitrary integer input tokens into indexed integer
@@ -315,14 +315,29 @@ class IntegerLookup(Layer):
                 "Layer IntegerLookup requires TensorFlow. "
                 "Install it via `pip install tensorflow`."
             )
-
-        super().__init__(name=name)
+        if max_tokens is not None and max_tokens <= 1:
+            raise ValueError(
+                "If `max_tokens` is set for `IntegerLookup`, it must be "
+                f"greater than 1. Received: max_tokens={max_tokens}."
+            )
+        if num_oov_indices < 0:
+            raise ValueError(
+                "The value of `num_oov_indices` argument for `IntegerLookup` "
+                "must >= 0. Received num_oov_indices="
+                f"{num_oov_indices}."
+            )
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
                 "`sparse` can only be set to True with the "
                 "TensorFlow backend."
             )
-        self.layer = tf.keras.layers.IntegerLookup(
+        if vocabulary_dtype != "int64":
+            raise ValueError(
+                "Only vocabulary_dtype='int64' is supported "
+                "at this time. Received: "
+                f"vocabulary_dtype={vocabulary_dtype}"
+            )
+        super().__init__(
             max_tokens=max_tokens,
             num_oov_indices=num_oov_indices,
             mask_token=mask_token,
@@ -341,7 +356,7 @@ class IntegerLookup(Layer):
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False
 
-    def adapt(self, data, batch_size=None, steps=None):
+    def adapt(self, data, steps=None):
         """Computes a vocabulary of interger terms from tokens in a dataset.
 
         Calling `adapt()` on an `IntegerLookup` layer is an alternative to
@@ -362,61 +377,18 @@ class IntegerLookup(Layer):
             data: The data to train on. It can be passed either as a
                 batched `tf.data.Dataset`, as a list of integers,
                 or as a NumPy array.
-            batch_size: Integer or `None`.
-                Number of samples per state update.
-                If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` if your data is in the
-                form of a `tf.data.Dataset`
-                (it is expected to be already batched).
             steps: Integer or `None`.
-                Total number of steps (batches of samples)
-                When training with input tensors such as
-                the default `None` is equal to
-                the number of samples in your dataset divided by
-                the batch size, or 1 if that cannot be determined.
+                Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
                 `adapt()` will run until the input dataset is exhausted.
                 When passing an infinitely
                 repeating dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
         """
-        self.layer.adapt(data, batch_size=batch_size, steps=steps)
-
-    def update_state(self, data):
-        self.layer.update_state(data)
-
-    def finalize_state(self):
-        self.layer.finalize_state()
-
-    def reset_state(self):
-        self.layer.reset_state()
-
-    def get_vocabulary(self, include_special_tokens=True):
-        """Returns the current vocabulary of the layer.
-
-        Args:
-            include_special_tokens: If `True`, the returned vocabulary
-                will include the padding and OOV tokens,
-                and a term's index in the vocabulary will equal
-                the term's index when calling the layer. If `False`, the
-                returned vocabulary will not include any padding
-                or OOV tokens.
-        """
-        return self.layer.get_vocabulary(
-            include_special_tokens=include_special_tokens
-        )
-
-    def vocabulary_size(self):
-        """Gets the current size of the layer's vocabulary.
-
-        Returns:
-            The integer size of the vocabulary, including optional
-            mask and OOV indices.
-        """
-        return self.layer.vocabulary_size()
+        super().adapt(data, steps=steps)
 
     def get_config(self):
-        config = self.layer.get_config()
+        config = super().get_config()
         if config["oov_token"] is not None:
             config["oov_token"] = int(config["oov_token"])
         if config["mask_token"] is not None:
@@ -425,59 +397,13 @@ class IntegerLookup(Layer):
             config["vocabulary"] = [int(v) for v in config["vocabulary"]]
         return config
 
-    def set_vocabulary(self, vocabulary, idf_weights=None):
-        """Sets vocabulary (and optionally document frequency) for this layer.
-
-        This method sets the vocabulary and IDF weights for this layer directly,
-        instead of analyzing a dataset through `adapt()`. It should be used
-        whenever the vocab (and optionally document frequency) information is
-        already known. If vocabulary data is already present in the layer, this
-        method will replace it.
-
-        Args:
-            vocabulary: Either an array or a string path to a text file.
-                If passing an array, can pass a tuple, list, 1D NumPy array,
-                or 1D tensor containing the vocbulary terms.
-                If passing a file path, the file should contain one line
-                per term in the vocabulary.
-            idf_weights: A tuple, list, 1D NumPy array, or 1D tensor of inverse
-                document frequency weights with equal length to vocabulary.
-                Must be set if `output_mode` is `"tf_idf"`.
-                Should not be set otherwise.
-        """
-        self.layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
-
     def call(self, inputs):
         if not isinstance(inputs, (tf.Tensor, np.ndarray, list, tuple)):
             inputs = tf.convert_to_tensor(np.array(inputs))
-        outputs = self.layer.call(inputs)
+        outputs = super().call(inputs)
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
         ):
             outputs = backend.convert_to_tensor(outputs)
         return outputs
-
-    def save_own_variables(self, store):
-        if hasattr(self.layer, "save_own_variables"):
-            self.layer.save_own_variables(store)
-        else:
-            self.layer._save_own_variables(store)
-
-    def load_own_variables(self, store):
-        if hasattr(self.layer, "load_own_variables"):
-            self.layer.load_own_variables(store)
-        else:
-            self.layer._load_own_variables(store)
-
-    def save_assets(self, dir_path):
-        if hasattr(self.layer, "save_assets"):
-            self.layer.save_assets(dir_path)
-        else:
-            self.layer._save_assets(dir_path)
-
-    def load_assets(self, dir_path):
-        if hasattr(self.layer, "save_assets"):
-            self.layer.load_assets(dir_path)
-        else:
-            self.layer._load_assets(dir_path)

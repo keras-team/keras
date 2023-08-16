@@ -115,4 +115,4 @@ class LayerNormalizationTest(testing.TestCase):
         )
         inputs = np.arange(5).astype("float32")[None, :]
         out = layer(inputs)
-        self.assertAllClose(out, [[0., 0.70693, 1.41386, 2.12079, 2.82772]])
+        self.assertAllClose(out, [[0.0, 0.70693, 1.41386, 2.12079, 2.82772]])
