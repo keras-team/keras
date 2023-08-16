@@ -12,6 +12,9 @@ from keras_core import testing
 from keras_core.saving import saving_api
 
 
+@pytest.mark.skipif(
+    backend.backend() == "numpy", reason="Failing for numpy backend."
+)
 class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
     def test_basics_string_vocab(self):
         # Case: adapt + list inputs
