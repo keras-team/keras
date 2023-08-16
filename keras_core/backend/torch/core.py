@@ -109,6 +109,9 @@ class Variable(KerasVariable):
 
 def convert_to_tensor(x, dtype=None):
     if is_tensor(x):
+        device = get_device()
+        if x.device != device:
+            x = x.to(device)
         if dtype is None:
             return x
         return x.to(to_torch_dtype(dtype))
