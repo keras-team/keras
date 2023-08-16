@@ -1,7 +1,9 @@
 import torch
 
+from keras_core.backend import standardize_dtype
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
+from keras_core.backend.torch.numpy import pad
 
 
 def segment_sum(data, segment_ids, num_segments=None, **kwargs):
@@ -121,6 +123,13 @@ def qr(x, mode="reduced"):
     return torch.linalg.qr(x, mode=mode)
 
 
+def extract_sequences(x, sequence_length, sequence_stride):
+    x = convert_to_tensor(x)
+    return torch.unfold_copy(
+        x, dimension=-1, size=sequence_length, step=sequence_stride
+    )
+
+
 def _get_complex_tensor_from_tuple(a):
     if not isinstance(a, (tuple, list)) or len(a) != 2:
         raise ValueError(
@@ -160,6 +169,76 @@ def fft2(a):
     complex_input = _get_complex_tensor_from_tuple(a)
     complex_output = torch.fft.fft2(complex_input)
     return complex_output.real, complex_output.imag
+
+
+def rfft(x, fft_length=None):
+    x = convert_to_tensor(x)
+    complex_output = torch.fft.rfft(x, n=fft_length, dim=-1, norm="backward")
+    return complex_output.real, complex_output.imag
+
+
+def stft(
+    x, sequence_length, sequence_stride, fft_length, window="hann", center=True
+):
+    if standardize_dtype(x.dtype) not in {"float32", "float64"}:
+        raise TypeError(
+            "Invalid input type. Expected `float32` or `float64`. "
+            f"Received: input type={x.dtype}"
+        )
+    if fft_length < sequence_length:
+        raise ValueError(
+            "`fft_length` must equal or larger than `sequence_length`. "
+            f"Received: sequence_length={sequence_length}, "
+            f"fft_length={fft_length}"
+        )
+    if isinstance(window, str):
+        if window not in {"hann", "hamming"}:
+            raise ValueError(
+                "If a string is passed to `window`, it must be one of "
+                f'`"hann"`, `"hamming"`. Received: window={window}'
+            )
+    x = convert_to_tensor(x)
+
+    if center:
+        pad_width = [(0, 0) for _ in range(x.ndim)]
+        pad_width[-1] = (fft_length // 2, fft_length // 2)
+        # torch does not support reflect padding when x.ndim >= 3
+        if x.ndim < 3:
+            x = pad(x, pad_width, "reflect")
+        else:
+            x = pad(x, pad_width, "constant")
+
+    x = extract_sequences(x, fft_length, sequence_stride)
+
+    if window is not None:
+        if isinstance(window, str):
+            if window == "hann":
+                win = torch.hann_window(
+                    sequence_length,
+                    periodic=True,
+                    dtype=x.dtype,
+                    device=get_device(),
+                )
+            else:
+                win = torch.hamming_window(
+                    sequence_length,
+                    periodic=True,
+                    dtype=x.dtype,
+                    device=get_device(),
+                )
+        else:
+            win = convert_to_tensor(window, dtype=x.dtype)
+        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win.shape}"
+            )
+        l_pad = (fft_length - sequence_length) // 2
+        r_pad = fft_length - sequence_length - l_pad
+        win = pad(win, [[l_pad, r_pad]], "constant")
+        x = torch.multiply(x, win)
+
+    return rfft(x, fft_length)
 
 
 def rsqrt(x):

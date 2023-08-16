@@ -314,6 +314,70 @@ def qr(x, mode="reduced"):
     return backend.math.qr(x, mode=mode)
 
 
+class ExtractSequences(Operation):
+    def __init__(self, sequence_length, sequence_stride):
+        super().__init__()
+        self.sequence_length = sequence_length
+        self.sequence_stride = sequence_stride
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                f"Input should have rank >= 1. "
+                f"Received: input.shape = {x.shape}"
+            )
+        if x.shape[-1] is not None:
+            num_sequences = (
+                1 + (x.shape[-1] - self.sequence_length) // self.sequence_stride
+            )
+        else:
+            num_sequences = None
+        new_shape = x.shape[:-1] + (num_sequences, self.sequence_length)
+        return KerasTensor(shape=new_shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.math.extract_sequences(
+            x,
+            sequence_length=self.sequence_length,
+            sequence_stride=self.sequence_stride,
+        )
+
+
+@keras_core_export("keras_core.ops.extract_sequences")
+def extract_sequences(x, sequence_length, sequence_stride):
+    """Expands the dimension of last axis into sequences of `sequence_length`.
+
+    Slides a window of size `sequence_length` over the last axis of the input
+    with a stride of `sequence_stride`, replacing the last axis with
+    `[num_sequences, sequence_length]` sequences.
+
+    If the dimension along the last axis is N, the number of sequences can be
+    computed by:
+
+    `num_sequences = 1 + (N - sequence_length) // sequence_stride`
+
+    Args:
+        x: Input tensor.
+        sequence_length: An integer representing the sequences length.
+        sequence_stride: An integer representing the sequences hop size.
+
+    Returns:
+        A tensor of sequences with shape [..., num_sequences, sequence_length].
+
+    Example:
+
+    >>> x = keras_core.ops.convert_to_tensor([1, 2, 3, 4, 5, 6])
+    >>> extract_sequences(x, 3, 2)
+    array([[1, 2, 3],
+       [3, 4, 5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return ExtractSequences(sequence_length, sequence_stride).symbolic_call(
+            x
+        )
+    return backend.math.extract_sequences(x, sequence_length, sequence_stride)
+
+
 class FFT(Operation):
     def compute_output_spec(self, x):
         if not isinstance(x, (tuple, list)) or len(x) != 2:
@@ -450,6 +514,175 @@ def fft2(x):
     if any_symbolic_tensors(x):
         return FFT2().symbolic_call(x)
     return backend.math.fft2(x)
+
+
+class RFFT(Operation):
+    def __init__(self, fft_length=None):
+        super().__init__()
+        self.fft_length = fft_length
+
+    def compute_output_spec(self, x):
+        # We are calculating 1D RFFT. Hence, rank >= 1.
+        if len(x.shape) < 1:
+            raise ValueError(
+                f"Input should have rank >= 1. "
+                f"Received: input.shape = {x.shape}"
+            )
+
+        if self.fft_length is not None:
+            new_last_dimension = self.fft_length // 2 + 1
+        else:
+            new_last_dimension = x.shape[-1] // 2 + 1
+        new_shape = x.shape[:-1] + (new_last_dimension,)
+
+        return (
+            KerasTensor(shape=new_shape, dtype=x.dtype),
+            KerasTensor(shape=new_shape, dtype=x.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.rfft(x, fft_length=self.fft_length)
+
+
+@keras_core_export("keras_core.ops.rfft")
+def rfft(x, fft_length=None):
+    """Real-valued Fast Fourier Transform along the last axis of the input.
+
+    Computes the 1D Discrete Fourier Transform of a real-valued signal over the
+    inner-most dimension of input.
+
+    Since the Discrete Fourier Transform of a real-valued signal is
+    Hermitian-symmetric, RFFT only returns the `fft_length / 2 + 1` unique
+    components of the FFT: the zero-frequency term, followed by the
+    `fft_length / 2` positive-frequency terms.
+
+    Along the axis RFFT is computed on, if `fft_length` is smaller than the
+    corresponding dimension of the input, the dimension is cropped. If it is
+    larger, the dimension is padded with zeros.
+
+    Args:
+        x: Input tensor.
+        fft_length: An integer representing the number of the fft length. If not
+            specified, it is inferred from the length of the last axis of `x`.
+            Defaults to `None`.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        output.
+
+    Examples:
+
+    >>> x = keras_core.ops.convert_to_tensor([0.0, 1.0, 2.0, 3.0, 4.0])
+    >>> rfft(x)
+    (array([10.0, -2.5, -2.5]), array([0.0, 3.4409548, 0.81229924]))
+
+    >>> rfft(x, 3)
+    (array([3.0, -1.5]), array([0.0, 0.8660254]))
+    """
+    if any_symbolic_tensors((x,)):
+        return RFFT(fft_length).symbolic_call(x)
+    return backend.math.rfft(x, fft_length)
+
+
+class STFT(Operation):
+    def __init__(
+        self,
+        sequence_length,
+        sequence_stride,
+        fft_length,
+        window="hann",
+        center=True,
+    ):
+        super().__init__()
+        self.sequence_length = sequence_length
+        self.sequence_stride = sequence_stride
+        self.fft_length = fft_length
+        self.window = window
+        self.center = center
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                f"Input should have rank >= 1. "
+                f"Received: input shape = {x.shape}"
+            )
+        if x.shape[-1] is not None:
+            padded = 0 if self.center is False else (self.fft_length // 2) * 2
+            num_sequences = (
+                1
+                + (x.shape[-1] + padded - self.fft_length)
+                // self.sequence_stride
+            )
+        else:
+            num_sequences = None
+        new_shape = x.shape[:-1] + (num_sequences, self.fft_length // 2 + 1)
+        return (
+            KerasTensor(shape=new_shape, dtype=x.dtype),
+            KerasTensor(shape=new_shape, dtype=x.dtype),
+        )
+
+    def call(self, x):
+        return backend.math.stft(
+            x,
+            sequence_length=self.sequence_length,
+            sequence_stride=self.sequence_stride,
+            fft_length=self.fft_length,
+            window=self.window,
+            center=self.center,
+        )
+
+
+@keras_core_export("keras_core.ops.stft")
+def stft(
+    x, sequence_length, sequence_stride, fft_length, window="hann", center=True
+):
+    """Short-Time Fourier Transform along the last axis of the input.
+
+    The STFT computes the Fourier transform of short overlapping windows of the
+    input. This giving frequency components of the signal as they change over
+    time.
+
+    Args:
+        x: Input tensor.
+        sequence_length: An integer representing the sequence length.
+        sequence_stride: An integer representing the sequence hop size.
+        fft_length: An integer representing the size of the FFT to apply. If not
+            specified, uses the smallest power of 2 enclosing `sequence_length`.
+        window: A string, a tensor of the window or `None`. If `window` is a
+            string, available values are `"hann"` and `"hamming"`. If `window`
+            is a tensor, it will be used directly as the window and its length
+            must be `sequence_length`. If `window` is `None`, no windowing is
+            used. Defaults to `"hann"`.
+        center: Whether to pad `x` on both sides so that the t-th sequence is
+            centered at time `t * sequence_stride`. Otherwise, the t-th sequence
+            begins at time `t * sequence_stride`. Defaults to `True`.
+
+    Returns:
+        A tuple containing two tensors - the real and imaginary parts of the
+        STFT output.
+
+    Example:
+
+    >>> x = keras_core.ops.convert_to_tensor([0.0, 1.0, 2.0, 3.0, 4.0])
+    >>> stft(x, 3, 2, 3)
+    (array([[0.75, -0.375],
+       [3.75, -1.875],
+       [5.25, -2.625]]), array([[0.0, 0.64951905],
+       [0.0, 0.64951905],
+       [0.0, -0.64951905]]))
+    """
+    if any_symbolic_tensors((x,)):
+        return STFT(
+            sequence_length, sequence_stride, fft_length, center, window
+        ).symbolic_call(x)
+    return backend.math.stft(
+        x,
+        sequence_length=sequence_length,
+        sequence_stride=sequence_stride,
+        fft_length=fft_length,
+        window=window,
+        center=center,
+    )
 
 
 class Rsqrt(Operation):

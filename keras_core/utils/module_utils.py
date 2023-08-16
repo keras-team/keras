@@ -39,3 +39,4 @@ class LazyModule:
 tensorflow = LazyModule("tensorflow")
 gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")
 tensorflow_io = LazyModule("tensorflow_io")
+scipy = LazyModule("scipy")
