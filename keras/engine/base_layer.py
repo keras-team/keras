@@ -20,6 +20,7 @@ import collections
 import contextlib
 import functools
 import itertools
+import re
 import textwrap
 import threading
 import warnings
@@ -70,6 +71,8 @@ metrics_mod = generic_utils.LazyLoader(
 
 # Prefix that is added to the TF op layer names.
 _TF_OP_LAYER_NAME_PREFIX = "tf_op_layer_"
+
+_VALID_INPUT_NAME_REGEX = r"^[A-Za-z0-9.][A-Za-z0-9_.\\/>-]*$"
 
 # TODO(mdan): Should we have a single generic type for types that can be passed
 # to tf.cast?
@@ -1051,6 +1054,18 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         #   not to any other argument.
         inputs, args, kwargs = self._call_spec.split_out_first_arg(args, kwargs)
         input_list = tf.nest.flatten(inputs)
+
+        def _check_valid_input_names(x):
+            if not re.match(_VALID_INPUT_NAME_REGEX, x):
+                raise ValueError(
+                    "Received an invalid input name: "
+                    f"`{x}`. Please ensure that all input names do "
+                    "not contain invalid characters such as spaces, "
+                    "semicolons, etc."
+                )
+
+        if isinstance(inputs, dict):
+            tf.nest.map_structure(_check_valid_input_names, inputs.keys())
 
         # Functional Model construction mode is invoked when `Layer`s are called
         # on symbolic `KerasTensor`s, i.e.:
