@@ -28,7 +28,7 @@ cuda_py_test(
     srcs = ["learning_rate_schedule_test.py"],
     shard_count = 4,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

@@ -31,7 +31,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":export_lib",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

@@ -101,7 +101,7 @@ tf_py_test(
     srcs = ["sequence_feature_column_test.py"],
     deps = [
         ":sequence_feature_column",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

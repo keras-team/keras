@@ -231,7 +231,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":preprocessing_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -246,7 +246,7 @@ tf_py_test(
     deps = [
         ":category_encoding",
         ":preprocessing_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -321,7 +321,7 @@ tf_py_test(
     deps = [
         ":discretization",
         ":preprocessing_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -417,7 +417,7 @@ tf_py_test(
     deps = [
         ":index_lookup",
         ":preprocessing_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -459,7 +459,7 @@ cuda_py_test(
     ],
     deps = [
         ":image_preprocessing",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -481,7 +481,7 @@ tf_py_test(
     deps = [
         ":normalization",
         ":preprocessing_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -496,7 +496,7 @@ tf_py_test(
     deps = [
         ":integer_lookup",
         ":preprocessing_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -535,7 +535,7 @@ tf_py_test(
     deps = [
         ":preprocessing_test_utils",
         ":text_vectorization",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -580,7 +580,7 @@ tf_py_test(
     deps = [
         ":preprocessing_test_utils",
         ":string_lookup",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -595,7 +595,7 @@ tf_py_test(
     tags = ["no_windows"],  # TODO(b/152991402)
     deps = [
         ":preprocessing_stage",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

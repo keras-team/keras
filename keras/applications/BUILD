@@ -63,7 +63,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -86,7 +86,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -105,7 +105,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -123,7 +123,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -141,7 +141,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -159,7 +159,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -177,7 +177,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -195,7 +195,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -213,7 +213,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -231,7 +231,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -249,7 +249,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -267,7 +267,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -285,7 +285,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -304,7 +304,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -323,7 +323,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -342,7 +342,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -360,7 +360,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -378,7 +378,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -396,7 +396,7 @@ tf_py_test(
     ],
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/preprocessing",
     ],
@@ -409,7 +409,7 @@ tf_py_test(
     shard_count = 2,
     deps = [
         ":applications",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

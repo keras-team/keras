@@ -141,7 +141,7 @@ cuda_py_test(
     ],
     deps = [
         ":optimizers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -156,7 +156,7 @@ cuda_py_test(
     # TODO(b/168527439): invalid resource variable reference on GPU for TFRT.
     deps = [
         ":optimizers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],

@@ -78,7 +78,7 @@ tf_py_test(
     shard_count = 8,
     tags = ["notsan"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -112,7 +112,7 @@ distribute_py_test(
     ],
     deps = [
         ":optimizers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -131,7 +131,7 @@ distribute_py_test(
     ],
     deps = [
         ":optimizers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
