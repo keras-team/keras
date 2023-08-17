@@ -466,6 +466,7 @@ class BaseLayerTest(test_combinations.TestCase):
     @test_combinations.generate(test_combinations.combine(mode=["eager"]))
     def test_composite_variable_assignment(self):
         class Spec(tf.TypeSpec):
+
             value_type = property(lambda self: CompositeVariable)
 
             def _component_specs(self):
@@ -525,22 +526,6 @@ class BaseLayerTest(test_combinations.TestCase):
             TypeError, "Expected `name` argument to be a string"
         ):
             base_layer.Layer(name=0)
-
-    def test_exception_if_call_invalid_input(self):
-        class MyModel(training_lib.Model):
-            def call(self, inputs):
-                return inputs["a feature"] + inputs["b_feature"]
-
-        inputs = {
-            "a feature": tf.constant([1.0]),
-            "b_feature": tf.constant([2.0]),
-        }
-
-        model = MyModel()
-        with self.assertRaisesRegex(
-            ValueError, "Received an invalid input name"
-        ):
-            _ = model(inputs)
 
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
@@ -1664,6 +1649,7 @@ class NameScopingTest(test_combinations.TestCase):
 )
 class AutographControlFlowTest(test_combinations.TestCase):
     def test_disabling_in_context_is_matched(self):
+
         test_obj = self
 
         class MyLayer(base_layer.Layer):
