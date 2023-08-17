@@ -320,7 +320,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self._checkpoint = tf.train.Checkpoint(root=weakref.ref(self))
 
         self._steps_per_execution = None
-        self._enable_tune_steps_per_execution = False
+        self._steps_per_execution_tuner = None
+        self._autotune_steps_per_execution = False
 
         self._layout_map = layout_map_lib.get_current_layout_map()
 
@@ -804,12 +805,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             )
 
             if steps_per_execution == "auto":
-                self._configure_steps_per_execution(1)
+                if self._steps_per_execution is None:
+                    self._configure_steps_per_execution(1)
                 self._steps_per_execution_tuner = (
                     steps_per_execution_tuning.StepsPerExecutionTuner(
                         self.optimizer, self._steps_per_execution
                     )
                 )
+                self._autotune_steps_per_execution = True
             else:
                 self._configure_steps_per_execution(steps_per_execution or 1)
 
@@ -1007,12 +1010,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self._run_eagerly = value
 
     @property
-    def enable_tune_steps_per_execution(self):
-        return self._enable_tune_steps_per_execution
+    def autotune_steps_per_execution(self):
+        """Settable property to enable tuning for steps_per_execution"""
+        return self._autotune_steps_per_execution
 
-    @enable_tune_steps_per_execution.setter
-    def enable_tune_steps_per_execution(self, value):
-        self._enable_tune_steps_per_execution = value
+    @autotune_steps_per_execution.setter
+    def autotune_steps_per_execution(self, value):
+        self._autotune_steps_per_execution = value
+        if value and self._steps_per_execution_tuner is None:
+            if self._steps_per_execution is None:
+                self._configure_steps_per_execution(1)
+            self._steps_per_execution_tuner = (
+                steps_per_execution_tuning.StepsPerExecutionTuner(
+                    self.optimizer, self._steps_per_execution
+                )
+            )
+
+    @property
+    def steps_per_execution(self):
+        """Settable `steps_per_execution variable. Requires a compiled model."""
+        return self._steps_per_execution
+
+    @steps_per_execution.setter
+    def steps_per_execution(self, value):
+        if self._steps_per_execution is None:
+            self._configure_steps_per_execution(value)
+        else:
+            self._steps_per_execution.assign(value)
 
     @property
     def jit_compile(self):
@@ -1369,7 +1393,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
-            and not self.enable_tune_steps_per_execution
+            and not self.autotune_steps_per_execution
         ):
 
             def train_function(iterator):
@@ -1752,7 +1776,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self._train_counter.assign(0)
             callbacks.on_train_begin()
             training_logs = None
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.start()
             # Handle fault-tolerance for multi-worker.
             # TODO(omalleyt): Fix the ordering issues that mean this has to
@@ -1860,7 +1884,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             # If eval data_handler exists, delete it after all epochs are done.
             if getattr(self, "_eval_data_handler", None) is not None:
                 del self._eval_data_handler
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.stop()
             callbacks.on_train_end(logs=training_logs)
             return self.history
@@ -2034,7 +2058,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
-            and not self.enable_tune_steps_per_execution
+            and not self.autotune_steps_per_execution
         ):
 
             def test_function(iterator):
@@ -2256,7 +2280,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             test_function_runner = self._get_test_function_runner(callbacks)
             self._test_counter.assign(0)
             callbacks.on_test_begin()
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.start()
             for (
                 _,
@@ -2282,7 +2306,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 logs = self._aggregate_exact_metrics(logs)
             else:
                 logs = self._validate_and_get_metrics_result(logs)
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.stop()
             callbacks.on_test_end(logs=logs)
 
@@ -2408,7 +2432,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         if (
             self._steps_per_execution is None
             or self._steps_per_execution.numpy().item() == 1
-            and not self.enable_tune_steps_per_execution
+            and not self.autotune_steps_per_execution
         ):
 
             def predict_function(iterator):
@@ -2621,7 +2645,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             self.predict_function = self.make_predict_function()
             self._predict_counter.assign(0)
             callbacks.on_predict_begin()
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.start()
             batch_outputs = None
             for _, iterator in data_handler.enumerate_epochs():  # Single epoch.
@@ -2661,7 +2685,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                     "information of where went wrong, or file a "
                     "issue/bug to `tf.keras`."
                 )
-            if self.enable_tune_steps_per_execution:
+            if self.autotune_steps_per_execution:
                 self._steps_per_execution_tuner.stop()
             callbacks.on_predict_end()
         all_outputs = tf.__internal__.nest.map_structure_up_to(
