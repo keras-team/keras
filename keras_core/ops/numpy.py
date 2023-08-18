@@ -165,7 +165,6 @@ def broadcast_shapes(shape1, shape2):
         output_shape (list of integers or `None`): The broadcasted shape.
 
     Example:
-
     >>> broadcast_shapes((5, 3), (1, 3))
     [5, 3]
     """
@@ -247,7 +246,6 @@ def absolute(x):
         An array containing the absolute value of each element in `x`.
 
     Example:
-
     >>> x = keras_core.ops.convert_to_tensor([-1.2, 1.2])
     >>> keras_core.ops.absolute(x)
     array([1.2 1.2], shape=(2,), dtype=float32)
@@ -290,7 +288,6 @@ def add(x1, x2):
         The tensor containing the element-wise sum of `x1` and `x2`.
 
     Examples:
-
     >>> x1 = keras_core.ops.convert_to_tensor([1, 4])
     >>> x2 = keras_core.ops.convert_to_tensor([5, 6])
     >>> keras_core.ops.add(x1, x2)
@@ -357,7 +354,6 @@ def all(x, axis=None, keepdims=False):
         The tensor containing the logical AND reduction over the `axis`.
 
     Examples:
-
     >>> x = keras_core.ops.convert_to_tensor([True, False])
     >>> keras_core.ops.all(x)
     array(False, shape=(), dtype=bool)
@@ -422,7 +418,6 @@ def any(x, axis=None, keepdims=False):
         The tensor containing the logical OR reduction over the `axis`.
 
     Examples:
-
     >>> x = keras_core.ops.convert_to_tensor([True, False])
     >>> keras_core.ops.any(x)
     array(True, shape=(), dtype=bool)
@@ -483,7 +478,6 @@ def amax(x, axis=None, keepdims=False):
         the specified axis.
 
     Examples:
-
     >>> x = keras_core.ops.convert_to_tensor([[1, 3, 5], [2, 3, 6]])
     >>> keras_core.ops.amax(x)
     array(6, dtype=int32)
@@ -539,7 +533,6 @@ def amin(x, axis=None, keepdims=False):
         the specified axis.
 
     Examples:
-
     >>> x = keras_core.ops.convert_to_tensor([1, 3, 5, 2, 3, 6])
     >>> keras_core.ops.amin(x)
     array(1, dtype=int32)
@@ -605,7 +598,6 @@ def append(
         A tensor with the values of `x2` appended to `x1`.
 
     Examples:
-
     >>> x1 = keras_core.ops.convert_to_tensor([1, 2, 3])
     >>> x2 = keras_core.ops.convert_to_tensor([[4, 5, 6], [7, 8, 9]])
     >>> keras_core.ops.append(x1, x2)
@@ -675,7 +667,6 @@ def arange(start, stop=None, step=1, dtype=None):
         rule may result in the last element of out being greater than stop.
 
     Examples:
-
     >>> keras_core.ops.arange(3)
     array([0, 1, 2], dtype=int32)
 
@@ -714,7 +705,8 @@ def arccos(x):
 
     Example:
     >>> x = keras_core.ops.convert_to_tensor([1, -1])
-    array([0., 3.1415927], dtype=float32)
+    >>> keras_core.ops.arccos(x)
+    array([0.0, 3.1415927], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arccos().symbolic_call(x)
@@ -737,6 +729,11 @@ def arccosh(x):
 
     Returns:
         Output tensor of same shape as x.
+
+    Example:
+    >>> x = keras_core.ops.convert_to_tensor([10, 100])
+    >>> keras_core.ops.arccosh(x)
+    array([2.993223, 5.298292], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arccosh().symbolic_call(x)
@@ -789,6 +786,11 @@ def arcsinh(x):
 
     Returns:
         Output tensor of same shape as `x`.
+
+    Example:
+    >>> x = keras_core.ops.convert_to_tensor([1, -1, 0])
+    >>> keras_core.ops.arcsinh(x)
+    array([0.88137364, -0.88137364, 0.0], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arcsinh().symbolic_call(x)
@@ -1332,7 +1334,6 @@ def clip(x, x_min, x_max):
         x: Input tensor.
         x_min: Minimum value.
         x_max: Maximum value.
-
     Returns:
         The clipped tensor.
     """
@@ -1927,7 +1928,6 @@ def digitize(x, bins):
         Output array of indices, of same shape as `x`.
 
     Example:
-
     >>> x = np.array([0.0, 1.0, 3.0, 1.6])
     >>> bins = np.array([0.0, 3.0, 4.5, 7.0])
     >>> keras_core.ops.digitize(x, bins)
