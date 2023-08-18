@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 import scipy.signal
@@ -12,58 +14,127 @@ from keras_core.ops import math as kmath
 def _stft(
     x, sequence_length, sequence_stride, fft_length, window="hann", center=True
 ):
-    # pure numpy version of stft
-    if backend.standardize_dtype(x.dtype) not in {"float32", "float64"}:
-        raise TypeError(
-            "Invalid input type. Expected `float32` or `float64`. "
-            f"Received: input type={x.dtype}"
-        )
-    if fft_length < sequence_length:
-        raise ValueError(
-            "`fft_length` must equal or larger than `sequence_length`. "
-            f"Received: sequence_length={sequence_length}, "
-            f"fft_length={fft_length}"
-        )
+    # pure numpy version of stft that matches librosa's implementation
+    x = np.array(x)
+    ori_dtype = x.dtype
 
     if center:
         pad_width = [(0, 0) for _ in range(len(x.shape))]
         pad_width[-1] = (fft_length // 2, fft_length // 2)
-        if backend.backend() != "torch" or len(x.shape) < 3:
-            x = np.pad(x, pad_width, mode="reflect")
-        else:
-            # torch not support reflect padding for N-D cases when N >= 3
-            x = np.pad(x, pad_width, mode="constant")
+        x = np.pad(x, pad_width, mode="reflect")
 
-    # extract_sequences
-    *batch_shape, _ = x.shape
-    batch_shape = list(batch_shape)
-    shape = x.shape[:-1] + (
-        (x.shape[-1] - (fft_length - sequence_stride)) // sequence_stride,
-        fft_length,
-    )
-    strides = x.strides[:-1] + (sequence_stride * x.strides[-1], x.strides[-1])
-    x = np.lib.stride_tricks.as_strided(x, shape=shape, strides=strides)
-    x = np.reshape(x, (*batch_shape, *x.shape[-2:]))
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
 
     if window is not None:
         if isinstance(window, str):
             window = scipy.signal.get_window(window, sequence_length)
         win = np.array(window, dtype=x.dtype)
-        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
-            raise ValueError(
-                "The shape of `window` must be equal to [sequence_length]."
-                f"Received: window shape={win.shape}"
+        win = np.pad(win, [[l_pad, r_pad]])
+    else:
+        win = np.ones((sequence_length + l_pad + r_pad), dtype=x.dtype)
+
+    x = scipy.signal.stft(
+        x,
+        fs=1.0,
+        window=win,
+        nperseg=(sequence_length + l_pad + r_pad),
+        noverlap=(sequence_length + l_pad + r_pad - sequence_stride),
+        nfft=fft_length,
+        boundary=None,
+        padded=False,
+    )[-1]
+
+    # scale and swap to (..., num_sequences, fft_bins)
+    x = x / np.sqrt(1.0 / win.sum() ** 2)
+    x = np.swapaxes(x, -2, -1)
+    return np.real(x).astype(ori_dtype), np.imag(x).astype(ori_dtype)
+
+
+def _istft(
+    x,
+    sequence_length,
+    sequence_stride,
+    fft_length,
+    length=None,
+    window="hann",
+    center=True,
+):
+    # pure numpy version of istft that matches librosa's implementation
+    complex_input = x[0] + 1j * x[1]
+    x = np.fft.irfft(
+        complex_input, n=fft_length, axis=-1, norm="backward"
+    ).astype(x[0].dtype)
+
+    expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
+
+    if window is not None:
+        if isinstance(window, str):
+            win = np.array(
+                scipy.signal.get_window(window, sequence_length), dtype=x.dtype
             )
+        else:
+            win = np.array(window, dtype=x.dtype)
         l_pad = (fft_length - sequence_length) // 2
         r_pad = fft_length - sequence_length - l_pad
         win = np.pad(win, [[l_pad, r_pad]])
+
+        # square and sum
+        _sequence_length = sequence_length + l_pad + r_pad
+        denom = np.square(win)
+        overlaps = -(-_sequence_length // sequence_stride)
+        denom = np.pad(
+            denom, [(0, overlaps * sequence_stride - _sequence_length)]
+        )
+        denom = np.reshape(denom, [overlaps, sequence_stride])
+        denom = np.sum(denom, 0, keepdims=True)
+        denom = np.tile(denom, [overlaps, 1])
+        denom = np.reshape(denom, [overlaps * sequence_stride])
+        win = np.divide(win, denom[:_sequence_length])
         x = np.multiply(x, win)
 
-    x = np.fft.rfft(x, fft_length)
-    return np.real(x), np.imag(x)
+    # overlap_sequences
+    def _overlap_sequences(x, sequence_stride):
+        *batch_shape, num_sequences, sequence_length = x.shape
+        flat_batchsize = math.prod(batch_shape)
+        x = np.reshape(x, (flat_batchsize, num_sequences, sequence_length))
+        output_size = sequence_stride * (num_sequences - 1) + sequence_length
+        nstep_per_segment = 1 + (sequence_length - 1) // sequence_stride
+        padded_segment_len = nstep_per_segment * sequence_stride
+        x = np.pad(
+            x, ((0, 0), (0, 0), (0, padded_segment_len - sequence_length))
+        )
+        x = np.reshape(
+            x,
+            (flat_batchsize, num_sequences, nstep_per_segment, sequence_stride),
+        )
+        x = x.transpose((0, 2, 1, 3))
+        x = np.pad(x, ((0, 0), (0, 0), (0, num_sequences), (0, 0)))
+        shrinked = x.shape[2] - 1
+        x = np.reshape(x, (flat_batchsize, -1))
+        x = x[:, : (nstep_per_segment * shrinked * sequence_stride)]
+        x = np.reshape(
+            x, (flat_batchsize, nstep_per_segment, shrinked * sequence_stride)
+        )
+        x = np.sum(x, axis=1)[:, :output_size]
+        return np.reshape(x, tuple(batch_shape) + (-1,))
+
+    x = _overlap_sequences(x, sequence_stride)
+
+    if backend.backend() in {"numpy", "jax"}:
+        x = np.nan_to_num(x)
+
+    start = 0 if center is False else fft_length // 2
+    if length is not None:
+        end = start + length
+    elif center:
+        end = -(fft_length // 2)
+    else:
+        end = expected_output_len
+    return x[..., start:end]
 
 
-class MathOpsDynamicShapeTest(testing.TestCase):
+class MathOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
     def test_segment_sum(self):
         data = KerasTensor((None, 4), dtype="float32")
         segment_ids = KerasTensor((10,), dtype="int32")
@@ -154,13 +225,23 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(real_output.shape, ref_shape)
         self.assertEqual(imag_output.shape, ref_shape)
 
-    def test_rfft(self):
+    @parameterized.parameters([(None,), (1,), (5,)])
+    def test_rfft(self, fft_length):
         x = KerasTensor((None, 4, 3), dtype="float32")
-        real_output, imag_output = kmath.rfft(x)
-        ref = np.fft.rfft(np.ones((2, 4, 3)))
+        real_output, imag_output = kmath.rfft(x, fft_length=fft_length)
+        ref = np.fft.rfft(np.ones((2, 4, 3)), n=fft_length)
         ref_shape = (None,) + ref.shape[1:]
         self.assertEqual(real_output.shape, ref_shape)
         self.assertEqual(imag_output.shape, ref_shape)
+
+    @parameterized.parameters([(None,), (1,), (5,)])
+    def test_irfft(self, fft_length):
+        real = KerasTensor((None, 4, 3), dtype="float32")
+        imag = KerasTensor((None, 4, 3), dtype="float32")
+        output = kmath.irfft((real, imag), fft_length=fft_length)
+        ref = np.fft.irfft(np.ones((2, 4, 3)), n=fft_length)
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(output.shape, ref_shape)
 
     def test_stft(self):
         x = KerasTensor((None, 32), dtype="float32")
@@ -177,6 +258,24 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         imag_ref_shape = (None,) + imag_ref.shape[1:]
         self.assertEqual(real_output.shape, real_ref_shape)
         self.assertEqual(imag_output.shape, imag_ref_shape)
+
+    def test_istft(self):
+        sequence_length = 10
+        sequence_stride = 3
+        fft_length = 15
+        real = KerasTensor((None, 32), dtype="float32")
+        imag = KerasTensor((None, 32), dtype="float32")
+        output = kmath.istft(
+            (real, imag), sequence_length, sequence_stride, fft_length
+        )
+        ref = _istft(
+            (np.ones((5, 32)), np.ones((5, 32))),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+        )
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(output.shape, ref_shape)
 
     def test_rsqrt(self):
         x = KerasTensor([None, 3])
@@ -275,6 +374,13 @@ class MathOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(real_output.shape, ref.shape)
         self.assertEqual(imag_output.shape, ref.shape)
 
+    def test_irfft(self):
+        real = KerasTensor((2, 4, 3), dtype="float32")
+        imag = KerasTensor((2, 4, 3), dtype="float32")
+        output = kmath.irfft((real, imag))
+        ref = np.fft.irfft(np.ones((2, 4, 3)))
+        self.assertEqual(output.shape, ref.shape)
+
     def test_rsqrt(self):
         x = KerasTensor([4, 3], dtype="float32")
         self.assertEqual(kmath.rsqrt(x).shape, (4, 3))
@@ -292,6 +398,26 @@ class MathOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(real_output.shape, real_ref.shape)
         self.assertEqual(imag_output.shape, imag_ref.shape)
+
+    def test_istft(self):
+        # sequence_stride must <= x[0].shape[-1]
+        # sequence_stride must >= fft_length / num_sequences
+        sequence_length = 10
+        sequence_stride = 3
+        fft_length = 15
+        num_sequences = fft_length // sequence_stride + 1
+        real = KerasTensor((num_sequences, 32), dtype="float32")
+        imag = KerasTensor((num_sequences, 32), dtype="float32")
+        output = kmath.istft(
+            (real, imag), sequence_length, sequence_stride, fft_length
+        )
+        ref = _istft(
+            (np.ones((num_sequences, 32)), np.ones((num_sequences, 32))),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+        )
+        self.assertEqual(output.shape, ref.shape)
 
 
 class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -577,6 +703,24 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
         self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
 
+    @parameterized.parameters([(None,), (3,), (15,)])
+    def test_irfft(self, n):
+        # Test 1D.
+        real = np.random.random((10,))
+        imag = np.random.random((10,))
+        complex_arr = real + 1j * imag
+        output = kmath.irfft((real, imag), fft_length=n)
+        ref = np.fft.irfft(complex_arr, n=n)
+        self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
+
+        # Test N-D case.
+        real = np.random.random((2, 3, 10))
+        imag = np.random.random((2, 3, 10))
+        complex_arr = real + 1j * imag
+        output = kmath.irfft((real, imag), fft_length=n)
+        ref = np.fft.irfft(complex_arr, n=n)
+        self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
+
     @parameterized.parameters(
         [
             (32, 8, 32, "hann", True),
@@ -602,8 +746,8 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
         self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
 
-        # Test N-D case.
-        x = np.random.random((2, 3, 32))
+        # Test 2D case.
+        x = np.random.random((3, 32))
         real_output, imag_output = kmath.stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
@@ -612,6 +756,80 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
         self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
         self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+
+    @parameterized.parameters(
+        [
+            (32, 8, 32, "hann", True),
+            (8, 8, 16, "hann", True),
+            (4, 4, 7, "hann", True),
+            (32, 8, 32, "hamming", True),
+            (8, 4, 8, "hann", False),
+            (32, 8, 32, np.ones((32,)), True),
+            (32, 8, 32, None, True),
+        ]
+    )
+    def test_istft(
+        self, sequence_length, sequence_stride, fft_length, window, center
+    ):
+        # sequence_stride must <= x[0].shape[-1]
+        # sequence_stride must >= fft_length / num_sequences
+        # Test 1D case.
+        x = np.random.random((256,))
+        real_x, imag_x = _stft(
+            x, sequence_length, sequence_stride, fft_length, window, center
+        )
+        output = kmath.istft(
+            (real_x, imag_x),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            window=window,
+            center=center,
+        )
+        ref = _istft(
+            (real_x, imag_x),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            window=window,
+            center=center,
+        )
+        if backend.backend() in ("numpy", "jax"):
+            # numpy and jax have different implementation for the boundary of
+            # the output, so we need to truncate 5% befroe assertAllClose
+            truncated_len = int(output.shape[-1] * 0.05)
+            output = output[..., truncated_len:-truncated_len]
+            ref = ref[..., truncated_len:-truncated_len]
+        self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
+
+        # Test 2D case.
+        x = np.random.random((3, 256))
+        real_x, imag_x = _stft(
+            x, sequence_length, sequence_stride, fft_length, window, center
+        )
+        output = kmath.istft(
+            (real_x, imag_x),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            window=window,
+            center=center,
+        )
+        ref = _istft(
+            (real_x, imag_x),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            window=window,
+            center=center,
+        )
+        if backend.backend() in ("numpy", "jax"):
+            # numpy and jax have different implementation for the boundary of
+            # the output, so we need to truncate 5% befroe assertAllClose
+            truncated_len = int(output.shape[-1] * 0.05)
+            output = output[..., truncated_len:-truncated_len]
+            ref = ref[..., truncated_len:-truncated_len]
+        self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
     @pytest.mark.skipif(
         backend.backend() == "numpy",

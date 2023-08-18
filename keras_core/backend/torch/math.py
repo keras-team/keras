@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 from keras_core.backend import standardize_dtype
@@ -130,43 +132,93 @@ def extract_sequences(x, sequence_length, sequence_stride):
     )
 
 
-def _get_complex_tensor_from_tuple(a):
-    if not isinstance(a, (tuple, list)) or len(a) != 2:
+def _overlap_sequences(x, sequence_stride):
+    # Ref: https://github.com/google/jax/blob/main/jax/_src/scipy/signal.py
+    x = convert_to_tensor(x)
+    *batch_shape, num_sequences, sequence_length = x.shape
+    if sequence_stride > sequence_length:
         raise ValueError(
-            "Input `a` should be a tuple of two tensors - real and imaginary."
-            f"Received: a={a}"
+            "`sequence_stride` must equal or less than x.shape[-1]. "
+            f"Received: sequence_stride={sequence_stride}, "
+            f"x.shape[-1]={sequence_length}"
+        )
+    if sequence_stride < (sequence_length / num_sequences):
+        raise ValueError(
+            "`sequence_stride` must equal or greater than "
+            "x.shape[-1] / x.shape[-2]. "
+            f"Received: sequence_stride={sequence_stride}, "
+            f"x.shape[-1]={sequence_length}, x.shape[-2]={num_sequences}"
+        )
+    flat_batchsize = math.prod(batch_shape)
+    x = torch.reshape(x, (flat_batchsize, num_sequences, sequence_length))
+    output_size = sequence_stride * (num_sequences - 1) + sequence_length
+    nstep_per_segment = 1 + (sequence_length - 1) // sequence_stride
+    # Here, we use shorter notation for axes.
+    # B: batch_size, N: num_sequences, S: nstep_per_segment,
+    # T: sequence_length divided by S
+    padded_segment_len = nstep_per_segment * sequence_stride
+    x = torch.nn.functional.pad(
+        x, (0, padded_segment_len - sequence_length, 0, 0, 0, 0)
+    )
+    x = torch.reshape(
+        x, (flat_batchsize, num_sequences, nstep_per_segment, sequence_stride)
+    )
+    # For obtaining shifted signals, this routine reinterprets flattened array
+    # with a shrinked axis.  With appropriate truncation/ padding, this
+    # operation pushes the last padded elements of the previous row to the head
+    # of the current row.
+    # See implementation of `overlap_and_add` in Tensorflow for details.
+    x = torch.permute(x, (0, 2, 1, 3))  # x: (B, S, N, T)
+    x = torch.nn.functional.pad(x, (0, 0, 0, num_sequences, 0, 0, 0, 0))
+    # x: (B, S, N*2, T)
+    shrinked = x.shape[2] - 1
+    x = torch.reshape(x, (flat_batchsize, -1))
+    x = x[:, : (nstep_per_segment * shrinked * sequence_stride)]
+    x = torch.reshape(
+        x, (flat_batchsize, nstep_per_segment, shrinked * sequence_stride)
+    )
+    # Finally, sum shifted segments, and truncate results to the output_size.
+    x = torch.sum(x, dim=1)[:, :output_size]
+    return torch.reshape(x, tuple(batch_shape) + (-1,))
+
+
+def _get_complex_tensor_from_tuple(x):
+    if not isinstance(x, (tuple, list)) or len(x) != 2:
+        raise ValueError(
+            "Input `x` should be a tuple of two tensors - real and imaginary."
+            f"Received: x={x}"
         )
     # `convert_to_tensor` does not support passing complex tensors. We separate
     # the input out into real and imaginary and convert them separately.
-    real, imag = a
+    real, imag = x
     real = convert_to_tensor(real)
     imag = convert_to_tensor(imag)
     # Check shape.
     if real.shape != imag.shape:
         raise ValueError(
-            "Input `a` should be a tuple of two tensors - real and imaginary."
+            "Input `x` should be a tuple of two tensors - real and imaginary."
             "Both the real and imaginary parts should have the same shape. "
-            f"Received: a[0].shape = {real.shape}, a[1].shape = {imag.shape}"
+            f"Received: x[0].shape = {real.shape}, x[1].shape = {imag.shape}"
         )
     # Ensure dtype is float.
     if not torch.is_floating_point(real) or not torch.is_floating_point(imag):
         raise ValueError(
-            "At least one tensor in input `a` is not of type float."
-            f"Received: a={a}."
+            "At least one tensor in input `x` is not of type float."
+            f"Received: x={x}."
         )
 
     complex_input = torch.complex(real, imag)
     return complex_input
 
 
-def fft(a):
-    complex_input = _get_complex_tensor_from_tuple(a)
+def fft(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = torch.fft.fft(complex_input)
     return complex_output.real, complex_output.imag
 
 
-def fft2(a):
-    complex_input = _get_complex_tensor_from_tuple(a)
+def fft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = torch.fft.fft2(complex_input)
     return complex_output.real, complex_output.imag
 
@@ -175,6 +227,11 @@ def rfft(x, fft_length=None):
     x = convert_to_tensor(x)
     complex_output = torch.fft.rfft(x, n=fft_length, dim=-1, norm="backward")
     return complex_output.real, complex_output.imag
+
+
+def irfft(x, fft_length=None):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    return torch.fft.irfft(complex_input, n=fft_length, dim=-1, norm="backward")
 
 
 def stft(
@@ -199,16 +256,60 @@ def stft(
             )
     x = convert_to_tensor(x)
 
-    if center:
-        pad_width = [(0, 0) for _ in range(x.ndim)]
-        pad_width[-1] = (fft_length // 2, fft_length // 2)
-        # torch does not support reflect padding when x.ndim >= 3
-        if x.ndim < 3:
-            x = pad(x, pad_width, "reflect")
+    if window is not None:
+        if isinstance(window, str):
+            if window == "hann":
+                win = torch.hann_window(
+                    sequence_length,
+                    periodic=True,
+                    dtype=x.dtype,
+                    device=get_device(),
+                )
+            else:
+                win = torch.hamming_window(
+                    sequence_length,
+                    periodic=True,
+                    dtype=x.dtype,
+                    device=get_device(),
+                )
         else:
-            x = pad(x, pad_width, "constant")
+            win = convert_to_tensor(window, dtype=x.dtype)
+        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win.shape}"
+            )
+    else:
+        win = torch.ones((sequence_length,), dtype=x.dtype, device=get_device())
 
-    x = extract_sequences(x, fft_length, sequence_stride)
+    x = torch.stft(
+        x,
+        n_fft=fft_length,
+        hop_length=sequence_stride,
+        win_length=sequence_length,
+        window=win,
+        center=center,
+        return_complex=True,
+    )
+    x = torch.swapaxes(x, -2, -1)
+    return x.real, x.imag
+
+
+def istft(
+    x,
+    sequence_length,
+    sequence_stride,
+    fft_length,
+    length=None,
+    window="hann",
+    center=True,
+):
+    # ref:
+    # torch: aten/src/ATen/native/SpectralOps.cpp
+    # tf: tf.signal.inverse_stft_window_fn
+    x = irfft(x, fft_length)
+
+    expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
 
     if window is not None:
         if isinstance(window, str):
@@ -236,9 +337,29 @@ def stft(
         l_pad = (fft_length - sequence_length) // 2
         r_pad = fft_length - sequence_length - l_pad
         win = pad(win, [[l_pad, r_pad]], "constant")
+
+        # square and sum
+        _sequence_length = sequence_length + l_pad + r_pad
+        denom = torch.square(win)
+        overlaps = -(-_sequence_length // sequence_stride)
+        denom = pad(denom, [(0, overlaps * sequence_stride - _sequence_length)])
+        denom = torch.reshape(denom, [overlaps, sequence_stride])
+        denom = torch.sum(denom, 0, keepdims=True)
+        denom = torch.tile(denom, [overlaps, 1])
+        denom = torch.reshape(denom, [overlaps * sequence_stride])
+        win = torch.divide(win, denom[:_sequence_length])
         x = torch.multiply(x, win)
 
-    return rfft(x, fft_length)
+    x = _overlap_sequences(x, sequence_stride)
+
+    start = 0 if center is False else fft_length // 2
+    if length is not None:
+        end = start + length
+    elif center is True:
+        end = -(fft_length // 2)
+    else:
+        end = expected_output_len
+    return x[..., start:end]
 
 
 def rsqrt(x):

@@ -58,42 +58,42 @@ def extract_sequences(x, sequence_length, sequence_stride):
     )
 
 
-def _get_complex_tensor_from_tuple(a):
-    if not isinstance(a, (tuple, list)) or len(a) != 2:
+def _get_complex_tensor_from_tuple(x):
+    if not isinstance(x, (tuple, list)) or len(x) != 2:
         raise ValueError(
-            "Input `a` should be a tuple of two tensors - real and imaginary."
-            f"Received: a={a}"
+            "Input `x` should be a tuple of two tensors - real and imaginary."
+            f"Received: x={x}"
         )
     # `convert_to_tensor` does not support passing complex tensors. We separate
     # the input out into real and imaginary and convert them separately.
-    real, imag = a
+    real, imag = x
     real = convert_to_tensor(real)
     imag = convert_to_tensor(imag)
     # Check shapes.
     if real.shape != imag.shape:
         raise ValueError(
-            "Input `a` should be a tuple of two tensors - real and imaginary."
+            "Input `x` should be a tuple of two tensors - real and imaginary."
             "Both the real and imaginary parts should have the same shape. "
-            f"Received: a[0].shape = {real.shape}, a[1].shape = {imag.shape}"
+            f"Received: x[0].shape = {real.shape}, x[1].shape = {imag.shape}"
         )
     # Ensure dtype is float.
     if not real.dtype.is_floating or not imag.dtype.is_floating:
         raise ValueError(
-            "At least one tensor in input `a` is not of type float."
-            f"Received: a={a}."
+            "At least one tensor in input `x` is not of type float."
+            f"Received: x={x}."
         )
     complex_input = tf.dtypes.complex(real, imag)
     return complex_input
 
 
-def fft(a):
-    complex_input = _get_complex_tensor_from_tuple(a)
+def fft(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = tf.signal.fft(complex_input)
     return tf.math.real(complex_output), tf.math.imag(complex_output)
 
 
-def fft2(a):
-    complex_input = _get_complex_tensor_from_tuple(a)
+def fft2(x):
+    complex_input = _get_complex_tensor_from_tuple(x)
     complex_output = tf.signal.fft2d(complex_input)
     return tf.math.real(complex_output), tf.math.imag(complex_output)
 
@@ -103,6 +103,13 @@ def rfft(x, fft_length=None):
         fft_length = [fft_length]
     complex_output = tf.signal.rfft(x, fft_length=fft_length)
     return tf.math.real(complex_output), tf.math.imag(complex_output)
+
+
+def irfft(x, fft_length=None):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    if fft_length is not None:
+        fft_length = [fft_length]
+    return tf.signal.irfft(complex_input, fft_length)
 
 
 def stft(
@@ -132,31 +139,102 @@ def stft(
         pad_width[-1] = (fft_length // 2, fft_length // 2)
         x = tf.pad(x, pad_width, mode="reflect")
 
-    x = extract_sequences(x, fft_length, sequence_stride)
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
 
     if window is not None:
         if isinstance(window, str):
             if window == "hann":
-                win = tf.signal.hann_window(
+                win_array = tf.signal.hann_window(
                     sequence_length, periodic=True, dtype=x.dtype
                 )
             else:
-                win = tf.signal.hamming_window(
+                win_array = tf.signal.hamming_window(
                     sequence_length, periodic=True, dtype=x.dtype
                 )
         else:
-            win = convert_to_tensor(window, dtype=x.dtype)
-        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            win_array = convert_to_tensor(window, dtype=x.dtype)
+        if len(win_array.shape) != 1 or win_array.shape[-1] != sequence_length:
             raise ValueError(
                 "The shape of `window` must be equal to [sequence_length]."
-                f"Received: window shape={win.shape}"
+                f"Received: window shape={win_array.shape}"
             )
-        l_pad = (fft_length - sequence_length) // 2
-        r_pad = fft_length - sequence_length - l_pad
-        win = tf.pad(win, [[l_pad, r_pad]])
-        x = tf.multiply(x, win)
+        win_array = tf.pad(win_array, [[l_pad, r_pad]])
 
-    return rfft(x, fft_length)
+        def win(frame_step, dtype):
+            return win_array
+
+    else:
+        win = None
+
+    result = tf.signal.stft(
+        x,
+        frame_length=(sequence_length + l_pad + r_pad),
+        frame_step=sequence_stride,
+        fft_length=fft_length,
+        window_fn=win,
+    )
+    return tf.math.real(result), tf.math.imag(result)
+
+
+def istft(
+    x,
+    sequence_length,
+    sequence_stride,
+    fft_length,
+    length=None,
+    window="hann",
+    center=True,
+):
+    complex_input = _get_complex_tensor_from_tuple(x)
+    dtype = tf.math.real(complex_input).dtype
+
+    expected_output_len = fft_length + sequence_stride * (
+        tf.shape(complex_input)[-2] - 1
+    )
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
+
+    if window is not None:
+        if isinstance(window, str):
+            if window == "hann":
+                win_array = tf.signal.hann_window(
+                    sequence_length, periodic=True, dtype=dtype
+                )
+            else:
+                win_array = tf.signal.hamming_window(
+                    sequence_length, periodic=True, dtype=dtype
+                )
+        else:
+            win_array = convert_to_tensor(window, dtype=dtype)
+        if len(win_array.shape) != 1 or win_array.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win_array.shape}"
+            )
+        win_array = tf.pad(win_array, [[l_pad, r_pad]])
+        win = tf.signal.inverse_stft_window_fn(
+            sequence_stride, lambda frame_step, dtype: win_array
+        )
+    else:
+        win = None
+
+    x = tf.signal.inverse_stft(
+        complex_input,
+        frame_length=(sequence_length + l_pad + r_pad),
+        frame_step=sequence_stride,
+        fft_length=fft_length,
+        window_fn=win,
+    )
+
+    start = 0 if center is False else fft_length // 2
+    if length is not None:
+        end = start + length
+    elif center is True:
+        end = -(fft_length // 2)
+    else:
+        end = expected_output_len
+    return x[..., start:end]
 
 
 def rsqrt(x):
