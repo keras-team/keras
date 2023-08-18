@@ -7,6 +7,7 @@ import tensorflow as tf
 import keras_core
 from keras_core import layers
 from keras_core import models
+from keras_core import ops
 from keras_core import testing
 from keras_core.legacy.saving import legacy_h5_format
 from keras_core.saving import object_registration
@@ -125,8 +126,8 @@ class LegacyH5WholeModelTest(testing.TestCase):
         self._check_reloading_model(ref_input, model)
 
     def test_saving_lambda(self):
-        mean = np.random.random((4, 2, 3))
-        std = np.abs(np.random.random((4, 2, 3))) + 1e-5
+        mean = ops.random.uniform((4, 2, 3))
+        std = ops.abs(ops.random.uniform((4, 2, 3))) + 1e-5
         inputs = layers.Input(shape=(4, 2, 3))
         output = layers.Lambda(
             lambda image, mu, std: (image - mu) / std,

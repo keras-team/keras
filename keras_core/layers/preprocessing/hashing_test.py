@@ -389,7 +389,9 @@ class HashingTest(testing.TestCase, parameterized.TestCase):
     def test_hash_list_input(self, input_data, expected):
         layer = layers.Hashing(num_bins=2)
         out_data = layer(input_data)
-        self.assertAllEqual(expected, np.array(out_data).tolist())
+        self.assertAllEqual(
+            expected, backend.convert_to_numpy(out_data).tolist()
+        )
 
 
 # TODO: support tf.RaggedTensor.
