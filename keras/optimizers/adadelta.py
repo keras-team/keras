@@ -25,10 +25,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.experimental.Adadelta",
-    "keras.optimizers.Adadelta",
-    "keras.dtensor.experimental.optimizers.Adadelta",
-    v1=[],
+    "keras.optimizers.experimental.Adadelta", "keras.optimizers.Adadelta", v1=[]
 )
 class Adadelta(optimizer.Optimizer):
     r"""Optimizer that implements the Adadelta algorithm.
@@ -47,22 +44,22 @@ class Adadelta(optimizer.Optimizer):
     learning rate can be set, as in most other Keras optimizers.
 
     Args:
-        learning_rate: Initial value for the learning rate: either a floating
-            point value, or a
-            `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
-            Defaults to 0.001. Note that `Adadelta` tends to benefit from
-            higher initial learning rate values compared to other optimizers. To
-            match the exact form in the original paper, use 1.0.
-        rho: A `Tensor` or a floating point value. The decay rate. Defaults to
-            0.95.
-        epsilon: Small floating point value used to maintain numerical
-            stability. Defaults to 1e-7.
+      learning_rate: Initial value for the learning rate: either a floating
+        point value, or a `tf.keras.optimizers.schedules.LearningRateSchedule`
+        instance. Defaults to 0.001. Note that `Adadelta` tends to benefit from
+        higher initial learning rate values compared to other optimizers. To
+        match the exact form in the original paper, use 1.0.
+      rho: A `Tensor` or a floating point value. The decay rate. Defaults to
+        0.95.
+      epsilon: Small floating point value used to maintain numerical stability.
+        Defaults to 1e-7.
       {{base_optimizer_keyword_args}}
 
     Reference:
-        - [Zeiler, 2012](http://arxiv.org/abs/1212.5701)
+      - [Zeiler, 2012](http://arxiv.org/abs/1212.5701)
     """
 
+    '''
     def __init__(
         self,
         learning_rate=0.001,
@@ -94,7 +91,33 @@ class Adadelta(optimizer.Optimizer):
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.rho = rho
         self.epsilon = epsilon
+    '''
 
+    def __init__(
+        self, 
+        optimizer,
+        **kwargs
+    ):
+        super().__init__(
+            name = optimizer['name'],
+            weight_decay = optimizer['parameters']['weight_decay'],
+            clipnorm = optimizer['parameters']['clipnorm'],
+            clipvalue = optimizer['parameters']['clipvalue'],
+            global_clipnorm = optimizer['parameters']['global_clipnorm'],
+            use_ema = optimizer['parameters']['use_ema'],
+            ema_momentum = optimizer['parameters']['ema_momentum'],
+            ema_overwrite_frequency = optimizer['parameters']['ema_overwrite_frequency'],
+            jit_compile = optimizer['parameters']['jit_compile'],
+            **kwargs
+        )
+        self._learning_rate = self._build_learning_rate(optimizer['parameters']['learning_rate'])
+        self.rho = optimizer['parameters']['rho']
+        self.epsilon = optimizer['parameters']['epsilon']
+
+
+
+
+        
     def build(self, var_list):
         super().build(var_list)
         if hasattr(self, "_built") and self._built:

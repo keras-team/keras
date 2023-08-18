@@ -19,7 +19,6 @@ import abc
 import contextlib
 import functools
 import warnings
-from copy import deepcopy
 
 import tensorflow.compat.v2 as tf
 
@@ -442,18 +441,6 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             )
         self.clipvalue = kwargs.pop("clipvalue", None)
 
-    def __deepcopy__(self, memo):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-        for k, v in self.__dict__.items():
-            # DistributionStrategy singleton cannot be serialized
-            if k == "_distribution_strategy":
-                continue
-            setattr(result, k, deepcopy(v, memo))
-        result._distribution_strategy = self._distribution_strategy
-        return result
-
     @property
     def clipnorm(self):
         """`float` or `None`. If set, clips gradients to a maximum norm."""
@@ -692,12 +679,12 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
         Args:
           grads_and_vars: List of (gradient, variable) pairs.
-          name: Optional name for the returned operation. When `None`, uses the
-            name passed to the `Optimizer` constructor. Defaults to `None`.
+          name: Optional name for the returned operation. Default to the name
+            passed to the `Optimizer` constructor.
           experimental_aggregate_gradients: Whether to sum gradients from
             different replicas in the presence of `tf.distribute.Strategy`. If
             False, it's user responsibility to aggregate the gradients. Default
-            to `True`.
+            to True.
 
         Returns:
           An `Operation` that applies the specified gradients. The `iterations`

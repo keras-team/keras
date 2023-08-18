@@ -42,29 +42,30 @@ class Adafactor(optimizer.Optimizer):
     last 2 dimensions separately in its accumulator variables.
 
     Args:
-        learning_rate: Initial value for the learning rate:
-            either a floating point value,
-            or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
-            Defaults to 0.001.
-        beta_2_decay: float, defaults to -0.8. The decay rate of `beta_2`.
-        epsilon_1: float, defaults to 1e-30. A small offset to keep denominator
-            away from 0.
-        epsilon_2: float, defaults to 1e-3. A small offset to avoid learning
-            rate becoming too small by time.
-        clip_threshold: float, defaults to 1.0. Clipping threshold. This is a
-            part of Adafactor algorithm, independent from `clipnorm`,
-            `clipvalue` and `global_clipnorm`.
-        relative_step: bool, defaults to True. If `learning_rate` is a
-            constant and `relative_step=True`, learning rate will be adjusted
-            based on current iterations. This is a default learning rate decay
-            in Adafactor.
+      learning_rate: Initial value for the learning rate:
+        either a floating point value,
+        or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
+        Defaults to 0.001.
+      beta_2_decay: float, defaults to -0.8. The decay rate of `beta_2`.
+      epsilon_1: float, defaults to 1e-30. A small offset to keep demoninator
+        away from 0.
+      epsilon_2: float, defaults to 1e-3. A small offset to avoid learning
+        rate becoming too small by time.
+      clip_threshold: float, defaults to 1.0. Clipping threshold. This is a part
+        of Adafactor algorithm, independent from `clipnorm`, `clipvalue` and
+        `global_clipnorm`.
+      relative_step: bool, defaults to True. If `learning_rate` is a
+        constant and `relative_step=True`, learning rate will be adjusted
+        based on current iterations. This is a default learning rate decay
+        in Adafactor.
       {{base_optimizer_keyword_args}}
 
     Reference:
-        - [Shazeer, Noam et al., 2018](https://arxiv.org/abs/1804.04235).
+      - [Shazeer, Noam et al., 2018](https://arxiv.org/abs/1804.04235).
 
     """
 
+    '''
     def __init__(
         self,
         learning_rate=0.001,
@@ -102,6 +103,34 @@ class Adafactor(optimizer.Optimizer):
         self.epsilon_2 = epsilon_2
         self.clip_threshold = clip_threshold
         self.relative_step = relative_step
+    '''
+
+
+    def __init__(
+        self, 
+        optimizer,
+        **kwargs
+    ):
+        super().__init__(
+            name = optimizer['name'],
+            weight_decay = optimizer['parameters']['weight_decay'],
+            clipnorm = optimizer['parameters']['clipnorm'],
+            clipvalue = optimizer['parameters']['clipvalue'],
+            global_clipnorm = optimizer['parameters']['global_clipnorm'],
+            use_ema = optimizer['parameters']['use_ema'],
+            ema_momentum = optimizer['parameters']['ema_momentum'],
+            ema_overwrite_frequency = optimizer['parameters']['ema_overwrite_frequency'],
+            jit_compile = optimizer['parameters']['jit_compile'],
+            **kwargs
+        )
+        self._learning_rate = self._build_learning_rate(optimizer['parameters']['learning_rate'])
+        self.beta_2_decay = optimizer['parameters']['beta_2_decay']
+        self.epsilon_1 = optimizer['parameters']['epsilon_1']
+        self.epsilon_2 = optimizer['parameters']['epsilon_2']
+        self.clip_threshold = optimizer['parameters']['clip_threshold']
+        self.relative_step = optimizer['parameters']['relative_step']
+        
+
 
     def build(self, var_list):
         """Initialize optimizer variables.
@@ -110,7 +139,7 @@ class Adafactor(optimizer.Optimizer):
         velocity_hat (only set when amsgrad is applied),
 
         Args:
-            var_list: list of model variables to build Adam variables on.
+          var_list: list of model variables to build Adam variables on.
         """
         super().build(var_list)
         if hasattr(self, "_built") and self._built:

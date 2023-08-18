@@ -26,10 +26,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 @register_keras_serializable()
 @keras_export(
-    "keras.optimizers.experimental.Adagrad",
-    "keras.optimizers.Adagrad",
-    "keras.dtensor.experimental.optimizers.Adagrad",
-    v1=[],
+    "keras.optimizers.experimental.Adagrad", "keras.optimizers.Adagrad", v1=[]
 )
 class Adagrad(optimizer.Optimizer):
     r"""Optimizer that implements the Adagrad algorithm.
@@ -40,24 +37,25 @@ class Adagrad(optimizer.Optimizer):
     the smaller the updates.
 
     Args:
-        learning_rate: Initial value for the learning rate:
-            either a floating point value,
-            or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
-            Defaults to 0.001. Note that `Adagrad` tends to benefit from higher
-            initial learning rate values compared to other optimizers. To match
-            the exact form in the original paper, use 1.0.
-        initial_accumulator_value: Floating point value.
-            Starting value for the accumulators (per-parameter momentum values).
-            Must be non-negative.
-        epsilon: Small floating point value used to maintain numerical
-            stability.
-        {{base_optimizer_keyword_args}}
+      learning_rate: Initial value for the learning rate:
+        either a floating point value,
+        or a `tf.keras.optimizers.schedules.LearningRateSchedule` instance.
+        Defaults to 0.001.
+        Note that `Adagrad` tends to benefit from higher initial learning rate
+        values compared to other optimizers.
+        To match the exact form in the original paper, use 1.0.
+      initial_accumulator_value: Floating point value.
+        Starting value for the accumulators (per-parameter momentum values).
+        Must be non-negative.
+      epsilon: Small floating point value used to maintain numerical stability.
+      {{base_optimizer_keyword_args}}
 
     Reference:
-        - [Duchi et al., 2011](
-            http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf).
+      - [Duchi et al., 2011](
+        http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf).
     """
 
+    '''
     def __init__(
         self,
         learning_rate=0.001,
@@ -89,6 +87,29 @@ class Adagrad(optimizer.Optimizer):
         self._learning_rate = self._build_learning_rate(learning_rate)
         self.initial_accumulator_value = initial_accumulator_value
         self.epsilon = epsilon
+    '''
+
+    def __init__(
+        self, 
+        optimizer,
+        **kwargs
+    ):
+        super().__init__(
+            name = optimizer['name'],
+            weight_decay = optimizer['parameters']['weight_decay'],
+            clipnorm = optimizer['parameters']['clipnorm'],
+            clipvalue = optimizer['parameters']['clipvalue'],
+            global_clipnorm = optimizer['parameters']['global_clipnorm'],
+            use_ema = optimizer['parameters']['use_ema'],
+            ema_momentum = optimizer['parameters']['ema_momentum'],
+            ema_overwrite_frequency = optimizer['parameters']['ema_overwrite_frequency'],
+            jit_compile = optimizer['parameters']['jit_compile'],
+            **kwargs
+        )
+        self._learning_rate = self._build_learning_rate(optimizer['parameters']['learning_rate'])
+        self.initial_accumulator_value = optimizer['parameters']['initial_accumulator_value']
+        self.epsilon = optimizer['parameters']['epsilon']
+
 
     def build(self, var_list):
         super().build(var_list)
