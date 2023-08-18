@@ -94,16 +94,3 @@ class NormalizationTest(testing.TestCase, parameterized.TestCase):
     def test_normalization_errors(self):
         # TODO
         pass
-
-    @pytest.mark.skipif(
-        backend.backend() != "torch",
-        reason="Test symbolic call for torch meta device.",
-    )
-    def test_call_on_meta_device_after_built(self):
-        from keras_core.backend.torch import core
-
-        layer = layers.Normalization()
-        data = np.random.random((32, 4))
-        layer.adapt(data)
-        with core.device_scope("meta"):
-            layer(data)

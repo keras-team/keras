@@ -323,7 +323,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         outputs = layer(inputs)
         expected = tf_keras_layer(inputs)
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(outputs, expected)
 
     @parameterized.parameters(
         {
@@ -407,7 +407,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
         outputs = layer(inputs)
         expected = tf_keras_layer(inputs)
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(outputs, expected)
 
     @parameterized.parameters(
         {

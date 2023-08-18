@@ -48,11 +48,10 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
     Example:
 
-    >>> data = keras_core.ops.convert_to_tensor([1, 2, 10, 20, 100, 200])
-    >>> segment_ids = keras_core.ops.convert_to_tensor([0, 0, 1, 1, 2, 2])
-    >>> num_segments = 3
-    >>> keras_core.ops.segment_sum(data, segment_ids,num_segments)
-    array([3, 30, 300], dtype=int32)
+    >>> data = keras_core.ops.convert_to_tensor([1, 2, 3, 4, 5, 6])
+    >>> segment_ids = keras_core.ops.convert_to_tensor([0, 1, 0, 1, 0, 1])
+    >>> segment_sum(data, segment_ids)
+    array([9 12], shape=(2,), dtype=int32)
     """
     if any_symbolic_tensors((data,)):
         return SegmentSum(num_segments, sorted).symbolic_call(data, segment_ids)
@@ -101,11 +100,10 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
     Example:
 
-    >>> data = keras_core.ops.convert_to_tensor([1, 2, 10, 20, 100, 200])
-    >>> segment_ids = keras_core.ops.convert_to_tensor([0, 0, 1, 1, 2, 2])
-    >>> num_segments = 3
-    >>> keras_core.ops.segment_max(data, segment_ids, num_segments)
-    array([2, 20, 200], dtype=int32)
+    >>> data = keras_core.ops.convert_to_tensor([1, 2, 3, 4, 5, 6])
+    >>> segment_ids = keras_core.ops.convert_to_tensor([0, 1, 0, 1, 0, 1])
+    >>> segment_max(data, segment_ids)
+    array([9 12], shape=(2,), dtype=int32)
     """
     if any_symbolic_tensors((data,)):
         return SegmentMax(num_segments, sorted).symbolic_call(data, segment_ids)
@@ -698,9 +696,8 @@ class Rsqrt(Operation):
 
     Example:
 
-    >>> data = keras_core.ops.convert_to_tensor([1.0, 10.0, 100.0])
-    >>> keras_core.ops.rsqrt(data)
-    array([1.0, 0.31622776, 0.1], dtype=float32)
+    >>> x = keras_core.ops.convert_to_tensor([2., 3., -2.])
+    >>> rsqrt(x)
     """
 
     def call(self, x):

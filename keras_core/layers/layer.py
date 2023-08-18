@@ -326,6 +326,7 @@ class Layer(BackendLayer, Operation):
 
     @utils.default
     def build(self, input_shape):
+        self._check_super_called()
         if utils.is_default(self.build) and might_have_unbuilt_state(self):
             warnings.warn(
                 f"`build()` was called on layer '{self.name}', however "
@@ -1267,6 +1268,7 @@ class Layer(BackendLayer, Operation):
 
     @python_utils.default
     def get_config(self):
+        self._check_super_called()
         base_config = super().get_config()
         config = {
             "trainable": self.trainable,

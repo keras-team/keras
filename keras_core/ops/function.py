@@ -180,7 +180,7 @@ def map_graph(inputs, outputs):
 
     Returns:
         A tuple `(nodes, nodes_by_depth, operations, operations_by_depth)`.
-        - network_nodes: dict mapping unique node keys to the Node instances
+        - nodes: list of Node instances.
         - nodes_by_depth: dict mapping ints (depth) to lists of node instances.
         - operations: list of Operation instances.
         - operations_by_depth: dict mapping ints (depth) to lists of Operation
