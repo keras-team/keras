@@ -69,7 +69,8 @@ class Concatenate(Merge):
                 if axis != concat_axis and axis_value == 1:
                     del reduced_inputs_shapes[i][axis]
 
-            del reduced_inputs_shapes[i][self.axis]
+            if len(reduced_inputs_shapes[i]) > self.axis:
+                del reduced_inputs_shapes[i][self.axis]
             shape_set.add(tuple(reduced_inputs_shapes[i]))
 
         if len(shape_set) != 1:
