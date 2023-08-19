@@ -63,7 +63,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         # Compute gradients
         if self.trainable_weights:
-            trainable_weights = [v.value for v in self.trainable_weights]
+            trainable_weights = self.trainable_weights
             gradients = tape.gradient(loss, trainable_weights)
 
             # Update weights

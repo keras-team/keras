@@ -175,11 +175,15 @@ class BaseOptimizer:
         """
         initializer = initializers.Zeros()
         name = name or "var"
+        if hasattr(reference_variable, "path"):
+            name = reference_variable.path.replace("/", "_") + "_" + name
+        else:
+            name = reference_variable.name + "_" + name
         return self.add_variable(
             shape=reference_variable.shape,
             initializer=initializer,
             dtype=reference_variable.dtype,
-            name=reference_variable.path.replace("/", "_") + "_" + name,
+            name=name,
         )
 
     def _check_variables_are_known(self, variables):
