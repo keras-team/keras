@@ -91,12 +91,12 @@ class Adam(optimizer.Optimizer):
         for var in var_list:
             self._momentums.append(
                 self.add_variable_from_reference(
-                    reference_variable=var, name="m"
+                    reference_variable=var, name="momentum"
                 )
             )
             self._velocities.append(
                 self.add_variable_from_reference(
-                    reference_variable=var, name="v"
+                    reference_variable=var, name="velocity"
                 )
             )
         if self.amsgrad:
@@ -104,7 +104,7 @@ class Adam(optimizer.Optimizer):
             for var in var_list:
                 self._velocity_hats.append(
                     self.add_variable_from_reference(
-                        reference_variable=var, name="vhat"
+                        reference_variable=var, name="velocity_hat"
                     )
                 )
 

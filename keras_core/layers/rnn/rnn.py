@@ -288,12 +288,16 @@ class RNN(Layer):
 
     @tracking.no_automatic_dependency_tracking
     def _create_state_variables(self, batch_size):
-        self.states = tree.map_structure(
-            lambda value: backend.Variable(
-                value, trainable=False, dtype=self.variable_dtype
-            ),
-            self.get_initial_state(batch_size),
-        )
+        with backend.name_scope(self.name, caller=self):
+            self.states = tree.map_structure(
+                lambda value: backend.Variable(
+                    value,
+                    trainable=False,
+                    dtype=self.variable_dtype,
+                    name="rnn_state",
+                ),
+                self.get_initial_state(batch_size),
+            )
 
     def get_initial_state(self, batch_size):
         get_initial_state_fn = getattr(self.cell, "get_initial_state", None)

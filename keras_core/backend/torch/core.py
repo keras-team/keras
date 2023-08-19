@@ -174,10 +174,6 @@ def cast(x, dtype):
     return convert_to_tensor(x, dtype)
 
 
-def name_scope(name):
-    return contextlib.nullcontext()
-
-
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     def has_none_shape(x):

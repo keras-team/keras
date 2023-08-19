@@ -166,14 +166,15 @@ class Metric:
 
     def add_variable(self, shape, initializer, dtype=None, name=None):
         self._check_super_called()
-        initializer = initializers.get(initializer)
-        variable = backend.Variable(
-            initializer=initializer,
-            shape=shape,
-            dtype=dtype,
-            trainable=False,
-            name=name,
-        )
+        with backend.name_scope(self.name, caller=self):
+            initializer = initializers.get(initializer)
+            variable = backend.Variable(
+                initializer=initializer,
+                shape=shape,
+                dtype=dtype,
+                trainable=False,
+                name=name,
+            )
         # Prevent double-tracking
         self._tracker.add_to_store("variables", variable)
         return variable

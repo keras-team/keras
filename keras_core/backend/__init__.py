@@ -9,6 +9,7 @@ if backend() == "torch":
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.keras_tensor import any_symbolic_tensors
 from keras_core.backend.common.keras_tensor import is_keras_tensor
+from keras_core.backend.common.name_scope import name_scope
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope

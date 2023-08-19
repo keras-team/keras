@@ -89,7 +89,7 @@ class SGD(optimizer.Optimizer):
             for variable in variables:
                 self.momentums.append(
                     self.add_variable_from_reference(
-                        reference_variable=variable, name="m"
+                        reference_variable=variable, name="momentum"
                     )
                 )
 

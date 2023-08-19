@@ -439,13 +439,14 @@ class Layer(BackendLayer, Operation):
         # TODO: handle layout
         self._check_super_called()
         initializer = initializers.get(initializer)
-        variable = backend.Variable(
-            initializer=initializer,
-            shape=shape,
-            dtype=dtype or self.variable_dtype,
-            trainable=trainable,
-            name=name,
-        )
+        with backend.name_scope(self.name, caller=self):
+            variable = backend.Variable(
+                initializer=initializer,
+                shape=shape,
+                dtype=dtype or self.variable_dtype,
+                trainable=trainable,
+                name=name,
+            )
         # Will be added to layer.losses
         variable.regularizer = regularizer
         variable.constraint = constraint
@@ -683,7 +684,8 @@ class Layer(BackendLayer, Operation):
 
         ################
         # 4. Call build.
-        self._maybe_build(call_spec)
+        with backend.name_scope(self.name, caller=self):
+            self._maybe_build(call_spec)
 
         ##########################
         # 5. Infer training value
@@ -737,7 +739,7 @@ class Layer(BackendLayer, Operation):
         ####################
         # 7. Call the layer.
         try:
-            with backend.name_scope(self.name):
+            with backend.name_scope(self.name, caller=self):
                 if self.autocast and self.compute_dtype != self.variable_dtype:
                     # For mixed precision, we automatically cast layer variables
                     # (float ones only) to the compute dtype upon access.
@@ -1083,45 +1085,44 @@ class Layer(BackendLayer, Operation):
             shapes_dict = get_shapes_dict(call_spec)
             self._build_shapes_dict = shapes_dict
 
-            with backend.name_scope(self.name):
-                if not utils.is_default(self.build):
-                    shapes_dict = update_shapes_dict_for_target_fn(
-                        self.build,
-                        shapes_dict=shapes_dict,
-                        call_spec=call_spec,
-                        class_name=self.__class__.__name__,
+            if not utils.is_default(self.build):
+                shapes_dict = update_shapes_dict_for_target_fn(
+                    self.build,
+                    shapes_dict=shapes_dict,
+                    call_spec=call_spec,
+                    class_name=self.__class__.__name__,
+                )
+                self.build(**shapes_dict)
+            elif might_have_unbuilt_state(self):
+                if len(shapes_dict) == 1:
+                    # Single arg: pass it positionally
+                    success = self._build_by_run_for_single_pos_arg(
+                        tuple(shapes_dict.values())[0]
                     )
-                    self.build(**shapes_dict)
-                elif might_have_unbuilt_state(self):
-                    if len(shapes_dict) == 1:
-                        # Single arg: pass it positionally
-                        success = self._build_by_run_for_single_pos_arg(
-                            tuple(shapes_dict.values())[0]
-                        )
-                    else:
-                        success = self._build_by_run_for_kwargs(shapes_dict)
-                    if not success:
-                        if call_spec.eager:
-                            # Will let the actual eager call do state-building
-                            return
-                        raise ValueError(
-                            f"Layer '{self.name}' looks like it has "
-                            "unbuilt state, but Keras is not able to "
-                            "trace the layer `call()` in order to "
-                            "build it automatically. Possible causes:\n"
-                            "1. The `call()` method of your layer may be "
-                            "crashing. Try to `__call__()` the layer "
-                            "eagerly on some test input "
-                            "first to see if it works. "
-                            "E.g. `x = np.random.random((3, 4)); "
-                            "y = layer(x)`\n"
-                            "2. If the `call()` method is correct, "
-                            "then you may need to implement "
-                            "the `def build(self, input_shape)` method on your "
-                            "layer. It should create all variables used by the "
-                            "layer (e.g. by calling `layer.build()` on all its "
-                            "children layers)."
-                        )
+                else:
+                    success = self._build_by_run_for_kwargs(shapes_dict)
+                if not success:
+                    if call_spec.eager:
+                        # Will let the actual eager call do state-building
+                        return
+                    raise ValueError(
+                        f"Layer '{self.name}' looks like it has "
+                        "unbuilt state, but Keras is not able to "
+                        "trace the layer `call()` in order to "
+                        "build it automatically. Possible causes:\n"
+                        "1. The `call()` method of your layer may be "
+                        "crashing. Try to `__call__()` the layer "
+                        "eagerly on some test input "
+                        "first to see if it works. "
+                        "E.g. `x = np.random.random((3, 4)); "
+                        "y = layer(x)`\n"
+                        "2. If the `call()` method is correct, "
+                        "then you may need to implement "
+                        "the `def build(self, input_shape)` method on your "
+                        "layer. It should create all variables used by the "
+                        "layer (e.g. by calling `layer.build()` on all its "
+                        "children layers)."
+                    )
             self.built = True
 
             # Check input spec again (after build, since self.input_spec

@@ -2,6 +2,7 @@ import numpy as np
 
 from keras_core.backend import config
 from keras_core.backend.common import global_state
+from keras_core.backend.common.name_scope import current_path
 from keras_core.backend.common.stateless_scope import get_stateless_scope
 from keras_core.backend.common.stateless_scope import in_stateless_scope
 from keras_core.utils.naming import auto_name
@@ -19,6 +20,11 @@ class KerasVariable:
                 f"Received: name={name}"
             )
         self.name = name
+        parent_path = current_path()
+        if parent_path:
+            self.path = current_path() + "/" + self.name
+        else:
+            self.path = self.name
         dtype = standardize_dtype(dtype)
         self._dtype = dtype
         self._shape = None
@@ -68,7 +74,7 @@ class KerasVariable:
 
     def _deferred_initialize(self):
         if self._value is not None:
-            raise ValueError(f"Variable {self.name} is already initialized.")
+            raise ValueError(f"Variable {self.path} is already initialized.")
 
         if in_stateless_scope():
             raise ValueError(
@@ -147,7 +153,7 @@ class KerasVariable:
     def __repr__(self):
         return (
             f"<KerasVariable shape={self.shape}, dtype={self.dtype}, "
-            f"name={self.name}>"
+            f"path={self.path}>"
         )
 
     def _initialize(self, value):

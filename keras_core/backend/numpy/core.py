@@ -1,5 +1,3 @@
-from contextlib import nullcontext
-
 import numpy as np
 from tensorflow import nest
 
@@ -58,11 +56,6 @@ def cond(pred, true_fn, false_fn):
     if pred:
         return true_fn()
     return false_fn()
-
-
-def name_scope(name):
-    # There is no need for a named context for NumPy.
-    return nullcontext()
 
 
 def vectorized_map(function, elements):

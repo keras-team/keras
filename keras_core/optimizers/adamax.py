@@ -99,12 +99,12 @@ class Adamax(optimizer.Optimizer):
         for var in var_list:
             self._m.append(
                 self.add_variable_from_reference(
-                    reference_variable=var, name="m"
+                    reference_variable=var, name="momentum"
                 )
             )
             self._u.append(
                 self.add_variable_from_reference(
-                    reference_variable=var, name="u"
+                    reference_variable=var, name="norm"
                 )
             )
 

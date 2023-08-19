@@ -2,10 +2,9 @@ from keras_core.layers.layer import Layer
 from keras_core.metrics.metric import Metric
 from keras_core.optimizers.optimizer import Optimizer
 from keras_core.saving import saving_lib
-from keras_core.utils import file_utils
 
 
-def map_trackable_variables(trackable, store, inner_path, visited_trackables):
+def map_trackable_variables(trackable, store, visited_trackables):
     # If the trackable has already been saved, skip it.
     if id(trackable) in visited_trackables:
         return
@@ -22,7 +21,15 @@ def map_trackable_variables(trackable, store, inner_path, visited_trackables):
     elif isinstance(trackable, Metric):
         variables = trackable._variables
     for v in variables:
-        store[inner_path + "/" + v.name] = v
+        if v.path in store:
+            raise ValueError(
+                "The model contains two variables with a duplicate path: "
+                f"path='{v.path}' appears at least twice. "
+                f"This path is used for {v} and for {store[v.path]}. "
+                "In order to get a variable map, make sure to use "
+                "unique paths/names for each variable."
+            )
+        store[v.path] = v
 
     # Recursively save state of children trackables (layers, optimizers, etc.)
     for child_attr, child_obj in saving_lib._walk_trackable(trackable):
@@ -30,28 +37,24 @@ def map_trackable_variables(trackable, store, inner_path, visited_trackables):
             map_trackable_variables(
                 child_obj,
                 store,
-                inner_path=file_utils.join(inner_path, child_obj.name),
                 visited_trackables=visited_trackables,
             )
         elif isinstance(child_obj, (list, dict, tuple, set)):
             map_container_variables(
                 child_obj,
                 store,
-                inner_path=file_utils.join(inner_path, child_attr),
                 visited_trackables=visited_trackables,
             )
 
 
-def map_container_variables(container, store, inner_path, visited_trackables):
+def map_container_variables(container, store, visited_trackables):
     if isinstance(container, dict):
         container = list(container.values())
 
     for trackable in container:
         if saving_lib._is_keras_trackable(trackable):
-            name = trackable.name
             map_trackable_variables(
                 trackable,
                 store,
-                inner_path=file_utils.join(inner_path, name),
                 visited_trackables=visited_trackables,
             )

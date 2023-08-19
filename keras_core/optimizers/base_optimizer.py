@@ -33,6 +33,8 @@ class BaseOptimizer:
         if kwargs:
             raise ValueError(f"Argument(s) not recognized: {kwargs}")
 
+        if name is None:
+            name = auto_name(self.__class__.__name__)
         self.name = name
         self.weight_decay = weight_decay
         self.clipnorm = clipnorm
@@ -83,9 +85,10 @@ class BaseOptimizer:
         # Create iteration variable
         # Note: dtype="int" will resolve to int32 in JAX
         # (since int64 is disallowed in JAX) and to int64 in TF.
-        iterations = backend.Variable(
-            0, name="iteration", dtype="int", trainable=False
-        )
+        with backend.name_scope(self.name, caller=self):
+            iterations = backend.Variable(
+                0, name="iteration", dtype="int", trainable=False
+            )
         self._track_variable(iterations)
         self.iterations = iterations
 
@@ -105,12 +108,13 @@ class BaseOptimizer:
                     "and returns the corresponding learning rate value). "
                     f"Received instead: learning_rate={learning_rate}"
                 )
-            learning_rate = backend.Variable(
-                learning_rate,
-                name="learning_rate",
-                dtype=backend.floatx(),
-                trainable=False,
-            )
+            with backend.name_scope(self.name, caller=self):
+                learning_rate = backend.Variable(
+                    learning_rate,
+                    name="learning_rate",
+                    dtype=backend.floatx(),
+                    trainable=False,
+                )
             self._track_variable(learning_rate)
             self._learning_rate = learning_rate
 
@@ -154,13 +158,14 @@ class BaseOptimizer:
     ):
         self._check_super_called()
         initializer = initializers.get(initializer)
-        variable = backend.Variable(
-            initializer=initializer,
-            shape=shape,
-            dtype=dtype,
-            trainable=False,
-            name=name,
-        )
+        with backend.name_scope(self.name, caller=self):
+            variable = backend.Variable(
+                initializer=initializer,
+                shape=shape,
+                dtype=dtype,
+                trainable=False,
+                name=name,
+            )
         self._track_variable(variable)
         return variable
 
@@ -169,12 +174,12 @@ class BaseOptimizer:
         variable.
         """
         initializer = initializers.Zeros()
-        name = name or auto_name(self.__class__.__name__)
+        name = name or "var"
         return self.add_variable(
             shape=reference_variable.shape,
             initializer=initializer,
             dtype=reference_variable.dtype,
-            name=name,
+            name=reference_variable.path.replace("/", "_") + "_" + name,
         )
 
     def _check_variables_are_known(self, variables):
@@ -226,12 +231,12 @@ class BaseOptimizer:
             trainable_variables = list(trainable_variables)
             # Optionally build optimizer.
             if not self.built:
-                with ops.name_scope(self.name):
+                with backend.name_scope(self.name, caller=self):
                     self.build(trainable_variables)
                 self.built = True
             self._check_variables_are_known(trainable_variables)
 
-        with ops.name_scope(self.name):
+        with backend.name_scope(self.name, caller=self):
             # Filter empty gradients.
             grads, trainable_variables = self._filter_empty_gradients(
                 grads, trainable_variables

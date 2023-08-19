@@ -542,9 +542,7 @@ class Model(Trainer, Layer):
 
     def _get_variable_map(self):
         store = {}
-        map_trackable_variables(
-            self, store=store, inner_path="", visited_trackables=set()
-        )
+        map_trackable_variables(self, store=store, visited_trackables=set())
         return store
 
 

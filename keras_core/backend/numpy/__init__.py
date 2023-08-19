@@ -12,7 +12,6 @@ from keras_core.backend.numpy.core import cond
 from keras_core.backend.numpy.core import convert_to_numpy
 from keras_core.backend.numpy.core import convert_to_tensor
 from keras_core.backend.numpy.core import is_tensor
-from keras_core.backend.numpy.core import name_scope
 from keras_core.backend.numpy.core import shape
 from keras_core.backend.numpy.core import vectorized_map
 from keras_core.backend.numpy.rnn import cudnn_ok

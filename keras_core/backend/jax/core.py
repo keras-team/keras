@@ -60,10 +60,6 @@ def cast(x, dtype):
     return convert_to_tensor(x, dtype=dtype)
 
 
-def name_scope(name):
-    return jax.named_scope(name)
-
-
 # Shape / dtype inference util
 def compute_output_spec(fn, *args, **kwargs):
     with StatelessScope():

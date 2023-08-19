@@ -28,7 +28,6 @@ from keras_core.backend.torch.core import cond
 from keras_core.backend.torch.core import convert_to_numpy
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import is_tensor
-from keras_core.backend.torch.core import name_scope
 from keras_core.backend.torch.core import scatter
 from keras_core.backend.torch.core import shape
 from keras_core.backend.torch.core import stop_gradient

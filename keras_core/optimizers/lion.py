@@ -91,7 +91,7 @@ class Lion(optimizer.Optimizer):
         for var in var_list:
             self._momentums.append(
                 self.add_variable_from_reference(
-                    reference_variable=var, name="m"
+                    reference_variable=var, name="momentum"
                 )
             )
 
