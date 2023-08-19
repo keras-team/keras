@@ -117,7 +117,7 @@ class HashedCrossingTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="Sparse tensor are only applicable with tensorflow backend",
+        reason="Need sparse tensor support.",
     )
     def test_sparse_input_fails(self):
         with self.assertRaisesRegex(
@@ -136,7 +136,7 @@ class HashedCrossingTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
-        reason="String tensors are only applicable with tensorflow backend",
+        reason="Need string tensor support.",
     )
     def test_tf_string(self):
         layer = layers.HashedCrossing(num_bins=10)
