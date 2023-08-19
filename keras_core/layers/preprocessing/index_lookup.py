@@ -572,7 +572,7 @@ class IndexLookup(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = ensure_tensor(data, dtype=self.vocabulary_dtype)
+            data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
@@ -588,7 +588,7 @@ class IndexLookup(Layer):
                 "`set_vocabulary()` method."
             )
 
-        data = ensure_tensor(data, dtype=self.vocabulary_dtype)
+        data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
         if data.shape.rank == 0:
             data = tf.expand_dims(data, 0)
         if data.shape.rank == 1:
@@ -700,7 +700,7 @@ class IndexLookup(Layer):
     def call(self, inputs):
         self._ensure_known_vocab_size()
 
-        inputs = ensure_tensor(inputs, dtype=self._key_dtype)
+        inputs = tf_utils.ensure_tensor(inputs, dtype=self._key_dtype)
         original_shape = inputs.shape
         # Some ops will not handle scalar input, so uprank to rank 1.
         if inputs.shape.rank == 0:
@@ -990,12 +990,3 @@ def listify_tensors(x):
     if isinstance(x, np.ndarray):
         x = x.tolist()
     return x
-
-
-def ensure_tensor(inputs, dtype=None):
-    """Ensures the input is a Tensor, SparseTensor or RaggedTensor."""
-    if not isinstance(inputs, (tf.Tensor, tf.RaggedTensor, tf.SparseTensor)):
-        inputs = tf.convert_to_tensor(inputs, dtype)
-    if dtype is not None and inputs.dtype != dtype:
-        inputs = tf.cast(inputs, dtype)
-    return inputs

@@ -3,12 +3,12 @@ import numpy as np
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.layers.preprocessing.index_lookup import ensure_tensor
 from keras_core.layers.preprocessing.index_lookup import listify_tensors
 from keras_core.layers.preprocessing.string_lookup import StringLookup
 from keras_core.saving import serialization_lib
 from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
+from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -424,7 +424,7 @@ class TextVectorization(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = ensure_tensor(data, dtype="string")
+            data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
@@ -519,7 +519,7 @@ class TextVectorization(Layer):
         self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
     def _preprocess(self, inputs):
-        inputs = ensure_tensor(inputs, dtype=tf.string)
+        inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
         if self._standardize in ("lower", "lower_and_strip_punctuation"):
             inputs = tf.strings.lower(inputs)
         if self._standardize in (
