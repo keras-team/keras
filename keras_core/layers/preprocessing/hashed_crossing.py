@@ -1,7 +1,9 @@
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
+from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
+from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -83,20 +85,21 @@ class HashedCrossing(Layer):
 
         if output_mode == "int" and dtype is None:
             dtype = "int64"
+
         super().__init__(name=name, dtype=dtype)
         if sparse and backend.backend() != "tensorflow":
             raise ValueError(
                 "`sparse` can only be set to True with the "
                 "TensorFlow backend."
             )
-        self.layer = tf.keras.layers.HashedCrossing(
-            num_bins=num_bins,
-            output_mode=output_mode,
-            sparse=sparse,
-            name=name,
-            dtype=dtype,
-            **kwargs,
+
+        argument_validation.validate_string_arg(
+            output_mode,
+            allowable_strings=("int", "one_hot"),
+            caller_name=self.__class__.__name__,
+            arg_name="output_mode",
         )
+
         self.num_bins = num_bins
         self.output_mode = output_mode
         self.sparse = sparse
@@ -133,12 +136,45 @@ class HashedCrossing(Layer):
         return output_shape
 
     def call(self, inputs):
-        outputs = self.layer.call(inputs)
+        self._check_at_least_two_inputs(inputs)
+        inputs = [tf_utils.ensure_tensor(x) for x in inputs]
+        self._check_input_shape_and_type(inputs)
+
+        # Uprank to rank 2 for the cross_hashed op.
+        rank = inputs[0].shape.rank
+        if rank < 2:
+            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+        if rank < 1:
+            inputs = [tf_utils.expand_dims(x, -1) for x in inputs]
+
+        # Perform the cross and convert to dense
+        outputs = tf.sparse.cross_hashed(inputs, self.num_bins)
+        outputs = tf.sparse.to_dense(outputs)
+
+        # Fix output shape and downrank to match input rank.
+        if rank == 2:
+            # tf.sparse.cross_hashed output shape will always be None on the
+            # last dimension. Given our input shape restrictions, we want to
+            # force shape 1 instead.
+            outputs = tf.reshape(outputs, [-1, 1])
+        elif rank == 1:
+            outputs = tf.reshape(outputs, [-1])
+        elif rank == 0:
+            outputs = tf.reshape(outputs, [])
+
+        # Encode outputs.
+        outputs = tf_utils.encode_categorical_inputs(
+            outputs,
+            output_mode=self.output_mode,
+            depth=self.num_bins,
+            sparse=self.sparse,
+            dtype=self.compute_dtype,
+        )
         if (
             backend.backend() != "tensorflow"
             and not backend_utils.in_tf_graph()
         ):
-            outputs = backend.convert_to_tensor(outputs)
+            outputs = backend.convert_to_tensor(outputs, dtype=self.dtype)
         return outputs
 
     def get_config(self):
@@ -149,3 +185,42 @@ class HashedCrossing(Layer):
             "name": self.name,
             "dtype": self.dtype,
         }
+
+    def _check_at_least_two_inputs(self, inputs):
+        if not isinstance(inputs, (list, tuple)):
+            raise ValueError(
+                "`HashedCrossing` should be called on a list or tuple of "
+                f"inputs. Received: inputs={inputs}"
+            )
+        if len(inputs) < 2:
+            raise ValueError(
+                "`HashedCrossing` should be called on at least two inputs. "
+                f"Received: inputs={inputs}"
+            )
+
+    def _check_input_shape_and_type(self, inputs):
+        first_shape = inputs[0].shape.as_list()
+        rank = len(first_shape)
+        if rank > 2 or (rank == 2 and first_shape[-1] != 1):
+            raise ValueError(
+                "All `HashedCrossing` inputs should have shape `()`, "
+                "`(batch_size)` or `(batch_size, 1)`. "
+                f"Received: inputs={inputs}"
+            )
+        if not all(x.shape.as_list() == first_shape for x in inputs[1:]):
+            raise ValueError(
+                "All `HashedCrossing` inputs should have equal shape. "
+                f"Received: inputs={inputs}"
+            )
+        if any(
+            isinstance(x, (tf.RaggedTensor, tf.SparseTensor)) for x in inputs
+        ):
+            raise ValueError(
+                "All `HashedCrossing` inputs should be dense tensors. "
+                f"Received: inputs={inputs}"
+            )
+        if not all(x.dtype.is_integer or x.dtype == tf.string for x in inputs):
+            raise ValueError(
+                "All `HashedCrossing` inputs should have an integer or "
+                f"string dtype. Received: inputs={inputs}"
+            )

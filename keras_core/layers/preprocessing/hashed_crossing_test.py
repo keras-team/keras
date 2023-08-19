@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -40,7 +42,7 @@ class HashedCrossingTest(testing.TestCase):
         feat1 = np.array(["A", "B", "A", "B", "A"])
         feat2 = np.array([101, 101, 101, 102, 102])
         output = layer((feat1, feat2))
-        self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
+        self.assertAllClose(tf.constant([1, 4, 1, 1, 3]), output)
 
         layer = layers.HashedCrossing(num_bins=5, output_mode="one_hot")
         feat1 = np.array(["A", "B", "A", "B", "A"])
@@ -71,3 +73,110 @@ class HashedCrossingTest(testing.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
+
+    def test_upsupported_shape_input_fails(self):
+        with self.assertRaisesRegex(ValueError, "inputs should have shape"):
+            layers.HashedCrossing(num_bins=10)(
+                (np.array([[[1.0]]]), np.array([[[1.0]]]))
+            )
+
+    @pytest.mark.xfail
+    def test_cross_output_dtype(self):
+        input_1, input_2 = np.array([1]), np.array([1])
+
+        layer = layers.HashedCrossing(num_bins=2)
+        output_dtype = backend.standardize_dtype(
+            layer((input_1, input_2)).dtype
+        )
+        self.assertEqual(output_dtype, "int64")
+        layer = layers.HashedCrossing(num_bins=2, dtype="int32")
+        output_dtype = backend.standardize_dtype(
+            layer((input_1, input_2)).dtype
+        )
+        self.assertEqual(output_dtype, "int32")
+        layer = layers.HashedCrossing(num_bins=2, output_mode="one_hot")
+        output_dtype = backend.standardize_dtype(
+            layer((input_1, input_2)).dtype
+        )
+        self.assertEqual(output_dtype, "float32")
+        layer = layers.HashedCrossing(
+            num_bins=2, output_mode="one_hot", dtype="float64"
+        )
+        output_dtype = backend.standardize_dtype(
+            layer((input_1, input_2)).dtype
+        )
+        self.assertEqual(output_dtype, "float64")
+
+    def test_non_list_input_fails(self):
+        with self.assertRaisesRegex(ValueError, "should be called on a list"):
+            layers.HashedCrossing(num_bins=10)(np.array(1))
+
+    def test_single_input_fails(self):
+        with self.assertRaisesRegex(ValueError, "at least two inputs"):
+            layers.HashedCrossing(num_bins=10)([np.array(1)])
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Sparse tensor are only applicable with tensorflow backend",
+    )
+    def test_sparse_input_fails(self):
+        with self.assertRaisesRegex(
+            ValueError, "inputs should be dense tensors"
+        ):
+            sparse_in = tf.sparse.from_dense(np.array([1]))
+            layers.HashedCrossing(num_bins=10)((sparse_in, sparse_in))
+
+    def test_float_input_fails(self):
+        with self.assertRaisesRegex(
+            ValueError, "should have an integer or string"
+        ):
+            layers.HashedCrossing(num_bins=10)(
+                (np.array([1.0]), np.array([1.0]))
+            )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="String tensors are only applicable with tensorflow backend",
+    )
+    def test_tf_string(self):
+        layer = layers.HashedCrossing(num_bins=10)
+        feat1 = tf.constant("A")
+        feat2 = tf.constant(101)
+        outputs = layer((feat1, feat2))
+        self.assertAllClose(outputs, 1)
+
+        layer = tf.keras.layers.HashedCrossing(
+            num_bins=5, output_mode="one_hot"
+        )
+        feat1 = tf.constant(["A", "B", "A", "B", "A"])
+        feat2 = tf.constant([101, 101, 101, 102, 102])
+        self.assertAllClose(
+            tf.constant(
+                [
+                    [0.0, 1.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 0.0, 1.0],
+                    [0.0, 1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0, 0.0],
+                ]
+            ),
+            layer((feat1, feat2)),
+        )
+
+        layer = tf.keras.layers.HashedCrossing(num_bins=5)
+        feat1 = tf.constant(["A", "B", "A", "B", "A"])
+        feat2 = tf.constant([101, 101, 101, 102, 102])
+        self.assertAllClose(tf.constant([1, 4, 1, 1, 3]), layer((feat1, feat2)))
+
+        layer = layers.HashedCrossing(
+            num_bins=5, output_mode="one_hot", sparse=True
+        )
+        cloned_layer = layers.HashedCrossing.from_config(layer.get_config())
+        feat1 = tf.constant([["A"], ["B"], ["A"], ["B"], ["A"]])
+        feat2 = tf.constant([[101], [101], [101], [102], [102]])
+        original_outputs = layer((feat1, feat2))
+        cloned_outputs = cloned_layer((feat1, feat2))
+        self.assertAllClose(
+            tf.sparse.to_dense(cloned_outputs),
+            tf.sparse.to_dense(original_outputs),
+        )
