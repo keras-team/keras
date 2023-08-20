@@ -1,10 +1,17 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
 
 from keras_core import layers
 from keras_core import testing
+from keras_core.layers.convolutional.conv_test import np_conv1d
+from keras_core.layers.convolutional.conv_test import np_conv2d
+from keras_core.layers.convolutional.depthwise_conv_test import (
+    np_depthwise_conv1d,
+)
+from keras_core.layers.convolutional.depthwise_conv_test import (
+    np_depthwise_conv2d,
+)
 
 
 class SeparableConvBasicTest(testing.TestCase, parameterized.TestCase):
@@ -226,36 +233,43 @@ class SeparableConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
-        tf_keras_layer = tf.keras.layers.SeparableConv1D(
-            depth_multiplier=depth_multiplier,
-            filters=filters,
-            kernel_size=kernel_size,
+
+        inputs = np.random.normal(size=[2, 8, 4])
+        layer.build(input_shape=inputs.shape)
+
+        depthwise_kernel_shape = layer.depthwise_kernel.shape
+        depthwise_kernel_weights = np.random.normal(size=depthwise_kernel_shape)
+        layer.depthwise_kernel.assign(depthwise_kernel_weights)
+
+        pointwise_kernel_shape = layer.pointwise_kernel.shape
+        pointwise_kernel_weights = np.random.normal(size=pointwise_kernel_shape)
+        layer.pointwise_kernel.assign(pointwise_kernel_weights)
+
+        bias_weights = np.random.normal(size=(filters,))
+        layer.bias.assign(bias_weights)
+
+        outputs = layer(inputs)
+        expected_depthwise = np_depthwise_conv1d(
+            inputs,
+            depthwise_kernel_weights,
+            np.zeros(4 * depth_multiplier),
             strides=strides,
             padding=padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
+        expected = np_conv1d(
+            expected_depthwise,
+            pointwise_kernel_weights,
+            bias_weights,
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
+            groups=1,
+        )
 
-        inputs = np.random.normal(size=[2, 8, 4])
-        layer.build(input_shape=inputs.shape)
-        tf_keras_layer.build(input_shape=inputs.shape)
-
-        depthwise_kernel_shape = layer.depthwise_kernel.shape
-        depthwise_kernel_weights = np.random.normal(size=depthwise_kernel_shape)
-        layer.depthwise_kernel.assign(depthwise_kernel_weights)
-        tf_keras_layer.depthwise_kernel.assign(depthwise_kernel_weights)
-
-        pointwise_kernel_shape = layer.pointwise_kernel.shape
-        pointwise_kernel_weights = np.random.normal(size=pointwise_kernel_shape)
-        layer.pointwise_kernel.assign(pointwise_kernel_weights)
-        tf_keras_layer.pointwise_kernel.assign(pointwise_kernel_weights)
-
-        bias_weights = np.random.normal(size=(filters,))
-        layer.bias.assign(bias_weights)
-        tf_keras_layer.bias.assign(bias_weights)
-
-        outputs = layer(inputs)
-        expected = tf_keras_layer(inputs)
+        self.assertAllClose(outputs.shape, expected.shape)
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
 
     @parameterized.parameters(
@@ -306,34 +320,41 @@ class SeparableConvCorrectnessTest(testing.TestCase, parameterized.TestCase):
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
-        tf_keras_layer = tf.keras.layers.SeparableConv2D(
-            depth_multiplier=depth_multiplier,
-            filters=filters,
-            kernel_size=kernel_size,
+
+        inputs = np.random.normal(size=[2, 8, 8, 4])
+        layer.build(input_shape=inputs.shape)
+
+        depthwise_kernel_shape = layer.depthwise_kernel.shape
+        depthwise_kernel_weights = np.random.normal(size=depthwise_kernel_shape)
+        layer.depthwise_kernel.assign(depthwise_kernel_weights)
+
+        pointwise_kernel_shape = layer.pointwise_kernel.shape
+        pointwise_kernel_weights = np.random.normal(size=pointwise_kernel_shape)
+        layer.pointwise_kernel.assign(pointwise_kernel_weights)
+
+        bias_weights = np.random.normal(size=(filters,))
+        layer.bias.assign(bias_weights)
+
+        outputs = layer(inputs)
+        expected_depthwise = np_depthwise_conv2d(
+            inputs,
+            depthwise_kernel_weights,
+            np.zeros(4 * depth_multiplier),
             strides=strides,
             padding=padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
+        expected = np_conv2d(
+            expected_depthwise,
+            pointwise_kernel_weights,
+            bias_weights,
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
+            groups=1,
+        )
 
-        inputs = np.random.normal(size=[2, 8, 8, 4])
-        layer.build(input_shape=inputs.shape)
-        tf_keras_layer.build(input_shape=inputs.shape)
-
-        depthwise_kernel_shape = layer.depthwise_kernel.shape
-        depthwise_kernel_weights = np.random.normal(size=depthwise_kernel_shape)
-        layer.depthwise_kernel.assign(depthwise_kernel_weights)
-        tf_keras_layer.depthwise_kernel.assign(depthwise_kernel_weights)
-
-        pointwise_kernel_shape = layer.pointwise_kernel.shape
-        pointwise_kernel_weights = np.random.normal(size=pointwise_kernel_shape)
-        layer.pointwise_kernel.assign(pointwise_kernel_weights)
-        tf_keras_layer.pointwise_kernel.assign(pointwise_kernel_weights)
-
-        bias_weights = np.random.normal(size=(filters,))
-        layer.bias.assign(bias_weights)
-        tf_keras_layer.bias.assign(bias_weights)
-
-        outputs = layer(inputs)
-        expected = tf_keras_layer(inputs)
+        self.assertAllClose(outputs.shape, expected.shape)
         self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
