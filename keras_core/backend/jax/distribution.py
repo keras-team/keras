@@ -2,8 +2,8 @@
 
 Distribution related class for JAX backend.
 
-This is just a prototype and we might want to unify it in future for other
-backends.
+This is just a prototype and we might want to unify it
+with other backends in the future.
 """
 
 import contextlib
@@ -33,20 +33,20 @@ class DataParallelDistribution:
     def __init__(self, mesh=None, devices=None):
         """Create the data parallel distribution.
 
-        User can choose to create this instance by either `Mesh` or `devices`
-        parameters (but not both).
+        You can choose to create this instance by either specifing
+        the `Mesh` or `devices` parameters (but not both).
 
         The mesh is expected to be a `jax.sharding.Mesh` instance, and is
-        expected to be 1D only. In case that the mesh has multiple axises, then
-        the first axis will be treated as data parallel dimension (and a warning
-        will be raised).
+        expected to be 1D only. In case that the mesh has multiple axes, then
+        the first axis will be treated as the data parallel dimension
+        (and a warning will be raised).
 
         When a list of `devices` are provided, they will be used to construct a
         1D mesh.
 
-        When both `mesh` and `devices` are absent, then we will rely on
-        `jax.devices` to detect any available devices, and create mesh from
-        them.
+        When both `mesh` and `devices` are absent, then `jax.devices()`
+        will be used to detect any available devices
+        and create a 1D mesh from them.
         """
         super().__init__()
         if mesh:
@@ -84,16 +84,16 @@ class DataParallelDistribution:
     def _initialize_with_mesh(self, mesh):
         if not isinstance(mesh, jax.sharding.Mesh):
             raise ValueError(
-                "Expect the mesh to be type of jax.sharding.Mesh, "
-                f"Received {type(mesh)}"
+                "Expect `mesh` to be an instance of `jax.sharding.Mesh`. "
+                f"Received: mesh={mesh} (of type {type(mesh)})"
             )
         self._user_provide_devices = None
         self.mesh = mesh
         if self.mesh.devices.ndim != 1:
             logging.warning(
-                "Expect the input mesh to be 1D, but received %dD. "
-                "The first axis will be used for data parallel sharding",
-                self.mesh.devices.ndim,
+                "Expect the input mesh to be 1D, but received "
+                f"mesh.devices.ndim={mesh.devices.ndim}. "
+                "The first axis will be used for data-parallel sharding."
             )
 
     def _initialize_mesh_from_devices(self, devices):
