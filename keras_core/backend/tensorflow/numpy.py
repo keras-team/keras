@@ -11,6 +11,23 @@ def add(x1, x2):
 def bincount(x, weights=None, minlength=None):
     if minlength is not None:
         x = tf.cast(x, tf.int32)
+    if isinstance(x, tf.SparseTensor):
+        result = tf.sparse.bincount(
+            x,
+            weights=weights,
+            minlength=minlength,
+            axis=-1,
+        )
+        if x.shape.rank == 1:
+            output_shape = (minlength,)
+        else:
+            batch_size = tf.shape(result)[0]
+            output_shape = (batch_size, minlength)
+        return tf.SparseTensor(
+            indices=result.indices,
+            values=result.values,
+            dense_shape=output_shape,
+        )
     return tf.math.bincount(x, weights=weights, minlength=minlength, axis=-1)
 
 
@@ -227,8 +244,18 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def digitize(x, bins):
-    x = convert_to_tensor(x)
     bins = list(bins)
+    if isinstance(x, tf.RaggedTensor):
+        return tf.ragged.map_flat_values(
+            lambda y: tf.raw_ops.Bucketize(input=y, boundaries=bins), x
+        )
+    elif isinstance(x, tf.SparseTensor):
+        return tf.SparseTensor(
+            indices=tf.identity(x.indices),
+            values=tf.raw_ops.Bucketize(input=x.values, boundaries=bins),
+            dense_shape=tf.identity(x.dense_shape),
+        )
+    x = convert_to_tensor(x)
     return tf.raw_ops.Bucketize(input=x, boundaries=bins)
 
 

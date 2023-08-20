@@ -8,9 +8,9 @@ backends.
 
 import contextlib
 
-from absl import logging
 import jax
 import numpy as np
+from absl import logging
 
 from keras_core.backend.common import global_state
 

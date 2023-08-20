@@ -1,9 +1,13 @@
+import os
+
 import numpy as np
 import tensorflow as tf
 
 from keras_core import backend
 from keras_core import layers
+from keras_core import models
 from keras_core import testing
+from keras_core.saving import saving_api
 
 
 class DicretizationTest(testing.TestCase):
@@ -27,32 +31,96 @@ class DicretizationTest(testing.TestCase):
         layer = layers.Discretization(num_bins=4)
         layer.adapt(
             np.random.random((32, 3)),
-            batch_size=8,
         )
         output = layer(np.array([[0.0, 0.1, 0.3]]))
         self.assertTrue(output.dtype, "int32")
 
     def test_correctness(self):
-        layer = layers.Discretization(bin_boundaries=[0.0, 0.5, 1.0])
-        output = layer(np.array([[0.0, 0.1, 0.8]]))
+        # int mode
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], output_mode="int"
+        )
+        output = layer(np.array([[-1.0, 0.0, 0.1, 0.8, 1.2]]))
         self.assertTrue(backend.is_tensor(output))
-        self.assertAllClose(output, np.array([[1, 1, 2]]))
+        self.assertAllClose(output, np.array([[0, 1, 1, 2, 3]]))
+
+        # one_hot mode
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], output_mode="one_hot"
+        )
+        output = layer(np.array([0.1, 0.8]))
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([[0, 1, 0, 0], [0, 0, 1, 0]]))
+
+        # multi_hot mode
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], output_mode="multi_hot"
+        )
+        output = layer(np.array([[0.1, 0.8]]))
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([[0, 1, 1, 0]]))
+
+        # count mode
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 0.5, 1.0], output_mode="count"
+        )
+        output = layer(np.array([[0.1, 0.8, 0.9]]))
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllClose(output, np.array([[0, 1, 2, 0]]))
 
     def test_tf_data_compatibility(self):
-        layer = layers.Discretization(bin_boundaries=[0.0, 0.5, 1.0])
-        x = np.array([[0.0, 0.1, 0.8]])
+        # With fixed bins
+        layer = layers.Discretization(bin_boundaries=[0.0, 0.35, 0.5, 1.0])
+        x = np.array([[-1.0, 0.0, 0.1, 0.2, 0.4, 0.5, 1.0, 1.2, 0.98]])
+        self.assertAllClose(layer(x), np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
         ds = tf.data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output = output.numpy()
-        self.assertAllClose(output, np.array([[1, 1, 2]]))
+        self.assertAllClose(output, np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
 
         # With adapt flow
         layer = layers.Discretization(num_bins=4)
         layer.adapt(
             np.random.random((32, 3)),
-            batch_size=8,
         )
         x = np.array([[0.0, 0.1, 0.3]])
         ds = tf.data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_saving(self):
+        # With fixed bins
+        layer = layers.Discretization(bin_boundaries=[0.0, 0.35, 0.5, 1.0])
+        model = models.Sequential(
+            [
+                layers.Input((2,)),
+                layer,
+            ]
+        )
+        fpath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(fpath)
+        model = saving_api.load_model(fpath)
+        x = np.array([[-1.0, 0.0, 0.1, 0.2, 0.4, 0.5, 1.0, 1.2, 0.98]])
+        self.assertAllClose(layer(x), np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
+
+        # With adapt flow
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(
+            np.random.random((32, 3)),
+        )
+        ref_input = np.random.random((1, 2))
+        ref_output = layer(ref_input)
+        model = models.Sequential(
+            [
+                layers.Input((2,)),
+                layer,
+            ]
+        )
+        fpath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(fpath)
+        model = saving_api.load_model(fpath)
+        self.assertAllClose(layer(ref_input), ref_output)
+
+    def test_sparse_inputs(self):
+        # TODO
+        pass
