@@ -106,7 +106,7 @@ class Discretization(Layer):
     ):
         if dtype is None:
             dtype = "int64" if output_mode == "int" else backend.floatx()
-        
+
         super().__init__(name=name, dtype=dtype)
 
         if sparse and backend.backend() != "tensorflow":
