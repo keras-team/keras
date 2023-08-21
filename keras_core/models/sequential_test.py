@@ -245,3 +245,8 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(model.outputs, [model.layers[-1].output])
         self.assertEqual(model.input_shape, (None, 2))
         self.assertEqual(model.output_shape, (None, 4))
+
+    def test_bad_layer(self):
+        model = Sequential(name="seq")
+        with self.assertRaisesRegex(ValueError, "Only instances of"):
+            model.add({})

@@ -426,11 +426,6 @@ def standardize_shape(
             raise ValueError(f"Cannot convert '{shape}' to a shape.")
         shape = tuple(shape)
 
-    if config.backend() == "torch":
-        # `shape` might be `torch.Size`. We need to convert the items in it to
-        # either int or `None`
-        shape = tuple(map(lambda x: int(x) if x is not None else None, shape))
-
     for i, e in enumerate(shape):
         if i == 0 and allow_dynamic_batch_size and e is None:
             continue
