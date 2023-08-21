@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from keras_core import backend
 from keras_core import layers
 from keras_core import ops
 from keras_core import testing
@@ -67,19 +66,11 @@ class FlattenTest(testing.TestCase):
             expected_output=expected_output,
         )
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_flatten_with_dynamic_batch_size(self):
         input_layer = layers.Input(batch_shape=(None, 2, 3))
         flattened = layers.Flatten()(input_layer)
         self.assertEqual(flattened.shape, (None, 2 * 3))
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_flatten_with_dynamic_dimension(self):
         input_layer = layers.Input(batch_shape=(5, 2, None))
         flattened = layers.Flatten()(input_layer)
