@@ -343,8 +343,8 @@ class Functional(training_lib.Model):
     def input_spec(self):
         if hasattr(self, "_manual_input_spec"):
             return self._manual_input_spec
-        if isinstance(self._nested_inputs, (dict, list, tuple)) and len(
-            self._nested_inputs
+        if max([len(path) for path in nest.yield_flat_paths(
+        self._nested_inputs)]) > 1:
         ) != len(self.inputs):
             # Case where we have a nested structure.
             # In such a case we can't safely run any checks.
