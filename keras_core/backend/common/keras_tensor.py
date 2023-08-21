@@ -31,11 +31,7 @@ class KerasTensor:
     def __init__(self, shape, dtype="float32", record_history=True, name=None):
         from keras_core import backend
 
-        shape = backend.standardize_shape(
-            shape,
-            allow_all_dynamic=backend.DYNAMIC_SHAPES_OK,
-        )
-        self.shape = shape
+        self.shape = backend.standardize_shape(shape)
         self.dtype = backend.standardize_dtype(dtype)
         self.name = name or auto_name(self.__class__.__name__)
         self.record_history = record_history

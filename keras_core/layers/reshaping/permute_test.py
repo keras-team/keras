@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from keras_core import backend
 from keras_core import layers
 from keras_core import ops
 from keras_core import testing
@@ -21,10 +20,6 @@ class PermuteTest(testing.TestCase):
             expected_output=expected_output,
         )
 
-    @pytest.mark.skipif(
-        not backend.DYNAMIC_SHAPES_OK,
-        reason="Backend does not support dynamic shapes",
-    )
     def test_permute_with_dynamic_batch_size(self):
         input_layer = layers.Input(batch_shape=(None, 3, 5))
         permuted = layers.Permute((2, 1))(input_layer)
