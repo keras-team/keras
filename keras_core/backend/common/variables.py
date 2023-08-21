@@ -416,7 +416,9 @@ def standardize_dtype(dtype):
     return dtype
 
 
-def standardize_shape(shape):
+def standardize_shape(
+    shape, allow_dynamic_batch_size=True, allow_all_dynamic=True
+):
     if not isinstance(shape, tuple):
         if shape is None:
             raise ValueError("Undefined shapes are not supported.")
@@ -429,14 +431,23 @@ def standardize_shape(shape):
         # either int or `None`
         shape = tuple(map(lambda x: int(x) if x is not None else None, shape))
 
-    for e in shape:
-        if e is None:
+    for i, e in enumerate(shape):
+        if i == 0 and allow_dynamic_batch_size and e is None:
+            continue
+        if allow_all_dynamic and e is None:
             continue
         if not isinstance(e, int):
-            raise ValueError(
+            msg = (
                 f"Cannot convert '{shape}' to a shape. "
                 f"Found invalid entry '{e}'. "
             )
+            if not allow_dynamic_batch_size and e is None:
+                msg += (
+                    "Dynamic shapes (shapes with `None` entries) "
+                    f"are not allowed with the {config.backend()} "
+                    "backend."
+                )
+            raise ValueError(msg)
         if e < 0:
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "

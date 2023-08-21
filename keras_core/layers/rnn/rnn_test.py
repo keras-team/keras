@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import ops
 from keras_core import testing
@@ -205,6 +206,10 @@ class RNNTest(testing.TestCase):
         self.assertEqual(output_shape[1], (3, 8))
         self.assertEqual(output_shape[2], (3, 8))
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_dynamic_shapes(self):
         sequence_shape = (None, None, 3)
         layer = layers.RNN(OneStateRNNCell(8), return_sequences=False)

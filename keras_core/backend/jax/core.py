@@ -13,6 +13,8 @@ from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.jax import distribution
 from keras_core.utils.nest import pack_sequence_as
 
+DYNAMIC_SHAPES_OK = True
+
 
 class Variable(KerasVariable):
     def _initialize(self, value):

@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -62,6 +64,10 @@ class ZeroPadding3DTest(testing.TestCase, parameterized.TestCase):
                 self.assertAllClose(outputs[:, :, :, index, :], 0.0)
             self.assertAllClose(outputs[:, 2:-2, 2:-2, 2:-2, :], inputs)
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic batch sizes",
+    )
     def test_zero_padding_3d_with_dynamic_spatial_dim(self):
         input_layer = layers.Input(batch_shape=(1, 2, None, 4, 5))
         padded = layers.ZeroPadding3D(((1, 2), (3, 4), (5, 6)))(input_layer)

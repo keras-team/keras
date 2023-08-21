@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 from keras_core.backend.common.keras_tensor import KerasTensor
@@ -53,6 +54,10 @@ class UpSamplingTest(testing.TestCase):
         self.assertEqual(layers.UpSampling1D(size=2)(x).shape, (None, 4, 3))
         self.assertEqual(layers.UpSampling1D(size=4)(x).shape, (None, 8, 3))
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_upsampling_1d_with_dynamic_shape(self):
         y = KerasTensor([2, None, 3])
         self.assertEqual(layers.UpSampling1D(size=2)(y).shape, (2, None, 3))

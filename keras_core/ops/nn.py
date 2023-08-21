@@ -32,15 +32,11 @@ def relu(x):
     Returns:
         A tensor with the same shape as `x`.
 
-    Examples:
+    Example:
 
-    >>> x1 = keras_core.ops.convert_to_tensor([-1.0, 0.0, 1.0])
+    >>> x1 = keras_core.ops.convert_to_tensor([-1.0, 0.0, 1.0, 0.2])
     >>> keras_core.ops.relu(x1)
-    array([0.0, 0.0, 1.0], dtype=float32)
-    >>> x2 = keras_core.ops.convert_to_tensor([-100.0, 0.0, 100.0])
-    >>> keras_core.ops.relu(x2)
-    array([0.0, 0.0, 100.0], dtype=float32)
-
+    array([0.0, 0.0, 1.0, 0.2], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Relu().symbolic_call(x)
@@ -69,10 +65,9 @@ def relu6(x):
 
     Example:
 
-    >>> x = keras_core.ops.convert_to_tensor([-66.0, -6.0, 0.0, 6.0, 66.0])
+    >>> x = keras_core.ops.convert_to_tensor([-3.0, -2.0, 0.1, 0.2, 6.0, 8.0])
     >>> keras_core.ops.relu6(x)
-    array([0.0, 0.0, 0.0, 6.0, 6.0], dtype=float32)
-
+    array([0.0, 0.0, 0.1, 0.2, 6.0, 6.0], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Relu6().symbolic_call(x)

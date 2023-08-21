@@ -12,6 +12,8 @@ from keras_core.backend.common.name_scope import name_scope as base_name_scope
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.utils.naming import auto_name
 
+DYNAMIC_SHAPES_OK = True
+
 
 class Variable(
     KerasVariable,

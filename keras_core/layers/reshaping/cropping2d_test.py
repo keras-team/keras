@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import ops
 from keras_core import testing
@@ -62,6 +63,10 @@ class Cropping2DTest(testing.TestCase, parameterized.TestCase):
             expected_output=expected_output,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_cropping_2d_with_dynamic_spatial_dim(self):
         input_layer = layers.Input(batch_shape=(1, 7, None, 5))
         cropped = layers.Cropping2D(((1, 2), (3, 4)))(input_layer)

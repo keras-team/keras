@@ -1,5 +1,6 @@
 import pytest
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -55,11 +56,19 @@ class ReshapeTest(testing.TestCase):
             expected_output_shape=(3, 2, 4),
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_reshape_with_dynamic_batch_size(self):
         input_layer = layers.Input(shape=(2, 4))
         reshaped = layers.Reshape((8,))(input_layer)
         self.assertEqual(reshaped.shape, (None, 8))
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_reshape_sets_static_shape(self):
         input_layer = layers.Input(batch_shape=(2, None))
         reshaped = layers.Reshape((3, 5))(input_layer)

@@ -23,6 +23,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_add_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -114,6 +118,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_subtract_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -214,6 +222,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_minimum_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -305,6 +317,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_maximum_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -396,6 +412,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_multiply_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -487,6 +507,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_average_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -578,6 +602,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=True,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_concatenate_correctness_dynamic(self):
         x1 = np.random.rand(2, 4, 5)
         x2 = np.random.rand(2, 4, 5)
@@ -673,6 +701,10 @@ class MergingLayersTest(testing.TestCase):
             supports_masking=None,
         )
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes.",
+    )
     def test_dot_correctness_dynamic(self):
         x1 = np.random.rand(2, 4)
         x2 = np.random.rand(2, 4)

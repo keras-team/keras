@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -23,6 +25,10 @@ class ZeroPadding1DTest(testing.TestCase, parameterized.TestCase):
             self.assertAllClose(outputs[:, index, :], 0.0)
         self.assertAllClose(outputs[:, 2:-2, :], inputs)
 
+    @pytest.mark.skipif(
+        not backend.DYNAMIC_SHAPES_OK,
+        reason="Backend does not support dynamic shapes",
+    )
     def test_zero_padding_1d_with_dynamic_spatial_dim(self):
         input_layer = layers.Input(batch_shape=(1, None, 3))
         padded = layers.ZeroPadding1D((1, 2))(input_layer)

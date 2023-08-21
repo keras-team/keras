@@ -6,6 +6,8 @@ from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 
+DYNAMIC_SHAPES_OK = True
+
 
 class Variable(KerasVariable):
     def _initialize(self, value):
