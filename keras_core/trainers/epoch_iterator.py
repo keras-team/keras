@@ -220,7 +220,7 @@ class EpochIterator:
 def raise_unsupported_arg(arg_name, arg_description, input_type):
     raise ValueError(
         f"When providing `x` as a {input_type}, `{arg_name}` "
-        f"should not be passed. Instead, the {arg_description} should "
+        f"should not be passed. Instead, {arg_description} should "
         f"be included as part of the {input_type}."
     )
 
