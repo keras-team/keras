@@ -215,11 +215,11 @@ def DenseNet(
     bn_axis = 3 if backend.image_data_format() == "channels_last" else 1
 
     x = layers.ZeroPadding2D(padding=((3, 3), (3, 3)))(img_input)
-    x = layers.Conv2D(64, 7, strides=2, use_bias=False, name="conv1/conv")(x)
+    x = layers.Conv2D(64, 7, strides=2, use_bias=False, name="conv1_conv")(x)
     x = layers.BatchNormalization(
-        axis=bn_axis, epsilon=1.001e-5, name="conv1/bn"
+        axis=bn_axis, epsilon=1.001e-5, name="conv1_bn"
     )(x)
-    x = layers.Activation("relu", name="conv1/relu")(x)
+    x = layers.Activation("relu", name="conv1_relu")(x)
     x = layers.ZeroPadding2D(padding=((1, 1), (1, 1)))(x)
     x = layers.MaxPooling2D(3, strides=2, name="pool1")(x)
 

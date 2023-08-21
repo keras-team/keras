@@ -17,10 +17,11 @@ class Operation:
     def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
-        if not isinstance(name, str):
+        if not isinstance(name, str) or "/" in name:
             raise ValueError(
-                "Argument `name` should be a string. "
-                f"Received instead: name={name} (of type {type(name)})"
+                "Argument `name` must be a string and "
+                "cannot contain character `/`. "
+                f"Received: name={name} (of type {type(name)})"
             )
         self.name = name
         self._inbound_nodes = []

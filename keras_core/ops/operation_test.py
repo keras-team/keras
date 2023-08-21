@@ -152,3 +152,11 @@ class OperationTest(testing.TestCase):
         out = op(x, y, z)
         self.assertTrue(backend.is_tensor(out))
         self.assertAllClose(out, 6 * np.ones((2,)))
+
+    def test_valid_naming(self):
+        OpWithMultipleOutputs(name="test_op")
+
+        with self.assertRaisesRegex(
+            ValueError, "must be a string and cannot contain character `/`."
+        ):
+            OpWithMultipleOutputs(name="test/op")

@@ -310,10 +310,10 @@ def MobileNetV3(
         strides=(2, 2),
         padding="same",
         use_bias=False,
-        name="Conv",
+        name="conv",
     )(x)
     x = layers.BatchNormalization(
-        axis=channel_axis, epsilon=1e-3, momentum=0.999, name="Conv/BatchNorm"
+        axis=channel_axis, epsilon=1e-3, momentum=0.999, name="conv_bn"
     )(x)
     x = activation(x)
 
@@ -330,10 +330,10 @@ def MobileNetV3(
         kernel_size=1,
         padding="same",
         use_bias=False,
-        name="Conv_1",
+        name="conv_1",
     )(x)
     x = layers.BatchNormalization(
-        axis=channel_axis, epsilon=1e-3, momentum=0.999, name="Conv_1/BatchNorm"
+        axis=channel_axis, epsilon=1e-3, momentum=0.999, name="conv_1_bn"
     )(x)
     x = activation(x)
     if include_top:
@@ -343,19 +343,19 @@ def MobileNetV3(
             kernel_size=1,
             padding="same",
             use_bias=True,
-            name="Conv_2",
+            name="conv_2",
         )(x)
         x = activation(x)
 
         if dropout_rate > 0:
             x = layers.Dropout(dropout_rate)(x)
         x = layers.Conv2D(
-            classes, kernel_size=1, padding="same", name="Logits"
+            classes, kernel_size=1, padding="same", name="logits"
         )(x)
         x = layers.Flatten()(x)
         imagenet_utils.validate_activation(classifier_activation, weights)
         x = layers.Activation(
-            activation=classifier_activation, name="Predictions"
+            activation=classifier_activation, name="predictions"
         )(x)
     else:
         if pooling == "avg":
@@ -559,23 +559,23 @@ def _depth(v, divisor=8, min_value=None):
 
 def _se_block(inputs, filters, se_ratio, prefix):
     x = layers.GlobalAveragePooling2D(
-        keepdims=True, name=prefix + "squeeze_excite/AvgPool"
+        keepdims=True, name=prefix + "squeeze_excite_avg_pool"
     )(inputs)
     x = layers.Conv2D(
         _depth(filters * se_ratio),
         kernel_size=1,
         padding="same",
-        name=prefix + "squeeze_excite/Conv",
+        name=prefix + "squeeze_excite_conv",
     )(x)
-    x = layers.ReLU(name=prefix + "squeeze_excite/Relu")(x)
+    x = layers.ReLU(name=prefix + "squeeze_excite_relu")(x)
     x = layers.Conv2D(
         filters,
         kernel_size=1,
         padding="same",
-        name=prefix + "squeeze_excite/Conv_1",
+        name=prefix + "squeeze_excite_conv_1",
     )(x)
     x = hard_sigmoid(x)
-    x = layers.Multiply(name=prefix + "squeeze_excite/Mul")([inputs, x])
+    x = layers.Multiply(name=prefix + "squeeze_excite_mul")([inputs, x])
     return x
 
 
@@ -584,11 +584,11 @@ def _inverted_res_block(
 ):
     channel_axis = 1 if backend.image_data_format() == "channels_first" else -1
     shortcut = x
-    prefix = "expanded_conv/"
+    prefix = "expanded_conv_"
     infilters = x.shape[channel_axis]
     if block_id:
         # Expand
-        prefix = f"expanded_conv_{block_id}/"
+        prefix = f"expanded_conv_{block_id}_"
         x = layers.Conv2D(
             _depth(infilters * expansion),
             kernel_size=1,
@@ -600,14 +600,14 @@ def _inverted_res_block(
             axis=channel_axis,
             epsilon=1e-3,
             momentum=0.999,
-            name=prefix + "expand/BatchNorm",
+            name=prefix + "expand_bn",
         )(x)
         x = activation(x)
 
     if stride == 2:
         x = layers.ZeroPadding2D(
             padding=imagenet_utils.correct_pad(x, kernel_size),
-            name=prefix + "depthwise/pad",
+            name=prefix + "depthwise_pad",
         )(x)
     x = layers.DepthwiseConv2D(
         kernel_size,
@@ -620,7 +620,7 @@ def _inverted_res_block(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "depthwise/BatchNorm",
+        name=prefix + "depthwise_bn",
     )(x)
     x = activation(x)
 
@@ -638,11 +638,11 @@ def _inverted_res_block(
         axis=channel_axis,
         epsilon=1e-3,
         momentum=0.999,
-        name=prefix + "project/BatchNorm",
+        name=prefix + "project_bn",
     )(x)
 
     if stride == 1 and infilters == filters:
-        x = layers.Add(name=prefix + "Add")([shortcut, x])
+        x = layers.Add(name=prefix + "add")([shortcut, x])
     return x
 
 
