@@ -101,7 +101,7 @@ def _build_proj_equation(free_dims, bound_dims, output_dims):
     output_str = ""
     bias_axes = ""
     letter_offset = 0
-    input_str += ''.join(_CHR_IDX[i + letter_offset] for i in range(free_dims)])
+    input_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(free_dims)])
     output_str = input_str
     letter_offset += free_dims
     input_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(bound_dims)])
