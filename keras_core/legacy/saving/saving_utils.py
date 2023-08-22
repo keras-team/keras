@@ -15,6 +15,14 @@ from keras_core.saving import object_registration
 
 MODULE_OBJECTS = threading.local()
 
+# Legacy lambda arguments not found in Keras Core
+LAMBDA_DEP_ARGS = (
+    "module",
+    "function_type",
+    "output_shape_type",
+    "output_shape_module",
+)
+
 
 def model_from_config(config, custom_objects=None):
     """Instantiates a Keras model from its config.
@@ -57,6 +65,18 @@ def model_from_config(config, custom_objects=None):
     axis = config["config"].pop("axis", None)
     if axis is not None and isinstance(axis, list) and len(axis) == 1:
         config["config"]["axis"] = int(axis[0])
+
+    # Handle backwards compatibility for Keras lambdas
+    if config["class_name"] == "Lambda":
+        for dep_arg in LAMBDA_DEP_ARGS:
+            _ = config["config"].pop(dep_arg, None)
+        function_config = config["config"]["function"]
+        if isinstance(function_config, list):
+            function_dict = {"class_name": "__lambda__", "config": {}}
+            function_dict["config"]["code"] = function_config[0]
+            function_dict["config"]["defaults"] = function_config[1]
+            function_dict["config"]["closure"] = function_config[2]
+            config["config"]["function"] = function_dict
 
     # TODO(nkovela): Swap find and replace args during Keras 3.0 release
     # Replace keras refs with keras_core
