@@ -145,9 +145,7 @@ class HashedCrossingTest(testing.TestCase):
         outputs = layer((feat1, feat2))
         self.assertAllClose(outputs, 1)
 
-        layer = tf.keras.layers.HashedCrossing(
-            num_bins=5, output_mode="one_hot"
-        )
+        layer = layers.HashedCrossing(num_bins=5, output_mode="one_hot")
         feat1 = tf.constant(["A", "B", "A", "B", "A"])
         feat2 = tf.constant([101, 101, 101, 102, 102])
         self.assertAllClose(
@@ -163,7 +161,7 @@ class HashedCrossingTest(testing.TestCase):
             layer((feat1, feat2)),
         )
 
-        layer = tf.keras.layers.HashedCrossing(num_bins=5)
+        layer = layers.HashedCrossing(num_bins=5)
         feat1 = tf.constant(["A", "B", "A", "B", "A"])
         feat2 = tf.constant([101, 101, 101, 102, 102])
         self.assertAllClose(tf.constant([1, 4, 1, 1, 3]), layer((feat1, feat2)))
