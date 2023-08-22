@@ -896,8 +896,12 @@ def vstack(xs):
 
 def where(condition, x1, x2):
     condition = convert_to_tensor(condition, dtype=bool)
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
-    return torch.where(condition, x1, x2)
+    if x1 is not None and x2 is not None:
+        x1 = convert_to_tensor(x1)
+        x2 = convert_to_tensor(x2)
+        return torch.where(condition, x1, x2)
+    else:
+        return torch.where(condition)
 
 
 def divide(x1, x2):

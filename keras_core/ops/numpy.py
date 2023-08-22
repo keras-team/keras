@@ -5033,7 +5033,7 @@ def vstack(xs):
 
 
 class Where(Operation):
-    def call(self, condition, x1, x2):
+    def call(self, condition, x1=None, x2=None):
         return backend.numpy.where(condition, x1, x2)
 
     def compute_output_spec(self, condition, x1, x2):
@@ -5042,11 +5042,12 @@ class Where(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(condition_shape, x1_shape)
         output_shape = broadcast_shapes(output_shape, x2_shape)
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        output_dtype = getattr(x1, "dtype", "int")
+        return KerasTensor(output_shape, dtype=output_dtype)
 
 
 @keras_core_export(["keras_core.ops.where", "keras_core.ops.numpy.where"])
-def where(condition, x1, x2):
+def where(condition, x1=None, x2=None):
     """Return elements chosen from `x1` or `x2` depending on `condition`.
 
     Args:
@@ -5058,6 +5059,11 @@ def where(condition, x1, x2):
         A tensor with elements from `x1` where `condition` is `True`, and
         elements from `x2` where `condition` is `False`.
     """
+    if (x1 is None and x2 is not None) or (x1 is not None and x2 is None):
+        raise ValueError(
+            "`x1` and `x2` either both should be `None`"
+            " or both should have non-None value."
+        )
     if any_symbolic_tensors((condition, x1, x2)):
         return Where().symbolic_call(condition, x1, x2)
     return backend.numpy.where(condition, x1, x2)

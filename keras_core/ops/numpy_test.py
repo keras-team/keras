@@ -246,6 +246,7 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 1])
         y = KerasTensor([None, 3])
         self.assertEqual(knp.where(condition, x, y).shape, (2, None, 3))
+        self.assertEqual(knp.where(condition).shape, (2, None, 1))
 
     def test_floordiv(self):
         x = KerasTensor((None, 3))
@@ -666,6 +667,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
+        self.assertAllEqual(knp.where(condition).shape, (2, 3))
 
     def test_floordiv(self):
         x = KerasTensor((2, 3))
@@ -2177,6 +2179,8 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         y = np.array([4, 5, 6])
         self.assertAllClose(knp.where(x > 1, x, y), np.where(x > 1, x, y))
         self.assertAllClose(knp.Where()(x > 1, x, y), np.where(x > 1, x, y))
+        self.assertAllClose(knp.where(x > 1), np.where(x > 1))
+        self.assertAllClose(knp.Where()(x > 1), np.where(x > 1))
 
     def test_digitize(self):
         x = np.array([0.0, 1.0, 3.0, 1.6])
