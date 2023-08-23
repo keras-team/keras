@@ -32,12 +32,16 @@ from keras_core.utils.io_utils import print_msg
 if backend() == "tensorflow":
     print_msg("Using TensorFlow backend")
     from keras_core.backend.tensorflow import *  # noqa: F403
+
+    distribution_lib = None
 elif backend() == "jax":
     print_msg("Using JAX backend.")
     from keras_core.backend.jax import *  # noqa: F403
 elif backend() == "torch":
     print_msg("Using PyTorch backend.")
     from keras_core.backend.torch import *  # noqa: F403
+
+    distribution_lib = None
 elif backend() == "numpy":
     print_msg(
         "Using NumPy backend.\nThe NumPy backend does not support "
@@ -45,5 +49,7 @@ elif backend() == "numpy":
         "and debugging."
     )
     from keras_core.backend.numpy import *  # noqa: F403
+
+    distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")

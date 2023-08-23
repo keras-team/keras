@@ -7,7 +7,9 @@ will be implemented in future (via tf.dtensor API).
 """
 
 import contextlib
+import numpy as np
 
+from keras_core.backend import distribution_lib
 from keras_core.backend.common import global_state
 
 GLOBAL_ATTRIBUTE_NAME = "distribution"
@@ -19,14 +21,14 @@ def list_devices(device_type=None):
     Note that this should return the global devices in a distributed setting.
 
     Args:
-        device_type: string of 'CPU', 'GPU' or 'TPU'. Default to GPU or TPU if
-            available when device_type is not provided. Otherwise will return
-            the CPU devices.
+        device_type: string of `"cpu"`, `"gpu"` or `"tpu"`. Default to `gpu` or
+            `tpu` if available when device_type is not provided. Otherwise
+            will return the `cpu` devices.
 
     Return:
         List of devices that are available for distribute computation.
     """
-    pass
+    return distribution_lib.list_devices(device_type)
 
 
 class DeviceMesh:
@@ -61,7 +63,42 @@ class DeviceMesh:
             devices: Optional list of devices. Default to all the available
                 devices locally from `list_devices()`.
         """
-        pass
+        if not shape or not axis_names:
+            raise ValueError(
+                "Shape and axis_names cannot be empty. Got "
+                f"shape: {shape}, axis_names: {axis_names}"
+            )
+
+        if len(shape) != len(axis_names):
+            raise ValueError(
+                "Shape and axis_names should have same size,"
+                f"got shape: {shape} and axis_names: {axis_names}"
+            )
+        if not devices:
+            devices = list_devices()
+        devices = np.array(devices)
+        if np.prod(shape) != np.prod(devices.shape):
+            raise ValueError(
+                "Shape does not match the number of devices. "
+                f"Got shape: {shape}, and shape of the "
+                f"devices: {devices.shape}"
+            )
+
+        self._shape = shape
+        self._axis_names = axis_names
+        self._devices = np.reshape(devices, shape)
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def axis_names(self):
+        return self._axis_names
+
+    @property
+    def devices(self):
+        return self._devices
 
 
 class TensorLayout:
@@ -78,15 +115,48 @@ class TensorLayout:
         https://www.tensorflow.org/api_docs/python/tf/experimental/dtensor/Layout).
     """
 
-    def __init__(self, axes):
+    def __init__(self, axes, device_mesh=None):
         """Initialize the TensorLayout with axis names.
 
         Args:
             axes: list of strings that should map to the `axis_names` in
                 `DeviceMesh`. For any dimentions that doesn't need any sharding,
                 A `None` can be used a placeholder.
+            device_mesh: Optional `DeviceMesh` that will be used to create
+                the layout. The actual mapping of tensor to physical device
+                is not known until the mesh is specified.
         """
-        pass
+        self._axes = axes
+        self._device_mesh = device_mesh
+        self._validate_axes()
+
+    @property
+    def axes(self):
+        return self._axes
+
+    @property
+    def device_mesh(self):
+        return self._device_mesh
+
+    @device_mesh.setter
+    def device_mesh(self, device_mesh):
+        if self._device_mesh is not None:
+            raise ValueError(
+                "Cannot override device mesh value. Existing "
+                f"value is {self._device_mesh}"
+            )
+        self._device_mesh = device_mesh
+        self._validate_axes()
+
+    def _validate_axes(self):
+        if self._device_mesh:
+            valid_axis_names = set(self._device_mesh.axis_names)
+            axis_names = set(self._axes) - set([None])
+            if axis_names - valid_axis_names:
+                raise ValueError(
+                    "Invalid axis names for Layout. Valid axis "
+                    f"names: {valid_axis_names}, Got {axis_names}"
+                )
 
 
 class Distribution:

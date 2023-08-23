@@ -1,4 +1,5 @@
 from keras_core.backend.jax import core
+from keras_core.backend.jax import distribution_lib
 from keras_core.backend.jax import image
 from keras_core.backend.jax import math
 from keras_core.backend.jax import nn
