@@ -101,15 +101,27 @@ def _build_proj_equation(free_dims, bound_dims, output_dims):
     output_str = ""
     bias_axes = ""
     letter_offset = 0
-    input_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(free_dims)])
+    input_str += ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(free_dims)]
+    )
     output_str = input_str
     letter_offset += free_dims
-    input_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(bound_dims)])
-    kernel_str = ''.join([_CHR_IDX[i + letter_offset] for i in range(bound_dims)])
+    input_str += ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(bound_dims)]
+    )
+    kernel_str = ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(bound_dims)]
+    )
     letter_offset += bound_dims
-    kernel_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(output_dims)])
-    output_str += ''.join([_CHR_IDX[i + letter_offset] for i in range(output_dims)])
-    bias_axes += ''.join([_CHR_IDX[i + letter_offset] for i in range(output_dims)])
+    kernel_str += ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(output_dims)]
+    )
+    output_str += ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(output_dims)]
+    )
+    bias_axes += ''.join(
+        [_CHR_IDX[i + letter_offset] for i in range(output_dims)]
+    )
     equation = f"{input_str},{kernel_str}->{output_str}"
 
     return equation, bias_axes, len(output_str)
