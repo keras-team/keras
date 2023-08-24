@@ -40,11 +40,12 @@ def split_dataset(
           same length.
         left_size: If float (in the range `[0, 1]` (excluding the
           boundary values 0 and 1)), it signifies the fraction of the data to
-          pack in the left dataset.If integer, it signifies the number of
-          samples to pack in the left dataset.If `None`, it uses the complement
-          to `right_size`. Defaults to `None`.
-        right_size: If float (in the range `(0, 1)`), it signifies
-          the fraction of the data to pack in the right dataset. If integer, it
+          pack in the left dataset. If integer, it signifies the number of
+          samples to pack in the left dataset. If `None`, it uses the 
+          complement to `right_size`. Defaults to `None`.
+        right_size: If float (in the range `[0, 1]` (excluding the
+          boundary values 0 and 1)), it signifiesthe fraction of 
+          the data to pack in the right dataset. If integer, it
           signifies the number of samples to pack in the right dataset. If
           `None`, it uses the complement to `left_size`. Defaults to `None`.
         shuffle: Boolean, whether to shuffle the data before splitting it.
@@ -399,7 +400,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`left_size` should be either a positive integer "
             f"smaller than {total_length}, or a float "
-            "within the range '[0, 1] (excluding the boundary values 0 and 1)'."
+            "within the range `[0, 1]` (excluding the boundary values 0 and 1)."
             f"Received: left_size = {left_size}"
         )
 
@@ -414,7 +415,7 @@ def _rescale_dataset_split_sizes(left_size, right_size, total_length):
         raise ValueError(
             "`right_size` should be either a positive integer "
             f"and smaller than {total_length} or a float "
-            "within the range '[0, 1] (excluding the boundary values 0 and 1)'."
+            "within the range `[0, 1]` (excluding the boundary values 0 and 1)."
             f"Received: right_size = {right_size}"
         )
 
