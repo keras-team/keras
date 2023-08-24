@@ -6,9 +6,9 @@ import jax
 import pytest
 
 from keras_core import backend
+from keras_core import testing
 from keras_core.backend import distribution_lib as backend_dlib
 from keras_core.distribution import distribution_lib
-from keras_core import testing
 
 if backend.backend() == "jax":
     # Due to https://github.com/google/jax/issues/17188, we can't

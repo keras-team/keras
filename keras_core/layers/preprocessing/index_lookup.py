@@ -827,7 +827,9 @@ class IndexLookup(Layer):
 
     def _uninitialized_lookup_table(self):
         with tf.init_scope():
-            initializer = NullInitializer(self._key_dtype, self._value_dtype)
+            initializer = get_null_initializer()(
+                self._key_dtype, self._value_dtype
+            )
             return tf.lookup.StaticHashTable(initializer, self._default_value)
 
     def _lookup_table_from_tokens(self, tokens):
@@ -955,32 +957,33 @@ class IndexLookup(Layer):
         return vocabulary.numpy()
 
 
-class NullInitializer(tf.lookup.KeyValueTensorInitializer):
-    """A placeholder initializer for restoring this layer from a SavedModel."""
+def get_null_initializer():
+    class NullInitializer(tf.lookup.KeyValueTensorInitializer):
+        """A placeholder initializer for restoring from a SavedModel."""
 
-    def __init__(self, key_dtype, value_dtype):
-        """Construct a table initializer object.
+        def __init__(self, key_dtype, value_dtype):
+            """Construct a table initializer object.
 
-        Args:
-          key_dtype: Type of the table keys.
-          value_dtype: Type of the table values.
-        """
-        self._key_dtype = key_dtype
-        self._value_dtype = value_dtype
+            Args:
+            key_dtype: Type of the table keys.
+            value_dtype: Type of the table values.
+            """
+            self._key_dtype = key_dtype
+            self._value_dtype = value_dtype
 
-    @property
-    def key_dtype(self):
-        """The expected table key dtype."""
-        return self._key_dtype
+        @property
+        def key_dtype(self):
+            """The expected table key dtype."""
+            return self._key_dtype
 
-    @property
-    def value_dtype(self):
-        """The expected table value dtype."""
-        return self._value_dtype
+        @property
+        def value_dtype(self):
+            """The expected table value dtype."""
+            return self._value_dtype
 
-    def initialize(self, table):
-        """Returns the table initialization op."""
-        pass
+        def initialize(self, table):
+            """Returns the table initialization op."""
+            pass
 
 
 def listify_tensors(x):
