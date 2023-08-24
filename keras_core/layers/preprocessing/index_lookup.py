@@ -827,7 +827,7 @@ class IndexLookup(Layer):
 
     def _uninitialized_lookup_table(self):
         with tf.init_scope():
-            initializer = get_null_initializer()(
+            initializer = get_null_initializer(
                 self._key_dtype, self._value_dtype
             )
             return tf.lookup.StaticHashTable(initializer, self._default_value)
@@ -957,7 +957,7 @@ class IndexLookup(Layer):
         return vocabulary.numpy()
 
 
-def get_null_initializer():
+def get_null_initializer(key_dtype, value_dtype):
     class NullInitializer(tf.lookup.KeyValueTensorInitializer):
         """A placeholder initializer for restoring from a SavedModel."""
 
@@ -984,6 +984,8 @@ def get_null_initializer():
         def initialize(self, table):
             """Returns the table initialization op."""
             pass
+
+    return NullInitializer(key_dtype, value_dtype)
 
 
 def listify_tensors(x):

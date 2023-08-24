@@ -1,11 +1,11 @@
 import numpy as np
 
-from keras_core import Model
-from keras_core import layers
-from keras_core import losses
-from keras_core import metrics
-from keras_core import optimizers
-import keras_core as keras
+from keras import Model
+from keras import layers
+from keras import losses
+from keras import metrics
+from keras import optimizers
+import keras as keras
 
 keras.config.disable_traceback_filtering()
 
@@ -43,12 +43,12 @@ model.compile(
     ],
 )
 
-# print("\nTrain model")
-# history = model.fit(
-#     x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
-# )
-# print("\nHistory:")
-# print(history.history)
+print("\nTrain model")
+history = model.fit(
+    x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
+)
+print("\nHistory:")
+print(history.history)
 
 print("\nEvaluate model")
 scores = model.evaluate(x, y, return_dict=True)

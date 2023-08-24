@@ -1,10 +1,11 @@
 import numpy as np
-from tensorflow import nest
+import tree
 
 from keras_core.backend.common import KerasVariable
 from keras_core.backend.common import standardize_dtype
 from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.utils.nest import pack_sequence_as
 
 
 class Variable(KerasVariable):
@@ -76,7 +77,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 return None in x.shape
             return False
 
-        none_in_shape = any(map(has_none_shape, nest.flatten((args, kwargs))))
+        none_in_shape = any(map(has_none_shape, tree.flatten((args, kwargs))))
 
         def convert_keras_tensor_to_numpy(x, fill_value=None):
             if isinstance(x, KerasTensor):
@@ -91,7 +92,7 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
             return x
 
-        args_1, kwargs_1 = nest.map_structure(
+        args_1, kwargs_1 = tree.map_structure(
             lambda x: convert_keras_tensor_to_numpy(x, fill_value=83),
             (args, kwargs),
         )
@@ -100,14 +101,14 @@ def compute_output_spec(fn, *args, **kwargs):
         outputs = outputs_1
 
         if none_in_shape:
-            args_2, kwargs_2 = nest.map_structure(
+            args_2, kwargs_2 = tree.map_structure(
                 lambda x: convert_keras_tensor_to_numpy(x, fill_value=89),
                 (args, kwargs),
             )
             outputs_2 = fn(*args_2, **kwargs_2)
 
-            flat_out_1 = nest.flatten(outputs_1)
-            flat_out_2 = nest.flatten(outputs_2)
+            flat_out_1 = tree.flatten(outputs_1)
+            flat_out_2 = tree.flatten(outputs_2)
 
             flat_out = []
             for x1, x2 in zip(flat_out_1, flat_out_2):
@@ -116,14 +117,14 @@ def compute_output_spec(fn, *args, **kwargs):
                     if e != shape[i]:
                         shape[i] = None
                 flat_out.append(KerasTensor(shape, standardize_dtype(x1.dtype)))
-            outputs = nest.pack_sequence_as(outputs_1, flat_out)
+            outputs = pack_sequence_as(outputs_1, flat_out)
 
         def convert_numpy_to_keras_tensor(x):
             if is_tensor(x):
                 return KerasTensor(x.shape, standardize_dtype(x.dtype))
             return x
 
-        output_spec = nest.map_structure(convert_numpy_to_keras_tensor, outputs)
+        output_spec = tree.map_structure(convert_numpy_to_keras_tensor, outputs)
     return output_spec
 
 
