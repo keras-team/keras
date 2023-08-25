@@ -5282,18 +5282,18 @@ class Squeeze(Operation):
     def call(self, x):
         return backend.numpy.squeeze(x, axis=self.axis)
 
-    def compute_output_spec(self, x, axis=None):
+    def compute_output_spec(self, x):
         input_shape = list(x.shape)
-        if axis is None:
+        if self.axis is None:
             output_shape = list(filter((1).__ne__, input_shape))
             return KerasTensor(output_shape)
         else:
-            if input_shape[axis] != 1:
+            if input_shape[self.axis] != 1:
                 raise ValueError(
-                    f"Cannot squeeze axis {axis}, because the dimension is not "
-                    "1."
+                    f"Cannot squeeze axis {self.axis}, because the dimension "
+                    "is not 1."
                 )
-            del input_shape[axis]
+            del input_shape[self.axis]
             return KerasTensor(input_shape, dtype=x.dtype)
 
 
@@ -5310,7 +5310,7 @@ def squeeze(x, axis=None):
         length 1 removed.
     """
     if any_symbolic_tensors((x,)):
-        return Squeeze().symbolic_call(x, axis=axis)
+        return Squeeze(axis=axis).symbolic_call(x)
     return backend.numpy.squeeze(x, axis=axis)
 
 
