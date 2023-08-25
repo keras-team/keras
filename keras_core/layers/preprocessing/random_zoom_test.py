@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -95,7 +95,7 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
             interpolation="nearest",
             fill_mode="constant",
         )
-        ds = tf.data.Dataset.from_tensor_slices(input_image).batch(1).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_image).batch(1).map(layer)
         expected_output = np.asarray(
             [
                 [0, 0, 0, 0, 0],

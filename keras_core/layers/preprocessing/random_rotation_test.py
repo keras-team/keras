@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -55,7 +55,7 @@ class RandomRotationTest(testing.TestCase, parameterized.TestCase):
         input_image = np.reshape(np.arange(0, 25), (1, 5, 5, 1))
         layer = layers.RandomRotation(factor=(0.5, 0.5))
 
-        ds = tf.data.Dataset.from_tensor_slices(input_image).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_image).map(layer)
         expected_output = np.asarray(
             [
                 [24, 23, 22, 21, 20],

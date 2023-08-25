@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow as tf
+from tensorflow import data as tf_data
 
 from keras_core import layers
 from keras_core import testing
@@ -68,7 +68,7 @@ class RandomCropTest(testing.TestCase):
     def test_tf_data_compatibility(self):
         layer = layers.RandomCrop(8, 9)
         input_data = np.random.random((2, 10, 12, 3))
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(list(output.shape), [2, 8, 9, 3])

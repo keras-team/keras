@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import tensorflow as tf
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -55,6 +55,6 @@ class RandomBrightnessTest(testing.TestCase):
     def test_tf_data_compatibility(self):
         layer = layers.RandomBrightness(factor=0.5, seed=1337)
         input_data = np.random.random((2, 8, 8, 3))
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output.numpy()

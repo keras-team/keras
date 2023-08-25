@@ -7,6 +7,7 @@ will be implemented in future (via tf.dtensor API).
 """
 
 import contextlib
+
 import numpy as np
 
 from keras_core.backend import distribution_lib

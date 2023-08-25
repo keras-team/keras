@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -403,7 +403,7 @@ class IndexLookupLayerTest(testing.TestCase, parameterized.TestCase):
 
     def test_adapt_with_tf_data(self):
         # Case: adapt + list inputs
-        adapt_data = tf.data.Dataset.from_tensor_slices(
+        adapt_data = tf_data.Dataset.from_tensor_slices(
             ["one", "one", "one", "two", "two", "three"]
         ).batch(2)
         input_data = ["one", "two", "four"]

@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow as tf
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -101,7 +101,7 @@ class IntegerLookupTest(testing.TestCase):
             vocabulary=[1, 2, 3, 4],
         )
         input_data = [2, 3, 4, 5]
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(4).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, np.array([2, 3, 4, 0]))

@@ -1,8 +1,8 @@
 import unittest.mock
 
 import numpy as np
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras_core import backend
 from keras_core import layers
@@ -134,7 +134,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
         layer = layers.RandomFlip("vertical", seed=42)
         input_data = np.array([[[2, 3, 4]], [[5, 6, 7]]])
         expected_output = np.array([[[5, 6, 7]], [[2, 3, 4]]])
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
@@ -158,7 +158,7 @@ class RandomFlipTest(testing.TestCase, parameterized.TestCase):
                 [[[5, 6, 7]], [[2, 3, 4]]],
             ]
         )
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(output, expected_output)
