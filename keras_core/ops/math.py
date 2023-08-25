@@ -763,7 +763,11 @@ def stft(
     """
     if any_symbolic_tensors((x,)):
         return STFT(
-            sequence_length, sequence_stride, fft_length, center, window
+            sequence_length=sequence_length,
+            sequence_stride=sequence_stride,
+            fft_length=fft_length,
+            window=window,
+            center=center,
         ).symbolic_call(x)
     return backend.math.stft(
         x,
@@ -883,7 +887,11 @@ def istft(
     """
     if any_symbolic_tensors(x):
         return ISTFT(
-            sequence_length, sequence_stride, fft_length, length, center, window
+            sequence_length=sequence_length,
+            sequence_stride=sequence_stride,
+            fft_length=fft_length,
+            window=window,
+            center=center,
         ).symbolic_call(x)
     return backend.math.istft(
         x,
