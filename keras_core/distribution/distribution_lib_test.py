@@ -1,11 +1,15 @@
 """Test for distribution_lib.py."""
 
 import os
+from unittest import mock
 
 import jax
+import numpy as np
 import pytest
 
 from keras_core import backend
+from keras_core import layers
+from keras_core import models
 from keras_core import testing
 from keras_core.backend import distribution_lib as backend_dlib
 from keras_core.distribution import distribution_lib
@@ -96,6 +100,99 @@ class TensorLayoutTest(testing.TestCase):
             layout.device_mesh = self.mesh
 
 
+class DistributionTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        devices = ["CPU:{i}" for i in range(8)]
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+
+        self.device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, devices
+        )
+
+    def test_init_with_device_mesh(self):
+        distribution = distribution_lib.Distribution(self.device_mesh)
+        self.assertIs(distribution.device_mesh, self.device_mesh)
+
+    def test_scope(self):
+        distribution_1 = distribution_lib.Distribution(self.device_mesh)
+        distribution_2 = distribution_lib.Distribution(self.device_mesh)
+
+        self.assertIsNone(distribution_lib.distribution())
+        with distribution_1.scope():
+            self.assertIs(distribution_lib.distribution(), distribution_1)
+            with distribution_2.scope():
+                self.assertIs(distribution_lib.distribution(), distribution_2)
+
+            self.assertIs(distribution_lib.distribution(), distribution_1)
+
+        self.assertIsNone(distribution_lib.distribution())
+
+
+class DataParallelDistributionTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.devices = ["CPU:{i}" for i in range(8)]
+        shape = (8,)
+        axis_names = ["data"]
+
+        self.device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, self.devices
+        )
+
+    def test_create_with_device_mesh(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        device_mesh = distribution.device_mesh
+        self.assertEqual(len(device_mesh.devices), 8)
+        self.assertEqual(device_mesh.axis_names, ["data"])
+        self.assertEqual(distribution._batch_dim_name, "data")
+
+    def test_create_with_devices(self):
+        distribution = distribution_lib.DataParallel(devices=self.devices)
+        device_mesh = distribution.device_mesh
+        self.assertEqual(len(device_mesh.devices), 8)
+        self.assertEqual(device_mesh.axis_names, ["batch"])
+        self.assertEqual(distribution._batch_dim_name, "batch")
+
+    @mock.patch.object(
+        distribution_lib,
+        "list_devices",
+        return_value=["CPU:{i}" for i in range(8)],
+    )
+    def test_create_with_list_devices(self, mock_list_devices):
+        distribution = distribution_lib.DataParallel()
+        mock_list_devices.assert_called_once()
+
+        device_mesh = distribution.device_mesh
+        self.assertEqual(len(device_mesh.devices), 8)
+        self.assertEqual(device_mesh.axis_names, ["batch"])
+        self.assertEqual(distribution._batch_dim_name, "batch")
+
+    def test_get_data_layout(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        data = np.arange(16).reshape((4, 2, 2))
+        data_layout = distribution.get_data_layout(data.shape)
+        self.assertIs(data_layout.device_mesh, self.device_mesh)
+        self.assertEqual(data_layout.axes, ["data", None, None])
+
+    def test_get_variable_layout(self):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        variable = backend.Variable(initializer=[1, 2, 3])
+        variable_layout = distribution.get_variable_layout(variable)
+        self.assertIs(variable_layout.device_mesh, self.device_mesh)
+        self.assertEqual(variable_layout.axes, [None])
+
+
 @pytest.mark.skipif(
     backend.backend() != "jax",
     reason="Backend specific test",
@@ -141,3 +238,27 @@ class JaxDistributionLibTest(testing.TestCase):
             ValueError, "Cannot create sharding when device mesh is not set"
         ):
             backend_dlib.to_jax_layout(layout)
+
+    def test_e2e_model(self):
+        distribution = distribution_lib.DataParallel(
+            devices=backend_dlib.list_devices()
+        )
+
+        with distribution.scope():
+            inputs = layers.Input(shape=[28, 28, 1])
+            y = layers.Flatten()(inputs)
+            y = layers.Dense(units=200, use_bias=False, activation="relu")(y)
+            y = layers.Dropout(0.4)(y)
+            y = layers.Dense(units=10, activation="softmax")(y)
+            model = models.Model(inputs=inputs, outputs=y)
+
+        # Make sure all the weights are properly sharded.
+        for weight in model.weights:
+            self.assertTrue(weight._value.sharding.is_fully_replicated)
+
+        inputs = np.random.normal(size=(32, 28, 28, 1))
+        labels = np.random.normal(size=(32, 10))
+
+        with distribution.scope():
+            model.compile(loss="mse")
+            model.fit(inputs, labels)

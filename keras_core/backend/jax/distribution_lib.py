@@ -54,3 +54,16 @@ def to_jax_layout(tensor_layout):
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
     jax_mesh = to_jax_mesh(tensor_layout.device_mesh)
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)
+
+
+def distribute_value(value, tensor_layout):
+    """Distribute the value based on the layout.
+
+    Args:
+        value: `jax.Array` that need to be distributed.
+        tensor_layout: `TensorLayout` for the distribution information.
+
+    Returns:
+        Distributed value.
+    """
+    return jax.device_put(value, to_jax_layout(tensor_layout))

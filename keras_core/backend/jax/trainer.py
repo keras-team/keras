@@ -6,7 +6,8 @@ from keras_core import backend
 from keras_core import callbacks as callbacks_module
 from keras_core import ops
 from keras_core import optimizers as optimizers_module
-from keras_core.backend.jax import distribution
+from keras_core.backend import distribution_lib as jax_distribution_lib
+from keras_core.distribution import distribution_lib
 from keras_core.trainers import trainer as base_trainer
 from keras_core.trainers.data_adapters import data_adapter_utils
 from keras_core.trainers.epoch_iterator import EpochIterator
@@ -753,7 +754,13 @@ class JAXTrainer(base_trainer.Trainer):
                 ref_v.assign(v)
 
     def _distribute_data(self, data):
-        if distribution.get_global_distribution() is not None:
-            distribute = distribution.get_global_distribution()
-            data = distribute.distribute_data(data)
-        return data
+        distribution = distribution_lib.distribution()
+        if distribution is not None:
+
+            def distribute_single_value(d):
+                layout = distribution.get_data_layout(d.shape)
+                return jax_distribution_lib.distribute_value(d, layout)
+
+            return jax.tree_util.tree_map(distribute_single_value, data)
+        else:
+            return data
