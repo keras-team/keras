@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
@@ -73,3 +74,13 @@ class RescalingTest(testing.TestCase):
         ds = tf.data.Dataset.from_tensor_slices(x).batch(3).map(layer)
         for output in ds.take(1):
             output.numpy()
+
+    def test_rescaling_with_channels_first_and_vector_scale(self):
+        config = backend.image_data_format()
+        backend.set_image_data_format("channels_first")
+        layer = layers.Rescaling(
+            scale=[1.0 / 255, 1.5 / 255, 2.0 / 255], offset=0.5
+        )
+        x = np.random.random((2, 3, 10, 10)) * 255
+        layer(x)
+        backend.set_image_data_format(config)

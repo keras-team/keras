@@ -1,3 +1,4 @@
+from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 
@@ -40,6 +41,14 @@ class Rescaling(TFDataLayer):
         dtype = self.compute_dtype
         scale = self.backend.cast(self.scale, dtype)
         offset = self.backend.cast(self.offset, dtype)
+        scale_shape = self.backend.core.shape(scale)
+        if (
+            len(scale_shape) > 0
+            and backend.image_data_format() == "channels_first"
+        ):
+            scale = self.backend.numpy.reshape(
+                scale, scale_shape + (1,) * (3 - len(scale_shape))
+            )
         return self.backend.cast(inputs, dtype) * scale + offset
 
     def compute_output_shape(self, input_shape):
