@@ -8,8 +8,8 @@ will be implemented in future (via tf.dtensor API).
 
 import collections
 import contextlib
-import logging
 import re
+import warnings
 
 import numpy as np
 
@@ -254,7 +254,7 @@ class DataParallel(Distribution):
             )
         super().__init__(device_mesh)
         if self.device_mesh.devices.ndim != 1:
-            logging.warning(
+            warnings.warn(
                 "Expect the input mesh to be 1D, but received "
                 "mesh.devices.ndim=%d. "
                 "The first axis will be used for data-parallel sharding.",
