@@ -6,9 +6,10 @@ Currently only the JAX backend has been implemented, and the Tensorflow backend
 will be implemented in future (via tf.dtensor API).
 """
 
-import logging
-
+import collections
 import contextlib
+import logging
+import re
 
 import numpy as np
 
@@ -286,6 +287,103 @@ class DataParallel(Distribution):
     def get_variable_layout(self, variable):
         variable_shard_spec = [None] * len(variable.shape)
         return TensorLayout(variable_shard_spec, self.device_mesh)
+
+
+class LayoutMap(collections.abc.MutableMapping):
+    """A dict-like object that maps string to `TensorLayout` instances.
+
+    `LayoutMap` uses a string as key and a `TensorLayout` as value. There is a
+    behavior difference between a normal Python dict and this class. The string
+    key will be treated as a regex when retrieving the value. See the docstring
+    of `get` for more details.
+
+    See below for a usage example. You can define the naming schema
+    of the `TensorLayout`, and then retrieve the corresponding
+    `TensorLayout` instance.
+
+    In the normal case, the key to query is usually the `variable.path`, which
+    is the idenifier of the variable.
+
+    ```python
+    layout_map = LayoutMap(device_mesh=None)
+    layout_map['.*dense.*kernel'] = layout_2d
+    layout_map['.*dense.*bias'] = layout_1d
+    layout_map['.*conv2d.*kernel'] = layout_4d
+    layout_map['.*conv2d.*bias'] = layout_1d
+
+    layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
+    layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
+    layout_3 = layout_map['dense_2.kernel']             # layout_3 == layout_2d
+    layout_4 = layout_map['dense_2.bias']               # layout_4 == layout_1d
+    layout_5 = layout_map['my_model/conv2d_123/kernel'] # layout_5 == layout_4d
+    layout_6 = layout_map['my_model/conv2d_123/bias']   # layout_6 == layout_1d
+    layout_7 = layout_map['my_model/conv3d_1/kernel']   # layout_7 == None
+    layout_8 = layout_map['my_model/conv3d_1/bias']     # layout_8 == None
+    ```
+
+    Args:
+        device_mesh: An optional `DeviceMesh` that can be used to populate the
+            `TensorLayout.device_mesh` if the `TensorLayout.device_mesh` is not
+            set.
+    """
+
+    def __init__(self, device_mesh=None):
+        self._layout_map = collections.OrderedDict()
+        self._device_mesh = device_mesh
+
+    def __getitem__(self, key):
+        """Retrieve the corresponding layout by the string key.
+
+        When there isn't an exact match, all the existing keys in the layout map
+        will be treated as a regex and map against the input key again. The
+        first match will be returned, based on the key insertion order. Return
+        None if there isn't any match found.
+
+        Args:
+            key: the string key as the query for the layout.
+
+        Returns:
+            Corresponding layout based on the query.
+        """
+        if key in self._layout_map:
+            return self._layout_map[key]
+
+        for k in self._layout_map:
+            if re.match(k, key):
+                return self._layout_map[k]
+        return None
+
+    def __setitem__(self, key, layout):
+        if key in self._layout_map:
+            raise ValueError(
+                f"{key} already exist in the LayoutMap with "
+                f"value {self._layout_map[key]}. Please make sure to "
+                "not use duplicated keys."
+            )
+        if not isinstance(layout, TensorLayout):
+            raise ValueError(
+                f"{layout} should be a TensorLayout type, got {type(layout)}"
+            )
+        self._maybe_populate_device_mesh(layout)
+        self._layout_map[key] = layout
+
+    def __delitem__(self, key):
+        # let the dict to handle the key missing error
+        return self._layout_map.pop(key)
+
+    def __len__(self):
+        return len(self._layout_map)
+
+    def __iter__(self):
+        return iter(self._layout_map)
+
+    @property
+    def device_mesh(self):
+        return self._device_mesh
+
+    def _maybe_populate_device_mesh(self, layout):
+        if layout.device_mesh is None and self.device_mesh is not None:
+            layout.device_mesh = self.device_mesh
 
 
 def distribution():

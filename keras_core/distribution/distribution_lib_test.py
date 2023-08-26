@@ -193,6 +193,112 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertEqual(variable_layout.axes, [None])
 
 
+class LayoutMapTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.devices = ["CPU:{i}" for i in range(8)]
+        shape = (4, 2)
+        axis_names = ["data", "model"]
+
+        self.device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, self.devices
+        )
+        self.sharded_2d = distribution_lib.TensorLayout([None, "model"])
+        self.sharded_1d = distribution_lib.TensorLayout(["model"])
+
+        self.replicated_2d = distribution_lib.TensorLayout([None, None])
+        self.replicated_1d = distribution_lib.TensorLayout([None])
+
+    def test_add(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map["dense/kernel"] = self.sharded_2d
+        layout_map["dense/bias"] = self.sharded_1d
+
+        # Make there are two items in the map, and we access them via the
+        # underlying container at layout_map._layout_map
+        self.assertLen(layout_map, 2)
+
+        kernel_layout = layout_map["dense/kernel"]
+        self.assertEqual(kernel_layout.axes, [None, "model"])
+        self.assertIs(kernel_layout.device_mesh, self.device_mesh)
+
+        bias_layout = layout_map["dense/bias"]
+        self.assertEqual(bias_layout.axes, ["model"])
+        self.assertIs(bias_layout.device_mesh, self.device_mesh)
+
+        with self.assertRaisesRegex(ValueError, "dense/kernel already exist"):
+            layout_map["dense/kernel"] = self.sharded_2d
+
+        with self.assertRaisesRegex(ValueError, "should be a TensorLayout"):
+            layout_map["conv.kernel"] = [1, 2, 3]
+
+    def test_get(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map["dense/kernel"] = self.sharded_2d
+        layout_map["dense/bias"] = self.sharded_1d
+
+        layout_map["dense.*kernel"] = self.replicated_2d
+        layout_map["dense.*bias"] = self.replicated_1d
+
+        layout_map[".*bias"] = self.sharded_1d
+
+        self.assertEqual(layout_map["dense/kernel"], self.sharded_2d)
+        self.assertEqual(layout_map["dense/bias"], self.sharded_1d)
+
+        # Map against the wildcard bias rule for dense, and based on the order
+        # of insertion, it will not use .*bias.
+        self.assertEqual(layout_map["dense_2/kernel"], self.replicated_2d)
+        self.assertEqual(layout_map["dense_2/bias"], self.replicated_1d)
+
+        self.assertIsNone(layout_map["conv2d/kernel"])
+        self.assertEqual(layout_map["conv2d/bias"], self.sharded_1d)
+
+    def test_delete(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+
+        layout_map["dense/kernel"] = self.sharded_2d
+        layout_map["dense/bias"] = self.sharded_1d
+
+        self.assertEqual(layout_map.pop("dense/kernel"), self.sharded_2d)
+        # Make sure to match against the exact string, not the regex
+        with self.assertRaises(KeyError):
+            layout_map.pop(".*bias")
+
+        # Make sure del also works
+        del layout_map["dense/bias"]
+
+        self.assertLen(layout_map, 0)
+
+    def test_len(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        self.assertLen(layout_map, 0)
+
+        layout_map["dense/kernel"] = self.sharded_2d
+        layout_map["dense/bias"] = self.sharded_1d
+
+        self.assertLen(layout_map, 2)
+
+    def test_iter(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+
+        layout_map["dense/kernel"] = self.sharded_2d
+        layout_map["dense/bias"] = self.sharded_1d
+
+        # Make sure the items are ordered based on the insertion order.
+        self.assertEqual(
+            list(layout_map.keys()), ["dense/kernel", "dense/bias"]
+        )
+
+        keys = []
+        values = []
+        for k, v in layout_map.items():
+            keys.append(k)
+            values.append(v)
+
+        self.assertEqual(keys, ["dense/kernel", "dense/bias"])
+        self.assertEqual(values, [self.sharded_2d, self.sharded_1d])
+
+
 @pytest.mark.skipif(
     backend.backend() != "jax",
     reason="Backend specific test",
