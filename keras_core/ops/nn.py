@@ -494,7 +494,27 @@ def softmax(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Softmax(axis).symbolic_call(x)
-    return backend.nn.softmax(x, axis=axis)
+    if isinstance(axis, tuple):
+        original_shape = x.shape
+        new_shape = []
+        skip_dims = set(axis)
+        i = 0
+        while i < len(original_shape):
+            if i in skip_dims:
+                size = 1
+                while i in skip_dims:
+                    size *= original_shape[i]
+                    i += 1
+                new_shape.append(size)
+            else:
+                new_shape.append(original_shape[i])
+                i += 1
+        x = x.reshape(new_shape)
+        x = backend.nn.softmax(x, axis=-1)
+        x = x.reshape(original_shape)
+        return x
+    else:
+        return backend.nn.softmax(x, axis=axis)
 
 
 class LogSoftmax(Operation):
