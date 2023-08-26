@@ -15,6 +15,13 @@ def _ref_softplus(x):
     return np.log(np.ones_like(x) + np.exp(x))
 
 
+def _ref_log_softmax(values):
+    max_val = np.max(values)  # for numerical stability
+    stabilized_values = values - max_val
+    log_sum_exp = np.log(np.sum(np.exp(stabilized_values)))
+    return stabilized_values - log_sum_exp
+
+
 class ActivationsTest(testing.TestCase):
     def test_softmax(self):
         x = np.random.random((2, 5))
@@ -75,6 +82,60 @@ class ActivationsTest(testing.TestCase):
         x = np.random.random((2, 2, 3)) * 10
         result = activations.softmax(x[np.newaxis, :])[0]
         expected = _ref_softmax(x[0, 0])
+        self.assertAllClose(result[0, 0], expected, rtol=1e-05)
+
+    def test_log_softmax_2d_axis_0(self):
+        x = np.random.random((2, 5))
+        result = activations.log_softmax(x[np.newaxis, :], axis=1)[0]
+        expected = np.zeros((2, 5))
+        for i in range(5):
+            expected[:, i] = _ref_log_softmax(x[:, i])
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_log_softmax_3d_axis_tuple(self):
+        x = np.random.random((2, 3, 5))
+        result = activations.log_softmax(x, axis=(1, 2))
+        expected = np.zeros((2, 3, 5))
+        for i in range(2):
+            expected[i, :, :] = _ref_log_softmax(x[i, :, :])
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_log_softmax_1d(self):
+        x = np.random.random(5)
+        result = activations.log_softmax(x)
+        expected = _ref_log_softmax(x)
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_log_softmax_higher_dim(self):
+        x = np.random.random((2, 3, 4, 5))
+        result = activations.log_softmax(x, axis=(2, 3))
+        expected = np.zeros((2, 3, 4, 5))
+        for i in range(2):
+            for j in range(3):
+                expected[i, j, :, :] = _ref_log_softmax(x[i, j, :, :])
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_log_softmax_higher_dim_multiple_axes(self):
+        x = np.random.random((2, 3, 4, 5, 6))
+        result = activations.log_softmax(x, axis=(2, 3, 4))
+        expected = np.zeros((2, 3, 4, 5, 6))
+        for i in range(2):
+            for j in range(3):
+                expected[i, j, :, :, :] = _ref_log_softmax(x[i, j, :, :, :])
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_log_softmax_negative_axis(self):
+        x = np.random.random((2, 5))
+        result = activations.log_softmax(x, axis=-1)
+        expected = np.zeros((2, 5))
+        for i in range(2):
+            expected[i, :] = _ref_log_softmax(x[i, :])
+        self.assertAllClose(result, expected, rtol=1e-05)
+
+    def test_temporal_log_softmax(self):
+        x = np.random.random((2, 2, 3)) * 10
+        result = activations.log_softmax(x[np.newaxis, :])[0]
+        expected = _ref_log_softmax(x[0, 0])
         self.assertAllClose(result[0, 0], expected, rtol=1e-05)
 
     def test_selu(self):
