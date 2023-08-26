@@ -1169,7 +1169,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 3, 3])
         self.assertEqual(knp.split(x, 2)[0].shape, (None, 3, 3))
         self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (None, 1, 3))
+        self.assertEqual(len(knp.split(x, [1, 3], axis=1)), 3)
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[0].shape, (None, 1, 3))
         self.assertEqual(knp.split(x, [1, 3], axis=1)[1].shape, (None, 2, 3))
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[2].shape, (None, 0, 3))
 
     def test_sqrt(self):
         x = KerasTensor([None, 3])
@@ -1631,7 +1634,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(len(knp.split(x, 2)), 2)
         self.assertEqual(knp.split(x, 2)[0].shape, (1, 3))
         self.assertEqual(knp.split(x, 3, axis=1)[0].shape, (2, 1))
+        self.assertEqual(len(knp.split(x, [1, 3], axis=1)), 3)
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[0].shape, (2, 1))
         self.assertEqual(knp.split(x, [1, 3], axis=1)[1].shape, (2, 2))
+        self.assertEqual(knp.split(x, [1, 3], axis=1)[2].shape, (2, 0))
 
         with self.assertRaises(ValueError):
             knp.split(x, 2, axis=1)

@@ -772,7 +772,7 @@ def sort(x, axis=-1):
 
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
-    if isinstance(indices_or_sections, list):
+    if isinstance(indices_or_sections, (list, tuple)):
         idxs = convert_to_tensor(indices_or_sections)
         start_size = indices_or_sections[0]
         end_size = x.shape[axis] - indices_or_sections[-1]
