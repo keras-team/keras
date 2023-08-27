@@ -947,6 +947,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     def __init__(
         self,
         from_logits=False,
+        ignore_class=None,
         reduction="sum_over_batch_size",
         name="sparse_categorical_crossentropy",
     ):
@@ -955,14 +956,17 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             name=name,
             reduction=reduction,
             from_logits=from_logits,
+            ignore_class=ignore_class,
         )
         self.from_logits = from_logits
+        self.ignore_class = ignore_class
 
     def get_config(self):
         return {
             "name": self.name,
             "reduction": self.reduction,
             "from_logits": self.from_logits,
+            "ignore_class": self.ignore_class,
         }
 
 
@@ -1659,7 +1663,9 @@ def categorical_focal_crossentropy(
         "keras_core.losses.sparse_categorical_crossentropy",
     ]
 )
-def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
+def sparse_categorical_crossentropy(
+    y_true, y_pred, from_logits=False, ignore_class=None, axis=-1
+):
     """Computes the sparse categorical crossentropy loss.
 
     Args:
@@ -1667,6 +1673,11 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
         y_pred: The predicted values.
         from_logits: Whether `y_pred` is expected to be a logits tensor. By
             default, we assume that `y_pred` encodes a probability distribution.
+        ignore_class: Optional integer. The ID of a class to be ignored during
+            loss computation. This is useful, for example, in segmentation
+            problems featuring a "void" class (commonly -1 or 255) in
+            segmentation maps. By default (`ignore_class=None`), all classes are
+            considered.
         axis: Defaults to -1. The dimension along which the entropy is
             computed.
 
@@ -1682,12 +1693,32 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
     >>> loss
     array([0.0513, 2.303], dtype=float32)
     """
-    return ops.sparse_categorical_crossentropy(
+
+    if ignore_class is not None:
+        res_shape = ops.shape(y_pred)[:-1]
+        valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
+        y_true = y_true * ops.cast(valid_mask, y_true.dtype)
+        y_pred = y_pred * ops.cast(
+            ops.expand_dims(valid_mask, -1), y_pred.dtype
+        )
+
+    res = ops.sparse_categorical_crossentropy(
         y_true,
         y_pred,
         from_logits=from_logits,
         axis=axis,
     )
+
+    if ignore_class is not None:
+        valid_mask = ops.reshape(valid_mask, res_shape)
+        res = ops.where(valid_mask, res, 0.0)
+
+        try:
+            res._keras_mask = valid_mask
+        except AttributeError:
+            pass
+
+    return res
 
 
 @keras_core_export(

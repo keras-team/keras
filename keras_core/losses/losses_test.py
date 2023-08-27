@@ -1157,6 +1157,15 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         loss = cce_obj(y_true, logits)
         self.assertAllClose((0.001822, 0.000459, 0.169846), loss, 3)
 
+    def test_ignore_class(self):
+        y_true = np.array([[-1, 2]])
+        logits = np.array([[[0.854, 0.698, 0.598], [0.088, 0.86, 0.018]]])
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, ignore_class=-1, reduction=None
+        )
+        loss = cce_obj(y_true, logits)
+        self.assertAllClose([[0.0, 1.48012]], loss, 3)
+
 
 class BinaryFocalCrossentropyTest(testing.TestCase):
     def test_config(self):
