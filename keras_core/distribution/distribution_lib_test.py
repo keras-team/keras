@@ -193,6 +193,53 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertEqual(variable_layout.axes, [None])
 
 
+class ModelParallelDistributionTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.devices = ["CPU:{i}" for i in range(8)]
+        shape = (2, 4)
+        axis_names = ["data", "model"]
+
+        self.device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, self.devices
+        )
+
+    def test_distribute_weights(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
+        layout_map[".*bias"] = distribution_lib.TensorLayout(["model"])
+
+        distribution = distribution_lib.ModelParallel(
+            self.device_mesh, layout_map, batch_dim_name="data"
+        )
+        kernel = backend.Variable(initializer=np.arange(8, 4), name="kernel")
+        bias = backend.Variable(initializer=np.arange(4), name="bias")
+        rng_seed = backend.Variable(initializer=[0, 1], name="seed")
+
+        kernel_layout = distribution.get_variable_layout(kernel)
+        self.assertIs(kernel_layout.device_mesh, self.device_mesh)
+        self.assertEqual(kernel_layout.axes, [None, "model"])
+
+        bias_layout = distribution.get_variable_layout(bias)
+        self.assertIs(bias_layout.device_mesh, self.device_mesh)
+        self.assertEqual(bias_layout.axes, ["model"])
+
+        rng_seed_layout = distribution.get_variable_layout(rng_seed)
+        self.assertIs(rng_seed_layout.device_mesh, self.device_mesh)
+        self.assertEqual(rng_seed_layout.axes, [None])
+
+    def test_distribute_data(self):
+        layout_map = distribution_lib.LayoutMap(self.device_mesh)
+        distribution = distribution_lib.ModelParallel(
+            self.device_mesh, layout_map, batch_dim_name="data"
+        )
+
+        data = np.arange(16).reshape((4, 2, 2))
+        data_layout = distribution.get_data_layout(data.shape)
+        self.assertIs(data_layout.device_mesh, self.device_mesh)
+        self.assertEqual(data_layout.axes, ["data", None, None])
+
+
 class LayoutMapTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -345,7 +392,7 @@ class JaxDistributionLibTest(testing.TestCase):
         ):
             backend_dlib.to_jax_layout(layout)
 
-    def test_e2e_model(self):
+    def test_e2e_data_parallel_model(self):
         distribution = distribution_lib.DataParallel(
             devices=backend_dlib.list_devices()
         )
@@ -361,6 +408,45 @@ class JaxDistributionLibTest(testing.TestCase):
         # Make sure all the weights are properly sharded.
         for weight in model.weights:
             self.assertTrue(weight._value.sharding.is_fully_replicated)
+
+        inputs = np.random.normal(size=(32, 28, 28, 1))
+        labels = np.random.normal(size=(32, 10))
+
+        with distribution.scope():
+            model.compile(loss="mse")
+            model.fit(inputs, labels)
+
+    def test_e2e_model_parallel_model(self):
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+        device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, backend_dlib.list_devices()
+        )
+
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
+            [None, "model"]
+        )
+        layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
+
+        distribution = distribution_lib.ModelParallel(
+            device_mesh, layout_map, batch_dim_name="batch"
+        )
+        with distribution.scope():
+            inputs = layers.Input(shape=[28, 28, 1])
+            y = layers.Flatten()(inputs)
+            y = layers.Dense(units=200, use_bias=False, activation="relu")(y)
+            y = layers.Dropout(0.4)(y)
+            y = layers.Dense(units=10, activation="softmax")(y)
+            model = models.Model(inputs=inputs, outputs=y)
+
+        for weight in model.weights:
+            if "kernel" in weight.name:
+                self.assertEqual(weight._value.sharding.spec, (None, "model"))
+            elif "bias" in weight.name:
+                self.assertEqual(weight._value.sharding.spec, ("model",))
+            else:
+                self.assertTrue(weight._value.sharding.is_fully_replicated)
 
         inputs = np.random.normal(size=(32, 28, 28, 1))
         labels = np.random.normal(size=(32, 10))
