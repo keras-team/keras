@@ -2,6 +2,7 @@
 #   keras/distribute package is intended to serve as the centralized place for things
 #   related to dist-strat used by Keras..
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
@@ -187,6 +188,9 @@ cuda_py_test(
 distribute_py_test(
     name = "ctl_correctness_test",
     srcs = ["ctl_correctness_test.py"],
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "ctl_correctness_test.py",
     shard_count = 10,
     tags = [
@@ -285,12 +289,16 @@ distribute_py_test(
     size = "medium",
     srcs = ["keras_premade_models_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     full_precision = True,
     main = "keras_premade_models_test.py",
     shard_count = 8,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
+        "requires-mem:28g",  # spawns multiple processes.
     ],
     deps = [
         ":distribute_strategy_test_lib",
@@ -444,6 +452,9 @@ distribute_py_test(
     name = "keras_metrics_test",
     srcs = ["keras_metrics_test.py"],
     disable_mlir_bridge = False,
+    env = {
+        "CUDA_MODULE_LOADING": "LAZY",
+    },
     main = "keras_metrics_test.py",
     shard_count = 8,
     tags = [

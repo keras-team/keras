@@ -14,13 +14,5 @@
 # ==============================================================================
 """Keras' DTensor library."""
 
-_DTENSOR_API_ENABLED = True
 
-
-# Conditional import the dtensor API, since it is currently broken in OSS.
-if _DTENSOR_API_ENABLED:
-    from tensorflow.compat.v2.experimental import dtensor as dtensor_api
-else:
-    # Leave it with a placeholder, so that the import line from other python
-    # file will not break.
-    dtensor_api = None
+from tensorflow.compat.v2.experimental import dtensor as dtensor_api

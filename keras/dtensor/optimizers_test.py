@@ -89,7 +89,11 @@ class OptimizersTest(test_util.DTensorBaseTest):
         optimizer = adam.Adam(mesh=self.mesh)
 
         variable_init_value = tf.ones(shape=(), dtype=tf.float32)
-        model_variable = dtensor.DVariable(variable_init_value, trainable=True)
+        model_variable = dtensor.DVariable(
+            variable_init_value,
+            trainable=True,
+            layout=dtensor.Layout.replicated(self.mesh, rank=0),
+        )
         grads = tf.ones_like(variable_init_value)
 
         grad_and_var = zip([grads], [model_variable])

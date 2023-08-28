@@ -1,3 +1,5 @@
+# Placeholder: load unaliased py_library
+
 # Benchmarks for Keras preprocessing layers.
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
