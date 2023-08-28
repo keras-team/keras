@@ -462,7 +462,15 @@ def update_confusion_matrix_variables(
 
     if top_k is not None:
         y_pred = _filter_top_k(y_pred, top_k)
+
     if class_id is not None:
+        if len(y_pred.shape) == 1:
+            raise ValueError(
+                "When class_id is provided, y_pred must be a 2D array "
+                "with shape (num_samples, num_classes), found shape: "
+                f"{y_pred.shape}"
+            )
+
         # Preserve dimension to match with sample_weight
         y_true = y_true[..., class_id, None]
         y_pred = y_pred[..., class_id, None]

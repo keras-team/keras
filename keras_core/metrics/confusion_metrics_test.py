@@ -493,46 +493,38 @@ class PrecisionTest(testing.TestCase):
         expected_precision = tp / predicted_positives
         self.assertAlmostEqual(expected_precision, result)
 
-    def test_unweighted_class_id(self):
+    def test_unweighted_class_id_should_throw_error_1d(self):
         p_obj = metrics.Precision(class_id=2)
 
         y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
         y_true = np.array([0, 1, 1, 0, 0])
-        result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(0, p_obj.false_positives)
 
-        y_pred = np.array([0.2, 0.1, 0, 0, 0.2])
-        y_true = np.array([0, 1, 1, 0, 0])
-        result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(0, p_obj.false_positives)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"When class_id is provided, y_pred must be a 2D array "
+            r"with shape \(num_samples, num_classes\), found shape:.*"
+        ):
+            p_obj(y_true, y_pred)
 
-        y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
-        y_true = np.array([0, 1, 0, 0, 0])
-        result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(0.5, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(1, p_obj.false_positives)
+    def test_unweighted_class_id_multiclass(self):
+        p_obj = metrics.Precision(class_id=1)
 
-    def test_unweighted_top_k_and_class_id(self):
-        p_obj = metrics.Precision(class_id=2, top_k=2)
+        y_pred = np.array([[0.1, 0.2, 0.7],
+                           [0.5, 0.3, 0.2],
+                           [0.2, 0.6, 0.2],
+                           [0.7, 0.2, 0.1],
+                           [0.1, 0.1, 0.8]])
 
-        y_pred = np.array([0.2, 0.6, 0.3, 0, 0.2])
-        y_true = np.array([0, 1, 1, 0, 0])
-        result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(0, p_obj.false_positives)
+        y_true = np.array([[0., 0., 1.],
+                           [1., 0., 0.],
+                           [0., 1., 0.],
+                           [1., 0., 0.],
+                           [0., 0., 1.]])
 
-        y_pred = np.array([1, 1, 0.9, 1, 1])
-        y_true = np.array([0, 1, 1, 0, 0])
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(0, p_obj.false_positives)
+        self.assertAlmostEqual(1.0, result)
+        self.assertAlmostEqual(1.0, p_obj.true_positives)
+        self.assertAlmostEqual(0.0, p_obj.false_positives)
 
     def test_unweighted_top_k_and_threshold(self):
         p_obj = metrics.Precision(thresholds=0.7, top_k=2)
@@ -654,41 +646,38 @@ class RecallTest(testing.TestCase):
         expected_recall = tp / positives
         self.assertAlmostEqual(expected_recall, result)
 
-    def test_unweighted_class_id(self):
+    def test_unweighted_class_id_should_throw_error_1d(self):
         r_obj = metrics.Recall(class_id=2)
 
         y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
         y_true = np.array([0, 1, 1, 0, 0])
-        self.assertAlmostEqual(1, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(0, r_obj.false_negatives)
 
-        y_pred = np.array([0.2, 0.1, 0, 0, 0.2])
-        y_true = np.array([0, 1, 1, 0, 0])
-        self.assertAlmostEqual(0.5, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(1, r_obj.false_negatives)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"When class_id is provided, y_pred must be a 2D array "
+            r"with shape \(num_samples, num_classes\), found shape:.*"
+        ):
+            r_obj(y_true, y_pred)
 
-        y_pred = np.array([0.2, 0.1, 0.6, 0, 0.2])
-        y_true = np.array([0, 1, 0, 0, 0])
-        self.assertAlmostEqual(0.5, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(1, r_obj.false_negatives)
+    def test_unweighted_class_id_multiclass(self):
+        r_obj = metrics.Recall(class_id=1)
 
-    def test_unweighted_top_k_and_class_id(self):
-        r_obj = metrics.Recall(class_id=2, top_k=2)
+        y_pred = np.array([[0.1, 0.2, 0.7],
+                           [0.5, 0.3, 0.2],
+                           [0.2, 0.6, 0.2],
+                           [0.7, 0.2, 0.1],
+                           [0.1, 0.1, 0.8]])
 
-        y_pred = np.array([0.2, 0.6, 0.3, 0, 0.2])
-        y_true = np.array([0, 1, 1, 0, 0])
-        self.assertAlmostEqual(1, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(0, r_obj.false_negatives)
+        y_true = np.array([[0., 0., 1.],
+                           [1., 0., 0.],
+                           [0., 1., 0.],
+                           [1., 0., 0.],
+                           [0., 0., 1.]])
 
-        y_pred = np.array([1, 1, 0.9, 1, 1])
-        y_true = np.array([0, 1, 1, 0, 0])
-        self.assertAlmostEqual(0.5, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(1, r_obj.false_negatives)
+        result = r_obj(y_true, y_pred)
+        self.assertAlmostEqual(1.0, result)
+        self.assertAlmostEqual(1.0, r_obj.true_positives)
+        self.assertAlmostEqual(0.0, r_obj.false_negatives)
 
     def test_unweighted_top_k_and_threshold(self):
         r_obj = metrics.Recall(thresholds=0.7, top_k=2)
