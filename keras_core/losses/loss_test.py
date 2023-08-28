@@ -117,6 +117,34 @@ class LossTest(testing.TestCase):
             loss,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="Numpy backend does not support masking.",
+    )
+    def test_mask_and_sample_weight_rank2(self):
+        # check loss of inputs with duplicate rows doesn't change
+        sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
+        y_true = np.array([1.0, 0.0, 1.0, 0.0])
+        y_pred = np.array([0.1, 0.2, 0.3, 0.4])
+        mask = np.array([True, False, True, True])
+
+        mask = ops.convert_to_tensor(mask)
+        y_true = ops.convert_to_tensor(y_true)
+        y_pred = ops.convert_to_tensor(y_pred)
+        y_pred._keras_mask = mask
+
+        loss_fn = ExampleLoss()
+        rank1_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+
+        # duplicate rows
+        mask = ops.tile(ops.expand_dims(mask, axis=0), (2, 1))
+        y_true = ops.tile(ops.expand_dims(y_true, axis=0), (2, 1))
+        y_pred = ops.tile(ops.expand_dims(y_pred, axis=0), (2, 1))
+        sample_weight = ops.tile(ops.expand_dims(sample_weight, axis=0), (2, 1))
+        y_pred._keras_mask = mask
+        rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
+        self.assertAllClose(rank1_loss, rank2_loss)
+
     # @testing.parametrize(
     #     "uprank", ["mask", "sample_weight", "y_true", "y_pred"])
     # TODO: use parameterization decorator
