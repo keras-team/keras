@@ -117,19 +117,18 @@ def reset_logical_devices(device_type, count):
       device_type: The device_type to reset.
       count: numbers of virtual device to reset to.
     """
-    reset_context()
-    devices = tf.config.list_physical_devices(device_type)
-    if device_type.upper() == "CPU":
-        tf.config.set_logical_device_configuration(
-            devices[0],
-            [
-                tf.config.LogicalDeviceConfiguration(),
-            ]
-            * count,
+    if device_type.upper() not in ["CPU", "GPU"]:
+        raise ValueError(
+            "resetting logical device for non-supported device type: "
+            f"{device_type}"
         )
-    elif device_type.upper() == "GPU":
+    reset_context()
+
+    cpus = tf.config.list_physical_devices("CPU")
+    if device_type.upper() == "GPU":
+        gpus = tf.config.list_physical_devices(device_type)
         tf.config.set_logical_device_configuration(
-            devices[0],
+            gpus[0],
             [
                 tf.config.LogicalDeviceConfiguration(
                     memory_limit=_DEFAULT_GPU_MEMORY_LIMIT
@@ -137,11 +136,14 @@ def reset_logical_devices(device_type, count):
             ]
             * count,
         )
-    else:
-        dt = device_type
-        raise ValueError(
-            f"resetting logical device for non-supported device type: {dt}"
-        )
+    # Always config CPU mesh as the host mesh for DTensor
+    tf.config.set_logical_device_configuration(
+        cpus[0],
+        [
+            tf.config.LogicalDeviceConfiguration(),
+        ]
+        * count,
+    )
 
 
 def reset_dtensor():

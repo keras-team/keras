@@ -28,6 +28,6 @@ from keras.engine.training import Model
 from tensorflow.python import tf2
 from tensorflow.python.util.tf_export import keras_export
 
-__version__ = "2.14.0"
+__version__ = "2.15.0"
 
 keras_export("keras.__version__").export_constant(__name__, "__version__")

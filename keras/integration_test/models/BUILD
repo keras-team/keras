@@ -1,6 +1,8 @@
 # Description:
 #   Contains a collection of diverse Keras models to be used for integration tests.
 
+# Placeholder: load unaliased py_library
+
 package(
     # copybara:uncomment default_applicable_licenses = ["//keras:license"],
     default_visibility = [

@@ -1,6 +1,9 @@
 # Description:
 #   Contains Keras test utils and integration tests.
 
+# Placeholder: load unaliased py_library
+# Placeholder: load unaliased py_test
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 

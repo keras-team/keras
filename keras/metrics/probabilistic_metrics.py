@@ -60,7 +60,7 @@ class Poisson(base_metric.MeanMetricWrapper):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='categorical_crossentropy',
                   metrics=[tf.keras.metrics.Poisson()])
     ```
     """
@@ -98,7 +98,7 @@ class KLDivergence(base_metric.MeanMetricWrapper):
 
     ```python
     model.compile(optimizer='sgd',
-                  loss='mse',
+                  loss='categorical_crossentropy',
                   metrics=[tf.keras.metrics.KLDivergence()])
     ```
     """
@@ -143,7 +143,7 @@ class BinaryCrossentropy(base_metric.MeanMetricWrapper):
     ```python
     model.compile(
         optimizer='sgd',
-        loss='mse',
+        loss='binary_crossentropy',
         metrics=[tf.keras.metrics.BinaryCrossentropy()])
     ```
     """
@@ -213,7 +213,7 @@ class CategoricalCrossentropy(base_metric.MeanMetricWrapper):
     ```python
     model.compile(
       optimizer='sgd',
-      loss='mse',
+      loss='categorical_crossentropy',
       metrics=[tf.keras.metrics.CategoricalCrossentropy()])
     ```
     """
@@ -294,7 +294,7 @@ class SparseCategoricalCrossentropy(base_metric.MeanMetricWrapper):
     ```python
     model.compile(
       optimizer='sgd',
-      loss='mse',
+      loss='sparse_categorical_crossentropy',
       metrics=[tf.keras.metrics.SparseCategoricalCrossentropy()])
     ```
     """

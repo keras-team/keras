@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras Utilities (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -325,6 +326,26 @@ py_library(
     name = "timed_threads",
     srcs = ["timed_threads.py"],
     srcs_version = "PY3",
+)
+
+py_library(
+    name = "steps_per_execution_tuning",
+    srcs = ["steps_per_execution_tuning.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+    ],
+)
+
+tf_py_test(
+    name = "steps_per_execution_tuning_test",
+    srcs = ["steps_per_execution_tuning_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":steps_per_execution_tuning",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+    ],
 )
 
 tf_py_test(

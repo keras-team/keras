@@ -2209,7 +2209,7 @@ def categorical_crossentropy(
         )
 
     def _smooth_labels():
-        num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
+        num_classes = tf.cast(tf.shape(y_true)[axis], y_pred.dtype)
         return y_true * (1.0 - label_smoothing) + (
             label_smoothing / num_classes
         )

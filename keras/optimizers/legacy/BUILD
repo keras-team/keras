@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras OptimizerV2 API (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
@@ -8,6 +9,7 @@ package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
         "//keras:friends",
+        "//third_party/tensorflow/cc/saved_model:__pkg__",  # For unit tests.
         "//third_party/tensorflow/python/trackable:__pkg__",
     ],
     licenses = ["notice"],

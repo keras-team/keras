@@ -130,7 +130,6 @@ class Functional(training_lib.Model):
         itertools.chain(
             (
                 "_layer_call_argspecs",
-                "_compiled_trainable_state",
                 "_output_mask_cache",
                 "_output_tensor_cache",
                 "_output_shape_cache",
@@ -461,7 +460,11 @@ class Functional(training_lib.Model):
         dependencies.update(super()._trackable_children(save_type, **kwargs))
         return dependencies
 
-    def _lookup_dependency(self, name):
+    def _lookup_dependency(self, name, cached_dependencies=None):
+        if cached_dependencies:
+            return cached_dependencies.get(name)
+        # Fall back to slow lookup (`layer_checkpoint_dependencies` does a
+        # thorough check of all layer to see if they contain weights.)
         layer_dependencies = self._layer_checkpoint_dependencies
         if name in layer_dependencies:
             return layer_dependencies[name]

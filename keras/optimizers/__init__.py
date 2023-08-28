@@ -298,20 +298,11 @@ def get(identifier, **kwargs):
     ):
         return identifier
     elif isinstance(identifier, base_optimizer.Optimizer):
-        if tf.__internal__.tf2.enabled() and not is_arm_mac():
+        if tf.__internal__.tf2.enabled():
             return identifier
         else:
-            # If TF2 is disabled or on a M1 mac, we convert to the legacy
-            # optimizer. We observed a slowdown of optimizer on M1 Mac, so we
-            # fall back to the legacy optimizer for now, see b/263339144
-            # for more context.
-            optimizer_name = identifier.__class__.__name__
-            logging.warning(
-                "There is a known slowdown when using v2.11+ Keras optimizers "
-                "on M1/M2 Macs. Falling back to the "
-                "legacy Keras optimizer, i.e., "
-                f"`tf.keras.optimizers.legacy.{optimizer_name}`."
-            )
+            # If TF2 is disabled, we convert to the legacy
+            # optimizer.
             return convert_to_legacy_optimizer(identifier)
 
     # Wrap legacy TF optimizer instances
