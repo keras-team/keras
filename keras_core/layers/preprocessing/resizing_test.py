@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras_core import Sequential
 from keras_core import backend
@@ -89,72 +89,97 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
             run_training_check=False,
         )
 
-    @parameterized.parameters(
-        [
-            ((5, 7), "channels_first", True),
-            ((5, 7), "channels_last", True),
-            ((6, 8), "channels_first", False),
-            ((6, 8), "channels_last", False),
-        ]
-    )
-    def test_resizing_correctness(
-        self, size, data_format, crop_to_aspect_ratio
-    ):
-        # batched case
+    @parameterized.parameters([("channels_first",), ("channels_last",)])
+    def test_down_sampling_numeric(self, data_format):
+        img = np.reshape(np.arange(0, 16), (1, 4, 4, 1)).astype(np.float32)
         if data_format == "channels_first":
-            img = np.random.random((2, 3, 9, 11))
-        else:
-            img = np.random.random((2, 9, 11, 3))
+            img = img.transpose(0, 3, 1, 2)
         out = layers.Resizing(
-            size[0],
-            size[1],
-            data_format=data_format,
-            crop_to_aspect_ratio=crop_to_aspect_ratio,
+            height=2, width=2, interpolation="nearest", data_format=data_format
         )(img)
+        ref_out = (
+            np.asarray([[5, 7], [13, 15]])
+            .astype(np.float32)
+            .reshape((1, 2, 2, 1))
+        )
         if data_format == "channels_first":
-            img_transpose = np.transpose(img, (0, 2, 3, 1))
-
-            ref_out = tf.transpose(
-                tf.keras.layers.Resizing(
-                    size[0], size[1], crop_to_aspect_ratio=crop_to_aspect_ratio
-                )(img_transpose),
-                (0, 3, 1, 2),
-            )
-        else:
-            ref_out = tf.keras.layers.Resizing(
-                size[0], size[1], crop_to_aspect_ratio=crop_to_aspect_ratio
-            )(img)
+            ref_out = ref_out.transpose(0, 3, 1, 2)
         self.assertAllClose(ref_out, out)
 
-        # unbatched case
+    @parameterized.parameters([("channels_first",), ("channels_last",)])
+    def test_up_sampling_numeric(self, data_format):
+        img = np.reshape(np.arange(0, 4), (1, 2, 2, 1)).astype(np.float32)
         if data_format == "channels_first":
-            img = np.random.random((3, 9, 11))
-        else:
-            img = np.random.random((9, 11, 3))
+            img = img.transpose(0, 3, 1, 2)
         out = layers.Resizing(
-            size[0],
-            size[1],
+            height=4,
+            width=4,
+            interpolation="nearest",
             data_format=data_format,
-            crop_to_aspect_ratio=crop_to_aspect_ratio,
         )(img)
+        ref_out = (
+            np.asarray([[0, 0, 1, 1], [0, 0, 1, 1], [2, 2, 3, 3], [2, 2, 3, 3]])
+            .astype(np.float32)
+            .reshape((1, 4, 4, 1))
+        )
         if data_format == "channels_first":
-            img_transpose = np.transpose(img, (1, 2, 0))
-            ref_out = tf.transpose(
-                tf.keras.layers.Resizing(
-                    size[0], size[1], crop_to_aspect_ratio=crop_to_aspect_ratio
-                )(img_transpose),
-                (2, 0, 1),
+            ref_out = ref_out.transpose(0, 3, 1, 2)
+        self.assertAllClose(ref_out, out)
+
+    @parameterized.parameters([("channels_first",), ("channels_last",)])
+    def test_crop_to_aspect_ratio(self, data_format):
+        img = np.reshape(np.arange(0, 16), (1, 4, 4, 1)).astype("float32")
+        if data_format == "channels_first":
+            img = img.transpose(0, 3, 1, 2)
+        out = layers.Resizing(
+            height=4,
+            width=2,
+            interpolation="nearest",
+            data_format=data_format,
+            crop_to_aspect_ratio=True,
+        )(img)
+        ref_out = (
+            np.asarray(
+                [
+                    [1, 2],
+                    [5, 6],
+                    [9, 10],
+                    [13, 14],
+                ]
             )
-        else:
-            ref_out = tf.keras.layers.Resizing(
-                size[0], size[1], crop_to_aspect_ratio=crop_to_aspect_ratio
-            )(img)
+            .astype("float32")
+            .reshape((1, 4, 2, 1))
+        )
+        if data_format == "channels_first":
+            ref_out = ref_out.transpose(0, 3, 1, 2)
+        self.assertAllClose(ref_out, out)
+
+    @parameterized.parameters([("channels_first",), ("channels_last",)])
+    def test_unbatched_image(self, data_format):
+        img = np.reshape(np.arange(0, 16), (4, 4, 1)).astype("float32")
+        if data_format == "channels_first":
+            img = img.transpose(2, 0, 1)
+        out = layers.Resizing(
+            2, 2, interpolation="nearest", data_format=data_format
+        )(img)
+        ref_out = (
+            np.asarray(
+                [
+                    [5, 7],
+                    [13, 15],
+                ]
+            )
+            .astype("float32")
+            .reshape((2, 2, 1))
+        )
+        if data_format == "channels_first":
+            ref_out = ref_out.transpose(2, 0, 1)
         self.assertAllClose(ref_out, out)
 
     def test_tf_data_compatibility(self):
         layer = layers.Resizing(8, 9)
         input_data = np.random.random((2, 10, 12, 3))
-        ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
+        ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output = output.numpy()
         self.assertEqual(list(output.shape), [2, 8, 9, 3])
@@ -169,7 +194,7 @@ class ResizingTest(testing.TestCase, parameterized.TestCase):
         layer = layers.Resizing(8, 9)
         input_data = np.random.random((2, 10, 12, 3))
         ds = (
-            tf.data.Dataset.from_tensor_slices(input_data)
+            tf_data.Dataset.from_tensor_slices(input_data)
             .batch(2)
             .map(Sequential([layer]))
         )
