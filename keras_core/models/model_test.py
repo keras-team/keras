@@ -220,17 +220,16 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         hist = model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
         hist_keys = sorted(hist.history.keys())
         # TODO `tf.keras` also outputs individual losses for outputs
-        # TODO Align output names with 'bce', `mse`, `mae` of `tf.keras`
         ref_keys = sorted(
             [
                 "loss",
                 # "output_a_loss",
-                "output_a_binary_crossentropy",
-                "output_a_mean_absolute_error",
-                "output_a_mean_squared_error",
+                "output_a_bce",
+                "output_a_mae",
+                "output_a_mse",
                 "output_b_acc",
                 # "output_b_loss",
-                "output_b_mean_squared_error",
+                "output_b_mse",
             ]
         )
         self.assertListEqual(hist_keys, ref_keys)

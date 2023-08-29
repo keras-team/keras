@@ -198,7 +198,7 @@ class TestCompileMetrics(testing.TestCase):
 
     def test_name_conversions(self):
         compile_metrics = CompileMetrics(
-            metrics=["acc", "accuracy"],
+            metrics=["acc", "accuracy", "mse"],
             weighted_metrics=[],
         )
         y_true = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]])
@@ -207,9 +207,10 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics.update_state(y_true, y_pred, sample_weight=None)
         result = compile_metrics.result()
         self.assertTrue(isinstance(result, dict))
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 3)
         self.assertAllClose(result["acc"], 0.333333)
         self.assertAllClose(result["accuracy"], 0.333333)
+        self.assertTrue("mse" in result)
 
 
 class TestCompileLoss(testing.TestCase, parameterized.TestCase):

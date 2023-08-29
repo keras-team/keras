@@ -525,7 +525,9 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
                 assert keys == ["outputs"]
 
         model = ExampleModel(units=3)
-        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        model.compile(
+            optimizer="adam", loss="mse", metrics=["mean_absolute_error"]
+        )
         x = np.ones((16, 4))
         y = np.zeros((16, 3))
         x_test = np.ones((16, 4))
@@ -651,12 +653,16 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         inputs = layers.Input((2,))
         outputs = layers.Dense(3)(inputs)
         model = keras_core.Model(inputs, outputs)
-        model.compile(optimizer="sgd", loss="mse", metrics=["mse"])
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=["mean_squared_error"]
+        )
         history_1 = model.fit(np.ones((3, 2)), np.ones((3, 3))).history
         eval_out_1 = model.evaluate(
             np.ones((3, 2)), np.ones((3, 3)), return_dict=True
         )
-        model.compile(optimizer="sgd", loss="mse", metrics=["mae"])
+        model.compile(
+            optimizer="sgd", loss="mse", metrics=["mean_absolute_error"]
+        )
         history_2 = model.fit(np.ones((3, 2)), np.ones((3, 3))).history
         eval_out_2 = model.evaluate(
             np.ones((3, 2)), np.ones((3, 3)), return_dict=True
