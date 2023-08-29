@@ -436,7 +436,6 @@ class Layer(BackendLayer, Operation):
             name: String name of the variable. Useful
                 for debugging purposes.
         """
-        # TODO: handle layout
         self._check_super_called()
         initializer = initializers.get(initializer)
         with backend.name_scope(self.name, caller=self):

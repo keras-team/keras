@@ -751,6 +751,7 @@ class Arccosh(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
+@keras_core_export(["keras_core.ops.arccosh", "keras_core.ops.numpy.arccosh"])
 def arccosh(x):
     """Inverse hyperbolic cosine, element-wise.
 
