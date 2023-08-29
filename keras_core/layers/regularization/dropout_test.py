@@ -31,10 +31,6 @@ class DropoutTest(testing.TestCase):
         self.assertAllClose(np.mean(outputs), 1.0, atol=0.02)
         self.assertAllClose(np.max(outputs), 2.0)
 
-    @pytest.mark.skipif(
-        backend.backend() == "jax",
-        reason="JAX does not support dynamic shapes",
-    )
     def test_dropout_partial_noise_shape_dynamic(self):
         inputs = np.ones((20, 5, 10))
         layer = layers.Dropout(0.5, noise_shape=(None, 1, None))
