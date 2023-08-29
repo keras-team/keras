@@ -160,24 +160,24 @@ class RandomRotation(TFDataLayer):
     """
 
     def _get_rotation_matrix(self, inputs):
-        input_shape = len(inputs.shape)
-        if input_shape == 4:
+        shape = self.backend.core.shape(inputs)
+        if len(shape) == 4:
             if self.data_format == "channels_last":
-                batch_size = inputs.shape[0]
-                image_height = inputs.shape[1]
-                image_width = inputs.shape[2]
+                batch_size = shape[0]
+                image_height = shape[1]
+                image_width = shape[2]
             else:
-                batch_size = inputs.shape[1]
-                image_height = inputs.shape[2]
-                image_width = inputs.shape[3]
+                batch_size = shape[1]
+                image_height = shape[2]
+                image_width = shape[3]
         else:
             batch_size = 1
             if self.data_format == "channels_last":
-                image_height = inputs.shape[0]
-                image_width = inputs.shape[1]
+                image_height = shape[0]
+                image_width = shape[1]
             else:
-                image_height = inputs.shape[1]
-                image_width = inputs.shape[2]
+                image_height = shape[1]
+                image_width = shape[2]
 
         lower = self._factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
         upper = self._factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
@@ -215,7 +215,7 @@ class RandomRotation(TFDataLayer):
             ],
             axis=1,
         )
-        if input_shape == 3:
+        if len(shape) == 3:
             outputs = self.backend.numpy.squeeze(outputs, axis=0)
         return outputs
 
