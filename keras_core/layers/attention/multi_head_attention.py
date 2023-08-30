@@ -243,6 +243,7 @@ class MultiHeadAttention(Layer):
             activity_regularizer=self._activity_regularizer,
             kernel_constraint=self._kernel_constraint,
             bias_constraint=self._bias_constraint,
+            dtype=self.dtype_policy,
         )
         # Create new clone of kernel/bias initializer, so that we don't reuse
         # the initializer instance, which could lead to same init value since
@@ -311,8 +312,10 @@ class MultiHeadAttention(Layer):
                 attn_scores_rank - len(self._attention_axes), attn_scores_rank
             )
         )
-        self._softmax = Softmax(axis=norm_axes)
-        self._dropout_layer = Dropout(rate=self._dropout)
+        self._softmax = Softmax(axis=norm_axes, dtype=self.dtype_policy)
+        self._dropout_layer = Dropout(
+            rate=self._dropout, dtype=self.dtype_policy
+        )
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
     def _masked_softmax(self, attention_scores, attention_mask=None):
@@ -358,7 +361,9 @@ class MultiHeadAttention(Layer):
         # Note: Applying scalar multiply at the smaller end of einsum improves
         # XLA performance, but may introduce slight numeric differences in
         # the Transformer attention head.
-        query = ops.multiply(query, self._inverse_sqrt_key_dim)
+        query = ops.multiply(
+            query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
+        )
 
         # Take the dot product between "query" and "key" to get the raw
         # attention scores.

@@ -222,6 +222,8 @@ class Bidirectional(Wrapper):
         y_rev = self.backward_layer(
             backward_inputs, initial_state=backward_state, **kwargs
         )
+        y = ops.cast(y, self.compute_dtype)
+        y_rev = ops.cast(y_rev, self.compute_dtype)
 
         if self.return_state:
             states = y[1:] + y_rev[1:]

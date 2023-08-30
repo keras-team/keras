@@ -79,7 +79,7 @@ class SpectralNormalization(Wrapper):
             self.normalize_weights()
 
         output = self.layer(inputs)
-        return output
+        return ops.cast(output, inputs.dtype)
 
     def compute_output_shape(self, input_shape):
         return self.layer.compute_output_shape(input_shape)
