@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 import torch
 
+from keras_core import backend
 from keras_core import models
 from keras_core import testing
 from keras_core.utils.torch_utils import TorchModuleWrapper
@@ -15,6 +17,9 @@ class Classifier(models.Model):
         return self.fc(x)
 
 
+@pytest.mark.skipif(
+    backend.backend() != "torch", reason="Requires torch backend"
+)
 class TorchUtilsTest(testing.TestCase):
     def test_basic_usage(self):
         model = Classifier()

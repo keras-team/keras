@@ -171,19 +171,17 @@ class RandomZoom(TFDataLayer):
             return inputs
 
     def _randomly_zoom_inputs(self, inputs):
-        inputs_shape = self.backend.shape(inputs)
-        unbatched = len(inputs_shape) == 3
+        unbatched = len(inputs.shape) == 3
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
-            inputs_shape = self.backend.shape(inputs)
 
-        batch_size = inputs_shape[0]
+        batch_size = self.backend.shape(inputs)[0]
         if self.data_format == "channels_first":
-            height = inputs_shape[-2]
-            width = inputs_shape[-1]
+            height = inputs.shape[-2]
+            width = inputs.shape[-1]
         else:
-            height = inputs_shape[-3]
-            width = inputs_shape[-2]
+            height = inputs.shape[-3]
+            width = inputs.shape[-2]
 
         seed_generator = self._get_seed_generator(self.backend._backend)
         height_zoom = self.backend.random.uniform(
@@ -227,8 +225,8 @@ class RandomZoom(TFDataLayer):
         #      [0 0 1]]
         # where the last entry is implicit.
         # zoom matrices are always float32.
-        x_offset = ((float(image_width) - 1.0) / 2.0) * (1.0 - zooms[:, 0:1])
-        y_offset = ((float(image_height) - 1.0) / 2.0) * (1.0 - zooms[:, 1:])
+        x_offset = ((image_width - 1.0) / 2.0) * (1.0 - zooms[:, 0:1])
+        y_offset = ((image_height - 1.0) / 2.0) * (1.0 - zooms[:, 1:])
         return self.backend.numpy.concatenate(
             [
                 zooms[:, 0:1],

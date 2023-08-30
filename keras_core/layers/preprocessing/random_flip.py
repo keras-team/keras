@@ -48,13 +48,10 @@ class RandomFlip(TFDataLayer):
         self._allow_non_tensor_positional_args = True
 
     def _randomly_flip_inputs(self, inputs):
-        inputs_shape = self.backend.shape(inputs)
-        unbatched = len(inputs_shape) == 3
+        unbatched = len(inputs.shape) == 3
         if unbatched:
             inputs = self.backend.numpy.expand_dims(inputs, axis=0)
-            inputs_shape = self.backend.shape(inputs)
-
-        batch_size = inputs_shape[0]
+        batch_size = self.backend.shape(inputs)[0]
         flipped_outputs = inputs
         seed_generator = self._get_seed_generator(self.backend._backend)
         if self.mode == HORIZONTAL or self.mode == HORIZONTAL_AND_VERTICAL:
