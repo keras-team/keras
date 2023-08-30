@@ -127,7 +127,6 @@ class TorchModuleWrapper(Layer):
     def __init__(self, module, name=None):
         super().__init__(name=name)
         self.module = module
-        import torch
         import torch.nn as nn
 
         # self.device = "cuda" if torch.cuda.is_available() else "cpu"
