@@ -23,6 +23,8 @@ class HashedCrossingTest(testing.TestCase):
             expected_num_losses=0,
             supports_masking=False,
             run_training_check=False,
+            # Incomplete op support on tensorflow.
+            run_mixed_precision_check=False,
         )
         self.run_layer_test(
             layers.HashedCrossing,
@@ -35,6 +37,8 @@ class HashedCrossingTest(testing.TestCase):
             expected_num_losses=0,
             supports_masking=False,
             run_training_check=False,
+            # Incomplete op support on tensorflow.
+            run_mixed_precision_check=False,
         )
 
     def test_correctness(self):

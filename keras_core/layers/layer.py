@@ -739,10 +739,20 @@ class Layer(BackendLayer, Operation):
         # 7. Call the layer.
         try:
             with backend.name_scope(self.name, caller=self):
-                if self.autocast and self.compute_dtype != self.variable_dtype:
-                    # For mixed precision, we automatically cast layer variables
-                    # (float ones only) to the compute dtype upon access.
-                    with backend.AutocastScope(self.compute_dtype):
+                current_scope = backend.get_autocast_scope()
+                new_scope = None
+                if current_scope is not None:
+                    # Clear or update the current scope if necessary.
+                    if not self.autocast:
+                        new_scope = backend.AutocastScope(None)
+                    elif current_scope.dtype != self.compute_dtype:
+                        new_scope = backend.AutocastScope(self.compute_dtype)
+                elif self.compute_dtype != self.variable_dtype:
+                    # Enter a new scope if our dtypes are "mixed".
+                    new_scope = backend.AutocastScope(self.compute_dtype)
+
+                if new_scope is not None:
+                    with new_scope:
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)

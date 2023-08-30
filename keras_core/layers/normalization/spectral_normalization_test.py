@@ -28,6 +28,7 @@ class SpectralNormalizationTest(testing.TestCase):
             layers.Conv2D(
                 1, (2, 2), kernel_initializer=initializers.Constant(value=1)
             ),
+            power_iterations=8,
         )
 
         result = sn_wrapper(images, training=False)

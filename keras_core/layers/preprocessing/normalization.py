@@ -164,14 +164,12 @@ class Normalization(Layer):
             self.adapt_mean = self.add_weight(
                 name="mean",
                 shape=mean_and_var_shape,
-                dtype=self.compute_dtype,
                 initializer="zeros",
                 trainable=False,
             )
             self.adapt_variance = self.add_weight(
                 name="variance",
                 shape=mean_and_var_shape,
-                dtype=self.compute_dtype,
                 initializer="ones",
                 trainable=False,
             )

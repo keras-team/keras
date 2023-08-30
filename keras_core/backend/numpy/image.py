@@ -101,6 +101,11 @@ def affine_transform(
             f"transform.shape={transform.shape}"
         )
 
+    # scipy.ndimage.map_coordinates lacks support for half precision.
+    input_dtype = image.dtype
+    if input_dtype == "float16":
+        image = image.astype("float32")
+
     # unbatched case
     need_squeeze = False
     if len(image.shape) == 3:
@@ -165,4 +170,6 @@ def affine_transform(
         affined = np.transpose(affined, (0, 3, 1, 2))
     if need_squeeze:
         affined = np.squeeze(affined, axis=0)
+    if input_dtype == "float16":
+        affined = affined.astype(input_dtype)
     return affined
