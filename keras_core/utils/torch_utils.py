@@ -1,12 +1,9 @@
-import torch
-import torch.nn as nn
-
 import keras_core
-from keras_core.layers import Layer
 from keras_core.api_export import keras_core_export
+from keras_core.layers import Layer
 
 
-@keras_core_export(["keras_core.utils.torch_utils.TorchModuleWrapper"])
+@keras_core_export(["keras_core.utils.TorchModuleWrapper"])
 class TorchModuleWrapper(Layer):
     """Torch module wrapper layer.
 
@@ -128,21 +125,26 @@ class TorchModuleWrapper(Layer):
     )
     model.fit(train_loader, epochs=5)
     ```
-
     """
 
     def __init__(self, module, name=None):
         super().__init__(name=name)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.module = module.to(self.device)
-        self.lazy = isinstance(self.module, nn.modules.lazy.LazyModuleMixin)
-        if not self.lazy:
-            self.track_module_parameters()
+        self.module = module
+        import torch
+        import torch.nn as nn
+
+        # self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # self.module = module.to(self.device)
+        self._is_lazy_module = isinstance(
+            self.module, nn.modules.lazy.LazyModuleMixin
+        )
+        if not self._is_lazy_module:
+            self._track_module_parameters()
 
     def parameters(self, recurse=True):
-        return self.module.parameters(recurse=not self.lazy)
+        return self.module.parameters(recurse=recurse)
 
-    def track_module_parameters(self):
+    def _track_module_parameters(self):
         from keras_core.backend.torch import Variable
 
         for param in self.module.parameters():
@@ -154,13 +156,8 @@ class TorchModuleWrapper(Layer):
         self.built = True
 
     def build(self, *args, **kwargs):
-        if not self.lazy:
-            self._build_by_run_for_single_pos_arg(args)
-            self._build_by_run_for_kwargs(kwargs)
-        else:
-            # sample_input = torch.ones(*input_shape).to("cuda")
-            # _ = self.module(sample_input)
-            _ = keras_core.backend.torch.core.compute_output_spec(self.__call__)
+        if self._is_lazy_module:
+            self._build_by_run(*args, **kwargs)
         self.track_module_parameters()
 
     def call(self, inputs, **kwargs):

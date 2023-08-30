@@ -1168,6 +1168,17 @@ class Layer(BackendLayer, Operation):
                 )
             )
 
+    def _build_by_run(self, *args, **kwargs):
+        call_spec = CallSpec(self._call_signature, args, kwargs)
+        shapes_dict = get_shapes_dict(call_spec)
+        if len(shapes_dict) == 1:
+            success = self._build_by_run_for_single_pos_arg(
+                tuple(shapes_dict.values())[0]
+            )
+        else:
+            success = self._build_by_run_for_kwargs(shapes_dict)
+        return success
+
     def _build_by_run_for_single_pos_arg(self, input_shape):
         # Case: all inputs are in the first arg (possibly nested).
         input_tensors = map_shape_structure(
