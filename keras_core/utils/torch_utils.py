@@ -1,9 +1,6 @@
-import keras_core
-from keras_core.api_export import keras_core_export
 from keras_core.layers import Layer
 
 
-@keras_core_export(["keras_core.utils.TorchModuleWrapper"])
 class TorchModuleWrapper(Layer):
     """Torch module wrapper layer.
 
