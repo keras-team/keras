@@ -143,7 +143,9 @@ def _get_subclassed_model(compile=True):
 
 
 def _get_custom_sequential_model(compile=True):
-    sequential_model = keras_core.Sequential([MyDense(1), MyDense(1)])
+    sequential_model = keras_core.Sequential(
+        [MyDense(1), MyDense(1)], name="sequential"
+    )
     if compile:
         sequential_model.compile(
             optimizer="adam",
@@ -158,7 +160,8 @@ def _get_basic_sequential_model(compile=True):
         [
             keras_core.layers.Dense(1, name="dense_1"),
             keras_core.layers.Dense(1, name="dense_2"),
-        ]
+        ],
+        name="sequential",
     )
     if compile:
         sequential_model.compile(
