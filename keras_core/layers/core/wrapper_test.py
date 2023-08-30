@@ -1,7 +1,6 @@
 import pytest
 
 from keras_core import layers
-from keras_core import ops
 from keras_core import testing
 
 
@@ -9,7 +8,7 @@ class ExampleWrapper(layers.Wrapper):
     """Simple Wrapper subclass."""
 
     def call(self, inputs, **kwargs):
-        return ops.cast(self.layer(inputs, **kwargs), self.compute_dtype)
+        return self.layer(inputs, **kwargs)
 
 
 class WrapperTest(testing.TestCase):

@@ -18,7 +18,7 @@ class VariableMappingTest(testing.TestCase):
         model.build((None, 1))
         model.optimizer.build(model.trainable_variables)
         variable_map = model._get_variable_map()
-        self.assertIn("dense_1/bias", variable_map)
+        self.assertIn("sequential/dense_1/bias", variable_map)
         self.assertIn("adam/learning_rate", variable_map)
 
         model = saving_lib_test._get_subclassed_model()

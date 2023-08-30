@@ -236,7 +236,7 @@ class BatchNormalization(Layer):
             beta = ops.reshape(self.beta, broadcast_shape)
             beta = ops.cast(beta, outputs.dtype)
             outputs = outputs + beta
-        return ops.cast(outputs, input_dtype)
+        return outputs
 
     def get_config(self):
         base_config = super().get_config()

@@ -18,6 +18,7 @@ And some more magic:
 import collections
 import inspect
 import warnings
+from functools import wraps
 
 import tree
 
@@ -205,6 +206,22 @@ class Layer(BackendLayer, Operation):
     assert my_sum.trainable_weights == []
     ```
     """
+
+    def __new__(cls, *args, **kwargs):
+        # Wrap the user-provided build method in the build_decorator
+        # to add name scope support and serialization support.
+        obj = super().__new__(cls, *args, **kwargs)
+
+        original_build_method = obj.build
+
+        @wraps(original_build_method)
+        def build_wrapper(*args, **kwargs):
+            with backend.name_scope(obj.name, caller=obj):
+                original_build_method(*args, **kwargs)
+            obj.built = True
+
+        obj.build = build_wrapper
+        return obj
 
     def __init__(
         self,
@@ -739,20 +756,10 @@ class Layer(BackendLayer, Operation):
         # 7. Call the layer.
         try:
             with backend.name_scope(self.name, caller=self):
-                current_scope = backend.get_autocast_scope()
-                new_scope = None
-                if current_scope is not None:
-                    # Clear or update the current scope if necessary.
-                    if not self.autocast:
-                        new_scope = backend.AutocastScope(None)
-                    elif current_scope.dtype != self.compute_dtype:
-                        new_scope = backend.AutocastScope(self.compute_dtype)
-                elif self.compute_dtype != self.variable_dtype:
-                    # Enter a new scope if our dtypes are "mixed".
-                    new_scope = backend.AutocastScope(self.compute_dtype)
-
-                if new_scope is not None:
-                    with new_scope:
+                if self.autocast and self.compute_dtype != self.variable_dtype:
+                    # For mixed precision, we automatically cast layer variables
+                    # (float ones only) to the compute dtype upon access.
+                    with backend.AutocastScope(self.compute_dtype):
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)

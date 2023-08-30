@@ -9,8 +9,6 @@ import tree
 from keras_core import backend
 from keras_core import ops
 from keras_core import utils
-from keras_core.backend.common import is_float_dtype
-from keras_core.backend.common import standardize_dtype
 from keras_core.models import Model
 from keras_core.utils import traceback_utils
 
@@ -125,7 +123,6 @@ class TestCase(unittest.TestCase):
         expected_mask_shape=None,
         custom_objects=None,
         run_training_check=True,
-        run_mixed_precision_check=True,
     ):
         """Run basic checks on a layer.
 
@@ -162,8 +159,6 @@ class TestCase(unittest.TestCase):
                 considered during deserialization.
             run_training_check: Whether to attempt to train the layer
                 (if an input shape or input data was provided).
-            run_mixed_precision_check: Whether to test the layer with a mixed
-                precision dtype policy.
         """
         if input_shape is not None and input_data is not None:
             raise ValueError(
@@ -341,27 +336,6 @@ class TestCase(unittest.TestCase):
 
             if run_training_check:
                 run_training_step(layer, input_data, output_data)
-
-            # Never test mixed precision on torch CPU. Torch lacks support.
-            if run_mixed_precision_check and backend.backend() == "torch":
-                import torch
-
-                run_mixed_precision_check = torch.cuda.is_available()
-
-            if run_mixed_precision_check:
-                layer = layer_cls(**{**init_kwargs, "dtype": "mixed_float16"})
-                if isinstance(input_data, dict):
-                    output_data = layer(**input_data, **call_kwargs)
-                else:
-                    output_data = layer(input_data, **call_kwargs)
-                for tensor in tree.flatten(output_data):
-                    dtype = standardize_dtype(tensor.dtype)
-                    if is_float_dtype(dtype):
-                        self.assertEqual(dtype, "float16")
-                for weight in layer.weights:
-                    dtype = standardize_dtype(weight.dtype)
-                    if is_float_dtype(dtype):
-                        self.assertEqual(dtype, "float32")
 
 
 def create_keras_tensors(input_shape, dtype):

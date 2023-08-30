@@ -4,10 +4,13 @@ from keras_core import backend
 from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
-from keras_core.layers.rnn.dropout_rnn_cell import DropoutRNNCell
 from keras_core.layers.rnn.stacked_rnn_cells import StackedRNNCells
 from keras_core.saving import serialization_lib
 from keras_core.utils import tracking
+
+
+class DropoutRNNCellMixin:
+    pass
 
 
 @keras_core_export("keras_core.layers.RNN")
@@ -302,7 +305,7 @@ class RNN(Layer):
             init_state = get_initial_state_fn(batch_size=batch_size)
         else:
             return [
-                ops.zeros((batch_size, d), dtype=self.cell.compute_dtype)
+                ops.zeros((batch_size, d), dtype=self.compute_dtype)
                 for d in self.state_size
             ]
 
@@ -384,9 +387,7 @@ class RNN(Layer):
         # Note that states may be deeply nested
         # (e.g. in the stacked cells case).
         initial_state = tree.map_structure(
-            lambda x: backend.convert_to_tensor(
-                x, dtype=self.cell.compute_dtype
-            ),
+            lambda x: backend.convert_to_tensor(x, dtype=self.compute_dtype),
             initial_state,
         )
 
@@ -395,11 +396,6 @@ class RNN(Layer):
             initial_state=initial_state,
             mask=mask,
             training=training,
-        )
-        last_output = ops.cast(last_output, self.compute_dtype)
-        outputs = ops.cast(outputs, self.compute_dtype)
-        states = tree.map_structure(
-            lambda x: ops.cast(x, dtype=self.compute_dtype), states
         )
         self._maybe_reset_dropout_masks(self.cell)
 
@@ -422,7 +418,7 @@ class RNN(Layer):
         return output
 
     def _maybe_reset_dropout_masks(self, cell):
-        if isinstance(cell, DropoutRNNCell):
+        if isinstance(cell, DropoutRNNCellMixin):
             cell.reset_dropout_mask()
             cell.reset_recurrent_dropout_mask()
         if isinstance(cell, StackedRNNCells):

@@ -67,7 +67,6 @@ class RandomContrast(TFDataLayer):
                 minval=1.0 - self.lower,
                 maxval=1.0 + self.upper,
                 seed=seed_generator,
-                dtype=self.compute_dtype,
             )
 
             outputs = self._adjust_constrast(inputs, factor)
