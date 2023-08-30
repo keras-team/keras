@@ -142,6 +142,7 @@ class LayerNormalization(Layer):
         self.gamma_constraint = constraints.get(gamma_constraint)
 
         self.supports_masking = True
+        self.autocast = False
 
     def build(self, input_shape):
         if isinstance(self.axis, list):
