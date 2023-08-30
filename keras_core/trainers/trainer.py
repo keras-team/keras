@@ -18,6 +18,7 @@ class Trainer:
         self._run_eagerly = False
         self._jit_compile = None
         self.compiled = False
+        self.loss = None
         self.steps_per_execution = 1
 
     @traceback_utils.filter_traceback
@@ -42,6 +43,7 @@ class Trainer:
             self._compile_loss = CompileLoss(
                 loss, loss_weights, output_names=output_names
             )
+            self.loss = loss
         else:
             self._compile_loss = None
         if metrics is not None or weighted_metrics is not None:
