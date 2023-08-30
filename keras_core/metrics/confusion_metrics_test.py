@@ -502,24 +502,32 @@ class PrecisionTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"When class_id is provided, y_pred must be a 2D array "
-            r"with shape \(num_samples, num_classes\), found shape:.*"
+            r"with shape \(num_samples, num_classes\), found shape:.*",
         ):
             p_obj(y_true, y_pred)
 
     def test_unweighted_class_id_multiclass(self):
         p_obj = metrics.Precision(class_id=1)
 
-        y_pred = np.array([[0.1, 0.2, 0.7],
-                           [0.5, 0.3, 0.2],
-                           [0.2, 0.6, 0.2],
-                           [0.7, 0.2, 0.1],
-                           [0.1, 0.1, 0.8]])
+        y_pred = np.array(
+            [
+                [0.1, 0.2, 0.7],
+                [0.5, 0.3, 0.2],
+                [0.2, 0.6, 0.2],
+                [0.7, 0.2, 0.1],
+                [0.1, 0.1, 0.8],
+            ]
+        )
 
-        y_true = np.array([[0., 0., 1.],
-                           [1., 0., 0.],
-                           [0., 1., 0.],
-                           [1., 0., 0.],
-                           [0., 0., 1.]])
+        y_true = np.array(
+            [
+                [0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
 
         result = p_obj(y_true, y_pred)
         self.assertAlmostEqual(1.0, result)
@@ -655,24 +663,32 @@ class RecallTest(testing.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             r"When class_id is provided, y_pred must be a 2D array "
-            r"with shape \(num_samples, num_classes\), found shape:.*"
+            r"with shape \(num_samples, num_classes\), found shape:.*",
         ):
             r_obj(y_true, y_pred)
 
     def test_unweighted_class_id_multiclass(self):
         r_obj = metrics.Recall(class_id=1)
 
-        y_pred = np.array([[0.1, 0.2, 0.7],
-                           [0.5, 0.3, 0.2],
-                           [0.2, 0.6, 0.2],
-                           [0.7, 0.2, 0.1],
-                           [0.1, 0.1, 0.8]])
+        y_pred = np.array(
+            [
+                [0.1, 0.2, 0.7],
+                [0.5, 0.3, 0.2],
+                [0.2, 0.6, 0.2],
+                [0.7, 0.2, 0.1],
+                [0.1, 0.1, 0.8],
+            ]
+        )
 
-        y_true = np.array([[0., 0., 1.],
-                           [1., 0., 0.],
-                           [0., 1., 0.],
-                           [1., 0., 0.],
-                           [0., 0., 1.]])
+        y_true = np.array(
+            [
+                [0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
 
         result = r_obj(y_true, y_pred)
         self.assertAlmostEqual(1.0, result)

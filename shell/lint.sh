@@ -1,9 +1,11 @@
-#!/bin/bash -e
+#!/bin/bash
+set -Eeuo pipefail
 
 base_dir=$(dirname $(dirname $0))
-targets="${base_dir}/*.py ${base_dir}/keras_core/"
 
-isort --sp "${base_dir}/pyproject.toml" -c ${targets}
-black --config "${base_dir}/pyproject.toml" --check ${targets}
+isort --sp "${base_dir}/pyproject.toml" --check .
 
-flake8 --config "${base_dir}/setup.cfg" ${targets}
+black --config "${base_dir}/pyproject.toml" --check .
+
+flake8 --config "${base_dir}/setup.cfg" .
+

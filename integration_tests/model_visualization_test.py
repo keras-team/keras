@@ -27,7 +27,7 @@ def plot_sequential_model():
     )
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -35,7 +35,7 @@ def plot_sequential_model():
     )
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -44,7 +44,7 @@ def plot_sequential_model():
     )
     plot_model(
         model,
-        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",
+        "sequential-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -94,7 +94,7 @@ def plot_functional_model():
     )
     plot_model(
         model,
-        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",
+        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -102,7 +102,7 @@ def plot_functional_model():
     )
     plot_model(
         model,
-        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",
+        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -111,7 +111,7 @@ def plot_functional_model():
     )
     plot_model(
         model,
-        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",
+        "functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -164,7 +164,7 @@ def plot_subclassed_model():
     )
     plot_model(
         model,
-        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",
+        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -172,7 +172,7 @@ def plot_subclassed_model():
     )
     plot_model(
         model,
-        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",
+        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -181,7 +181,7 @@ def plot_subclassed_model():
     )
     plot_model(
         model,
-        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",
+        "subclassed-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -249,7 +249,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",
+        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -258,7 +258,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",
+        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -268,7 +268,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",
+        "nested-functional-show_shapes-show_dtype-show_layer_names-show_layer_activations-show_trainable-LR.png",  # noqa: E501
         show_shapes=True,
         show_dtype=True,
         show_layer_names=True,
@@ -286,7 +286,7 @@ def plot_nested_functional_model():
     )
     plot_model(
         model,
-        "nested-functional-show_shapes-show_layer_activations-show_trainable.png",
+        "nested-functional-show_shapes-show_layer_activations-show_trainable.png",  # noqa: E501
         show_shapes=True,
         show_layer_activations=True,
         show_trainable=True,

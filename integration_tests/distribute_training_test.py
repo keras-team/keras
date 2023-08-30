@@ -3,8 +3,8 @@ import tensorflow as tf
 
 from keras_core import layers
 from keras_core import losses
-from keras_core import models
 from keras_core import metrics
+from keras_core import models
 from keras_core import optimizers
 from keras_core.utils import rng_utils
 
@@ -43,8 +43,8 @@ def test_model_fit():
             optimizer=optimizers.SGD(learning_rate=0.001, momentum=0.01),
             loss=losses.MeanSquaredError(),
             metrics=[metrics.MeanSquaredError()],
-            # TODO(scottzhu): Find out where is the variable that is not created eagerly
-            # and break the usage of XLA.
+            # TODO(scottzhu): Find out where is the variable
+            #  that is not created eagerly and break the usage of XLA.
             jit_compile=False,
         )
         history = model.fit(
