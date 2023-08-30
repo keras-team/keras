@@ -154,13 +154,12 @@ class Functional(Function, Model):
             self.trainable = trainable
 
         self._layers = self.layers
-        self.built = True
+        self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
-        self._post_build()
 
     @property
     def layers(self):

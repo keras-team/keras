@@ -9,10 +9,6 @@ class TFLayer(tf.__internal__.tracking.AutoTrackable):
         self._saved_model_inputs_spec = None
         self._saved_model_arg_spec = None
 
-    def _post_build(self):
-        """Can be overriden to perform post-build actions."""
-        pass
-
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
         """Defines the save spec so that serialization can trace layer calls.
