@@ -61,9 +61,12 @@ def distribute_value(value, tensor_layout):
 
     Args:
         value: `jax.Array` that need to be distributed.
-        tensor_layout: `TensorLayout` for the distribution information.
+        tensor_layout: `TensorLayout` for the distribution information, or a
+            `jax.sharding.Sharding` instance.
 
     Returns:
         Distributed value.
     """
-    return jax.device_put(value, to_jax_layout(tensor_layout))
+    if not isinstance(tensor_layout, jax.sharding.Sharding):
+        tensor_layout = to_jax_layout(tensor_layout)
+    return jax.device_put(value, tensor_layout)

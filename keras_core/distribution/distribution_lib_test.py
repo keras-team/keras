@@ -392,6 +392,44 @@ class JaxDistributionLibTest(testing.TestCase):
         ):
             backend_dlib.to_jax_layout(layout)
 
+    def test_variable_assignment_reuse_layout(self):
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+        device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, backend_dlib.list_devices()
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
+            [None, "model"]
+        )
+        layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
+
+        distribution = distribution_lib.ModelParallel(
+            device_mesh, layout_map, batch_dim_name="batch"
+        )
+
+        with distribution.scope():
+            dense_layer = layers.Dense(8)
+            dense_layer.build((16, 16))
+
+        self.assertEqual(
+            dense_layer.kernel._value.sharding.spec, (None, "model")
+        )
+        self.assertEqual(dense_layer.bias._value.sharding.spec, ("model",))
+
+        # Assign a numpy value to dense layer to mimic the model weight loading
+        new_kernel = np.random.normal(size=(16, 8))
+        new_bias = np.random.normal(size=(8))
+        dense_layer.kernel.assign(new_kernel)
+        dense_layer.bias.assign(new_bias)
+
+        # Make sure the loaded value still use the layout when it is
+        # initialized, even outside of the distribution scope.
+        self.assertEqual(
+            dense_layer.kernel._value.sharding.spec, (None, "model")
+        )
+        self.assertEqual(dense_layer.bias._value.sharding.spec, ("model",))
+
     def test_e2e_data_parallel_model(self):
         distribution = distribution_lib.DataParallel(
             devices=backend_dlib.list_devices()

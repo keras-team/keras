@@ -24,11 +24,16 @@ class Variable(KerasVariable):
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if distribution is not None:
-            layout = distribution.get_variable_layout(self)
-            value = distribution_lib.distribute_value(value, layout)
-        self._value = value
+            self._layout = distribution_lib.to_jax_layout(
+                distribution.get_variable_layout(self)
+            )
+        else:
+            self._layout = None
+        self._direct_assign(value)
 
     def _direct_assign(self, value):
+        if getattr(self, "_layout", None) is not None:
+            value = distribution_lib.distribute_value(value, self._layout)
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
