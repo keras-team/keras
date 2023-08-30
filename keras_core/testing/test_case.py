@@ -253,9 +253,9 @@ class TestCase(unittest.TestCase):
                 elif isinstance(expected_output_shape, list):
                     self.assertTrue(isinstance(output, list))
                     self.assertEqual(
-                        len(output.keys()),
+                        len(output),
                         len(
-                            expected_output_shape.keys(),
+                            expected_output_shape,
                             msg="Unexpected number of outputs",
                         ),
                     )
