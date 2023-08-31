@@ -282,6 +282,13 @@ def stft(
     else:
         win = torch.ones((sequence_length,), dtype=x.dtype, device=get_device())
 
+    need_unpack = False
+    *batch_shape, samples = x.shape
+    if len(x.shape) > 2:
+        need_unpack = True
+        flat_batchsize = math.prod(batch_shape)
+        x = torch.reshape(x, (flat_batchsize, samples))
+
     x = torch.stft(
         x,
         n_fft=fft_length,
@@ -291,6 +298,10 @@ def stft(
         center=center,
         return_complex=True,
     )
+    if need_unpack:
+        fft_unique_bins, num_sequences = x.shape[-2:]
+        x = torch.reshape(x, (*batch_shape, fft_unique_bins, num_sequences))
+
     x = torch.swapaxes(x, -2, -1)
     return x.real, x.imag
 
@@ -304,36 +315,68 @@ def istft(
     window="hann",
     center=True,
 ):
-    # ref:
-    # torch: aten/src/ATen/native/SpectralOps.cpp
-    # tf: tf.signal.inverse_stft_window_fn
-    x = irfft(x, fft_length)
-
-    expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
-
+    complex_input = _get_complex_tensor_from_tuple(x)
+    dtype = complex_input.real.dtype
+    win = None
     if window is not None:
         if isinstance(window, str):
             if window == "hann":
                 win = torch.hann_window(
                     sequence_length,
                     periodic=True,
-                    dtype=x.dtype,
+                    dtype=dtype,
                     device=get_device(),
                 )
             else:
                 win = torch.hamming_window(
                     sequence_length,
                     periodic=True,
-                    dtype=x.dtype,
+                    dtype=dtype,
                     device=get_device(),
                 )
         else:
-            win = convert_to_tensor(window, dtype=x.dtype)
+            win = convert_to_tensor(window, dtype=dtype)
         if len(win.shape) != 1 or win.shape[-1] != sequence_length:
             raise ValueError(
                 "The shape of `window` must be equal to [sequence_length]."
                 f"Received: window shape={win.shape}"
             )
+
+    if sequence_length == fft_length and center is True and win is not None:
+        # can be falled back to torch.istft
+        need_unpack = False
+        *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
+        if len(complex_input.shape) > 3:
+            need_unpack = True
+            flat_batchsize = math.prod(batch_shape)
+            complex_input = torch.reshape(
+                complex_input, (flat_batchsize, num_sequences, fft_unique_bins)
+            )
+        complex_input = torch.swapaxes(complex_input, -2, -1)
+        x = torch.istft(
+            complex_input,
+            n_fft=fft_length,
+            hop_length=sequence_stride,
+            win_length=sequence_length,
+            window=win,
+            center=center,
+            length=length,
+            return_complex=False,
+        )
+        if need_unpack:
+            samples = x.shape[-1]
+            x = torch.reshape(x, (*batch_shape, samples))
+        return x
+
+    # custom implementation with irfft and _overlap_sequences
+    # references:
+    # torch: aten/src/ATen/native/SpectralOps.cpp
+    # tf: tf.signal.inverse_stft_window_fn
+    x = irfft(x, fft_length)
+
+    expected_output_len = fft_length + sequence_stride * (x.shape[-2] - 1)
+
+    if win is not None:
         l_pad = (fft_length - sequence_length) // 2
         r_pad = fft_length - sequence_length - l_pad
         win = pad(win, [[l_pad, r_pad]], "constant")

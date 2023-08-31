@@ -746,8 +746,8 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
         self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
 
-        # Test 2D case.
-        x = np.random.random((3, 32))
+        # Test N-D case.
+        x = np.random.random((2, 3, 32))
         real_output, imag_output = kmath.stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
@@ -794,16 +794,16 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax"):
-            # numpy and jax have different implementation for the boundary of
+        if backend.backend() in ("numpy", "jax", "torch"):
+            # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% befroe assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]
             ref = ref[..., truncated_len:-truncated_len]
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
-        # Test 2D case.
-        x = np.random.random((3, 256))
+        # Test N-D case.
+        x = np.random.random((2, 3, 256))
         real_x, imag_x = _stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
@@ -823,8 +823,8 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax"):
-            # numpy and jax have different implementation for the boundary of
+        if backend.backend() in ("numpy", "jax", "torch"):
+            # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% befroe assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
             output = output[..., truncated_len:-truncated_len]

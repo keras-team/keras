@@ -6,10 +6,13 @@ from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 from keras_core.backend.common.backend_utils import (
+    _convert_conv_tranpose_padding_args_from_keras_to_torch,
+)
+from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras_core.backend.common.backend_utils import (
-    compute_conv_transpose_padding,
+    compute_conv_transpose_padding_args_for_jax,
 )
 
 
@@ -290,16 +293,15 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             data_format,
             dilation_rate,
         )
-        (h_pad,) = compute_conv_transpose_padding(
-            x.shape,
-            kernel_weights.shape,
-            strides,
-            padding,
-            output_padding,
-            data_format,
-            dilation_rate,
+        jax_padding = compute_conv_transpose_padding_args_for_jax(
+            input_shape=x.shape,
+            kernel_shape=kernel_weights.shape,
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            dilation_rate=dilation_rate,
         )
-        h_pad_side1 = h_kernel - 1 - h_pad[0]
+        h_pad_side1 = h_kernel - 1 - jax_padding[0][0]
 
         if h_dilation > 1:
             # Increase kernel size
@@ -366,17 +368,16 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             data_format,
             dilation_rate,
         )
-        h_pad, w_pad = compute_conv_transpose_padding(
-            x.shape,
-            kernel_weights.shape,
-            strides,
-            padding,
-            output_padding,
-            data_format,
-            dilation_rate,
+        jax_padding = compute_conv_transpose_padding_args_for_jax(
+            input_shape=x.shape,
+            kernel_shape=kernel_weights.shape,
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            dilation_rate=dilation_rate,
         )
-        h_pad_side1 = h_kernel - 1 - h_pad[0]
-        w_pad_side1 = w_kernel - 1 - w_pad[0]
+        h_pad_side1 = h_kernel - 1 - jax_padding[0][0]
+        w_pad_side1 = w_kernel - 1 - jax_padding[1][0]
 
         if h_dilation > 1 or w_dilation > 1:
             # Increase kernel size
@@ -458,18 +459,17 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             data_format,
             dilation_rate,
         )
-        h_pad, w_pad, d_pad = compute_conv_transpose_padding(
-            x.shape,
-            kernel_weights.shape,
-            strides,
-            padding,
-            output_padding,
-            data_format,
-            dilation_rate,
+        jax_padding = compute_conv_transpose_padding_args_for_jax(
+            input_shape=x.shape,
+            kernel_shape=kernel_weights.shape,
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            dilation_rate=dilation_rate,
         )
-        h_pad_side1 = h_kernel - 1 - h_pad[0]
-        w_pad_side1 = w_kernel - 1 - w_pad[0]
-        d_pad_side1 = d_kernel - 1 - d_pad[0]
+        h_pad_side1 = h_kernel - 1 - jax_padding[0][0]
+        w_pad_side1 = w_kernel - 1 - jax_padding[1][0]
+        d_pad_side1 = d_kernel - 1 - jax_padding[2][0]
 
         if h_dilation > 1 or w_dilation > 1 or d_dilation > 1:
             # Increase kernel size
@@ -749,3 +749,89 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
             dilation_rate,
         )
         self.assertAllClose(outputs, expected, atol=1e-5)
+
+    @parameterized.product(
+        kernel_size=list(range(1, 5)),
+        strides=list(range(1, 5)),
+        padding=["same", "valid"],
+        output_padding=[None] + list(range(1, 5)),
+    )
+    def test_conv1d_transpose_consistency(
+        self, kernel_size, strides, padding, output_padding
+    ):
+        """Test conv transpose, on an 1D array of size 3, against several
+        convolution parameters. In particular, tests if Torch inconsistencies
+        are raised.
+        """
+
+        # output_padding cannot be greater than strides
+        if isinstance(output_padding, int) and output_padding >= strides:
+            pytest.skip(
+                "`output_padding` greater than `strides` is not supported"
+            )
+
+        input = np.ones(shape=(1, 3, 1))
+        kernel_weights = np.arange(1, kernel_size + 1).reshape(
+            (kernel_size, 1, 1)
+        )
+
+        # Exepected result
+        expected_res = self.np_conv1d_transpose(
+            x=input,
+            kernel_weights=kernel_weights,
+            bias_weights=np.zeros(shape=(1,)),
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            data_format="channels_last",
+            dilation_rate=1,
+        )
+
+        # keras-core layer
+        kc_layer = layers.Conv1DTranspose(
+            filters=1,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            dilation_rate=1,
+        )
+        kc_layer.build(input_shape=(1, 3, 1))
+        kc_layer.kernel.assign(kernel_weights)
+
+        # Special cases for Torch
+        if backend.backend() == "torch":
+            # The following set of arguments lead to Torch output padding to be
+            # greater than strides, which is not supported by Torch.
+            # An error is raised.
+            if (kernel_size, strides, padding, output_padding) in [
+                (2, 1, "same", None),
+                (4, 1, "same", None),
+            ]:
+                with pytest.raises(ValueError):
+                    kc_res = kc_layer(input)
+                return
+
+            # When both torch_padding and torch_output_padding are greater
+            # than 0, Torch outputs are inconsistent with the ones from
+            # Tensorflow. A warning is raised, and we expect the results to be
+            # different.
+            (
+                torch_padding,
+                torch_output_padding,
+            ) = _convert_conv_tranpose_padding_args_from_keras_to_torch(
+                kernel_size=kernel_size,
+                stride=strides,
+                dilation_rate=1,
+                padding=padding,
+                output_padding=output_padding,
+            )
+            if torch_padding > 0 and torch_output_padding > 0:
+                with pytest.raises(AssertionError):
+                    kc_res = kc_layer(input)
+                    self.assertAllClose(expected_res, kc_res, atol=1e-5)
+                return
+
+        # Compare results
+        kc_res = kc_layer(input)
+        self.assertAllClose(expected_res, kc_res, atol=1e-5)
