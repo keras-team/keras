@@ -52,16 +52,6 @@ class FunctionalTest(testing.TestCase):
         self.assertAllClose(out_val, np.ones((2, 3)))
 
     @pytest.mark.requires_trainable_backend
-    def test_mutable_state(self):
-        inputs = Input(shape=(3,), batch_size=2, name="input")
-        x = layers.Dense(5)(inputs)
-        outputs = layers.Dense(5)(x)
-        model = Functional(inputs, outputs)
-        # Allow attaching state to a model that isn't directly part of the DAG.
-        # Most useful for functional subclasses.
-        model.extra_layer = layers.Dense(5)
-
-    @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_output(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         x = layers.Dense(5)(inputs)

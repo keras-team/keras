@@ -5,6 +5,7 @@ import numpy as np
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.backend.common import global_state
+from keras_core.utils import jax_utils
 
 
 @keras_core_export("keras_core.random.SeedGenerator")
@@ -90,45 +91,21 @@ class SeedGenerator:
 
 
 def global_seed_generator():
+    if jax_utils.is_in_jax_tracing_scope():
+        raise ValueError(
+            "When tracing a JAX function, "
+            "you should only use seeded random ops, e.g. "
+            "you should create a `SeedGenerator` instance, attach it "
+            "to your layer/model, and pass the instance as the `seed` "
+            "argument when calling random ops. Unseeded random ops "
+            "would get incorrectly traced by JAX and would become constant "
+            "after tracing."
+        )
     gen = global_state.get_global_attribute("global_seed_generator")
     if gen is None:
         gen = SeedGenerator()
         global_state.set_global_attribute("global_seed_generator", gen)
     return gen
-
-
-@keras_core_export("keras_core.random.global_rng_state")
-def global_rng_state():
-    """Returns the state variable for the default global RNG.
-
-    Returns:
-        A `KerasVariable` with shape `(2,)` and dtype `uint32`.
-
-    This is the global state used by unseeded (`seed=None`) Keras
-    random ops, e.g. `keras_core.random.normal(shape=(), seed=None)`.
-
-    In JAX, if you're using unseeded random ops, be mindful that
-    their outputs will be unchanged across different calls of
-    a traced function (e.g. a `jax.jit`-transformed function) since
-    traced functions in JAX are fully stateless. To get
-    different outputs across different calls, you will need to pass the
-    global RNG state in and out of the function boundary, like this:
-
-    ```python
-    @jax.jit
-    def random_numbers(seed):
-        rng_state = keras_core.random.global_rng_state()
-        rng_state.assign(seed)
-        x = keras_core.random.normal((), seed=None)
-        y = keras_core.random.normal((), seed=None)
-        return x, y, rng_state.value
-
-    seed = jax.numpy.array([0, 0])
-    x, y, seed = random_numbers(seed)
-    new_x, new_y, seed = random_numbers(seed)
-    ```
-    """
-    return global_seed_generator().state
 
 
 def make_default_seed():

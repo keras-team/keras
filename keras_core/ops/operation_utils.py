@@ -222,18 +222,20 @@ def reduce_shape(shape, axis=None, keepdims=False):
     shape = list(shape)
     if axis is None:
         if keepdims:
-            return tuple([1 for _ in shape])
+            output_shape = [1 for _ in range(shape)]
         else:
-            return tuple([])
+            output_shape = []
+        return output_shape
 
     if keepdims:
         for ax in axis:
             shape[ax] = 1
-        return tuple(shape)
+        return shape
     else:
-        for ax in sorted(axis, reverse=True):
-            del shape[ax]
-        return tuple(shape)
+        for ax in axis:
+            shape[ax] = -1
+        output_shape = list(filter((-1).__ne__, shape))
+        return output_shape
 
 
 @keras_core_export("keras_core.utils.get_source_inputs")

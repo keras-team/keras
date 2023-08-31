@@ -4,7 +4,7 @@ import torch.nn.functional as tnn
 
 from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_torch,
+    compute_conv_transpose_padding,
 )
 from keras_core.backend.config import epsilon
 from keras_core.backend.torch.core import cast
@@ -446,32 +446,40 @@ def conv_transpose(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = standardize_data_format(data_format)
-    (
-        torch_padding,
-        torch_output_padding,
-    ) = compute_conv_transpose_padding_args_for_torch(
-        input_shape=inputs.shape,
-        kernel_shape=kernel.shape,
-        strides=strides,
-        padding=padding,
-        output_padding=output_padding,
-        dilation_rate=dilation_rate,
+    padding_values = compute_conv_transpose_padding(
+        inputs.shape,
+        kernel.shape,
+        strides,
+        padding,
+        output_padding,
+        data_format,
+        dilation_rate,
     )
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
     kernel_spatial_shape = kernel.shape[2:]
+    padding_arg = []
+    output_padding_arg = []
     if isinstance(dilation_rate, int):
         dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
+    for i, value in enumerate(padding_values):
+        both_side_padding = value[0]
+        longer_side_padding = value[1] - value[0]
+        padding_arg.append(
+            dilation_rate[i] * (kernel_spatial_shape[i] - 1)
+            - both_side_padding,
+        )
+        output_padding_arg.append(longer_side_padding)
 
     if num_spatial_dims == 1:
         outputs = tnn.conv_transpose1d(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 2:
@@ -479,8 +487,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 3:
@@ -488,8 +496,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=padding_arg,
+            output_padding=output_padding_arg,
             dilation=dilation_rate,
         )
     else:

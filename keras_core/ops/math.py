@@ -691,6 +691,11 @@ class STFT(Operation):
         self.center = center
 
     def compute_output_spec(self, x):
+        if len(x.shape) not in {1, 2}:
+            raise ValueError(
+                f"Input should have rank 1 (single sequence) or 2 "
+                f"(batched sequences). Received: input shape = {x.shape}"
+            )
         if x.shape[-1] is not None:
             padded = 0 if self.center is False else (self.fft_length // 2) * 2
             num_sequences = (

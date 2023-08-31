@@ -154,22 +154,33 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         x = random.randint((3, 5), 0, 10, seed=rng)
         self.assertTrue(isinstance(x, jnp.ndarray))
 
+    @pytest.mark.skipif(
+        keras_core.backend.backend() != "jax",
+        reason="This test requires `jax` as the backend.",
+    )
+    def test_jax_unseed_disallowed_during_tracing(self):
+        import jax
+
+        @jax.jit
+        def jit_fn():
+            return random.randint((2, 2), 0, 10, seed=None)
+
+        with self.assertRaisesRegex(
+            ValueError, "you should only use seeded random ops"
+        ):
+            jit_fn()
+
     def test_global_seed_generator(self):
         # Check that unseeded RNG calls use and update global_rng_state()
-        # and that this works across traced function boundaries
 
         def random_numbers(seed):
-            rng_state = seed_generator.global_rng_state()
+            rng_state = seed_generator.global_seed_generator().state
             rng_state.assign(seed)
             x = random.normal((), seed=None)
             y = random.normal((), seed=None)
             return x, y, rng_state.value
 
-        if backend.backend() == "jax":
-            import jax
-
-            random_numbers = jax.jit(random_numbers)
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             import tensorflow as tf
 
             random_numbers = tf.function(jit_compile=True)(random_numbers)
@@ -204,4 +215,4 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertGreater(np.abs(y1 - y3), 1e-4)
         self.assertGreater(np.abs(y2 - y3), 1e-4)
 
-        seed_generator.global_rng_state().assign(seed)
+        seed_generator.global_seed_generator().state.assign(seed)
