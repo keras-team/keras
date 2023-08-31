@@ -123,17 +123,18 @@ class RandomBrightness(TFDataLayer):
             return inputs
 
     def _randomly_adjust_brightness(self, images):
-        rank = len(images.shape)
+        images_shape = self.backend.shape(images)
+        rank = len(images_shape)
         if rank == 3:
             rgb_delta_shape = (1, 1, 1)
         elif rank == 4:
             # Keep only the batch dim. This will ensure to have same adjustment
             # with in one image, but different across the images.
-            rgb_delta_shape = [self.backend.shape(images)[0], 1, 1, 1]
+            rgb_delta_shape = [images_shape[0], 1, 1, 1]
         else:
             raise ValueError(
                 "Expected the input image to be rank 3 or 4. Received "
-                f"inputs.shape={images.shape}"
+                f"inputs.shape={images_shape}"
             )
 
         seed_generator = self._get_seed_generator(self.backend._backend)

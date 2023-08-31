@@ -178,6 +178,8 @@ class RandomRotation(TFDataLayer):
             else:
                 image_height = shape[1]
                 image_width = shape[2]
+        image_height = float(image_height)
+        image_width = float(image_width)
 
         lower = self._factor[0] * 2.0 * self.backend.convert_to_tensor(np.pi)
         upper = self._factor[1] * 2.0 * self.backend.convert_to_tensor(np.pi)
