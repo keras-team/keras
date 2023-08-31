@@ -256,3 +256,12 @@ class Operation:
             return values[0]
         else:
             return values
+
+    # Hooks for backend layer classes
+    def _post_build(self):
+        """Can be overridden for per backend post build actions."""
+        pass
+
+    def _setattr_hook(self, name, value):
+        """Can be overridden for per backend post build actions."""
+        return name, value

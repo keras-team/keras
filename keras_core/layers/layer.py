@@ -361,10 +361,6 @@ class Layer(BackendLayer, Operation):
             )
         self.built = True
 
-    def _post_build(self):
-        """Can be overridden for per backend post build actions."""
-        pass
-
     def _lock_state(self):
         """Prevent further state updates, called automatically in `build()`."""
         if not self._tracker.locked:
@@ -1229,6 +1225,7 @@ class Layer(BackendLayer, Operation):
 
     def __setattr__(self, name, value):
         # Track Variables, Layers, Metrics, SeedGenerators.
+        name, value = self._setattr_hook(name, value)
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
         elif name != "_tracker":

@@ -24,3 +24,17 @@ class TorchLayer(torch.nn.Module):
 
     def forward(self, *args, **kwargs):
         return Operation.__call__(self, *args, **kwargs)
+
+    def _setattr_hook(self, name, value):
+        from keras_core.layers import Layer
+
+        if (
+            isinstance(value, torch.nn.Module)
+            and not isinstance(value, Layer)
+            and not name == "torch_params"
+        ):
+            from keras_core.utils.torch_utils import TorchModuleWrapper
+
+            if not isinstance(self, TorchModuleWrapper):
+                value = TorchModuleWrapper(value)
+        return name, value
