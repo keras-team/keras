@@ -161,6 +161,12 @@ class Functional(Function, Model):
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
 
+    def _lock_state(self):
+        # Unlike other layers, we allow Functional state to be mutable after
+        # build. E.g. to attach a layer to a model that is not part of the
+        # functional DAG.
+        pass
+
     @property
     def layers(self):
         layers = []
