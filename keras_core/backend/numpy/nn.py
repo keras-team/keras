@@ -5,7 +5,7 @@ from jax import numpy as jnp
 
 from keras_core.backend import standardize_data_format
 from keras_core.backend.common.backend_utils import (
-    compute_conv_transpose_padding,
+    compute_conv_transpose_padding_args_for_jax,
 )
 from keras_core.backend.config import epsilon
 from keras_core.backend.numpy.core import cast
@@ -372,14 +372,13 @@ def conv_transpose(
 ):
     data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
-    padding_values = compute_conv_transpose_padding(
-        inputs.shape,
-        kernel.shape,
-        strides,
-        padding,
-        output_padding,
-        data_format,
-        dilation_rate,
+    padding_values = compute_conv_transpose_padding_args_for_jax(
+        input_shape=inputs.shape,
+        kernel_shape=kernel.shape,
+        strides=strides,
+        padding=padding,
+        output_padding=output_padding,
+        dilation_rate=dilation_rate,
     )
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
