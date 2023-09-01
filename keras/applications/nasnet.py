@@ -424,6 +424,10 @@ def NASNetMobile(
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
     """
+    # If no input_shape is passed we will move forward with default tuple
+    if (include_top == False) and (input_shape == None):
+        input_shape = (224,224,3)
+
     return NASNet(
         input_shape,
         penultimate_filters=1056,
