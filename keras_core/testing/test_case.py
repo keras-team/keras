@@ -236,7 +236,7 @@ class TestCase(unittest.TestCase):
                         msg="Unexpected output shape",
                     )
                 elif isinstance(expected_output_shape, dict):
-                    self.assertTrue(isinstance(output, dict))
+                    self.assertIsInstance(output, dict)
                     self.assertEqual(
                         set(output.keys()),
                         set(expected_output_shape.keys()),
@@ -251,7 +251,7 @@ class TestCase(unittest.TestCase):
                         msg="Unexpected output shape",
                     )
                 elif isinstance(expected_output_shape, list):
-                    self.assertTrue(isinstance(output, list))
+                    self.assertIsInstance(output, list)
                     self.assertEqual(
                         len(output),
                         len(

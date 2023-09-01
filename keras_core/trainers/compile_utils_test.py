@@ -35,14 +35,14 @@ class TestCompileMetrics(testing.TestCase):
             y_true, y_pred, sample_weight=sample_weight
         )
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 2)
         self.assertAllClose(result["mean_squared_error"], 0.055833336)
         self.assertAllClose(result["weighted_mean_squared_error"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 2)
         self.assertAllClose(result["mean_squared_error"], 0.0)
         self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
@@ -98,14 +98,14 @@ class TestCompileMetrics(testing.TestCase):
             y_true, y_pred, sample_weight=sample_weight
         )
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 8)
         self.assertAllClose(result["mean_squared_error"], 0.055833336)
         self.assertAllClose(result["weighted_mean_squared_error"], 0.0725)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 8)
         self.assertAllClose(result["mean_squared_error"], 0.0)
         self.assertAllClose(result["weighted_mean_squared_error"], 0.0)
@@ -167,7 +167,7 @@ class TestCompileMetrics(testing.TestCase):
             y_true, y_pred, sample_weight=sample_weight
         )
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 8)
         # Result values obtained from `tf.keras`
         # m = tf.keras.metrics.MeanSquaredError()
@@ -189,7 +189,7 @@ class TestCompileMetrics(testing.TestCase):
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 8)
         self.assertAllClose(result["output_1_mean_squared_error"], 0.0)
         self.assertAllClose(result["output_2_mean_squared_error"], 0.0)
@@ -206,7 +206,7 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics.build(y_true, y_pred)
         compile_metrics.update_state(y_true, y_pred, sample_weight=None)
         result = compile_metrics.result()
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertEqual(len(result), 3)
         self.assertAllClose(result["acc"], 0.333333)
         self.assertAllClose(result["accuracy"], 0.333333)

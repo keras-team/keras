@@ -17,9 +17,9 @@ class OptimizerTest(testing.TestCase):
 
     def test_get_method(self):
         obj = optimizers.get("sgd")
-        self.assertTrue(isinstance(obj, optimizers.SGD))
+        self.assertIsInstance(obj, optimizers.SGD)
         obj = optimizers.get("adamw")
-        self.assertTrue(isinstance(obj, optimizers.AdamW))
+        self.assertIsInstance(obj, optimizers.AdamW)
 
         obj = optimizers.get(None)
         self.assertEqual(obj, None)

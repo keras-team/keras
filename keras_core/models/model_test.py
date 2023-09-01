@@ -69,7 +69,7 @@ def _get_model_multi_outputs_dict():
 class ModelTest(testing.TestCase, parameterized.TestCase):
     def test_functional_rerouting(self):
         model = _get_model()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
 
     def test_json_serialization(self):
         model = _get_model()
@@ -113,7 +113,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
         new_model = Model.from_config(
             config, custom_objects={"CustomDense": CustomDense}
         )
-        self.assertTrue(isinstance(new_model, Functional))
+        self.assertIsInstance(new_model, Functional)
 
     @parameterized.named_parameters(
         ("single_output_1", _get_model_single_output, None),
@@ -131,7 +131,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
     )
     def test_functional_single_output(self, model_fn, loss_type):
         model = model_fn()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         loss = "mean_squared_error"
         if loss_type == "list":
             loss = [loss]
@@ -172,7 +172,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_list_losses(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -203,7 +203,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_list_losses_abbr(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -236,7 +236,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_nested_list_losses(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -267,7 +267,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_dict_outputs_dict_losses(self):
         model = _get_model_multi_outputs_dict()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -313,7 +313,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_losses_metrics(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -353,7 +353,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_losses_metrics_uniq_weighted(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -394,7 +394,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_losses_partial_metrics(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -425,7 +425,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_losses_invalid_keys(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -446,7 +446,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_losses_no_output_names(self):
         model = _get_model_multi_outputs_list_no_output_names()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -464,7 +464,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_dict_metrics_invalid_keys(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -488,7 +488,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_dict_outputs_dict_losses_invalid_keys(self):
         model = _get_model_multi_outputs_dict()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -509,7 +509,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_dict_outputs_dict_metrics_invalid_keys(self):
         model = _get_model_multi_outputs_dict()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))
@@ -533,7 +533,7 @@ class ModelTest(testing.TestCase, parameterized.TestCase):
 
     def test_functional_list_outputs_invalid_nested_list_losses(self):
         model = _get_model_multi_outputs_list()
-        self.assertTrue(isinstance(model, Functional))
+        self.assertIsInstance(model, Functional)
         x = np.random.rand(8, 3)
         y1 = np.random.rand(8, 1)
         y2 = np.random.randint(0, 2, (8, 1))

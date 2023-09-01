@@ -221,7 +221,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         output = model.evaluate(x, y, batch_size=batch_size)
         self.assertAllClose(output, [16.0, 16.0])
         output = model.evaluate(x, y, batch_size=batch_size, return_dict=True)
-        self.assertTrue(isinstance(output, dict))
+        self.assertIsInstance(output, dict)
         self.assertIn("loss", output)
         self.assertIn("mean_squared_error", output)
         self.assertAllClose(output["mean_squared_error"], 16.0)
@@ -255,7 +255,7 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         }
         batch_size = 16
         outputs = model.predict(x, batch_size=batch_size)
-        self.assertTrue(isinstance(outputs, dict))
+        self.assertIsInstance(outputs, dict)
         self.assertEqual(len(outputs), 2)
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
@@ -366,27 +366,27 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             jit_compile=jit_compile,
         )
         logs = model.train_on_batch(x, y)
-        self.assertTrue(isinstance(logs, list))
+        self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs[0], 16.0)
 
         logs = model.train_on_batch(x, y, return_dict=True)
-        self.assertTrue(isinstance(logs, dict))
+        self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs["loss"], 15.579)
 
         logs = model.test_on_batch(x, y)
-        self.assertTrue(isinstance(logs, list))
+        self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs[0], 15.173)
 
         logs = model.test_on_batch(x, y, return_dict=True)
-        self.assertTrue(isinstance(logs, dict))
+        self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs["loss"], 14.97)
 
         output = model.predict_on_batch(x)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertIsInstance(output, np.ndarray)
         self.assertAllClose(output[0], np.array([3.789511, 3.789511, 3.789511]))
 
         # With sample weights
@@ -420,16 +420,16 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
             jit_compile=jit_compile,
         )
         output = model.predict_on_batch(x)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertIsInstance(output, np.ndarray)
         self.assertAllClose(output[0], np.array([4.0, 4.0, 4.0]))
 
         logs = model.test_on_batch(x, y)
-        self.assertTrue(isinstance(logs, list))
+        self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs[0], 16.0)
 
         logs = model.test_on_batch(x, y, return_dict=True)
-        self.assertTrue(isinstance(logs, dict))
+        self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
         self.assertAlmostEqual(logs["loss"], 16.0)
 

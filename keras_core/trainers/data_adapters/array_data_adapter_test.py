@@ -51,8 +51,8 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         for i, batch in enumerate(gen):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, np.ndarray))
-            self.assertTrue(isinstance(by, np.ndarray))
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, backend.floatx())
             if i < 2:
@@ -65,8 +65,8 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, tf.Tensor))
-            self.assertTrue(isinstance(by, tf.Tensor))
+            self.assertIsInstance(bx, tf.Tensor)
+            self.assertIsInstance(by, tf.Tensor)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, backend.floatx())
             if i < 2:
@@ -94,18 +94,18 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         for i, batch in enumerate(gen):
             self.assertEqual(len(batch), 3)
             bx, by, bw = batch
-            self.assertTrue(isinstance(bx, dict))
+            self.assertIsInstance(bx, dict)
             # NOTE: the y list was converted to a tuple for tf.data
             # compatibility.
-            self.assertTrue(isinstance(by, tuple))
-            self.assertTrue(isinstance(bw, tuple))
+            self.assertIsInstance(by, tuple)
+            self.assertIsInstance(bw, tuple)
 
-            self.assertTrue(isinstance(bx["x1"], np.ndarray))
-            self.assertTrue(isinstance(bx["x2"], np.ndarray))
-            self.assertTrue(isinstance(by[0], np.ndarray))
-            self.assertTrue(isinstance(by[1], np.ndarray))
-            self.assertTrue(isinstance(bw[0], np.ndarray))
-            self.assertTrue(isinstance(bw[1], np.ndarray))
+            self.assertIsInstance(bx["x1"], np.ndarray)
+            self.assertIsInstance(bx["x2"], np.ndarray)
+            self.assertIsInstance(by[0], np.ndarray)
+            self.assertIsInstance(by[1], np.ndarray)
+            self.assertIsInstance(bw[0], np.ndarray)
+            self.assertIsInstance(bw[1], np.ndarray)
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
             self.assertEqual(bx["x1"].dtype, backend.floatx())
@@ -125,18 +125,18 @@ class TestArrayDataAdapter(testing.TestCase, parameterized.TestCase):
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 3)
             bx, by, bw = batch
-            self.assertTrue(isinstance(bx, dict))
+            self.assertIsInstance(bx, dict)
             # NOTE: the y list was converted to a tuple for tf.data
             # compatibility.
-            self.assertTrue(isinstance(by, tuple))
-            self.assertTrue(isinstance(bw, tuple))
+            self.assertIsInstance(by, tuple)
+            self.assertIsInstance(bw, tuple)
 
-            self.assertTrue(isinstance(bx["x1"], tf.Tensor))
-            self.assertTrue(isinstance(bx["x2"], tf.Tensor))
-            self.assertTrue(isinstance(by[0], tf.Tensor))
-            self.assertTrue(isinstance(by[1], tf.Tensor))
-            self.assertTrue(isinstance(bw[0], tf.Tensor))
-            self.assertTrue(isinstance(bw[1], tf.Tensor))
+            self.assertIsInstance(bx["x1"], tf.Tensor)
+            self.assertIsInstance(bx["x2"], tf.Tensor)
+            self.assertIsInstance(by[0], tf.Tensor)
+            self.assertIsInstance(by[1], tf.Tensor)
+            self.assertIsInstance(bw[0], tf.Tensor)
+            self.assertIsInstance(bw[1], tf.Tensor)
 
             self.assertEqual(bx["x1"].dtype, by[0].dtype)
             self.assertEqual(bx["x1"].dtype, backend.floatx())

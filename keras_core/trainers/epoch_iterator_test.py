@@ -28,9 +28,9 @@ class TestEpochIterator(testing.TestCase):
             steps_seen.append(step)
             self.assertEqual(len(batch), 3)
             if return_type == "np":
-                self.assertTrue(isinstance(batch[0], np.ndarray))
+                self.assertIsInstance(batch[0], np.ndarray)
             else:
-                self.assertTrue(isinstance(batch[0], tf.Tensor))
+                self.assertIsInstance(batch[0], tf.Tensor)
         self.assertEqual(steps_seen, [0, 1, 2, 3, 4, 5, 6])
 
     def test_basic_flow_np(self):

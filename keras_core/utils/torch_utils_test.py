@@ -45,7 +45,7 @@ class TorchUtilsTest(testing.TestCase):
     )
     def test_module_autowrapping(self):
         model = ClassifierWithNoSpecialCasing()
-        self.assertTrue(isinstance(model.fc, TorchModuleWrapper))
+        self.assertIsInstance(model.fc, TorchModuleWrapper)
         self.assertFalse(isinstance(model.fc2, TorchModuleWrapper))
         self.assertEqual(len(model.fc.trainable_weights), 2)
         model(np.random.random((3, 2)))

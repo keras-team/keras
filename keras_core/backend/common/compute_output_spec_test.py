@@ -15,19 +15,19 @@ class ComputeOutputSpecTest(testing.TestCase):
         out = backend.compute_output_spec(
             example_fn, backend.KerasTensor((2, 3))
         )
-        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertIsInstance(out, backend.KerasTensor)
         self.assertEqual(out.shape, (2, 3, 2))
 
         out = backend.compute_output_spec(
             example_fn, backend.KerasTensor((None, 3))
         )
-        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertIsInstance(out, backend.KerasTensor)
         self.assertEqual(out.shape, (None, 3, 2))
 
         out = backend.compute_output_spec(
             example_fn, backend.KerasTensor((2, None))
         )
-        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertIsInstance(out, backend.KerasTensor)
         self.assertEqual(out.shape, (2, None, 2))
 
     @pytest.mark.skipif(
@@ -51,7 +51,7 @@ class ComputeOutputSpecTest(testing.TestCase):
         out = backend.compute_output_spec(
             instance.example_meta_fn, backend.KerasTensor((2, 3))
         )
-        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertIsInstance(out, backend.KerasTensor)
         self.assertTrue(instance.canary)
         self.assertEqual(out.shape, (2, 3, 2))
 
@@ -59,6 +59,6 @@ class ComputeOutputSpecTest(testing.TestCase):
         out = backend.compute_output_spec(
             instance.example_meta_fn, backend.KerasTensor((2, None))
         )
-        self.assertTrue(isinstance(out, backend.KerasTensor))
+        self.assertIsInstance(out, backend.KerasTensor)
         self.assertTrue(instance.canary)
         self.assertEqual(out.shape, (2, None, 2))

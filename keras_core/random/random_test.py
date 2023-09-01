@@ -130,7 +130,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
             return x
 
         x = train_step(x)
-        self.assertTrue(isinstance(x, jnp.ndarray))
+        self.assertIsInstance(x, jnp.ndarray)
 
     def test_dropout_noise_shape(self):
         inputs = ops.ones((2, 3, 5, 7))
@@ -152,7 +152,7 @@ class RandomTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(rng.shape, (2,))
         self.assertEqual(rng.dtype, jnp.uint32)
         x = random.randint((3, 5), 0, 10, seed=rng)
-        self.assertTrue(isinstance(x, jnp.ndarray))
+        self.assertIsInstance(x, jnp.ndarray)
 
     @pytest.mark.skipif(
         keras_core.backend.backend() != "jax",

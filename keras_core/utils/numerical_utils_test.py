@@ -65,7 +65,7 @@ class TestNumericalUtils(testing.TestCase, parameterized.TestCase):
 
         # Test NumPy
         out = numerical_utils.normalize(xnp, axis=-1, order=order)
-        self.assertTrue(isinstance(out, np.ndarray))
+        self.assertIsInstance(out, np.ndarray)
         self.assertAllClose(out, expected)
 
         # Test backend

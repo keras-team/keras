@@ -21,8 +21,8 @@ class TestTFDatasetAdapter(testing.TestCase):
         for i, batch in enumerate(gen):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, np.ndarray))
-            self.assertTrue(isinstance(by, np.ndarray))
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, "float32")
             if i < 2:
@@ -35,8 +35,8 @@ class TestTFDatasetAdapter(testing.TestCase):
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, tf.Tensor))
-            self.assertTrue(isinstance(by, tf.Tensor))
+            self.assertIsInstance(bx, tf.Tensor)
+            self.assertIsInstance(by, tf.Tensor)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, "float32")
             if i < 2:

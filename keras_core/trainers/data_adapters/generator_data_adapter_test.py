@@ -55,13 +55,13 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
                 self.assertEqual(len(batch), 2)
                 bx, by = batch
 
-            self.assertTrue(isinstance(bx, np.ndarray))
-            self.assertTrue(isinstance(by, np.ndarray))
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             if use_sample_weight:
-                self.assertTrue(isinstance(bsw, np.ndarray))
+                self.assertIsInstance(bsw, np.ndarray)
             for i in range(by.shape[0]):
                 sample_order.append(by[i, 0])
         self.assertAllClose(sample_order, list(range(64)))
@@ -78,13 +78,13 @@ class GeneratorDataAdapterTest(testing.TestCase, parameterized.TestCase):
             else:
                 self.assertEqual(len(batch), 2)
                 bx, by = batch
-            self.assertTrue(isinstance(bx, tf.Tensor))
-            self.assertTrue(isinstance(by, tf.Tensor))
+            self.assertIsInstance(bx, tf.Tensor)
+            self.assertIsInstance(by, tf.Tensor)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(tuple(bx.shape), (16, 4))
             self.assertEqual(tuple(by.shape), (16, 2))
             if use_sample_weight:
-                self.assertTrue(isinstance(bsw, tf.Tensor))
+                self.assertIsInstance(bsw, tf.Tensor)
             for i in range(by.shape[0]):
                 sample_order.append(by[i, 0])
         self.assertAllClose(sample_order, list(range(64)))

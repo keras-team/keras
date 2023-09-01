@@ -34,8 +34,8 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         for i, batch in enumerate(gen):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, np.ndarray))
-            self.assertTrue(isinstance(by, np.ndarray))
+            self.assertIsInstance(bx, np.ndarray)
+            self.assertIsInstance(by, np.ndarray)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, "float32")
             if i < 2:
@@ -49,8 +49,8 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, torch.Tensor))
-            self.assertTrue(isinstance(by, torch.Tensor))
+            self.assertIsInstance(bx, torch.Tensor)
+            self.assertIsInstance(by, torch.Tensor)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, torch.float32)
             if i < 2:
@@ -64,8 +64,8 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         for i, batch in enumerate(ds):
             self.assertEqual(len(batch), 2)
             bx, by = batch
-            self.assertTrue(isinstance(bx, tf.Tensor))
-            self.assertTrue(isinstance(by, tf.Tensor))
+            self.assertIsInstance(bx, tf.Tensor)
+            self.assertIsInstance(by, tf.Tensor)
             self.assertEqual(bx.dtype, by.dtype)
             self.assertEqual(bx.dtype, tf.float32)
             if i < 2:
