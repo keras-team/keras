@@ -216,7 +216,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def digitize(x, bins):
-    return np.digitize(x, bins)
+    return np.digitize(x, bins).astype(np.int32)
 
 
 def dot(x, y):

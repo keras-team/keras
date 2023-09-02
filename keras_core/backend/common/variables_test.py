@@ -61,3 +61,9 @@ class VariablesTest(test_case.TestCase):
 
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
+
+    def test_standardize_dtype_with_torch_dtype(self):
+        import torch
+
+        x = torch.randn(4, 4)
+        backend.standardize_dtype(x.dtype)

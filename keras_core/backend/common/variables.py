@@ -390,25 +390,21 @@ ALLOWED_DTYPES = {
 
 PYTHON_DTYPES_MAP = {
     bool: "bool",
-    int: "int",  # TBD by backend
+    int: "int64" if config.backend() == "tensorflow" else "int32",
     float: "float32",
     str: "string",
+    # special case for string value
+    "int": "int64" if config.backend() == "tensorflow" else "int32",
 }
 
 
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
-    if dtype in PYTHON_DTYPES_MAP:
-        dtype = PYTHON_DTYPES_MAP.get(dtype)
-    if dtype == "int":
-        if config.backend() == "tensorflow":
-            dtype = "int64"
-        else:
-            dtype = "int32"
+    dtype = PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
-    elif config.backend() == "torch":
+    elif hasattr(dtype, "__str__") and "torch" in str(dtype):
         dtype = str(dtype).split(".")[-1]
 
     if dtype not in ALLOWED_DTYPES:

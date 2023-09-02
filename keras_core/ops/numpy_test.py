@@ -1,4 +1,5 @@
 import numpy as np
+from absl.testing import parameterized
 from tensorflow.python.ops.numpy_ops import np_config
 
 from keras_core import backend
@@ -2223,7 +2224,7 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         )
 
 
-class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
+class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_mean(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.mean(x), np.mean(x))
@@ -2933,52 +2934,52 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.ones_like(x), np.ones_like(x))
         self.assertAllClose(knp.OnesLike()(x), np.ones_like(x))
 
-    def test_pad(self):
-        x = np.array([[1, 2], [3, 4]])
+    @parameterized.product(
+        dtype=[
+            "float16",
+            "float32",
+            "float64",
+            "uint8",
+            "int8",
+            "int16",
+            "int32",
+        ],
+        mode=["constant", "reflect", "symmetric"],
+    )
+    def test_pad(self, dtype, mode):
+        # 2D
+        x = np.ones([2, 3], dtype=dtype)
+        pad_width = ((1, 1), (1, 1))
         self.assertAllClose(
-            knp.pad(x, ((1, 1), (1, 1))),
-            np.pad(x, ((1, 1), (1, 1))),
+            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
         )
         self.assertAllClose(
-            knp.pad(x, ((1, 1), (1, 1))),
-            np.pad(x, ((1, 1), (1, 1))),
-        )
-
-        self.assertAllClose(
-            knp.Pad(((1, 1), (1, 1)))(x),
-            np.pad(x, ((1, 1), (1, 1))),
-        )
-        self.assertAllClose(
-            knp.Pad(((1, 1), (1, 1)))(x),
-            np.pad(x, ((1, 1), (1, 1))),
-        )
-
-        self.assertAllClose(
-            knp.pad(x, ((1, 1), (1, 1)), mode="reflect"),
-            np.pad(x, ((1, 1), (1, 1)), mode="reflect"),
-        )
-        self.assertAllClose(
-            knp.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
-            np.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
+            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
         )
 
+        # 5D (pad last 3D)
+        x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
+        pad_width = ((0, 0), (0, 0), (2, 3), (1, 1), (1, 1))
         self.assertAllClose(
-            knp.Pad(((1, 1), (1, 1)), mode="reflect")(x),
-            np.pad(x, ((1, 1), (1, 1)), mode="reflect"),
+            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
         )
         self.assertAllClose(
-            knp.Pad(((1, 1), (1, 1)), mode="symmetric")(x),
-            np.pad(x, ((1, 1), (1, 1)), mode="symmetric"),
+            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
         )
 
-        x = np.ones([2, 3, 4, 5])
+        # 5D (pad arbitrary dimensions)
+        if backend.backend() == "torch" and mode != "constant":
+            self.skipTest(
+                "reflect and symmetric padding for arbitary dimensions are not "
+                "supported by torch"
+            )
+        x = np.ones([2, 3, 4, 5, 6], dtype=dtype)
+        pad_width = ((1, 1), (2, 1), (3, 2), (4, 3), (5, 4))
         self.assertAllClose(
-            knp.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
-            np.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
+            knp.pad(x, pad_width, mode=mode), np.pad(x, pad_width, mode=mode)
         )
         self.assertAllClose(
-            knp.Pad(((2, 3), (1, 1), (1, 1), (1, 1)))(x),
-            np.pad(x, ((2, 3), (1, 1), (1, 1), (1, 1))),
+            knp.Pad(pad_width, mode=mode)(x), np.pad(x, pad_width, mode=mode)
         )
 
     def test_prod(self):
