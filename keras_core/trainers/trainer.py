@@ -121,9 +121,9 @@ class Trainer:
 
     @property
     def metrics(self):
-        metrics = [self._loss_tracker]
+        metrics = [self._loss_tracker] if self.compiled else []
         metrics.extend(self._metrics[:])
-        if self._compile_metrics is not None:
+        if self.compiled and self._compile_metrics is not None:
             metrics += [self._compile_metrics]
         return metrics
 
