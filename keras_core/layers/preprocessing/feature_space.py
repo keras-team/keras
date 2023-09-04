@@ -2,11 +2,12 @@ import tree
 
 from keras_core import backend
 from keras_core import layers
-from keras_core import ops
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.saving import saving_lib
 from keras_core.saving import serialization_lib
+from keras_core.utils import backend_utils
+from keras_core.utils.module_utils import tensorflow as tf
 from keras_core.utils.naming import auto_name
 
 
@@ -387,11 +388,6 @@ class FeatureSpace(Layer):
         num_discretization_bins=32,
         name=None,
     ):
-        if backend.backend() != "tensorflow":
-            raise RuntimeError(
-                "FeatureSpace is only available with the TensorFlow backend "
-                "at this time."
-            )
         super().__init__(name=name)
         if not features:
             raise ValueError("The `features` argument cannot be None or empty.")
@@ -503,9 +499,7 @@ class FeatureSpace(Layer):
         return adaptable_preprocessors
 
     def adapt(self, dataset):
-        from tensorflow import data as tf_data
-
-        if not isinstance(dataset, tf_data.Dataset):
+        if not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
                 "`adapt()` can only be called on a tf.data.Dataset. "
                 f"Received instead: {dataset} (of type {type(dataset)})"
@@ -525,15 +519,15 @@ class FeatureSpace(Layer):
             # Sample 1 element to check the rank
             for x in feature_dataset.take(1):
                 pass
-            if x.shape.rank == 0:
+            if len(x.shape) == 0:
                 # The dataset yields unbatched scalars; batch it.
                 feature_dataset = feature_dataset.batch(32)
-            if x.shape.rank in {0, 1}:
+            if len(x.shape) in {0, 1}:
                 # If the rank is 1, add a dimension
                 # so we can reduce on axis=-1.
                 # Note: if rank was previously 0, it is now 1.
                 feature_dataset = feature_dataset.map(
-                    lambda x: ops.expand_dims(x, -1)
+                    lambda x: tf.expand_dims(x, -1)
                 )
             preprocessor.adapt(feature_dataset)
         self._is_adapted = True
@@ -696,6 +690,13 @@ class FeatureSpace(Layer):
             self.get_encoded_features()
             self._sublayers_built = True
 
+    def _convert_input(self, x):
+        if not isinstance(x, (tf.Tensor, tf.SparseTensor, tf.RaggedTensor)):
+            if not isinstance(x, (list, tuple, int, float)):
+                x = backend.convert_to_numpy(x)
+            x = tf.convert_to_tensor(x)
+        return x
+
     def __call__(self, data):
         self._check_if_built()
         if not isinstance(data, dict):
@@ -704,28 +705,50 @@ class FeatureSpace(Layer):
                 f"Received: data={data} (of type {type(data)}"
             )
 
-        data = {
-            key: ops.convert_to_tensor(value) for key, value in data.items()
-        }
+        # Many preprocessing layers support all backends but many do not.
+        # Switch to TF to make FeatureSpace work universally.
+        data = {key: self._convert_input(value) for key, value in data.items()}
         rebatched = False
         for name, x in data.items():
-            if x.shape.rank == 0:
-                data[name] = ops.reshape(x, (1, 1))
+            if len(x.shape) == 0:
+                data[name] = tf.reshape(x, (1, 1))
                 rebatched = True
-            elif x.shape.rank == 1:
-                data[name] = ops.expand_dims(x, -1)
+            elif len(x.shape) == 1:
+                data[name] = tf.expand_dims(x, -1)
 
-        preprocessed_data = self._preprocess_features(data)
-        crossed_data = self._cross_features(preprocessed_data)
-        merged_data = self._merge_features(preprocessed_data, crossed_data)
+        with backend_utils.TFGraphScope():
+            # This scope is to make sure that inner TFDataLayers
+            # will not convert outputs back to backend-native --
+            # they should be TF tensors throughout
+            preprocessed_data = self._preprocess_features(data)
+            preprocessed_data = tree.map_structure(
+                lambda x: self._convert_input(x), preprocessed_data
+            )
+
+            crossed_data = self._cross_features(preprocessed_data)
+            crossed_data = tree.map_structure(
+                lambda x: self._convert_input(x), crossed_data
+            )
+
+            merged_data = self._merge_features(preprocessed_data, crossed_data)
+
         if rebatched:
             if self.output_mode == "concat":
                 assert merged_data.shape[0] == 1
-                return ops.squeeze(merged_data, axis=0)
+                merged_data = tf.squeeze(merged_data, axis=0)
             else:
                 for name, x in merged_data.items():
-                    if x.shape.rank == 2 and x.shape[0] == 1:
-                        merged_data[name] = ops.squeeze(x, axis=0)
+                    if len(x.shape) == 2 and x.shape[0] == 1:
+                        merged_data[name] = tf.squeeze(x, axis=0)
+
+        if (
+            backend.backend() != "tensorflow"
+            and not backend_utils.in_tf_graph()
+        ):
+            merged_data = tree.map_structure(
+                lambda x: backend.convert_to_tensor(x, dtype=x.dtype),
+                merged_data,
+            )
         return merged_data
 
     def get_config(self):
