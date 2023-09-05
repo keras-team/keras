@@ -187,6 +187,9 @@ def compute_conv_transpose_padding_args_for_torch(
 def _get_output_shape_given_tf_padding(
     input_size, kernel_size, strides, padding, output_padding, dilation_rate
 ):
+    if input_size is None:
+        return None
+
     assert padding.lower() in {"valid", "same"}
 
     kernel_size = (kernel_size - 1) * dilation_rate + 1

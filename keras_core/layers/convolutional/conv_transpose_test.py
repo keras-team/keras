@@ -835,3 +835,23 @@ class ConvTransposeCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # Compare results
         kc_res = kc_layer(input)
         self.assertAllClose(expected_res, kc_res, atol=1e-5)
+
+    @parameterized.product(
+        kernel_size=list(range(1, 5)),
+        strides=list(range(1, 5)),
+        padding=["same", "valid"],
+        output_padding=[None] + list(range(1, 5)),
+    )
+    def test_shape_inference_static_unknown_shape(
+        self, kernel_size, strides, padding, output_padding
+    ):
+        x = layers.Input(shape=(None, None, 3))
+        x = layers.Conv2DTranspose(
+            filters=2,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            output_padding=output_padding,
+            dilation_rate=1,
+        )(x)
+        self.assertEqual(x.shape, (None, None, None, 2))
