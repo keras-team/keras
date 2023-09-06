@@ -9,6 +9,7 @@ extend-exclude = """
   examples/
 )
 """
+
 [tool.isort]
 profile = "black"
 force_single_line = "True"

@@ -1,0 +1,12 @@
+coverage:
+  status:
+    project:
+      default:
+        # `auto` compares coverage with the base-commit
+        target: auto
+
+    patch:
+      default:
+        target:auto
+
+

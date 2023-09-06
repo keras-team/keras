@@ -17,3 +17,5 @@ dist/**
 .vscode
 examples/**/*.jpg
 .python-version
+.coverage
+coverage.xml
