@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import losses
 from keras_core import models
@@ -270,6 +271,18 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x = KerasTensor((None, 3, None, 1))
         self.assertAllEqual(core.shape(x), (None, 3, None, 1))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_shape_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
+        )
+        self.assertAllEqual(core.shape(x), (2, 3))
+
     def test_convert_to_tensor(self):
         x = np.ones((2,))
         x = ops.convert_to_tensor(x)
@@ -283,6 +296,32 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_convert_to_tensor_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
+        )
+
+        x_default = ops.convert_to_tensor(x)
+        self.assertIsInstance(x_default, tf.SparseTensor)
+        self.assertAllClose(x, x_default)
+        # Note that ops.convert_to_tensor does not expose the 'sparse' arg
+        x_sparse = backend.convert_to_tensor(x, sparse=True)
+        self.assertIsInstance(x_sparse, tf.SparseTensor)
+        self.assertAllClose(x, x_sparse)
+        x_dense = backend.convert_to_tensor(x, sparse=False)
+        self.assertNotIsInstance(x_dense, tf.SparseTensor)
+        self.assertAllClose(x, x_dense)
+
+        x_numpy = ops.convert_to_numpy(x)
+        self.assertIsInstance(x_numpy, np.ndarray)
+        self.assertAllClose(x_numpy, x_dense)
 
     def test_cond(self):
         t = ops.cond(True, lambda: 0, lambda: 1)

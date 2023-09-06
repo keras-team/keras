@@ -9,9 +9,10 @@ from keras_core.backend.common import keras_tensor
 
 class KerasTensorTest(testing.TestCase):
     def test_attributes(self):
-        x = keras_tensor.KerasTensor(shape=(3,), dtype="float32")
+        x = keras_tensor.KerasTensor(shape=(3,), dtype="float32", sparse=True)
         self.assertEqual(x.dtype, "float32")
         self.assertEqual(x.shape, (3,))
+        self.assertEqual(x.sparse, True)
 
     def test_numpy_methods(self):
         x = keras_tensor.KerasTensor(shape=(3, 2), dtype="float32")

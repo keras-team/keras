@@ -14,6 +14,8 @@ from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.backend.jax import distribution_lib
 from keras_core.utils.nest import pack_sequence_as
 
+SUPPORTS_SPARSE_TENSORS = False
+
 
 class Variable(KerasVariable):
     def _initialize(self, value):
@@ -44,7 +46,9 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None):
+def convert_to_tensor(x, dtype=None, sparse=False):
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with jax backend")
     if dtype is not None:
         dtype = standardize_dtype(dtype)
     if isinstance(x, Variable):

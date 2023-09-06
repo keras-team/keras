@@ -12,6 +12,8 @@ from keras_core.backend.common.name_scope import name_scope as base_name_scope
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.utils.naming import auto_name
 
+SUPPORTS_SPARSE_TENSORS = True
+
 
 class Variable(
     KerasVariable,
@@ -70,15 +72,28 @@ class Variable(
         return self.value._write_object_proto(proto, options)
 
 
-def convert_to_tensor(x, dtype=None):
+def convert_to_tensor(x, dtype=None, sparse=True):
+    """Convert to a TensorFlow tensor.
+
+    `sparse=True` means that `tf.SparseTensor`s are returned as-is, which is the
+    default with the TensorFlow backend. An explicit `sparse=False` densifies
+    `tf.SparseTensor`s.
+    """
+    if isinstance(x, tf.SparseTensor) and not sparse:
+        x = tf.sparse.to_dense(x)
     if dtype is not None:
         dtype = standardize_dtype(dtype)
-        if tf.is_tensor(x):
-            return tf.cast(x, dtype=dtype)
-    return tf.convert_to_tensor(x, dtype=dtype)
+    if not tf.is_tensor(x):
+        return tf.convert_to_tensor(x, dtype=dtype)
+    elif dtype is not None:
+        return tf.cast(x, dtype=dtype)
+    else:
+        return x
 
 
 def convert_to_numpy(x):
+    if isinstance(x, tf.SparseTensor):
+        x = tf.sparse.to_dense(x)
     return np.array(x)
 
 
@@ -95,7 +110,8 @@ def shape(x):
     tensor values when the shape is unknown (this is tf specific, as dynamic
     shapes do not apply in other backends).
     """
-    x = tf.convert_to_tensor(x)
+    if not tf.is_tensor(x):
+        x = tf.convert_to_tensor(x)
     dynamic = tf.shape(x)
     if x.shape == tf.TensorShape(None):
         raise ValueError(

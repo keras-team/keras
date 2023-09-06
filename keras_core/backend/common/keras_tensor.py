@@ -28,11 +28,19 @@ class KerasTensor:
     dtype is called "static shape inference".
     """
 
-    def __init__(self, shape, dtype="float32", record_history=True, name=None):
+    def __init__(
+        self,
+        shape,
+        dtype="float32",
+        sparse=False,
+        record_history=True,
+        name=None,
+    ):
         from keras_core import backend
 
         self.shape = backend.standardize_shape(shape)
         self.dtype = backend.standardize_dtype(dtype)
+        self.sparse = sparse
         self.name = name or auto_name(self.__class__.__name__)
         self.record_history = record_history
 
@@ -106,7 +114,7 @@ class KerasTensor:
     def __repr__(self):
         return (
             f"<KerasTensor shape={self.shape}, dtype={self.dtype}, "
-            f"name={self.name}>"
+            f"sparse={self.sparse}, name={self.name}>"
         )
 
     def __iter__(self):

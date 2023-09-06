@@ -12,6 +12,8 @@ from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.backend.common.stateless_scope import StatelessScope
 from keras_core.utils.nest import pack_sequence_as
 
+SUPPORTS_SPARSE_TENSORS = False
+
 # Some operators such as 'aten::_foreach_mul_.Scalar'
 # are not currently implemented for the MPS device.
 # check https://github.com/pytorch/pytorch/issues/77764.
@@ -118,7 +120,9 @@ class Variable(KerasVariable):
             return False
 
 
-def convert_to_tensor(x, dtype=None):
+def convert_to_tensor(x, dtype=None, sparse=False):
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with torch backend")
     if is_tensor(x):
         device = get_device()
         if x.device != device:

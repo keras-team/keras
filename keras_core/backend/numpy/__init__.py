@@ -4,6 +4,7 @@ from keras_core.backend.numpy import math
 from keras_core.backend.numpy import nn
 from keras_core.backend.numpy import numpy
 from keras_core.backend.numpy import random
+from keras_core.backend.numpy.core import SUPPORTS_SPARSE_TENSORS
 from keras_core.backend.numpy.core import Variable
 from keras_core.backend.numpy.core import cast
 from keras_core.backend.numpy.core import compute_output_spec
