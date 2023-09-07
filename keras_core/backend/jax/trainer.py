@@ -53,20 +53,31 @@ class JAXTrainer(base_trainer.Trainer):
             and not self._compile_metrics.built
         )
         if model_unbuilt or compile_metrics_unbuilt:
-            # Build the model on one batch of data.
+
+            def _convert_data_to_spec(d):
+                if d is None:
+                    return None
+                return backend.KerasTensor(d.shape, d.dtype)
+
+            data_spec = tree.map_structure(_convert_data_to_spec, data_batch)
             (
-                x,
-                y,
-                sample_weight,
-            ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
-            # Build model
-            with backend.StatelessScope():
-                y_pred = self(x)
-                if compile_metrics_unbuilt:
-                    # Build metrics
-                    self.compute_metrics(
-                        x, y, y_pred, sample_weight=sample_weight
-                    )
+                x_spec,
+                y_spec,
+                sample_weight_spec,
+            ) = data_adapter_utils.unpack_x_y_sample_weight(data_spec)
+            # Note that this __call__ run the forward path and trigger variable
+            # creation.
+            y_pred_spec = backend.compute_output_spec(self.__call__, x_spec)
+            if compile_metrics_unbuilt:
+                # This will trigger the metric variable creation.
+                backend.compute_output_spec(
+                    self.compute_metrics,
+                    x_spec,
+                    y_spec,
+                    y_pred_spec,
+                    sample_weight=sample_weight_spec,
+                )
+
         if self.optimizer is not None and not self.optimizer.built:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
