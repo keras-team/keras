@@ -201,7 +201,9 @@ class BaseOptimizer:
 
     def apply_gradients(self, grads_and_vars):
         grads, trainable_variables = zip(*grads_and_vars)
-        return self.apply(grads, trainable_variables)
+        self.apply(grads, trainable_variables)
+        # Return iterations for compat with tf.keras.
+        return self.iterations
 
     def apply(self, grads, trainable_variables=None):
         """
@@ -261,7 +263,6 @@ class BaseOptimizer:
             for variable in trainable_variables:
                 if getattr(variable, "constraint", None) is not None:
                     variable.assign(variable.constraint(variable))
-            return self.iterations
 
     def _internal_apply_gradients(self, grads_and_vars):
         learning_rate = self._get_current_learning_rate()
