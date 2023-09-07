@@ -18,4 +18,4 @@ dist/**
 examples/**/*.jpg
 .python-version
 .coverage
-coverage.xml
+*coverage.xml
