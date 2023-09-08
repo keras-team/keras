@@ -1,5 +1,7 @@
 """Library for exporting inference-only Keras models/layers."""
 
+from jax.experimental import jax2tf
+
 from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers import Layer
@@ -86,6 +88,11 @@ class ExportArchive:
         self._tf_trackable.trainable_variables = []
         self._tf_trackable.non_trainable_variables = []
 
+        if backend.backend() not in ("tensorflow", "jax"):
+            raise NotImplementedError(
+                "The export API is only compatible with JAX and TF backends."
+            )
+
     @property
     def variables(self):
         return self._tf_trackable.variables
@@ -100,10 +107,21 @@ class ExportArchive:
 
     def track(self, resource):
         """Track the variables (and other assets) of a layer or model."""
-        if not isinstance(resource, tf.__internal__.tracking.Trackable):
+        if backend.backend() == "tensorflow" and not isinstance(
+            resource, tf.__internal__.tracking.Trackable
+        ):
             raise ValueError(
                 "Invalid resource type. Expected an instance of a "
                 "TensorFlow `Trackable` (such as a Keras `Layer` or `Model`). "
+                f"Received instead an object of type '{type(resource)}'. "
+                f"Object received: {resource}"
+            )
+        if backend.backend() == "jax" and not isinstance(
+            resource, backend.jax.layer.JaxLayer
+        ):
+            raise ValueError(
+                "Invalid resource type. Expected an instance of a "
+                "JAX-based Keras `Layer` or `Model`. "
                 f"Received instead an object of type '{type(resource)}'. "
                 f"Object received: {resource}"
             )
@@ -243,7 +261,13 @@ class ExportArchive:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
 
         if input_signature:
-            decorated_fn = tf.function(fn, input_signature=input_signature)
+            if backend.backend() == "tensorflow":
+                decorated_fn = tf.function(fn, input_signature=input_signature)
+            else:  # JAX backend
+                fn = self._convert_jax2tf_function(fn, input_signature)
+                decorated_fn = tf.function(
+                    fn, input_signature=input_signature, autograph=False
+                )
             self._endpoint_signatures[name] = input_signature
         else:
             if isinstance(fn, tf.types.experimental.GenericFunction):
@@ -313,18 +337,18 @@ class ExportArchive:
                 f"Received instead object of type '{type(variables)}'."
             )
         # Ensure that all variables added are either tf.Variables
-        # or Variables created by Keras Core with the TF backend.
-        if not all(isinstance(v, tf.Variable) for v in variables) and not (
-            all(
-                isinstance(v, (tf.Variable, backend.Variable))
-                for v in variables
-            )
-            and (backend.backend() == "tensorflow")
+        # or Variables created by Keras Core with the TF or JAX backends.
+        if not all(
+            isinstance(v, (tf.Variable, backend.Variable)) for v in variables
         ):
             raise ValueError(
                 "Expected all elements in `variables` to be "
                 "`tf.Variable` instances. Found instead the following types: "
                 f"{list(set(type(v) for v in variables))}"
+            )
+        if backend.backend() == "jax":
+            variables = tf.nest.flatten(
+                tf.nest.map_structure(tf.Variable, variables)
             )
         setattr(self._tf_trackable, name, list(variables))
 
@@ -348,7 +372,8 @@ class ExportArchive:
             raise ValueError(
                 "No endpoints have been set yet. Call add_endpoint()."
             )
-        self._filter_and_track_resources()
+        if backend.backend() == "tensorflow":
+            self._filter_and_track_resources()
 
         signatures = {}
         for name in self._endpoint_names:
@@ -358,9 +383,14 @@ class ExportArchive:
             signatures["serving_default"] = self._get_concrete_fn(
                 self._endpoint_names[0]
             )
+
         tf.saved_model.save(
-            self._tf_trackable, filepath, options=options, signatures=signatures
+            self._tf_trackable,
+            filepath,
+            options=options,
+            signatures=signatures,
         )
+
         # Print out available endpoints
         endpoints = "\n\n".join(
             _print_signature(getattr(self._tf_trackable, name), name)
@@ -410,6 +440,19 @@ class ExportArchive:
                     ):
                         self._tf_trackable._misc_assets.append(trackable)
 
+    def _convert_jax2tf_function(self, fn, input_signature):
+        shapes = []
+        for spec in input_signature:
+            shapes.append(self._spec_to_poly_shape(spec))
+        return jax2tf.convert(fn, polymorphic_shapes=shapes)
+
+    def _spec_to_poly_shape(self, spec):
+        if isinstance(spec, (dict, list)):
+            return tf.nest.map_structure(self._spec_to_poly_shape, spec)
+        spec_shape = spec.shape
+        spec_shape = str(spec_shape).replace("None", "b")
+        return spec_shape
+
 
 def export_model(model, filepath):
     export_archive = ExportArchive()
@@ -420,8 +463,8 @@ def export_model(model, filepath):
             input_signature = [input_signature]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     else:
-        save_spec = model._get_save_spec()
-        if not save_spec:
+        save_spec = _get_save_spec(model)
+        if not save_spec or not model._called:
             raise ValueError(
                 "The model provided has never called. "
                 "It must be called at least once before export."
@@ -429,6 +472,23 @@ def export_model(model, filepath):
         input_signature = [save_spec]
         export_archive.add_endpoint("serve", model.__call__, input_signature)
     export_archive.write_out(filepath)
+
+
+def _get_save_spec(model):
+    shapes_dict = getattr(model, "_build_shapes_dict", None)
+    if not shapes_dict:
+        return None
+
+    if len(shapes_dict) == 1:
+        return tf.TensorSpec(
+            shape=list(shapes_dict.values())[0], dtype=model.input_dtype
+        )
+
+    specs = {}
+    for key, value in shapes_dict.items():
+        key = key.rstrip("_shape")
+        specs[key] = tf.TensorSpec(shape=value, dtype=model.input_dtype)
+    return specs
 
 
 class TFSMLayer(Layer):

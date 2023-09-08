@@ -41,16 +41,6 @@ class TFLayer(tf.__internal__.tracking.AutoTrackable):
             kwargs_spec,
         )
 
-    def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
-        if self._saved_model_inputs_spec is None:
-            return None
-
-        spec = tf.nest.map_structure(
-            lambda t: tf_utils.get_tensor_spec(t, dynamic_batch=dynamic_batch),
-            self._saved_model_arg_spec,
-        )
-        return spec[0][0] if inputs_only else spec
-
     def _trackable_children(self, save_type="checkpoint", **kwargs):
         if save_type == "savedmodel":
             # SavedModel needs to ignore the execution functions.

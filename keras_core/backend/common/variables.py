@@ -428,6 +428,9 @@ def standardize_shape(shape):
     for e in shape:
         if e is None:
             continue
+        if config.backend() == "jax" and str(e) == "b":
+            # JAX2TF tracing represents `None` dimensions as `b`
+            continue
         if not isinstance(e, int):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "

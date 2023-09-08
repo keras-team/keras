@@ -25,20 +25,20 @@ def get_model():
 
 
 @pytest.mark.skipif(
-    backend.backend() != "tensorflow",
-    reason="Export only currently supports the TF backend.",
+    backend.backend() not in ("tensorflow", "jax"),
+    reason="Export only currently supports the TF and JAX backends.",
 )
 class ExportArchiveTest(testing.TestCase):
     def test_standard_model_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
 
         export_lib.export_model(model, temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_output, revived_model.serve(ref_input).numpy(), atol=1e-6
+            ref_output, revived_model.serve(ref_input), atol=1e-6
         )
 
     def test_low_level_model_export(self):
@@ -46,7 +46,43 @@ class ExportArchiveTest(testing.TestCase):
 
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
+
+        # Test variable tracking
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        self.assertLen(export_archive.variables, 8)
+        self.assertLen(export_archive.trainable_variables, 6)
+        self.assertLen(export_archive.non_trainable_variables, 2)
+
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "call",
+            model.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 10),
+                    dtype=tf.float32,
+                )
+            ],
+        )
+        export_archive.write_out(temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output, revived_model.call(ref_input), atol=1e-6
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Registering a tf.function endpoint is only in TF backend.",
+    )
+    def test_endpoint_registration_tf_function(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
 
         # Test variable tracking
         export_archive = export_lib.ExportArchive()
@@ -71,37 +107,18 @@ class ExportArchiveTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertFalse(hasattr(revived_model, "_tracked"))
         self.assertAllClose(
-            ref_output, revived_model.call(ref_input).numpy(), atol=1e-6
+            ref_output, revived_model.call(ref_input), atol=1e-6
         )
         self.assertLen(revived_model.variables, 8)
         self.assertLen(revived_model.trainable_variables, 6)
         self.assertLen(revived_model.non_trainable_variables, 2)
-
-        # Test registering an endpoint that is NOT a tf.function
-        export_archive = export_lib.ExportArchive()
-        export_archive.track(model)
-        export_archive.add_endpoint(
-            "call",
-            model.call,
-            input_signature=[
-                tf.TensorSpec(
-                    shape=(None, 10),
-                    dtype=tf.float32,
-                )
-            ],
-        )
-        export_archive.write_out(temp_filepath)
-        revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(
-            ref_output, revived_model.call(ref_input).numpy(), atol=1e-6
-        )
 
     def test_layer_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
 
         layer = layers.BatchNormalization()
         ref_input = tf.random.normal((3, 10))
-        ref_output = layer(ref_input).numpy()  # Build layer (important)
+        ref_output = layer(ref_input)  # Build layer (important)
 
         export_archive = export_lib.ExportArchive()
         export_archive.track(layer)
@@ -118,7 +135,7 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_output, revived_layer.call(ref_input).numpy(), atol=1e-6
+            ref_output, revived_layer.call(ref_input), atol=1e-6
         )
 
     def test_multi_input_output_functional_model(self):
@@ -153,13 +170,13 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_outputs[0].numpy(),
-            revived_model.serve(ref_inputs)[0].numpy(),
+            ref_outputs[0],
+            revived_model.serve(ref_inputs)[0],
             atol=1e-6,
         )
         self.assertAllClose(
-            ref_outputs[1].numpy(),
-            revived_model.serve(ref_inputs)[1].numpy(),
+            ref_outputs[1],
+            revived_model.serve(ref_inputs)[1],
             atol=1e-6,
         )
 
@@ -193,13 +210,13 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_outputs[0].numpy(),
-            revived_model.serve(ref_inputs)[0].numpy(),
+            ref_outputs[0],
+            revived_model.serve(ref_inputs)[0],
             atol=1e-6,
         )
         self.assertAllClose(
-            ref_outputs[1].numpy(),
-            revived_model.serve(ref_inputs)[1].numpy(),
+            ref_outputs[1],
+            revived_model.serve(ref_inputs)[1],
             atol=1e-6,
         )
 
@@ -217,22 +234,22 @@ class ExportArchiveTest(testing.TestCase):
     #         ]
     #     )
     #     ref_input = tf.convert_to_tensor(["one two three four"])
-    #     ref_output = model(ref_input).numpy()
+    #     ref_output = model(ref_input)
 
     #     export_lib.export_model(model, temp_filepath)
     #     revived_model = tf.saved_model.load(temp_filepath)
     #     self.assertAllClose(
-    #         ref_output, revived_model.serve(ref_input).numpy(), atol=1e-6
+    #         ref_output, revived_model.serve(ref_input), atol=1e-6
     #     )
 
     def test_track_multiple_layers(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         layer_1 = layers.Dense(2)
         ref_input_1 = tf.random.normal((3, 4))
-        ref_output_1 = layer_1(ref_input_1).numpy()
+        ref_output_1 = layer_1(ref_input_1)
         layer_2 = layers.Dense(3)
         ref_input_2 = tf.random.normal((3, 5))
-        ref_output_2 = layer_2(ref_input_2).numpy()
+        ref_output_2 = layer_2(ref_input_2)
 
         export_archive = export_lib.ExportArchive()
         export_archive.add_endpoint(
@@ -259,12 +276,12 @@ class ExportArchiveTest(testing.TestCase):
         revived_layer = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
             ref_output_1,
-            revived_layer.call_1(ref_input_1).numpy(),
+            revived_layer.call_1(ref_input_1),
             atol=1e-6,
         )
         self.assertAllClose(
             ref_output_2,
-            revived_layer.call_2(ref_input_2).numpy(),
+            revived_layer.call_2(ref_input_2),
             atol=1e-6,
         )
 
@@ -274,7 +291,7 @@ class ExportArchiveTest(testing.TestCase):
         layer = layers.MultiHeadAttention(2, 2)
         x1 = tf.random.normal((3, 2, 2))
         x2 = tf.random.normal((3, 2, 2))
-        ref_output = layer(x1, x2).numpy()  # Build layer (important)
+        ref_output = layer(x1, x2)  # Build layer (important)
         export_archive = export_lib.ExportArchive()
         export_archive.track(layer)
         export_archive.add_endpoint(
@@ -295,7 +312,44 @@ class ExportArchiveTest(testing.TestCase):
         revived_layer = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
             ref_output,
-            revived_layer.call(query=x1, value=x2).numpy(),
+            revived_layer.call(x1, x2),
+            atol=1e-6,
+        )
+
+    # TODO(nkovela): Remove test when argument name preservation
+    # workaround is created for JAX backend.
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="JAX2TF has issues with argument name preservation.",
+    )
+    def test_non_standard_layer_signature_with_kwargs(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
+
+        layer = layers.MultiHeadAttention(2, 2)
+        x1 = tf.random.normal((3, 2, 2))
+        x2 = tf.random.normal((3, 2, 2))
+        ref_output = layer(x1, x2)  # Build layer (important)
+        export_archive = export_lib.ExportArchive()
+        export_archive.track(layer)
+        export_archive.add_endpoint(
+            "call",
+            layer.call,
+            input_signature=[
+                tf.TensorSpec(
+                    shape=(None, 2, 2),
+                    dtype=tf.float32,
+                ),
+                tf.TensorSpec(
+                    shape=(None, 2, 2),
+                    dtype=tf.float32,
+                ),
+            ],
+        )
+        export_archive.write_out(temp_filepath)
+        revived_layer = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(
+            ref_output,
+            revived_layer.call(query=x1, value=x2),
             atol=1e-6,
         )
 
@@ -326,6 +380,7 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.add_variable_collection(
             "my_vars", model.layers[1].weights
         )
+
         self.assertLen(export_archive._tf_trackable.my_vars, 2)
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
@@ -427,6 +482,29 @@ class ExportArchiveTest(testing.TestCase):
                 my_endpoint,
             )
 
+    def test_subclassed_model_export(self):
+        class CustomModelX(models.Model):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.dense1 = layers.Dense(1)
+                self.dense2 = layers.Dense(1)
+
+            def call(self, inputs):
+                out = self.dense1(inputs)
+                return self.dense2(out)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        x = np.random.random((100, 32))
+        model = CustomModelX()
+        model.compile(
+            optimizer="adam",
+            loss="mse",
+        )
+        ref_output = model(x)
+        model.export(temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(x), atol=1e-6)
+
     def test_export_no_assets(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
 
@@ -450,31 +528,29 @@ class ExportArchiveTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
 
         model.export(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_output, revived_model.serve(ref_input).numpy(), atol=1e-6
+            ref_output, revived_model.serve(ref_input), atol=1e-6
         )
 
 
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
-    reason="Export only currently supports the TF backend.",
+    reason="TFSM Layer reloading is only for the TF backend.",
 )
 class TestTFSMLayer(testing.TestCase):
     def test_reloading_export_archive(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
 
         export_lib.export_model(model, temp_filepath)
         reloaded_layer = export_lib.TFSMLayer(temp_filepath)
-        self.assertAllClose(
-            reloaded_layer(ref_input).numpy(), ref_output, atol=1e-7
-        )
+        self.assertAllClose(reloaded_layer(ref_input), ref_output, atol=1e-7)
         self.assertLen(reloaded_layer.weights, len(model.weights))
         self.assertLen(
             reloaded_layer.trainable_weights, len(model.trainable_weights)
@@ -491,7 +567,7 @@ class TestTFSMLayer(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
 
         tf.saved_model.save(model, temp_filepath)
         reloaded_layer = export_lib.TFSMLayer(
@@ -500,7 +576,7 @@ class TestTFSMLayer(testing.TestCase):
         # The output is a dict, due to the nature of SavedModel saving.
         new_output = reloaded_layer(ref_input)
         self.assertAllClose(
-            new_output[list(new_output.keys())[0]].numpy(),
+            new_output[list(new_output.keys())[0]],
             ref_output,
             atol=1e-7,
         )
@@ -554,7 +630,7 @@ class TestTFSMLayer(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
         ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input).numpy()
+        ref_output = model(ref_input)
 
         export_lib.export_model(model, temp_filepath)
         reloaded_layer = export_lib.TFSMLayer(temp_filepath)
@@ -562,9 +638,7 @@ class TestTFSMLayer(testing.TestCase):
         # Test reinstantiation from config
         config = reloaded_layer.get_config()
         rereloaded_layer = export_lib.TFSMLayer.from_config(config)
-        self.assertAllClose(
-            rereloaded_layer(ref_input).numpy(), ref_output, atol=1e-7
-        )
+        self.assertAllClose(rereloaded_layer(ref_input), ref_output, atol=1e-7)
 
         # Test whole model saving with reloaded layer inside
         model = models.Sequential([reloaded_layer])
@@ -574,9 +648,7 @@ class TestTFSMLayer(testing.TestCase):
             temp_model_filepath,
             custom_objects={"TFSMLayer": export_lib.TFSMLayer},
         )
-        self.assertAllClose(
-            reloaded_model(ref_input).numpy(), ref_output, atol=1e-7
-        )
+        self.assertAllClose(reloaded_model(ref_input), ref_output, atol=1e-7)
 
     def test_errors(self):
         # Test missing call endpoint
