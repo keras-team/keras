@@ -363,7 +363,6 @@ class LayerTest(testing.TestCase):
         reason="Some torch ops not implemented for float16 on CPU.",
     )
     def test_mixed_precision(self):
-        print("Run with backend.backend()", backend.backend())
         x = np.ones((4, 4))
 
         layer = layers.Dense(2, dtype="float16")
@@ -378,6 +377,68 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.variable_dtype, "float32")
         self.assertEqual(backend.standardize_dtype(y.dtype), "float16")
         self.assertEqual(layer.kernel.dtype, "float32")
+
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Some torch ops not implemented for float16 on CPU.",
+    )
+    def test_autocast(self):
+        assertEqual = self.assertEqual
+
+        # A layer with a int dtype (some preprocessing layers do this).
+        class InnerLayerOne(layers.Layer):
+            def __init__(self):
+                super().__init__(dtype="int")
+                self.v = self.add_weight(
+                    shape=(),
+                    initializer="ones",
+                    trainable=True,
+                    dtype="float32",
+                )
+                self.built = True
+
+            def call(self, x):
+                # Should not autocast.
+                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                return ops.cast(x, "float32") + self.v
+
+        # A layer that is explicitly full precision.
+        class InnerLayerTwo(layers.Layer):
+            def __init__(self):
+                super().__init__(dtype="float32")
+                self.v = self.add_weight(
+                    shape=(),
+                    initializer="ones",
+                    trainable=True,
+                )
+                self.built = True
+
+            def call(self, x):
+                # Should not autocast.
+                assertEqual(backend.standardize_dtype(self.v.dtype), "float32")
+                return x + self.v
+
+        # A layer that is explicitly mixed precision with inner layers.
+        class MixedPrecisionLayer(layers.Layer):
+            def __init__(self):
+                super().__init__(dtype="mixed_float16")
+                self.v = self.add_weight(
+                    shape=(),
+                    initializer="ones",
+                    trainable=True,
+                )
+                self.inner_one = InnerLayerOne()
+                self.inner_two = InnerLayerTwo()
+                self.built = True
+
+            def call(self, x):
+                # Should autocast.
+                assertEqual(backend.standardize_dtype(self.v.dtype), "float16")
+                return self.inner_two(self.inner_one(x + self.v))
+
+        layer = MixedPrecisionLayer()
+        y = layer(np.array(0.0))
+        self.assertEqual(y, 3.0)
 
     @pytest.mark.skipif(
         backend.backend() == "numpy",

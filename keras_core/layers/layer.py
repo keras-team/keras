@@ -779,6 +779,10 @@ class Layer(BackendLayer, Operation):
                     # Clear or update the current scope if necessary.
                     if not self.autocast:
                         new_scope = backend.AutocastScope(None)
+                    elif not backend.is_float_dtype(self.compute_dtype):
+                        # Some preprocessing layers might have a non-float
+                        # dtype, we should not autocast in this case.
+                        new_scope = backend.AutocastScope(None)
                     elif current_scope.dtype != self.compute_dtype:
                         new_scope = backend.AutocastScope(self.compute_dtype)
                 elif self.compute_dtype != self.variable_dtype:
