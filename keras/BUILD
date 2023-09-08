@@ -233,7 +233,7 @@ tf_py_test(
     deps = [
         ":activations",
         ":backend",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
@@ -265,7 +265,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":keras",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -303,7 +303,7 @@ tf_py_test(
     ],
     deps = [
         ":keras",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
@@ -322,7 +322,7 @@ tf_py_test(
     deps = [
         ":callbacks",
         ":callbacks_v1",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
@@ -342,7 +342,7 @@ tf_py_test(
     deps = [
         ":backend",
         ":engine",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",

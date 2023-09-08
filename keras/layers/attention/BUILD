@@ -86,7 +86,7 @@ tf_py_test(
     srcs = ["multi_head_attention_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -101,7 +101,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":base_dense_attention",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -115,7 +115,7 @@ tf_py_test(
     srcs = ["attention_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -130,7 +130,7 @@ tf_py_test(
     srcs = ["additive_attention_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

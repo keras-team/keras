@@ -1,8 +1,9 @@
 # Description:
 # Package for Keras.
 
+# Placeholder: load unaliased py_binary
 # Placeholder: load unaliased py_library
-load("//keras/api:api_gen.bzl", "gen_api_init_files")
+load("//keras/api:api_gen.bzl", "generate_apis")
 load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_FILES_V1")
 
 package(
@@ -13,125 +14,6 @@ package(
     ],
     licenses = ["notice"],  # Apache 2.0 License
 )
-
-exports_files(
-    [
-        "create_python_api_wrapper.py",
-    ],
-)
-
-keras_packages = [
-    "keras",
-    "keras.activations",
-    "keras.applications.convnext",
-    "keras.applications.densenet",
-    "keras.applications.efficientnet",
-    "keras.applications.efficientnet_v2",
-    "keras.applications.imagenet_utils",
-    "keras.applications.inception_resnet_v2",
-    "keras.applications.inception_v3",
-    "keras.applications.mobilenet",
-    "keras.applications.mobilenet_v2",
-    "keras.applications.mobilenet_v3",
-    "keras.applications.nasnet",
-    "keras.applications.regnet",
-    "keras.applications.resnet",
-    "keras.applications.resnet_v2",
-    "keras.applications.resnet_rs",
-    "keras.applications.vgg16",
-    "keras.applications.vgg19",
-    "keras.applications.xception",
-    "keras.backend",
-    "keras.backend_config",
-    "keras.callbacks",
-    "keras.callbacks_v1",
-    "keras.constraints",
-    "keras.datasets.boston_housing",
-    "keras.datasets.cifar10",
-    "keras.datasets.cifar100",
-    "keras.datasets.fashion_mnist",
-    "keras.datasets.imdb",
-    "keras.datasets.mnist",
-    "keras.datasets.reuters",
-    "keras.dtensor.layout_map",
-    "keras.engine.base_layer",
-    "keras.engine.data_adapter",
-    "keras.engine.input_layer",
-    "keras.engine.input_spec",
-    "keras.engine.sequential",
-    "keras.engine.training",
-    "keras.estimator",
-    "keras.export.export_lib",
-    "keras.feature_column.dense_features",
-    "keras.feature_column.dense_features_v2",
-    "keras.feature_column.sequence_feature_column",
-    # Placeholder for internal API
-    "keras.initializers",
-    "keras.initializers.initializers",
-    "keras.initializers.initializers_v1",
-    "keras.layers.activation",
-    "keras.layers.attention",
-    "keras.layers.convolutional",
-    "keras.layers.core",
-    "keras.layers.locally_connected",
-    "keras.layers.merging",
-    "keras.layers.normalization",
-    "keras.layers.preprocessing",
-    "keras.layers.pooling",
-    "keras.layers.regularization",
-    "keras.layers.rnn",
-    "keras.layers.rnn.legacy_cell_wrappers",
-    "keras.layers.rnn.legacy_cells",
-    "keras.layers.serialization",
-    "keras.legacy_tf_layers.base",
-    "keras.legacy_tf_layers.convolutional",
-    "keras.legacy_tf_layers.core",
-    "keras.legacy_tf_layers.normalization",
-    "keras.legacy_tf_layers.pooling",
-    "keras.losses",
-    "keras.metrics",
-    "keras.mixed_precision.loss_scale_optimizer",
-    "keras.mixed_precision.policy",
-    "keras.models",
-    "keras.optimizers.adadelta",
-    "keras.optimizers.adagrad",
-    "keras.optimizers.adam",
-    "keras.optimizers.adamax",
-    "keras.optimizers.ftrl",
-    "keras.optimizers.nadam",
-    "keras.optimizers.sgd",
-    "keras.optimizers.optimizer",
-    "keras.optimizers.rmsprop",
-    "keras.optimizers.legacy.adadelta",
-    "keras.optimizers.legacy.adagrad",
-    "keras.optimizers.legacy.adam",
-    "keras.optimizers.legacy.adamax",
-    "keras.optimizers.legacy.ftrl",
-    "keras.optimizers.legacy.gradient_descent",
-    "keras.optimizers.legacy.nadam",
-    "keras.optimizers.legacy.optimizer_v2",
-    "keras.optimizers.legacy.rmsprop",
-    "keras.optimizers.schedules.learning_rate_schedule",
-    "keras.optimizers",
-    "keras.premade_models.linear",
-    "keras.premade_models.wide_deep",
-    "keras.preprocessing.image",
-    "keras.preprocessing.sequence",
-    "keras.preprocessing.text",
-    "keras.regularizers",
-    "keras.saving.legacy.model_config",
-    "keras.saving.legacy.save",
-    "keras.saving.legacy.serialization",
-    "keras.testing_infra.test_utils",
-    "keras.utils.data_utils",
-    "keras.utils.generic_utils",
-    "keras.utils.io_utils",
-    "keras.utils.layer_utils",
-    "keras.utils.losses_utils",
-    "keras.utils.np_utils",
-    "keras.utils.tf_utils",
-    "keras.utils.vis_utils",
-]
 
 # The target used by PIP package which need to generate API init files during OSS build.
 py_library(
@@ -148,52 +30,66 @@ py_library(
     ],
 )
 
-gen_api_init_files(
+py_binary(
+    name = "extractor_wrapper",
+    srcs = ["extractor_wrapper.py"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:expect_absl_installed",  # absl:app
+        # "//third_party/tensorflow/python/tools/api/generator2/extractor",
+    ],
+)
+
+py_binary(
+    name = "generator_wrapper",
+    srcs = ["generator_wrapper.py"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:expect_absl_installed",  # absl:app
+        # "//third_party/tensorflow/python/tools/api/generator2/generator",
+    ],
+)
+
+generate_apis(
     name = "keras_python_api_gen",
-    api_name = "keras",
     api_version = 1,
     output_files = KERAS_API_INIT_FILES_V1,
     output_package = "keras.api",
-    package_deps = [
+    deps = [
         "//keras",
         "//:expect_tensorflow_installed",
         # "//third_party/tensorflow/lite/python:analyzer",
         # "//third_party/tensorflow/lite/python:lite",
         # "//third_party/tensorflow/lite/python/authoring",
     ],
-    packages = keras_packages,
 )
 
-gen_api_init_files(
+generate_apis(
     name = "keras_python_api_gen_compat_v1",
-    api_name = "keras",
     api_version = 1,
     output_dir = "_v1/",
     output_files = KERAS_API_INIT_FILES_V1,
     output_package = "keras.api._v1",
-    package_deps = [
+    deps = [
         "//keras",
         "//:expect_tensorflow_installed",
         # "//third_party/tensorflow/lite/python:analyzer",
         # "//third_party/tensorflow/lite/python:lite",
         # "//third_party/tensorflow/lite/python/authoring",
     ],
-    packages = keras_packages,
 )
 
-gen_api_init_files(
+generate_apis(
     name = "keras_python_api_gen_compat_v2",
-    api_name = "keras",
     api_version = 2,
     output_dir = "_v2/",
     output_files = KERAS_API_INIT_FILES,
     output_package = "keras.api._v2",
-    package_deps = [
+    deps = [
         "//keras",
         "//:expect_tensorflow_installed",
         # "//third_party/tensorflow/lite/python:analyzer",
         # "//third_party/tensorflow/lite/python:lite",
         # "//third_party/tensorflow/lite/python/authoring",
     ],
-    packages = keras_packages,
 )

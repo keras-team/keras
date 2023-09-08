@@ -112,7 +112,7 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/metrics",
@@ -186,7 +186,7 @@ tf_py_test(
         ":dtensor",
         ":test_util",
         ":utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
@@ -197,7 +197,7 @@ py_library(
     name = "test_util",
     srcs = ["test_util.py"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
@@ -231,7 +231,7 @@ tf_py_test(
 #     deps = [
 #         ":integration_test_utils",
 #         ":test_util",
-#         "//:expect_absl_installed",
+#         "//:expect_absl_installed",  # absl/testing:parameterized
 #         "//keras:backend",
 #         "//keras/mixed_precision:mixed_precision_experimental",
 #         "//keras/optimizers",

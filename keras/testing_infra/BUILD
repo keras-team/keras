@@ -19,7 +19,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -66,7 +66,7 @@ py_test(
     ],
     deps = [
         ":keras_doctest_lib",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
     ],
 )
@@ -80,7 +80,7 @@ tf_py_test(
     deps = [
         ":test_combinations",
         ":test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

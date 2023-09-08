@@ -21,7 +21,7 @@ tf_py_test(
     srcs = ["forwardprop_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
     ],
@@ -52,7 +52,7 @@ cuda_py_test(
     srcs = ["saved_model_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
     ],
@@ -107,7 +107,7 @@ cuda_py_test(
         "no_windows_gpu",  # TODO(b/130551176)
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
         "//keras/utils:kpl_test_utils",
@@ -122,7 +122,7 @@ tpu_py_test(
     python_version = "PY3",
     tags = ["no_oss"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
     ],
 )
@@ -140,7 +140,7 @@ tf_py_test(
         "notsan",  # TODO(b/156029134)
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
@@ -157,7 +157,7 @@ distribute_py_test(
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/api:keras_api",
         "//keras/distribute:strategy_combinations",
@@ -176,7 +176,7 @@ distribute_py_test(
         "notap",  # b/216629693
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
