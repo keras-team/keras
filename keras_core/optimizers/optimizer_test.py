@@ -27,6 +27,14 @@ class OptimizerTest(testing.TestCase):
         with self.assertRaises(ValueError):
             optimizers.get("typo")
 
+    def test_static_loss_scaling(self):
+        v = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
+        grads = backend.convert_to_tensor([[1.0, 2.0], [3.0, 4.0]]) * 1024.0
+        optimizer = optimizers.SGD(learning_rate=1.0, loss_scale_factor=1024.0)
+        optimizer.apply_gradients([(grads, v)])
+        self.assertEqual(optimizer.scale_loss(1.0), 1024.0)
+        self.assertAllClose(v, [[0.0, 0.0], [0.0, 0.0]])
+
     def test_set_weights(self):
         x = backend.Variable([[1.0, 2.0], [3.0, 4.0]])
         optimizer_1 = optimizers.Adam()

@@ -7,6 +7,7 @@ from keras_core.optimizers.adamax import Adamax
 from keras_core.optimizers.adamw import AdamW
 from keras_core.optimizers.ftrl import Ftrl
 from keras_core.optimizers.lion import Lion
+from keras_core.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras_core.optimizers.nadam import Nadam
 from keras_core.optimizers.optimizer import Optimizer
 from keras_core.optimizers.rmsprop import RMSprop
@@ -26,6 +27,7 @@ ALL_OBJECTS = {
     Nadam,
     Ftrl,
     Lion,
+    LossScaleOptimizer,
 }
 ALL_OBJECTS_DICT = {cls.__name__.lower(): cls for cls in ALL_OBJECTS}
 

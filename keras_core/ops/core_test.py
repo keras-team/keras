@@ -328,6 +328,8 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(t, 0)
         f = ops.cond(False, lambda: 0, lambda: 1)
         self.assertEqual(f, 1)
+        f = ops.cond(False, lambda: None, lambda: None)
+        self.assertEqual(f, None)
 
         for val in [True, False]:
             out = ops.cond(

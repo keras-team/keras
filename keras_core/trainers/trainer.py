@@ -5,6 +5,7 @@ from keras_core import backend
 from keras_core import metrics as metrics_module
 from keras_core import ops
 from keras_core import optimizers
+from keras_core.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras_core.saving import serialization_lib
 from keras_core.trainers.compile_utils import CompileLoss
 from keras_core.trainers.compile_utils import CompileMetrics
@@ -33,6 +34,7 @@ class Trainer:
         run_eagerly=False,
         steps_per_execution=1,
         jit_compile="auto",
+        auto_scale_loss=True,
     ):
         """Configures the model for training.
 
@@ -116,8 +118,21 @@ class Trainer:
                 compiling a model. Not supported with the PyTorch backend.
                 If `"auto"`, XLA compilation will be enabled if the
                 the model supports it, and disabled otherwise.
+            auto_scale_loss: Bool. If `True` and the model dtype policy is
+                `"mixed_float16"`, the passed optimizer will be automatically
+                wrapped in a `LossScaleOptimizer`, which will dynamically
+                scale the loss to prevent underflow.
         """
         self.optimizer = optimizers.get(optimizer)
+        if (
+            auto_scale_loss
+            and self.dtype_policy.name == "mixed_float16"
+            and self.optimizer
+            and not isinstance(self.optimizer, LossScaleOptimizer)
+        ):
+            self.optimizer = LossScaleOptimizer(
+                self.optimizer, name="loss_scale_optimizer"
+            )
         if hasattr(self, "output_names"):
             output_names = self.output_names
         else:

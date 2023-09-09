@@ -12,7 +12,6 @@ from keras_core.api_export import keras_core_export
 from keras_core.callbacks.callback import Callback
 from keras_core.layers import Embedding
 from keras_core.optimizers import Optimizer
-from keras_core.optimizers.schedules import learning_rate_schedule
 from keras_core.utils import file_utils
 
 
@@ -503,12 +502,8 @@ class TensorBoard(Callback):
 
     def _collect_learning_rate(self, logs):
         if isinstance(self.model.optimizer, Optimizer):
-            lr_schedule = getattr(self.model.optimizer, "_learning_rate", None)
-        else:
-            lr_schedule = getattr(self.model.optimizer, "lr", None)
-        if isinstance(lr_schedule, learning_rate_schedule.LearningRateSchedule):
             logs["learning_rate"] = float(
-                lr_schedule(self.model.optimizer.iterations)
+                ops.convert_to_numpy(self.model.optimizer.learning_rate)
             )
         return logs
 

@@ -21,6 +21,7 @@ class BaseOptimizer:
         use_ema=False,
         ema_momentum=0.99,
         ema_overwrite_frequency=None,
+        loss_scale_factor=None,
         name=None,
         **kwargs,
     ):
@@ -41,6 +42,7 @@ class BaseOptimizer:
         self.global_clipnorm = global_clipnorm
         self.clipvalue = clipvalue
         self.use_ema = use_ema
+        self.loss_scale_factor = loss_scale_factor
 
         if use_ema:
             # Verify the arguments related to EMA.
@@ -250,6 +252,11 @@ class BaseOptimizer:
             if len(list(grads)) == 0:
                 return
 
+            # Unscale gradients.
+            scale = self.loss_scale_factor
+            if scale is not None:
+                grads = [g if g is None else g / scale for g in grads]
+
             # Apply clipping and weight decay.
             grads = self._clip_gradients(grads)
             self._apply_weight_decay(trainable_variables)
@@ -265,9 +272,8 @@ class BaseOptimizer:
                     variable.assign(variable.constraint(variable))
 
     def _internal_apply_gradients(self, grads_and_vars):
-        learning_rate = self._get_current_learning_rate()
         for grad, var in grads_and_vars:
-            self.update_step(grad, var, learning_rate)
+            self.update_step(grad, var, self.learning_rate)
         self.iterations.assign(self.iterations + 1)
 
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
@@ -321,6 +327,17 @@ class BaseOptimizer:
             else:
                 optimizer_variables.append(v)
         return trainable_variables, optimizer_variables
+
+    def scale_loss(self, loss):
+        """Scale the loss before computing gradients.
+
+        Scales the loss before gradients are computed in a `train_step`. This
+        is primarily useful during mixed precision training to prevent numeric
+        underflow.
+        """
+        if self.loss_scale_factor is not None:
+            return loss * self.loss_scale_factor
+        return loss
 
     @property
     def learning_rate(self):
@@ -494,7 +511,7 @@ class BaseOptimizer:
             return
         for variable in variables:
             if self._use_weight_decay(variable):
-                lr = ops.cast(self._get_current_learning_rate(), variable.dtype)
+                lr = ops.cast(self.learning_rate, variable.dtype)
                 wd = ops.cast(self.weight_decay, variable.dtype)
                 variable.assign(variable - variable * wd * lr)
 
@@ -596,6 +613,7 @@ class BaseOptimizer:
             "use_ema": self.use_ema,
             "ema_momentum": self.ema_momentum,
             "ema_overwrite_frequency": self.ema_overwrite_frequency,
+            "loss_scale_factor": self.loss_scale_factor,
         }
         return config
 
@@ -665,7 +683,14 @@ base_optimizer_keyword_args = """name: String. The name to use
           (which updates the model
           variables in-place). When using the built-in `fit()` training loop,
           this happens automatically after the last epoch,
-          and you don't need to do anything."""
+          and you don't need to do anything.
+      loss_scale_factor: Float or `None`. If a float, the scale factor will
+          be multiplied the loss before computing gradients, and the inverse of
+          the scale factor will be multiplied by the gradients before updating
+          variables. Useful for preventing underflow during mixed precision
+          training. Alternately, `keras_core.optimizers.LossScaleOptimizer` will
+          automatically set a loss scale factor.
+"""
 
 
 def clip_by_norm(values, clip_norm, axes=None):

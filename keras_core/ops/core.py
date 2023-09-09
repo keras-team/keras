@@ -537,7 +537,10 @@ class Cond(Operation):
         return true_fn_spec
 
     def _check_output_spec(self, true_fn_spec, false_fn_spec):
-        if isinstance(true_fn_spec, dict):
+        if true_fn_spec is None:
+            if false_fn_spec is not None:
+                return False
+        elif isinstance(true_fn_spec, dict):
             if not isinstance(false_fn_spec, dict):
                 return False
             if true_fn_spec.keys() != false_fn_spec.keys():
@@ -549,6 +552,16 @@ class Cond(Operation):
                 return False
         elif isinstance(true_fn_spec, list):
             if not isinstance(false_fn_spec, list):
+                return False
+            if len(true_fn_spec) != len(false_fn_spec):
+                return False
+            if any(
+                (not self._check_output_spec(ti, fi))
+                for ti, fi in zip(true_fn_spec, false_fn_spec)
+            ):
+                return False
+        elif isinstance(true_fn_spec, tuple):
+            if not isinstance(false_fn_spec, tuple):
                 return False
             if len(true_fn_spec) != len(false_fn_spec):
                 return False

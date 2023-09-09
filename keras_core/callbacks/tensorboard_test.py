@@ -165,6 +165,7 @@ class TestTensorBoardV2(testing.TestCase):
             {
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(
                     logdir=validation_dir,
                     tag="evaluation_loss_vs_iterations",
@@ -196,6 +197,7 @@ class TestTensorBoardV2(testing.TestCase):
             {
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(
                     logdir=validation_dir,
                     tag="evaluation_loss_vs_iterations",
@@ -240,6 +242,7 @@ class TestTensorBoardV2(testing.TestCase):
                 _ObservedSummary(logdir=train_dir, tag="batch_loss"),
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(
                     logdir=validation_dir,
                     tag="evaluation_loss_vs_iterations",
@@ -334,6 +337,7 @@ class TestTensorBoardV2(testing.TestCase):
             {
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(
                     logdir=validation_dir,
                     tag="evaluation_loss_vs_iterations",
@@ -378,6 +382,7 @@ class TestTensorBoardV2(testing.TestCase):
             {
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(
                     logdir=validation_dir,
                     tag="evaluation_loss_vs_iterations",
@@ -492,6 +497,7 @@ class TestTensorBoardV2(testing.TestCase):
             {
                 _ObservedSummary(logdir=train_dir, tag="batch_loss"),
                 _ObservedSummary(logdir=train_dir, tag="epoch_loss"),
+                _ObservedSummary(logdir=train_dir, tag="epoch_learning_rate"),
                 _ObservedSummary(logdir=validation_dir, tag="epoch_loss"),
                 _ObservedSummary(
                     logdir=validation_dir,

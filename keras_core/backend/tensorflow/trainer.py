@@ -59,7 +59,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             loss = self.compute_loss(
                 x=x, y=y, y_pred=y_pred, sample_weight=sample_weight
             )
-        self._loss_tracker.update_state(loss)
+            self._loss_tracker.update_state(loss)
+            if self.optimizer is not None:
+                loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
         if self.trainable_weights:
