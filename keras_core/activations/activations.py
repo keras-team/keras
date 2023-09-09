@@ -74,6 +74,7 @@ class ReLU(ops.Operation):
 
     @staticmethod
     def static_call(x, negative_slope=0.0, max_value=None, threshold=0.0):
+        x = backend.convert_to_tensor(x)
         if negative_slope != 0.0:
             if max_value is None and threshold == 0:
                 return backend.nn.leaky_relu(x, negative_slope=negative_slope)

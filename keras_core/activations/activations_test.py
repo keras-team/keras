@@ -333,6 +333,67 @@ class ActivationsTest(testing.TestCase):
             result_positive_above_1, expected_positive_above_1, rtol=1e-05
         )
 
+    def test_relu_negative_slope(self):
+        # Define the input tensor
+        x = np.array([-10, -5, 0.0, 5, 10])
+
+        # Test with only negative_slope
+        result_negative_slope = activations.relu(x, negative_slope=0.5)
+        expected_negative_slope = np.array([-5.0, -2.5, 0.0, 5.0, 10.0])
+        self.assertAllClose(
+            result_negative_slope, expected_negative_slope, rtol=1e-05
+        )
+
+    def test_relu_max_value(self):
+        # Define the input tensor
+        x = np.array([-10, -5, 0.0, 5, 10])
+
+        # Test with only max_value
+        result_max_value = activations.relu(x, max_value=5.0)
+        expected_max_value = np.array([0.0, 0.0, 0.0, 5.0, 5.0])
+        self.assertAllClose(result_max_value, expected_max_value, rtol=1e-05)
+
+    def test_relu_threshold(self):
+        # Define the input tensor
+        x = np.array([-10, -5, 0.0, 5, 10])
+
+        # Test with only threshold
+        result_threshold = activations.relu(x, threshold=5.0)
+        expected_threshold = np.array([-0.0, -0.0, 0.0, 0.0, 10.0])
+        self.assertAllClose(result_threshold, expected_threshold, rtol=1e-05)
+
+    def test_relu_combined_threshold_and_max_value(self):
+        # Define the input tensor
+        x = np.array([-10, -5, 0.0, 5, 10])
+
+        # Test with threshold and max_value
+        result_combined = activations.relu(x, threshold=5.0, max_value=5.0)
+        expected_combined = np.array([0.0, 0.0, 0.0, 0.0, 5.0])
+        self.assertAllClose(result_combined, expected_combined, rtol=1e-05)
+
+    def test_relu_combined_all_parameters(self):
+        # Define the input tensor
+        x = np.array([-10, -5, 0.0, 5, 10])
+
+        # Test with negative_slope, max_value, and threshold
+        result_combined = activations.relu(
+            x, negative_slope=0.5, max_value=5.0, threshold=5.0
+        )
+        expected_combined = np.array([-7.5, -5.0, -2.5, 0.0, 5.0])
+        self.assertAllClose(result_combined, expected_combined, rtol=1e-05)
+
+    def test_relu_to_trigger_relu6(self):
+        x = np.array([-10, -5, 0.0, 5, 10, 12])
+        result_relu6 = activations.relu(x, max_value=6.0)
+        expected_relu6 = np.array([0.0, 0.0, 0.0, 5.0, 6.0, 6.0])
+        self.assertAllClose(result_relu6, expected_relu6, rtol=1e-05)
+
+    def test_relu_to_trigger_leaky(self):
+        x = np.array([-10, -5, 0.0, 5, 10])
+        result_leaky = activations.relu(x, negative_slope=0.5)
+        expected_leaky = np.array([-5.0, -2.5, 0.0, 5.0, 10.0])
+        self.assertAllClose(result_leaky, expected_leaky, rtol=1e-05)
+
     def test_relu(self):
         # Basic test for positive values
         positive_values = np.random.uniform(0.1, 10, (2, 5))
