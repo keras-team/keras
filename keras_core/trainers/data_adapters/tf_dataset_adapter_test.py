@@ -99,3 +99,104 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertEqual(cardinality, tf.data.UNKNOWN_CARDINALITY)
         adapter = tf_dataset_adapter.TFDatasetAdapter(dataset)
         self.assertIsNone(adapter.num_batches)
+
+    def test_invalid_dataset_type(self):
+        with self.assertRaisesRegex(
+            ValueError, "Expected argument `dataset` to be a tf.data.Dataset"
+        ):
+            invalid_data = "This is not a tf.data.Dataset"
+            tf_dataset_adapter.TFDatasetAdapter(invalid_data)
+
+    def test_class_weight_and_sample_weight_together(self):
+        x = np.random.random((4, 2))
+        y = np.array([[0], [1], [2], [3]], dtype="int64")
+        sw = np.array([0.5, 0.5, 0.5, 0.5])
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y, sw)).batch(16)
+        class_weight = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4}
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "You cannot `class_weight` and `sample_weight` at the same time.",
+        ):
+            tf_dataset_adapter.TFDatasetAdapter(
+                base_ds, class_weight=class_weight
+            )
+
+    def test_different_y_shapes_with_class_weight(self):
+        x = np.random.random((4, 2))
+        y = np.array(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+            dtype="float32",
+        )
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
+        class_weight = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4}
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            base_ds, class_weight=class_weight
+        )
+        gen = adapter.get_numpy_iterator()
+        for batch in gen:
+            _, _, bw = batch
+            self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
+
+        y_sparse = np.array([0, 1, 2, 3], dtype="int64")
+        base_ds = tf.data.Dataset.from_tensor_slices((x, y_sparse)).batch(16)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            base_ds, class_weight=class_weight
+        )
+        gen = adapter.get_numpy_iterator()
+        for batch in gen:
+            _, _, bw = batch
+            self.assertAllClose(bw, [0.1, 0.2, 0.3, 0.4])
+
+    def test_nested_y_with_class_weight(self):
+        x = np.random.random((4, 2))
+
+        # Define two target outputs, y1 and y2, for the dataset
+        y1 = np.array([0, 1, 2, 3], dtype="int64")
+        y2 = np.array([0, 1, 2, 3], dtype="int64")
+
+        # Create a tf.data Dataset from the input data and two target outputs
+        base_ds = tf.data.Dataset.from_tensor_slices((x, (y1, y2))).batch(16)
+
+        # Define class weights for potential classes in the output
+        class_weight = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4}
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`class_weight` is only supported for Models with a single output.",
+        ):
+            tf_dataset_adapter.TFDatasetAdapter(
+                base_ds, class_weight=class_weight
+            )
+
+    def test_class_weights_map_fn_with_sample_weight(self):
+        class_weight = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4}
+        class_weights_map_fn = tf_dataset_adapter.make_class_weight_map_fn(
+            class_weight
+        )
+
+        x = np.array([[0.5, 0.5], [0.5, 0.5]])
+        y = np.array([[1, 0], [0, 1]])
+        sw = np.array([1.0, 1.0])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "You cannot `class_weight` and `sample_weight` at the same time.",
+        ):
+            class_weights_map_fn(x, y, sw)
+
+    def test_class_weights_map_fn_nested_y(self):
+        class_weight = {0: 0.1, 1: 0.2, 2: 0.3, 3: 0.4}
+        class_weights_map_fn = tf_dataset_adapter.make_class_weight_map_fn(
+            class_weight
+        )
+
+        x = np.array([[0.5, 0.5]])
+        y1 = np.array([1])
+        y2 = np.array([0])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`class_weight` is only supported for Models with a single output.",
+        ):
+            class_weights_map_fn(x, (y1, y2))
