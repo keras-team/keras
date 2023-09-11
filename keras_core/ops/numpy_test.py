@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from absl.testing import parameterized
 from tensorflow.python.ops.numpy_ops import np_config
 
@@ -1776,7 +1777,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
 
 
-class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
+class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
     def test_add(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -1816,6 +1817,31 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
         self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
+
+    @parameterized.parameters(
+        ("float16",),
+        ("float32",),
+        ("float64",),
+        ("uint8",),
+        ("int8",),
+        ("int16",),
+        ("int32",),
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_matmul_sparse(self, dtype):
+        import tensorflow as tf
+
+        rng = np.random.default_rng(0)
+        x1 = 4 * rng.standard_normal((5, 3))
+        x1 = tf.sparse.from_dense(tf.cast(tf.nn.dropout(x1, 0.7), dtype=dtype))
+        x2 = (4 * rng.standard_normal((3, 4))).astype(dtype)
+        self.assertAllClose(
+            knp.matmul(x1, x2),
+            np.matmul(tf.sparse.to_dense(x1).numpy(), x2),
+        )
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2204,6 +2230,35 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase):
         self.assertAllClose(
             knp.take(x, indices, axis=-2),
             np.take(x, indices, axis=-2),
+        )
+
+    @parameterized.product(
+        dtype=[
+            "float16",
+            "float32",
+            "float64",
+            "uint8",
+            "int8",
+            "int16",
+            "int32",
+        ],
+        axis=[None, 0, 1, -1],
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_take_sparse(self, dtype, axis):
+        import tensorflow as tf
+
+        rng = np.random.default_rng(0)
+        x = (4 * rng.standard_normal((3, 4, 5))).astype(dtype)
+        indices = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=(2, 3)
+        )
+        self.assertAllClose(
+            knp.take(x, indices, axis=axis),
+            np.take(x, tf.sparse.to_dense(indices).numpy(), axis=axis),
         )
 
     def test_take_along_axis(self):

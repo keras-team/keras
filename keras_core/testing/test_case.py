@@ -11,6 +11,7 @@ from keras_core import ops
 from keras_core import utils
 from keras_core.backend.common import is_float_dtype
 from keras_core.backend.common import standardize_dtype
+from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.models import Model
 from keras_core.utils import traceback_utils
 
@@ -112,9 +113,11 @@ class TestCase(unittest.TestCase):
         input_shape=None,
         input_dtype="float32",
         input_data=None,
+        input_sparse=False,
         call_kwargs=None,
         expected_output_shape=None,
         expected_output_dtype=None,
+        expected_output_sparse=False,
         expected_output=None,
         expected_num_trainable_weights=None,
         expected_num_non_trainable_weights=None,
@@ -265,13 +268,21 @@ class TestCase(unittest.TestCase):
                         output_shape,
                         msg="Unexpected output shape",
                     )
-                if expected_output_dtype is not None:
-                    output_dtype = tree.flatten(output)[0].dtype
-                    self.assertEqual(
-                        expected_output_dtype,
-                        backend.standardize_dtype(output_dtype),
-                        msg="Unexpected output dtype",
-                    )
+            if expected_output_dtype is not None:
+                output_dtype = tree.flatten(output)[0].dtype
+                self.assertEqual(
+                    expected_output_dtype,
+                    backend.standardize_dtype(output_dtype),
+                    msg="Unexpected output dtype",
+                )
+            if expected_output_sparse:
+                import tensorflow as tf
+
+                for x in tree.flatten(output):
+                    if isinstance(x, KerasTensor):
+                        self.assertTrue(x.sparse)
+                    else:
+                        self.assertIsInstance(x, tf.SparseTensor)
             if eager:
                 if expected_output is not None:
                     self.assertEqual(type(expected_output), type(output))
@@ -294,14 +305,24 @@ class TestCase(unittest.TestCase):
                     return self.layer(x)
 
             model = TestModel(layer)
-            model.compile(optimizer="sgd", loss="mse", jit_compile=True)
-            input_data = tree.map_structure(
-                lambda x: backend.convert_to_numpy(x), input_data
-            )
-            output_data = tree.map_structure(
-                lambda x: backend.convert_to_numpy(x), output_data
-            )
-            model.fit(input_data, output_data, verbose=0)
+
+            if input_sparse:
+                import tensorflow as tf
+
+                dataset = tf.data.Dataset.from_tensors(
+                    (input_data, output_data)
+                )
+                model.compile(optimizer="sgd", loss="mse", jit_compile=False)
+                model.fit(dataset, verbose=0)
+            else:
+                input_data = tree.map_structure(
+                    lambda x: backend.convert_to_numpy(x), input_data
+                )
+                output_data = tree.map_structure(
+                    lambda x: backend.convert_to_numpy(x), output_data
+                )
+                model.compile(optimizer="sgd", loss="mse", jit_compile=True)
+                model.fit(input_data, output_data, verbose=0)
 
         # Build test.
         if input_shape is not None:
@@ -313,7 +334,9 @@ class TestCase(unittest.TestCase):
             run_build_asserts(layer)
 
             # Symbolic call test.
-            keras_tensor_inputs = create_keras_tensors(input_shape, input_dtype)
+            keras_tensor_inputs = create_keras_tensors(
+                input_shape, input_dtype, input_sparse
+            )
             layer = layer_cls(**init_kwargs)
             if isinstance(keras_tensor_inputs, dict):
                 keras_tensor_outputs = layer(
@@ -331,7 +354,9 @@ class TestCase(unittest.TestCase):
         # Eager call test and compiled training test.
         if input_data is not None or input_shape is not None:
             if input_data is None:
-                input_data = create_eager_tensors(input_shape, input_dtype)
+                input_data = create_eager_tensors(
+                    input_shape, input_dtype, input_sparse
+                )
             layer = layer_cls(**init_kwargs)
             if isinstance(input_data, dict):
                 output_data = layer(**input_data, **call_kwargs)
@@ -364,44 +389,52 @@ class TestCase(unittest.TestCase):
                         self.assertEqual(dtype, "float32")
 
 
-def create_keras_tensors(input_shape, dtype):
-    from keras_core.backend.common import keras_tensor
-
+def create_keras_tensors(input_shape, dtype, sparse):
     if isinstance(input_shape, tuple):
-        return keras_tensor.KerasTensor(input_shape, dtype=dtype)
+        return KerasTensor(input_shape, dtype=dtype, sparse=sparse)
     if isinstance(input_shape, list):
-        return [keras_tensor.KerasTensor(s, dtype=dtype) for s in input_shape]
+        return [KerasTensor(s, dtype=dtype, sparse=sparse) for s in input_shape]
     if isinstance(input_shape, dict):
         return {
-            utils.removesuffix(k, "_shape"): keras_tensor.KerasTensor(
-                v, dtype=dtype
+            utils.removesuffix(k, "_shape"): KerasTensor(
+                v, dtype=dtype, sparse=sparse
             )
             for k, v in input_shape.items()
         }
 
 
-def create_eager_tensors(input_shape, dtype):
+def create_eager_tensors(input_shape, dtype, sparse):
     from keras_core.backend import random
 
-    if dtype in ["float16", "float32", "float64"]:
-        create_fn = random.uniform
-    elif dtype in ["int16", "int32", "int64"]:
-
-        def create_fn(shape, dtype):
-            shape = list(shape)
-            for i in range(len(shape)):
-                if shape[i] is None:
-                    shape[i] = 2
-            shape = tuple(shape)
-            return ops.cast(
-                random.uniform(shape, dtype="float32") * 3, dtype=dtype
-            )
-
-    else:
+    if dtype not in [
+        "float16",
+        "float32",
+        "float64",
+        "int16",
+        "int32",
+        "int64",
+    ]:
         raise ValueError(
             "dtype must be a standard float or int dtype. "
             f"Received: dtype={dtype}"
         )
+
+    if sparse:
+        import tensorflow as tf
+
+        def create_fn(shape, dtype):
+            min_dim = min(dim for dim in shape if dim > 1)
+            x = random.uniform(shape, dtype="float32") * 3 / min_dim
+            x = tf.nn.dropout(x, 1.0 / min_dim)
+            x = tf.cast(x, dtype=dtype)
+            return tf.sparse.from_dense(x)
+
+    else:
+
+        def create_fn(shape, dtype):
+            return ops.cast(
+                random.uniform(shape, dtype="float32") * 3, dtype=dtype
+            )
 
     if isinstance(input_shape, tuple):
         return create_fn(input_shape, dtype=dtype)

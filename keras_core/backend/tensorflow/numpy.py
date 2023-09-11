@@ -1,3 +1,5 @@
+import warnings
+
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 
@@ -40,6 +42,22 @@ def subtract(x1, x2):
 
 
 def matmul(x1, x2):
+    if isinstance(x1, tf.SparseTensor):
+        # We need at least one id per rows for embedding_lookup_sparse,
+        # otherwise there will be missing rows in the output.
+        x1, _ = tf.sparse.fill_empty_rows(x1, 0)
+        # We need to split x1 into separate ids and weights tensors. The ids
+        # should be the column indices of x1 and the values of the weights
+        # can continue to be the actual x1. The column arrangement of ids and
+        # weights does not matter as we sum over columns. See documentation for
+        # sparse_ops.sparse_tensor_dense_matmul for details.
+        ids = tf.SparseTensor(
+            indices=x1.indices,
+            values=x1.indices[:, 1],
+            dense_shape=x1.dense_shape,
+        )
+        weights = x1
+        return tf.nn.embedding_lookup_sparse(x2, ids, weights, combiner="sum")
     return tfnp.matmul(x1, x2)
 
 
@@ -550,6 +568,28 @@ def swapaxes(x, axis1, axis2):
 
 
 def take(x, indices, axis=None):
+    if isinstance(indices, tf.SparseTensor):
+        if x.dtype not in (tf.float16, tf.float32, tf.float64, tf.bfloat16):
+            warnings.warn(
+                "`take` with the TensorFlow backend does not support "
+                f"`x.dtype={x.dtype}` when `indices` is a sparse tensor; "
+                "densifying `indices`."
+            )
+            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
+        if axis is None:
+            x = tf.reshape(x, (-1,))
+        elif axis != 0:
+            warnings.warn(
+                "`take` with the TensorFlow backend does not support "
+                f"`axis={axis}` when `indices` is a sparse tensor; "
+                "densifying `indices`."
+            )
+            return tfnp.take(x, tf.sparse.to_dense(indices), axis=axis)
+        return tf.nn.safe_embedding_lookup_sparse(
+            embedding_weights=x,
+            sparse_ids=tf.sparse.expand_dims(indices, axis=-1),
+            default_id=0,
+        )
     return tfnp.take(x, indices, axis=axis)
 
 
