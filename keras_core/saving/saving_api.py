@@ -108,7 +108,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
             f"format (recommended) or a `.h5` extension. "
             "Use `tf.saved_model.save()` if you want to export a SavedModel "
             "for use with TFLite/TFServing/etc. "
-            f"Received: filepath = {filepath}."
+            f"Received: filepath={filepath}."
         )
 
 
