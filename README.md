@@ -49,7 +49,8 @@ os.environ["KERAS_BACKEND"] = "jax"
 
 import keras_core as keras
 ```
-
+**Note:** The backend must be configured before importing keras_core, and the backend cannot be changed after 
+the package has been imported.
 ## Backwards compatibility
 
 Keras Core is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
