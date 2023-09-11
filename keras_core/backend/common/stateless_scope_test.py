@@ -34,3 +34,22 @@ class TestStatelessScope(testing.TestCase):
         # Updates can be reapplied.
         var_out.assign(scope.get_current_value(var_out))
         self.assertAllClose(var_out_value, 2 * np.ones((2,)))
+
+    def test_invalid_key_in_state_mapping(self):
+        # var1 = backend.Variable(np.zeros((2,)))
+        invalid_key = "not_a_keras_variable"
+        value1 = ops.ones(shape=(2,))
+
+        with self.assertRaisesRegex(
+            ValueError, "all keys in argument `mapping` must be KerasVariable"
+        ):
+            StatelessScope(state_mapping=[(invalid_key, value1)])
+
+    def test_invalid_value_shape_in_state_mapping(self):
+        var1 = backend.Variable(np.zeros((2,)))
+        invalid_value = ops.ones(shape=(3,))  # Incorrect shape
+
+        with self.assertRaisesRegex(
+            ValueError, "all values in argument `mapping` must be tensors with"
+        ):
+            StatelessScope(state_mapping=[(var1, invalid_value)])
