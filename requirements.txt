@@ -9,7 +9,7 @@ scipy ~= 1.9.2
 # Keras-TensorFlow circular dependency issue, when one of them gets a dependency
 # incompatible with another one (protobuf in this specific case).
 protobuf==3.20.3
-tf-nightly
+tensorflow==2.14.0rc1
 portpicker
 pyyaml
 Pillow
