@@ -62,6 +62,7 @@ ATTR_SKIPLIST = frozenset(
         "_callable_losses",
         "_captured_weight_regularizer",
         "_checkpoint_dependencies",
+        "_layer_checkpoint_dependencies",
         "_deferred_dependencies",
         "_eager_losses",
         "_inbound_nodes",
@@ -71,7 +72,6 @@ ATTR_SKIPLIST = frozenset(
         "_keras_api_names",
         "_keras_api_names_v1",
         "_name_based_restores",
-        "_non_trainable_weights",
         "_outbound_nodes",
         "_outbound_nodes_value",
         "_saved_model_arg_spec",
@@ -364,7 +364,7 @@ def _write_to_zip_recursively(zipfile_to_save, system_path, zip_path):
 
 
 def _walk_trackable(trackable):
-    for child_attr in dir(trackable):
+    for child_attr in sorted(dir(trackable), reverse=True):
         if child_attr.startswith("__") or child_attr in ATTR_SKIPLIST:
             continue
         try:
