@@ -205,7 +205,7 @@ def train_validation_split(arrays, validation_split):
 
 
 def class_weight_to_sample_weights(y, class_weight):
-    sample_weight = np.ones(shape=(y.shape[0],), dtype=y.dtype)
+    sample_weight = np.ones(shape=(y.shape[0],), dtype=backend.floatx())
     if len(y.shape) > 1:
         if y.shape[-1] != 1:
             y = np.argmax(y, axis=-1)

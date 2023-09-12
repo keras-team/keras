@@ -276,7 +276,7 @@ def can_convert_arrays(arrays):
     )
 
 
-def convert_to_arrays(arrays, dtype=None):
+def convert_to_arrays(arrays):
     """Process array-like inputs.
 
     This function:
@@ -291,26 +291,31 @@ def convert_to_arrays(arrays, dtype=None):
     Returns:
         Structure of NumPy `ndarray`s.
     """
-    dtype = dtype or backend.floatx()
 
     def convert_single_array(x):
         if x is None:
             return x
         if pandas is not None:
             if isinstance(x, pandas.Series):
-                x = np.expand_dims(x.to_numpy(dtype=dtype), axis=-1)
+                x = np.expand_dims(x.to_numpy(), axis=-1)
             elif isinstance(x, pandas.DataFrame):
-                x = x.to_numpy(dtype=dtype)
+                x = x.to_numpy()
         if is_tf_ragged_tensor(x):
             from keras_core.utils.module_utils import tensorflow as tf
 
-            return tf.cast(x, dtype=dtype)
+            # Convert floats to floatx.
+            if (
+                backend.is_float_dtype(x.dtype)
+                and not backend.standardize_dtype(x.dtype) == backend.floatx()
+            ):
+                x = tf.cast(x, backend.floatx())
+            return x
         if not isinstance(x, np.ndarray):
             # Using `__array__` should handle `tf.Tensor`, `jax.np.ndarray`,
             # `torch.Tensor`, as well as any other tensor-like object that has
             # added numpy support.
             if hasattr(x, "__array__"):
-                x = backend.convert_to_numpy(x).astype(dtype)
+                x = backend.convert_to_numpy(x)
             else:
                 raise ValueError(
                     "Expected a NumPy array, tf.Tensor, tf.RaggedTensor, "
@@ -320,8 +325,12 @@ def convert_to_arrays(arrays, dtype=None):
                 )
         if x.dtype == object:
             return x
-        if not x.dtype == dtype:
-            x = x.astype(dtype)
+        # Convert floats to floatx.
+        if (
+            backend.is_float_dtype(x.dtype)
+            and not backend.standardize_dtype(x.dtype) == backend.floatx()
+        ):
+            x = x.astype(backend.floatx())
         return x
 
     arrays = tree.map_structure(convert_single_array, arrays)
