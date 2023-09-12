@@ -9,8 +9,8 @@ import warnings
 import zipfile
 from urllib.request import urlretrieve
 
-from keras_core.backend import config
 from keras_core.api_export import keras_core_export
+from keras_core.backend import config
 from keras_core.utils import io_utils
 from keras_core.utils.module_utils import gfile
 from keras_core.utils.progbar import Progbar
