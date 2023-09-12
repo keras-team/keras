@@ -9,6 +9,7 @@ import warnings
 import zipfile
 from urllib.request import urlretrieve
 
+from keras_core.backend import config
 from keras_core.api_export import keras_core_export
 from keras_core.utils import io_utils
 from keras_core.utils.module_utils import gfile
@@ -184,7 +185,8 @@ def get_file(
             The default `"auto"` corresponds to `["tar", "zip"]`.
             None or an empty list will return no matches found.
         cache_dir: Location to store cached files, when None it
-            defaults to the default directory `~/.keras/`.
+            defaults ether `$KERAS_HOME` if the `KERAS_HOME` environment
+            variable is set or `~/.keras/`.
 
     Returns:
         Path to the downloaded file.
@@ -204,7 +206,7 @@ def get_file(
         )
 
     if cache_dir is None:
-        cache_dir = os.path.join(os.path.expanduser("~"), ".keras")
+        cache_dir = config.keras_home()
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = "md5"
