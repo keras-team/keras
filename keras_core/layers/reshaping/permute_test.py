@@ -1,23 +1,45 @@
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import ops
 from keras_core import testing
 
 
-class PermuteTest(testing.TestCase):
+class PermuteTest(testing.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "sparse", "sparse": True},
+        ]
+    )
     @pytest.mark.requires_trainable_backend
-    def test_permute(self):
-        inputs = np.random.random((2, 3, 5)).astype("float32")
+    def test_permute(self, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors.")
+
+        inputs = np.random.random((10, 3, 5, 5)).astype("float32")
+        # Make the ndarray relatively sparse
+        inputs = np.multiply(inputs, inputs >= 0.8)
         expected_output = ops.convert_to_tensor(
-            np.transpose(inputs, axes=(0, 2, 1))
+            np.transpose(inputs, axes=(0, 3, 1, 2))
         )
+        if sparse:
+            import tensorflow as tf
+
+            inputs = tf.sparse.from_dense(inputs)
+            expected_output = tf.sparse.from_dense(expected_output)
+
         self.run_layer_test(
             layers.Permute,
-            init_kwargs={"dims": (2, 1)},
+            init_kwargs={"dims": (3, 1, 2)},
             input_data=inputs,
+            input_sparse=sparse,
             expected_output=expected_output,
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
     def test_permute_with_dynamic_batch_size(self):

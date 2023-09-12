@@ -1,5 +1,6 @@
 from keras_core import ops
 from keras_core.api_export import keras_core_export
+from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.layers.layer import Layer
 from keras_core.ops import operation_utils
 
@@ -44,6 +45,12 @@ class Reshape(Layer):
             *operation_utils.compute_reshape_output_shape(
                 input_shape[1:], self.target_shape, "target_shape"
             ),
+        )
+
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape(inputs.shape)
+        return KerasTensor(
+            shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
         )
 
     def call(self, inputs):

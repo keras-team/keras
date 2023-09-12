@@ -524,6 +524,8 @@ def repeat(x, repeats, axis=None):
 
 
 def reshape(x, new_shape):
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.reshape(x, new_shape)
     return tfnp.reshape(x, new_shape)
 
 
@@ -689,6 +691,8 @@ def squeeze(x, axis=None):
 
 
 def transpose(x, axes=None):
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.transpose(x, perm=axes)
     return tfnp.transpose(x, axes=axes)
 
 

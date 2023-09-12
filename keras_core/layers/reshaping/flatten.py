@@ -3,6 +3,7 @@ import math
 from keras_core import backend
 from keras_core import ops
 from keras_core.api_export import keras_core_export
+from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 
@@ -61,6 +62,12 @@ class Flatten(Layer):
         else:
             flattened_dim = math.prod(non_batch_dims)
         return (input_shape[0], flattened_dim)
+
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape(inputs.shape)
+        return KerasTensor(
+            shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
+        )
 
     def get_config(self):
         config = {"data_format": self.data_format}

@@ -1,5 +1,6 @@
 from keras_core import ops
 from keras_core.api_export import keras_core_export
+from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.layers.input_spec import InputSpec
 from keras_core.layers.layer import Layer
 
@@ -47,6 +48,12 @@ class Permute(Layer):
         for dim in self.dims:
             output_shape.append(input_shape[dim])
         return tuple(output_shape)
+
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape(inputs.shape)
+        return KerasTensor(
+            shape=output_shape, dtype=inputs.dtype, sparse=inputs.sparse
+        )
 
     def call(self, inputs):
         return ops.transpose(inputs, axes=(0,) + self.dims)

@@ -112,8 +112,8 @@ class TestCase(unittest.TestCase):
         init_kwargs,
         input_shape=None,
         input_dtype="float32",
-        input_data=None,
         input_sparse=False,
+        input_data=None,
         call_kwargs=None,
         expected_output_shape=None,
         expected_output_dtype=None,
@@ -139,6 +139,8 @@ class TestCase(unittest.TestCase):
             input_shape: Shape tuple (or list/dict of shape tuples)
                 to call the layer on.
             input_dtype: Corresponding input dtype.
+            input_sparse: Whether the input is a sparse tensor (this requires
+                the backend to support sparse tensors).
             input_data: Tensor (or list/dict of tensors)
                 to call the layer on.
             call_kwargs: Dict of arguments to use when calling the
@@ -147,6 +149,8 @@ class TestCase(unittest.TestCase):
                 (or list/dict of shape tuples)
                 expected as output.
             expected_output_dtype: dtype expected as output.
+            expected_output_sparse: Whether the output is expected to be sparse
+                (this requires the backend to support sparse tensors).
             expected_output: Expected output tensor -- only
                 to be specified if input_data is provided.
             expected_num_trainable_weights: Expected number

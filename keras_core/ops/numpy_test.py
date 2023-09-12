@@ -1365,6 +1365,12 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.transpose(x).shape, (3, 2))
 
+    def test_transpose_sparse(self):
+        x = KerasTensor([2, 3], sparse=True)
+        result = knp.transpose(x)
+        self.assertEqual(result.shape, (3, 2))
+        self.assertTrue(result.sparse)
+
     def test_arccos(self):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.arccos(x).shape, (2, 3))
@@ -1671,6 +1677,25 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (6,)).shape, (6,))
         self.assertEqual(knp.reshape(x, (-1,)).shape, (6,))
+
+    def test_reshape_sparse(self):
+        x = KerasTensor([2, 3], sparse=True)
+
+        result = knp.reshape(x, (3, 2))
+        self.assertEqual(result.shape, (3, 2))
+        self.assertTrue(result.sparse)
+
+        result = knp.reshape(x, (3, -1))
+        self.assertEqual(result.shape, (3, 2))
+        self.assertTrue(result.sparse)
+
+        result = knp.reshape(x, (6,))
+        self.assertEqual(result.shape, (6,))
+        self.assertTrue(result.sparse)
+
+        result = knp.reshape(x, (-1,))
+        self.assertEqual(result.shape, (6,))
+        self.assertTrue(result.sparse)
 
     def test_roll(self):
         x = KerasTensor([2, 3])
@@ -2525,6 +2550,40 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.transpose(x, axes=(1, 0, 3, 2, 4)),
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_transpose_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0, 0, 0, 0], [0, 1, 2, 3, 4]],
+            values=[1, 2],
+            dense_shape=(1, 2, 3, 4, 5),
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+
+        self.assertIsInstance(knp.transpose(x), tf.SparseTensor)
+        self.assertAllClose(knp.transpose(x), np.transpose(x_np))
+        self.assertIsInstance(
+            knp.transpose(x, axes=(1, 0, 3, 2, 4)), tf.SparseTensor
+        )
+        self.assertAllClose(
+            knp.transpose(x, axes=(1, 0, 3, 2, 4)),
+            np.transpose(x_np, axes=(1, 0, 3, 2, 4)),
+        )
+
+        self.assertIsInstance(knp.Transpose()(x), tf.SparseTensor)
+        self.assertAllClose(knp.Transpose()(x), np.transpose(x_np))
+        self.assertIsInstance(
+            knp.Transpose(axes=(1, 0, 3, 2, 4))(x), tf.SparseTensor
+        )
+        self.assertAllClose(
+            knp.Transpose(axes=(1, 0, 3, 2, 4))(x),
+            np.transpose(x_np, axes=(1, 0, 3, 2, 4)),
+        )
+
     def test_arccos(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         self.assertAllClose(knp.arccos(x), np.arccos(x))
@@ -3162,6 +3221,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_reshape_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]],
+            values=[1, 2],
+            dense_shape=(2, 3),
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+        self.assertIsInstance(knp.reshape(x, [3, 2]), tf.SparseTensor)
+        self.assertAllClose(knp.reshape(x, [3, 2]), np.reshape(x_np, [3, 2]))
+        self.assertIsInstance(knp.Reshape([3, 2])(x), tf.SparseTensor)
+        self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x_np, [3, 2]))
 
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

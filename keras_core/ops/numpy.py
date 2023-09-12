@@ -4163,7 +4163,7 @@ class Reshape(Operation):
         output_shape = operation_utils.compute_reshape_output_shape(
             x.shape, self.new_shape, "new_shape"
         )
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
 
 
 @keras_core_export(["keras_core.ops.reshape", "keras_core.ops.numpy.reshape"])
@@ -5328,7 +5328,7 @@ class Transpose(Operation):
     def compute_output_spec(self, x):
         x_shape = x.shape
         if self.axes is None:
-            return KerasTensor(x_shape[::-1])
+            return KerasTensor(x_shape[::-1], dtype=x.dtype, sparse=x.sparse)
 
         if len(self.axes) != len(x_shape):
             raise ValueError(
@@ -5338,7 +5338,7 @@ class Transpose(Operation):
         output_shape = []
         for ax in self.axes:
             output_shape.append(x_shape[ax])
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
 
 
 @keras_core_export(

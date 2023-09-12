@@ -1,58 +1,90 @@
 import pytest
+from absl.testing import parameterized
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import testing
 
 
-class ReshapeTest(testing.TestCase):
+class ReshapeTest(testing.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "dense", "sparse": False},
+            {"testcase_name": "sparse", "sparse": True},
+        ]
+    )
     @pytest.mark.requires_trainable_backend
-    def test_reshape(self):
+    def test_reshape(self, sparse):
+        if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
+            pytest.skip("Backend does not support sparse tensors.")
+
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (8, 1)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 8, 1),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (8,)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 8),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (2, 4)},
             input_shape=(3, 8),
+            input_sparse=sparse,
             expected_output_shape=(3, 2, 4),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (-1, 1)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 8, 1),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (1, -1)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 1, 8),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (-1,)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 8),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
         self.run_layer_test(
             layers.Reshape,
             init_kwargs={"target_shape": (2, -1)},
             input_shape=(3, 2, 4),
+            input_sparse=sparse,
             expected_output_shape=(3, 2, 4),
+            expected_output_sparse=sparse,
+            run_training_check=not sparse,
         )
 
     def test_reshape_with_dynamic_batch_size(self):
