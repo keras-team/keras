@@ -134,9 +134,14 @@ def compute_output_spec(fn, *args, **kwargs):
 
             def convert_keras_tensor_to_tf(x):
                 if isinstance(x, KerasTensor):
-                    return tf.compat.v1.placeholder(
-                        shape=x.shape, dtype=x.dtype
-                    )
+                    if x.sparse:
+                        return tf.compat.v1.sparse_placeholder(
+                            shape=x.shape, dtype=x.dtype
+                        )
+                    else:
+                        return tf.compat.v1.placeholder(
+                            shape=x.shape, dtype=x.dtype
+                        )
                 if isinstance(x, types.FunctionType):
 
                     def _fn(*x_args, **x_kwargs):
@@ -154,7 +159,9 @@ def compute_output_spec(fn, *args, **kwargs):
 
             def convert_tf_to_keras_tensor(x):
                 if tf.is_tensor(x):
-                    return KerasTensor(x.shape, x.dtype)
+                    return KerasTensor(
+                        x.shape, x.dtype, sparse=isinstance(x, tf.SparseTensor)
+                    )
                 return x
 
             output_spec = tf.nest.map_structure(
