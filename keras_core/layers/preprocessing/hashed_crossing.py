@@ -131,9 +131,9 @@ class HashedCrossing(Layer):
             return input_shape[0]
 
         if self.output_mode == "one_hot" and input_shape[0][-1] != 1:
-            output_shape = tuple(input_shape[0]) + (self.num_bins,)
-        output_shape = tuple(input_shape[0])[:-1] + (self.num_bins,)
-        return output_shape
+            return tuple(input_shape[0]) + (self.num_bins,)
+
+        return tuple(input_shape[0])[:-1] + (self.num_bins,)
 
     def call(self, inputs):
         self._check_at_least_two_inputs(inputs)

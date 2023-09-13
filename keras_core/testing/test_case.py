@@ -329,18 +329,32 @@ class TestCase(unittest.TestCase):
                 model.fit(input_data, output_data, verbose=0)
 
         # Build test.
-        if input_shape is not None:
-            layer = layer_cls(**init_kwargs)
-            if isinstance(input_shape, dict):
-                layer.build(**input_shape)
+        if input_data is not None or input_shape is not None:
+            if input_shape is None:
+                build_shape = tree.map_structure(
+                    lambda x: ops.shape(x), input_data
+                )
             else:
-                layer.build(input_shape)
+                build_shape = input_shape
+            layer = layer_cls(**init_kwargs)
+            if isinstance(build_shape, dict):
+                layer.build(**build_shape)
+            else:
+                layer.build(build_shape)
             run_build_asserts(layer)
 
             # Symbolic call test.
-            keras_tensor_inputs = create_keras_tensors(
-                input_shape, input_dtype, input_sparse
-            )
+            if input_shape is None:
+                keras_tensor_inputs = tree.map_structure(
+                    lambda x: create_keras_tensors(
+                        ops.shape(x), x.dtype, input_sparse
+                    ),
+                    input_data,
+                )
+            else:
+                keras_tensor_inputs = create_keras_tensors(
+                    input_shape, input_dtype, input_sparse
+                )
             layer = layer_cls(**init_kwargs)
             if isinstance(keras_tensor_inputs, dict):
                 keras_tensor_outputs = layer(
@@ -405,6 +419,7 @@ def create_keras_tensors(input_shape, dtype, sparse):
             )
             for k, v in input_shape.items()
         }
+    raise ValueError(f"Unsupported type for `input_shape`: {type(input_shape)}")
 
 
 def create_eager_tensors(input_shape, dtype, sparse):

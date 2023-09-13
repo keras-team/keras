@@ -15,7 +15,7 @@ class HashedCrossingTest(testing.TestCase):
                 "num_bins": 3,
                 "output_mode": "int",
             },
-            input_data=([1, 2], [4, 5]),
+            input_data=(np.array([1, 2]), np.array([4, 5])),
             expected_output_shape=(2,),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
@@ -29,7 +29,7 @@ class HashedCrossingTest(testing.TestCase):
         self.run_layer_test(
             layers.HashedCrossing,
             init_kwargs={"num_bins": 4, "output_mode": "one_hot"},
-            input_data=([1, 2], [4, 5]),
+            input_data=(np.array([1, 2]), np.array([4, 5])),
             expected_output_shape=(2, 4),
             expected_num_trainable_weights=0,
             expected_num_non_trainable_weights=0,
