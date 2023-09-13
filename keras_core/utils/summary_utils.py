@@ -308,7 +308,7 @@ def print_summary(
     non_trainable_count = count_params(model.non_trainable_weights)
     non_trainable_memory_size = weight_memory_size(model.non_trainable_weights)
 
-    if model.compiled and model.optimizer.built:
+    if model.compiled and model.optimizer and model.optimizer.built:
         optimizer_weight_count = count_params(model.optimizer.variables)
         optimizer_memory_size = weight_memory_size(model.optimizer.variables)
     else:
