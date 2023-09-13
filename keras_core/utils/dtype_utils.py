@@ -33,13 +33,18 @@ def cast_to_common_dtype(tensors):
         Same list, casted to a common dtype.
     """
     highest_float = None
+    highest_float_size = (
+        -1
+    )  # Initially set to an impossible value for comparison
     for x in tensors:
         dtype = backend.standardize_dtype(x.dtype)
         if is_float(dtype):
-            if highest_float is None or dtype_size(dtype) > highest_float:
+            if highest_float is None or dtype_size(dtype) > highest_float_size:
                 highest_float = dtype
+                highest_float_size = dtype_size(dtype)
             elif dtype == "float16" and highest_float == "bfloat16":
                 highest_float = "float32"
+                highest_float_size = dtype_size(highest_float)
     if highest_float:
         tensors = [ops.cast(x, highest_float) for x in tensors]
     return tensors
