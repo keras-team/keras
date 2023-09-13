@@ -212,7 +212,7 @@ def fori_loop(lower, upper, body_fun, init_val):
 
 
 def stop_gradient(x):
-    pass
+    return x
 
 
 def unstack(x, num=None, axis=0):

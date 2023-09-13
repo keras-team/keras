@@ -264,6 +264,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(model.layers[0].w.numpy(), 0.0)
         self.assertNotEqual(model.layers[0].b.numpy(), 0.0)
 
+    def test_stop_gradient_return(self):
+        x = ops.random.uniform(shape=(2, 4), dtype="float32")
+        y = ops.stop_gradient(x)
+        self.assertAllClose(x, y)
+
     def test_shape(self):
         x = np.ones((2, 3, 7, 1))
         self.assertAllEqual(core.shape(x), (2, 3, 7, 1))
