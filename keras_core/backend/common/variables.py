@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras_core.api_export import keras_core_export
 from keras_core.backend import config
 from keras_core.backend.common import global_state
 from keras_core.backend.common.name_scope import current_path
@@ -398,6 +399,7 @@ PYTHON_DTYPES_MAP = {
 }
 
 
+@keras_core_export("keras_core.backend.standardize_dtype")
 def standardize_dtype(dtype):
     if dtype is None:
         return config.floatx()
@@ -454,11 +456,13 @@ def shape_equal(a, b):
     return True
 
 
+@keras_core_export("keras_core.backend.is_float_dtype")
 def is_float_dtype(dtype):
     dtype = standardize_dtype(dtype)
     return dtype.startswith("float") or dtype.startswith("bfloat")
 
 
+@keras_core_export("keras_core.backend.is_int_dtype")
 def is_int_dtype(dtype):
     dtype = standardize_dtype(dtype)
     return dtype.startswith("int") or dtype.startswith("uint")
