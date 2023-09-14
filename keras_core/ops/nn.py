@@ -10,6 +10,7 @@ from keras_core.backend.common.backend_utils import (
 )
 from keras_core.ops import operation_utils
 from keras_core.ops.operation import Operation
+from keras_core.ops.operation_utils import reduce_shape
 
 
 class Relu(Operation):
@@ -1551,7 +1552,6 @@ def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
     Returns:
         Tensor: The multi-hot encoded tensor.
 
-
     Example:
 
     >>> data = keras_core.ops.convert_to_tensor([0, 4])
@@ -1563,3 +1563,60 @@ def multi_hot(inputs, num_tokens, axis=-1, dtype=None):
         return MultiHot(num_tokens, axis, dtype).symbolic_call(inputs)
 
     return backend.nn.multi_hot(inputs, num_tokens, axis, dtype)
+
+
+class Moments(Operation):
+    def __init__(self, axes, keepdims=False, name=None):
+        super().__init__(name)
+        self.axes = axes
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.nn.moments(x, axes=self.axes, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        return (
+            KerasTensor(
+                reduce_shape(x.shape, axis=self.axes, keepdims=self.keepdims),
+                dtype=x.dtype,
+            ),
+            KerasTensor(
+                reduce_shape(x.shape, axis=self.axes, keepdims=self.keepdims),
+                dtype=x.dtype,
+            ),
+        )
+
+
+@keras_core_export(
+    [
+        "keras_core.ops.moments",
+        "keras_core.ops.nn.moments",
+    ]
+)
+def moments(x, axes, keepdims=False):
+    """Calculates the mean and variance of `x`.
+
+    The mean and variance are calculated by aggregating the contents of `x`
+    across `axes`. If `x` is 1-D and `axes = [0]` this is just the mean and
+    variance of a vector.
+
+    Args:
+        x: Input tensor.
+        axes: A list of axes which to compute mean and variance.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        A tuple containing two tensors - mean and variance.
+
+    Example:
+
+    >>> x = keras_core.ops.convert_to_tensor([0, 1, 2, 3, 100], dtype="float32")
+    >>> keras_core.ops.moments(x, axes=[0])
+    (array(21.2, dtype=float32), array(1553.3601, dtype=float32))
+
+    """
+    if any_symbolic_tensors((x,)):
+        return Moments(axes, keepdims).symbolic_call(x)
+
+    return backend.nn.moments(x, axes, keepdims)

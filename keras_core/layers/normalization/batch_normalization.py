@@ -198,10 +198,9 @@ class BatchNormalization(Layer):
         broadcast_shape = [1] * len(inputs.shape)
         broadcast_shape[self.axis] = inputs.shape[self.axis]
         if training and self.trainable:
-            mean = ops.mean(inputs, axis=self._reduction_axes, keepdims=True)
-            variance = ops.mean(
-                ops.square(inputs), axis=self._reduction_axes, keepdims=True
-            ) - ops.square(mean)
+            mean, variance = ops.moments(
+                inputs, axes=self._reduction_axes, keepdims=True
+            )
             outputs = (inputs - mean) / ops.sqrt(variance + self.epsilon)
             mean = ops.squeeze(mean, self._reduction_axes)
             variance = ops.squeeze(variance, self._reduction_axes)

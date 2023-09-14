@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as tnn
 
 from keras_core.backend import standardize_data_format
+from keras_core.backend import standardize_dtype
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_torch,
 )
@@ -609,3 +610,44 @@ def binary_crossentropy(target, output, from_logits=False):
     else:
         output = torch.clip(output, epsilon(), 1.0 - epsilon())
         return tnn.binary_cross_entropy(output, target, reduction="none")
+
+
+def moments(x, axes, keepdims=False):
+    x = convert_to_tensor(x)
+    # The dynamic range of float16 is too limited for statistics. As a
+    # workaround, we simply perform the operations on float32 and convert back
+    # to float16
+    need_cast = False
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "float16":
+        need_cast = True
+        x = cast(x, "float32")
+
+    mean = torch.mean(x, dim=axes, keepdim=True)
+
+    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
+    # but less numerically stable.
+    # Note: stop_gradient does not change the gradient to the mean, because that
+    # gradient is zero.
+    variance = torch.mean(
+        torch.square(x), dim=axes, keepdim=True
+    ) - torch.square(mean.detach())
+
+    if not keepdims:
+        mean = torch.squeeze(mean, axes)
+        variance = torch.squeeze(variance, axes)
+    if need_cast:
+        # avoid overflow and underflow when casting from float16 to float32
+        mean = torch.clip(
+            mean,
+            torch.finfo(torch.float16).min,
+            torch.finfo(torch.float16).max,
+        )
+        variance = torch.clip(
+            variance,
+            torch.finfo(torch.float16).min,
+            torch.finfo(torch.float16).max,
+        )
+        mean = cast(mean, ori_dtype)
+        variance = cast(variance, ori_dtype)
+    return mean, variance

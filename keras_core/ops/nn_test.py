@@ -298,6 +298,20 @@ class NNOpsDynamicShapeTest(testing.TestCase, parameterized.TestCase):
         out = knn.one_hot(x, 5, axis=0, dtype=dtype)
         self.assertEqual(backend.standardize_dtype(out.dtype), dtype)
 
+    def test_moments(self):
+        x = KerasTensor([None, 3, 4])
+        self.assertEqual(knn.moments(x, axes=[0])[0].shape, (3, 4))
+        self.assertEqual(knn.moments(x, axes=[0, 1])[0].shape, (4,))
+        self.assertEqual(
+            knn.moments(x, axes=[0, 1], keepdims=True)[0].shape, (1, 1, 4)
+        )
+
+        self.assertEqual(knn.moments(x, axes=[1])[0].shape, (None, 4))
+        self.assertEqual(knn.moments(x, axes=[1, 2])[0].shape, (None,))
+        self.assertEqual(
+            knn.moments(x, axes=[1, 2], keepdims=True)[0].shape, (None, 1, 1)
+        )
+
 
 class NNOpsStaticShapeTest(testing.TestCase):
     def test_relu(self):
@@ -589,6 +603,14 @@ class NNOpsStaticShapeTest(testing.TestCase):
         x2 = KerasTensor([2, 3, 4])
         self.assertEqual(
             knn.sparse_categorical_crossentropy(x1, x2).shape, (2, 3)
+        )
+
+    def test_moments(self):
+        x = KerasTensor([2, 3, 4])
+        self.assertEqual(knn.moments(x, axes=[0])[0].shape, (3, 4))
+        self.assertEqual(knn.moments(x, axes=[0, 1])[0].shape, (4,))
+        self.assertEqual(
+            knn.moments(x, axes=[0, 1], keepdims=True)[0].shape, (1, 1, 4)
         )
 
 
@@ -1156,3 +1178,41 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         indices_1d = np.array([0, -1, -1, 3])
         expected_output_1d = np.array([1, 0, 0, 1])
         self.assertAllClose(knn.multi_hot(indices_1d, 4), expected_output_1d)
+
+    def test_moments(self):
+        # Test 1D moments
+        x = np.array([0, 1, 2, 3, 4, 100, -200]).astype(np.float32)
+        mean, variance = knn.moments(x, axes=[0])
+        self.assertAllClose(mean, np.mean(x))
+        self.assertAllClose(variance, np.var(x))
+
+        # Test batch statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3))
+        mean, variance = knn.moments(x, axes=[0])
+        self.assertAllClose(mean, np.mean(x, axis=0))
+        self.assertAllClose(variance, np.var(x, axis=0))
+
+        # Test global statistics for 4D moments (batch, height, width, channels)
+        x = np.random.uniform(size=(2, 28, 28, 3))
+        mean, variance = knn.moments(x, axes=[0, 1, 2])
+        self.assertAllClose(mean, np.mean(x, axis=(0, 1, 2)))
+        self.assertAllClose(variance, np.var(x, axis=(0, 1, 2)))
+
+        # Test keepdims
+        x = np.random.uniform(size=(2, 28, 28, 3))
+        mean, variance = knn.moments(x, axes=[0, 1, 2], keepdims=True)
+        self.assertAllClose(mean, np.mean(x, axis=(0, 1, 2), keepdims=True))
+        self.assertAllClose(variance, np.var(x, axis=(0, 1, 2), keepdims=True))
+
+        # Test float16 which causes overflow
+        x = np.array(
+            [-741.0, 353.2, 1099.0, -1807.0, 502.8, -83.4, 333.5, -130.9],
+            dtype=np.float16,
+        )
+        mean, variance = knn.moments(x, axes=[0])
+        expected_mean = np.mean(x.astype(np.float32)).astype(np.float16)
+        # the output variance is clipped to the max value of np.float16 because
+        # it is overflowed
+        expected_variance = np.finfo(np.float16).max
+        self.assertAllClose(mean, expected_mean)
+        self.assertAllClose(variance, expected_variance)

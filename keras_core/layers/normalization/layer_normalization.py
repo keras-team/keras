@@ -203,19 +203,17 @@ class LayerNormalization(Layer):
             # this is at least as numerically stable as the fused version.
             inputs = ops.cast(inputs, "float32")
 
-        # Calculate the variance last axis (layer activations).
-        variance = ops.var(inputs, axis=self.axis, keepdims=True)
-
-        # Compute the batch normalization.
-        inv = 1 / ops.sqrt(variance + self.epsilon)
-
         if self.rms_scaling:
             # Calculate outputs with only variance and gamma if rms scaling
             # is enabled
+            # Calculate the variance along last axis (layer activations).
+            variance = ops.var(inputs, axis=self.axis, keepdims=True)
+            inv = 1 / ops.sqrt(variance + self.epsilon)
             outputs = inputs * ops.cast(inv, inputs.dtype) * self.gamma
         else:
-            # Calculate the mean last axis (layer activations).
-            mean = ops.mean(inputs, axis=self.axis, keepdims=True)
+            # Calculate the mean & variance along last axis (layer activations).
+            mean, variance = ops.moments(inputs, axes=self.axis, keepdims=True)
+            inv = 1 / ops.sqrt(variance + self.epsilon)
             scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
             if scale is not None:
                 scale = ops.cast(scale, inputs.dtype)

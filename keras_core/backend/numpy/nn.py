@@ -4,6 +4,7 @@ from jax import lax
 from jax import numpy as jnp
 
 from keras_core.backend import standardize_data_format
+from keras_core.backend import standardize_dtype
 from keras_core.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
@@ -519,3 +520,34 @@ def binary_crossentropy(target, output, from_logits=False):
     bce = target * np.log(output)
     bce += (1.0 - target) * np.log(1.0 - output)
     return -bce
+
+
+def moments(x, axes, keepdims=False):
+    axes = tuple(axes) if isinstance(axes, list) else axes
+    # The dynamic range of float16 is too limited for statistics. As a
+    # workaround, we simply perform the operations on float32 and convert back
+    # to float16
+    need_cast = False
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "float16":
+        need_cast = True
+        x = cast(x, "float32")
+
+    mean = np.mean(x, axes, keepdims=True)
+
+    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
+    # but less numerically stable.
+    variance = np.mean(np.square(x), axis=axes, keepdims=True) - np.square(mean)
+
+    if not keepdims:
+        mean = np.squeeze(mean, axes)
+        variance = np.squeeze(variance, axes)
+    if need_cast:
+        # avoid overflow and underflow when casting from float16 to float32
+        mean = np.clip(mean, np.finfo(np.float16).min, np.finfo(np.float16).max)
+        variance = np.clip(
+            variance, np.finfo(np.float16).min, np.finfo(np.float16).max
+        )
+        mean = cast(mean, ori_dtype)
+        variance = cast(variance, ori_dtype)
+    return mean, variance

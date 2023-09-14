@@ -171,11 +171,8 @@ class GroupNormalization(Layer):
         axis = -2 if self.axis == -1 else self.axis - 1
         group_reduction_axes.pop(axis)
 
-        mean = ops.mean(
-            reshaped_inputs, axis=group_reduction_axes, keepdims=True
-        )
-        variance = ops.var(
-            reshaped_inputs, axis=group_reduction_axes, keepdims=True
+        mean, variance = ops.moments(
+            reshaped_inputs, axes=group_reduction_axes, keepdims=True
         )
         gamma, beta = self._get_reshaped_weights(input_shape)
 
