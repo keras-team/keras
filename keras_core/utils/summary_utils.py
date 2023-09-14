@@ -311,9 +311,11 @@ def print_summary(
     if model.compiled and model.optimizer and model.optimizer.built:
         optimizer_weight_count = count_params(model.optimizer.variables)
         optimizer_memory_size = weight_memory_size(model.optimizer.variables)
+        optimizer_built = True
     else:
         optimizer_weight_count = 0
         optimizer_memory_size = 0
+        optimizer_built = False
 
     total_count = trainable_count + non_trainable_count + optimizer_weight_count
     total_memory_size = (
@@ -349,11 +351,12 @@ def print_summary(
         + highlight_number(f"{non_trainable_count:,}")
         + f" ({readable_memory_size(non_trainable_memory_size)})"
     )
-    console.print(
-        bold_text(" Optimizer params: ")
-        + highlight_number(f"{optimizer_weight_count:,}")
-        + f" ({readable_memory_size(optimizer_memory_size)})"
-    )
+    if optimizer_built:
+        console.print(
+            bold_text(" Optimizer params: ")
+            + highlight_number(f"{optimizer_weight_count:,}")
+            + f" ({readable_memory_size(optimizer_memory_size)})"
+        )
 
     # Output captured summary for non-interactive logging.
     if print_fn:

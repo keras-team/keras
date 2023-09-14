@@ -37,5 +37,6 @@ class SummaryUtilsTest(testing.TestCase, parameterized.TestCase):
                 self.assertIn("Total params: 9", summary_content)
                 self.assertIn("Trainable params: 9", summary_content)
                 self.assertIn("Non-trainable params: 0", summary_content)
+                self.assertNotIn("Optimizer params", summary_content)
         except ImportError:
             pass
