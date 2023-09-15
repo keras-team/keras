@@ -1,4 +1,4 @@
-# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2023 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Thin wrapper to call TensorFlow's API generation script.
-
-This file exists to provide a main function for the py_binary in the API
-generation genrule. It just calls the main function for the actual API
-generation script in TensorFlow.
-"""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import keras  # noqa: F401
-
-# isort: off
-from tensorflow.python.tools.api.generator import (
-    create_python_api,
-)
+"""Thin wrapper to call TensorFlow's API extractor script."""
+from absl import app
+from tensorflow.python.tools.api.generator2.extractor import extractor
 
 if __name__ == "__main__":
-    create_python_api.main()
+    app.run(extractor.main)

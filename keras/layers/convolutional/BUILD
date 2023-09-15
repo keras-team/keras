@@ -1,6 +1,7 @@
 # Description:
 #  Contains the Keras convolution layers.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
@@ -252,7 +253,7 @@ cuda_py_test(
     python_version = "PY3",
     shard_count = 8,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -267,7 +268,7 @@ cuda_py_test(
     srcs = ["conv_transpose_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -283,7 +284,7 @@ cuda_py_test(
     python_version = "PY3",
     shard_count = 8,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -297,7 +298,7 @@ cuda_py_test(
     srcs = ["separable_conv_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

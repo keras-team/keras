@@ -1,0 +1,21 @@
+path: "tensorflow.keras.utils.StepsPerExecutionTuner"
+tf_class {
+  is_instance: "<class \'keras.utils.steps_per_execution_tuning.StepsPerExecutionTuner\'>"
+  is_instance: "<type \'object\'>"
+  member {
+    name: "steps_per_execution"
+    mtype: "<type \'property\'>"
+  }
+  member_method {
+    name: "__init__"
+    argspec: "args=[\'self\', \'optimizer\', \'spe_variable\', \'interval\', \'change_spe_interval\', \'change_threshold\'], varargs=None, keywords=None, defaults=[\'5\', \'10\', \'0.1\'], "
+  }
+  member_method {
+    name: "start"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+  member_method {
+    name: "stop"
+    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+  }
+}

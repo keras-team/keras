@@ -1,6 +1,8 @@
 # Description:
 #   Contains the Keras engine API (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
@@ -42,7 +44,6 @@ py_library(
         ":input_spec",
         ":keras_tensor",
         ":node",
-        ":steps_per_execution_tuning",
         "//:expect_h5py_installed",
         "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
@@ -68,6 +69,7 @@ py_library(
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
+        "//keras/utils:steps_per_execution_tuning",
         "//keras/utils:tf_utils",
         "//keras/utils:version_utils",
     ],
@@ -204,26 +206,6 @@ py_library(
     ],
 )
 
-py_library(
-    name = "steps_per_execution_tuning",
-    srcs = ["steps_per_execution_tuning.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-    ],
-)
-
-tf_py_test(
-    name = "steps_per_execution_tuning_test",
-    srcs = ["steps_per_execution_tuning_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":steps_per_execution_tuning",
-        "//:expect_tensorflow_installed",
-        "//keras/testing_infra:test_combinations",
-    ],
-)
-
 tf_py_test(
     name = "base_layer_utils_test",
     srcs = ["base_layer_utils_test.py"],
@@ -270,7 +252,7 @@ tf_py_test(
     ],
     deps = [
         ":base_preprocessing_layer",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -304,7 +286,7 @@ cuda_py_test(
     deps = [
         ":engine",
         ":input_layer",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -325,7 +307,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -342,7 +324,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -358,7 +340,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -374,7 +356,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -392,7 +374,7 @@ tf_py_test(
     ],
     deps = [
         ":engine",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -417,7 +399,7 @@ tf_py_test(
         "nomac",  # TODO(b/146226927)
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -435,7 +417,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -452,7 +434,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -474,7 +456,7 @@ tf_py_test(
     ],
     deps = [
         ":engine",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -498,7 +480,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -516,7 +498,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -534,7 +516,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -552,7 +534,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -664,7 +646,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -682,7 +664,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -699,7 +681,7 @@ tf_py_test(
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

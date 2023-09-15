@@ -1,6 +1,7 @@
 # Description:
 #  Contains the Keras locally-connected layers.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -79,7 +80,7 @@ tf_py_test(
     shard_count = 4,
     tags = ["no_windows"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

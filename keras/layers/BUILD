@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras layers (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -77,7 +78,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 3,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/saving",
@@ -92,7 +93,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 3,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -106,7 +107,7 @@ tf_py_test(
     srcs = ["serialization_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -120,7 +121,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":layers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

@@ -1,6 +1,7 @@
 # Description:
 #  Contains the Keras recurrent layers.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 # buildifier: disable=same-origin-load
@@ -403,7 +404,7 @@ cuda_py_test(
     deps = [
         ":gru",
         ":lstm",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -423,7 +424,7 @@ cuda_py_test(
     ],
     deps = [
         ":gru_lstm_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -445,7 +446,7 @@ tf_py_test(
     deps = [
         ":gru",
         ":gru_v1",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -467,7 +468,7 @@ cuda_py_test(
     ],
     deps = [
         ":gru_lstm_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -490,7 +491,7 @@ tf_py_test(
     deps = [
         ":lstm",
         ":lstm_v1",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -515,7 +516,7 @@ tf_py_test(
         ":legacy_cells",
         ":lstm",
         ":lstm_v1",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -534,7 +535,7 @@ tf_py_test(
     shard_count = 4,
     tags = ["notsan"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -550,7 +551,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 8,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -570,7 +571,7 @@ cuda_py_test(
         "no_windows_gpu",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -592,7 +593,7 @@ tf_py_test(
     deps = [
         ":cell_wrappers",
         ":legacy_cells",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
@@ -611,7 +612,7 @@ tf_py_test(
     deps = [
         ":legacy_cell_wrappers",
         ":legacy_cells",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
     ],
@@ -624,7 +625,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -642,7 +643,7 @@ tf_py_test(
     ],
     deps = [
         ":cell_wrappers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -665,7 +666,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

@@ -749,7 +749,7 @@ class SavingV3Test(tf.test.TestCase, parameterized.TestCase):
         model.save_weights(weights_filepath)
         with h5py.File(weights_filepath, "r") as f:
             self.assertAllEqual(
-                list(f["_layer_checkpoint_dependencies"].keys()),
+                list(f["layers"].keys()),
                 ["dense", "dense_1", "dense_2", "dense_3"],
             )
 

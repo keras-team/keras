@@ -1,6 +1,9 @@
 # Description:
 #   Contains Keras test utils and integration tests.
 
+# Placeholder: load unaliased py_library
+# Placeholder: load unaliased py_test
+
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
@@ -27,7 +30,7 @@ tf_py_test(
     ],
     deps = [
         ":get_config_samples",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",
@@ -41,7 +44,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -88,7 +91,7 @@ tf_py_test(
     shard_count = 4,
     tags = ["notsan"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -118,7 +121,7 @@ tf_py_test(
         "notsan",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -147,7 +150,7 @@ tf_py_test(
     shard_count = 16,
     deps = [
         ":model_architectures",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//keras",
         "//keras/api:keras_api",
@@ -176,7 +179,7 @@ tf_py_test(
     ],
     deps = [
         ":model_subclassing_test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -196,7 +199,7 @@ tf_py_test(
     ],
     deps = [
         ":model_subclassing_test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -312,7 +315,7 @@ tf_py_test(
         "nomac",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",
@@ -329,7 +332,7 @@ tf_py_test(
     python_version = "PY3",
     tags = ["notsan"],  # b/74395663
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",

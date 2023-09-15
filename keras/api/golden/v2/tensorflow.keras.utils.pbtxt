@@ -33,6 +33,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "StepsPerExecutionTuner"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "TimedThread"
     mtype: "<type \'type\'>"
   }

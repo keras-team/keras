@@ -16,6 +16,7 @@
 # Description:
 #   Contains the Keras metrics submodule.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
@@ -100,7 +101,7 @@ tf_py_test(
     shard_count = 4,
     deps = [
         ":metrics",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
@@ -121,7 +122,7 @@ tf_py_test(
     shard_count = 4,
     deps = [
         ":metrics",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
@@ -219,7 +220,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

@@ -1,6 +1,7 @@
 # Description:
 #   Contains the Keras Utilities (internal TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -327,6 +328,26 @@ py_library(
     srcs_version = "PY3",
 )
 
+py_library(
+    name = "steps_per_execution_tuning",
+    srcs = ["steps_per_execution_tuning.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+    ],
+)
+
+tf_py_test(
+    name = "steps_per_execution_tuning_test",
+    srcs = ["steps_per_execution_tuning_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":steps_per_execution_tuning",
+        "//:expect_tensorflow_installed",
+        "//keras/testing_infra:test_combinations",
+    ],
+)
+
 tf_py_test(
     name = "sidecar_evaluator_test",
     size = "medium",
@@ -334,7 +355,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":sidecar_evaluator",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -364,7 +385,7 @@ tf_py_test(
     srcs = ["dataset_utils_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -383,7 +404,7 @@ tf_py_test(
         "optonly",  # times out
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -397,7 +418,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":generic_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -410,7 +431,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":version_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -437,7 +458,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 8,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -459,7 +480,7 @@ tf_py_test(
     deps = [
         ":io_utils",
         ":keras_logging",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -491,7 +512,7 @@ tf_py_test(
     srcs = ["np_utils_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -506,7 +527,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":layer_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
     ],
 )
@@ -518,7 +539,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -536,7 +557,7 @@ tf_py_test(
     ],
     deps = [
         ":image_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -550,7 +571,7 @@ tf_py_test(
     srcs = ["conv_utils_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -563,7 +584,7 @@ tf_py_test(
     srcs = ["metrics_utils_test.py"],
     python_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

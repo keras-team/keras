@@ -16,6 +16,7 @@
 # Description:
 #   Contains the Keras Mixed Precision API (TensorFlow version).
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 load("@org_keras//keras:keras.bzl", "tf_py_test")  # buildifier: disable=same-origin-load
 
@@ -109,7 +110,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":autocast_variable",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/layers",
         "//keras/optimizers/legacy:optimizers",
@@ -121,7 +122,7 @@ py_library(
     srcs = ["loss_scale_optimizer.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras/optimizers/legacy:optimizers",
         "//keras/utils:generic_utils",
@@ -151,7 +152,7 @@ cuda_py_test(
     deps = [
         ":loss_scale_optimizer",
         ":policy",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/optimizers/legacy:optimizers",
@@ -181,7 +182,7 @@ cuda_py_test(
     ],
     deps = [
         ":test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -204,7 +205,7 @@ cuda_py_test(
     ],
     deps = [
         ":test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",
@@ -221,7 +222,7 @@ cuda_py_test(
         "no_rocm",
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/testing_infra:test_combinations",

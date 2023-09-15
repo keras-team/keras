@@ -1,4 +1,4 @@
-# Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2023 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras' DTensor library."""
+"""Thin wrapper to call TensorFlow's API generator script."""
+from absl import app
+from tensorflow.python.tools.api.generator2.generator import generator
 
-
-from tensorflow.compat.v2.experimental import dtensor as dtensor_api
+if __name__ == "__main__":
+    app.run(generator.main)

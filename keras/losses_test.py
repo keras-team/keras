@@ -144,6 +144,23 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         result = f([t_val, p_val])
         self.assertArrayNear(result, [0.002, 0, 0.17], 1e-3)
 
+    def test_categorial_crossentropy_loss_different_axis(self):
+        target = backend.variable(np.random.randint(0, 1, (5, 2, 3)))
+        logits = backend.variable(np.random.random((5, 2, 3)))
+        softmax_output = backend.softmax(logits)
+        axis = 1
+        output_from_logit_axis = losses.categorical_crossentropy(
+            target, logits, from_logits=True, axis=axis
+        )
+        output_from_softmax_axis = losses.categorical_crossentropy(
+            target, softmax_output, axis=axis
+        )
+        np.testing.assert_allclose(
+            backend.eval(output_from_logit_axis),
+            backend.eval(output_from_softmax_axis),
+            atol=1e-5,
+        )
+
     @test_combinations.generate(
         test_combinations.combine(mode=["graph", "eager"])
     )
@@ -1813,7 +1830,6 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 @test_combinations.generate(test_combinations.combine(mode=["graph", "eager"]))
 class CategoricalFocalCrossentropyTest(tf.test.TestCase):
     def test_config(self):
-
         cce_obj = losses.CategoricalFocalCrossentropy(
             name="focal_cce",
             reduction=losses_utils.ReductionV2.SUM,

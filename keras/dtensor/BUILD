@@ -2,6 +2,7 @@
 # Since DTensor is not a public API yet, all the DTensor related change
 # can't be exposed to public yet.
 
+# Placeholder: load unaliased py_library
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # copybara:uncomment_begin(google-only)
@@ -25,6 +26,9 @@ package(
 py_library(
     name = "dtensor",
     srcs = ["__init__.py"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
 )
 
 tf_py_test(
@@ -108,7 +112,7 @@ tf_py_test(
     deps = [
         ":dtensor",
         ":test_util",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/metrics",
@@ -116,22 +120,31 @@ tf_py_test(
     ],
 )
 
-tf_py_test(
-    name = "mnist_model_test",
-    srcs = ["mnist_model_test.py"],
-    shard_count = 2,
-    tags = [
-        "requires-net:external",
-    ],
-    deps = [
-        ":integration_test_utils",
-        ":test_util",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/optimizers",
-        "//keras/utils:tf_utils",
-    ],
-)
+# copybara:uncomment_begin(google-only)
+# dtensor_test(
+#     name = "mnist_model_test",
+#     srcs = ["mnist_model_test.py"],
+#     env = {
+#         "CUDA_MODULE_LOADING": "LAZY",
+#         "TF_GPU_ALLOCATOR": "cuda_malloc_async",
+#     },
+#     tags = [
+#         "no_oss",
+#         "requires-net:external",
+#     ],
+#     deps = [
+#         ":dtensor",
+#         ":integration_test_utils",
+#         ":layout_map",
+#         ":test_util",
+#         "//keras:backend",
+#         "//keras/optimizers",
+#         "//keras/utils:tf_utils",
+#         "//:expect_numpy_installed",
+#         "//:expect_tensorflow_installed",
+#     ],
+# )
+# copybara:uncomment_end
 
 tf_py_test(
     name = "optimizers_test",
@@ -173,7 +186,7 @@ tf_py_test(
         ":dtensor",
         ":test_util",
         ":utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
@@ -184,7 +197,7 @@ py_library(
     name = "test_util",
     srcs = ["test_util.py"],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
@@ -218,7 +231,7 @@ tf_py_test(
 #     deps = [
 #         ":integration_test_utils",
 #         ":test_util",
-#         "//:expect_absl_installed",
+#         "//:expect_absl_installed",  # absl/testing:parameterized
 #         "//keras:backend",
 #         "//keras/mixed_precision:mixed_precision_experimental",
 #         "//keras/optimizers",

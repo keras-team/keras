@@ -1732,6 +1732,122 @@ class KerasCallbacksTest(test_combinations.TestCase):
         cb_list.on_predict_batch_end(logs)
         cb_list.on_predict_end(logs)
 
+    def _run_fit_with_ModelCheckpoint_with_steps_per_execution(
+        self,
+        model,
+        savepath,
+        save_freq,
+        train_samples,
+        steps_per_execution,
+        epochs,
+        check_ckpt_epochs,
+        check_ckpt_batchs,
+    ):
+        assert len(check_ckpt_epochs) == len(check_ckpt_batchs)
+
+        (x_train, y_train), _ = test_utils.get_test_data(
+            train_samples=train_samples,
+            test_samples=0,
+            input_shape=(INPUT_DIM,),
+            num_classes=NUM_CLASSES,
+        )
+        y_train = np_utils.to_categorical(y_train)
+
+        model.compile(
+            loss="categorical_crossentropy",
+            optimizer="rmsprop",
+            steps_per_execution=steps_per_execution,
+        )
+
+        self.assertFalse(os.path.exists(savepath))
+
+        callback = keras.callbacks.ModelCheckpoint(
+            filepath=os.path.join(savepath, "ckpt_{epoch}_{batch}"),
+            save_freq=save_freq,
+        )
+
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=1,
+            epochs=epochs,
+            verbose=0,
+            callbacks=[callback],
+        )
+
+        self.assertTrue(os.path.exists(savepath))
+
+        for i in range(len(check_ckpt_epochs)):
+            epoch = check_ckpt_epochs[i]
+            batch = check_ckpt_batchs[i]
+            ckpt_name = "ckpt_" + str(epoch) + "_" + str(batch)
+            ckpt_path = os.path.join(savepath, ckpt_name)
+            self.assertTrue(os.path.exists(ckpt_path))
+            self.assertIn("saved_model.pb", os.listdir(ckpt_path))
+
+        shutil.rmtree(savepath)
+
+    @test_combinations.run_with_all_model_types
+    @test_utils.run_v2_only
+    def test_fit_with_ModelCheckpoint_with_steps_per_execution(self):
+        layers = [
+            keras.layers.Dense(
+                NUM_HIDDEN, input_dim=INPUT_DIM, activation="relu"
+            ),
+            keras.layers.Dense(NUM_CLASSES, activation="softmax"),
+        ]
+        model = test_utils.get_model_from_layers(
+            layers, input_shape=(INPUT_DIM,)
+        )
+
+        temp_dir = self.get_temp_dir()
+        savepath = os.path.join(temp_dir, "checkpoint")
+
+        for steps_per_execution in [None, 7]:
+            self._run_fit_with_ModelCheckpoint_with_steps_per_execution(
+                model,
+                savepath,
+                save_freq=7,
+                train_samples=7,
+                steps_per_execution=steps_per_execution,
+                epochs=1,
+                check_ckpt_epochs=[1],
+                check_ckpt_batchs=[7],
+            )
+
+            self._run_fit_with_ModelCheckpoint_with_steps_per_execution(
+                model,
+                savepath,
+                save_freq=7,
+                train_samples=7,
+                steps_per_execution=steps_per_execution,
+                epochs=2,
+                check_ckpt_epochs=[1, 2],
+                check_ckpt_batchs=[7, 7],
+            )
+
+            self._run_fit_with_ModelCheckpoint_with_steps_per_execution(
+                model,
+                savepath,
+                save_freq=14,
+                train_samples=7,
+                steps_per_execution=steps_per_execution,
+                epochs=2,
+                check_ckpt_epochs=[2],
+                check_ckpt_batchs=[7],
+            )
+
+            self._run_fit_with_ModelCheckpoint_with_steps_per_execution(
+                model,
+                savepath,
+                save_freq=7,
+                train_samples=14,
+                steps_per_execution=steps_per_execution,
+                epochs=2,
+                check_ckpt_epochs=[1, 1, 2, 2],
+                check_ckpt_batchs=[7, 14, 7, 14],
+            )
+
     def test_verbose_2_logging(self):
         data = np.random.random((100, 1))
         labels = np.where(data > 0.5, 1, 0)

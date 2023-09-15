@@ -261,7 +261,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         layer = MyLayer()
         outputs = layer(inputs)
         model = Model(inputs, outputs)
-        self.assertEqual(len(model.losses), 1)
+        self.assertLen(model.losses, 1)
         model.compile("sgd", "mse", run_eagerly=test_utils.should_run_eagerly())
         loss = model.train_on_batch(np.ones((2, 3)), np.ones((2, 3)))
         self.assertEqual(loss, 2 * 3)
@@ -373,7 +373,7 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         m = Sequential([shared_layer])
         m2 = Sequential([shared_layer, m])
         m2(tf.constant([1, 2, 3]))
-        self.assertEqual(len(m2.losses), 2)
+        self.assertLen(m2.losses, 2)
         self.assertAllClose(m2.losses, [6, 12])
 
     @test_combinations.run_all_keras_modes
@@ -394,23 +394,23 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         x1 = tf.ones((1, 1))
         _ = l(x1)
         if not tf.executing_eagerly():
-            self.assertEqual(len(l.get_losses_for(x1)), 2)
-            self.assertEqual(len(l.get_losses_for(None)), 1)
+            self.assertLen(l.get_losses_for(x1), 2)
+            self.assertLen(l.get_losses_for(None), 1)
 
         x2 = tf.ones((1, 1))
         _ = l(x2)
         if not tf.executing_eagerly():
-            self.assertEqual(len(l.get_losses_for(x1)), 2)
-            self.assertEqual(len(l.get_losses_for(x2)), 2)
-            self.assertEqual(len(l.get_losses_for(None)), 1)
+            self.assertLen(l.get_losses_for(x1), 2)
+            self.assertLen(l.get_losses_for(x2), 2)
+            self.assertLen(l.get_losses_for(None), 1)
 
         outputs = l(inputs)
         model = Model(inputs, outputs)
         if not tf.executing_eagerly():
-            self.assertEqual(len(model.losses), 7)
-            self.assertEqual(len(l.get_losses_for(x1)), 2)
-            self.assertEqual(len(l.get_losses_for(x2)), 2)
-            self.assertEqual(len(l.get_losses_for(None)), 1)
+            self.assertLen(model.losses, 7)
+            self.assertLen(l.get_losses_for(x1), 2)
+            self.assertLen(l.get_losses_for(x2), 2)
+            self.assertLen(l.get_losses_for(None), 1)
 
         x3 = tf.ones((1, 1))
         model(x3)
@@ -418,12 +418,12 @@ class TestAddLossCorrectness(test_combinations.TestCase):
         model(x4)
         if tf.executing_eagerly():
             # Eager losses are cleared every `__call__`.
-            self.assertEqual(len(model.losses), 3)
+            self.assertLen(model.losses, 3)
         else:
-            self.assertEqual(len(model.losses), 11)
-            self.assertEqual(len(model.get_losses_for(x3)), 2)
-            self.assertEqual(len(model.get_losses_for(x4)), 2)
-            self.assertEqual(len(model.get_losses_for(None)), 1)
+            self.assertLen(model.losses, 11)
+            self.assertLen(l.get_losses_for(x3), 2)
+            self.assertLen(l.get_losses_for(x4), 2)
+            self.assertLen(l.get_losses_for(None), 1)
 
     @test_combinations.run_all_keras_modes(always_skip_v1=True)
     def test_invalid_constant_input(self):

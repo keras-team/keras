@@ -1,3 +1,5 @@
+# Placeholder: load unaliased py_library
+
 # Description:
 #  Contains the Keras core layers.
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
@@ -147,7 +149,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 3,
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -161,7 +163,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":einsum_dense",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",

@@ -1087,9 +1087,7 @@ def name_scope(name):
 
 # Export V1 version.
 _v1_name_scope = tf.compat.v1.name_scope
-keras_export(v1=["keras.backend.name_scope"], allow_multiple_exports=True)(
-    _v1_name_scope
-)
+keras_export(v1=["keras.backend.name_scope"])(_v1_name_scope)
 
 
 @keras_export("keras.backend.variable")

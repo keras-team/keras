@@ -18,6 +18,8 @@
 
 # buildifier: disable=same-origin-load
 
+# Placeholder: load unaliased py_library
+# Placeholder: load unaliased py_binary
 load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 package(
@@ -85,7 +87,7 @@ tf_py_test(
         "no_windows",  # b/158005583
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -100,7 +102,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":saved_model",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/testing_infra:test_combinations",
@@ -115,13 +117,14 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_oss",  # TODO(b/296236267)
         "no_pip",  # TODO(b/202022379)
         "no_rocm",
         "no_windows",
         "notsan",  #TODO(b/181771982): it is flaky
     ],
     deps = [
-        "//:expect_absl_installed",
+        "//:expect_absl_installed",  # absl/testing:parameterized
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras",
@@ -136,10 +139,10 @@ py_binary(
     srcs_version = "PY3",
     tags = ["no_oss"],
     deps = [
+        "//:expect_absl_installed",  # absl:app
         "//:expect_tensorflow_installed",
         "//keras:regularizers",
         "//keras/testing_infra:test_utils",
-        "//third_party/py/absl:app",
         "//third_party/py/absl/flags",
     ],
 )
