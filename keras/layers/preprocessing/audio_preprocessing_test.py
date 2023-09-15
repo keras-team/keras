@@ -20,6 +20,7 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
+import keras
 from keras.layers.preprocessing import audio_preprocessing
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils
@@ -71,7 +72,10 @@ class MelSpectrogramTest(test_combinations.TestCase):
             audio = np.zeros((2, 16000), dtype="float32")
             layer = audio_preprocessing.MelSpectrogram()
             spec = layer(audio)
-            self.assertFalse(tf.math.reduce_any(tf.math.is_inf(spec)))
+            is_inf = tf.math.reduce_any(tf.math.is_inf(spec))
+            is_nan = tf.math.reduce_any(tf.math.is_nan(spec))
+            is_invalid = tf.math.logical_or(is_inf, is_nan)
+            self.assertFalse(is_invalid)
 
     def test_unbatched_audio(self):
         with test_utils.use_gpu():
