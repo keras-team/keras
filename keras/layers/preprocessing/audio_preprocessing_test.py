@@ -20,7 +20,6 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from absl.testing import parameterized
 
-import keras
 from keras.layers.preprocessing import audio_preprocessing
 from keras.testing_infra import test_combinations
 from keras.testing_infra import test_utils

@@ -19,8 +19,6 @@ import math
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export
 
-import keras
-from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import preprocessing_utils as utils
