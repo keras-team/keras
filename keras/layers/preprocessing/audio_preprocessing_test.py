@@ -27,13 +27,12 @@ from keras.testing_infra import test_utils
 
 @test_combinations.run_all_keras_modes(always_skip_v1=True)
 class MelSpectrogramTest(test_combinations.TestCase):
-    def _run_test(self, kwargs, num_fft_bins, fft_stride, num_mel_bins):
+    def _run_test(self, kwargs, fft_stride, num_mel_bins):
         np.random.seed(1337)
         num_samples = 2
         audio_len = 16000
         kwargs.update(
             {
-                "num_fft_bins": num_fft_bins,
                 "fft_stride": fft_stride,
                 "num_mel_bins": num_mel_bins,
             }
@@ -51,12 +50,12 @@ class MelSpectrogramTest(test_combinations.TestCase):
             )
 
     @parameterized.named_parameters(
-        ("audio_to_spec_1", {"sampling_rate": 8000}, 2048, 512, 128),
-        ("audio_to_spec_2", {"sampling_rate": 4000}, 1024, 256, 64),
-        ("audio_to_spec_3", {"mag_exp": 1.0}, 1024, 256, 64),
-        ("audio_to_spec_4", {"power_to_db": False}, 1024, 256, 64),
-        ("audio_to_spec_5", {"ref_power": tf.math.reduce_max}, 1024, 256, 64),
-        ("audio_to_spec_6", {"min_freq": 0, "max_freq": 8000}, 1024, 256, 64),
+        ("audio_to_spec_1", {"sampling_rate": 8000}, 512, 128),
+        ("audio_to_spec_2", {"num_fft_bins": 1024}, 256, 64),
+        ("audio_to_spec_3", {"mag_exp": 1.0}, 256, 64),
+        ("audio_to_spec_4", {"power_to_db": False}, 256, 64),
+        ("audio_to_spec_5", {"ref_power": tf.math.reduce_max}, 256, 64),
+        ("audio_to_spec_6", {"min_freq": 0, "max_freq": 8000}, 256, 64),
     )
     def test_params(self, kwargs, num_fft_bins, fft_stride, num_mel_bins):
         self._run_test(kwargs, num_fft_bins, fft_stride, num_mel_bins)
