@@ -62,14 +62,17 @@ class MelSpectrogramTest(test_combinations.TestCase):
 
     def test_melspec_numeric(self):
         with test_utils.use_gpu():
-            input_audio = np.reshape(np.arange(0, 16), (1, 16)).astype("float32")
+            input_audio = np.reshape(np.arange(0, 16), (1, 16)).astype(
+                "float32"
+            )
             layer = audio_preprocessing.MelSpectrogram(
                 fft_stride=8, num_mel_bins=2
             )
             output_spec = layer(input_audio)
             # pyformat: disable
-            expected_spec = np.asarray([[-10.873323, -26.136368],
-                                        [-15.621275, -28.416262]]).astype('float32')
+            expected_spec = np.asarray(
+                [[-10.873323, -26.136368], [-15.621275, -28.416262]]
+            ).astype("float32")
             # pyformat: enable
             expected_spec = np.reshape(expected_spec, (1, 2, 2))
             self.assertAllEqual(expected_spec, output_spec)
