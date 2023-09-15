@@ -1,19 +1,20 @@
 from keras_core import backend
 from keras_core import ops
 
+DTYPE_TO_SIZE = {
+    **{f"float{i}": i for i in (16, 32, 64)},
+    **{f"int{i}": i for i in (8, 16, 32, 64)},
+    **{f"uint{i}": i for i in (8, 16, 32, 64)},
+    "bfloat16": 16,
+    "bool": 1,
+}
+
 
 def dtype_size(dtype):
-    if dtype in ("bfloat16", "float16"):
-        return 16
-    if dtype in ("float32", "int32"):
-        return 32
-    if dtype in ("float64", "int64"):
-        return 64
-    if dtype == "uint8":
-        return 8
-    if dtype == "bool":
-        return 1
-    raise ValueError(f"Invalid dtype: {dtype}")
+    size = DTYPE_TO_SIZE.get(dtype, None)
+    if size is None:
+        raise ValueError(f"Invalid dtype: {dtype}")
+    return size
 
 
 def is_float(dtype):
