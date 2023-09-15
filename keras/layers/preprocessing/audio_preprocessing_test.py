@@ -61,6 +61,20 @@ class MelSpectrogramTest(test_combinations.TestCase):
     def test_params(self, kwargs, num_fft_bins, fft_stride, num_mel_bins):
         self._run_test(kwargs, num_fft_bins, fft_stride, num_mel_bins)
 
+    def test_melspec_numeric(self):
+        with test_utils.use_gpu():
+            input_audio = np.reshape(np.arange(0, 16), (1, 16)).astype("float32")
+            layer = audio_preprocessing.MelSpectrogram(
+                fft_stride=8, num_mel_bins=2
+            )
+            output_spec = layer(input_audio)
+            # pyformat: disable
+            expected_spec = np.asarray([[-10.873323, -26.136368],
+                                        [-15.621275, -28.416262]]).astype('float32')
+            # pyformat: enable
+            expected_spec = np.reshape(expected_spec, (1, 2, 2))
+            self.assertAllEqual(expected_spec, output_spec)
+
     def test_config_with_custom_name(self):
         layer = audio_preprocessing.MelSpectrogram(name="audio_to_spec")
         config = layer.get_config()
