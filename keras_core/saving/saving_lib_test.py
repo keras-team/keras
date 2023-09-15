@@ -402,15 +402,6 @@ class SavingTest(testing.TestCase):
     #         self.assertIn(str(temp_filepath), mock_re_match.call_args.args)
     #         self.assertIn(str(temp_filepath), mock_copy.call_args.args)
 
-    def test_load_model_api_endpoint(self):
-        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
-        model = _get_basic_functional_model()
-        ref_input = np.random.random((2, 4))
-        ref_output = model.predict(ref_input)
-        model.save(temp_filepath)
-        model = keras_core.saving.load_model(temp_filepath)
-        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
-
     def test_save_load_weights_only(self):
         temp_filepath = Path(
             os.path.join(self.get_temp_dir(), "mymodel.weights.h5")
@@ -530,7 +521,10 @@ class SavingTest(testing.TestCase):
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
 
-    def test_api_errors(self):
+
+@pytest.mark.requires_trainable_backend
+class SavingAPITest(testing.TestCase):
+    def test_saving_api_errors(self):
         from keras_core.saving import saving_api
 
         model = _get_basic_functional_model()
@@ -558,6 +552,40 @@ class SavingTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_saved_model")
         with self.assertRaisesRegex(ValueError, "File format not supported"):
             _ = saving_api.load_model(temp_filepath)
+
+    def test_model_api_endpoint(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.keras"))
+        model = _get_basic_functional_model()
+        ref_input = np.random.random((2, 4))
+        ref_output = model.predict(ref_input)
+        model.save(temp_filepath)
+        model = keras_core.saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_model_api_endpoint_h5(self):
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), "mymodel.h5"))
+        model = _get_basic_functional_model()
+        ref_input = np.random.random((2, 4))
+        ref_output = model.predict(ref_input)
+        model.save(temp_filepath)
+        model = keras_core.saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
+
+    def test_model_api_errors(self):
+        model = _get_basic_functional_model()
+
+        # Saving API errors
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel")
+        with self.assertRaisesRegex(ValueError, "argument is deprecated"):
+            model.save(temp_filepath, save_format="keras")
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.notkeras")
+        with self.assertRaisesRegex(ValueError, "Invalid filepath extension"):
+            model.save(temp_filepath)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mymodel.keras")
+        with self.assertRaisesRegex(ValueError, "are not supported"):
+            model.save(temp_filepath, invalid_arg="hello")
 
 
 # def test_safe_mode(self):
