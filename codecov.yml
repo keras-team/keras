@@ -10,7 +10,7 @@ coverage:
         target:auto
 
 ignore:
-  - keras_core/legacy
+  - keras-core/keras_core/legacy
 
 comment:
   layout: "header, reach, diff, flags, files"
