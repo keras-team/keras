@@ -9,9 +9,6 @@ coverage:
       default:
         target:auto
 
-ignore:
-  - keras-core/keras_core/legacy
-
 comment:
   layout: "header, reach, diff, flags, files"
   behavior: default
