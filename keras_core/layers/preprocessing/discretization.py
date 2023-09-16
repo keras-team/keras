@@ -1,6 +1,6 @@
 import numpy as np
 
-from keras_core import backend, ops
+from keras_core import backend
 from keras_core.api_export import keras_core_export
 from keras_core.layers.layer import Layer
 from keras_core.utils import argument_validation
@@ -17,9 +17,13 @@ class Discretization(Layer):
     contiguous ranges and output an integer index indicating which range each
     element was placed in.
 
-    This layer can also always be used as part of an input preprocessing
-    pipeline with any backend (outside the model itself), which is how we
-    recommend to use this layer.
+    **Note:** This layer uses TensorFlow internally. It cannot
+    be used as part of the compiled computation graph of a model with
+    any backend other than TensorFlow.
+    It can however be used with any backend when running eagerly.
+    It can also always be used as part of an input preprocessing pipeline
+    with any backend (outside the model itself), which is how we recommend
+    to use this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -74,14 +78,14 @@ class Discretization(Layer):
 
     Examples:
 
-    Digitize float values based on provided buckets.
+    Bucketize float values based on provided buckets.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(bin_boundaries=[0., 1., 2.])
     >>> layer(input)
     array([[0, 2, 3, 1],
            [1, 3, 2, 1]])
 
-    Digitize float values based on a number of buckets to compute.
+    Bucketize float values based on a number of buckets to compute.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(num_bins=4, epsilon=0.01)
     >>> layer.adapt(input)
@@ -237,15 +241,20 @@ class Discretization(Layer):
         if not isinstance(
             inputs,
             (
+                tf.Tensor,
+                tf.SparseTensor,
+                tf.RaggedTensor,
                 np.ndarray,
                 backend.KerasTensor,
             ),
         ):
-            inputs = backend.convert_to_tensor(
-                inputs, dtype=self.input_dtype
+            inputs = tf.convert_to_tensor(
+                backend.convert_to_numpy(inputs), dtype=self.input_dtype
             )
 
-        indices = ops.digitize(inputs, self.bin_boundaries)
+        from keras_core.backend.tensorflow.numpy import digitize
+
+        indices = digitize(inputs, self.bin_boundaries)
 
         outputs = tf_utils.encode_categorical_inputs(
             indices,
@@ -361,3 +370,7 @@ def compress_summary(summary, epsilon):
     )
     summary = np.stack((new_bins, new_weights))
     return summary.astype("float32")
+
+
+def bucketize(inputs, boundaries):
+    return tf.raw_ops.Bucketize(input=inputs, boundaries=boundaries)
