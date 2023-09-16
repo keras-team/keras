@@ -298,3 +298,7 @@ def istft(
     else:
         end = expected_output_len
     return x[..., start:end]
+
+
+def rsqrt(x):
+    return 1.0 / np.sqrt(x)

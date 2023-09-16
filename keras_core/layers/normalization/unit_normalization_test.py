@@ -29,6 +29,16 @@ class UnitNormalizationTest(testing.TestCase):
             supports_masking=True,
         )
 
+    def test_invalid_axis(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            (
+                "Invalid value for `axis` argument: expected an int or a "
+                "list/tuple of ints."
+            ),
+        ):
+            layers.UnitNormalization(axis={"axis": -1})
+
     def test_correctness(self):
         layer = layers.UnitNormalization(axis=-1)
         inputs = np.random.normal(size=(2, 3))

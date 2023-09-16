@@ -83,6 +83,16 @@ class LayerNormalizationTest(testing.TestCase):
             supports_masking=True,
         )
 
+    def test_invalid_axis(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            (
+                "Expected an int or a list/tuple of ints for the argument "
+                "'axis'"
+            ),
+        ):
+            layers.LayerNormalization(axis={"axis": -1})
+
     def test_correctness(self):
         layer = layers.LayerNormalization(dtype="float32")
         layer.build(input_shape=(2, 2, 2))

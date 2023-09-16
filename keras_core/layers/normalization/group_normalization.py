@@ -171,37 +171,26 @@ class GroupNormalization(Layer):
         axis = -2 if self.axis == -1 else self.axis - 1
         group_reduction_axes.pop(axis)
 
+        broadcast_shape = self._create_broadcast_shape(input_shape)
         mean, variance = ops.moments(
             reshaped_inputs, axes=group_reduction_axes, keepdims=True
         )
-        gamma, beta = self._get_reshaped_weights(input_shape)
 
         # Compute the batch normalization.
-        inv = 1 / ops.sqrt(variance + self.epsilon)
-
-        if gamma is not None:
-            inv = ops.multiply(inv, gamma)
-
-        if beta is not None:
-            x = beta - ops.multiply(mean, inv)
-        else:
-            x = -ops.multiply(mean, inv)
-
-        normalized_inputs = reshaped_inputs * ops.cast(
-            inv, reshaped_inputs.dtype
-        ) + ops.cast(x, reshaped_inputs.dtype)
-        normalized_inputs = ops.cast(normalized_inputs, reshaped_inputs.dtype)
-        return normalized_inputs
-
-    def _get_reshaped_weights(self, input_shape):
-        broadcast_shape = self._create_broadcast_shape(input_shape)
-        gamma = None
-        beta = None
+        inv = ops.rsqrt(variance + self.epsilon)
         if self.scale:
             gamma = ops.reshape(self.gamma, broadcast_shape)
+            gamma = ops.cast(gamma, reshaped_inputs.dtype)
+            inv = inv * gamma
+
+        res = -mean * inv
         if self.center:
             beta = ops.reshape(self.beta, broadcast_shape)
-        return gamma, beta
+            beta = ops.cast(beta, reshaped_inputs.dtype)
+            res = res + beta
+
+        normalized_inputs = reshaped_inputs * inv + res
+        return normalized_inputs
 
     def _create_broadcast_shape(self, input_shape):
         broadcast_shape = [1] * len(input_shape)

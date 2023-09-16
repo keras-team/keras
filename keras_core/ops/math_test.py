@@ -831,10 +831,6 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             ref = ref[..., truncated_len:-truncated_len]
         self.assertAllClose(output, ref, atol=1e-5, rtol=1e-5)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy does not support rsqrt.",
-    )
     def test_rsqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
         self.assertAllClose(kmath.rsqrt(x), 1 / np.sqrt(x))

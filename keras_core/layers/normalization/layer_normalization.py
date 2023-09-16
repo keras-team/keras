@@ -206,33 +206,29 @@ class LayerNormalization(Layer):
         if self.rms_scaling:
             # Calculate outputs with only variance and gamma if rms scaling
             # is enabled
-            # Calculate the variance along last axis (layer activations).
+            # Calculate the variance along self.axis (layer activations).
             variance = ops.var(inputs, axis=self.axis, keepdims=True)
-            inv = 1 / ops.sqrt(variance + self.epsilon)
-            outputs = inputs * ops.cast(inv, inputs.dtype) * self.gamma
+            inv = ops.rsqrt(variance + self.epsilon)
+
+            outputs = inputs * inv * ops.cast(self.gamma, inputs.dtype)
         else:
-            # Calculate the mean & variance along last axis (layer activations).
+            # Calculate the mean & variance along self.axis (layer activations).
             mean, variance = ops.moments(inputs, axes=self.axis, keepdims=True)
-            inv = 1 / ops.sqrt(variance + self.epsilon)
-            scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
-            if scale is not None:
-                scale = ops.cast(scale, inputs.dtype)
-                inv = inv * scale
-            x = -mean * inv
-            if offset is not None:
-                offset = ops.cast(offset, inputs.dtype)
-                x = offset + x
+            gamma, beta = _broadcast(self.gamma), _broadcast(self.beta)
 
-            outputs = inputs * ops.cast(inv, inputs.dtype) + ops.cast(
-                x, inputs.dtype
-            )
+            inv = ops.rsqrt(variance + self.epsilon)
+            if gamma is not None:
+                gamma = ops.cast(gamma, inputs.dtype)
+                inv = inv * gamma
 
-        outputs = ops.cast(outputs, input_dtype)
+            res = -mean * inv
+            if beta is not None:
+                beta = ops.cast(beta, inputs.dtype)
+                res = res + beta
 
-        # If some components of the shape got lost due to adjustments, fix that.
-        outputs = ops.reshape(outputs, ops.shape(inputs))
+            outputs = inputs * inv + res
 
-        return outputs
+        return ops.cast(outputs, input_dtype)
 
     def compute_output_shape(self, input_shape):
         return input_shape

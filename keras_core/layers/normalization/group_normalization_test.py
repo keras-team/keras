@@ -41,6 +41,51 @@ class GroupNormalizationTest(testing.TestCase):
             supports_masking=True,
         )
 
+    def test_undefined_dim_error(self):
+        inputs = layers.Input(shape=(2, 2, 2, None))
+        layer = layers.GroupNormalization()
+        with self.assertRaisesRegex(
+            ValueError,
+            (
+                "input tensor should have a defined dimension but the layer "
+                "received an input with shape"
+            ),
+        ):
+            _ = layer(inputs)
+
+    def test_groups_bigger_than_dim_error(self):
+        inputs = np.ones(shape=(2, 2, 2, 4))
+        layer = layers.GroupNormalization(groups=5)
+        with self.assertRaisesRegex(
+            ValueError,
+            "cannot be more than the number of channels",
+        ):
+            _ = layer(inputs)
+
+    def test_groups_not_a_multiple_of_dim_error(self):
+        inputs = np.ones(shape=(2, 2, 2, 4))
+        layer = layers.GroupNormalization(groups=3)
+        with self.assertRaisesRegex(
+            ValueError,
+            "must be a multiple of the number of channels",
+        ):
+            _ = layer(inputs)
+
+    def test_groups_instance_norm(self):
+        # GroupNormalization with groups=-1 will become InstanceNormalization
+        instance_norm_layer_1 = layers.GroupNormalization(
+            groups=-1, axis=-1, scale=False, center=False
+        )
+        instance_norm_layer_2 = layers.GroupNormalization(
+            groups=4, axis=-1, scale=False, center=False
+        )
+        inputs = np.array([[[-1.0, 1.0, 0, 2.0], [1.0, 3.0, -4, -2.0]]])
+
+        outputs_1 = instance_norm_layer_1(inputs)
+        outputs_2 = instance_norm_layer_2(inputs)
+
+        self.assertAllClose(outputs_1, outputs_2)
+
     def test_correctness_instance_norm(self):
         instance_norm_layer = layers.GroupNormalization(
             groups=4, axis=-1, scale=False, center=False
