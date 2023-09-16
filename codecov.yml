@@ -9,6 +9,9 @@ coverage:
       default:
         target:auto
 
+ignore:
+  - keras_core/legacy
+
 comment:
   layout: "header, reach, diff, flags, files"
   behavior: default
@@ -29,8 +32,6 @@ flag_management:
     - name: keras_core
       paths:
         - keras_core
-      ignore:
-        - keras_core/legacy
     - name: keras_core.applications
       paths:
         - keras_core/applications
