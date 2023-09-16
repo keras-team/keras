@@ -22,7 +22,7 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def get_numpy_iterator(self):
         for batch in self._dataloader:
-            yield tuple(tree.map_structure(lambda x: x.numpy(), batch))
+            yield tuple(tree.map_structure(lambda x: x.cpu().numpy(), batch))
 
     def get_torch_dataloader(self):
         return self._dataloader
