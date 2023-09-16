@@ -1,5 +1,4 @@
 [![](https://github.com/keras-team/keras-core/workflows/Tests/badge.svg?branch=main)](https://github.com/keras-team/keras-core/actions?query=workflow%3ATests+branch%3Amain)
-[![](https://codecov.io/gh/keras-team/keras-core/branch/main/graph/badge.svg)](https://codecov.io/gh/keras-team/keras-core)
 [![](https://badge.fury.io/py/keras-core.svg)](https://badge.fury.io/py/keras-core)
 
 # Keras Core: A new multi-backend Keras
