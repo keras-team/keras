@@ -2,7 +2,7 @@ from keras_core.api_export import keras_core_export
 from keras_core.layers import Layer
 
 
-@keras_core_export("keras_core.utils.TorchModuleWrapper")
+@keras_core_export("keras_core.layers.TorchModuleWrapper")
 class TorchModuleWrapper(Layer):
     """Torch module wrapper layer.
 
@@ -27,7 +27,7 @@ class TorchModuleWrapper(Layer):
     import torch.nn.functional as F
 
     import keras_core
-    from keras_core.backend.torch import TorchModuleWrapper
+    from keras_core.layers import TorchModuleWrapper
 
     class Classifier(keras_core.Model):
         def __init__(self, *args, **kwargs):

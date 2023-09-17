@@ -491,6 +491,7 @@ def _get_save_spec(model):
     return specs
 
 
+@keras_core_export("keras_core.layers.TFSMLayer")
 class TFSMLayer(Layer):
     """Reload a Keras model/layer that was saved via SavedModel / ExportArchive.
 
@@ -557,9 +558,13 @@ class TFSMLayer(Layer):
             self.call_endpoint_fn = self._reloaded_obj.signatures[call_endpoint]
         else:
             raise ValueError(
-                f"The endpoint '{call_endpoint}' is neither an "
-                "attribute of the reloaded SavedModel, nor an entry "
-                "in the `signatures` field of the reloaded SavedModel. "
+                f"The endpoint '{call_endpoint}' "
+                "is neither an attribute of the reloaded SavedModel, "
+                "nor an entry in the `signatures` field of "
+                "the reloaded SavedModel. Select another endpoint via "
+                "the `call_endpoint` argument. Available endpoints for "
+                "this SavedModel: "
+                f"{list(self._reloaded_obj.signatures.keys())}"
             )
 
         # Resolving the training function.
@@ -574,10 +579,12 @@ class TFSMLayer(Layer):
                 ]
             else:
                 raise ValueError(
-                    f"The endpoint '{call_training_endpoint}' is "
-                    "neither an attribute of the reloaded SavedModel, "
+                    f"The endpoint '{call_training_endpoint}' "
+                    "is neither an attribute of the reloaded SavedModel, "
                     "nor an entry in the `signatures` field of "
-                    "the reloaded SavedModel. "
+                    "the reloaded SavedModel. Available endpoints for "
+                    "this SavedModel: "
+                    f"{list(self._reloaded_obj.signatures.keys())}"
                 )
 
         # Add trainable and non-trainable weights from the call_endpoint_fn.

@@ -194,7 +194,13 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             "Keras Core only supports V3 `.keras` files and "
             "legacy H5 format files (`.h5` extension). "
             "Note that the legacy SavedModel format is not "
-            "supported in Keras Core."
+            "supported by `load_model()` in Keras Core. In "
+            "order to reload a TensorFlow SavedModel as an "
+            "inference-only layer in Keras Core, use "
+            "`keras_core.layers.TFSMLayer("
+            f"{filepath}, call_endpoint='serving_default')` "
+            "(note that your `call_endpoint` "
+            "might have a different name)."
         )
 
 
@@ -232,5 +238,5 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
             "Keras Core only supports V3 `.keras` and `.weights.h5` "
-            "files."
+            "files, or legacy V1/V2 `.h5` files."
         )
