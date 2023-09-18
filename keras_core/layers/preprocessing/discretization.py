@@ -1,25 +1,23 @@
 import numpy as np
 
-from keras_core import backend, ops
+from keras_core import backend
+from keras_core import ops
 from keras_core.api_export import keras_core_export
-from keras_core.layers.layer import Layer
 from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
 from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras_core.backend.common.backend_utils import encode_categorical_inputs
 
 
 @keras_core_export("keras_core.layers.Discretization")
-class Discretization(Layer):
+class Discretization(TFDataLayer):
     """A preprocessing layer which buckets continuous features by ranges.
 
     This layer will place each element of its input data into one of several
     contiguous ranges and output an integer index indicating which range each
     element was placed in.
-
-    This layer can also always be used as part of an input preprocessing
-    pipeline with any backend (outside the model itself), which is how we
-    recommend to use this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -74,14 +72,14 @@ class Discretization(Layer):
 
     Examples:
 
-    Digitize float values based on provided buckets.
+    Discretize float values based on provided buckets.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(bin_boundaries=[0., 1., 2.])
     >>> layer(input)
     array([[0, 2, 3, 1],
            [1, 3, 2, 1]])
 
-    Digitize float values based on a number of buckets to compute.
+    Discretize float values based on a number of buckets to compute.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(num_bins=4, epsilon=0.01)
     >>> layer.adapt(input)
@@ -241,17 +239,14 @@ class Discretization(Layer):
                 backend.KerasTensor,
             ),
         ):
-            inputs = backend.convert_to_tensor(
-                inputs, dtype=self.input_dtype
-            )
+          self._convert_input_args = True
 
         indices = ops.digitize(inputs, self.bin_boundaries)
 
-        outputs = tf_utils.encode_categorical_inputs(
+        outputs = encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
-            sparse=self.sparse,
             dtype=self.compute_dtype,
         )
         if (
