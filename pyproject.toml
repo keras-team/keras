@@ -17,3 +17,39 @@ known_first_party = ["keras_core", "tests"]
 default_section = "THIRDPARTY"
 line_length = 80
 extend_skip_glob=["examples/*", "guides/*"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::ImportWarning",
+    "ignore::RuntimeWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::UserWarning",
+    # Ignore a spurious warning on tf-nightly related to save model changes.
+    "ignore:Custom mask layers require a config",
+]
+addopts = "-vv"
+
+# Do not run tests in the `build` folders
+norecursedirs = ["build"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abstract",
+    "raise NotImplementedError",
+]
+omit = [
+    "*/*_test.py",
+    "keras_core/legacy/*",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/*_test.py",
+    "keras_core/legacy/*",
+]
+
