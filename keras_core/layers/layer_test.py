@@ -3,6 +3,7 @@ import pytest
 
 from keras_core import backend
 from keras_core import layers
+from keras_core import metrics
 from keras_core import models
 from keras_core import ops
 from keras_core import testing
@@ -213,6 +214,45 @@ class LayerTest(testing.TestCase):
         layer(np.zeros((1, 3)))
         self.assertLen(layer.inner_layer.weights, 8)
         self.assertLen(layer.weights, 8)
+
+    def test_metric_tracking(self):
+        class LayerWithMetric(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+                self.metric = metrics.MeanSquaredError(name="my_metric")
+
+            def build(self, input_shape):
+                self.dense.build(input_shape)
+
+            def call(self, x):
+                return self.dense(x)
+
+        class NestedLayerWithMetric(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.layer_with_metric = LayerWithMetric(units)
+                self.metric = metrics.MeanSquaredError(name="my_metric")
+
+            def build(self, input_shape):
+                self.layer_with_metric.build(input_shape)
+
+            def call(self, x):
+                return self.layer_with_metric(x)
+
+        layer = LayerWithMetric(3)
+        layer.build((1, 3))
+
+        self.assertLen(layer.metrics_variables, 2)
+        self.assertLen(layer.trainable_variables, 2)
+        self.assertLen(layer.non_trainable_variables, 0)
+
+        layer = NestedLayerWithMetric(3)
+        layer.build((1, 3))
+
+        self.assertLen(layer.metrics_variables, 4)
+        self.assertLen(layer.trainable_variables, 2)
+        self.assertLen(layer.non_trainable_variables, 0)
 
     def test_build_on_call(self):
         class LayerWithUnbuiltState(layers.Layer):

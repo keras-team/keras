@@ -514,10 +514,13 @@ class Layer(BackendLayer, Operation):
 
     @property
     def variables(self):
-        """List of all layer state, including metric variables and random seeds.
+        """List of all layer state, including random seeds.
 
         This extends `layer.weights` to include all state used by the layer
-        including state for metrics and `SeedGenerator`s.
+        including `SeedGenerator`s.
+
+        Note that metrics variables are not included here, use
+        `metrics_variables` to visit all the metric variables.
         """
         # Return all `Variables` associate with the layer including metrics
         # and random seeds. Also deduplicate them.
@@ -527,8 +530,6 @@ class Layer(BackendLayer, Operation):
             if id(v) not in seen_ids:
                 variables.append(v)
                 seen_ids.add(id(v))
-        for m in self._metrics:
-            variables.extend(m.variables)
         for sg in self._seed_generators:
             variables.append(sg.state)
         for layer in self._layers:
@@ -601,6 +602,17 @@ class Layer(BackendLayer, Operation):
         if not self.trainable:
             return self.weights
         return [v for v in self.weights if not v.trainable]
+
+    @property
+    def metrics_variables(self):
+        """List of all metric variables."""
+        vars = []
+        for metric in self._metrics:
+            vars.extend(metric.variables)
+        for layer in self._layers:
+            for metric in layer._metrics:
+                vars.extend(metric.variables)
+        return vars
 
     def get_weights(self):
         """Return the values of `layer.weights` as a list of NumPy arrays."""
