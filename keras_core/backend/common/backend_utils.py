@@ -266,6 +266,7 @@ def encode_categorical_inputs(
     count_weights=None,
 ):
     from keras_core import ops
+
     """Encodes categoical inputs according to output_mode."""
     if output_mode == "int":
         return ops.identity(ops.cast(inputs, dtype))
