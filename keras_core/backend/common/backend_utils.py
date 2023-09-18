@@ -1,5 +1,7 @@
 import warnings
+
 from keras_core import ops
+
 
 def _convert_conv_tranpose_padding_args_from_keras_to_jax(
     kernel_size, stride, dilation_rate, padding, output_padding
@@ -293,8 +295,8 @@ def encode_categorical_inputs(
         minlength=depth,
     )
     if binary_output:
-      one_hot_input = ops.one_hot(inputs, depth)
-      bincounts = ops.where(ops.any(one_hot_input, axis =-2), 1, 0)
+        one_hot_input = ops.one_hot(inputs, depth)
+        bincounts = ops.where(ops.any(one_hot_input, axis=-2), 1, 0)
     bincounts = ops.cast(bincounts, dtype)
 
     return bincounts

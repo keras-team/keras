@@ -3,12 +3,11 @@ import numpy as np
 from keras_core import backend
 from keras_core import ops
 from keras_core.api_export import keras_core_export
+from keras_core.backend.common.backend_utils import encode_categorical_inputs
+from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
-from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
-from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
-from keras_core.backend.common.backend_utils import encode_categorical_inputs
 
 
 @keras_core_export("keras_core.layers.Discretization")
@@ -239,7 +238,7 @@ class Discretization(TFDataLayer):
                 backend.KerasTensor,
             ),
         ):
-          self._convert_input_args = True
+            self._convert_input_args = True
 
         indices = ops.digitize(inputs, self.bin_boundaries)
 
