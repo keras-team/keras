@@ -255,3 +255,47 @@ def compute_conv_transpose_output_shape(
     else:
         output_shape = [input_shape[0], filters] + output_shape
     return output_shape
+
+
+def encode_categorical_inputs(
+    inputs,
+    output_mode,
+    depth,
+    dtype="float32",
+    sparse=False,
+    count_weights=None,
+):
+    from keras_core import ops
+    """Encodes categoical inputs according to output_mode."""
+    if output_mode == "int":
+        return ops.identity(ops.cast(inputs, dtype))
+
+    original_shape = inputs.shape
+    # In all cases, we should uprank scalar input to a single sample.
+    if len(ops.shape(inputs)) == 0:
+        inputs = ops.expand_dims(inputs, -1)
+    # One hot will unprank only if the final output dimension is not already 1.
+    if output_mode == "one_hot":
+        if ops.shape(inputs)[-1] != 1:
+            inputs = ops.expand_dims(inputs, -1)
+
+    if len(ops.shape(inputs)) > 2:
+        raise ValueError(
+            "When output_mode is not `'int'`, maximum supported output rank "
+            f"is 2. Received output_mode {output_mode} and input shape "
+            f"{original_shape}, "
+            f"which would result in output rank {inputs.shape.rank}."
+        )
+
+    binary_output = output_mode in ("multi_hot", "one_hot")
+    bincounts = ops.bincount(
+        inputs,
+        weights=count_weights,
+        minlength=depth,
+    )
+    if binary_output:
+        one_hot_input = ops.one_hot(inputs, depth)
+        bincounts = ops.where(ops.any(one_hot_input, axis=-2), 1, 0)
+    bincounts = ops.cast(bincounts, dtype)
+
+    return bincounts
