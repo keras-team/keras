@@ -270,7 +270,7 @@ def encode_categorical_inputs(
 
     """Encodes categoical inputs according to output_mode."""
     if output_mode == "int":
-        return backend.convert_to_tensor(inputs, dtype=dtype)
+        return ops.cast(inputs, dtype=dtype)
 
     original_shape = inputs.shape
     # In all cases, we should uprank scalar input to a single sample.
