@@ -266,10 +266,11 @@ def encode_categorical_inputs(
     count_weights=None,
 ):
     from keras_core import ops
+    from keras_core import backend
 
     """Encodes categoical inputs according to output_mode."""
     if output_mode == "int":
-        return ops.identity(ops.cast(inputs, dtype))
+        return backend.convert_to_tensor(inputs, dtype=dtype)
 
     original_shape = inputs.shape
     # In all cases, we should uprank scalar input to a single sample.
