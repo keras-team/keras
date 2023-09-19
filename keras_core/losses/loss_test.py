@@ -209,13 +209,3 @@ class LossTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             losses_module.get("typo")
-
-    def test_dtype_arg(self):
-        y_true = np.array([1.0, 0.0, 1.0, 0.0], dtype="float32")
-        y_pred = np.array([0.1, 0.2, 0.3, 0.4], dtype="float32")
-
-        # Note: we use float16 and not float64 to test this because
-        # JAX will map float64 to float32.
-        loss_fn = ExampleLoss(dtype="float16")
-        loss = loss_fn(y_true, y_pred)
-        self.assertEqual(backend.standardize_dtype(loss.dtype), "float16")

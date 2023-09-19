@@ -1,6 +1,5 @@
 """Tests for inference-only model/layer exporting utilities."""
 import os
-import sys
 
 import numpy as np
 import pytest
@@ -28,10 +27,6 @@ def get_model():
 @pytest.mark.skipif(
     backend.backend() not in ("tensorflow", "jax"),
     reason="Export only currently supports the TF and JAX backends.",
-)
-@pytest.mark.skipif(
-    backend.backend() == "jax" and sys.modules["jax"].__version__ > "0.4.15",
-    reason="The export API is only compatible with JAX version <= 0.4.15.",
 )
 class ExportArchiveTest(testing.TestCase):
     def test_standard_model_export(self):
@@ -540,18 +535,6 @@ class ExportArchiveTest(testing.TestCase):
         self.assertAllClose(
             ref_output, revived_model.serve(ref_input), atol=1e-6
         )
-
-
-@pytest.mark.skipif(
-    backend.backend() != "jax" or sys.modules["jax"].__version__ <= "0.4.15",
-    reason="This test is for invalid JAX versions, i.e. versions > 0.4.15.",
-)
-class VersionTest(testing.TestCase):
-    def test_invalid_jax_version(self):
-        with self.assertRaisesRegex(
-            ValueError, "only compatible with JAX version"
-        ):
-            _ = export_lib.ExportArchive()
 
 
 @pytest.mark.skipif(

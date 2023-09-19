@@ -576,6 +576,8 @@ def vstack(xs):
 
 
 def where(condition, x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.where(condition, x1, x2)
 
 

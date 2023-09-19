@@ -25,20 +25,20 @@ class Loss:
     ```
     """
 
-    def __init__(self, name=None, reduction="sum_over_batch_size", dtype=None):
+    def __init__(self, name=None, reduction="sum_over_batch_size"):
         self.name = name or auto_name(self.__class__.__name__)
         self.reduction = standardize_reduction(reduction)
-        self.dtype = dtype or backend.floatx()
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         in_mask = getattr(y_pred, "_keras_mask", None)
 
         with ops.name_scope(self.name):
+            dtype = backend.floatx()
             y_pred = tree.map_structure(
-                lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_pred
+                lambda x: ops.convert_to_tensor(x, dtype=dtype), y_pred
             )
             y_true = tree.map_structure(
-                lambda x: ops.convert_to_tensor(x, dtype=self.dtype), y_true
+                lambda x: ops.convert_to_tensor(x, dtype=dtype), y_true
             )
 
             losses = self.call(y_true, y_pred)
@@ -58,7 +58,6 @@ class Loss:
                 sample_weight=sample_weight,
                 mask=mask,
                 reduction=self.reduction,
-                dtype=self.dtype,
             )
 
     def call(self, y_true, y_pred):
@@ -120,20 +119,29 @@ def reduce_weighted_values(
     sample_weight=None,
     mask=None,
     reduction="sum_over_batch_size",
-    dtype=None,
 ):
     reduction = standardize_reduction(reduction)
 
-    values = ops.convert_to_tensor(values, dtype=dtype)
+    values = ops.convert_to_tensor(values)
     if sample_weight is not None:
-        sample_weight = ops.convert_to_tensor(sample_weight, dtype=dtype)
+        sample_weight = ops.convert_to_tensor(sample_weight, dtype=values.dtype)
     if mask is not None:
-        mask = ops.convert_to_tensor(mask, dtype=dtype)
+        mask = ops.convert_to_tensor(mask, dtype=values.dtype)
 
     # Merge mask and sample weight into sample weight.
     sample_weight = apply_mask(
         sample_weight, mask, dtype=values.dtype, reduction=reduction
     )
+
+    # Convert any non float dtypes to floats, to avoid loss of precision
+    # for dtype like int or bool.
+    dtype = backend.standardize_dtype(values.dtype)
+    if not dtype_utils.is_float(dtype):
+        input_dtype = values.dtype
+        values = ops.cast(values, "float32")
+        input_casted = True
+    else:
+        input_casted = False
 
     if sample_weight is not None:
         sample_weight = ops.cast(sample_weight, values.dtype)
@@ -143,6 +151,10 @@ def reduce_weighted_values(
 
     # Apply reduction function to the individual weighted losses.
     loss = reduce_values(values, reduction)
+
+    if input_casted:
+        # Convert the result back to the input type.
+        loss = ops.cast(loss, input_dtype)
     return loss
 
 
