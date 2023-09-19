@@ -1,8 +1,10 @@
+import contextlib
+
 import tree
 from jax import lax
 from jax import numpy as jnp
 
-from keras_core.backend.common.stateless_scope import StatelessScope
+from keras_core.backend.common import stateless_scope
 from keras_core.utils.nest import pack_sequence_as
 
 
@@ -181,7 +183,12 @@ def rnn(
 
             scan_xs = inputs
 
-        with StatelessScope():
+        if stateless_scope.in_stateless_scope():
+            # Reuse the existing parent stateless scope.
+            scope = contextlib.nullcontext()
+        else:
+            scope = stateless_scope.StatelessScope()
+        with scope:
             # We must use a stateless scope because `scan` will involve
             # JAX tracing -- any variable update at this stage would
             # be a leak.

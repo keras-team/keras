@@ -81,6 +81,57 @@ class StackedRNNTest(testing.TestCase):
             supports_masking=True,
             custom_objects={"TwoStatesRNNCell": TwoStatesRNNCell},
         )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={
+                "cell": [
+                    layers.SimpleRNNCell(3, dropout=0.1, recurrent_dropout=0.1),
+                    layers.SimpleRNNCell(4, dropout=0.1, recurrent_dropout=0.1),
+                    layers.SimpleRNNCell(5, dropout=0.1, recurrent_dropout=0.1),
+                ],
+                "return_sequences": True,
+            },
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 5),
+            expected_num_trainable_weights=9,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={
+                "cell": [
+                    layers.GRUCell(3, dropout=0.1, recurrent_dropout=0.1),
+                    layers.GRUCell(4, dropout=0.1, recurrent_dropout=0.1),
+                    layers.GRUCell(5, dropout=0.1, recurrent_dropout=0.1),
+                ],
+                "return_sequences": True,
+            },
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 5),
+            expected_num_trainable_weights=9,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
+        self.run_layer_test(
+            layers.RNN,
+            init_kwargs={
+                "cell": [
+                    layers.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1),
+                    layers.LSTMCell(4, dropout=0.1, recurrent_dropout=0.1),
+                    layers.LSTMCell(5, dropout=0.1, recurrent_dropout=0.1),
+                ],
+                "return_sequences": True,
+            },
+            input_shape=(2, 3, 4),
+            expected_output_shape=(2, 3, 5),
+            expected_num_trainable_weights=9,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            supports_masking=True,
+        )
 
     def test_correctness_single_state_stack(self):
         sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")

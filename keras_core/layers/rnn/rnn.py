@@ -390,6 +390,10 @@ class RNN(Layer):
             initial_state,
         )
 
+        # Prepopulate the dropout state so that the inner_loop is stateless
+        # this is particularly important for JAX backend.
+        self._maybe_config_dropout_masks(self.cell, sequences, initial_state)
+
         last_output, outputs, states = self.inner_loop(
             sequences=sequences,
             initial_state=initial_state,
@@ -420,6 +424,20 @@ class RNN(Layer):
                 return output, state
             return output, *states
         return output
+
+    def _maybe_config_dropout_masks(self, cell, input_sequence, input_state):
+        step_input = input_sequence[:, 0, :]
+        state = (
+            input_state[0]
+            if isinstance(input_state, (list, tuple))
+            else input_state
+        )
+        if isinstance(cell, DropoutRNNCell):
+            cell.get_dropout_mask(step_input)
+            cell.get_recurrent_dropout_mask(state)
+        if isinstance(cell, StackedRNNCells):
+            for c, s in zip(cell.cells, input_state):
+                self._maybe_config_dropout_masks(c, input_sequence, s)
 
     def _maybe_reset_dropout_masks(self, cell):
         if isinstance(cell, DropoutRNNCell):
