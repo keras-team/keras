@@ -76,8 +76,8 @@ class Conv3D(Conv):
         1.
       padding: one of `"valid"` or `"same"` (case-insensitive).
         `"valid"` means no padding. `"same"` results in padding with zeros
-        evenly to the left/right or up/down of the input such that output has
-        the same height/width dimension as the input.
+        evenly to the left/right or up/down of the input.When `padding="same"` and
+        `strides=1`, the output has the same size as the input.
       data_format: A string, one of `channels_last` (default) or
         `channels_first`.  The ordering of the dimensions in the inputs.
         `channels_last` corresponds to inputs with shape `batch_shape +
