@@ -265,7 +265,6 @@ def encode_categorical_inputs(
     sparse=False,
     count_weights=None,
 ):
-    from keras_core import backend
     from keras_core import ops
 
     """Encodes categoical inputs according to output_mode."""
