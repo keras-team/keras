@@ -231,6 +231,7 @@ class Discretization(TFDataLayer):
         return
 
     def call(self, inputs):
+        self._convert_input_args = True
         indices = ops.digitize(inputs, self.bin_boundaries)
         outputs = encode_categorical_inputs(
             indices,
