@@ -330,7 +330,7 @@ def hstack(xs):
 
 
 def identity(n, dtype="float32"):
-    return tf.identity(n)
+    return tfnp.identity(n, dtype=dtype)
 
 
 def imag(x):
