@@ -58,8 +58,8 @@ class DepthwiseConv1D(DepthwiseConv):
         with specifying any `dilation_rate` value != 1.
       padding: one of `'valid'` or `'same'` (case-insensitive). `"valid"` means
         no padding. `"same"` results in padding with zeros evenly to the
-        left/right or up/down of the input such that output has the same
-        height/width dimension as the input.
+        left/right or up/down of the input such that.When `padding="same"` and
+      `strides=1`, the output has the same size as the input.
       depth_multiplier: The number of depthwise convolution output channels for
         each input channel. The total number of depthwise convolution output
         channels will be equal to `filters_in * depth_multiplier`.
