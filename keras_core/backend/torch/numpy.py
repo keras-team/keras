@@ -800,22 +800,34 @@ def sort(x, axis=-1):
 
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
+    dim = x.shape[axis]
     if isinstance(indices_or_sections, (list, tuple)):
         idxs = convert_to_tensor(indices_or_sections)
         start_size = indices_or_sections[0]
-        end_size = x.shape[axis] - indices_or_sections[-1]
+        end_size = dim - indices_or_sections[-1]
         chunk_sizes = (
             [start_size]
             + torch.diff(idxs).type(torch.int).tolist()
             + [end_size]
         )
     else:
-        chunk_sizes = x.shape[axis] // indices_or_sections
-    return torch.split(
+        if dim % indices_or_sections != 0:
+            raise ValueError(
+                f"Received indices_or_sections={indices_or_sections} "
+                f"(interpreted as a number of sections) and axis={axis}, "
+                f"but input dimension x.shape[{axis}]={x.shape[axis]} "
+                f"is not divisible by {indices_or_sections}. "
+                f"Full input shape: x.shape={x.shape}"
+            )
+        chunk_sizes = dim // indices_or_sections
+    out = torch.split(
         tensor=x,
         split_size_or_sections=chunk_sizes,
         dim=axis,
     )
+    if dim == 0 and isinstance(indices_or_sections, int):
+        out = tuple(out[0].clone() for _ in range(indices_or_sections))
+    return out
 
 
 def stack(x, axis=0):
