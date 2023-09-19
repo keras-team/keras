@@ -1,22 +1,29 @@
 import numpy as np
 
 from keras_core import backend
-from keras_core import ops
 from keras_core.api_export import keras_core_export
-from keras_core.backend.common.backend_utils import encode_categorical_inputs
-from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras_core.layers.layer import Layer
 from keras_core.utils import argument_validation
 from keras_core.utils import backend_utils
+from keras_core.utils import tf_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
 @keras_core_export("keras_core.layers.Discretization")
-class Discretization(TFDataLayer):
+class Discretization(Layer):
     """A preprocessing layer which buckets continuous features by ranges.
 
     This layer will place each element of its input data into one of several
     contiguous ranges and output an integer index indicating which range each
     element was placed in.
+
+    **Note:** This layer uses TensorFlow internally. It cannot
+    be used as part of the compiled computation graph of a model with
+    any backend other than TensorFlow.
+    It can however be used with any backend when running eagerly.
+    It can also always be used as part of an input preprocessing pipeline
+    with any backend (outside the model itself), which is how we recommend
+    to use this layer.
 
     **Note:** This layer is safe to use inside a `tf.data` pipeline
     (independently of which backend you're using).
@@ -71,14 +78,14 @@ class Discretization(TFDataLayer):
 
     Examples:
 
-    Discretize float values based on provided buckets.
+    Bucketize float values based on provided buckets.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(bin_boundaries=[0., 1., 2.])
     >>> layer(input)
     array([[0, 2, 3, 1],
            [1, 3, 2, 1]])
 
-    Discretize float values based on a number of buckets to compute.
+    Bucketize float values based on a number of buckets to compute.
     >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
     >>> layer = Discretization(num_bins=4, epsilon=0.01)
     >>> layer.adapt(input)
@@ -231,11 +238,29 @@ class Discretization(TFDataLayer):
         return
 
     def call(self, inputs):
-        indices = ops.digitize(inputs, self.bin_boundaries)
-        outputs = encode_categorical_inputs(
+        if not isinstance(
+            inputs,
+            (
+                tf.Tensor,
+                tf.SparseTensor,
+                tf.RaggedTensor,
+                np.ndarray,
+                backend.KerasTensor,
+            ),
+        ):
+            inputs = tf.convert_to_tensor(
+                backend.convert_to_numpy(inputs), dtype=self.input_dtype
+            )
+
+        from keras_core.backend.tensorflow.numpy import digitize
+
+        indices = digitize(inputs, self.bin_boundaries)
+
+        outputs = tf_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
+            sparse=self.sparse,
             dtype=self.compute_dtype,
         )
         if (
@@ -345,3 +370,7 @@ def compress_summary(summary, epsilon):
     )
     summary = np.stack((new_bins, new_weights))
     return summary.astype("float32")
+
+
+def bucketize(inputs, boundaries):
+    return tf.raw_ops.Bucketize(input=inputs, boundaries=boundaries)
