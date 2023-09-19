@@ -162,31 +162,3 @@ def affine_transform(
     if need_squeeze:
         affined = jnp.squeeze(affined, axis=0)
     return affined
-
-
-MAP_COORDINATES_FILL_MODES = {
-    "constant",
-    "nearest",
-    "wrap",
-    "mirror",
-    "reflect",
-}
-
-
-def map_coordinates(
-    input, coordinates, order, fill_mode="constant", fill_value=0.0
-):
-    if fill_mode not in MAP_COORDINATES_FILL_MODES:
-        raise ValueError(
-            "Invalid value for argument `fill_mode`. Expected one of "
-            f"{set(MAP_COORDINATES_FILL_MODES)}. Received: "
-            f"fill_mode={fill_mode}"
-        )
-    if order not in range(2):
-        raise ValueError(
-            "Invalid value for argument `order`. Expected one of "
-            f"{[0, 1]}. Received: order={order}"
-        )
-    return jax.scipy.ndimage.map_coordinates(
-        input, coordinates, order, fill_mode, fill_value
-    )

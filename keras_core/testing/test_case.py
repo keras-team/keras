@@ -261,8 +261,10 @@ class TestCase(unittest.TestCase):
                     self.assertIsInstance(output, list)
                     self.assertEqual(
                         len(output),
-                        len(expected_output_shape),
-                        msg="Unexpected number of outputs",
+                        len(
+                            expected_output_shape,
+                            msg="Unexpected number of outputs",
+                        ),
                     )
                     output_shape = [v.shape for v in expected_output_shape]
                     self.assertEqual(

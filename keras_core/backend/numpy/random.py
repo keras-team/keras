@@ -86,9 +86,3 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     mask = rng.uniform(size=noise_shape) < keep_prob
     mask = np.broadcast_to(mask, inputs.shape)
     return np.where(mask, inputs / keep_prob, np.zeros_like(inputs))
-
-
-def shuffle(x, axis=0, seed=None):
-    seed = draw_seed(seed)
-    rng = np.random.default_rng(seed)
-    return rng.permuted(x, axis=axis)
