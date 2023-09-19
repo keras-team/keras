@@ -79,3 +79,8 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     return jax.lax.select(
         mask, inputs / keep_prob, jax.numpy.zeros_like(inputs)
     )
+
+
+def shuffle(x, axis=0, seed=None):
+    seed = jax_draw_seed(seed)
+    return jax.random.shuffle(seed, x, axis)

@@ -3283,40 +3283,25 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
-        if backend.backend() == "torch":
-            self.assertAllClose(
-                [backend.convert_to_numpy(t) for t in knp.split(x, 2)],
-                np.split(x, 2),
-            )
-            self.assertAllClose(
-                [backend.convert_to_numpy(t) for t in knp.Split(2)(x)],
-                np.split(x, 2),
-            )
-            self.assertAllClose(
-                [
-                    backend.convert_to_numpy(t)
-                    for t in knp.split(x, [1, 2], axis=1)
-                ],
-                np.split(x, [1, 2], axis=1),
-            )
-            self.assertAllClose(
-                [
-                    backend.convert_to_numpy(t)
-                    for t in knp.Split([1, 2], axis=1)(x)
-                ],
-                np.split(x, [1, 2], axis=1),
-            )
-        else:
-            self.assertAllClose(knp.split(x, 2), np.split(x, 2))
-            self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
-            self.assertAllClose(
-                knp.split(x, [1, 2], axis=1),
-                np.split(x, [1, 2], axis=1),
-            )
-            self.assertAllClose(
-                knp.Split([1, 2], axis=1)(x),
-                np.split(x, [1, 2], axis=1),
-            )
+        self.assertAllClose(knp.split(x, 2), np.split(x, 2))
+        self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
+        self.assertAllClose(
+            knp.split(x, [1, 2], axis=1),
+            np.split(x, [1, 2], axis=1),
+        )
+        self.assertAllClose(
+            knp.Split([1, 2], axis=1)(x),
+            np.split(x, [1, 2], axis=1),
+        )
+
+        # test invalid indices_or_sections
+        with self.assertRaises(Exception):
+            knp.split(x, 3)
+
+        # test zero dimension
+        x = np.ones(shape=(0,))
+        self.assertEqual(len(knp.split(x, 2)), 2)
+        self.assertEqual(len(knp.Split(2)(x)), 2)
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]])

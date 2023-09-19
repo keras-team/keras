@@ -160,3 +160,28 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     return torch.nn.functional.dropout(
         inputs, p=rate, training=True, inplace=False
     )
+
+
+def shuffle(x, axis=0, seed=None):
+    # Ref: https://github.com/pytorch/pytorch/issues/71409
+    x = convert_to_tensor(x)
+
+    # Get permutation indices
+    # Do not use generator during symbolic execution.
+    if get_device() == "meta":
+        row_perm = torch.rand(x.shape[: axis + 1], device=get_device()).argsort(
+            axis
+        )
+    else:
+        generator = torch_seed_generator(seed)
+        row_perm = torch.rand(
+            x.shape[: axis + 1], generator=generator, device=get_device()
+        ).argsort(axis)
+    for _ in range(x.ndim - axis - 1):
+        row_perm.unsqueeze_(-1)
+
+    # Reformat this for the gather operation
+    row_perm = row_perm.repeat(
+        *[1 for _ in range(axis + 1)], *(x.shape[axis + 1 :])
+    )
+    return x.gather(axis, row_perm)

@@ -188,3 +188,23 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     return backend.random.dropout(
         inputs, rate, noise_shape=noise_shape, seed=seed
     )
+
+
+@keras_core_export("keras_core.random.shuffle")
+def shuffle(x, axis=0, seed=None):
+    """Shuffle the elements of a tensor uniformly at random along an axis.
+
+    Args:
+        x: The tensor to be shuffled.
+        axis: An integer specifying the axis along which to shuffle. Defaults to
+            `0`.
+        seed: A Python integer or instance of
+            `keras_core.random.SeedGenerator`.
+            Used to make the behavior of the initializer
+            deterministic. Note that an initializer seeded with an integer
+            or None (unseeded) will produce the same random values
+            across multiple calls. To get different random values
+            across multiple calls, use as seed an instance
+            of `keras_core.random.SeedGenerator`.
+    """
+    return backend.random.shuffle(x, axis=axis, seed=seed)

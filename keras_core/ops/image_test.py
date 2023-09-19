@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -34,6 +36,12 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 4, 4, 75))
 
+    def test_map_coordinates(self):
+        input = KerasTensor([20, 20, None])
+        coordinates = KerasTensor([3, 15, 15, None])
+        out = kimage.map_coordinates(input, coordinates, 0)
+        self.assertEqual(out.shape, coordinates.shape[1:])
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def test_resize(self):
@@ -54,6 +62,12 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (4, 4, 75))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (4, 4, 75))
+
+    def test_map_coordinates(self):
+        input = KerasTensor([20, 20, 3])
+        coordinates = KerasTensor([3, 15, 15, 3])
+        out = kimage.map_coordinates(input, coordinates, 0)
+        self.assertEqual(out.shape, coordinates.shape[1:])
 
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
@@ -105,6 +119,38 @@ def _compute_affine_transform_coordinates(image, transform):
     if need_squeeze:
         coordinates = np.squeeze(coordinates, axis=0)
     return coordinates
+
+
+def _map_coordinates(
+    input, coordinates, order, fill_mode="constant", fill_value=0.0
+):
+    # SciPy's implementation of map_coordinates handles boundaries incorrectly,
+    # unless mode='reflect'. For order=1, this only affects interpolation
+    # outside the bounds of the original array.
+    # https://github.com/scipy/scipy/issues/2640
+    padding = [
+        (
+            max(-np.floor(c.min()).astype(int) + 1, 0),
+            max(np.ceil(c.max()).astype(int) + 1 - size, 0),
+        )
+        for c, size in zip(coordinates, input.shape)
+    ]
+    shifted_coords = [c + p[0] for p, c in zip(padding, coordinates)]
+    pad_mode = {
+        "nearest": "edge",
+        "mirror": "reflect",
+        "reflect": "symmetric",
+    }.get(fill_mode, fill_mode)
+    if fill_mode == "constant":
+        padded = np.pad(
+            input, padding, mode=pad_mode, constant_values=fill_value
+        )
+    else:
+        padded = np.pad(input, padding, mode=pad_mode)
+    result = scipy.ndimage.map_coordinates(
+        padded, shifted_coords, order=order, mode=fill_mode, cval=fill_value
+    )
+    return result
 
 
 class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
@@ -350,3 +396,30 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             patches_ref.numpy(), backend.convert_to_numpy(patches_out), atol=0.3
         )
+
+    @parameterized.product(
+        # (input_shape, coordinates_shape)
+        shape=[((5,), (7,)), ((3, 4, 5), (2, 3, 4))],
+        # TODO: scipy.ndimage.map_coordinates does not support float16
+        # TODO: torch cpu does not support round & floor for float16
+        dtype=["uint8", "int32", "float32"],
+        order=[0, 1],
+        fill_mode=["constant", "nearest", "wrap", "mirror", "reflect"],
+    )
+    def test_map_coordinates(self, shape, dtype, order, fill_mode):
+        input_shape, coordinates_shape = shape
+        input = np.arange(math.prod(input_shape), dtype=dtype).reshape(
+            input_shape
+        )
+        coordinates_dtype = "float32" if "int" in dtype else dtype
+        coordinates = [
+            (size - 1)
+            * np.random.uniform(size=coordinates_shape).astype(
+                coordinates_dtype
+            )
+            for size in input_shape
+        ]
+        output = kimage.map_coordinates(input, coordinates, order, fill_mode)
+        expected = _map_coordinates(input, coordinates, order, fill_mode)
+
+        self.assertAllClose(output, expected)
