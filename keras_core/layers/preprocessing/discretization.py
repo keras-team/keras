@@ -154,8 +154,8 @@ class Discretization(TFDataLayer):
             self.summary = None
         else:
             self.summary = np.array([[], []], dtype="float32")
-        self._convert_input_args = False
         self._allow_non_tensor_positional_args = True
+        self._convert_input_args = True
 
     def build(self, input_shape=None):
         self.built = True
@@ -231,7 +231,6 @@ class Discretization(TFDataLayer):
         return
 
     def call(self, inputs):
-        self._convert_input_args = True
         indices = ops.digitize(inputs, self.bin_boundaries)
         outputs = encode_categorical_inputs(
             indices,

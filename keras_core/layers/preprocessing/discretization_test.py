@@ -3,6 +3,7 @@ import os
 import numpy as np
 from tensorflow import data as tf_data
 
+from keras_core import backend
 from keras_core import layers
 from keras_core import models
 from keras_core import testing
@@ -40,6 +41,7 @@ class DicretizationTest(testing.TestCase):
             bin_boundaries=[0.0, 0.5, 1.0], output_mode="int"
         )
         output = layer(np.array([[-1.0, 0.0, 0.1, 0.8, 1.2]]))
+        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 1, 2, 3]]))
 
         # one_hot mode
@@ -47,6 +49,7 @@ class DicretizationTest(testing.TestCase):
             bin_boundaries=[0.0, 0.5, 1.0], output_mode="one_hot"
         )
         output = layer(np.array([0.1, 0.8]))
+        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 0, 0], [0, 0, 1, 0]]))
 
         # multi_hot mode
@@ -54,6 +57,7 @@ class DicretizationTest(testing.TestCase):
             bin_boundaries=[0.0, 0.5, 1.0], output_mode="multi_hot"
         )
         output = layer(np.array([[0.1, 0.8]]))
+        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 1, 0]]))
 
         # count mode
@@ -61,6 +65,7 @@ class DicretizationTest(testing.TestCase):
             bin_boundaries=[0.0, 0.5, 1.0], output_mode="count"
         )
         output = layer(np.array([[0.1, 0.8, 0.9]]))
+        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 2, 0]]))
 
     def test_tf_data_compatibility(self):
@@ -73,6 +78,7 @@ class DicretizationTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output = output.numpy()
+        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
 
         # With adapt flow
