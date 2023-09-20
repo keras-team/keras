@@ -15,7 +15,7 @@ class ELU(Layer):
     ```
 
     Args:
-        alpha: float, slope of negative section. Defaults to 1.0.
+        alpha: float, slope of negative section. Defaults to `1.0`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 

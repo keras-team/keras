@@ -23,7 +23,7 @@ class FBetaScore(Metric):
         average: Type of averaging to be performed across per-class results
             in the multi-class case.
             Acceptable values are `None`, `"micro"`, `"macro"` and
-            `"weighted"`. Default value is `None`.
+            `"weighted"`. Defaults to `None`.
             If `None`, no averaging is performed and `result()` will return
             the score for each class.
             If `"micro"`, compute metrics globally by counting the total
@@ -38,7 +38,7 @@ class FBetaScore(Metric):
             It can result in an score that is not between precision and recall.
         beta: Determines the weight of given to recall
             in the harmonic mean between precision and recall (see pseudocode
-            equation above). Default value is 1.
+            equation above). Defaults to `1`.
         threshold: Elements of `y_pred` greater than `threshold` are
             converted to be 1, and the rest 0. If `threshold` is
             `None`, the argmax of `y_pred` is converted to 1, and the rest to 0.
@@ -261,7 +261,7 @@ class F1Score(FBetaScore):
     Args:
         average: Type of averaging to be performed on data.
             Acceptable values are `None`, `"micro"`, `"macro"`
-            and `"weighted"`. Default value is `None`.
+            and `"weighted"`. Defaults to `None`.
             If `None`, no averaging is performed and `result()` will return
             the score for each class.
             If `"micro"`, compute metrics globally by counting the total

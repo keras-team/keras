@@ -40,7 +40,7 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Default is `False`.
+            Defaults to`False`.
 
     Returns:
         A tensor containing the sum of segments, where each element
@@ -93,7 +93,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
         sorted: A boolean indicating whether `segment_ids` is sorted.
-            Default is `False`.
+            Defaults to`False`.
 
     Returns:
         A tensor containing the max of segments, where each element
@@ -141,7 +141,7 @@ def top_k(x, k, sorted=True):
         x: Input tensor.
         k: An integer representing the number of top elements to retrieve.
         sorted: A boolean indicating whether to sort the output in
-        descending order. Default is `True`.
+        descending order. Defaults to`True`.
 
     Returns:
         A tuple containing two tensors. The first tensor contains the
@@ -225,9 +225,9 @@ def logsumexp(x, axis=None, keepdims=False):
         x: Input tensor.
         axis: An integer or a tuple of integers specifying the axis/axes
             along which to compute the sum. If `None`, the sum is computed
-            over all elements. Default is `None`.
+            over all elements. Defaults to`None`.
         keepdims: A boolean indicating whether to keep the dimensions of
-            the input tensor when computing the sum. Default is `False`.
+            the input tensor when computing the sum. Defaults to`False`.
 
     Returns:
         A tensor containing the logarithm of the sum of exponentials of

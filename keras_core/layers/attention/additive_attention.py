@@ -26,7 +26,7 @@ class AdditiveAttention(Attention):
         use_scale: If `True`, will create a scalar variable to scale the
             attention scores.
         dropout: Float between 0 and 1. Fraction of the units to drop for the
-            attention scores. Defaults to 0.0.
+            attention scores. Defaults to `0.0`.
 
     Call Args:
         inputs: List of the following tensors:

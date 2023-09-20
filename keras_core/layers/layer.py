@@ -80,7 +80,7 @@ class Layer(BackendLayer, Operation):
         dtype: The dtype of the layer's computations and weights. Can also be a
             `keras_core.mixed_precision.DTypePolicy`,
             which allows the computation and
-            weight dtype to differ. Default of `None` means to use
+            weight dtype to differ. Defaults to `None`. `None` means to use
             `keras_core.mixed_precision.dtype_policy()`,
             which is a `float32` policy unless set to different value
             (via `keras_core.mixed_precision.set_dtype_policy()`).

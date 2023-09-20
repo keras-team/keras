@@ -186,7 +186,7 @@ class CategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
             on label values are relaxed. e.g. `label_smoothing=0.2` means
             that we will use a value of 0.1 for label
             "0" and 0.9 for label "1".
-        axis: (Optional) Defaults to -1.
+        axis: (Optional) Defaults to `-1`.
             The dimension along which entropy is computed.
 
     Examples:
@@ -271,7 +271,7 @@ class SparseCategoricalCrossentropy(reduction_metrics.MeanMetricWrapper):
         from_logits: (Optional) Whether output is expected
             to be a logits tensor. By default, we consider that output
             encodes a probability distribution.
-        axis: (Optional) Defaults to -1.
+        axis: (Optional) Defaults to `-1`.
             The dimension along which entropy is computed.
 
     Examples:

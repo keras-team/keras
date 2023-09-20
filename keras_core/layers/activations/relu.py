@@ -30,9 +30,10 @@ class ReLU(Layer):
     Args:
         max_value: Float >= 0. Maximum activation value. None means unlimited.
             Defaults to `None`.
-        negative_slope: Float >= 0. Negative slope coefficient. Defaults to 0.0.
+        negative_slope: Float >= 0. Negative slope coefficient.
+            Defaults to `0.0`.
         threshold: Float >= 0. Threshold value for thresholded activation.
-            Defaults to 0.0.
+            Defaults to `0.0`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 

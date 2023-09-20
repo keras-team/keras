@@ -222,8 +222,8 @@ def residual_block_v1(
     Args:
         x: Input tensor.
         filters: No of filters in the bottleneck layer.
-        kernel_size: Kernel size of the bottleneck layer. Defaults to 3
-        stride: Stride of the first layer. Defaults to 1
+        kernel_size: Kernel size of the bottleneck layer. Defaults to `3`.
+        stride: Stride of the first layer. Defaults to `1`.
         conv_shortcut: Use convolution shortcut if `True`, otherwise
             use identity shortcut. Defaults to `True`
         name(optional): Name of the block
@@ -278,7 +278,7 @@ def stack_residual_blocks_v1(x, filters, blocks, stride1=2, name=None):
         x: Input tensor.
         filters: Number of filters in the bottleneck layer in a block.
         blocks: Number of blocks in the stacked blocks.
-        stride1: Stride of the first layer in the first block. Defaults to 2.
+        stride1: Stride of the first layer in the first block. Defaults to `2`.
         name: Stack label.
 
     Returns:
@@ -301,8 +301,8 @@ def residual_block_v2(
     Args:
         x: Input tensor.
         filters: No of filters in the bottleneck layer.
-        kernel_size: Kernel size of the bottleneck layer. Defaults to 3
-        stride: Stride of the first layer. Defaults to 1
+        kernel_size: Kernel size of the bottleneck layer. Defaults to `3`.
+        stride: Stride of the first layer. Defaults to `1`.
         conv_shortcut: Use convolution shortcut if `True`, otherwise
             use identity shortcut. Defaults to `True`
         name(optional): Name of the block
@@ -363,7 +363,7 @@ def stack_residual_blocks_v2(x, filters, blocks, stride1=2, name=None):
         x: Input tensor.
         filters: Number of filters in the bottleneck layer in a block.
         blocks: Number of blocks in the stacked blocks.
-        stride1: Stride of the first layer in the first block. Defaults to 2.
+        stride1: Stride of the first layer in the first block. Defaults to `2`.
         name: Stack label.
 
     Returns:

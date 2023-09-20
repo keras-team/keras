@@ -16,11 +16,11 @@ class _ConfusionMatrixConditionCount(Metric):
     Args:
         confusion_matrix_cond: One of `metrics_utils.ConfusionMatrix`
             conditions.
-        thresholds: (Optional) Defaults to 0.5. A float value or a python list /
-            tuple of float threshold values in `[0, 1]`. A threshold is compared
-            with prediction values to determine the truth value of predictions
-            (i.e., above the threshold is `True`, below is `False`). One metric
-            value is generated for each threshold value.
+        thresholds: (Optional) Defaults to `0.5`. A float value or a python list
+            / tuple of float threshold values in `[0, 1]`. A threshold is
+            compared with prediction values to determine the truth value of
+            predictions (i.e., above the threshold is `True`, below is `False`).
+            One metric value is generated for each threshold value.
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
     """
@@ -49,7 +49,7 @@ class _ConfusionMatrixConditionCount(Metric):
         Args:
             y_true: The ground truth values.
             y_pred: The predicted values.
-            sample_weight: Optional weighting of each example. Defaults to 1.
+            sample_weight: Optional weighting of each example. Defaults to `1`.
                 Can be a tensor whose rank is either 0, or the same rank as
                 `y_true`, and must be broadcastable to `y_true`.
         """
@@ -87,7 +87,7 @@ class FalsePositives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-        thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
             list/tuple of float threshold values in `[0, 1]`. A threshold is
             compared with prediction values to determine the truth value of
             predictions (i.e., above the threshold is `True`, below is `False`).
@@ -131,7 +131,7 @@ class FalseNegatives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-        thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
             list/tuple of float threshold values in `[0, 1]`. A threshold is
             compared with prediction values to determine the truth value of
             predictions (i.e., above the threshold is `True`, below is `False`).
@@ -175,7 +175,7 @@ class TrueNegatives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-        thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
             list/tuple of float threshold values in `[0, 1]`. A threshold is
             compared with prediction values to determine the truth value of
             predictions (i.e., above the threshold is `True`, below is `False`).
@@ -219,7 +219,7 @@ class TruePositives(_ConfusionMatrixConditionCount):
     Use `sample_weight` of 0 to mask values.
 
     Args:
-        thresholds: (Optional) Defaults to 0.5. A float value, or a Python
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
             list/tuple of float threshold values in `[0, 1]`. A threshold is
             compared with prediction values to determine the truth value of
             predictions (i.e., above the threshold is `True`, below is `False`).
@@ -368,7 +368,7 @@ class Precision(Metric):
                 `y_pred`. Will be cast to `bool`.
             y_pred: The predicted values. Each element must be in the range
                 `[0, 1]`.
-            sample_weight: Optional weighting of each example. Defaults to 1.
+            sample_weight: Optional weighting of each example. Defaults to `1`.
                 Can be a tensor whose rank is either 0, or the same rank as
                 `y_true`, and must be broadcastable to `y_true`.
         """
@@ -509,7 +509,7 @@ class Recall(Metric):
                 `y_pred`. Will be cast to `bool`.
             y_pred: The predicted values. Each element must be in the range
                 `[0, 1]`.
-            sample_weight: Optional weighting of each example. Defaults to 1.
+            sample_weight: Optional weighting of each example. Defaults to `1`.
                 Can be a tensor whose rank is either 0, or the same rank as
                 `y_true`, and must be broadcastable to `y_true`.
         """
@@ -607,7 +607,7 @@ class SensitivitySpecificityBase(Metric):
         Args:
             y_true: The ground truth values.
             y_pred: The predicted values.
-            sample_weight: Optional weighting of each example. Defaults to 1.
+            sample_weight: Optional weighting of each example. Defaults to `1`.
                 Can be a tensor whose rank is either 0, or the same rank as
                 `y_true`, and must be broadcastable to `y_true`.
         """

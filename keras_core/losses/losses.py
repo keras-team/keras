@@ -165,7 +165,7 @@ class CosineSimilarity(LossFunctionWrapper):
 
     Args:
         axis: The axis along which the cosine similarity is computed
-            (the features axis). Defaults to -1.
+            (the features axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
             Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
@@ -395,7 +395,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
             squeezes the labels towards 0.5. Larger values of
             `label_smoothing` correspond to heavier smoothing.
         axis: The axis along which to compute crossentropy (the features axis).
-            Defaults to -1.
+            Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
             Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
@@ -676,7 +676,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             `0.1`, use `0.1 / num_classes` for non-target labels and
             `0.9 + 0.1 / num_classes` for target labels.
         axis: The axis along which to compute crossentropy (the features
-            axis). Defaults to -1.
+            axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
             Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
@@ -807,7 +807,7 @@ class CategoricalFocalCrossentropy(LossFunctionWrapper):
             `0.1`, use `0.1 / num_classes` for non-target labels and
             `0.9 + 0.1 / num_classes` for target labels.
         axis: The axis along which to compute crossentropy (the features
-            axis). Defaults to -1.
+            axis). Defaults to `-1`.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`.
             Supported options are `"sum"`, `"sum_over_batch_size"` or `None`.
@@ -1295,7 +1295,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     Args:
         y_true: Tensor of true targets.
         y_pred: Tensor of predicted targets.
-        axis: Axis along which to determine similarity. Defaults to -1.
+        axis: Axis along which to determine similarity. Defaults to `-1`.
 
     Returns:
         Cosine similarity tensor.
@@ -1343,7 +1343,7 @@ def huber(y_true, y_pred, delta=1.0):
         y_true: tensor of true targets.
         y_pred: tensor of predicted targets.
         delta: A float, the point where the Huber loss function changes from a
-            quadratic to linear. Defaults to 1.
+            quadratic to linear. Defaults to `1.0`.
 
     Returns:
         Tensor with one scalar loss entry per sample.
@@ -1517,7 +1517,7 @@ def categorical_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: Defaults to -1. The dimension along which the entropy is
+        axis: Defaults to `-1`. The dimension along which the entropy is
             computed.
 
     Returns:
@@ -1595,7 +1595,7 @@ def categorical_focal_crossentropy(
         label_smoothing: Float in [0, 1]. If > `0` then smooth the labels. For
             example, if `0.1`, use `0.1 / num_classes` for non-target labels
             and `0.9 + 0.1 / num_classes` for target labels.
-        axis: Defaults to -1. The dimension along which the entropy is
+        axis: Defaults to `-1`. The dimension along which the entropy is
             computed.
 
     Returns:
@@ -1678,7 +1678,7 @@ def sparse_categorical_crossentropy(
             problems featuring a "void" class (commonly -1 or 255) in
             segmentation maps. By default (`ignore_class=None`), all classes are
             considered.
-        axis: Defaults to -1. The dimension along which the entropy is
+        axis: Defaults to `-1`. The dimension along which the entropy is
             computed.
 
     Returns:
@@ -1741,7 +1741,7 @@ def binary_crossentropy(
             squeezing them towards 0.5, that is,
             using `1. - 0.5 * label_smoothing` for the target class
             and `0.5 * label_smoothing` for the non-target class.
-        axis: The axis along which the mean is computed. Defaults to -1.
+        axis: The axis along which the mean is computed. Defaults to `-1`.
 
     Returns:
         Binary crossentropy loss value. shape = `[batch_size, d0, .. dN-1]`.

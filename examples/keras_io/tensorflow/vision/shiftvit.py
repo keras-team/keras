@@ -315,9 +315,9 @@ class ShiftViTBlock(layers.Layer):
     """A unit ShiftViT Block
 
     Args:
-        shift_pixel (int): The number of pixels to shift. Default to 1.
+        shift_pixel (int): The number of pixels to shift. Defaults to `1`.
         mlp_expand_ratio (int): The ratio with which MLP features are
-            expanded. Default to 2.
+            expanded. Defaults to `2`.
         mlp_dropout_rate (float): The dropout rate used in MLP.
         num_div (int): The number of divisions of the feature map's channel.
             Totally, 4/num_div of channels will be shifted. Defaults to 12.
@@ -493,10 +493,10 @@ class StackedShiftBlocks(layers.Layer):
         stochastic_depth_rate (float): The maximum drop path rate chosen.
         is_merge (boolean): A flag that determines the use of the Patch Merge
             layer after the shift vit blocks.
-        num_div (int): The division of channels of the feature map. Defaults to 12.
-        shift_pixel (int): The number of pixels to shift. Defaults to 1.
+        num_div (int): The division of channels of the feature map. Defaults to `12`.
+        shift_pixel (int): The number of pixels to shift. Defaults to `1`.
         mlp_expand_ratio (int): The ratio with which the initial dense layer of
-            the MLP is expanded Defaults to 2.
+            the MLP is expanded Defaults to `2`.
     """
 
     def __init__(
@@ -578,10 +578,10 @@ class ShiftViTModel(keras.Model):
         mlp_dropout_rate (float): The dropout rate used in the MLP block.
         stochastic_depth_rate (float): The maximum drop rate probability.
         num_div (int): The number of divisions of the channesl of the feature
-            map. Defaults to 12.
-        shift_pixel (int): The number of pixel to shift. Default to 1.
+            map. Defaults to `12`.
+        shift_pixel (int): The number of pixel to shift. Defaults to `1`.
         mlp_expand_ratio (int): The ratio with which the initial mlp dense layer
-            is expanded to. Defaults to 2.
+            is expanded to. Defaults to `2`.
     """
 
     def __init__(

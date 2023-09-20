@@ -26,7 +26,7 @@ class Attention(Layer):
         use_scale: If `True`, will create a scalar variable to scale the
             attention scores.
         dropout: Float between 0 and 1. Fraction of the units to drop for the
-            attention scores. Defaults to 0.0.
+            attention scores. Defaults to `0.0`.
         score_mode: Function to use to compute attention scores, one of
             `{"dot", "concat"}`. `"dot"` refers to the dot product between the
             query and key vectors. `"concat"` refers to the hyperbolic tangent

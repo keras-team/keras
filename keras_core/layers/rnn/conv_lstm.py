@@ -34,7 +34,7 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
             `channels_first`. When unspecified, uses
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json` (if exists) else 'channels_last'.
-            Defaults to 'channels_last'.
+            Defaults to `'channels_last'`.
         dilation_rate: An integer or tuple/list of n integers, specifying the
             dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -405,7 +405,7 @@ class ConvLSTM(RNN):
             When unspecified, uses
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json` (if exists) else 'channels_last'.
-            Defaults to 'channels_last'.
+            Defaults to `'channels_last'`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is

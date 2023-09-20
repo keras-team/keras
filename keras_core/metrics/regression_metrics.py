@@ -259,7 +259,7 @@ class CosineSimilarity(reduction_metrics.MeanMetricWrapper):
     Args:
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
-        axis: (Optional) Defaults to -1. The dimension along which the cosine
+        axis: (Optional) Defaults to `-1`. The dimension along which the cosine
             similarity is computed.
 
     Examples:
@@ -581,7 +581,7 @@ def cosine_similarity(y_true, y_pred, axis=-1):
     Args:
         y_true: Tensor of true targets.
         y_pred: Tensor of predicted targets.
-        axis: Axis along which to determine similarity. Defaults to -1.
+        axis: Axis along which to determine similarity. Defaults to `-1`.
 
     Returns:
         Cosine similarity tensor.

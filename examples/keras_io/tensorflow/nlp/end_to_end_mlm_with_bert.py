@@ -167,7 +167,7 @@ def get_vectorize_layer(texts, vocab_size, max_seq, special_tokens=["[MASK]"]):
       texts (list): List of string i.e input texts
       vocab_size (int): vocab size
       max_seq (int): Maximum sequence lenght.
-      special_tokens (list, optional): List of special tokens. Defaults to ['[MASK]'].
+      special_tokens (list, optional): List of special tokens. Defaults to `['[MASK]']`.
 
     Returns:
         layers.Layer: Return TextVectorization Keras Layer

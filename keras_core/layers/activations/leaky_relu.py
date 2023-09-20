@@ -29,7 +29,7 @@ class LeakyReLU(Layer):
 
     Args:
         negative_slope: Float >= 0.0. Negative slope coefficient.
-          Defaults to 0.3.
+          Defaults to `0.3`.
         **kwargs: Base layer keyword arguments, such as
             `name` and `dtype`.
 

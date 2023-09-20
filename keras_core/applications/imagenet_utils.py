@@ -62,7 +62,7 @@ PREPROCESS_INPUT_MODE_DOC = """
       - torch: will scale pixels between 0 and 1 and then
           will normalize each channel with respect to the
           ImageNet dataset.
-      Defaults to "caffe".
+      Defaults to `"caffe"`.
   """
 
 PREPROCESS_INPUT_DEFAULT_ERROR_DOC = """
@@ -119,7 +119,7 @@ def decode_predictions(preds, top=5):
 
     Args:
         preds: NumPy array encoding a batch of predictions.
-        top: Integer, how many top-guesses to return. Defaults to 5.
+        top: Integer, how many top-guesses to return. Defaults to `5`.
 
     Returns:
         A list of lists of top class prediction tuples

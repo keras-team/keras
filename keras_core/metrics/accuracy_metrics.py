@@ -326,7 +326,7 @@ class TopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 
     Args:
         k: (Optional) Number of top elements to look at for computing accuracy.
-            Defaults to 5.
+            Defaults to `5`.
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 
@@ -402,7 +402,7 @@ class SparseTopKCategoricalAccuracy(reduction_metrics.MeanMetricWrapper):
 
     Args:
         k: (Optional) Number of top elements to look at for computing accuracy.
-            Defaults to 5.
+            Defaults to `5`.
         name: (Optional) string name of the metric instance.
         dtype: (Optional) data type of the metric result.
 

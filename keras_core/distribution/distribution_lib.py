@@ -29,7 +29,7 @@ def list_devices(device_type=None):
 
     Args:
         device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`.
-            Default to `"gpu"` or `"tpu"` if available when
+            Defaults to `"gpu"` or `"tpu"` if available when
             `device_type` is not provided. Otherwise
             will return the `"cpu"` devices.
 
@@ -60,7 +60,7 @@ class DeviceMesh:
             the rank of the `shape`. The `axis_names` will be used to
             match/create the `TensorLayout` when distribute the data and
             variables.
-        devices: Optional list of devices. Default to all the available
+        devices: Optional list of devices. Defaults to all the available
             devices locally from `keras_core.distribution.list_devices()`.
     """
 

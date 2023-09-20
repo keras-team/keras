@@ -203,10 +203,10 @@ def shape_equal(shape1, shape2, axis=None, allow_none=True):
         shape1: A list or tuple of integers for first shape to be compared.
         shape2: A list or tuple of integers for second shape to be compared.
         axis: An integer, list, or tuple of integers (optional):
-            Axes to ignore during comparison. Default is `None`.
+            Axes to ignore during comparison. Defaults to `None`.
         allow_none (bool, optional): If `True`, allows `None` in a shape
             to match any value in the corresponding position of the other shape.
-            Default is `True`.
+            Defaults to `True`.
 
     Returns:
         bool: `True` if shapes are considered equal based on the criteria,
@@ -378,7 +378,7 @@ def all(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Default is `False`.
+            broadcast correctly against the input array. Defaults to`False`.
 
     Returns:
         The tensor containing the logical AND reduction over the `axis`.
@@ -442,7 +442,7 @@ def any(x, axis=None, keepdims=False):
             for the last to the first axis.
         keepdims: If `True`, axes which are reduced are left in the result as
             dimensions with size one. With this option, the result will
-            broadcast correctly against the input array. Default is `False`.
+            broadcast correctly against the input array. Defaults to`False`.
 
     Returns:
         The tensor containing the logical OR reduction over the `axis`.
@@ -1047,7 +1047,7 @@ def argsort(x, axis=-1):
 
     Args:
         x: Input tensor.
-        axis: Axis along which to sort. Default is `-1` (the last axis). If
+        axis: Axis along which to sort. Defaults to`-1` (the last axis). If
             `None`, the flattened tensor is used.
 
     Returns:
@@ -1416,7 +1416,7 @@ def concatenate(xs, axis=0):
 
     Args:
         xs: The sequence of tensors to concatenate.
-        axis: The axis along which the tensors will be joined. Defaults to 0.
+        axis: The axis along which the tensors will be joined. Defaults to `0`.
 
     Returns:
         The concatenated tensor.
@@ -1652,8 +1652,8 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     Args:
         x1: Components of the first vector(s).
         x2: Components of the second vector(s).
-        axisa: Axis of `x1` that defines the vector(s). Defaults to -1.
-        axisb: Axis of `x2` that defines the vector(s). Defaults to -1.
+        axisa: Axis of `x1` that defines the vector(s). Defaults to `-1`.
+        axisb: Axis of `x2` that defines the vector(s). Defaults to `-1`.
         axisc: Axis of the result containing the cross product vector(s).
             Ignored if both input vectors have dimension 2, as the return is
             scalar. By default, the last axis.
@@ -1796,7 +1796,7 @@ def diag(x, k=0):
     Args:
         x: Input tensor. If `x` is 2-D, returns the k-th diagonal of `x`.
             If `x` is 1-D, return a 2-D tensor with `x` on the k-th diagonal.
-        k: The diagonal to consider. Defaults to 0. Use `k > 0` for diagonals
+        k: The diagonal to consider. Defaults to `0`. Use `k > 0` for diagonals
             above the main diagonal, and `k < 0` for diagonals below
             the main diagonal.
 
@@ -1888,11 +1888,11 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     Args:
         x: Input tensor.
         offset: Offset of the diagonal from the main diagonal.
-            Can be positive or negative. Defaults to 0 (main diagonal).
+            Can be positive or negative. Defaults to `0`.(main diagonal).
         axis1: Axis to be used as the first axis of the 2-D sub-arrays.
-            Defaults to 0 (first axis).
+            Defaults to `0`.(first axis).
         axis2: Axis to be used as the second axis of the 2-D sub-arrays.
-            Defaults to 1 (second axis).
+            Defaults to `1` (second axis).
 
     Returns:
         Tensor of diagonals.
@@ -2994,15 +2994,15 @@ def linspace(
             `False`. In that case, the sequence consists of all but the last
             of `num + 1` evenly spaced samples, so that `stop` is excluded.
             Note that the step size changes when `endpoint` is `False`.
-        num: Number of samples to generate. Default is 50. Must be
+        num: Number of samples to generate. Defaults to `50`. Must be
             non-negative.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is
-            not included. Default is `True`.
+            not included. Defaults to`True`.
         retstep: If `True`, return `(samples, step)`, where `step` is the
             spacing between samples.
         dtype: The type of the output tensor.
         axis: The axis in the result to store the samples. Relevant only if
-            start or stop are array-like. Default is 0.
+            start or stop are array-like. Defaults to `0`.
 
     Note:
         Torch backend does not support `axis` argument.
@@ -3304,10 +3304,10 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             In that case, `num + 1` values are spaced over the interval in
             log-space, of which all but the last (a sequence of length `num`)
             are returned.
-        num: Number of samples to generate. Default is 50.
+        num: Number of samples to generate. Defaults to `50`.
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
-            included. Default is `True`.
-        base: The base of the log space. Default is 10
+            included. Defaults to`True`.
+        base: The base of the log space. Defaults to `10`.
         dtype: The type of the output tensor.
         axis: The axis in the result to store the samples. Relevant only
             if start or stop are array-like.
@@ -3422,8 +3422,8 @@ def max(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Default is `False`.
-        initial: The minimum value of an output element. Default is `None`.
+            in the result as dimensions with size one. Defaults to`False`.
+        initial: The minimum value of an output element. Defaults to`None`.
 
     Returns:
         Maximum of `x`.
@@ -3561,8 +3561,8 @@ def min(x, axis=None, keepdims=False, initial=None):
         axis: Axis or axes along which to operate. By default, flattened input
             is used.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one. Default is `False`.
-        initial: The maximum value of an output element. Default is `None`.
+            in the result as dimensions with size one. Defaults to`False`.
+        initial: The maximum value of an output element. Defaults to`None`.
 
     Returns:
         Minimum of `x`.
@@ -3950,7 +3950,7 @@ def pad(x, pad_width, mode="constant"):
         mode: One of `"constant"`, `"edge"`, `"linear_ramp"`,
             `"maximum"`, `"mean"`, `"median"`, `"minimum"`,
             `"reflect"`, `"symmetric"`, `"wrap"`, `"empty"`,
-            `"circular"`. Default is `"constant"`.
+            `"circular"`. Defaults to`"constant"`.
 
     Note:
         Torch backend only supports modes `"constant"`, `"reflect"`,
@@ -4236,7 +4236,7 @@ def round(x, decimals=0):
 
     Args:
         x: Input tensor.
-        decimals: Number of decimal places to round to. Default is 0.
+        decimals: Number of decimal places to round to. Defaults to `0`.
 
     Returns:
         Output tensor.
@@ -4357,7 +4357,7 @@ def sort(x, axis=-1):
     Args:
         x: Input tensor.
         axis: Axis along which to sort. If `None`, the tensor is flattened
-            before sorting. Default is the last axis.
+            before sorting. Defaults to `-1`; the last axis.
 
     Returns:
         Sorted tensor.
@@ -4425,7 +4425,7 @@ def split(x, indices_or_sections, axis=0):
             equal sections along `axis`. If a 1-D array of sorted integers,
             the entries indicate indices at which the tensor will be split
             along `axis`.
-        axis: Axis along which to split. Default is 0.
+        axis: Axis along which to split. Defaults to `0`.
 
     Note:
         A split does not have to result in equal division when using
@@ -4477,7 +4477,7 @@ def stack(x, axis=0):
 
     Args:
         x: A sequence of tensors.
-        axis: Axis along which to stack. Default is 0.
+        axis: Axis along which to stack. Defaults to `0`.
 
     Returns:
         The stacked tensor.
@@ -4857,11 +4857,11 @@ def trace(x, offset=0, axis1=0, axis2=1):
     Args:
         x: Input tensor.
         offset: Offset of the diagonal from the main diagonal. Can be
-            both positive and negative. Defaults to 0.
+            both positive and negative. Defaults to `0`.
         axis1: Axis to be used as the first axis of the 2-D sub-arrays.
-            Defaults to 0 (first axis).
+            Defaults to `0`.(first axis).
         axis2: Axis to be used as the second axis of the 2-D sub-arrays.
-            Defaults to 1 (second axis).
+            Defaults to `1` (second axis).
 
     Returns:
         If `x` is 2-D, the sum of the diagonal is returned. If `x` has
@@ -4923,7 +4923,7 @@ def tril(x, k=0):
 
     Args:
         x: Input tensor.
-        k: Diagonal above which to zero elements. Defaults to 0, the
+        k: Diagonal above which to zero elements. Defaults to `0`. the
             main diagonal. `k < 0` is below it, and `k > 0` is above it.
 
     Returns:
@@ -4955,7 +4955,7 @@ def triu(x, k=0):
 
     Args:
         x: Input tensor.
-        k: Diagonal below which to zero elements. Defaults to 0, the
+        k: Diagonal below which to zero elements. Defaults to `0`. the
             main diagonal. `k < 0` is below it, and `k > 0` is above it.
 
     Returns:

@@ -57,9 +57,9 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
             changed it, it defaults to `"channels_last"`).
         scale: Whether to rescale the image such that minimum and maximum values
             are 0 and 255 respectively. Defaults to `True`.
-        dtype: Dtype to use. Default to `None`, in which case the global setting
+        dtype: Dtype to use. `None` means the global setting
             `keras_core.backend.floatx()` is used (unless you changed it, it
-            defaults to `"float32"`).
+            defaults to `"float32"`). Defaults to `None`.
 
     Returns:
         A PIL Image instance.
@@ -131,7 +131,7 @@ def img_to_array(img, data_format=None, dtype=None):
             `"channels_last"`. Defaults to `None`, in which case the global
             setting `keras_core.backend.image_data_format()` is used (unless you
             changed it, it defaults to `"channels_last"`).
-        dtype: Dtype to use. Default to `None`, in which case the global setting
+        dtype: Dtype to use. `None` means the global setting
             `keras_core.backend.floatx()` is used (unless you changed it, it
             defaults to `"float32"`).
 

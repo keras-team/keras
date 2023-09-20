@@ -60,7 +60,7 @@ class StringLookup(IndexLookup):
             If this value is more than 1, OOV inputs are modulated to
             determine their OOV value.
             If this value is 0, OOV inputs will cause an error when calling
-            the layer. Defaults to 1.
+            the layer. Defaults to `1`.
         mask_token: A token that represents masked inputs. When `output_mode` is
             `"int"`, the token is included in vocabulary and mapped to index 0.
             In other output modes, the token will not appear

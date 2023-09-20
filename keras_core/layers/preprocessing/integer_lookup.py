@@ -61,7 +61,7 @@ class IntegerLookup(IndexLookup):
             If this value is more than 1, OOV inputs are modulated to
             determine their OOV value.
             If this value is 0, OOV inputs will cause an error when calling
-            the layer. Defaults to 1.
+            the layer. Defaults to `1`.
         mask_token: An integer token that represents masked inputs. When
             `output_mode` is `"int"`, the token is included in vocabulary
             and mapped to index 0. In other output modes,
@@ -69,7 +69,7 @@ class IntegerLookup(IndexLookup):
             of the mask token in the input will be dropped.
             If set to None, no mask term will be added. Defaults to `None`.
         oov_token: Only used when `invert` is `True`. The token to return
-            for OOV indices. Defaults to -1.
+            for OOV indices. Defaults to `-1`.
         vocabulary: Optional. Either an array of integers or a string path to a
             text file. If passing an array, can pass a tuple, list,
             1D NumPy array, or 1D tensor containing the integer vocbulary terms.

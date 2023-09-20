@@ -31,10 +31,10 @@ class SGD(optimizer.Optimizer):
         learning_rate: A float, a
             `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
             a callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.01.
+            use. The learning rate. Defaults to `0.01`.
         momentum: float hyperparameter >= 0 that accelerates gradient descent in
-            the relevant direction and dampens oscillations. Defaults to 0,
-            i.e., vanilla gradient descent.
+            the relevant direction and dampens oscillations. 0 is vanilla
+            gradient descent. Defaults to `0.0`.
         nesterov: boolean. Whether to apply Nesterov momentum.
             Defaults to `False`.
         {{base_optimizer_keyword_args}}

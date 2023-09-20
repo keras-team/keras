@@ -55,7 +55,7 @@ class Ftrl(optimizer.Optimizer):
         learning_rate: A float, a
             `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
             a callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.001.
+            use. The learning rate. Defaults to `0.001`.
         learning_rate_power: A float value, must be less or equal to zero.
             Controls how the learning rate decreases during training. Use zero
             for a fixed learning rate.
@@ -71,7 +71,7 @@ class Ftrl(optimizer.Optimizer):
             magnitude penalty. When input is sparse shrinkage will only happen
             on the active weights.
         beta: A float value, representing the beta value from the paper.
-            Defaults to 0.0.
+            Defaults to `0.0`.
         {{base_optimizer_keyword_args}}
     """
 

@@ -20,7 +20,7 @@ class Adafactor(optimizer.Optimizer):
         learning_rate: A float, a
             `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
             a callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.001.
+            use. The learning rate. Defaults to `0.001`.
         beta_2_decay: float, defaults to -0.8. The decay rate of `beta_2`.
         epsilon_1: float, defaults to 1e-30. A small offset to keep demoninator
             away from 0.

@@ -17,10 +17,10 @@ class Adagrad(optimizer.Optimizer):
         learning_rate: A float, a
             `keras_core.optimizers.schedules.LearningRateSchedule` instance, or
             a callable that takes no arguments and returns the actual value to
-            use. The learning rate. Defaults to 0.001. Note that `Adagrad` tends
-            to benefit from higher initial learning rate values compared to
-            other optimizers. To match the exact form in the original paper,
-            use 1.0.
+            use. The learning rate. Defaults to `0.001`. Note that `Adagrad`
+            tends to benefit from higher initial learning rate values compared
+            to other optimizers. To match the exact form in the original paper,
+            use `1.0`.
         initial_accumulator_value: Floating point value. Starting value for the
             accumulators (per-parameter momentum values). Must be non-negative.
         epsilon: Small floating point value for maintaining numerical stability.
