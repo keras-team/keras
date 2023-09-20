@@ -371,6 +371,25 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor([2, 3, 4])
             knp.add(x, y)
 
+    def test_add_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.add(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.add(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.add(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
+
     def test_subtract(self):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
@@ -384,6 +403,25 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor([2, 3, 4])
             knp.subtract(x, y)
 
+    def test_subtract_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.subtract(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.subtract(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.subtract(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
+
     def test_multiply(self):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
@@ -396,6 +434,25 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor([2, 3])
             y = KerasTensor([2, 3, 4])
             knp.multiply(x, y)
+
+    def test_multiply_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.multiply(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.multiply(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.multiply(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
 
     def test_matmul(self):
         x = KerasTensor([2, 3])
@@ -650,6 +707,25 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor([2, 3, 4])
             knp.maximum(x, y)
 
+    def test_maximum_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.maximum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.maximum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.maximum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
+
     def test_minimum(self):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
@@ -662,6 +738,25 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor([2, 3])
             y = KerasTensor([2, 3, 4])
             knp.minimum(x, y)
+
+    def test_minimum_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.minimum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.minimum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.minimum(x, y)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertTrue(result.sparse)
 
     def test_mod(self):
         x = KerasTensor([2, 3])
@@ -965,6 +1060,25 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             x = KerasTensor([None, 3, 5])
             y = KerasTensor([None, 4, 6])
             knp.concatenate([x, y], axis=1)
+
+    def test_concatenate_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3))
+        result = knp.concatenate([x, y], axis=1)
+        self.assertEqual(result.shape, (2, 6))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.concatenate([x, y], axis=1)
+        self.assertEqual(result.shape, (2, 6))
+        self.assertFalse(result.sparse)
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((2, 3), sparse=True)
+        result = knp.concatenate([x, y], axis=1)
+        self.assertEqual(result.shape, (2, 6))
+        self.assertTrue(result.sparse)
 
     def test_conjugate(self):
         x = KerasTensor([None, 3])
@@ -2376,6 +2490,85 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
 
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "add",
+                "op_function": knp.add,
+                "op_class": knp.Add,
+                "np_op": np.add,
+            },
+            {
+                "testcase_name": "subtract",
+                "op_function": knp.subtract,
+                "op_class": knp.Subtract,
+                "np_op": np.subtract,
+            },
+            {
+                "testcase_name": "multiply",
+                "op_function": knp.multiply,
+                "op_class": knp.Multiply,
+                "np_op": np.multiply,
+                "mixed_inputs_produce_sparse_output": True,
+            },
+            {
+                "testcase_name": "minimum",
+                "op_function": knp.minimum,
+                "op_class": knp.Minimum,
+                "np_op": np.minimum,
+            },
+            {
+                "testcase_name": "maximum",
+                "op_function": knp.maximum,
+                "op_class": knp.Maximum,
+                "np_op": np.maximum,
+            },
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_sparse(
+        self,
+        op_function,
+        op_class,
+        np_op,
+        mixed_inputs_produce_sparse_output=False,
+    ):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+
+        y = tf.SparseTensor(
+            indices=[[0, 0], [1, 1]], values=[4.0, 5.0], dense_shape=(2, 3)
+        )
+        y_np = tf.sparse.to_dense(y).numpy()
+        z = np.random.rand(2, 3).astype("float32")
+
+        # sparse tensor and dense tensor as inputs
+        if mixed_inputs_produce_sparse_output:
+            self.assertIsInstance(op_function(x, z), tf.SparseTensor)
+            self.assertIsInstance(op_class()(x, z), tf.SparseTensor)
+        self.assertAllClose(op_function(x, z), np_op(x_np, z))
+        self.assertAllClose(op_class()(x, z), np_op(x_np, z))
+
+        # dense tensor and sparse tensor as inputs
+        if mixed_inputs_produce_sparse_output:
+            self.assertIsInstance(op_function(z, x), tf.SparseTensor)
+            self.assertIsInstance(op_class()(z, x), tf.SparseTensor)
+        self.assertAllClose(op_function(z, x), np_op(z, x_np))
+        self.assertAllClose(op_class()(z, x), np_op(z, x_np))
+
+        # sparse tensor and sparse tensor as inputs
+        self.assertIsInstance(op_function(x, y), tf.SparseTensor)
+        self.assertIsInstance(op_class()(x, y), tf.SparseTensor)
+        self.assertAllClose(op_function(x, y), np_op(x_np, y_np))
+        self.assertAllClose(op_class()(x, y), np_op(x_np, y_np))
+
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
     def test_mean(self):
@@ -2753,6 +2946,63 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(
             knp.Concatenate(axis=1)([x, y]),
             np.concatenate([x, y], axis=1),
+        )
+
+    @parameterized.named_parameters(
+        [
+            {"testcase_name": "axis_0", "axis": 0},
+            {"testcase_name": "axis_1", "axis": 1},
+        ]
+    )
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_concatenate_sparse(self, axis):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+
+        y = tf.SparseTensor(
+            indices=[[0, 0], [1, 1]], values=[4.0, 5.0], dense_shape=(2, 3)
+        )
+        y_np = tf.sparse.to_dense(y).numpy()
+        z = np.random.rand(2, 3).astype("float32")
+
+        self.assertAllClose(
+            knp.concatenate([x, z], axis=axis),
+            np.concatenate([x_np, z], axis=axis),
+        )
+        self.assertAllClose(
+            knp.concatenate([z, x], axis=axis),
+            np.concatenate([z, x_np], axis=axis),
+        )
+        self.assertAllClose(
+            knp.concatenate([x, y], axis=axis),
+            np.concatenate([x_np, y_np], axis=axis),
+        )
+
+        self.assertAllClose(
+            knp.Concatenate(axis=axis)([x, z]),
+            np.concatenate([x_np, z], axis=axis),
+        )
+        self.assertAllClose(
+            knp.Concatenate(axis=axis)([z, x]),
+            np.concatenate([z, x_np], axis=axis),
+        )
+        self.assertAllClose(
+            knp.Concatenate(axis=axis)([x, y]),
+            np.concatenate([x_np, y_np], axis=axis),
+        )
+
+        self.assertIsInstance(
+            knp.concatenate([x, y], axis=axis), tf.SparseTensor
+        )
+        self.assertIsInstance(
+            knp.Concatenate(axis=axis)([x, y]), tf.SparseTensor
         )
 
     def test_conjugate(self):

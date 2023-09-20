@@ -1,3 +1,5 @@
+import builtins
+import functools
 import warnings
 
 import tensorflow as tf
@@ -7,6 +9,8 @@ from keras_core.backend.tensorflow.core import convert_to_tensor
 
 
 def add(x1, x2):
+    if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
+        return tf.sparse.add(x1, x2)
     return tfnp.add(x1, x2)
 
 
@@ -38,6 +42,11 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
+    if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
+        if isinstance(x2, tf.SparseTensor):
+            return tf.sparse.add(x1, tf.sparse.map_values(tf.negative, x2))
+        else:
+            return tf.sparse.add(x1, tf.negative(x2))
     return tfnp.subtract(x1, x2)
 
 
@@ -62,6 +71,40 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
+    if isinstance(x1, tf.SparseTensor):
+        if isinstance(x2, tf.SparseTensor):
+            ones_like_int8 = functools.partial(tf.ones_like, dtype=tf.int8)
+            zeros_like_int8 = functools.partial(tf.zeros_like, dtype=tf.int8)
+
+            # compute the intersection of indices in the form of a sparse tensor
+            # containing ones as values
+            ones1 = tf.sparse.map_values(ones_like_int8, x1)
+            ones2 = tf.sparse.map_values(ones_like_int8, x2)
+            # tf.sets.intersection ignores the last dimension when comparing,
+            # so we need to add a dummy extra dimension and then remove it
+            intersection = tf.sparse.reshape(
+                tf.sets.intersection(
+                    tf.sparse.expand_dims(ones1, axis=-1),
+                    tf.sparse.expand_dims(ones2, axis=-1),
+                ),
+                x1.dense_shape,
+            )
+
+            # compute the masks to remove indices in x1 and x2 that are not part
+            # of the intersection, then trim x1 and x2
+            zeros1 = tf.sparse.map_values(zeros_like_int8, x1)
+            zeros2 = tf.sparse.map_values(zeros_like_int8, x2)
+            mask1 = tf.sparse.add(zeros1, intersection)
+            mask2 = tf.sparse.add(zeros2, intersection)
+            x1_trimmed = tf.sparse.retain(x1, tf.cast(mask1.values, tf.bool))
+            x2_trimmed = tf.sparse.retain(x2, tf.cast(mask2.values, tf.bool))
+
+            # now it is an element-wise multiplication on the values
+            return tf.sparse.map_values(tf.multiply, x1_trimmed, x2_trimmed)
+        else:
+            return x1 * x2
+    elif isinstance(x2, tf.SparseTensor):
+        return x2 * x1
     return tfnp.multiply(x1, x2)
 
 
@@ -202,6 +245,15 @@ def clip(x, x_min, x_max):
 
 
 def concatenate(xs, axis=0):
+    sparse_count = builtins.sum(isinstance(x, tf.SparseTensor) for x in xs)
+    if sparse_count:
+        if sparse_count == len(xs):
+            return tf.sparse.concat(axis=axis, sp_inputs=xs)
+        else:
+            xs = [
+                tf.sparse.to_dense(x) if isinstance(x, tf.SparseTensor) else x
+                for x in xs
+            ]
     return tfnp.concatenate(xs, axis=axis)
 
 
@@ -420,6 +472,13 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
+    if isinstance(x1, tf.SparseTensor):
+        if isinstance(x2, tf.SparseTensor):
+            return tf.sparse.maximum(x1, x2)
+        else:
+            x1 = tf.sparse.to_dense(x1)
+    elif isinstance(x2, tf.SparseTensor):
+        x2 = tf.sparse.to_dense(x2)
     return tfnp.maximum(x1, x2)
 
 
@@ -449,6 +508,13 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
+    if isinstance(x1, tf.SparseTensor):
+        if isinstance(x2, tf.SparseTensor):
+            return tf.sparse.minimum(x1, x2)
+        else:
+            x1 = tf.sparse.to_dense(x1)
+    elif isinstance(x2, tf.SparseTensor):
+        x2 = tf.sparse.to_dense(x2)
     return tfnp.minimum(x1, x2)
 
 

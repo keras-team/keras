@@ -1,5 +1,6 @@
 from keras_core import backend
 from keras_core import ops
+from keras_core.backend.common.keras_tensor import KerasTensor
 from keras_core.layers.layer import Layer
 
 
@@ -207,6 +208,13 @@ class Merge(Layer):
         else:
             output_shape = (None,) + output_shape
         return output_shape
+
+    def compute_output_spec(self, inputs):
+        output_shape = self.compute_output_shape([x.shape for x in inputs])
+        output_sparse = all(x.sparse for x in inputs)
+        return KerasTensor(
+            output_shape, dtype=self.compute_dtype, sparse=output_sparse
+        )
 
     def compute_mask(self, inputs, mask=None):
         if mask is None:

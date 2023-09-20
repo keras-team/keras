@@ -220,3 +220,59 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
             ValueError, "layer should be called on exactly 2 inputs"
         ):
             layers.Subtract()([input_1])
+
+    @parameterized.named_parameters(TEST_PARAMETERS)
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_sparse(
+        self,
+        layer_class,
+        np_op,
+        init_kwargs={},
+        input_shape=(2, 4, 5),
+        expected_output_shape=(2, 4, 5),
+        **kwargs
+    ):
+        import tensorflow as tf
+
+        if layer_class == layers.Dot:
+            pytest.skip("Dot layer does not support sparse tensors.")
+
+        self.run_layer_test(
+            layer_class,
+            init_kwargs=init_kwargs,
+            input_shape=[input_shape, input_shape],
+            input_sparse=True,
+            expected_output_shape=expected_output_shape,
+            expected_output_sparse=True,
+            expected_num_trainable_weights=0,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+            run_mixed_precision_check=False,
+        )
+
+        layer = layer_class(**init_kwargs)
+
+        # Merging a sparse tensor with a dense tensor, or a dense tensor with a
+        # sparse tensor produces a dense tensor
+        x1 = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]], values=[1.0, 2.0], dense_shape=(2, 3)
+        )
+        x1_np = tf.sparse.to_dense(x1).numpy()
+        x2 = np.random.rand(2, 3)
+        self.assertAllClose(layer([x1, x2]), np_op(x1_np, x2, **init_kwargs))
+        self.assertAllClose(layer([x2, x1]), np_op(x2, x1_np, **init_kwargs))
+
+        # Merging a sparse tensor with a sparse tensor produces a sparse tensor
+        x3 = tf.SparseTensor(
+            indices=[[0, 0], [1, 1]], values=[4.0, 5.0], dense_shape=(2, 3)
+        )
+        x3_np = tf.sparse.to_dense(x3).numpy()
+
+        self.assertIsInstance(layer([x1, x3]), tf.SparseTensor)
+        self.assertAllClose(layer([x1, x3]), np_op(x1_np, x3_np, **init_kwargs))
