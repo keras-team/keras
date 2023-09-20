@@ -57,11 +57,11 @@ AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "bilinear": 1,
 }
 AFFINE_TRANSFORM_FILL_MODES = {
-    "constant": "grid-constant",
-    "nearest": "nearest",
-    "wrap": "grid-wrap",
-    "mirror": "mirror",
-    "reflect": "reflect",
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
 }
 
 
@@ -79,11 +79,10 @@ def affine_transform(
             f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
             f"interpolation={interpolation}"
         )
-    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES.keys():
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
         raise ValueError(
             "Invalid value for argument `fill_mode`. Expected of one "
-            f"{set(AFFINE_TRANSFORM_FILL_MODES.keys())}. "
-            f"Received: fill_mode={fill_mode}"
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
         )
 
     transform = convert_to_tensor(transform)
@@ -153,13 +152,12 @@ def affine_transform(
     # apply affine transformation
     affined = np.stack(
         [
-            scipy.ndimage.map_coordinates(
+            map_coordinates(
                 image[i],
                 coordinates[i],
                 order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
-                mode=AFFINE_TRANSFORM_FILL_MODES[fill_mode],
-                cval=fill_value,
-                prefilter=False,
+                fill_mode=fill_mode,
+                fill_value=fill_value,
             )
             for i in range(batch_size)
         ],

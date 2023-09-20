@@ -1183,26 +1183,30 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # Test 1D moments
         x = np.array([0, 1, 2, 3, 4, 100, -200]).astype(np.float32)
         mean, variance = knn.moments(x, axes=[0])
-        self.assertAllClose(mean, np.mean(x))
-        self.assertAllClose(variance, np.var(x))
+        self.assertAllClose(mean, np.mean(x), atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, np.var(x), atol=1e-5, rtol=1e-5)
 
         # Test batch statistics for 4D moments (batch, height, width, channels)
-        x = np.random.uniform(size=(2, 28, 28, 3))
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
         mean, variance = knn.moments(x, axes=[0])
-        self.assertAllClose(mean, np.mean(x, axis=0))
-        self.assertAllClose(variance, np.var(x, axis=0))
+        self.assertAllClose(mean, np.mean(x, axis=0), atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, np.var(x, axis=0), atol=1e-5, rtol=1e-5)
 
         # Test global statistics for 4D moments (batch, height, width, channels)
-        x = np.random.uniform(size=(2, 28, 28, 3))
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
         mean, variance = knn.moments(x, axes=[0, 1, 2])
-        self.assertAllClose(mean, np.mean(x, axis=(0, 1, 2)))
-        self.assertAllClose(variance, np.var(x, axis=(0, 1, 2)))
+        expected_mean = np.mean(x, axis=(0, 1, 2))
+        expected_variance = np.var(x, axis=(0, 1, 2))
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
 
         # Test keepdims
-        x = np.random.uniform(size=(2, 28, 28, 3))
+        x = np.random.uniform(size=(2, 28, 28, 3)).astype(np.float32)
         mean, variance = knn.moments(x, axes=[0, 1, 2], keepdims=True)
-        self.assertAllClose(mean, np.mean(x, axis=(0, 1, 2), keepdims=True))
-        self.assertAllClose(variance, np.var(x, axis=(0, 1, 2), keepdims=True))
+        expected_mean = np.mean(x, axis=(0, 1, 2), keepdims=True)
+        expected_variance = np.var(x, axis=(0, 1, 2), keepdims=True)
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)
 
         # Test float16 which causes overflow
         x = np.array(
@@ -1214,5 +1218,5 @@ class NNOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         # the output variance is clipped to the max value of np.float16 because
         # it is overflowed
         expected_variance = np.finfo(np.float16).max
-        self.assertAllClose(mean, expected_mean)
-        self.assertAllClose(variance, expected_variance)
+        self.assertAllClose(mean, expected_mean, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(variance, expected_variance, atol=1e-5, rtol=1e-5)

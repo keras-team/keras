@@ -58,11 +58,11 @@ AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "bilinear": 1,
 }
 AFFINE_TRANSFORM_FILL_MODES = {
-    "constant": "grid-constant",
-    "nearest": "nearest",
-    "wrap": "grid-wrap",
-    "mirror": "mirror",
-    "reflect": "reflect",
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
 }
 
 
@@ -80,11 +80,10 @@ def affine_transform(
             f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
             f"interpolation={interpolation}"
         )
-    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES.keys():
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
         raise ValueError(
             "Invalid value for argument `fill_mode`. Expected of one "
-            f"{set(AFFINE_TRANSFORM_FILL_MODES.keys())}. "
-            f"Received: fill_mode={fill_mode}"
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
         )
 
     transform = convert_to_tensor(transform)
