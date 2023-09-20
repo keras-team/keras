@@ -481,3 +481,19 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
 
         # Compare output
         self.assertAllClose(ref_output, output, atol=1e-5)
+
+
+@pytest.mark.requires_trainable_backend
+class DirectoryCreationTest(testing.TestCase):
+    def test_directory_creation_on_save(self):
+        """Test if directory is created on model save."""
+        model = get_sequential_model(keras_core)
+        nested_dirpath = os.path.join(
+            self.get_temp_dir(), "dir1", "dir2", "dir3"
+        )
+        filepath = os.path.join(nested_dirpath, "model.h5")
+        self.assertFalse(os.path.exists(nested_dirpath))
+        legacy_h5_format.save_model_to_hdf5(model, filepath)
+        self.assertTrue(os.path.exists(nested_dirpath))
+        loaded_model = legacy_h5_format.load_model_from_hdf5(filepath)
+        self.assertEqual(model.to_json(), loaded_model.to_json())

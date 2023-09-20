@@ -386,9 +386,19 @@ def validate_file(fpath, file_hash, algorithm="auto", chunk_size=65535):
 
 
 def is_remote_path(filepath):
-    """Returns `True` for paths that represent a remote GCS location."""
-    # TODO: improve generality.
-    if re.match(r"^(/cns|/cfs|/gcs|.*://).*$", str(filepath)):
+    """
+    Determines if a given filepath indicates a remote location.
+
+    This function checks if the filepath represents a known remote pattern
+    such as GCS (`/gcs`), CNS (`/cns`), CFS (`/cfs`), HDFS (`/hdfs`)
+
+    Args:
+        filepath (str): The path to be checked.
+
+    Returns:
+        bool: True if the filepath is a recognized remote path, otherwise False
+    """
+    if re.match(r"^(/cns|/cfs|/gcs|/hdfs|.*://).*$", str(filepath)):
         return True
     return False
 
@@ -445,7 +455,7 @@ def rmtree(path):
             return gfile.rmtree(path)
         else:
             _raise_if_no_gfile(path)
-    return shutil.rmtree
+    return shutil.rmtree(path)
 
 
 def listdir(path):
