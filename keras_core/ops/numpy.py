@@ -2553,6 +2553,8 @@ def full_like(x, fill_value, dtype=None):
 
 class GetItem(Operation):
     def call(self, x, key):
+        if isinstance(key, list):
+            key = tuple(key)
         return x[key]
 
     def compute_output_spec(self, x, key):

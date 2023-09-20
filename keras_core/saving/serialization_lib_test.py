@@ -75,6 +75,8 @@ class SerializationLibTest(testing.TestCase):
             ["hello", 0, "world", 1.0, True],
             {"1": "hello", "2": 0, "3": True},
             {"1": "hello", "2": [True, False]},
+            slice(None, 20, 1),
+            slice(None, np.array([0, 1]), 1),
         ]:
             serialized, _, reserialized = self.roundtrip(obj)
             self.assertEqual(serialized, reserialized)

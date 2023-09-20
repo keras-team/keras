@@ -153,6 +153,15 @@ def serialize_keras_object(obj):
             "class_name": "__bytes__",
             "config": {"value": obj.decode("utf-8")},
         }
+    if isinstance(obj, slice):
+        return {
+            "class_name": "__slice__",
+            "config": {
+                "start": serialize_keras_object(obj.start),
+                "stop": serialize_keras_object(obj.stop),
+                "step": serialize_keras_object(obj.step),
+            },
+        }
     if isinstance(obj, backend.KerasTensor):
         history = getattr(obj, "_keras_history", None)
         if history:
@@ -602,6 +611,24 @@ def deserialize_keras_object(
         return np.array(inner_config["value"], dtype=inner_config["dtype"])
     if config["class_name"] == "__bytes__":
         return inner_config["value"].encode("utf-8")
+    if config["class_name"] == "__slice__":
+        return slice(
+            deserialize_keras_object(
+                inner_config["start"],
+                custom_objects=custom_objects,
+                safe_mode=safe_mode,
+            ),
+            deserialize_keras_object(
+                inner_config["stop"],
+                custom_objects=custom_objects,
+                safe_mode=safe_mode,
+            ),
+            deserialize_keras_object(
+                inner_config["step"],
+                custom_objects=custom_objects,
+                safe_mode=safe_mode,
+            ),
+        )
     if config["class_name"] == "__lambda__":
         if safe_mode:
             raise ValueError(
