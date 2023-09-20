@@ -44,7 +44,14 @@ class JAXTrainer(base_trainer.Trainer):
             return_losses=True,
             **kwargs,
         )
-        loss = self.compute_loss(x, y, y_pred, sample_weight, allow_empty=True)
+
+        trainable_mapping = zip(self.trainable_variables, trainable_variables)
+        with backend.StatelessScope(state_mapping=trainable_mapping):
+            # Note that this is needed for the regularization loss, which need
+            # the latest value of train/non-trainable variables.
+            loss = self.compute_loss(
+                x, y, y_pred, sample_weight, allow_empty=True
+            )
         if losses:
             loss += ops.sum(losses)
         unscaled_loss = loss
@@ -418,6 +425,7 @@ class JAXTrainer(base_trainer.Trainer):
             optimizer_variables = [v.value for v in self.optimizer.variables]
             metrics_variables = [v.value for v in self.metrics_variables]
 
+            self._purge_model_variables()
             for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
@@ -576,6 +584,7 @@ class JAXTrainer(base_trainer.Trainer):
         ]
         metrics_variables = [v.value for v in self.metrics_variables]
 
+        self._purge_model_variables(optimizer_variables=False)
         for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
             callbacks.on_test_batch_begin(step)
 
@@ -907,3 +916,33 @@ class JAXTrainer(base_trainer.Trainer):
             optimizer_variables,
             metrics_variables,
         )
+
+    def _purge_model_variables(
+        self,
+        trainable_variables=True,
+        non_trainable_variables=True,
+        optimizer_variables=True,
+        metric_variables=True,
+    ):
+        """Remove all the model variable for memory saving.
+
+        During JAX training, since the training function are stateless, we have
+        to pass in and get the model weights over and over, during which the
+        copy of the weights that attached to the KerasVariable are still and
+        occupying extra memory. We remove those variable to save memory (for
+        better memory utilization) at the beginning of the epoch, and reattach
+        the value back to variables at the end of the epoch, via
+        `jax_state_sync()`.
+        """
+        if trainable_variables:
+            for v in self.trainable_variables:
+                v._value = None
+        if non_trainable_variables:
+            for v in self.non_trainable_variables:
+                v._value = None
+        if optimizer_variables:
+            for v in self.optimizer.variables:
+                v._value = None
+        if metric_variables:
+            for v in self.metrics_variables:
+                v._value = None

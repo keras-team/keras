@@ -262,6 +262,63 @@ class TestTrainer(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(outputs["y_one"], 4 * np.ones((100, 3)))
         self.assertAllClose(outputs["y_two"], 4 * np.ones((100, 3)))
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Memory optimization is only implemented in JAX",
+    )
+    def test_fit_eval_flow_for_jax_model_weights(self):
+        model = ExampleModel(units=3)
+        epochs = 3
+        batch_size = 20
+        steps_per_epoch = 7
+        dataset_size = batch_size * (steps_per_epoch - 2)
+        x = np.ones((dataset_size, 4))
+        y = np.zeros((dataset_size, 3))
+
+        class ModelWeightCheck(Callback):
+            def __init__(self):
+                super().__init__()
+
+            # Note that we access model via self._model since self.model
+            # will trigger a sync of the jax training state back to the model.
+            def on_train_batch_begin(self, batch, logs=None):
+                for v in self._model.trainable_variables:
+                    assert v._value is None
+                for v in self._model.non_trainable_variables:
+                    assert v._value is None
+                for v in self._model.optimizer.variables:
+                    assert v._value is None
+                for v in self._model.metrics_variables:
+                    assert v._value is None
+
+            def on_test_batch_begin(self, batch, logs=None):
+                for v in self._model.non_trainable_variables:
+                    assert v._value is None
+                for v in self._model.metrics_variables:
+                    assert v._value is None
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanSquaredError()],
+        )
+
+        model.fit(
+            x,
+            y,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch,
+            epochs=epochs,
+            callbacks=[ModelWeightCheck()],
+        )
+
+        model.evaluate(
+            x,
+            y,
+            batch_size=batch_size,
+            callbacks=[ModelWeightCheck()],
+        )
+
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         backend.backend() == "torch",

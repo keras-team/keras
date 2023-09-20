@@ -115,7 +115,7 @@ class KerasVariable:
 
     def assign(self, value):
         value = self._convert_to_tensor(value, dtype=self.dtype)
-        if not shape_equal(value, self.value):
+        if not shape_equal(value.shape, self.shape):
             raise ValueError(
                 "The shape of the target variable and "
                 "the shape of the target value in "
@@ -446,11 +446,11 @@ def standardize_shape(shape):
     return shape
 
 
-def shape_equal(a, b):
-    """Return whether a.shape == b.shape (allows None entries)."""
-    if len(a.shape) != len(b.shape):
+def shape_equal(a_shape, b_shape):
+    """Return whether a_shape == b_shape (allows None entries)."""
+    if len(a_shape) != len(b_shape):
         return False
-    for e1, e2 in zip(a.shape, b.shape):
+    for e1, e2 in zip(a_shape, b_shape):
         if e1 is not None and e2 is not None and e1 != e2:
             return False
     return True
