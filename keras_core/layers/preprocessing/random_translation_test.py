@@ -58,27 +58,15 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
     @parameterized.parameters(["channels_first", "channels_last"])
     def test_random_translation_up_numeric_reflect(self, data_format):
         input_image = np.arange(0, 25)
-        if backend.backend() == "torch":
-            # redirect fill_mode=reflect to fill_mode=mirror
-            expected_output = np.asarray(
-                [
-                    [5, 6, 7, 8, 9],
-                    [10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19],
-                    [20, 21, 22, 23, 24],
-                    [15, 16, 17, 18, 19],
-                ]
-            )
-        else:
-            expected_output = np.asarray(
-                [
-                    [5, 6, 7, 8, 9],
-                    [10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19],
-                    [20, 21, 22, 23, 24],
-                    [20, 21, 22, 23, 24],
-                ]
-            )
+        expected_output = np.asarray(
+            [
+                [5, 6, 7, 8, 9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19],
+                [20, 21, 22, 23, 24],
+                [20, 21, 22, 23, 24],
+            ]
+        )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
             expected_output = backend.convert_to_tensor(
@@ -145,27 +133,15 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
     def test_random_translation_down_numeric_reflect(self, data_format):
         input_image = np.arange(0, 25)
         # Shifting by .2 * 5 = 1 pixel.
-        if backend.backend() == "torch":
-            # redirect fill_mode=reflect to fill_mode=mirror
-            expected_output = np.asarray(
-                [
-                    [5, 6, 7, 8, 9],
-                    [0, 1, 2, 3, 4],
-                    [5, 6, 7, 8, 9],
-                    [10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19],
-                ]
-            )
-        else:
-            expected_output = np.asarray(
-                [
-                    [0, 1, 2, 3, 4],
-                    [0, 1, 2, 3, 4],
-                    [5, 6, 7, 8, 9],
-                    [10, 11, 12, 13, 14],
-                    [15, 16, 17, 18, 19],
-                ]
-            )
+        expected_output = np.asarray(
+            [
+                [0, 1, 2, 3, 4],
+                [0, 1, 2, 3, 4],
+                [5, 6, 7, 8, 9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19],
+            ]
+        )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
             expected_output = backend.convert_to_tensor(
@@ -196,33 +172,18 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
     ):
         input_image = np.arange(0, 16)
         # Shifting by .2 * 5 = 1 pixel.
-        if backend.backend() == "torch":
-            # redirect fill_mode=reflect to fill_mode=mirror
-            expected_output = np.asarray(
-                [
-                    [8, 9],
-                    [6, 7],
-                    [4, 5],
-                    [2, 3],
-                    [0, 1],
-                    [2, 3],
-                    [4, 5],
-                    [6, 7],
-                ]
-            )
-        else:
-            expected_output = np.asarray(
-                [
-                    [6, 7],
-                    [4, 5],
-                    [2, 3],
-                    [0, 1],
-                    [0, 1],
-                    [2, 3],
-                    [4, 5],
-                    [6, 7],
-                ]
-            )
+        expected_output = np.asarray(
+            [
+                [6, 7],
+                [4, 5],
+                [2, 3],
+                [0, 1],
+                [0, 1],
+                [2, 3],
+                [4, 5],
+                [6, 7],
+            ]
+        )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 8, 2, 1))
             expected_output = backend.convert_to_tensor(
@@ -290,27 +251,15 @@ class RandomTranslationTest(testing.TestCase, parameterized.TestCase):
     def test_random_translation_left_numeric_reflect(self, data_format):
         input_image = np.arange(0, 25)
         # Shifting by .2 * 5 = 1 pixel.
-        if backend.backend() == "torch":
-            # redirect fill_mode=reflect to fill_mode=mirror
-            expected_output = np.asarray(
-                [
-                    [1, 2, 3, 4, 3],
-                    [6, 7, 8, 9, 8],
-                    [11, 12, 13, 14, 13],
-                    [16, 17, 18, 19, 18],
-                    [21, 22, 23, 24, 23],
-                ]
-            )
-        else:
-            expected_output = np.asarray(
-                [
-                    [1, 2, 3, 4, 4],
-                    [6, 7, 8, 9, 9],
-                    [11, 12, 13, 14, 14],
-                    [16, 17, 18, 19, 19],
-                    [21, 22, 23, 24, 24],
-                ]
-            )
+        expected_output = np.asarray(
+            [
+                [1, 2, 3, 4, 4],
+                [6, 7, 8, 9, 9],
+                [11, 12, 13, 14, 14],
+                [16, 17, 18, 19, 19],
+                [21, 22, 23, 24, 24],
+            ]
+        )
         if data_format == "channels_last":
             input_image = np.reshape(input_image, (1, 5, 5, 1))
             expected_output = backend.convert_to_tensor(

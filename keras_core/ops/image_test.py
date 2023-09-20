@@ -238,16 +238,6 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         ]
     )
     def test_affine_transform(self, interpolation, fill_mode, data_format):
-        if backend.backend() == "torch" and fill_mode == "wrap":
-            self.skipTest(
-                "In torch backend, applying affine_transform with "
-                "fill_mode=wrap is not supported"
-            )
-        if backend.backend() == "torch" and fill_mode == "reflect":
-            self.skipTest(
-                "In torch backend, applying affine_transform with "
-                "fill_mode=reflect is redirected to fill_mode=mirror"
-            )
         if backend.backend() == "tensorflow" and fill_mode == "mirror":
             self.skipTest(
                 "In tensorflow backend, applying affine_transform with "
@@ -259,10 +249,10 @@ class ImageOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
                 "affine_transform with fill_mode=wrap is inconsistent with"
                 "scipy"
             )
-        # TODO: `nearest` interpolation and `nearest` fill_mode in torch and jax
-        # causes random index shifting, resulting in significant differences in
-        # output which leads to failure
-        if backend.backend() in ("torch", "jax") and interpolation == "nearest":
+        # TODO: `nearest` interpolation in jax and torch causes random index
+        # shifting, resulting in significant differences in output which leads
+        # to failure
+        if backend.backend() in ("jax", "torch") and interpolation == "nearest":
             self.skipTest(
                 f"In {backend.backend()} backend, "
                 f"interpolation={interpolation} causes index shifting and "
