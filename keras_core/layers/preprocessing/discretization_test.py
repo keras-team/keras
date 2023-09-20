@@ -78,7 +78,6 @@ class DicretizationTest(testing.TestCase):
         ds = tf_data.Dataset.from_tensor_slices(x).batch(1).map(layer)
         for output in ds.take(1):
             output = output.numpy()
-        self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[0, 1, 1, 1, 2, 3, 4, 4, 3]]))
 
         # With adapt flow
