@@ -105,3 +105,50 @@ def to_categorical(x, num_classes=None):
     output_shape = input_shape + (num_classes,)
     categorical = np.reshape(categorical, output_shape)
     return categorical
+
+
+def encode_categorical_inputs(
+    inputs,
+    output_mode,
+    depth,
+    dtype="float32",
+    count_weights=None,
+    backend_module=None,
+):
+    """Encodes categoical inputs according to output_mode."""
+    backend_module = backend_module or backend
+
+    if output_mode == "int":
+        return backend_module.cast(inputs, dtype=dtype)
+
+    original_shape = inputs.shape
+    # In all cases, we should uprank scalar input to a single sample.
+    if len(backend_module.shape(inputs)) == 0:
+        inputs = backend_module.numpy.expand_dims(inputs, -1)
+    # One hot will unprank only if the final output dimension is not already 1.
+    if output_mode == "one_hot":
+        if backend_module.shape(inputs)[-1] != 1:
+            inputs = backend_module.numpy.expand_dims(inputs, -1)
+
+    if len(backend_module.shape(inputs)) > 2:
+        raise ValueError(
+            "When output_mode is not `'int'`, maximum supported output rank "
+            f"is 2. Received output_mode {output_mode} and input shape "
+            f"{original_shape}, "
+            f"which would result in output rank {inputs.shape.rank}."
+        )
+
+    binary_output = output_mode in ("multi_hot", "one_hot")
+    bincounts = backend_module.numpy.bincount(
+        inputs,
+        weights=count_weights,
+        minlength=depth,
+    )
+    if binary_output:
+        one_hot_input = backend_module.nn.one_hot(inputs, depth)
+        bincounts = backend_module.numpy.where(
+            backend_module.numpy.any(one_hot_input, axis=-2), 1, 0
+        )
+    bincounts = backend_module.cast(bincounts, dtype)
+
+    return bincounts

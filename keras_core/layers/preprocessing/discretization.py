@@ -1,12 +1,10 @@
 import numpy as np
 
 from keras_core import backend
-from keras_core import ops
 from keras_core.api_export import keras_core_export
-from keras_core.backend.common.backend_utils import encode_categorical_inputs
 from keras_core.layers.preprocessing.tf_data_layer import TFDataLayer
 from keras_core.utils import argument_validation
-from keras_core.utils import backend_utils
+from keras_core.utils import numerical_utils
 from keras_core.utils.module_utils import tensorflow as tf
 
 
@@ -154,8 +152,6 @@ class Discretization(TFDataLayer):
             self.summary = None
         else:
             self.summary = np.array([[], []], dtype="float32")
-        self._allow_non_tensor_positional_args = True
-        self._convert_input_args = True
 
     def build(self, input_shape=None):
         self.built = True
@@ -231,18 +227,14 @@ class Discretization(TFDataLayer):
         return
 
     def call(self, inputs):
-        indices = ops.digitize(inputs, self.bin_boundaries)
-        outputs = encode_categorical_inputs(
+        indices = self.backend.numpy.digitize(inputs, self.bin_boundaries)
+        outputs = numerical_utils.encode_categorical_inputs(
             indices,
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
             dtype=self.compute_dtype,
+            backend_module=self.backend,
         )
-        if (
-            backend.backend() != "tensorflow"
-            and not backend_utils.in_tf_graph()
-        ):
-            outputs = backend.convert_to_tensor(outputs)
         return outputs
 
     def get_config(self):
