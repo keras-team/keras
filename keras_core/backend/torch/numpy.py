@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from keras_core.backend import config
 from keras_core.backend.torch.core import cast
 from keras_core.backend.torch.core import convert_to_tensor
 from keras_core.backend.torch.core import get_device
@@ -91,7 +92,7 @@ def zeros(shape, dtype="float32"):
 
 def zeros_like(x, dtype=None):
     x = convert_to_tensor(x)
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or x.dtype)
     return torch.zeros_like(x, dtype=dtype)
 
 
@@ -160,6 +161,13 @@ def append(
 
 
 def arange(start, stop=None, step=1, dtype=None):
+    if dtype is None:
+        if hasattr(start, "dtype"):
+            dtype = start.dtype
+        elif isinstance(start, int):
+            dtype = "int32"
+        else:
+            dtype = config.floatx()
     dtype = to_torch_dtype(dtype)
     if stop is None:
         return torch.arange(end=start, dtype=dtype, device=get_device())

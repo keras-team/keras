@@ -113,6 +113,13 @@ def append(
 
 
 def arange(start, stop=None, step=1, dtype=None):
+    if dtype is None:
+        if hasattr(start, "dtype"):
+            dtype = start.dtype
+        elif isinstance(start, int):
+            dtype = "int32"
+        else:
+            dtype = config.floatx()
     return jnp.arange(start, stop, step=step, dtype=dtype)
 
 

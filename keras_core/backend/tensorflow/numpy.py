@@ -5,6 +5,7 @@ import warnings
 import tensorflow as tf
 from tensorflow.experimental import numpy as tfnp
 
+from keras_core.backend import config
 from keras_core.backend.tensorflow.core import convert_to_tensor
 
 
@@ -176,6 +177,13 @@ def append(
 def arange(start, stop=None, step=1, dtype=None):
     # tfnp.arange has trouble with dynamic Tensors in compiled function.
     # tf.range does not.
+    if dtype is None:
+        if hasattr(start, "dtype"):
+            dtype = start.dtype
+        elif isinstance(start, int):
+            dtype = "int32"
+        else:
+            dtype = config.floatx()
     return tf.range(start, stop, delta=step, dtype=dtype)
 
 
@@ -749,6 +757,9 @@ def square(x):
 
 
 def sqrt(x):
+    x = convert_to_tensor(x)
+    if tf.as_dtype(x.dtype).is_integer:
+        x = tf.cast(x, dtype=config.floatx())
     return tfnp.sqrt(x)
 
 

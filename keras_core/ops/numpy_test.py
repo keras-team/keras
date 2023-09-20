@@ -3571,9 +3571,37 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(knp.Split(2)(x)), 2)
 
     def test_sqrt(self):
-        x = np.array([[1, 4, 9], [16, 25, 36]])
-        self.assertAllClose(knp.sqrt(x), np.sqrt(x))
-        self.assertAllClose(knp.Sqrt()(x), np.sqrt(x))
+        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
+        ref_y = np.sqrt(x)
+        y = knp.sqrt(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+        y = knp.Sqrt()(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax", reason="JAX does not support float64."
+    )
+    def test_sqrt_float64(self):
+        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float64")
+        ref_y = np.sqrt(x)
+        y = knp.sqrt(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float64")
+        self.assertAllClose(y, ref_y)
+        y = knp.Sqrt()(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float64")
+        self.assertAllClose(y, ref_y)
+
+    def test_sqrt_int32(self):
+        x = np.array([[1, 4, 9], [16, 25, 36]], dtype="int32")
+        ref_y = np.sqrt(x)
+        y = knp.sqrt(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
+        y = knp.Sqrt()(x)
+        self.assertEqual(standardize_dtype(y.dtype), "float32")
+        self.assertAllClose(y, ref_y)
 
     def test_stack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -3703,6 +3731,8 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Arange()(3), np.arange(3))
         self.assertAllClose(knp.Arange()(3, 7), np.arange(3, 7))
         self.assertAllClose(knp.Arange()(3, 7, 2), np.arange(3, 7, 2))
+
+        self.assertEqual(standardize_dtype(knp.arange(3).dtype), "int32")
 
     def test_full(self):
         self.assertAllClose(knp.full([2, 3], 0), np.full([2, 3], 0))

@@ -1,5 +1,8 @@
 import numpy as np
 
+from keras_core.backend import config
+from keras_core.backend import standardize_dtype
+
 
 def add(x1, x2):
     return np.add(x1, x2)
@@ -77,6 +80,13 @@ def append(
 
 
 def arange(start, stop=None, step=None, dtype=None):
+    if dtype is None:
+        if hasattr(start, "dtype"):
+            dtype = start.dtype
+        elif isinstance(start, int):
+            dtype = "int32"
+        else:
+            dtype = config.floatx()
     return np.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -124,6 +134,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
+    dtype = dtype or config.floatx()
     return np.array(x, dtype=dtype)
 
 
@@ -271,6 +282,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
+    dtype = dtype or config.floatx()
     return np.full(shape, fill_value, dtype=dtype)
 
 
@@ -592,7 +604,11 @@ def square(x):
 
 
 def sqrt(x):
-    return np.sqrt(x)
+    dtype = None
+    if hasattr(x, "dtype"):
+        if standardize_dtype(x.dtype).startswith("int"):
+            dtype = config.floatx()
+    return np.sqrt(x, dtype=dtype)
 
 
 def squeeze(x, axis=None):
