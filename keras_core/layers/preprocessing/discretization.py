@@ -233,6 +233,7 @@ class Discretization(TFDataLayer):
             output_mode=self.output_mode,
             depth=len(self.bin_boundaries) + 1,
             dtype=self.compute_dtype,
+            count_weights=None,
             backend_module=self.backend,
         )
         return outputs

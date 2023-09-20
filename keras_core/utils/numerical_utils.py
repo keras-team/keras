@@ -125,10 +125,6 @@ def encode_categorical_inputs(
     # In all cases, we should uprank scalar input to a single sample.
     if len(backend_module.shape(inputs)) == 0:
         inputs = backend_module.numpy.expand_dims(inputs, -1)
-    # One hot will unprank only if the final output dimension is not already 1.
-    if output_mode == "one_hot":
-        if backend_module.shape(inputs)[-1] != 1:
-            inputs = backend_module.numpy.expand_dims(inputs, -1)
 
     if len(backend_module.shape(inputs)) > 2:
         raise ValueError(
@@ -139,15 +135,18 @@ def encode_categorical_inputs(
         )
 
     binary_output = output_mode in ("multi_hot", "one_hot")
-    bincounts = backend_module.numpy.bincount(
-        inputs,
-        weights=count_weights,
-        minlength=depth,
-    )
     if binary_output:
-        one_hot_input = backend_module.nn.one_hot(inputs, depth)
-        bincounts = backend_module.numpy.where(
-            backend_module.numpy.any(one_hot_input, axis=-2), 1, 0
+        if output_mode == "one_hot":
+            bincounts = backend_module.nn.one_hot(inputs, depth)
+        elif output_mode == "multi_hot":
+            one_hot_input = backend_module.nn.one_hot(inputs, depth)
+            bincounts = backend_module.numpy.where(
+                backend_module.numpy.any(one_hot_input, axis=-2), 1, 0
+            )
+    else:
+        bincounts = backend_module.numpy.bincount(
+            inputs,
+            minlength=depth,
         )
     bincounts = backend_module.cast(bincounts, dtype)
 
