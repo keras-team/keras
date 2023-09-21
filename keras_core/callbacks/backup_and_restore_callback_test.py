@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pytest
 
@@ -11,8 +9,7 @@ from keras_core.utils import file_utils
 
 
 class InterruptingCallback(callbacks.Callback):
-    """A callback to intentionally introduce interruption to
-    training."""
+    """A callback to intentionally interrupt training."""
 
     def __init__(self, steps_int, epoch_int):
         self.batch_count = 0
@@ -31,69 +28,53 @@ class InterruptingCallback(callbacks.Callback):
             raise RuntimeError("StepsInterruption")
 
 
-class BackupAndRestoreCallbackTest(testing.TestCase):
-    # Checking for invalid backup_dir
-    def test_empty_backup_dir(self):
-        with self.assertRaisesRegex(
-            ValueError, expected_regex="Empty " "`backup_dir`"
-        ):
-            callbacks.BackupAndRestore(file_path=None)
+class CanaryLayer(layers.Layer):
+    def __init__(self):
+        super().__init__()
+        self.counter = self.add_weight(
+            shape=(), initializer="zeros", dtype="int32", trainable=False
+        )
 
-    # Checking save_freq and save_before_preemption both unset
-    def test_save_set_error(self):
-        with self.assertRaisesRegex(
-            ValueError,
-            expected_regex="`save_freq` or "
-            "`save_before_preemption` "
-            ""
-            "must be set",
-        ):
-            callbacks.BackupAndRestore(
-                file_path="backup_dir",
-                save_freq=None,
-                save_before_preemption=False,
-            )
+    def call(self, x):
+        self.counter.assign_add(1)
+        return x
+
+
+class BackupAndRestoreCallbackTest(testing.TestCase):
+    def make_model(self):
+        model = Sequential(
+            [
+                CanaryLayer(),
+                layers.Dense(1),
+            ]
+        )
+        model.compile(
+            loss="mse",
+            optimizer="sgd",
+            metrics=["mse"],
+        )
+        return model
 
     # Check invalid save_freq, both string and non integer
     def test_save_freq_unknown_error(self):
-        with self.assertRaisesRegex(
-            ValueError, expected_regex="Unrecognized save_freq"
-        ):
+        with self.assertRaisesRegex(ValueError, expected_regex="Invalid value"):
             callbacks.BackupAndRestore(
-                file_path="backup_dir", save_freq="batch"
+                backup_dir="backup_dir", save_freq="batch"
             )
 
-        with self.assertRaisesRegex(
-            ValueError, expected_regex="Unrecognized save_freq"
-        ):
-            callbacks.BackupAndRestore(file_path="backup_dir", save_freq=0.15)
+        with self.assertRaisesRegex(ValueError, expected_regex="Invalid value"):
+            callbacks.BackupAndRestore(backup_dir="backup_dir", save_freq=0.15)
 
     # Checking if after interruption, correct model params and
     # weights are loaded in step-wise backup
     @pytest.mark.requires_trainable_backend
     def test_best_case_step(self):
-        def make_model():
-            np.random.seed(1337)
-            model = Sequential(
-                [
-                    layers.Dense(2, activation="relu"),
-                    layers.Dense(1),
-                ]
-            )
-            model.compile(
-                loss="mse",
-                optimizer="sgd",
-                metrics=["mse"],
-            )
-            return model
-
         temp_dir = self.get_temp_dir()
-        filepath = os.path.join(temp_dir, "subdir", "checkpoint.weights.h5")
-        file_utils.rmtree(filepath)
-        self.assertFalse(os.path.exists(filepath))
+        backup_dir = file_utils.join(temp_dir, "subdir")
+        self.assertFalse(file_utils.exists(backup_dir))
 
-        model = make_model()
-        cbk = callbacks.BackupAndRestore(file_path=filepath, save_freq=1)
+        model = self.make_model()
+        cbk = callbacks.BackupAndRestore(backup_dir, save_freq=1)
 
         x_train = np.random.random((10, 3))
         y_train = np.random.random((10, 1))
@@ -111,9 +92,10 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
                 verbose=0,
             )
         except RuntimeError:
-            self.assertTrue(os.path.exists(filepath))
+            self.assertTrue(file_utils.exists(backup_dir))
             self.assertEqual(cbk._current_epoch, 0)
             self.assertEqual(cbk._last_batch_seen, 1)
+            self.assertEqual(int(model.layers[0].counter.value), 2)
 
             hist = model.fit(
                 x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5
@@ -121,33 +103,21 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
 
             self.assertEqual(cbk._current_epoch, 4)
             self.assertEqual(hist.epoch[-1], 4)
+            self.assertEqual(int(model.layers[0].counter.value), 17)
 
     # Checking if after interruption, correct model params and
     # weights are loaded in epoch-wise backup
     @pytest.mark.requires_trainable_backend
     def test_best_case_epoch(self):
-        def make_model():
-            np.random.seed(1337)
-            model = Sequential(
-                [
-                    layers.Dense(2, activation="relu"),
-                    layers.Dense(1),
-                ]
-            )
-            model.compile(
-                loss="mse",
-                optimizer="sgd",
-                metrics=["mse"],
-            )
-            return model
-
         temp_dir = self.get_temp_dir()
-        filepath = os.path.join(temp_dir, "subdir", "checkpoint.weights.h5")
-        file_utils.rmtree(filepath)
-        self.assertFalse(os.path.exists(filepath))
+        backup_dir = file_utils.join(temp_dir, "subdir")
+        self.assertFalse(file_utils.exists(backup_dir))
 
-        model = make_model()
-        cbk = callbacks.BackupAndRestore(file_path=filepath, save_freq="epoch")
+        model = self.make_model()
+        self.assertEqual(int(model.layers[0].counter.value), 0)
+        cbk = callbacks.BackupAndRestore(
+            backup_dir=backup_dir, save_freq="epoch"
+        )
 
         x_train = np.random.random((10, 3))
         y_train = np.random.random((10, 1))
@@ -166,59 +136,34 @@ class BackupAndRestoreCallbackTest(testing.TestCase):
             )
         except RuntimeError:
             self.assertEqual(cbk._current_epoch, 1)
-            self.assertTrue(os.path.exists(filepath))
+            self.assertTrue(file_utils.exists(backup_dir))
+            self.assertEqual(int(model.layers[0].counter.value), 6)
 
             hist = model.fit(
                 x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5
             )
             self.assertEqual(cbk._current_epoch, 4)
             self.assertEqual(hist.epoch[-1], 4)
+            self.assertEqual(int(model.layers[0].counter.value), 21)
 
     # Checking if after interruption, when model is deleted
     @pytest.mark.requires_trainable_backend
     def test_model_deleted_case_epoch(self):
-        def make_model():
-            np.random.seed(1337)
-            model = Sequential(
-                [
-                    layers.Dense(2, activation="relu"),
-                    layers.Dense(1),
-                ]
-            )
-            model.compile(
-                loss="mse",
-                optimizer="sgd",
-                metrics=["mse"],
-            )
-            return model
-
         temp_dir = self.get_temp_dir()
-        filepath = os.path.join(temp_dir, "subdir", "checkpoint.weights.h5")
-        file_utils.rmtree(filepath)
-        self.assertFalse(os.path.exists(filepath))
+        backup_dir = file_utils.join(temp_dir, "subdir")
+        self.assertFalse(file_utils.exists(backup_dir))
 
-        model = make_model()
-        cbk = callbacks.BackupAndRestore(file_path=filepath, save_freq="epoch")
+        model = self.make_model()
+        cbk = callbacks.BackupAndRestore(backup_dir, save_freq="epoch")
 
         x_train = np.random.random((10, 3))
         y_train = np.random.random((10, 1))
-
-        try:
-            model.fit(
-                x_train,
-                y_train,
-                batch_size=4,
-                callbacks=[
-                    cbk,
-                    InterruptingCallback(steps_int=None, epoch_int=2),
-                ],
-                epochs=6,
-                verbose=0,
-            )
-        except RuntimeError:
-            self.assertEqual(cbk._current_epoch, 1)
-            self.assertTrue(os.path.exists(filepath))
-            file_utils.rmtree(filepath)
-
-            model.fit(x_train, y_train, batch_size=4, callbacks=[cbk], epochs=5)
-            self.assertEqual(cbk._current_epoch, 4)
+        model.fit(
+            x_train,
+            y_train,
+            batch_size=4,
+            callbacks=[cbk],
+            epochs=2,
+            verbose=0,
+        )
+        self.assertFalse(file_utils.exists(backup_dir))
