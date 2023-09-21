@@ -237,9 +237,6 @@ class MergingLayersTest(testing.TestCase, parameterized.TestCase):
     ):
         import tensorflow as tf
 
-        if layer_class == layers.Dot:
-            pytest.skip("Dot layer does not support sparse tensors.")
-
         self.run_layer_test(
             layer_class,
             init_kwargs=init_kwargs,

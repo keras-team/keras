@@ -464,6 +464,23 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor([2, 3, 4])
             knp.matmul(x, y)
 
+    def test_matmul_sparse(self):
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((3, 2))
+        result = knp.matmul(x, y)
+        self.assertEqual(result.shape, (2, 2))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((3, 2), sparse=True)
+        result = knp.matmul(x, y)
+        self.assertEqual(result.shape, (2, 2))
+
+        x = KerasTensor((2, 3), sparse=True)
+        y = KerasTensor((3, 2), sparse=True)
+        result = knp.matmul(x, y)
+        self.assertEqual(result.shape, (2, 2))
+        self.assertTrue(result.sparse)
+
     def test_power(self):
         x = KerasTensor([2, 3])
         y = KerasTensor([2, 3])
@@ -1322,6 +1339,13 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
         self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, None))
 
+    def test_reshape_sparse(self):
+        x = KerasTensor([None, 3], sparse=True)
+        self.assertTrue(knp.reshape(x, (3, 2)).sparse)
+        self.assertEqual(knp.reshape(x, (3, 2)).shape, (3, 2))
+        self.assertTrue(knp.reshape(x, (3, -1)).sparse)
+        self.assertEqual(knp.reshape(x, (3, -1)).shape, (3, None))
+
     def test_roll(self):
         x = KerasTensor([None, 3])
         self.assertEqual(knp.roll(x, 1).shape, (None, 3))
@@ -1474,6 +1498,27 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_squeeze(self):
         x = KerasTensor([2, 3])
         self.assertEqual(knp.squeeze(x).shape, (2, 3))
+
+        x = KerasTensor([2, 1, 3])
+        self.assertEqual(knp.squeeze(x).shape, (2, 3))
+        self.assertEqual(knp.squeeze(x, axis=1).shape, (2, 3))
+        self.assertEqual(knp.squeeze(x, axis=-2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            knp.squeeze(x, axis=0)
+
+    def test_squeeze_sparse(self):
+        x = KerasTensor([2, 3], sparse=True)
+        self.assertTrue(knp.squeeze(x).sparse)
+        self.assertEqual(knp.squeeze(x).shape, (2, 3))
+
+        x = KerasTensor([2, 1, 3], sparse=True)
+        self.assertTrue(knp.squeeze(x).sparse)
+        self.assertEqual(knp.squeeze(x).shape, (2, 3))
+        self.assertTrue(knp.squeeze(x, axis=1).sparse)
+        self.assertEqual(knp.squeeze(x, axis=1).shape, (2, 3))
+        self.assertTrue(knp.squeeze(x, axis=-2).sparse)
+        self.assertEqual(knp.squeeze(x, axis=-2).shape, (2, 3))
 
     def test_transpose(self):
         x = KerasTensor([2, 3])
@@ -1639,6 +1684,15 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([2, 3, 4])
         self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
         self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
+        self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
+
+    def test_expand_dims_sparse(self):
+        x = KerasTensor([2, 3, 4], sparse=True)
+        self.assertTrue(knp.expand_dims(x, 0).sparse)
+        self.assertEqual(knp.expand_dims(x, 0).shape, (1, 2, 3, 4))
+        self.assertTrue(knp.expand_dims(x, 1).sparse)
+        self.assertEqual(knp.expand_dims(x, 1).shape, (2, 1, 3, 4))
+        self.assertTrue(knp.expand_dims(x, -2).sparse)
         self.assertEqual(knp.expand_dims(x, -2).shape, (2, 3, 1, 4))
 
     def test_expm1(self):
@@ -1957,30 +2011,45 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Matmul()(x, y), np.matmul(x, y))
         self.assertAllClose(knp.Matmul()(x, z), np.matmul(x, z))
 
-    @parameterized.parameters(
-        ("float16",),
-        ("float32",),
-        ("float64",),
-        ("uint8",),
-        ("int8",),
-        ("int16",),
-        ("int32",),
+    @parameterized.product(
+        (
+            {"x_shape": (5, 3), "y_shape": (3, 4)},
+            {"x_shape": (2, 5, 3), "y_shape": (2, 3, 4)},
+            {"x_shape": (2, 2, 5, 3), "y_shape": (2, 2, 3, 4)},
+        ),
+        dtype=["float16", "float32", "float64", "int32"],
+        x_sparse=[False, True],
+        y_sparse=[False, True],
     )
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    def test_matmul_sparse(self, dtype):
+    def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
         import tensorflow as tf
 
+        if x_sparse and y_sparse and dtype in ("float16", "int32"):
+            pytest.skip(f"Sparse sparse matmul unsupported for {dtype}")
+
         rng = np.random.default_rng(0)
-        x1 = 4 * rng.standard_normal((5, 3))
-        x1 = tf.sparse.from_dense(tf.cast(tf.nn.dropout(x1, 0.7), dtype=dtype))
-        x2 = (4 * rng.standard_normal((3, 4))).astype(dtype)
-        self.assertAllClose(
-            knp.matmul(x1, x2),
-            np.matmul(tf.sparse.to_dense(x1).numpy(), x2),
-        )
+        if x_sparse:
+            x = 4 * rng.standard_normal(x_shape)
+            x = tf.sparse.from_dense(tf.cast(tf.nn.dropout(x, 0.7), dtype))
+            x_np = tf.sparse.to_dense(x).numpy()
+        else:
+            x = x_np = (4 * rng.standard_normal(x_shape)).astype(dtype)
+        y = y_np = (4 * rng.standard_normal(y_shape)).astype(dtype)
+        if y_sparse:
+            y = 4 * rng.standard_normal(y_shape)
+            y = tf.sparse.from_dense(tf.cast(tf.nn.dropout(y, 0.7), dtype))
+            y_np = tf.sparse.to_dense(y).numpy()
+        else:
+            y = y_np = (4 * rng.standard_normal(y_shape)).astype(dtype)
+
+        atol = 0.1 if dtype == "float16" else 1e-5
+        self.assertAllClose(knp.matmul(x, y), np.matmul(x_np, y_np), atol=atol)
+        if x_sparse and y_sparse:
+            self.assertIsInstance(knp.matmul(x, y), tf.SparseTensor)
 
     def test_power(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2722,12 +2791,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Absolute()(x), np.absolute(x))
 
     def test_squeeze(self):
-        x = np.ones([1, 2, 3, 4, 5])
+        x = np.ones([1, 3, 1, 5])
         self.assertAllClose(knp.squeeze(x), np.squeeze(x))
         self.assertAllClose(knp.squeeze(x, axis=0), np.squeeze(x, axis=0))
 
         self.assertAllClose(knp.Squeeze()(x), np.squeeze(x))
         self.assertAllClose(knp.Squeeze(axis=0)(x), np.squeeze(x, axis=0))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_squeeze_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0, 0, 0], [0, 2, 0, 4]],
+            values=[1, 2],
+            dense_shape=(1, 3, 1, 5),
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+        self.assertAllClose(knp.squeeze(x), np.squeeze(x_np))
+        self.assertAllClose(knp.squeeze(x, axis=0), np.squeeze(x_np, axis=0))
+
+        self.assertAllClose(knp.Squeeze()(x), np.squeeze(x_np))
+        self.assertAllClose(knp.Squeeze(axis=0)(x), np.squeeze(x_np, axis=0))
 
     def test_transpose(self):
         x = np.ones([1, 2, 3, 4, 5])
@@ -3188,6 +3276,27 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.ExpandDims(0)(x), np.expand_dims(x, 0))
         self.assertAllClose(knp.ExpandDims(1)(x), np.expand_dims(x, 1))
         self.assertAllClose(knp.ExpandDims(-2)(x), np.expand_dims(x, -2))
+
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_SPARSE_TENSORS,
+        reason="Backend does not support sparse tensors.",
+    )
+    def test_expand_dims_sparse(self):
+        import tensorflow as tf
+
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]],
+            values=[1, 2],
+            dense_shape=(2, 3),
+        )
+        x_np = tf.sparse.to_dense(x).numpy()
+        self.assertAllClose(knp.expand_dims(x, 0), np.expand_dims(x_np, 0))
+        self.assertAllClose(knp.expand_dims(x, 1), np.expand_dims(x_np, 1))
+        self.assertAllClose(knp.expand_dims(x, -2), np.expand_dims(x_np, -2))
+
+        self.assertAllClose(knp.ExpandDims(0)(x), np.expand_dims(x_np, 0))
+        self.assertAllClose(knp.ExpandDims(1)(x), np.expand_dims(x_np, 1))
+        self.assertAllClose(knp.ExpandDims(-2)(x), np.expand_dims(x_np, -2))
 
     def test_expm1(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

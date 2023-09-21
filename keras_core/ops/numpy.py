@@ -2395,7 +2395,7 @@ class ExpandDims(Operation):
         else:
             axis = self.axis
         output_shape = x_shape[:axis] + [1] + x_shape[axis:]
-        return KerasTensor(output_shape, dtype=x.dtype)
+        return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
 
 
 @keras_core_export(
@@ -3368,7 +3368,10 @@ class Matmul(Operation):
             del output_shape[-2]
         if len(x2.shape) == 1:
             del output_shape[-1]
-        return KerasTensor(output_shape, dtype=x1.dtype)
+        x1_sparse = getattr(x1, "sparse", True)
+        x2_sparse = getattr(x2, "sparse", True)
+        output_sparse = x1_sparse and x2_sparse
+        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
 
 
 @keras_core_export(["keras_core.ops.matmul", "keras_core.ops.numpy.matmul"])
@@ -5309,7 +5312,7 @@ class Squeeze(Operation):
         input_shape = list(x.shape)
         if self.axis is None:
             output_shape = list(filter((1).__ne__, input_shape))
-            return KerasTensor(output_shape)
+            return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
         else:
             if input_shape[self.axis] != 1:
                 raise ValueError(
@@ -5317,7 +5320,7 @@ class Squeeze(Operation):
                     "is not 1."
                 )
             del input_shape[self.axis]
-            return KerasTensor(input_shape, dtype=x.dtype)
+            return KerasTensor(input_shape, dtype=x.dtype, sparse=x.sparse)
 
 
 @keras_core_export(["keras_core.ops.squeeze", "keras_core.ops.numpy.squeeze"])
