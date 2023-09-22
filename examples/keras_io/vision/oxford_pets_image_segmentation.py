@@ -58,7 +58,7 @@ for input_path, target_path in zip(input_img_paths[:10], target_img_paths[:10]):
 """
 
 from IPython.display import Image, display
-from keras_core.utils import load_img
+from keras.utils import load_img
 from PIL import ImageOps
 
 # Display input image #7
@@ -72,7 +72,7 @@ display(img)
 ## Prepare dataset to load & vectorize batches of data
 """
 
-import keras_core as keras
+import keras as keras
 import numpy as np
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image
@@ -118,7 +118,7 @@ def get_dataset(
 ## Prepare U-Net Xception-style model
 """
 
-from keras_core import layers
+from keras import layers
 
 
 def get_model(img_size, num_classes):

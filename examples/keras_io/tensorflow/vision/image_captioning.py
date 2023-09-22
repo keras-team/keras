@@ -17,10 +17,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-import keras_core as keras
-from keras_core import layers
-from keras_core.applications import efficientnet
-from keras_core.layers import TextVectorization
+import keras as keras
+from keras import layers
+from keras.applications import efficientnet
+from keras.layers import TextVectorization
 
 
 seed = 111

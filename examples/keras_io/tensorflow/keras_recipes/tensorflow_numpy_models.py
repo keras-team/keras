@@ -29,8 +29,8 @@ TensorFlow NumPy requires TensorFlow 2.5 or later.
 
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 Optionally, you can call `tnp.experimental_enable_numpy_behavior()` to enable type promotion in TensorFlow.

@@ -26,7 +26,7 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import keras_core as keras
+import keras as keras
 
 
 import numpy as np

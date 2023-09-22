@@ -9,9 +9,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-import keras_core
+import keras
 from benchmarks.torch_ctl_benchmark.benchmark_utils import train_loop
-from keras_core import layers
+from keras import layers
 
 num_classes = 2
 input_shape = (8192,)
@@ -55,8 +55,8 @@ class TorchModel(torch.nn.Module):
         return x
 
 
-def run_keras_core_custom_training_loop():
-    keras_model = keras_core.Sequential(
+def run_keras_custom_training_loop():
+    keras_model = keras.Sequential(
         [
             layers.Input(shape=input_shape),
             layers.Dense(64, activation="relu"),
@@ -73,7 +73,7 @@ def run_keras_core_custom_training_loop():
         num_epochs=num_epochs,
         optimizer=optimizer,
         loss_fn=loss_fn,
-        framework="keras_core",
+        framework="keras",
     )
 
 
@@ -92,5 +92,5 @@ def run_torch_custom_training_loop():
 
 
 if __name__ == "__main__":
-    run_keras_core_custom_training_loop()
+    run_keras_custom_training_loop()
     run_torch_custom_training_loop()

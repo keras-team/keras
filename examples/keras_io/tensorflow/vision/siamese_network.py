@@ -38,11 +38,11 @@ import numpy as np
 import os
 import tensorflow as tf
 from pathlib import Path
-from keras_core import layers
-from keras_core import optimizers
-from keras_core import metrics
-from keras_core import Model
-from keras_core.applications import resnet
+from keras import layers
+from keras import optimizers
+from keras import metrics
+from keras import Model
+from keras.applications import resnet
 
 
 target_shape = (200, 200)

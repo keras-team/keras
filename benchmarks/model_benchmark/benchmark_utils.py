@@ -1,9 +1,9 @@
 import time
 
-import keras_core
+import keras
 
 
-class BenchmarkMetricsCallback(keras_core.callbacks.Callback):
+class BenchmarkMetricsCallback(keras.callbacks.Callback):
     def __init__(self, start_batch=1, stop_batch=None):
         self.start_batch = start_batch
         self.stop_batch = stop_batch

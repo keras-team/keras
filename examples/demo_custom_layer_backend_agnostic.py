@@ -1,13 +1,13 @@
 import numpy as np
 
-import keras_core
-from keras_core import Model
-from keras_core import initializers
-from keras_core import layers
-from keras_core import losses
-from keras_core import metrics
-from keras_core import ops
-from keras_core import optimizers
+import keras
+from keras import Model
+from keras import initializers
+from keras import layers
+from keras import losses
+from keras import metrics
+from keras import ops
+from keras import optimizers
 
 
 class MyDense(layers.Layer):
@@ -43,11 +43,11 @@ class MyDropout(layers.Layer):
         # Use seed_generator for managing RNG state.
         # It is a state element and its seed variable is
         # tracked as part of `layer.variables`.
-        self.seed_generator = keras_core.random.SeedGenerator(1337)
+        self.seed_generator = keras.random.SeedGenerator(1337)
 
     def call(self, inputs):
-        # Use `keras_core.random` for random ops.
-        return keras_core.random.dropout(
+        # Use `keras.random` for random ops.
+        return keras.random.dropout(
             inputs, self.rate, seed=self.seed_generator
         )
 

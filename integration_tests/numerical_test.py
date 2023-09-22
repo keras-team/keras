@@ -1,4 +1,4 @@
-import keras_core  # isort: skip, keep it on top for torch test
+import keras  # isort: skip, keep it on top for torch test
 
 import numpy as np
 from tensorflow import keras
@@ -78,27 +78,27 @@ def eval_model(model, x, y):
 def numerical_test():
     x_train, y_train, x_test, y_test = build_mnist_data(NUM_CLASSES)
     keras_model = build_keras_model(keras, NUM_CLASSES)
-    keras_core_model = build_keras_model(keras_core, NUM_CLASSES)
+    keras_model = build_keras_model(keras, NUM_CLASSES)
 
     # Make sure both model have same weights before training
     weights = [weight.numpy() for weight in keras_model.weights]
-    keras_core_model.set_weights(weights)
+    keras_model.set_weights(weights)
 
-    for kw, kcw in zip(keras_model.weights, keras_core_model.weights):
+    for kw, kcw in zip(keras_model.weights, keras_model.weights):
         np.testing.assert_allclose(kw.numpy(), kcw.numpy())
 
     keras_history = train_model(keras_model, x_train, y_train)
-    keras_core_history = train_model(keras_core_model, x_train, y_train)
+    keras_history = train_model(keras_model, x_train, y_train)
 
     for key in keras_history.history.keys():
         np.testing.assert_allclose(
             keras_history.history[key],
-            keras_core_history.history[key],
+            keras_history.history[key],
             atol=1e-3,
         )
 
 
 if __name__ == "__main__":
     keras.utils.set_random_seed(1337)
-    keras_core.utils.set_random_seed(1337)
+    keras.utils.set_random_seed(1337)
     numerical_test()

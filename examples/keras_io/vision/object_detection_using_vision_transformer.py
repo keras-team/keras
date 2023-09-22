@@ -1,7 +1,7 @@
 """
 Title: Object detection with Vision Transformers
 Author: [Karan V. Dave](https://www.linkedin.com/in/karan-dave-811413164/)
-Converted to Keras Core by: [Gabriel Rasskin](https://github.com/grasskin), [Soumik Rakshit](http://github.com/soumik12345)
+Converted to Keras 3 by: [Gabriel Rasskin](https://github.com/grasskin), [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2022/03/27
 Last modified: 2022/03/27
 Description: A simple Keras implementation of object detection using Vision Transformers.
@@ -29,7 +29,7 @@ from which we import the `AdamW` optimizer.
 TensorFlow Addons can be installed via the following command:
 
 ```
-pip install -U git+https://github.com/keras-team/keras-core
+pip install -U git+https://github.com/keras-team/keras
 ```
 """
 
@@ -43,9 +43,9 @@ os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
 
 import numpy as np
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2

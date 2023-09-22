@@ -1,14 +1,14 @@
 import numpy as np
-import keras_core
-from keras_core import layers
-from keras_core.utils import to_categorical
+import keras
+from keras import layers
+from keras.utils import to_categorical
 
 # Model / data parameters
 num_classes = 10
 input_shape = (28, 28, 1)
 
 # Load the data and split it between train and test sets
-(x_train, y_train), (x_test, y_test) = keras_core.datasets.mnist.load_data()
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 
 # Scale images to the [0, 1] range
 x_train = x_train.astype("float32") / 255
@@ -28,7 +28,7 @@ y_test = to_categorical(y_test, num_classes)
 batch_size = 128
 epochs = 3
 
-model = keras_core.Sequential(
+model = keras.Sequential(
     [
         layers.Input(shape=input_shape),
         layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),

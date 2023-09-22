@@ -46,8 +46,8 @@ Five digits (reversed):
 ## Setup
 """
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 import numpy as np
 
 # Parameters for the model and dataset.

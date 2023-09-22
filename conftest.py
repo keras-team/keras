@@ -8,7 +8,7 @@ except ImportError:
 
 import pytest
 
-from keras_core.backend import backend
+from keras.backend import backend
 
 
 def pytest_configure(config):

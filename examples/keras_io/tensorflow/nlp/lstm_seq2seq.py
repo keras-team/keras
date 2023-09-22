@@ -47,7 +47,7 @@ models are more common in this domain.
 """
 
 import numpy as np
-import keras_core as keras
+import keras as keras
 import os
 from pathlib import Path
 

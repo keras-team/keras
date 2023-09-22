@@ -1,7 +1,7 @@
 """
 Title: Gradient Centralization for Better Training Performance
 Author: [Rishit Dagli](https://github.com/Rishit-dagli)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 06/18/21
 Last modified: 07/25/23
 Description: Implement Gradient Centralization to improve training performance of DNNs.
@@ -34,10 +34,10 @@ pip install tensorflow-datasets
 
 from time import time
 
-import keras_core as keras
-from keras_core import layers
-from keras_core.optimizers import RMSprop
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras.optimizers import RMSprop
+from keras import ops
 
 from tensorflow import data as tf_data
 import tensorflow_datasets as tfds

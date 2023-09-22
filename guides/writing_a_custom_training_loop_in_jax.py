@@ -19,7 +19,7 @@ import jax
 
 # We import TF so we can use tf.data.
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 import numpy as np
 
 """
@@ -45,7 +45,7 @@ your own training & evaluation loops from scratch. This is what this guide is ab
 To write a custom training loop, we need the following ingredients:
 
 - A model to train, of course.
-- An optimizer. You could either use an optimizer from `keras_core.optimizers`, or
+- An optimizer. You could either use an optimizer from `keras.optimizers`, or
 one from the `optax` package.
 - A loss function.
 - A dataset. The standard in the JAX ecosystem is to load data via `tf.data`,

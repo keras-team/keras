@@ -38,8 +38,8 @@ and compare the result to the (resized) original image.
 
 import numpy as np
 import tensorflow as tf
-import keras_core as keras
-from keras_core.applications import inception_v3
+import keras as keras
+from keras.applications import inception_v3
 
 base_image_path = keras.utils.get_file(
     "sky.jpg", "https://i.imgur.com/aGBdQyK.jpg"

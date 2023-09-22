@@ -11,7 +11,7 @@ pp = pprint.PrettyPrinter()
 import jax
 import jax.numpy as jnp
 import tensorflow as tf  # just for tf.data
-import keras_core as keras  # Keras multi-backend
+import keras as keras  # Keras multi-backend
 
 import numpy as np
 from tqdm import tqdm

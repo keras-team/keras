@@ -27,8 +27,8 @@ to fix this discrepancy.
 ## Imports
 """
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 import tensorflow as tf  # just for image processing and pipeline
 
 import tensorflow_datasets as tfds

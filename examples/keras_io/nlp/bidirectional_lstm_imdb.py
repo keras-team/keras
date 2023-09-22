@@ -11,8 +11,8 @@ Accelerator: GPU
 """
 
 import numpy as np
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 max_features = 20000  # Only consider the top 20k words
 maxlen = 200  # Only consider the first 200 words of each movie review

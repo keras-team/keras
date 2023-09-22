@@ -52,8 +52,8 @@ import keras_nlp
 import pathlib
 import random
 
-import keras_core as keras
-from keras_core import ops
+import keras as keras
+from keras import ops
 
 import tensorflow.data as tf_data
 from tensorflow_text.tools.wordpiece_vocab import (

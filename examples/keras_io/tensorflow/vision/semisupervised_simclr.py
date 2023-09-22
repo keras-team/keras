@@ -77,8 +77,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 ## Hyperparameter setup

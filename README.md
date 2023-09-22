@@ -1,9 +1,9 @@
-[![](https://github.com/keras-team/keras-core/workflows/Tests/badge.svg?branch=main)](https://github.com/keras-team/keras-core/actions?query=workflow%3ATests+branch%3Amain)
-[![](https://badge.fury.io/py/keras-core.svg)](https://badge.fury.io/py/keras-core)
+[![](https://github.com/keras-team/keras/workflows/Tests/badge.svg?branch=main)](https://github.com/keras-team/keras/actions?query=workflow%3ATests+branch%3Amain)
+[![](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
 
-# Keras Core: A new multi-backend Keras
+# Keras 3: A new multi-backend Keras
 
-Keras Core is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
+Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
 
 **WARNING:** At this time, this package is experimental.
 It has rough edges and not everything might work as expected.
@@ -13,7 +13,7 @@ Once ready, this package will become Keras 3.0 and subsume `tf.keras`.
 
 ## Local installation
 
-Keras Core is compatible with Linux and MacOS systems. To install a local development version:
+Keras 3 is compatible with Linux and MacOS systems. To install a local development version:
 
 1. Install dependencies:
 
@@ -28,7 +28,7 @@ python pip_build.py --install
 ```
 
 You should also install your backend of choice: `tensorflow`, `jax`, or `torch`.
-Note that `tensorflow` is required for using certain Keras Core features: certain preprocessing layers as
+Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers as
 well as `tf.data` pipelines.
 
 ## Configuring your backend
@@ -46,16 +46,16 @@ In Colab, you can do:
 import os
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras_core as keras
+import keras as keras
 ```
 
-**Note:** The backend must be configured before importing `keras_core`, and the backend cannot be changed after 
+**Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
 the package has been imported.
 
 ## Backwards compatibility
 
-Keras Core is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
-existing `tf.keras` code, change the `keras` imports to `keras_core`, make sure that your calls to `model.save()` are using
+Keras 3 is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
+existing `tf.keras` code, change the `keras` imports to `keras`, make sure that your calls to `model.save()` are using
 the up-to-date `.keras` format, and you're done.
 
 If your `tf.keras` model does not include custom components, you can start running it on top of JAX or PyTorch immediately.
@@ -66,7 +66,7 @@ to a backend-agnostic implementation in just a few minutes.
 In addition, Keras models can consume datasets in any format, regardless of the backend you're using:
 you can train your models with your existing `tf.data.Dataset` pipelines or PyTorch `DataLoaders`.
 
-## Why use Keras Core?
+## Why use Keras 3?
 
 - Run your high-level Keras workflows on top of any framework -- benefiting at will from the advantages of each framework,
 e.g. the scalability and performance of JAX or the production ecosystem options of TensorFlow.

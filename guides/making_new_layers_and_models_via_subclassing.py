@@ -29,9 +29,9 @@ Let's dive in.
 """
 
 import numpy as np
-import keras_core as keras
-from keras_core import ops
-from keras_core import layers
+import keras as keras
+from keras import ops
+from keras import layers
 
 """
 ## The `Layer` class: the combination of state (weights) and some computation

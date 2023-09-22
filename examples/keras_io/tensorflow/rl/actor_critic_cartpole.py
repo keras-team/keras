@@ -1,7 +1,7 @@
 """
 Title: Actor Critic Method
 Author: [Apoorv Nandan](https://twitter.com/NandanApoorv)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2020/05/13
 Last modified: 2023/07/19
 Description: Implement Actor Critic Method in CartPole environment.
@@ -44,8 +44,8 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 import gym
 import numpy as np

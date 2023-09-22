@@ -48,8 +48,8 @@ import os
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 import numpy as np
 
 """

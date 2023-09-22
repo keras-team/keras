@@ -11,8 +11,8 @@ Accelerator: GPU
 """
 
 import numpy as np
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 

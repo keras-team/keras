@@ -29,8 +29,8 @@ This example requires TensorFlow 2.5 or higher.
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 ## Prepare the data

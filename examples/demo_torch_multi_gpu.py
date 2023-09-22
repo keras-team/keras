@@ -7,8 +7,8 @@ os.environ["KERAS_BACKEND"] = "torch"
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from keras_core import layers
-import keras_core
+from keras import layers
+import keras
 import numpy as np
 
 import torch.multiprocessing as mp
@@ -27,7 +27,7 @@ num_epochs = 1
 
 def get_data():
     # Load the data and split it between train and test sets
-    (x_train, y_train), (x_test, y_test) = keras_core.datasets.mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 
     # Scale images to the [0, 1] range
     x_train = x_train.astype("float32") / 255
@@ -48,7 +48,7 @@ def get_data():
 
 def get_model():
     # Create the Keras model
-    model = keras_core.Sequential(
+    model = keras.Sequential(
         [
             layers.Input(shape=(28, 28, 1)),
             layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
@@ -66,7 +66,7 @@ def get_model():
 class MyModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.model = keras_core.Sequential(
+        self.model = keras.Sequential(
             [
                 layers.Input(shape=(28, 28, 1)),
                 layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),

@@ -21,7 +21,7 @@ unlike question answering. We will use SWAG dataset to demonstrate this example.
 """
 
 """shell
-pip install -q keras-core --upgrade
+pip install -q keras --upgrade
 pip install -q keras-nlp --upgrade
 """
 
@@ -29,7 +29,7 @@ import os
 os.environ["KERAS_BACKEND"] = "jax"  # or "tensorflow" or "torch"
 
 import keras_nlp
-import keras_core as keras
+import keras as keras
 import tensorflow as tf
 
 import numpy as np
@@ -194,7 +194,7 @@ content of the options themselves, rather than being influenced by their positio
 
 **Note:** Even though `option_shuffle` function is written in pure
 tensorflow, it can be used with any backend (e.g. JAX, PyTorch) as it is only used
-in `tf.data.Dataset` pipeline which is compatible with Keras Core routines.
+in `tf.data.Dataset` pipeline which is compatible with Keras 3 routines.
 """
 
 

@@ -27,7 +27,7 @@ from absl import flags
 from absl import logging
 from model_benchmark.benchmark_utils import BenchmarkMetricsCallback
 
-import keras_core as keras
+import keras as keras
 
 flags.DEFINE_string("model", "EfficientNetV2B0", "The model to benchmark.")
 flags.DEFINE_integer("epochs", 1, "The number of epochs.")

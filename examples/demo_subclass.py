@@ -1,10 +1,10 @@
 import numpy as np
 
-from keras_core import Model
-from keras_core import layers
-from keras_core import losses
-from keras_core import metrics
-from keras_core import optimizers
+from keras import Model
+from keras import layers
+from keras import losses
+from keras import metrics
+from keras import optimizers
 
 
 class MyModel(Model):

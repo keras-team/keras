@@ -51,8 +51,8 @@ Target | Diagnosis of heart disease (1 = true; 0 = false) | Target
 
 import tensorflow as tf
 import pandas as pd
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 ## Preparing the data
@@ -172,9 +172,9 @@ then one-hot encode these integer indices.
 - `encode_integer_categorical_feature` to one-hot encode integer categorical features.
 """
 
-from keras_core.layers import IntegerLookup
-from keras_core.layers import Normalization
-from keras_core.layers import StringLookup
+from keras.layers import IntegerLookup
+from keras.layers import Normalization
+from keras.layers import StringLookup
 
 
 def encode_numerical_feature(feature, name, dataset):

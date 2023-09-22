@@ -33,10 +33,10 @@ and 9 categorical features.
 ## Setup
 """
 
-import keras_core as keras
-from keras_core import layers
-from keras_core.layers import StringLookup
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras.layers import StringLookup
+from keras import ops
 
 
 from tensorflow import data as tf_data

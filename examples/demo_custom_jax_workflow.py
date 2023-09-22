@@ -7,12 +7,12 @@ os.environ["KERAS_BACKEND"] = "jax"
 import jax
 import numpy as np
 
-from keras_core import Model
-from keras_core import backend
-from keras_core import initializers
-from keras_core import layers
-from keras_core import ops
-from keras_core import optimizers
+from keras import Model
+from keras import backend
+from keras import initializers
+from keras import layers
+from keras import ops
+from keras import optimizers
 
 
 class MyDense(layers.Layer):

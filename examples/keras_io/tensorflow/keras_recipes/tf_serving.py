@@ -60,7 +60,7 @@ import shutil
 import requests
 import numpy as np
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 import matplotlib.pyplot as plt
 
 """

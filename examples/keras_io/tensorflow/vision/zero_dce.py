@@ -1,7 +1,7 @@
 """
 Title: Zero-DCE for low-light image enhancement
 Author: [Soumik Rakshit](http://github.com/soumik12345)
-Converted to Keras Core by: [Soumik Rakshit](http://github.com/soumik12345)
+Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/09/18
 Last modified: 2023/07/15
 Description: Implementing Zero-Reference Deep Curve Estimation for low-light image enhancement.
@@ -49,8 +49,8 @@ from glob import glob
 from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 import tensorflow as tf
 

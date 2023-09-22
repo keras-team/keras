@@ -24,9 +24,9 @@ by [François Chollet](https://twitter.com/fchollet).
 import numpy as np
 import matplotlib.pyplot as plt
 
-from keras_core import layers
-from keras_core.datasets import mnist
-from keras_core.models import Model
+from keras import layers
+from keras.datasets import mnist
+from keras.models import Model
 
 
 def preprocess(array):

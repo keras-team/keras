@@ -1,7 +1,7 @@
 """
 Title: Compact Convolutional Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com), [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/)
 Date created: 2021/06/30
 Last modified: 2023/08/07
 Description: Compact Convolutional Transformers for efficient image classification.
@@ -39,8 +39,8 @@ code snippets from another example,
 ## Imports
 """
 
-from keras_core import layers
-import keras_core as keras
+from keras import layers
+import keras as keras
 
 import matplotlib.pyplot as plt
 import numpy as np

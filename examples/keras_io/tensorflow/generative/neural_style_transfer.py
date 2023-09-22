@@ -40,8 +40,8 @@ keeping the generated image close enough to the original one.
 
 import numpy as np
 import tensorflow as tf
-import keras_core as keras
-from keras_core.applications import vgg19
+import keras as keras
+from keras.applications import vgg19
 
 base_image_path = keras.utils.get_file(
     "paris.jpg", "https://i.imgur.com/F28w3Ac.jpg"

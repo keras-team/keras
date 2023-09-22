@@ -21,7 +21,7 @@ Dataloaders](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html).
 ### References:
 
 - [Customizing what happens in `fit()` with
-PyTorch](https://keras.io/keras_core/guides/custom_train_step_in_torch/)
+PyTorch](https://keras.io/keras/guides/custom_train_step_in_torch/)
 - [PyTorch Datasets and
 Dataloaders](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html)
 - [Transfer learning for Computer Vision using
@@ -46,8 +46,8 @@ import torch.nn.functional as F
 import torchvision
 from torchvision import datasets, models, transforms
 
-import keras_core as keras
-from keras_core.layers import TorchModuleWrapper
+import keras as keras
+from keras.layers import TorchModuleWrapper
 
 """
 ## Define the Hyperparameters
@@ -165,9 +165,9 @@ resnet_18.fc = nn.Identity()
 
 """
 Even though Keras supports PyTorch as a backend, it does not mean that we can nest torch
-modules inside a [`keras_core.Model`](https://keras.io/keras_core/api/models/), because
+modules inside a [`keras.Model`](https://keras.io/keras/api/models/), because
 trainable variables inside a Keras Model is tracked exclusively via [Keras
-Layers](https://keras.io/keras_core/api/layers/).
+Layers](https://keras.io/keras/api/layers/).
 
 KerasCore provides us with a feature called `TorchModuleWrapper` which enables us to do
 exactly this. The `TorchModuleWrapper` is a Keras Layer that accepts a torch module and

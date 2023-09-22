@@ -37,9 +37,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from zipfile import ZipFile
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 """
 ## First, load the data and apply preprocessing

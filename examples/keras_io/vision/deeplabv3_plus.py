@@ -1,7 +1,7 @@
 """
 Title: Multiclass semantic segmentation using DeepLabV3+
 Author: [Soumik Rakshit](http://github.com/soumik12345)
-Converted to Keras Core: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/08/31
 Last modified: 2023/07/19
 Description: Implement DeepLabV3+ architecture for Multi-class Semantic Segmentation.
@@ -32,9 +32,9 @@ This dataset can be used for the "human part segmentation" task.
 """
 
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 import cv2
 import numpy as np

@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
 
-from keras_core import layers
-from keras_core import losses
-from keras_core import metrics
-from keras_core import models
-from keras_core import optimizers
-from keras_core.utils import rng_utils
+from keras import layers
+from keras import losses
+from keras import metrics
+from keras import models
+from keras import optimizers
+from keras.utils import rng_utils
 
 
 def test_model_fit():

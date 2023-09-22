@@ -1,7 +1,7 @@
 """
 Title: Speaker Recognition
 Author: [Fadi Badine](https://twitter.com/fadibadine)
-Converted to Keras Core by: [Fadi Badine](https://twitter.com/fadibadine)
+Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 Date created: 14/06/2020
 Last modified: 19/07/2023
 Description: Classify speakers using Fast Fourier Transform (FFT) and a 1D Convnet.
@@ -47,7 +47,7 @@ import shutil
 import numpy as np
 
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 
 from pathlib import Path
 from IPython.display import display, Audio

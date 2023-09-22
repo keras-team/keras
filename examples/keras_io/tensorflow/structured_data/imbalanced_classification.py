@@ -20,7 +20,7 @@ to train a classification model on data with highly imbalanced classes.
 """
 
 import numpy as np
-import keras_core as keras
+import keras as keras
 
 # Get the real data from https://www.kaggle.com/mlg-ulb/creditcardfraud/
 fname = "/Users/fchollet/Downloads/creditcard.csv"

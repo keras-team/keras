@@ -1,7 +1,7 @@
 """
 Title: Learning to tokenize in Vision Transformers
 Authors: [Aritra Roy Gosthipaty](https://twitter.com/ariG23498), [Sayak Paul](https://twitter.com/RisingSayak) (equal contribution)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/12/10
 Last modified: 2023/08/14
 Description: Adaptively generating a smaller number of tokens for Vision Transformers.
@@ -49,9 +49,9 @@ references:
 ## Imports
 """
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 from tensorflow import data as tf_data
 
 

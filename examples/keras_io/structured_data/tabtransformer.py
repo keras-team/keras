@@ -21,9 +21,9 @@ into robust contextual embeddings to achieve higher predictive accuracy.
 
 ## Setup
 """
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 import math
 import numpy as np

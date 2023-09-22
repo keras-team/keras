@@ -17,9 +17,9 @@ import tensorflow as tf
 
 import os
 import numpy as np
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 """
 ## Introduction
@@ -51,7 +51,7 @@ This guide doesn't cover distributed training, which is covered in our
 When passing data to the built-in training loops of a model, you should either use:
 
 - NumPy arrays (if your data is small and fits in memory)
-- Subclasses of `keras_core.utils.PyDataset`
+- Subclasses of `keras.utils.PyDataset`
 - `tf.data.Dataset` objects
 - PyTorch `DataLoader` instances
 

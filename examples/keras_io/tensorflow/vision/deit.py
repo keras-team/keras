@@ -49,8 +49,8 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 tfds.disable_progress_bar()
 keras.utils.set_random_seed(42)

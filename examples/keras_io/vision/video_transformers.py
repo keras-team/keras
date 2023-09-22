@@ -1,7 +1,7 @@
 """
 Title: Video Classification with Transformers
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras Core by: [Soumik Rakshit](http://github.com/soumik12345)
+Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/06/08
 Last modified: 2023/22/07
 Description: Training a video classifier with hybrid transformers.
@@ -19,7 +19,7 @@ classification that operate on CNN feature maps.
 """
 
 """shell
-pip install -q git+https://github.com/keras-team/keras-core
+pip install -q git+https://github.com/keras-team/keras
 pip install -q git+https://github.com/tensorflow/docs
 """
 
@@ -47,9 +47,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
-import keras_core as keras
-from keras_core import layers
-from keras_core.applications.densenet import DenseNet121
+import keras as keras
+from keras import layers
+from keras.applications.densenet import DenseNet121
 
 from tensorflow_docs.vis import embed
 

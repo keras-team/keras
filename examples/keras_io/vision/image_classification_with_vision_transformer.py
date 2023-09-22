@@ -1,7 +1,7 @@
 """
 Title: Image classification with Vision Transformer
 Author: [Khalid Salama](https://www.linkedin.com/in/khalid-salama-24403144/)
-Converted to Keras Core by: [divyasreepat](https://github.com/divyashreepathihalli), [Soumik Rakshit](http://github.com/soumik12345)
+Converted to Keras 3 by: [divyasreepat](https://github.com/divyashreepathihalli), [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/01/18
 Last modified: 2021/01/18
 Description: Implementing the Vision Transformer (ViT) model for image classification.
@@ -27,9 +27,9 @@ import os
 
 os.environ["KERAS_BACKEND"] = "jax"  # @param ["tensorflow", "jax", "torch"]
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 import numpy as np
 import matplotlib.pyplot as plt

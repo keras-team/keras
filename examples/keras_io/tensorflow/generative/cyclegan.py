@@ -27,9 +27,9 @@ using cycle-consistent adversarial networks.
 
 import numpy as np
 import matplotlib.pyplot as plt
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
+import keras as keras
+from keras import layers
+from keras import ops
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -664,13 +664,13 @@ and try the demo on [Hugging Face Spaces](https://huggingface.co/spaces/keras-io
 # data and check the model's performance.
 
 """shell
-curl -LO https://github.com/freedomtan/cyclegan-keras-core/archive/refs/tags/2.0.zip
+curl -LO https://github.com/freedomtan/cyclegan-keras/archive/refs/tags/2.0.zip
 unzip -qq 2.0.zip
 """
 
 
 # Load the checkpoints
-weight_file = "./cyclegan-keras-core-2.0/model_checkpoints/cyclegan_checkpoints.090.weights.h5"
+weight_file = "./cyclegan-keras-2.0/model_checkpoints/cyclegan_checkpoints.090.weights.h5"
 cycle_gan_model.load_weights(weight_file)
 print("Weights loaded successfully")
 

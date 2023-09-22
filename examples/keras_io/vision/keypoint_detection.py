@@ -1,7 +1,7 @@
 """
 Title: Keypoint Detection with Transfer Learning
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras Core by: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3 by: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2021/05/02
 Last modified: 2023/07/19
 Description: Training a keypoint detector with data augmentation and transfer learning.
@@ -57,8 +57,8 @@ unzip -qq ~/stanfordextra_v12.zip
 """
 ## Imports
 """
-from keras_core import layers
-import keras_core as keras
+from keras import layers
+import keras as keras
 
 from imgaug.augmentables.kps import KeypointsOnImage
 from imgaug.augmentables.kps import Keypoint

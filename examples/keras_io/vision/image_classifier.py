@@ -25,7 +25,7 @@ classification problems at three levels of complexity:
 ## Multi-Backend Support
 
 KerasCV's `ImageClassifier` model supports several backends like JAX, PyTorch,
-and TensorFlow with the help of `keras_core`. To enable multi-backend support
+and TensorFlow with the help of `keras`. To enable multi-backend support
 in KerasCV, set the `KERAS_CV_MULTI_BACKEND` environment variable. We can
 then switch between different backends by setting the `KERAS_BACKEND`
 environment variable. Currently, `"tensorflow"`, `"jax"`, and `"torch"` are
@@ -42,12 +42,12 @@ os.environ["KERAS_BACKEND"] = "jax"
 import json
 import math
 import keras_cv
-import keras_core as keras
-from keras_core import ops
-from keras_core import losses
-from keras_core import optimizers
-from keras_core.optimizers import schedules
-from keras_core import metrics
+import keras as keras
+from keras import ops
+from keras import losses
+from keras import optimizers
+from keras.optimizers import schedules
+from keras import metrics
 import tensorflow as tf
 from tensorflow import data as tf_data
 import tensorflow_datasets as tfds

@@ -34,8 +34,8 @@ wget https://raw.githubusercontent.com/sighsmile/conlleval/master/conlleval.py
 
 import os
 import numpy as np
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 from datasets import load_dataset
 from collections import Counter
 from conlleval import evaluate

@@ -13,7 +13,7 @@ Accelerator: GPU
 
 import numpy as np
 import tensorflow.data as tf_data
-import keras_core as keras
+import keras as keras
 
 """
 ## Introduction
@@ -123,7 +123,7 @@ Our layer will only consider the top 20,000 words, and will truncate or pad sequ
 be actually 200 tokens long.
 """
 
-from keras_core.layers import TextVectorization
+from keras.layers import TextVectorization
 
 vectorizer = TextVectorization(max_tokens=20000, output_sequence_length=200)
 text_ds = tf_data.Dataset.from_tensor_slices(train_samples).batch(128)
@@ -228,7 +228,7 @@ Note that we set `trainable=False` so as to keep the embeddings fixed (we don't 
 update them during training).
 """
 
-from keras_core.layers import Embedding
+from keras.layers import Embedding
 
 embedding_layer = Embedding(
     num_tokens,
@@ -244,7 +244,7 @@ embedding_layer.set_weights([embedding_matrix])
 A simple 1D convnet with global max pooling and a classifier at the end.
 """
 
-from keras_core import layers
+from keras import layers
 
 int_sequences_input = keras.Input(shape=(None,), dtype="int64")
 embedded_sequences = embedding_layer(int_sequences_input)

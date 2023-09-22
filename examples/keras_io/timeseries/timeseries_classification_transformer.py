@@ -62,8 +62,8 @@ You can replace your classification RNN layers with this one: the
 inputs are fully compatible!
 """
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 We include residual connections, layer normalization, and dropout.

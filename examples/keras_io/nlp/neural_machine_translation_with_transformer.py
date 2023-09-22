@@ -53,10 +53,10 @@ import numpy as np
 import tensorflow.data as tf_data
 import tensorflow.strings as tf_strings
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
-from keras_core.layers import TextVectorization
+import keras as keras
+from keras import layers
+from keras import ops
+from keras.layers import TextVectorization
 
 """
 ## Downloading the data
@@ -231,7 +231,7 @@ sure that it only uses information from target tokens 0 to N when predicting tok
 (otherwise, it could use information from the future, which would
 result in a model that cannot be used at inference time).
 """
-import keras_core.ops as ops
+import keras.ops as ops
 
 class TransformerEncoder(layers.Layer):
     def __init__(self, embed_dim, dense_dim, num_heads, **kwargs):

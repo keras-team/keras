@@ -16,7 +16,7 @@ import os
 os.environ["KERAS_BACKEND"] = "torch"
 
 import torch
-import keras_core as keras
+import keras as keras
 import numpy as np
 
 """
@@ -42,9 +42,9 @@ your own training & evaluation loops from scratch. This is what this guide is ab
 To write a custom training loop, we need the following ingredients:
 
 - A model to train, of course.
-- An optimizer. You could either use a `keras_core.optimizers` optimizer,
+- An optimizer. You could either use a `keras.optimizers` optimizer,
 or a native PyTorch optimizer from `torch.optim`.
-- A loss function. You could either use a `keras_core.losses` loss,
+- A loss function. You could either use a `keras.losses` loss,
 or a native PyTorch loss from `torch.nn`.
 - A dataset. You could use any format: a `tf.data.Dataset`,
 a PyTorch `DataLoader`, a Python generator, etc.

@@ -39,9 +39,9 @@ using the [DenseNet-121](https://arxiv.org/abs/1608.06993) architecture.
 ## Setup
 """
 
-from keras_core import layers
-import keras_core as keras
-from keras_core import ops
+from keras import layers
+import keras as keras
+from keras import ops
 
 from tensorflow import data as tf_data
 from tensorflow import image as tf_image

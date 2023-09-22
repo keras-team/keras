@@ -1,7 +1,7 @@
 """
 Title: Low-light image enhancement using MIRNet
 Author: [Soumik Rakshit](http://github.com/soumik12345)
-Converted to Keras Core by: [Soumik Rakshit](http://github.com/soumik12345)
+Converted to Keras 3 by: [Soumik Rakshit](http://github.com/soumik12345)
 Date created: 2021/09/11
 Last modified: 2023/07/15
 Description: Implementing the MIRNet architecture for low-light image enhancement.
@@ -34,7 +34,7 @@ consists of a low-light input image and its corresponding well-exposed reference
 """
 
 """shell
-pip install -q git+https://github.com/keras-team/keras-core
+pip install -q git+https://github.com/keras-team/keras
 """
 
 import os
@@ -47,8 +47,8 @@ from glob import glob
 from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 import tensorflow as tf
 

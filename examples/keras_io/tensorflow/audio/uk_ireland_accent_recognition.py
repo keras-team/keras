@@ -1,7 +1,7 @@
 """
 Title: English speaker accent recognition using Transfer Learning
 Author: [Fadi Badine](https://twitter.com/fadibadine)
-Converted to Keras Core by: [Fadi Badine](https://twitter.com/fadibadine)
+Converted to Keras 3 by: [Fadi Badine](https://twitter.com/fadibadine)
 Date created: 2022/04/16
 Last modified: 2023/07/19
 Description: Training a model to classify UK & Ireland accents using feature extraction from Yamnet.
@@ -108,7 +108,7 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_io as tfio
-import keras_core as keras
+import keras as keras
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats

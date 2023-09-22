@@ -26,10 +26,10 @@ flag_management:
       - type: patch
         target: auto
   individual_flags:
-    - name: keras_core
+    - name: keras
       paths:
-        - keras_core
-    - name: keras_core.applications
+        - keras
+    - name: keras.applications
       paths:
-        - keras_core/applications
+        - keras/applications
       carryforward: true

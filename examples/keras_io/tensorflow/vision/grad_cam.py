@@ -13,7 +13,7 @@ Adapted from Deep Learning with Python (2017).
 
 import numpy as np
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 
 # Display
 from IPython.display import Image, display

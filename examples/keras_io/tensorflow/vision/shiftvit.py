@@ -1,7 +1,7 @@
 """
 Title: A Vision Transformer without Attention
 Author: [Aritra Roy Gosthipaty](https://twitter.com/ariG23498), [Ritwik Raha](https://twitter.com/ritwik_raha)
-Converted to Keras Core: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2022/02/24
 Last modified: 2023/07/15
 Description: A minimal implementation of ShiftViT.
@@ -40,8 +40,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import tensorflow as tf
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 
 # Setting seed for reproducibiltiy

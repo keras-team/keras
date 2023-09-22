@@ -58,9 +58,9 @@ from scipy import ndimage
 from IPython.display import Image, display
 
 import tensorflow as tf
-import keras_core as keras
-from keras_core import layers
-from keras_core.applications import xception
+import keras as keras
+from keras import layers
+from keras.applications import xception
 
 keras.config.disable_traceback_filtering()
 

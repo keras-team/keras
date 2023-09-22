@@ -12,7 +12,7 @@ Accelerator: GPU
 """
 
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 import numpy as np
 
 """

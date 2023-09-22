@@ -23,18 +23,18 @@ def get_version(rel_path):
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
-if os.path.exists("keras_core/version.py"):
-    VERSION = get_version("keras_core/version.py")
+if os.path.exists("keras/version.py"):
+    VERSION = get_version("keras/version.py")
 else:
-    VERSION = get_version("keras_core/__init__.py")
+    VERSION = get_version("keras/__init__.py")
 
 setup(
-    name="keras-core",
+    name="keras",
     description="Multi-backend Keras.",
     long_description_content_type="text/markdown",
     long_description=README,
     version=VERSION,
-    url="https://github.com/keras-team/keras-core",
+    url="https://github.com/keras-team/keras",
     author="Keras team",
     author_email="keras-users@googlegroups.com",
     license="Apache License 2.0",

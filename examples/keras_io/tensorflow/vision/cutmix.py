@@ -1,7 +1,7 @@
 """
 Title: CutMix data augmentation for image classification
 Author: [Sayan Nath](https://twitter.com/sayannath2350)
-Converted to Keras Core By: [Piyush Thakur](https://github.com/cosmo3769)
+Converted to Keras 3 By: [Piyush Thakur](https://github.com/cosmo3769)
 Date created: 2021/06/08
 Last modified: 2023/07/24
 Description: Data augmentation with CutMix for image classification on CIFAR-10.
@@ -48,10 +48,10 @@ where `rx, ry` are randomly drawn from a uniform distribution with upper bound.
 
 import numpy as np
 import pandas as pd
-import keras_core as keras
+import keras as keras
 import matplotlib.pyplot as plt
 
-from keras_core import layers
+from keras import layers
 
 # TF imports related to tf.data preprocessing
 from tensorflow import clip_by_value

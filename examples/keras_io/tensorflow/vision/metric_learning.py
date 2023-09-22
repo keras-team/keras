@@ -32,9 +32,9 @@ import tensorflow as tf
 from collections import defaultdict
 from PIL import Image
 from sklearn.metrics import ConfusionMatrixDisplay
-import keras_core as keras
-from keras_core import layers
-from keras_core.datasets import cifar10
+import keras as keras
+from keras import layers
+from keras.datasets import cifar10
 
 """
 ## Dataset

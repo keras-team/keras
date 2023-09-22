@@ -1,7 +1,7 @@
 import torch
 
-from keras_core import layers
-from keras_core.backend.common import KerasVariable
+from keras import layers
+from keras.backend.common import KerasVariable
 
 
 class Net(torch.nn.Module):

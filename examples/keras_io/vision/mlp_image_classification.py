@@ -1,7 +1,7 @@
 """
 Title: Image classification with modern MLP models
 Author: [Khalid Salama](https://www.linkedin.com/in/khalid-salama-24403144/)
-Converted to Keras Core by: [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/), [divyasreepat](https://github.com/divyashreepathihalli)
+Converted to Keras 3 by: [Guillaume Baquiast](https://www.linkedin.com/in/guillaume-baquiast-478965ba/), [divyasreepat](https://github.com/divyashreepathihalli)
 Date created: 2021/05/30
 Last modified: 2023/08/03
 Description: Implementing the MLP-Mixer, FNet, and gMLP models for CIFAR-100 image classification.
@@ -29,8 +29,8 @@ main building blocks.
 """
 
 import numpy as np
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 """
 ## Prepare the data

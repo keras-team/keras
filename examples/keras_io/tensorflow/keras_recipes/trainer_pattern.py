@@ -25,7 +25,7 @@ by putting the custom training step in the Trainer class definition.
 """
 
 import tensorflow as tf
-import keras_core as keras
+import keras as keras
 
 # Load MNIST dataset and standardize the data
 mnist = keras.datasets.mnist

@@ -61,8 +61,8 @@ Target | Diagnosis of heart disease (1 = true; 0 = false) | Target
 
 import tensorflow as tf
 import pandas as pd
-import keras_core as keras
-from keras_core.utils import FeatureSpace
+import keras as keras
+from keras.utils import FeatureSpace
 
 keras.config.disable_traceback_filtering()
 

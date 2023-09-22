@@ -49,9 +49,9 @@ versions of our dataset.
 import os
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
-from keras_core import layers
-from keras_core import regularizers
-import keras_core as keras
+from keras import layers
+from keras import regularizers
+import keras as keras
 import tensorflow as tf
 
 import matplotlib.pyplot as plt

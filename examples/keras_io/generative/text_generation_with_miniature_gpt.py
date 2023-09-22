@@ -42,10 +42,10 @@ with TensorFlow 2.3 or higher.
 import os
 os.environ['KERAS_BACKEND'] = 'tensorflow'
 
-import keras_core as keras
-from keras_core import layers
-from keras_core import ops
-from keras_core.layers import TextVectorization
+import keras as keras
+from keras import layers
+from keras import ops
+from keras.layers import TextVectorization
 import numpy as np
 import os
 import string

@@ -1,4 +1,4 @@
-"""Script to create (and optionally install) a `.whl` archive for Keras Core.
+"""Script to create (and optionally install) a `.whl` archive for Keras 3.
 
 Usage:
 
@@ -25,7 +25,7 @@ import namex
 # Needed because importing torch after TF causes the runtime to crash
 import torch  # noqa: F401
 
-package = "keras_core"
+package = "keras"
 build_directory = "tmp_build_dir"
 dist_directory = "dist"
 to_copy = ["setup.py", "README.md"]
@@ -36,7 +36,7 @@ def ignore_files(_, filenames):
 
 
 def copy_source_to_build_directory(root_path):
-    # Copy sources (`keras_core/` directory and setup files) to build
+    # Copy sources (`keras/` directory and setup files) to build
     # directory
     os.chdir(root_path)
     os.mkdir(build_directory)
@@ -49,22 +49,22 @@ def copy_source_to_build_directory(root_path):
 
 
 def run_namex_conversion():
-    # Restructure the codebase so that source files live in `keras_core/src`
+    # Restructure the codebase so that source files live in `keras/src`
     namex.convert_codebase(package, code_directory="src")
 
-    # Generate API __init__.py files in `keras_core/`
+    # Generate API __init__.py files in `keras/`
     namex.generate_api_files(package, code_directory="src", verbose=True)
 
 
 def create_legacy_directory():
-    # Make keras_core/_tf_keras/ by copying keras_core/
+    # Make keras/_tf_keras/ by copying keras/
     tf_keras_dirpath = os.path.join(package, "_tf_keras")
     os.makedirs(tf_keras_dirpath)
     with open(os.path.join(package, "__init__.py")) as f:
         init_file = f.read()
         init_file = init_file.replace(
-            "from keras_core import _legacy",
-            "from keras_core import _tf_keras",
+            "from keras import _legacy",
+            "from keras import _tf_keras",
         )
     with open(os.path.join(package, "__init__.py"), "w") as f:
         f.write(init_file)
@@ -83,7 +83,7 @@ def create_legacy_directory():
                 ignore=ignore_files,
             )
 
-    # Copy keras_core/_legacy/ file contents to keras_core/_tf_keras/
+    # Copy keras/_legacy/ file contents to keras/_tf_keras/
     legacy_submodules = [
         path[:-3]
         for path in os.listdir(os.path.join(package, "src", "legacy"))
@@ -109,28 +109,28 @@ def create_legacy_directory():
                 with open(legacy_fpath) as f:
                     legacy_contents = f.read()
                     legacy_contents = legacy_contents.replace(
-                        "keras_core._legacy", "keras_core._tf_keras"
+                        "keras._legacy", "keras._tf_keras"
                     )
                 if os.path.exists(core_api_fpath):
                     with open(core_api_fpath) as f:
                         core_api_contents = f.read()
                     core_api_contents = core_api_contents.replace(
-                        "from keras_core import _tf_keras\n", ""
+                        "from keras import _tf_keras\n", ""
                     )
                     for legacy_submodule in legacy_submodules:
                         core_api_contents = core_api_contents.replace(
-                            f"from keras_core import {legacy_submodule}\n",
+                            f"from keras import {legacy_submodule}\n",
                             "",
                         )
                         core_api_contents = core_api_contents.replace(
-                            f"keras_core.{legacy_submodule}",
-                            f"keras_core._tf_keras.{legacy_submodule}",
+                            f"keras.{legacy_submodule}",
+                            f"keras._tf_keras.{legacy_submodule}",
                         )
                     legacy_contents = core_api_contents + "\n" + legacy_contents
                 with open(tf_keras_fpath, "w") as f:
                     f.write(legacy_contents)
 
-    # Delete keras_core/_legacy/
+    # Delete keras/_legacy/
     shutil.rmtree(os.path.join(package, "_legacy"))
 
 
@@ -172,7 +172,7 @@ def build(root_path):
         copy_source_to_build_directory(root_path)
         run_namex_conversion()
         create_legacy_directory()
-        from keras_core.src.version import __version__  # noqa: E402
+        from keras.src.version import __version__  # noqa: E402
 
         export_version_string(__version__)
         return build_and_save_output(root_path, __version__)

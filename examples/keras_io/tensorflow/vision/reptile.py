@@ -1,7 +1,7 @@
 """
 Title: Few-Shot learning with Reptile
 Author: [ADMoreau](https://github.com/ADMoreau)
-Converted to Keras Core By: [Muhammad Anas Raza](https://anasrz.com)
+Converted to Keras 3 By: [Muhammad Anas Raza](https://anasrz.com)
 Date created: 2020/05/21
 Last modified: 2023/07/20
 Description: Few-shot classification on the Omniglot dataset using Reptile.
@@ -22,8 +22,8 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
-import keras_core as keras
-from keras_core import layers
+import keras as keras
+from keras import layers
 
 import matplotlib.pyplot as plt
 import numpy as np
