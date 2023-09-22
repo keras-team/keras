@@ -1,2 +1,2 @@
 # Unique source of truth for the version number.
-__version__ = "0.1.7"
+__version__ = "3.0.0"
