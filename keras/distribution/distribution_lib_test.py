@@ -10,12 +10,12 @@ import tensorflow as tf
 from tensorflow.experimental import dtensor
 from tensorflow.python.eager import context
 
-from keras_core import backend
-from keras_core import layers
-from keras_core import models
-from keras_core import testing
-from keras_core.backend import distribution_lib as backend_dlib
-from keras_core.distribution import distribution_lib
+from keras import backend
+from keras import layers
+from keras import models
+from keras import testing
+from keras.backend import distribution_lib as backend_dlib
+from keras.distribution import distribution_lib
 
 if backend.backend() == "jax":
     # Due to https://github.com/google/jax/issues/17188, we can't
@@ -510,7 +510,12 @@ class TensorflowDistributionLibTest(testing.TestCase):
         tf.config.set_logical_device_configuration(
             cpus[0], [tf.config.LogicalDeviceConfiguration()] * 8
         )
-        dtensor.dtensor.initialize_accelerator_system("CPU")
+
+        dtensor.initialize_accelerator_system("CPU")
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        dtensor.shutdown_accelerator_system()
 
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
