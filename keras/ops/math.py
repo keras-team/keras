@@ -929,3 +929,39 @@ def rsqrt(x):
         return Rsqrt().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.rsqrt(x)
+
+
+class Erf(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.math.erf(x)
+
+
+@keras_core_export("keras_core.ops.erf")
+def erf(x):
+    """Computes the error function of x element-wise.
+
+    Args:
+        x: input tensor
+
+    Returns:
+        A tensor with the same type as `x`.
+
+    Examples:
+
+    Basic usage
+    >>> x = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
+    >>> y = Erf()(x)
+
+    Using `float32` data type
+    >>> x_float32 = np.array([-3.0, -2.0], dtype=np.float32)
+    >>> y_float32 = Erf()(x_float32)
+
+    Using large values
+    >>> x_large = np.array([1e10, -1e10])
+    >>> y_large = Erf()(x_large)
+    """
+
+    return Erf()(x)
