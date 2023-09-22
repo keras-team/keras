@@ -1,17 +1,11 @@
 """Setup script."""
-
 import os
-import pathlib
-
-from setuptools import find_packages
-from setuptools import setup
-
+from setuptools import find_packages, setup
 
 def read(rel_path):
     here = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(here, rel_path)) as fp:
-        return fp.read()
-
+    with open(os.path.join(here, rel_path), "r") as file:
+        return file.read()
 
 def get_version(rel_path):
     for line in read(rel_path).splitlines():
@@ -20,9 +14,10 @@ def get_version(rel_path):
             return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
+with open("README.md", "r") as readme_file:
+    long_description = readme_file.read()
 
-HERE = pathlib.Path(__file__).parent
-README = (HERE / "README.md").read_text()
+# Get the version from the appropriate source file
 if os.path.exists("keras/version.py"):
     VERSION = get_version("keras/version.py")
 else:
@@ -31,8 +26,8 @@ else:
 setup(
     name="keras",
     description="Multi-backend Keras.",
+    long_description=long_description,
     long_description_content_type="text/markdown",
-    long_description=README,
     version=VERSION,
     url="https://github.com/keras-team/keras",
     author="Keras team",
@@ -46,7 +41,6 @@ setup(
         "h5py",
         "dm-tree",
     ],
-    # Supported Python versions
     python_requires=">=3.9",
     classifiers=[
         "Development Status :: 4 - Beta",
