@@ -4,11 +4,11 @@ set -Eeuo pipefail
 # Define the base directory
 base_dir=$(dirname "$(dirname "$0")")
 
-# Run isort to sort import statements
+# Run isort with the specified configuration file
 isort --settings-path "${base_dir}/pyproject.toml" .
 
-# Run black to format the code
+# Run black with the specified configuration file
 black --config "${base_dir}/pyproject.toml" .
 
-# Run flake8 for linting using the provided configuration
+# Run flake8 with the specified configuration file
 flake8 --config "${base_dir}/setup.cfg" .
