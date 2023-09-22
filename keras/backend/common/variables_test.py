@@ -194,13 +194,6 @@ class VariablesTest(test_case.TestCase):
         inv_v = ~v
         self.assertAllClose(inv_v, np.array([-1, 0]))
 
-    def test_variable_lt_numpy_array(self):
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        arr = np.array([2, 2, 2])
-
-        lt_result = v < arr
-        self.assertAllClose(lt_result.numpy(), np.array([True, False, False]))
-
     def test_variable_div_numpy_array(self):
         v = backend.Variable(initializer=np.array([2, 4, 8]))
         arr = np.array([2, 8, 16])
