@@ -5,7 +5,26 @@
 
 Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.
 
-## Local installation
+## Installation
+
+### Install with pip
+
+Keras 3 is available as a preview release on PyPI named `keras-core`.
+Keras 2 (`tf.keras`) is distributed along with the `tensorflow` package.
+
+1. Install `keras-core`:
+
+```
+pip install keras-core
+```
+
+2. Install backend package(s).
+
+To use keras-core, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
+Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
+as well as `tf.data` pipelines.
+
+### Local installation
 
 Keras 3 is compatible with Linux and MacOS systems. To install a local development version:
 
@@ -21,9 +40,11 @@ pip install -r requirements.txt
 python pip_build.py --install
 ```
 
-You should also install your backend of choice: `tensorflow`, `jax`, or `torch`.
-Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers as
-well as `tf.data` pipelines.
+3. Add accelerator support for the backend(s) of your choice.
+
+The `requirements.txt` file will install a CPU-only version of TensorFlow, JAX,
+and PyTorch. Full instruction for installing `tensorflow`, `jax`, or `torch`
+with accelerator support can be found on the respective project websites.
 
 ## Configuring your backend
 
@@ -59,6 +80,15 @@ to a backend-agnostic implementation in just a few minutes.
 
 In addition, Keras models can consume datasets in any format, regardless of the backend you're using:
 you can train your models with your existing `tf.data.Dataset` pipelines or PyTorch `DataLoaders`.
+
+## Keras 3 timeline
+
+At the moment, we are releasing Keras 3 as a preview release with under the `keras-core` name on PyPI. We encourage anyone
+interested in the future of the library to try it out and give feedback.
+
+You can find the current stable release of Keras 2 at the [tf-keras](https://github.com/keras-team/tf-keras) repository.
+
+We will share updates on the release timeline as soon as they are available.
 
 ## Why use Keras 3?
 
