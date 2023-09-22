@@ -1,0 +1,101 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        backend: [tensorflow, jax, torch, numpy]
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      KERAS_BACKEND: ${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for changes in keras_core/applications
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            applications:
+              - 'keras_core/applications/**'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip install -e "." --progress-bar off --upgrade
+      - name: Test applications with pytest
+        if: ${{ steps.filter.outputs.applications == 'true' }}
+        run: |
+          pytest keras_core/applications --cov=keras_core.applications
+          coverage xml --include='keras_core/applications/*' -o apps-coverage.xml
+      - name: Codecov keras_core.applications
+        if: ${{ steps.filter.outputs.applications == 'true' }}
+        uses: codecov/codecov-action@v3
+        with:
+          env_vars: PYTHON,KERAS_BACKEND
+          flags: keras_core.applications,keras_core.applications-${{ matrix.backend }}
+          files: apps-coverage.xml
+          fail_ci_if_error: true
+      - name: Test with pytest
+        run: |
+          pytest keras_core --ignore keras_core/applications --cov=keras_core
+          coverage xml --omit='keras_core/applications/*' -o core-coverage.xml
+      - name: Codecov keras_core
+        uses: codecov/codecov-action@v3
+        with:
+          env_vars: PYTHON,KERAS_BACKEND
+          flags: keras_core,keras_core-${{ matrix.backend }}
+          files: core-coverage.xml
+          fail_ci_if_error: true
+
+  format:
+    name: Check the code format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Get pip cache dir
+        id: pip-cache
+        run: |
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip install -e "." --progress-bar off --upgrade
+      - name: Lint
+        run: bash shell/lint.sh
