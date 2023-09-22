@@ -32,8 +32,6 @@ from keras.utils.io_utils import print_msg
 if backend() == "tensorflow":
     print_msg("Using TensorFlow backend")
     from keras.backend.tensorflow import *  # noqa: F403
-
-    distribution_lib = None
 elif backend() == "jax":
     print_msg("Using JAX backend.")
     from keras.backend.jax import *  # noqa: F403

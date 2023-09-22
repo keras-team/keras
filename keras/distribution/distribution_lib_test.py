@@ -6,13 +6,16 @@ from unittest import mock
 import jax
 import numpy as np
 import pytest
+import tensorflow as tf
+from tensorflow.experimental import dtensor
+from tensorflow.python.eager import context
 
-from keras import backend
-from keras import layers
-from keras import models
-from keras import testing
-from keras.backend import distribution_lib as backend_dlib
-from keras.distribution import distribution_lib
+from keras_core import backend
+from keras_core import layers
+from keras_core import models
+from keras_core import testing
+from keras_core.backend import distribution_lib as backend_dlib
+from keras_core.distribution import distribution_lib
 
 if backend.backend() == "jax":
     # Due to https://github.com/google/jax/issues/17188, we can't
@@ -28,7 +31,7 @@ if backend.backend() == "jax":
 
 class DeviceMeshTest(testing.TestCase):
     def test_mesh_creation(self):
-        devices = ["CPU:{i}" for i in range(8)]
+        devices = [f"CPU:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
 
@@ -38,7 +41,7 @@ class DeviceMeshTest(testing.TestCase):
         self.assertEqual(mesh.devices.shape, shape)
 
     def test_input_validation(self):
-        devices = ["CPU:{i}" for i in range(4)]
+        devices = [f"CPU:{i}" for i in range(4)]
         with self.assertRaisesRegex(
             ValueError, "Shape and axis_names cannot be empty"
         ):
@@ -103,7 +106,7 @@ class TensorLayoutTest(testing.TestCase):
 class DistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
-        devices = ["CPU:{i}" for i in range(8)]
+        devices = [f"CPU:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
 
@@ -133,7 +136,7 @@ class DistributionTest(testing.TestCase):
 class DataParallelDistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
-        self.devices = ["CPU:{i}" for i in range(8)]
+        self.devices = [f"CPU:{i}" for i in range(8)]
         shape = (8,)
         axis_names = ["data"]
 
@@ -161,7 +164,7 @@ class DataParallelDistributionTest(testing.TestCase):
     @mock.patch.object(
         distribution_lib,
         "list_devices",
-        return_value=["CPU:{i}" for i in range(8)],
+        return_value=[f"CPU:{i}" for i in range(8)],
     )
     def test_create_with_list_devices(self, mock_list_devices):
         distribution = distribution_lib.DataParallel()
@@ -196,7 +199,7 @@ class DataParallelDistributionTest(testing.TestCase):
 class ModelParallelDistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
-        self.devices = ["CPU:{i}" for i in range(8)]
+        self.devices = [f"CPU:{i}" for i in range(8)]
         shape = (2, 4)
         axis_names = ["data", "model"]
 
@@ -243,7 +246,7 @@ class ModelParallelDistributionTest(testing.TestCase):
 class LayoutMapTest(testing.TestCase):
     def setUp(self):
         super().setUp()
-        self.devices = ["CPU:{i}" for i in range(8)]
+        self.devices = [f"CPU:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["data", "model"]
 
@@ -357,7 +360,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices("CPU")), 8)
 
     def test_to_jax_mesh(self):
-        devices = ["CPU:{i}" for i in range(8)]
+        devices = [f"CPU:{i}" for i in range(8)]
         shape = (4, 2)
         axis_names = ["batch", "model"]
 
@@ -492,3 +495,58 @@ class JaxDistributionLibTest(testing.TestCase):
         with distribution.scope():
             model.compile(loss="mse")
             model.fit(inputs, labels)
+
+
+@pytest.mark.skipif(
+    backend.backend() != "tensorflow",
+    reason="Backend specific test",
+)
+class TensorflowDistributionLibTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        # Config virtual devices for testing.
+        cpus = tf.config.list_physical_devices("CPU")
+        context._reset_context()
+        tf.config.set_logical_device_configuration(
+            cpus[0], [tf.config.LogicalDeviceConfiguration()] * 8
+        )
+        dtensor.dtensor.initialize_accelerator_system("CPU")
+
+    def test_list_devices(self):
+        self.assertEqual(len(distribution_lib.list_devices()), 8)
+        self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
+        self.assertEqual(len(distribution_lib.list_devices("CPU")), 8)
+
+    def test_to_dtensor_mesh(self):
+        devices = [f"CPU:{i}" for i in range(8)]
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+
+        mesh = distribution_lib.DeviceMesh(shape, axis_names, devices)
+        dtensor_mesh = backend_dlib.to_dtensor_mesh(mesh)
+
+        self.assertIsInstance(dtensor_mesh, dtensor.Mesh)
+        self.assertEqual(dtensor_mesh.shape(), list(shape))
+        self.assertEqual(dtensor_mesh.dim_names, axis_names)
+
+    def test_to_dtensor_layout(self):
+        axes = ["data", None]
+        mesh = distribution_lib.DeviceMesh(
+            (4, 2), ["data", "model"], [f"CPU:{i}" for i in range(8)]
+        )
+        layout = distribution_lib.TensorLayout(axes, mesh)
+        dtensor_layout = backend_dlib.to_dtensor_layout(layout)
+        dtensor_mesh = backend_dlib.to_dtensor_mesh(mesh)
+        self.assertEqual(
+            dtensor_layout,
+            dtensor.Layout(["data", dtensor.UNSHARDED], dtensor_mesh),
+        )
+
+    def test_validation_for_device_mesh(self):
+        axes = ["data", None]
+        layout = distribution_lib.TensorLayout(axes, device_mesh=None)
+
+        with self.assertRaisesRegex(
+            ValueError, "Cannot create sharding when device mesh is not set"
+        ):
+            backend_dlib.to_dtensor_layout(layout)
