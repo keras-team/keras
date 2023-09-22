@@ -153,3 +153,235 @@ class KerasTensorTest(testing.TestCase):
         result = operator(x, other)
         mock_method.assert_called_once_with(x, other)
         self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Add.symbolic_call")
+    def test_radd_method(self, mock_symbolic_call):
+        """Test __radd__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y + x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Subtract.symbolic_call")
+    def test_rsub_method(self, mock_symbolic_call):
+        """Test __rsub__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y - x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Multiply.symbolic_call")
+    def test_rmul_method(self, mock_symbolic_call):
+        """Test __rmul__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y * x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Matmul.symbolic_call")
+    def test_rmatmul_method(self, mock_symbolic_call):
+        """Test __rmatmul__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y @ x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Power.symbolic_call")
+    def test_rpow_method(self, mock_symbolic_call):
+        """Test __rpow__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y**x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.FloorDivide.symbolic_call")
+    def test_floordiv_method(self, mock_symbolic_call):
+        """Test __floordiv__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x // y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.FloorDivide.symbolic_call")
+    def test_rfloordiv_method(self, mock_symbolic_call):
+        """Test __rfloordiv__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y // x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Mod.symbolic_call")
+    def test_rmod_method(self, mock_symbolic_call):
+        """Test __rmod__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y % x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LessEqual.symbolic_call")
+    def test_le_method(self, mock_symbolic_call):
+        """Test __le__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x <= y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Greater.symbolic_call")
+    def test_gt_method(self, mock_symbolic_call):
+        """Test __gt__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x > y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.GreaterEqual.symbolic_call")
+    def test_ge_method(self, mock_symbolic_call):
+        """Test __ge__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x >= y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.NotEqual.symbolic_call")
+    def test_ne_method(self, mock_symbolic_call):
+        """Test __ne__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x != y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LogicalAnd.symbolic_call")
+    def test_rand_method(self, mock_symbolic_call):
+        """Test __rand__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="bool")
+        y = Mock()
+        result = y & x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LogicalOr.symbolic_call")
+    def test_ror_method(self, mock_symbolic_call):
+        """Test __ror__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="bool")
+        y = Mock()
+        result = y | x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LogicalNot.symbolic_call")
+    def test_invert_method(self, mock_symbolic_call):
+        """Test __invert__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="bool")
+        result = ~x
+        mock_symbolic_call.assert_called_once_with(x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LogicalXor.symbolic_call")
+    def test_xor_method(self, mock_symbolic_call):
+        """Test __xor__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="bool")
+        y = Mock()
+        result = x ^ y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.LogicalXor.symbolic_call")
+    def test_rxor_method(self, mock_symbolic_call):
+        """Test __rxor__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="bool")
+        y = Mock()
+        result = y ^ x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.TrueDivide.symbolic_call")
+    def test_truediv_method(self, mock_symbolic_call):
+        """Test __truediv__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = x / y
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.TrueDivide.symbolic_call")
+    def test_rtruediv_method(self, mock_symbolic_call):
+        """Test __rtruediv__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = Mock()
+        result = y / x
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Divide.symbolic_call")
+    def test_div_method(self, mock_symbolic_call):
+        """Test __div__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        # to ensure compatibility across Python versions.
+        result = x.__div__(y)
+        mock_symbolic_call.assert_called_once_with(x, y)
+        self.assertEqual(result, mock_tensor)
+
+    @patch("keras.ops.Divide.symbolic_call")
+    def test_rdiv_method(self, mock_symbolic_call):
+        """Test __rdiv__ method"""
+        mock_tensor = Mock()
+        mock_symbolic_call.return_value = mock_tensor
+        x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        y = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
+        # to ensure compatibility across Python versions.
+        result = x.__rdiv__(y)
+        mock_symbolic_call.assert_called_once_with(y, x)
+        self.assertEqual(result, mock_tensor)

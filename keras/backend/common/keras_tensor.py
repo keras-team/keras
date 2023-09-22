@@ -208,12 +208,12 @@ class KerasTensor:
     def __floordiv__(self, other):
         from keras import ops
 
-        return ops.FloorDiv().symbolic_call(self, other)
+        return ops.FloorDivide().symbolic_call(self, other)
 
     def __rfloordiv__(self, other):
         from keras import ops
 
-        return ops.FloorDiv().symbolic_call(other, self)
+        return ops.FloorDivide().symbolic_call(other, self)
 
     def __mod__(self, other):
         from keras import ops
@@ -270,10 +270,10 @@ class KerasTensor:
 
         return ops.LogicalOr().symbolic_call(other, self)
 
-    def __invert__(self, other):
+    def __invert__(self):
         from keras import ops
 
-        return ops.LogicalNot().symbolic_call(other, self)
+        return ops.LogicalNot().symbolic_call(self)
 
     def __xor__(self, other):
         from keras import ops
