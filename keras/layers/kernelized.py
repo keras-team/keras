@@ -226,8 +226,9 @@ class RandomFourierFeatures(base_layer.Layer):
         super().build(input_shape)
 
     def call(self, inputs):
-        inputs = tf.convert_to_tensor(inputs, dtype=self.dtype)
-        inputs = tf.cast(inputs, tf.float32)
+        cdtype = self.compute_dtype if self.compute_dtype != self.dtype else self.dtype
+        inputs = tf.convert_to_tensor(inputs, dtype=cdtype)
+        inputs = tf.cast(inputs, cdtype) if inputs.dtype !=cdtype else inputs
         kernel = (1.0 / self.kernel_scale) * self.unscaled_kernel
         outputs = tf.matmul(a=inputs, b=kernel)
         outputs = tf.nn.bias_add(outputs, self.bias)
