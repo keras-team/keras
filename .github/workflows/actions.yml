@@ -24,13 +24,13 @@ jobs:
       KERAS_BACKEND: ${{ matrix.backend }}
     steps:
       - uses: actions/checkout@v3
-      - name: Check for changes in keras_core/applications
+      - name: Check for changes in keras/applications
         uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
             applications:
-              - 'keras_core/applications/**'
+              - 'keras/applications/**'
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -52,25 +52,25 @@ jobs:
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' }}
         run: |
-          pytest keras_core/applications --cov=keras_core.applications
-          coverage xml --include='keras_core/applications/*' -o apps-coverage.xml
-      - name: Codecov keras_core.applications
+          pytest keras/applications --cov=keras.applications
+          coverage xml --include='keras/applications/*' -o apps-coverage.xml
+      - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' }}
         uses: codecov/codecov-action@v3
         with:
           env_vars: PYTHON,KERAS_BACKEND
-          flags: keras_core.applications,keras_core.applications-${{ matrix.backend }}
+          flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
           fail_ci_if_error: true
       - name: Test with pytest
         run: |
-          pytest keras_core --ignore keras_core/applications --cov=keras_core
-          coverage xml --omit='keras_core/applications/*' -o core-coverage.xml
-      - name: Codecov keras_core
+          pytest keras --ignore keras/applications --cov=keras
+          coverage xml --omit='keras/applications/*' -o core-coverage.xml
+      - name: Codecov keras
         uses: codecov/codecov-action@v3
         with:
           env_vars: PYTHON,KERAS_BACKEND
-          flags: keras_core,keras_core-${{ matrix.backend }}
+          flags: keras,keras-${{ matrix.backend }}
           files: core-coverage.xml
           fail_ci_if_error: true
 
