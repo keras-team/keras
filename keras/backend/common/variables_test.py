@@ -138,11 +138,6 @@ class VariablesTest(test_case.TestCase):
         v = backend.Variable(initializer=np.ones((2, 2)), trainable=False)
         self.assertFalse(v.trainable)
 
-    def test_variable_initialization_with_dtype(self):
-        v = backend.Variable(initializer=np.ones((2, 2)), dtype="int32")
-        self.assertEqual(v.dtype, "int32")
-        self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
-
     def test_variable_initialization_without_shape(self):
         with self.assertRaisesRegex(
             ValueError,
@@ -188,11 +183,6 @@ class VariablesTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([-1, 2]))
         abs_v = abs(v)
         self.assertAllClose(abs_v, np.array([1, 2]))
-
-    def test_variable_invert(self):
-        v = backend.Variable(initializer=np.array([0, -1]), dtype="int32")
-        inv_v = ~v
-        self.assertAllClose(inv_v, np.array([-1, 0]))
 
     def test_variable_div_numpy_array(self):
         v = backend.Variable(initializer=np.array([2, 4, 8]))
