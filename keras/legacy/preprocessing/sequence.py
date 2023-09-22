@@ -9,9 +9,7 @@ from keras.api_export import keras_export
 from keras.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
-@keras_export(
-    "keras._legacy.preprocessing.sequence.TimeseriesGenerator"
-)
+@keras_export("keras._legacy.preprocessing.sequence.TimeseriesGenerator")
 class TimeseriesGenerator(PyDataset):
     """Utility class for generating batches of temporal data.
 
@@ -178,9 +176,7 @@ class TimeseriesGenerator(PyDataset):
         return json.dumps(timeseries_generator_config, **kwargs)
 
 
-@keras_export(
-    "keras._legacy.preprocessing.sequence.make_sampling_table"
-)
+@keras_export("keras._legacy.preprocessing.sequence.make_sampling_table")
 def make_sampling_table(size, sampling_factor=1e-5):
     """Generates a word rank-based probabilistic sampling table.
 

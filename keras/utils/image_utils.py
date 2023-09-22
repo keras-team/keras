@@ -159,9 +159,7 @@ def img_to_array(img, data_format=None, dtype=None):
     return x
 
 
-@keras_export(
-    ["keras.utils.save_img", "keras.preprocessing.image.save_img"]
-)
+@keras_export(["keras.utils.save_img", "keras.preprocessing.image.save_img"])
 def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     """Saves an image stored as a NumPy array to a path or file object.
 
@@ -186,9 +184,7 @@ def save_img(path, x, data_format=None, file_format=None, scale=True, **kwargs):
     img.save(path, format=file_format, **kwargs)
 
 
-@keras_export(
-    ["keras.utils.load_img", "keras.preprocessing.image.load_img"]
-)
+@keras_export(["keras.utils.load_img", "keras.preprocessing.image.load_img"])
 def load_img(
     path,
     color_mode="rgb",

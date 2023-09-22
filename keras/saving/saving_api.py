@@ -15,9 +15,7 @@ except ImportError:
     h5py = None
 
 
-@keras_export(
-    ["keras.saving.save_model", "keras.models.save_model"]
-)
+@keras_export(["keras.saving.save_model", "keras.models.save_model"])
 def save_model(model, filepath, overwrite=True, **kwargs):
     """Saves a model as a `.keras` file.
 
@@ -112,9 +110,7 @@ def save_model(model, filepath, overwrite=True, **kwargs):
         )
 
 
-@keras_export(
-    ["keras.saving.load_model", "keras.models.load_model"]
-)
+@keras_export(["keras.saving.load_model", "keras.models.load_model"])
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     """Loads a model saved via `model.save()`.
 

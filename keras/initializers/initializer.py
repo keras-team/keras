@@ -1,9 +1,7 @@
 from keras.api_export import keras_export
 
 
-@keras_export(
-    ["keras.Initializer", "keras.initializers.Initializer"]
-)
+@keras_export(["keras.Initializer", "keras.initializers.Initializer"])
 class Initializer:
     """Initializer base class: all Keras initializers inherit from this class.
 

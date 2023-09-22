@@ -17,9 +17,7 @@ WEIGHTS_PATH_NO_TOP = (
 )
 
 
-@keras_export(
-    ["keras.applications.vgg16.VGG16", "keras.applications.VGG16"]
-)
+@keras_export(["keras.applications.vgg16.VGG16", "keras.applications.VGG16"])
 def VGG16(
     include_top=True,
     weights="imagenet",

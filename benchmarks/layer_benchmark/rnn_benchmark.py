@@ -194,9 +194,7 @@ def benchmark_bidirectional(
 ):
     layer_name = "Bidirectional"
     init_args = {}
-    keras_layer = keras.layers.Bidirectional(
-        keras.layers.LSTM(32)
-    )
+    keras_layer = keras.layers.Bidirectional(keras.layers.LSTM(32))
     tf_keras_layer = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(32))
     benchmark = LayerBenchmark(
         layer_name,
@@ -225,9 +223,7 @@ def benchmark_time_distributed(
 ):
     layer_name = "TimeDistributed"
     init_args = {}
-    keras_layer = keras.layers.TimeDistributed(
-        keras.layers.Conv2D(16, (3, 3))
-    )
+    keras_layer = keras.layers.TimeDistributed(keras.layers.Conv2D(16, (3, 3)))
     tf_keras_layer = tf.keras.layers.TimeDistributed(
         tf.keras.layers.Conv2D(16, (3, 3))
     )

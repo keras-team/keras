@@ -2,9 +2,7 @@ from keras.api_export import keras_export
 from keras.layers.convolutional.base_conv import BaseConv
 
 
-@keras_export(
-    ["keras.layers.Conv3D", "keras.layers.Convolution3D"]
-)
+@keras_export(["keras.layers.Conv3D", "keras.layers.Convolution3D"])
 class Conv3D(BaseConv):
     """3D convolution layer.
 

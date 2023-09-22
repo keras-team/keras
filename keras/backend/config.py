@@ -34,9 +34,7 @@ def floatx():
     return _FLOATX
 
 
-@keras_export(
-    ["keras.config.set_floatx", "keras.backend.set_floatx"]
-)
+@keras_export(["keras.config.set_floatx", "keras.backend.set_floatx"])
 def set_floatx(value):
     """Set the default float dtype.
 
@@ -89,9 +87,7 @@ def epsilon():
     return _EPSILON
 
 
-@keras_export(
-    ["keras.config.set_epsilon", "keras.backend.set_epsilon"]
-)
+@keras_export(["keras.config.set_epsilon", "keras.backend.set_epsilon"])
 def set_epsilon(value):
     """Set the value of the fuzz factor used in numeric expressions.
 

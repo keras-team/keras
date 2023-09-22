@@ -44,15 +44,9 @@ from keras.layers.merging.multiply import Multiply
 from keras.layers.merging.multiply import multiply
 from keras.layers.merging.subtract import Subtract
 from keras.layers.merging.subtract import subtract
-from keras.layers.normalization.batch_normalization import (
-    BatchNormalization,
-)
-from keras.layers.normalization.group_normalization import (
-    GroupNormalization,
-)
-from keras.layers.normalization.layer_normalization import (
-    LayerNormalization,
-)
+from keras.layers.normalization.batch_normalization import BatchNormalization
+from keras.layers.normalization.group_normalization import GroupNormalization
+from keras.layers.normalization.layer_normalization import LayerNormalization
 from keras.layers.normalization.spectral_normalization import (
     SpectralNormalization,
 )
@@ -60,15 +54,9 @@ from keras.layers.normalization.unit_normalization import UnitNormalization
 from keras.layers.pooling.average_pooling1d import AveragePooling1D
 from keras.layers.pooling.average_pooling2d import AveragePooling2D
 from keras.layers.pooling.average_pooling3d import AveragePooling3D
-from keras.layers.pooling.global_average_pooling1d import (
-    GlobalAveragePooling1D,
-)
-from keras.layers.pooling.global_average_pooling2d import (
-    GlobalAveragePooling2D,
-)
-from keras.layers.pooling.global_average_pooling3d import (
-    GlobalAveragePooling3D,
-)
+from keras.layers.pooling.global_average_pooling1d import GlobalAveragePooling1D
+from keras.layers.pooling.global_average_pooling2d import GlobalAveragePooling2D
+from keras.layers.pooling.global_average_pooling3d import GlobalAveragePooling3D
 from keras.layers.pooling.global_max_pooling1d import GlobalMaxPooling1D
 from keras.layers.pooling.global_max_pooling2d import GlobalMaxPooling2D
 from keras.layers.pooling.global_max_pooling3d import GlobalMaxPooling3D

@@ -2,9 +2,7 @@ from keras.api_export import keras_export
 from keras.layers.pooling.base_pooling import BasePooling
 
 
-@keras_export(
-    ["keras.layers.AveragePooling2D", "keras.layers.AvgPool2D"]
-)
+@keras_export(["keras.layers.AveragePooling2D", "keras.layers.AvgPool2D"])
 class AveragePooling2D(BasePooling):
     """Average pooling operation for 2D spatial data.
 

@@ -257,9 +257,7 @@ def softsign(x):
     return ops.softsign(x)
 
 
-@keras_export(
-    ["keras.activations.silu", "keras.activations.swish"]
-)
+@keras_export(["keras.activations.silu", "keras.activations.swish"])
 def silu(x):
     """Swish (or Silu) activation function.
 

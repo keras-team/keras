@@ -509,9 +509,7 @@ class LecunUniform(VarianceScaling):
         }
 
 
-@keras_export(
-    ["keras.initializers.HeNormal", "keras.initializers.he_normal"]
-)
+@keras_export(["keras.initializers.HeNormal", "keras.initializers.he_normal"])
 class HeNormal(VarianceScaling):
     """He normal initializer.
 
@@ -555,9 +553,7 @@ class HeNormal(VarianceScaling):
         }
 
 
-@keras_export(
-    ["keras.initializers.HeUniform", "keras.initializers.he_uniform"]
-)
+@keras_export(["keras.initializers.HeUniform", "keras.initializers.he_uniform"])
 class HeUniform(VarianceScaling):
     """He uniform variance scaling initializer.
 

@@ -2,9 +2,7 @@ from keras.api_export import keras_export
 from keras.layers.pooling.base_pooling import BasePooling
 
 
-@keras_export(
-    ["keras.layers.AveragePooling1D", "keras.layers.AvgPool1D"]
-)
+@keras_export(["keras.layers.AveragePooling1D", "keras.layers.AvgPool1D"])
 class AveragePooling1D(BasePooling):
     """Average pooling for temporal data.
 

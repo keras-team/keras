@@ -3,9 +3,7 @@ from keras.api_export import keras_export
 from keras.layers.convolutional.base_conv import BaseConv
 
 
-@keras_export(
-    ["keras.layers.Conv1D", "keras.layers.Convolution1D"]
-)
+@keras_export(["keras.layers.Conv1D", "keras.layers.Convolution1D"])
 class Conv1D(BaseConv):
     """1D convolution layer (e.g. temporal convolution).
 

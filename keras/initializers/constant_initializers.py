@@ -4,9 +4,7 @@ from keras.backend import standardize_dtype
 from keras.initializers.initializer import Initializer
 
 
-@keras_export(
-    ["keras.initializers.Constant", "keras.initializers.constant"]
-)
+@keras_export(["keras.initializers.Constant", "keras.initializers.constant"])
 class Constant(Initializer):
     """Initializer that generates tensors with constant values.
 
@@ -41,9 +39,7 @@ class Constant(Initializer):
         return {"value": self.value}
 
 
-@keras_export(
-    ["keras.initializers.Zeros", "keras.initializers.zeros"]
-)
+@keras_export(["keras.initializers.Zeros", "keras.initializers.zeros"])
 class Zeros(Initializer):
     """Initializer that generates tensors initialized to 0.
 
@@ -72,9 +68,7 @@ class Zeros(Initializer):
         return ops.zeros(shape, dtype=dtype)
 
 
-@keras_export(
-    ["keras.initializers.Ones", "keras.initializers.ones"]
-)
+@keras_export(["keras.initializers.Ones", "keras.initializers.ones"])
 class Ones(Initializer):
     """Initializer that generates tensors initialized to 1.
 

@@ -21,6 +21,4 @@ from keras.utils.python_utils import removesuffix
 from keras.utils.rng_utils import set_random_seed
 from keras.utils.sequence_utils import pad_sequences
 from keras.utils.text_dataset_utils import text_dataset_from_directory
-from keras.utils.timeseries_dataset_utils import (
-    timeseries_dataset_from_array,
-)
+from keras.utils.timeseries_dataset_utils import timeseries_dataset_from_array

@@ -1440,9 +1440,7 @@ class Conjugate(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_export(
-    ["keras.ops.conjugate", "keras.ops.numpy.conjugate"]
-)
+@keras_export(["keras.ops.conjugate", "keras.ops.numpy.conjugate"])
 def conjugate(x):
     """Returns the complex conjugate, element-wise.
 
@@ -2532,9 +2530,7 @@ class FullLike(Operation):
         return KerasTensor(x.shape, dtype=dtype)
 
 
-@keras_export(
-    ["keras.ops.full_like", "keras.ops.numpy.full_like"]
-)
+@keras_export(["keras.ops.full_like", "keras.ops.numpy.full_like"])
 def full_like(x, fill_value, dtype=None):
     """Return a full tensor with the same shape and type as the given tensor.
 
@@ -3137,9 +3133,7 @@ class Logaddexp(Operation):
         return KerasTensor(output_shape, dtype=x1.dtype)
 
 
-@keras_export(
-    ["keras.ops.logaddexp", "keras.ops.numpy.logaddexp"]
-)
+@keras_export(["keras.ops.logaddexp", "keras.ops.numpy.logaddexp"])
 def logaddexp(x1, x2):
     """Logarithm of the sum of exponentiations of the inputs.
 
@@ -3786,9 +3780,7 @@ class NotEqual(Operation):
         return KerasTensor(output_shape, dtype=x1.dtype)
 
 
-@keras_export(
-    ["keras.ops.not_equal", "keras.ops.numpy.not_equal"]
-)
+@keras_export(["keras.ops.not_equal", "keras.ops.numpy.not_equal"])
 def not_equal(x1, x2):
     """Return `(x1 != x2)` element-wise.
 
@@ -3814,9 +3806,7 @@ class OnesLike(Operation):
         return KerasTensor(x.shape, dtype=dtype)
 
 
-@keras_export(
-    ["keras.ops.ones_like", "keras.ops.numpy.ones_like"]
-)
+@keras_export(["keras.ops.ones_like", "keras.ops.numpy.ones_like"])
 def ones_like(x, dtype=None):
     """Return a tensor of ones with the same shape and type of `x`.
 
@@ -4762,9 +4752,7 @@ class Tensordot(Operation):
         return KerasTensor(output_shape, dtype=x1.dtype)
 
 
-@keras_export(
-    ["keras.ops.tensordot", "keras.ops.numpy.tensordot"]
-)
+@keras_export(["keras.ops.tensordot", "keras.ops.numpy.tensordot"])
 def tensordot(x1, x2, axes=2):
     """Compute the tensor dot product along specified axes.
 
@@ -5364,9 +5352,7 @@ class Transpose(Operation):
         return KerasTensor(output_shape, dtype=x.dtype, sparse=x.sparse)
 
 
-@keras_export(
-    ["keras.ops.transpose", "keras.ops.numpy.transpose"]
-)
+@keras_export(["keras.ops.transpose", "keras.ops.numpy.transpose"])
 def transpose(x, axes=None):
     """Returns a tensor with `axes` transposed.
 
@@ -5577,9 +5563,7 @@ class FloorDivide(Operation):
         return KerasTensor(output_shape, dtype=x1.dtype)
 
 
-@keras_export(
-    ["keras.ops.floor_divide", "keras.ops.numpy.floor_divide"]
-)
+@keras_export(["keras.ops.floor_divide", "keras.ops.numpy.floor_divide"])
 def floor_divide(x1, x2):
     """Returns the largest integer smaller or equal to the division of inputs.
 
@@ -5606,9 +5590,7 @@ class LogicalXor(Operation):
         return KerasTensor(output_shape, dtype=x1.dtype)
 
 
-@keras_export(
-    ["keras.ops.logical_xor", "keras.ops.numpy.logical_xor"]
-)
+@keras_export(["keras.ops.logical_xor", "keras.ops.numpy.logical_xor"])
 def logical_xor(x1, x2):
     """Compute the truth value of `x1 XOR x2`, element-wise.
 

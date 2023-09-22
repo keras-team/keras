@@ -2,9 +2,7 @@ from keras.api_export import keras_export
 from keras.layers.pooling.base_pooling import BasePooling
 
 
-@keras_export(
-    ["keras.layers.MaxPooling2D", "keras.layers.MaxPool2D"]
-)
+@keras_export(["keras.layers.MaxPooling2D", "keras.layers.MaxPool2D"])
 class MaxPooling2D(BasePooling):
     """Max pooling operation for 2D spatial data.
 

@@ -6,12 +6,8 @@ from keras import layers
 from keras import testing
 from keras.layers.convolutional.conv_test import np_conv1d
 from keras.layers.convolutional.conv_test import np_conv2d
-from keras.layers.convolutional.depthwise_conv_test import (
-    np_depthwise_conv1d,
-)
-from keras.layers.convolutional.depthwise_conv_test import (
-    np_depthwise_conv2d,
-)
+from keras.layers.convolutional.depthwise_conv_test import np_depthwise_conv1d
+from keras.layers.convolutional.depthwise_conv_test import np_depthwise_conv2d
 
 
 class SeparableConvBasicTest(testing.TestCase, parameterized.TestCase):

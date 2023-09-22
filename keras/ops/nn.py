@@ -263,9 +263,7 @@ class LeakyRelu(Operation):
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
-@keras_export(
-    ["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"]
-)
+@keras_export(["keras.ops.leaky_relu", "keras.ops.nn.leaky_relu"])
 def leaky_relu(x, negative_slope=0.2):
     """Leaky version of a Rectified Linear Unit activation function.
 

@@ -207,9 +207,7 @@ class LayerBenchmark:
             callbacks=[tf_keras_callback],
         )
 
-        keras_throughput = (
-            callback._callback.state["throughput"] * batch_size
-        )
+        keras_throughput = callback._callback.state["throughput"] * batch_size
         tf_keras_throughput = (
             tf_keras_callback._callback.state["throughput"] * batch_size
         )
@@ -240,16 +238,12 @@ class LayerBenchmark:
             if self.flat_call_inputs:
                 # Scale by a small factor to avoid zero gradients.
                 label = (
-                    keras.backend.convert_to_numpy(
-                        self._keras_layer(*data)
-                    )
+                    keras.backend.convert_to_numpy(self._keras_layer(*data))
                     * 1.001
                 )
             else:
                 label = (
-                    keras.backend.convert_to_numpy(
-                        self._keras_layer(data)
-                    )
+                    keras.backend.convert_to_numpy(self._keras_layer(data))
                     * 1.001
                 )
 
@@ -272,9 +266,7 @@ class LayerBenchmark:
             callbacks=[tf_keras_callback],
         )
 
-        keras_throughput = (
-            callback._callback.state["throughput"] * batch_size
-        )
+        keras_throughput = callback._callback.state["throughput"] * batch_size
         tf_keras_throughput = (
             tf_keras_callback._callback.state["throughput"] * batch_size
         )

@@ -10,9 +10,7 @@ import numpy as np
 from keras.api_export import keras_export
 
 
-@keras_export(
-    "keras._legacy.preprocessing.text.text_to_word_sequence"
-)
+@keras_export("keras._legacy.preprocessing.text.text_to_word_sequence")
 def text_to_word_sequence(
     input_text,
     filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',

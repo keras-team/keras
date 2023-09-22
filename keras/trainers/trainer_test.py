@@ -19,9 +19,7 @@ if backend.backend() == "jax":
 elif backend.backend() == "torch":
     from keras.backend.torch.trainer import TorchTrainer as Trainer
 elif backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "numpy":
     from keras.backend.numpy.trainer import NumpyTrainer as Trainer
 else:

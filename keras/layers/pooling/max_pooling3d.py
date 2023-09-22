@@ -2,9 +2,7 @@ from keras.api_export import keras_export
 from keras.layers.pooling.base_pooling import BasePooling
 
 
-@keras_export(
-    ["keras.layers.MaxPooling3D", "keras.layers.MaxPool3D"]
-)
+@keras_export(["keras.layers.MaxPooling3D", "keras.layers.MaxPool3D"])
 class MaxPooling3D(BasePooling):
     """Max pooling operation for 3D data (spatial or spatio-temporal).
 

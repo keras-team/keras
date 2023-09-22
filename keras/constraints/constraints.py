@@ -77,9 +77,7 @@ class Constraint:
         return cls(**config)
 
 
-@keras_export(
-    ["keras.constraints.MaxNorm", "keras.constraints.max_norm"]
-)
+@keras_export(["keras.constraints.MaxNorm", "keras.constraints.max_norm"])
 class MaxNorm(Constraint):
     """MaxNorm weight constraint.
 
@@ -118,9 +116,7 @@ class MaxNorm(Constraint):
         return {"max_value": self.max_value, "axis": self.axis}
 
 
-@keras_export(
-    ["keras.constraints.NonNeg", "keras.constraints.non_neg"]
-)
+@keras_export(["keras.constraints.NonNeg", "keras.constraints.non_neg"])
 class NonNeg(Constraint):
     """Constrains the weights to be non-negative."""
 
@@ -129,9 +125,7 @@ class NonNeg(Constraint):
         return w * ops.cast(ops.greater_equal(w, 0.0), dtype=w.dtype)
 
 
-@keras_export(
-    ["keras.constraints.UnitNorm", "keras.constraints.unit_norm"]
-)
+@keras_export(["keras.constraints.UnitNorm", "keras.constraints.unit_norm"])
 class UnitNorm(Constraint):
     """Constrains the weights incident to each hidden unit to have unit norm.
 

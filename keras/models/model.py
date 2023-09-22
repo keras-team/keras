@@ -17,9 +17,7 @@ from keras.utils import summary_utils
 from keras.utils import traceback_utils
 
 if backend.backend() == "tensorflow":
-    from keras.backend.tensorflow.trainer import (
-        TensorFlowTrainer as Trainer,
-    )
+    from keras.backend.tensorflow.trainer import TensorFlowTrainer as Trainer
 elif backend.backend() == "jax":
     from keras.backend.jax.trainer import JAXTrainer as Trainer
 elif backend.backend() == "torch":

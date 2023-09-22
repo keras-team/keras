@@ -374,18 +374,14 @@ def inception_resnet_block(x, scale, block_type, block_idx, activation="relu"):
     return x
 
 
-@keras_export(
-    "keras.applications.inception_resnet_v2.preprocess_input"
-)
+@keras_export("keras.applications.inception_resnet_v2.preprocess_input")
 def preprocess_input(x, data_format=None):
     return imagenet_utils.preprocess_input(
         x, data_format=data_format, mode="tf"
     )
 
 
-@keras_export(
-    "keras.applications.inception_resnet_v2.decode_predictions"
-)
+@keras_export("keras.applications.inception_resnet_v2.decode_predictions")
 def decode_predictions(preds, top=5):
     return imagenet_utils.decode_predictions(preds, top=top)
 

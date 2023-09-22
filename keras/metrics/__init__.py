@@ -31,9 +31,7 @@ from keras.metrics.probabilistic_metrics import BinaryCrossentropy
 from keras.metrics.probabilistic_metrics import CategoricalCrossentropy
 from keras.metrics.probabilistic_metrics import KLDivergence
 from keras.metrics.probabilistic_metrics import Poisson
-from keras.metrics.probabilistic_metrics import (
-    SparseCategoricalCrossentropy,
-)
+from keras.metrics.probabilistic_metrics import SparseCategoricalCrossentropy
 from keras.metrics.reduction_metrics import Mean
 from keras.metrics.reduction_metrics import MeanMetricWrapper
 from keras.metrics.reduction_metrics import Sum

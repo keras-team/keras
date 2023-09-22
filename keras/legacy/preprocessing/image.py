@@ -1688,9 +1688,7 @@ def apply_channel_shift(x, intensity, channel_axis=0):
     return x
 
 
-@keras_export(
-    "keras._legacy.preprocessing.image.random_channel_shift"
-)
+@keras_export("keras._legacy.preprocessing.image.random_channel_shift")
 def random_channel_shift(x, intensity_range, channel_axis=0):
     """Performs a random channel shift.
 
@@ -1708,9 +1706,7 @@ def random_channel_shift(x, intensity_range, channel_axis=0):
     return apply_channel_shift(x, intensity, channel_axis=channel_axis)
 
 
-@keras_export(
-    "keras._legacy.preprocessing.image.apply_brightness_shift"
-)
+@keras_export("keras._legacy.preprocessing.image.apply_brightness_shift")
 def apply_brightness_shift(x, brightness, scale=True):
     """Performs a brightness shift.
 
@@ -1778,9 +1774,7 @@ def transform_matrix_offset_center(matrix, x, y):
     return transform_matrix
 
 
-@keras_export(
-    "keras._legacy.preprocessing.image.apply_affine_transform"
-)
+@keras_export("keras._legacy.preprocessing.image.apply_affine_transform")
 def apply_affine_transform(
     x,
     theta=0,
