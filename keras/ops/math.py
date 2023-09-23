@@ -939,7 +939,7 @@ class Erf(Operation):
         return backend.math.erf(x)
 
 
-@keras_export("keras_core.ops.erf")
+@keras_export("keras.ops.erf")
 def erf(x):
     """Computes the error function of x element-wise.
 
