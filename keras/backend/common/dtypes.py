@@ -291,7 +291,7 @@ def _lattice_result_type(*args):
     return out_dtype, (out_dtype != "bool") and out_weak_type
 
 
-@keras_export("keras_core.backend.result_dtype")
+@keras_export("keras.backend.result_dtype")
 def result_dtype(*args, return_weak_type_flag=False):
     """Convenience function to apply Keras Core argument dtype promotion.
 
