@@ -841,9 +841,7 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
 
         # Expected output using numpy's approximation of the error function
-        expected_output = (2 / np.sqrt(np.pi)) * np.vectorize(
-            scipy.special.erf
-        )(sample_values)
+        expected_output = scipy.special.erf(sample_values)
 
         # Output from the erf operation in keras_core
         output_from_erf_op = kmath.erf(sample_values)
@@ -857,19 +855,13 @@ class MathOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             sample_values = np.array(
                 [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], dtype=dtype
             )
-            expected_output = (2 / np.sqrt(np.pi)) * np.vectorize(
-                scipy.special.erf
-            )(sample_values)
+            expected_output = scipy.special.erf(sample_values)
             output_from_erf_op = kmath.erf(sample_values)
             self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
 
     def test_erf_operation_edge_cases(self):
         # Test for edge cases
         edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
-        expected_edge_output = (2 / np.sqrt(np.pi)) * np.vectorize(
-            scipy.special.erf
-        )(edge_values)
+        expected_output = scipy.special.erf(edge_values)
         output_from_edge_erf_op = kmath.erf(edge_values)
-        self.assertAllClose(
-            expected_edge_output, output_from_edge_erf_op, atol=1e-4
-        )
+        self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
