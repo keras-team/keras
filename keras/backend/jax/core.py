@@ -26,7 +26,7 @@ class Variable(KerasVariable):
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if distribution is not None:
-            self._layout = distribution_lib.to_jax_layout(
+            self._layout = distribution_lib._to_jax_layout(
                 distribution.get_variable_layout(self)
             )
         else:

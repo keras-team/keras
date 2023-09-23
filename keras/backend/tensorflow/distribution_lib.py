@@ -22,18 +22,25 @@ def list_devices(device_type=None):
     Return:
         List of devices that are available for distribute computation.
     """
-    device_type = (
-        device_type.upper() if device_type else dtensor.preferred_device_type()
-    )
+    device_type = device_type.upper() if device_type else "CPU"
 
     # DTensor doesn't support getting global devices, even when knowing the
     # Mesh. Use TF API instead to get global devices. Coordinator service is
     # enabled by default with DTensor, so that list_logical_devices() returns
     # a list of global devices. More context can be found in b/254911601.
-    return tf.config.list_logical_devices(device_type=device_type)
+    tf_devices = tf.config.list_logical_devices(device_type=device_type)
+    return [
+        f"{device.device_type.lower()}:{device.name.split(':')[-1]}"
+        for device in tf_devices
+    ]
 
 
-def to_dtensor_mesh(device_mesh):
+def distribute_value(value, tensor_layout):
+    # TODO
+    pass
+
+
+def _to_dtensor_mesh(device_mesh):
     """Convert the DeviceMesh to Tensorflow backend specific Mesh.
 
     Args:
@@ -48,7 +55,7 @@ def to_dtensor_mesh(device_mesh):
     )
 
 
-def to_dtensor_layout(tensor_layout):
+def _to_dtensor_layout(tensor_layout):
     """Convert the TensorLayout to Tensorflow backend specific Sharding.
 
     Args:
@@ -66,5 +73,5 @@ def to_dtensor_layout(tensor_layout):
     sharding_specs = [
         axis if axis else dtensor.UNSHARDED for axis in tensor_layout.axes
     ]
-    dtensor_mesh = to_dtensor_mesh(tensor_layout.device_mesh)
+    dtensor_mesh = _to_dtensor_mesh(tensor_layout.device_mesh)
     return dtensor.Layout(sharding_specs=sharding_specs, mesh=dtensor_mesh)
