@@ -381,7 +381,7 @@ class KerasTensorTest(testing.TestCase):
         mock_symbolic_call.return_value = mock_tensor
         x = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
         y = keras_tensor.KerasTensor(shape=(3, 4), dtype="float32")
-        # to ensure compatibility across Python versions.
+        # to ensure compatibility across Python versions
         result = x.__rdiv__(y)
         mock_symbolic_call.assert_called_once_with(y, x)
         self.assertEqual(result, mock_tensor)
