@@ -76,15 +76,15 @@ def max(x, axis=None, keepdims=False, initial=None):
     return result
 
 
-def ones(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def ones(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
-def zeros(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def zeros(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -230,7 +230,8 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    dtype = to_torch_dtype(dtype)
+    if dtype is not None:
+        dtype = to_torch_dtype(dtype)
     if isinstance(x, torch.Tensor):
         return x
     return torch.tensor(x, dtype=dtype, device=get_device())
@@ -386,8 +387,8 @@ def dot(x, y):
     return torch.matmul(x, y)
 
 
-def empty(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def empty(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -426,7 +427,7 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or config.floatx())
     fill_value = convert_to_tensor(fill_value, dtype=dtype)
     if len(fill_value.shape) > 0:
         # `torch.full` only supports scala `fill_value`.
@@ -457,8 +458,8 @@ def hstack(xs):
     return torch.hstack(xs)
 
 
-def identity(n, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def identity(n, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     return torch.eye(n, dtype=dtype)
 
 
@@ -512,7 +513,7 @@ def linspace(
             "torch.linspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or config.floatx())
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
@@ -586,7 +587,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
             "torch.logspace does not support an `axis` argument. "
             f"Received axis={axis}"
         )
-    dtype = to_torch_dtype(dtype)
+    dtype = to_torch_dtype(dtype or config.floatx())
     if endpoint is False:
         stop = stop - ((stop - start) / num)
     if hasattr(start, "__len__") and hasattr(stop, "__len__"):
@@ -738,7 +739,8 @@ def pad(x, pad_width, mode="constant"):
 
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
-    dtype = to_torch_dtype(dtype)
+    if dtype is not None:
+        dtype = to_torch_dtype(dtype)
     if axis is None:
         return torch.prod(x, dtype=dtype)
     if not isinstance(axis, (list, tuple)):
@@ -933,8 +935,8 @@ def trace(x, offset=None, axis1=None, axis2=None):
     return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def tri(N, M=None, k=0, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -1037,8 +1039,8 @@ def sum(x, axis=None, keepdims=False):
     return torch.sum(x)
 
 
-def eye(N, M=None, k=None, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def eye(N, M=None, k=None, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:

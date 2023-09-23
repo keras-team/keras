@@ -147,6 +147,7 @@ from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
+from keras.backend import config
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
@@ -663,6 +664,13 @@ class Arange(Operation):
         if stop is None:
             start, stop = 0, start
         output_shape = [np.ceil((stop - start) / step).astype(int)]
+        if dtype is None:
+            if hasattr(start, "dtype"):
+                dtype = start.dtype
+            elif isinstance(start, int):
+                dtype = "int32"
+            else:
+                dtype = config.floatx()
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -2302,20 +2310,22 @@ def einsum(subscripts, *operands):
 
 
 class Empty(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.empty(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or config.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
     """Return a tensor of given shape and type filled with uninitialized data.
 
     Args:
         shape: Shape of the empty tensor.
-        dtype: Desired data type of the empty tensor.
+        dtype: Desired data type of the empty tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         The empty tensor.
@@ -2504,6 +2514,7 @@ class Full(Operation):
         return backend.numpy.full(shape, fill_value, dtype=dtype)
 
     def compute_output_spec(self, shape, fill_value, dtype=None):
+        dtype or config.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -2514,7 +2525,8 @@ def full(shape, fill_value, dtype=None):
     Args:
         shape: Shape of the new tensor.
         fill_value: Fill value.
-        dtype: Desired data type of the tensor.
+        dtype: Desired data type of the tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         Output tensor.
@@ -2728,15 +2740,16 @@ def hstack(xs):
 
 
 class Identity(Operation):
-    def call(self, n, dtype="float32"):
+    def call(self, n, dtype=None):
         return backend.numpy.identity(n, dtype=dtype)
 
-    def compute_output_spec(self, n, dtype="float32"):
+    def compute_output_spec(self, n, dtype=None):
+        dtype = dtype or config.floatx()
         return KerasTensor([n, n], dtype=dtype)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
     """Return the identity tensor.
 
     The identity tensor is a square tensor with ones on the main diagonal and
@@ -2744,7 +2757,8 @@ def identity(n, dtype="float32"):
 
     Args:
         n: Number of rows (and columns) in the `n x n` output tensor.
-        dtype: Data type of the output tensor.
+        dtype: Data type of the output tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         The identity tensor.
@@ -2936,7 +2950,7 @@ def less_equal(x1, x2):
 
 class Linspace(Operation):
     def __init__(
-        self, num=50, endpoint=True, retstep=False, dtype=float, axis=0
+        self, num=50, endpoint=True, retstep=False, dtype=None, axis=0
     ):
         super().__init__()
         self.num = num
@@ -2975,7 +2989,7 @@ class Linspace(Operation):
                 + output_shape[self.axis + 1 :]
             )
 
-        dtype = self.dtype if self.dtype is not None else start.dtype
+        dtype = self.dtype or config.floatx()
         if self.retstep:
             return (KerasTensor(output_shape, dtype=dtype), None)
         return KerasTensor(output_shape, dtype=dtype)
@@ -3004,7 +3018,8 @@ def linspace(
             not included. Defaults to`True`.
         retstep: If `True`, return `(samples, step)`, where `step` is the
             spacing between samples.
-        dtype: The type of the output tensor.
+        dtype: The type of the output tensor. If `None`, defaults to
+            `backend.floatx()`.
         axis: The axis in the result to store the samples. Relevant only if
             start or stop are array-like. Defaults to `0`.
 
@@ -3251,7 +3266,7 @@ def logical_or(x1, x2):
 
 
 class Logspace(Operation):
-    def __init__(self, num=50, endpoint=True, base=10, dtype=float, axis=0):
+    def __init__(self, num=50, endpoint=True, base=10, dtype=None, axis=0):
         super().__init__()
         self.num = num
         self.endpoint = endpoint
@@ -3289,7 +3304,7 @@ class Logspace(Operation):
                 + output_shape[self.axis + 1 :]
             )
 
-        dtype = self.dtype if self.dtype is not None else start.dtype
+        dtype = self.dtype or config.floatx()
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -3310,7 +3325,8 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
         endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
             included. Defaults to`True`.
         base: The base of the log space. Defaults to `10`.
-        dtype: The type of the output tensor.
+        dtype: The type of the output tensor. If `None`, defaults to
+            `backend.floatx()`.
         axis: The axis in the result to store the samples. Relevant only
             if start or stop are array-like.
 
@@ -4879,17 +4895,18 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 class Tri(Operation):
-    def call(self, N, M=None, k=0, dtype="float32"):
+    def call(self, N, M=None, k=0, dtype=None):
         return backend.numpy.tri(N, M=M, k=k, dtype=dtype)
 
-    def compute_output_spec(self, N, M=None, k=0, dtype="float32"):
+    def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
+        dtype = dtype or config.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
     """Return a tensor with ones at and below a diagonal and zeros elsewhere.
 
     Args:
@@ -4898,7 +4915,8 @@ def tri(N, M=None, k=0, dtype="float32"):
         k: The sub-diagonal at and below which the array is filled.
             `k = 0` is the main diagonal, while `k < 0` is below it, and
             `k > 0` is above. The default is 0.
-        dtype: Data type of the returned tensor. The default is "float32".
+        dtype: Data type of the returned tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         Tensor with its lower triangle filled with ones and zeros elsewhere.
@@ -5481,20 +5499,22 @@ def sum(x, axis=None, keepdims=False):
 
 
 class Zeros(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.zeros(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or config.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with zeros.
 
     Args:
         shape: Shape of the new tensor.
-        dtype: Desired data type of the tensor.
+        dtype: Desired data type of the tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         Tensor of zeros with the given shape and dtype.
@@ -5503,20 +5523,22 @@ def zeros(shape, dtype="float32"):
 
 
 class Ones(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.ones(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or config.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with ones.
 
     Args:
         shape: Shape of the new tensor.
-        dtype: Desired data type of the tensor.
+        dtype: Desired data type of the tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         Tensor of ones with the given shape and dtype.
@@ -5525,17 +5547,18 @@ def ones(shape, dtype="float32"):
 
 
 class Eye(Operation):
-    def call(self, N, M=None, k=0, dtype="float32"):
+    def call(self, N, M=None, k=0, dtype=None):
         return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
-    def compute_output_spec(self, N, M=None, k=0, dtype="float32"):
+    def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
+        dtype = dtype or config.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
     """Return a 2-D tensor with ones on the diagonal and zeros elsewhere.
 
     Args:
@@ -5544,7 +5567,8 @@ def eye(N, M=None, k=0, dtype="float32"):
         k: Index of the diagonal: 0 (the default) refers to the main
             diagonal, a positive value refers to an upper diagonal,
             and a negative value to a lower diagonal.
-        dtype: Data type of the returned tensor.
+        dtype: Data type of the returned tensor. If `None`, defaults to
+            `backend.floatx()`.
 
     Returns:
         Tensor with ones on the k-th diagonal and zeros elsewhere.
