@@ -194,12 +194,6 @@ class VariablesTest(test_case.TestCase):
         pos_v = v
         self.assertAllClose(pos_v, np.array([-1, 2]))
 
-    def test_variable_abs(self):
-        """Test absolute value of a variable."""
-        v = backend.Variable(initializer=np.array([-1, 2]))
-        abs_v = abs(v)
-        self.assertAllClose(abs_v, np.array([1, 2]))
-
     def test_variable_div_numpy_array(self):
         """Test variable divided by numpy array."""
         v = backend.Variable(initializer=np.array([2, 4, 8]))
@@ -290,13 +284,6 @@ class VariablesTest(test_case.TestCase):
         result = v1 @ v2
         self.assertAllClose(result, np.array([[19, 22], [43, 50]]))
 
-    def test_variable_eq(self):
-        """Test eq operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        result = v1 == v2
-        self.assertAllClose(result, np.array([True, True, True]))
-
     def test_variable_ne(self):
         """Test ne operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -332,53 +319,141 @@ class VariablesTest(test_case.TestCase):
         result = v1 >= v2
         self.assertAllClose(result, np.array([True, True, True]))
 
+    def test_variable_numpy(self):
+        """Test retrieving the value of a variable as a numpy array."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertIsInstance(v.numpy(), np.ndarray)
+        self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
 
-# TODO add test for  'numpy'
-# TODO add test for  'value'
-# TODO add test for  'assign'
-# TODO add test for  'assign_add'
-# TODO add test for  'assign_sub'
-# TODO add test for  'dtype'
-# TODO add test for  'shape'
-# TODO add test for  'ndim'
-# TODO add test for  '__repr__'
-# TODO add test for  '_initialize'
-# TODO add test for  '_convert_to_tensor'
-# TODO add test for  '__getitem__'
-# TODO add test for  '__array__'
-# TODO add test for  '__bool__'
-# TODO add test for  '__neg__'
-# TODO add test for  '__pos__'
-# TODO add test for  '__abs__'
-# TODO add test for  '__invert__'
-# TODO add test for  '__eq__'
-# TODO add test for  '__ne__'
-# TODO add test for  '__lt__'
-# TODO add test for  '__le__'
-# TODO add test for  '__gt__'
-# TODO add test for  '__ge__'
-# TODO add test for  '__add__'
-# TODO add test for  '__radd__'
-# TODO add test for  '__sub__'
-# TODO add test for  '__rsub__'
-# TODO add test for  '__mul__'
-# TODO add test for  '__rmul__'
-# TODO add test for  '__div__'
-# TODO add test for  '__rdiv__'
-# TODO add test for  '__truediv__'
-# TODO add test for  '__rtruediv__'
-# TODO add test for  '__floordiv__'
-# TODO add test for  '__rfloordiv__'
-# TODO add test for  '__divmod__'
-# TODO add test for  '__rdivmod__'
-# TODO add test for  '__mod__'
-# TODO add test for  '__rmod__'
-# TODO add test for  '__pow__'
-# TODO add test for  '__rpow__'
-# TODO add test for  '__matmul__'
-# TODO add test for  '__rmatmul__'
-# TODO add test for  '__and__'
-# TODO add test for  '__rand__'
+    def test_variable_value(self):
+        """Test retrieving the value of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertAllClose(v.value, np.array([1, 2, 3]))
+
+    def test_variable_assign(self):
+        """Test assigning a new value to a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        v.assign(np.array([4, 5, 6]))
+        self.assertAllClose(v.value, np.array([4, 5, 6]))
+
+    def test_variable_assign_add(self):
+        """Test the assign_add method on a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        v.assign_add(np.array([1, 1, 1]))
+        self.assertAllClose(v.value, np.array([2, 3, 4]))
+
+    def test_variable_assign_sub(self):
+        """Test the assign_sub method on a variable."""
+        v = backend.Variable(initializer=np.array([2, 3, 4]))
+        v.assign_sub(np.array([1, 1, 1]))
+        self.assertAllClose(v.value, np.array([1, 2, 3]))
+
+    def test_variable_dtype(self):
+        """Test retrieving the dtype of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertEqual(v.dtype, "float32")
+
+    def test_variable_shape(self):
+        """Test retrieving the shape of a variable."""
+        v = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        self.assertEqual(v.shape, (2, 2))
+
+    def test_variable_ndim(self):
+        """Test retrieving the number of dimensions of a variable."""
+        v = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        self.assertEqual(v.ndim, 2)
+
+    def test_variable_repr(self):
+        """Test the string representation of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]), name="test_var")
+        expected_repr = (
+            "<KerasVariable shape=(3,), dtype=float32, path=test_var>"
+        )
+        self.assertEqual(repr(v), expected_repr)
+
+    def test_variable_initialize(self):
+        """Test initializing a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        init_value = np.array([4, 5, 6])
+        v._initialize(value=init_value)
+        self.assertAllClose(v.value, init_value)
+
+    def test_variable_getitem(self):
+        """Test getting an item from a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertEqual(v[0], 1)
+
+    def test_variable_bool(self):
+        """Test converting a variable to boolean."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        with self.assertRaises(TypeError):
+            bool(v)
+
+    def test_variable_neg(self):
+        """Test negating a variable."""
+        v = backend.Variable(initializer=np.array([-1, 2]))
+        neg_v = -v
+        self.assertAllClose(neg_v, np.array([1, -2]))
+
+    def test_variable_abs(self):
+        """Test absolute value of a variable."""
+        v = backend.Variable(initializer=np.array([-1, 2]))
+        abs_v = abs(v)
+        self.assertAllClose(abs_v, np.array([1, 2]))
+
+    def test_variable_eq(self):
+        """Test eq operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 == v2
+        self.assertAllClose(result, np.array([True, True, True]))
+
+    def test_variable_radd(self):
+        """Test addition operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 + v2
+        self.assertAllClose(result, np.array([5, 7, 9]))
+
+    def test_variable_sub(self):
+        """Test subtraction operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 - v2
+        self.assertAllClose(result, np.array([-3, -3, -3]))
+
+    def test_variable_rsub(self):
+        """Test subtraction operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 - v2
+        self.assertAllClose(result, np.array([-3, -3, -3]))
+
+    def test_variable_mul(self):
+        """Test multiplication operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 * v2
+        self.assertAllClose(result, np.array([4, 10, 18]))
+
+    def test_variable_rmul(self):
+        """Test multiplication operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 * 2
+        self.assertAllClose(result, np.array([2, 4, 6]))
+
+    def test_variable_rdiv(self):
+        """Test division operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([4, 8, 16]))
+        result = v1 / 2
+        self.assertAllClose(result, np.array([2, 4, 8]))
+
+    def test_variable_rtruediv(self):
+        """Test division operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([4, 8, 16]))
+        result = v1 / 2
+        self.assertAllClose(result, np.array([2, 4, 8]))
+
 # TODO add test for  '__or__'
 # TODO add test for  '__ror__'
 # TODO add test for  '__xor__'
@@ -400,3 +475,15 @@ class VariablesTest(test_case.TestCase):
 # TODO add test for  'maybe_cast'
 # TODO add test for  '__enter__'
 # TODO add test for  '__exit__'
+# TODO add test for  '_convert_to_tensor'
+# TODO add test for  '__array__'
+# TODO add test for  '__invert__'
+# TODO add test for  '__floordiv__'
+# TODO add test for  '__rfloordiv__'
+# TODO add test for  '__divmod__'
+# TODO add test for  '__rdivmod__'
+# TODO add test for  '__matmul__'
+# TODO add test for  '__rmatmul__'
+# TODO add test for  '__and__'
+# TODO add test for  '__rand__'
+# TODO add test for  '__round__'
