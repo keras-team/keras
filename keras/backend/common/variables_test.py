@@ -233,3 +233,170 @@ class VariablesTest(test_case.TestCase):
         other = np.array([[1, 2], [3, 4]])
         rmatmul_result = other @ v
         self.assertAllClose(rmatmul_result, np.array([[10, 13], [22, 29]]))
+
+    def test_variable_addition(self):
+        """Test addition operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 + v2
+        self.assertAllClose(result, np.array([5, 7, 9]))
+
+    def test_variable_subtraction(self):
+        """Test subtraction operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 - v2
+        self.assertAllClose(result, np.array([-3, -3, -3]))
+
+    def test_variable_multiplication(self):
+        """Test multiplication operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 * v2
+        self.assertAllClose(result, np.array([4, 10, 18]))
+
+    def test_variable_division(self):
+        """Test division operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 / v2
+        self.assertAllClose(result, np.array([0.25, 0.4, 0.5]))
+
+    def test_variable_floordiv(self):
+        """Test floordiv operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 // v2
+        self.assertAllClose(result, np.array([0, 0, 0]))
+
+    def test_variable_mod(self):
+        """Test mod operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1 % v2
+        self.assertAllClose(result, np.array([1, 2, 3]))
+
+    def test_variable_pow(self):
+        """Test pow operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v1**v2
+        self.assertAllClose(result, np.array([1, 32, 729]))
+
+    def test_variable_matmul(self):
+        """Test matmul operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        v2 = backend.Variable(initializer=np.array([[5, 6], [7, 8]]))
+        result = v1 @ v2
+        self.assertAllClose(result, np.array([[19, 22], [43, 50]]))
+
+    def test_variable_eq(self):
+        """Test eq operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 == v2
+        self.assertAllClose(result, np.array([True, True, True]))
+
+    def test_variable_ne(self):
+        """Test ne operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 != v2
+        self.assertAllClose(result, np.array([False, False, False]))
+
+    def test_variable_lt(self):
+        """Test lt operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 < v2
+        self.assertAllClose(result, np.array([False, False, False]))
+
+    def test_variable_le(self):
+        """Test le operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 <= v2
+        self.assertAllClose(result, np.array([True, True, True]))
+
+    def test_variable_gt(self):
+        """Test gt operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 > v2
+        self.assertAllClose(result, np.array([False, False, False]))
+
+    def test_variable_ge(self):
+        """Test ge operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 >= v2
+        self.assertAllClose(result, np.array([True, True, True]))
+
+
+# TODO add test for  'numpy'
+# TODO add test for  'value'
+# TODO add test for  'assign'
+# TODO add test for  'assign_add'
+# TODO add test for  'assign_sub'
+# TODO add test for  'dtype'
+# TODO add test for  'shape'
+# TODO add test for  'ndim'
+# TODO add test for  '__repr__'
+# TODO add test for  '_initialize'
+# TODO add test for  '_convert_to_tensor'
+# TODO add test for  '__getitem__'
+# TODO add test for  '__array__'
+# TODO add test for  '__bool__'
+# TODO add test for  '__neg__'
+# TODO add test for  '__pos__'
+# TODO add test for  '__abs__'
+# TODO add test for  '__invert__'
+# TODO add test for  '__eq__'
+# TODO add test for  '__ne__'
+# TODO add test for  '__lt__'
+# TODO add test for  '__le__'
+# TODO add test for  '__gt__'
+# TODO add test for  '__ge__'
+# TODO add test for  '__add__'
+# TODO add test for  '__radd__'
+# TODO add test for  '__sub__'
+# TODO add test for  '__rsub__'
+# TODO add test for  '__mul__'
+# TODO add test for  '__rmul__'
+# TODO add test for  '__div__'
+# TODO add test for  '__rdiv__'
+# TODO add test for  '__truediv__'
+# TODO add test for  '__rtruediv__'
+# TODO add test for  '__floordiv__'
+# TODO add test for  '__rfloordiv__'
+# TODO add test for  '__divmod__'
+# TODO add test for  '__rdivmod__'
+# TODO add test for  '__mod__'
+# TODO add test for  '__rmod__'
+# TODO add test for  '__pow__'
+# TODO add test for  '__rpow__'
+# TODO add test for  '__matmul__'
+# TODO add test for  '__rmatmul__'
+# TODO add test for  '__and__'
+# TODO add test for  '__rand__'
+# TODO add test for  '__or__'
+# TODO add test for  '__ror__'
+# TODO add test for  '__xor__'
+# TODO add test for  '__rxor__'
+# TODO add test for  '__lshift__'
+# TODO add test for  '__rlshift__'
+# TODO add test for  '__rshift__'
+# TODO add test for  '__rrshift__'
+# TODO add test for  '__round__'
+# TODO add test for  'register_uninitialized_variable'
+# TODO add test for  'initialize_all_variables'
+# TODO add test for  'standardize_dtype'
+# TODO add test for  'standardize_shape'
+# TODO add test for  'shape_equal'
+# TODO add test for  'is_float_dtype'
+# TODO add test for  'is_int_dtype'
+# TODO add test for  'get_autocast_scope'
+# TODO add test for  'AutocastScope'
+# TODO add test for  'maybe_cast'
+# TODO add test for  '__enter__'
+# TODO add test for  '__exit__'
