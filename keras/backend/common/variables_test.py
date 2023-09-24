@@ -454,6 +454,7 @@ class VariablesTest(test_case.TestCase):
         result = v1 / 2
         self.assertAllClose(result, np.array([2, 4, 8]))
 
+
 # TODO add test for  '__or__'
 # TODO add test for  '__ror__'
 # TODO add test for  '__xor__'
