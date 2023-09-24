@@ -449,7 +449,7 @@ class VariablesTest(test_case.TestCase):
         self.assertAllClose(result, np.array([2, 4, 8]))
 
     def test_variable_rtruediv(self):
-        """Test division operation on a variable."""
+        """Test division operation on a variable"""
         v1 = backend.Variable(initializer=np.array([4, 8, 16]))
         result = v1 / 2
         self.assertAllClose(result, np.array([2, 4, 8]))
