@@ -58,6 +58,8 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                     variable.assign(variable - variable * wd * lr)
 
             for variable in variables:
+                if isinstance(variable, backend.Variable):
+                    variable = variable.value  # Convert to tf.Variable
                 distribution.extended.update(
                     variable, weight_decay_fn, group=False
                 )
