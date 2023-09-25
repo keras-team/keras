@@ -46,7 +46,7 @@ class OptimizerDistributeTest(testing.TestCase):
                 momentum=0.06,
             )
             grads = tf.constant([1.0, 6.0, 7.0, 2.0])
-            vars = backend.Variable([1.0, 2.0, 3.0, 4.0]).value
+            vars = backend.Variable([1.0, 2.0, 3.0, 4.0])
 
             self.strategy.run(
                 lambda: optimizer.apply_gradients(zip([grads], [vars]))
@@ -59,9 +59,9 @@ class OptimizerDistributeTest(testing.TestCase):
         with self.strategy.scope():
             grads, var1, var2, var3 = (
                 tf.zeros(()),
-                backend.Variable(2.0).value,
-                backend.Variable(3.0, name="exclude").value,
-                backend.Variable(4.0).value,
+                backend.Variable(2.0),
+                backend.Variable(3.0, name="exclude"),
+                backend.Variable(4.0),
             )
             optimizer_1 = SGD(learning_rate=1.0, weight_decay=0.004)
             self.strategy.run(
@@ -92,7 +92,7 @@ class OptimizerDistributeTest(testing.TestCase):
         with self.strategy.scope():
             optimizer = SGD(nesterov=True)
 
-            x = backend.Variable(np.ones([10])).value
+            x = backend.Variable(np.ones([10]))
             grads = np.arange(0.1, 1.1, 0.1)
             first_grads = np.full((10,), 0.01)
 
