@@ -248,3 +248,7 @@ def istft(
 
 def rsqrt(x):
     return jax.lax.rsqrt(x)
+
+
+def erf(x):
+    return jax.lax.erf(x)

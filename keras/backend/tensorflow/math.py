@@ -239,3 +239,7 @@ def istft(
 
 def rsqrt(x):
     return tf.math.rsqrt(x)
+
+
+def erf(x):
+    return tf.math.erf(x)

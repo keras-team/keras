@@ -900,21 +900,6 @@ def istft(
 
 
 class Rsqrt(Operation):
-    """Computes reciprocal of square root of x element-wise.
-
-    Args:
-        x: input tensor
-
-    Returns:
-        A tensor with the same type as `x`.
-
-    Example:
-
-    >>> data = keras.ops.convert_to_tensor([1.0, 10.0, 100.0])
-    >>> keras.ops.rsqrt(data)
-    array([1.0, 0.31622776, 0.1], dtype=float32)
-    """
-
     def call(self, x):
         x = backend.convert_to_tensor(x)
         return backend.math.rsqrt(x)
@@ -925,7 +910,51 @@ class Rsqrt(Operation):
 
 @keras_export("keras.ops.rsqrt")
 def rsqrt(x):
+    """Computes reciprocal of square root of x element-wise.
+
+    Args:
+        x: input tensor
+
+    Returns:
+        A tensor with the same dtype as `x`.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([1.0, 10.0, 100.0])
+    >>> keras.ops.rsqrt(x)
+    array([1.0, 0.31622776, 0.1], dtype=float32)
+    """
     if any_symbolic_tensors((x,)):
         return Rsqrt().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.rsqrt(x)
+
+
+class Erf(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.math.erf(x)
+
+
+@keras_export("keras.ops.erf")
+def erf(x):
+    """Computes the error function of `x`, element-wise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same dtype as `x`.
+
+    Example:
+
+    >>> x = np.array([-3.0, -2.0, -1.0, 0.0, 1.0])
+    >>> keras.ops.erf(x)
+    array([-0.99998 , -0.99532, -0.842701,  0.,  0.842701], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Erf().symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    return backend.math.erf(x)

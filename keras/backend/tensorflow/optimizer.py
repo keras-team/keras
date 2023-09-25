@@ -80,6 +80,13 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
     ):
         """`apply_gradients` using a `DistributionStrategy`."""
 
+        unwrapped_grads_and_vars = []
+        for g, v in grads_and_vars:
+            if isinstance(v, backend.Variable):
+                v = v.value
+            unwrapped_grads_and_vars.append((g, v))
+        grads_and_vars = unwrapped_grads_and_vars
+
         def apply_grad_to_update_var(var, grad):
             learning_rate = self._get_current_learning_rate()
             grad = tf.convert_to_tensor(grad)
