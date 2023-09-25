@@ -9,7 +9,7 @@ from keras.testing import test_case
 
 
 class VariableInitializationTest(test_case.TestCase):
-    """tests for lines unders KerasVariable __init__"""
+    """tests for lines unders KerasVariable __init__ method"""
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
@@ -52,19 +52,6 @@ class VariableInitializationTest(test_case.TestCase):
         ):
             v._deferred_initialize()
 
-    def test_deferred_initialize_within_stateless_scope(self):
-        """Test deferred init within a stateless scope."""
-        with backend.StatelessScope():
-            v = backend.Variable(
-                initializer=initializers.RandomNormal(), shape=(2, 2)
-            )
-            with self.assertRaisesRegex(
-                ValueError,
-                "You are attempting to initialize a variable "
-                "while in a stateless scope. This is disallowed.",
-            ):
-                v._deferred_initialize()
-
     def test_variable_initialize(self):
         """Test initializing a variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -82,6 +69,8 @@ class VariableInitializationTest(test_case.TestCase):
 
 
 class VariablePropertiesTest(test_case.TestCase):
+    """tests for lines unders def _deferred_initialize and _maybe_autocast"""
+
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
         with backend.StatelessScope() as scope:
@@ -194,6 +183,103 @@ class VariablePropertiesTest(test_case.TestCase):
         """Test path creation for a variable."""
         v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
         self.assertEqual(v.path, "test_var")
+
+
+class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
+    """tests for lines unders def numpy() def value() and def assign()"""
+
+    def test_variable_numpy(self):
+        """Test retrieving the value of a variable as a numpy array."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertIsInstance(v.numpy(), np.ndarray)
+        self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
+
+    def test_variable_value(self):
+        """Test retrieving the value of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertAllClose(v.value, np.array([1, 2, 3]))
+
+    def test_variable_assign(self):
+        """Test assigning a new value to a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        v.assign(np.array([4, 5, 6]))
+        self.assertAllClose(v.value, np.array([4, 5, 6]))
+
+    def test_variable_assign_add(self):
+        """Test the assign_add method on a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        v.assign_add(np.array([1, 1, 1]))
+        self.assertAllClose(v.value, np.array([2, 3, 4]))
+
+    def test_deferred_initialize_within_stateless_scope(self):
+        """Test deferred init within a stateless scope."""
+        with backend.StatelessScope():
+            v = backend.Variable(
+                initializer=initializers.RandomNormal(), shape=(2, 2)
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "You are attempting to initialize a variable "
+                "while in a stateless scope. This is disallowed.",
+            ):
+                v._deferred_initialize()
+
+
+class VariableDtypeShapeNdimRepr(test_case.TestCase):
+    """tests for lines unders def dtype, shape, ndim, __repr__"""
+
+    def test_variable_dtype(self):
+        """Test retrieving the dtype of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertEqual(v.dtype, "float32")
+
+    def test_variable_shape(self):
+        """Test retrieving the shape of a variable."""
+        v = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        self.assertEqual(v.shape, (2, 2))
+
+    def test_variable_ndim(self):
+        """Test retrieving the number of dimensions of a variable."""
+        v = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        self.assertEqual(v.ndim, 2)
+
+    def test_variable_repr(self):
+        """Test the string representation of a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]), name="test_var")
+        expected_repr = (
+            "<KerasVariable shape=(3,), dtype=float32, path=test_var>"
+        )
+        self.assertEqual(repr(v), expected_repr)
+
+    def test_variable_getitem(self):
+        """Test getting an item from a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertEqual(v[0], 1)
+
+    def test_variable_initialize(self):
+        """Test initializing a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        init_value = np.array([4, 5, 6])
+        v._initialize(value=init_value)
+        self.assertAllClose(v.value, init_value)
+
+    # _convert_to_tensor
+    def test_variable_convert_to_tensor(self):
+        """Test converting a variable to a tensor."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertAllClose(v._convert_to_tensor(v.value), np.array([1, 2, 3]))
+
+    def test_variable_convert_to_tensor_with_dtype(self):
+        """Test converting a variable to a tensor with a dtype."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertAllClose(
+            v._convert_to_tensor(v.value, dtype="float32"), np.array([1, 2, 3])
+        )
+
+    def test_variable_array(self):
+        """Test converting a variable to an array."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        self.assertAllClose(v.__array__(), np.array([1, 2, 3]))
 
 
 class VariableOperationsTest(test_case.TestCase):
@@ -340,29 +426,6 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 >= v2
         self.assertAllClose(result, np.array([True, True, True]))
 
-    def test_variable_numpy(self):
-        """Test retrieving the value of a variable as a numpy array."""
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        self.assertIsInstance(v.numpy(), np.ndarray)
-        self.assertAllClose(v.numpy(), np.array([1, 2, 3]))
-
-    def test_variable_value(self):
-        """Test retrieving the value of a variable."""
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        self.assertAllClose(v.value, np.array([1, 2, 3]))
-
-    def test_variable_assign(self):
-        """Test assigning a new value to a variable."""
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        v.assign(np.array([4, 5, 6]))
-        self.assertAllClose(v.value, np.array([4, 5, 6]))
-
-    def test_variable_assign_add(self):
-        """Test the assign_add method on a variable."""
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        v.assign_add(np.array([1, 1, 1]))
-        self.assertAllClose(v.value, np.array([2, 3, 4]))
-
     def test_variable_assign_sub(self):
         """Test the assign_sub method on a variable."""
         v = backend.Variable(initializer=np.array([2, 3, 4]))
@@ -422,11 +485,18 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 == v2
         self.assertAllClose(result, np.array([True, True, True]))
 
-    def test_variable_radd(self):
+    def test_variable_add(self):
         """Test addition operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
         v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         result = v1 + v2
+        self.assertAllClose(result, np.array([5, 7, 9]))
+
+    def test_variable_radd(self):
+        """Test addition operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v2 + v1
         self.assertAllClose(result, np.array([5, 7, 9]))
 
     def test_variable_sub(self):
@@ -438,9 +508,9 @@ class VariableOperationsTest(test_case.TestCase):
 
     def test_variable_rsub(self):
         """Test subtraction operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
-        result = v1 - v2
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v1 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v2 - v1
         self.assertAllClose(result, np.array([-3, -3, -3]))
 
     def test_variable_rmul(self):
@@ -463,164 +533,165 @@ class VariableOperationsTest(test_case.TestCase):
 
 
 # TODO add test for the following lines
-#  def __bool__(self):
-#         raise TypeError("A Keras Variable cannot be used as a boolean.")
 
-#     def __neg__(self):
-#         return self.value.__neg__()
+# def __bool__(self):
+#     raise TypeError("A Keras Variable cannot be used as a boolean.")
 
-#     def __pos__(self):
-#         return self.value.__pos__()
+# def __neg__(self):
+#     return self.value.__neg__()
 
-#     def __abs__(self):
-#         return self.value.__abs__()
+# def __pos__(self):
+#     return self.value.__pos__()
 
-#     def __invert__(self):
-#         return self.value.__invert__()
+# def __abs__(self):
+#     return self.value.__abs__()
 
-#           def __lt__(self, other):
-#         value = self.value
-#         return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __invert__(self):
+#     return self.value.__invert__()
 
-#     def __le__(self, other):
-#         value = self.value
-#         return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __lt__(self, other):
+#     value = self.value
+#     return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __gt__(self, other):
-#         value = self.value
-#         return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __le__(self, other):
+#     value = self.value
+#     return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __ge__(self, other):
-#         value = self.value
-#         return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __gt__(self, other):
+#     value = self.value
+#     return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __radd__(self, other):
-#         value = self.value
-#         return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __ge__(self, other):
+#     value = self.value
+#     return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
 
-
-#     def __rsub__(self, other):
-#         value = self.value
-#         return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __radd__(self, other):
+#     value = self.value
+#     return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
 
 
-#     def __div__(self, other):
-#         value = self.value
-#         return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __rsub__(self, other):
+#     value = self.value
+#     return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rdiv__(self, other):
-#         value = self.value
-#         return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#          def __rtruediv__(self, other):
-#         value = self.value
-#         return value.__rtruediv__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __div__(self, other):
+#     value = self.value
+#     return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __floordiv__(self, other):
-#         value = self.value
-#         return value.__floordiv__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __rdiv__(self, other):
+#     value = self.value
+#     return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rfloordiv__(self, other):
-#         value = self.value
-#         return value.__rfloordiv__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+#         def __rtruediv__(self, other):
+#     value = self.value
+#     return value.__rtruediv__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __divmod__(self, other):
-#         value = self.value
-#         return value.__divmod__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __floordiv__(self, other):
+#     value = self.value
+#     return value.__floordiv__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __rdivmod__(self, other):
-#         value = self.value
-#         return value.__rdivmod__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __rfloordiv__(self, other):
+#     value = self.value
+#     return value.__rfloordiv__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __mod__(self, other):
-#         value = self.value
-#         return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __divmod__(self, other):
+#     value = self.value
+#     return value.__divmod__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __rmod__(self, other):
-#         value = self.value
-#         return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __rdivmod__(self, other):
+#     value = self.value
+#     return value.__rdivmod__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __pow__(self, other):
-#         value = self.value
-#         return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __mod__(self, other):
+#     value = self.value
+#     return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rpow__(self, other):
-#         value = self.value
-#         return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __rmod__(self, other):
+#     value = self.value
+#     return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __matmul__(self, other):
-#         value = self.value
-#         return value.__matmul__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __pow__(self, other):
+#     value = self.value
+#     return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rmatmul__(self, other):
-#         value = self.value
-#         return value.__rmatmul__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __rpow__(self, other):
+#     value = self.value
+#     return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __and__(self, other):
-#         value = self.value
-#         return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __matmul__(self, other):
+#     value = self.value
+#     return value.__matmul__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __rand__(self, other):
-#         value = self.value
-#         return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __rmatmul__(self, other):
+#     value = self.value
+#     return value.__rmatmul__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __or__(self, other):
-#         value = self.value
-#         return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __and__(self, other):
+#     value = self.value
+#     return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __ror__(self, other):
-#         value = self.value
-#         return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __rand__(self, other):
+#     value = self.value
+#     return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __xor__(self, other):
-#         value = self.value
-#         return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __or__(self, other):
+#     value = self.value
+#     return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rxor__(self, other):
-#         value = self.value
-#         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+# def __ror__(self, other):
+#     value = self.value
+#     return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __lshift__(self, other):
-#         value = self.value
-#         return value.__lshift__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __xor__(self, other):
+#     value = self.value
+#     return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rlshift__(self, other):
-#         value = self.value
-#         return value.__rlshift__(
-#             self._convert_to_tensor(other, dtype=self.dtype)
-#         )
+# def __rxor__(self, other):
+#     value = self.value
+#     return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
 
-#     def __rshift__(self, other):
-#         value = self.value
-#         return value.__rshift__(
-#             self._convert_to_tensor(other, dtype=value.dtype)
-#         )
+# def __lshift__(self, other):
+#     value = self.value
+#     return value.__lshift__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
 
-#     def __rrshift__(self, other):
-#         value = self.value
-#         return value.__rrshift__(
-#             self._convert_to_tensor(other, dtype=self.dtype)
-#         )
+# def __rlshift__(self, other):
+#     value = self.value
+#     return value.__rlshift__(
+#         self._convert_to_tensor(other, dtype=self.dtype)
+#     )
 
-#     def __round__(self, ndigits=None):
-#         value = self.value
-#         return value.__round__(ndigits)
+# def __rshift__(self, other):
+#     value = self.value
+#     return value.__rshift__(
+#         self._convert_to_tensor(other, dtype=value.dtype)
+#     )
+
+# def __rrshift__(self, other):
+#     value = self.value
+#     return value.__rrshift__(
+#         self._convert_to_tensor(other, dtype=self.dtype)
+#     )
+
+# def __round__(self, ndigits=None):
+#     value = self.value
+#     return value.__round__(ndigits)
 
 
 # TODO add test for the following lines in def standardize_dtype(dtype):
