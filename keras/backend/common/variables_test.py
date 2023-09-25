@@ -211,6 +211,12 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
         v.assign_add(np.array([1, 1, 1]))
         self.assertAllClose(v.value, np.array([2, 3, 4]))
 
+    def test_variable_assign_sub(self):
+        """Test the assign_sub method on a variable."""
+        v = backend.Variable(initializer=np.array([2, 3, 4]))
+        v.assign_sub(np.array([1, 1, 1]))
+        self.assertAllClose(v.value, np.array([1, 2, 3]))
+
     def test_deferred_initialize_within_stateless_scope(self):
         """Test deferred init within a stateless scope."""
         with backend.StatelessScope():
@@ -425,12 +431,6 @@ class VariableOperationsTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([1, 2, 3]))
         result = v1 >= v2
         self.assertAllClose(result, np.array([True, True, True]))
-
-    def test_variable_assign_sub(self):
-        """Test the assign_sub method on a variable."""
-        v = backend.Variable(initializer=np.array([2, 3, 4]))
-        v.assign_sub(np.array([1, 1, 1]))
-        self.assertAllClose(v.value, np.array([1, 2, 3]))
 
     def test_variable_dtype(self):
         """Test retrieving the dtype of a variable."""
