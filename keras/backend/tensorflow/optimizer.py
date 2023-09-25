@@ -35,7 +35,7 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         # This is mainly due to the interaction with tf.distribute.Strategy,
         # which requires tf.Variable as the inputs for most of its APIs.
         raise ValueError(
-            "stateless_apply is not supported by the TF based " "optimizer. "
+            "stateless_apply is not supported by the TF based optimizer."
         )
 
     def _var_key(self, variable):
