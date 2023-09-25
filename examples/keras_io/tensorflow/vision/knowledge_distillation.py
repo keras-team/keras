@@ -1,11 +1,12 @@
 """
 Title: Knowledge Distillation
 Author: [Kenneth Borup](https://twitter.com/Kennethborup)
-Converted to Keras 3: [Md Awsafur Rahman](https://awsaf49.github.io)
 Date created: 2020/09/01
 Last modified: 2020/09/01
 Description: Implementation of classical Knowledge Distillation.
+Accelerator: GPU
 """
+
 """
 ## Introduction to Knowledge Distillation
 
@@ -28,15 +29,11 @@ inter-class relationships learned by the teacher.
 ## Setup
 """
 
-import os
-
-os.environ["KERAS_BACKEND"] = "tensorflow"
-
-import keras
-from keras import layers
-from keras import ops
 import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 import numpy as np
+
 
 """
 ## Construct `Distiller()` class
@@ -53,10 +50,8 @@ soft student predictions and the soft teacher labels
 - An optimizer for the student and (optional) metrics to evaluate performance
 
 In the `train_step` method, we perform a forward pass of both the teacher and student,
-calculate the loss with weighting of the `student_loss` and `distillation_loss` by
-`alpha` and
-`1 - alpha`, respectively, and perform the backward pass. Note: only the student weights
-are updated,
+calculate the loss with weighting of the `student_loss` and `distillation_loss` by `alpha` and
+`1 - alpha`, respectively, and perform the backward pass. Note: only the student weights are updated,
 and therefore we only calculate the gradients for the student weights.
 
 In the `test_step` method, we evaluate the student model on the provided dataset.
@@ -116,8 +111,8 @@ class Distiller(keras.Model):
             # as 1/T^2, multiply them by T^2 when using both hard and soft targets.
             distillation_loss = (
                 self.distillation_loss_fn(
-                    ops.softmax(teacher_predictions / self.temperature, axis=1),
-                    ops.softmax(student_predictions / self.temperature, axis=1),
+                    tf.nn.softmax(teacher_predictions / self.temperature, axis=1),
+                    tf.nn.softmax(student_predictions / self.temperature, axis=1),
                 )
                 * self.temperature**2
             )
@@ -173,7 +168,7 @@ teacher = keras.Sequential(
     [
         keras.Input(shape=(28, 28, 1)),
         layers.Conv2D(256, (3, 3), strides=(2, 2), padding="same"),
-        layers.LeakyReLU(negative_slope=0.2),
+        layers.LeakyReLU(alpha=0.2),
         layers.MaxPooling2D(pool_size=(2, 2), strides=(1, 1), padding="same"),
         layers.Conv2D(512, (3, 3), strides=(2, 2), padding="same"),
         layers.Flatten(),
@@ -187,7 +182,7 @@ student = keras.Sequential(
     [
         keras.Input(shape=(28, 28, 1)),
         layers.Conv2D(16, (3, 3), strides=(2, 2), padding="same"),
-        layers.LeakyReLU(negative_slope=0.2),
+        layers.LeakyReLU(alpha=0.2),
         layers.MaxPooling2D(pool_size=(2, 2), strides=(1, 1), padding="same"),
         layers.Conv2D(32, (3, 3), strides=(2, 2), padding="same"),
         layers.Flatten(),
@@ -203,8 +198,7 @@ student_scratch = keras.models.clone_model(student)
 ## Prepare the dataset
 
 The dataset used for training the teacher and distilling the teacher is
-[MNIST](https://keras.io/api/datasets/mnist/), and the procedure would be equivalent for
-any other
+[MNIST](https://keras.io/api/datasets/mnist/), and the procedure would be equivalent for any other
 dataset, e.g. [CIFAR-10](https://keras.io/api/datasets/cifar10/), with a suitable choice
 of models. Both the student and teacher are trained on the training set and evaluated on
 the test set.
