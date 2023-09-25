@@ -130,3 +130,11 @@ class OptimizerDistributeTest(testing.TestCase):
             grad = [np.array([100.0, 100.0])]
             clipped_grad = optimizer._clip_gradients(grad)
             self.assertAllClose(clipped_grad[0], [1.0, 1.0])
+
+    def test_stateless_not_supported(self):
+        optimizer = SGD(learning_rate=0.5)
+        grads = [np.array([1.0, 6.0, 7.0, 2.0])]
+        vars = [backend.Variable([1.0, 2.0, 3.0, 4.0])]
+        optimizer.build(vars)
+        with self.assertRaisesRegex(ValueError, "not supported"):
+            optimizer.stateless_apply(optimizer.variables, grads, vars)
