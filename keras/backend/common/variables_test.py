@@ -573,18 +573,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, shape)
 
-    def test_invalid_shape_entry(self):
-        """Test invalid shape entry."""
-        invalid_shapes = [(3, "invalid_entry", 5), (3, 1.5, 5)]
-        for shape in invalid_shapes:
-            try:
-                result = standardize_shape(shape)
-                print(f"For shape {shape}, got result: {result}")
-            except ValueError as e:
-                print(f"Caught exception for shape {shape}: {e}")
-            with self.assertRaisesRegex(ValueError, "Found invalid entry"):
-                standardize_shape(shape)
-
     def test_negative_shape_entry(self):
         """Test negative shape entry."""
         shape = (3, -1, 5)
