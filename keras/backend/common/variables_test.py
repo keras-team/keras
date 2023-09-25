@@ -1,9 +1,13 @@
+from unittest.mock import patch
+
 import numpy as np
 
 from keras import backend
 from keras import initializers
 from keras.backend.common.variables import AutocastScope
 from keras.backend.common.variables import KerasVariable
+from keras.backend.common.variables import shape_equal
+from keras.backend.common.variables import standardize_dtype
 from keras.backend.common.variables import standardize_shape
 from keras.testing import test_case
 
@@ -269,7 +273,6 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
         v._initialize(value=init_value)
         self.assertAllClose(v.value, init_value)
 
-    # _convert_to_tensor
     def test_variable_convert_to_tensor(self):
         """Test converting a variable to a tensor."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -292,7 +295,9 @@ class VariableOperationsTest(test_case.TestCase):
     def test_variable_as_boolean(self):
         """Test converting a variable to boolean."""
         v = backend.Variable(initializer=np.ones((2, 2)))
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(
+            TypeError, "A Keras Variable cannot be used as a boolean."
+        ):
             bool(v)
 
     def test_variable_negation(self):
@@ -532,193 +537,185 @@ class VariableOperationsTest(test_case.TestCase):
         self.assertAllClose(result, np.array([2, 4, 8]))
 
 
-# TODO add test for the following lines
+class VariableBinaryOperationsTest(test_case.TestCase):
+    """Tests for binary operations on KerasVariable."""
 
-# def __bool__(self):
-#     raise TypeError("A Keras Variable cannot be used as a boolean.")
+    def test_variable_bool(self):
+        """Test converting a variable to boolean."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        with self.assertRaises(TypeError):
+            bool(v)
 
-# def __neg__(self):
-#     return self.value.__neg__()
+    def test_variable_neg(self):
+        """Test negating a variable."""
+        v = backend.Variable(initializer=np.array([-1, 2]))
+        neg_v = -v
+        self.assertAllClose(neg_v, np.array([1, -2]))
 
-# def __pos__(self):
-#     return self.value.__pos__()
+    def test_variable_abs(self):
+        """Test absolute value of a variable."""
+        v = backend.Variable(initializer=np.array([-1, 2]))
+        abs_v = abs(v)
+        self.assertAllClose(abs_v, np.array([1, 2]))
 
-# def __abs__(self):
-#     return self.value.__abs__()
+    def test_invalid_dtype(self):
+        """Test invalid dtype standardization."""
+        invalid_dtype = "invalid_dtype"
+        with self.assertRaisesRegex(
+            ValueError, f"Invalid dtype: {invalid_dtype}"
+        ):
+            standardize_dtype(invalid_dtype)
 
-# def __invert__(self):
-#     return self.value.__invert__()
+    @patch("keras.backend.config.backend", return_value="jax")
+    def test_jax_backend_b_dimension(self, mock_backend):
+        """Test 'b' dimension handling with JAX backend."""
+        shape = (3, "b", 5)
+        standardized_shape = standardize_shape(shape)
+        self.assertEqual(standardized_shape, shape)
 
-# def __lt__(self, other):
-#     value = self.value
-#     return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+    def test_invalid_shape_entry(self):
+        """Test invalid shape entry."""
+        invalid_shapes = [(3, "invalid_entry", 5), (3, 1.5, 5)]
+        for shape in invalid_shapes:
+            try:
+                result = standardize_shape(shape)
+                print(f"For shape {shape}, got result: {result}")
+            except ValueError as e:
+                print(f"Caught exception for shape {shape}: {e}")
+            with self.assertRaisesRegex(ValueError, "Found invalid entry"):
+                standardize_shape(shape)
 
-# def __le__(self, other):
-#     value = self.value
-#     return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+    def test_negative_shape_entry(self):
+        """Test negative shape entry."""
+        shape = (3, -1, 5)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Negative dimensions are not allowed",
+        ):
+            standardize_shape(shape)
 
-# def __gt__(self, other):
-#     value = self.value
-#     return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+    def test_shape_equal_length_mismatch(self):
+        """Test mismatch in lengths of shapes."""
+        self.assertFalse(shape_equal((3, 2), (3, 2, 4)))
+        self.assertFalse(shape_equal((), (3,)))
+        self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
 
-# def __ge__(self, other):
-#     value = self.value
-#     return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_rand(self):
+    #     """Test reverse & operation on a variable."""
+    #     # TODO
 
-# def __radd__(self, other):
-#     value = self.value
-#     return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_or(self):
+    #     """Test | operation on a variable."""
+    #     # TODO
 
+    # def test_variable_rxor(self):
+    #     """Test reverse ^ operation on a variable."""
+    #     # TODO
 
-# def __rsub__(self, other):
-#     value = self.value
-#     return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_le(self):
+    #     """Test less than or equal operation on a variable."""
+    #     # TODO
 
+    # def test_variable_gt(self):
+    #     """Test greater than operation on a variable."""
+    #     # TODO
 
-# def __div__(self, other):
-#     value = self.value
-#     return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_ge(self):
+    #     """Test greater than or equal operation on a variable."""
+    #     # TODO
 
-# def __rdiv__(self, other):
-#     value = self.value
-#     return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_radd(self):
+    #     """Test reverse addition on a variable."""
+    #     # TODO
 
-#         def __rtruediv__(self, other):
-#     value = self.value
-#     return value.__rtruediv__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_rsub(self):
+    #     """Test reverse subtraction on a variable."""
+    #     # TODO
 
-# def __floordiv__(self, other):
-#     value = self.value
-#     return value.__floordiv__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_div(self):
+    #     """Test division on a variable."""
+    #     # TODO
 
-# def __rfloordiv__(self, other):
-#     value = self.value
-#     return value.__rfloordiv__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_rdiv(self):
+    #     """Test reverse division on a variable."""
+    #     # TODO
 
-# def __divmod__(self, other):
-#     value = self.value
-#     return value.__divmod__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_rtruediv(self):
+    #     """Test reverse true division on a variable."""
+    #     # TODO
 
-# def __rdivmod__(self, other):
-#     value = self.value
-#     return value.__rdivmod__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_floordiv(self):
+    #     """Test floor division on a variable."""
+    #     # TODO
 
-# def __mod__(self, other):
-#     value = self.value
-#     return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_rfloordiv(self):
+    #     """Test reverse floor division on a variable."""
+    #     # TODO
 
-# def __rmod__(self, other):
-#     value = self.value
-#     return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_divmod(self):
+    #     """Test divmod operation on a variable."""
+    #     # TODO
 
-# def __pow__(self, other):
-#     value = self.value
-#     return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_rdivmod(self):
+    #     """Test reverse divmod operation on a variable."""
+    #     # TODO
 
-# def __rpow__(self, other):
-#     value = self.value
-#     return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_mod(self):
+    #     """Test modulo operation on a variable."""
+    #     # TODO
 
-# def __matmul__(self, other):
-#     value = self.value
-#     return value.__matmul__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_rmod(self):
+    #     """Test reverse modulo operation on a variable."""
+    #     # TODO
 
-# def __rmatmul__(self, other):
-#     value = self.value
-#     return value.__rmatmul__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_pow(self):
+    #     """Test power operation on a variable."""
+    #     # TODO
 
-# def __and__(self, other):
-#     value = self.value
-#     return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_rpow(self):
+    #     """Test reverse power operation on a variable."""
+    #     # TODO
 
-# def __rand__(self, other):
-#     value = self.value
-#     return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_matmul(self):
+    #     """Test matrix multiplication on a variable."""
+    #     # TODO
 
-# def __or__(self, other):
-#     value = self.value
-#     return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_rmatmul(self):
+    #     """Test reverse matrix multiplication on a variable."""
+    #     # TODO
 
-# def __ror__(self, other):
-#     value = self.value
-#     return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_and(self):
+    #     """Test & operation on a variable."""
+    #     # TODO
 
-# def __xor__(self, other):
-#     value = self.value
-#     return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_ror(self):
+    #     """Test reverse | operation on a variable."""
+    #     # TODO
 
-# def __rxor__(self, other):
-#     value = self.value
-#     return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+    # def test_variable_xor(self):
+    #     """Test ^ operation on a variable."""
+    #     # TODO
 
-# def __lshift__(self, other):
-#     value = self.value
-#     return value.__lshift__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_lshift(self):
+    #     """Test left shift operation on a variable."""
+    #     # TODO
 
-# def __rlshift__(self, other):
-#     value = self.value
-#     return value.__rlshift__(
-#         self._convert_to_tensor(other, dtype=self.dtype)
-#     )
+    # def test_variable_rlshift(self):
+    #     """Test reverse left shift operation on a variable."""
+    #     # TODO
 
-# def __rshift__(self, other):
-#     value = self.value
-#     return value.__rshift__(
-#         self._convert_to_tensor(other, dtype=value.dtype)
-#     )
+    # def test_variable_rshift(self):
+    #     """Test right shift operation on a variable."""
+    #     # TODO
 
-# def __rrshift__(self, other):
-#     value = self.value
-#     return value.__rrshift__(
-#         self._convert_to_tensor(other, dtype=self.dtype)
-#     )
+    # def test_variable_rrshift(self):
+    #     """Test reverse right shift operation on a variable."""
+    #     # TODO
 
-# def __round__(self, ndigits=None):
-#     value = self.value
-#     return value.__round__(ndigits)
+    # def test_variable_round(self):
+    #     """Test round operation on a variable."""
+    #     # TODO
 
-
-# TODO add test for the following lines in def standardize_dtype(dtype):
-#  if dtype not in ALLOWED_DTYPES:
-# !
-#         raise ValueError(f"Invalid dtype: {dtype}")
-
-# """
-
-
-# """ TODO add test for the following lines in def standardize_shape(shape):
-#     if config.backend() == "jax" and str(e) == "b":
-# !
-#             # JAX2TF tracing represents `None` dimensions as `b`
-#             continue
-#         if not isinstance(e, int):
-# !
-#             raise ValueError(
-#                 f"Cannot convert '{shape}' to a shape. "
-#                 f"Found invalid entry '{e}'. "
-#             )
-#         if e < 0:
-#             raise ValueError(
-#                 f"Cannot convert '{shape}' to a shape. "
-#                 "Negative dimensions are not allowed."
-#             )
-#     return shape
 
 # """ TODO Add tests for def shape_equal(a_shape, b_shape):
 #     #Return whether a_shape == b_shape (allows None entries)#
