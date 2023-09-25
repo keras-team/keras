@@ -27,10 +27,10 @@ class MyModel(keras.Model):
 @pytest.mark.requires_trainable_backend
 class BasicFlowTest(testing.TestCase):
     def test_basic_fit(self):
-        model = MyModel(hidden_dim=256, output_dim=16)
+        model = MyModel(hidden_dim=2, output_dim=1)
 
-        x = np.random.random((50000, 128))
-        y = np.random.random((50000, 16))
+        x = np.random.random((128, 4))
+        y = np.random.random((128, 4))
         batch_size = 32
         epochs = 3
 
@@ -44,8 +44,5 @@ class BasicFlowTest(testing.TestCase):
             x, y, batch_size=batch_size, epochs=epochs, validation_split=0.2
         )
         output_after_fit = model(x)
-
-        print("History:")
-        print(history.history)
 
         self.assertNotAllClose(output_before_fit, output_after_fit)
