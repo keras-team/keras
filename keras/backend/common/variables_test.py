@@ -8,7 +8,9 @@ from keras.backend.common.variables import standardize_shape
 from keras.testing import test_case
 
 
-class VariablesTest(test_case.TestCase):
+class VariableInitializationTest(test_case.TestCase):
+    """tests for lines unders KerasVariable __init__"""
+
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
         with backend.StatelessScope():
@@ -24,6 +26,62 @@ class VariablesTest(test_case.TestCase):
             with backend.StatelessScope():
                 v = backend.Variable(initializer=0)
 
+    def test_variable_initialization_with_non_callable(self):
+        """Test variable init with non-callable initializer."""
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        self.assertAllClose(v.value, np.ones((2, 2)))
+
+    def test_variable_initialization_with_non_trainable(self):
+        """Test variable initialization with non-trainable flag."""
+        v = backend.Variable(initializer=np.ones((2, 2)), trainable=False)
+        self.assertFalse(v.trainable)
+
+    def test_variable_initialization_without_shape(self):
+        """Test variable init without a shape."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "When creating a Variable from an initializer, the `shape` ",
+        ):
+            backend.Variable(initializer=initializers.RandomNormal())
+
+    def test_deferred_initialize_already_initialized(self):
+        """Test deferred init on an already initialized variable."""
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        with self.assertRaisesRegex(
+            ValueError, f"Variable {v.path} is already initialized."
+        ):
+            v._deferred_initialize()
+
+    def test_deferred_initialize_within_stateless_scope(self):
+        """Test deferred init within a stateless scope."""
+        with backend.StatelessScope():
+            v = backend.Variable(
+                initializer=initializers.RandomNormal(), shape=(2, 2)
+            )
+            with self.assertRaisesRegex(
+                ValueError,
+                "You are attempting to initialize a variable "
+                "while in a stateless scope. This is disallowed.",
+            ):
+                v._deferred_initialize()
+
+    def test_variable_initialize(self):
+        """Test initializing a variable."""
+        v = backend.Variable(initializer=np.array([1, 2, 3]))
+        init_value = np.array([4, 5, 6])
+        v._initialize(value=init_value)
+        self.assertAllClose(v.value, init_value)
+
+    def test_variable_without_shape_from_callable_initializer(self):
+        """Test that KerasVariable raises error
+        if shape is not provided for callable initializer."""
+        with self.assertRaisesRegex(
+            ValueError, "When creating a Variable from an initializer"
+        ):
+            KerasVariable(initializer=lambda: np.ones((2, 2)))
+
+
+class VariablePropertiesTest(test_case.TestCase):
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
         with backend.StatelessScope() as scope:
@@ -132,50 +190,13 @@ class VariablesTest(test_case.TestCase):
         ):
             _ = AutocastScope("int32")
 
-    def test_variable_initialization_with_non_callable(self):
-        """Test variable init with non-callable initializer."""
-        v = backend.Variable(initializer=np.ones((2, 2)))
-        self.assertAllClose(v.value, np.ones((2, 2)))
-
     def test_variable_path_creation(self):
         """Test path creation for a variable."""
         v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
         self.assertEqual(v.path, "test_var")
 
-    def test_variable_initialization_with_non_trainable(self):
-        """Test variable initialization with non-trainable flag."""
-        v = backend.Variable(initializer=np.ones((2, 2)), trainable=False)
-        self.assertFalse(v.trainable)
 
-    def test_variable_initialization_without_shape(self):
-        """Test variable init without a shape."""
-        with self.assertRaisesRegex(
-            ValueError,
-            "When creating a Variable from an initializer, the `shape` ",
-        ):
-            backend.Variable(initializer=initializers.RandomNormal())
-
-    def test_deferred_initialize_already_initialized(self):
-        """Test deferred init on an already initialized variable."""
-        v = backend.Variable(initializer=np.ones((2, 2)))
-        with self.assertRaisesRegex(
-            ValueError, f"Variable {v.path} is already initialized."
-        ):
-            v._deferred_initialize()
-
-    def test_deferred_initialize_within_stateless_scope(self):
-        """Test deferred init within a stateless scope."""
-        with backend.StatelessScope():
-            v = backend.Variable(
-                initializer=initializers.RandomNormal(), shape=(2, 2)
-            )
-            with self.assertRaisesRegex(
-                ValueError,
-                "You are attempting to initialize a variable "
-                "while in a stateless scope. This is disallowed.",
-            ):
-                v._deferred_initialize()
-
+class VariableOperationsTest(test_case.TestCase):
     def test_variable_as_boolean(self):
         """Test converting a variable to boolean."""
         v = backend.Variable(initializer=np.ones((2, 2)))
@@ -371,13 +392,6 @@ class VariablesTest(test_case.TestCase):
         )
         self.assertEqual(repr(v), expected_repr)
 
-    def test_variable_initialize(self):
-        """Test initializing a variable."""
-        v = backend.Variable(initializer=np.array([1, 2, 3]))
-        init_value = np.array([4, 5, 6])
-        v._initialize(value=init_value)
-        self.assertAllClose(v.value, init_value)
-
     def test_variable_getitem(self):
         """Test getting an item from a variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -429,13 +443,6 @@ class VariablesTest(test_case.TestCase):
         result = v1 - v2
         self.assertAllClose(result, np.array([-3, -3, -3]))
 
-    def test_variable_mul(self):
-        """Test multiplication operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
-        result = v1 * v2
-        self.assertAllClose(result, np.array([4, 10, 18]))
-
     def test_variable_rmul(self):
         """Test multiplication operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -455,36 +462,204 @@ class VariablesTest(test_case.TestCase):
         self.assertAllClose(result, np.array([2, 4, 8]))
 
 
-# TODO add test for  '__or__'
-# TODO add test for  '__ror__'
-# TODO add test for  '__xor__'
-# TODO add test for  '__rxor__'
-# TODO add test for  '__lshift__'
-# TODO add test for  '__rlshift__'
-# TODO add test for  '__rshift__'
-# TODO add test for  '__rrshift__'
-# TODO add test for  '__round__'
-# TODO add test for  'register_uninitialized_variable'
-# TODO add test for  'initialize_all_variables'
-# TODO add test for  'standardize_dtype'
-# TODO add test for  'standardize_shape'
-# TODO add test for  'shape_equal'
-# TODO add test for  'is_float_dtype'
-# TODO add test for  'is_int_dtype'
-# TODO add test for  'get_autocast_scope'
-# TODO add test for  'AutocastScope'
-# TODO add test for  'maybe_cast'
-# TODO add test for  '__enter__'
-# TODO add test for  '__exit__'
-# TODO add test for  '_convert_to_tensor'
-# TODO add test for  '__array__'
-# TODO add test for  '__invert__'
-# TODO add test for  '__floordiv__'
-# TODO add test for  '__rfloordiv__'
-# TODO add test for  '__divmod__'
-# TODO add test for  '__rdivmod__'
-# TODO add test for  '__matmul__'
-# TODO add test for  '__rmatmul__'
-# TODO add test for  '__and__'
-# TODO add test for  '__rand__'
-# TODO add test for  '__round__'
+"""TODO add test for the following lines 
+ def __bool__(self):
+        raise TypeError("A Keras Variable cannot be used as a boolean.")
+
+    def __neg__(self):
+        return self.value.__neg__()
+
+    def __pos__(self):
+        return self.value.__pos__()
+
+    def __abs__(self):
+        return self.value.__abs__()
+
+    def __invert__(self):
+        return self.value.__invert__()
+
+          def __lt__(self, other):
+        value = self.value
+        return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __le__(self, other):
+        value = self.value
+        return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __gt__(self, other):
+        value = self.value
+        return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __ge__(self, other):
+        value = self.value
+        return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __radd__(self, other):
+        value = self.value
+        return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
+
+
+    def __rsub__(self, other):
+        value = self.value
+        return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+
+
+    def __div__(self, other):
+        value = self.value
+        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rdiv__(self, other):
+        value = self.value
+        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
+
+         def __rtruediv__(self, other):
+        value = self.value
+        return value.__rtruediv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __floordiv__(self, other):
+        value = self.value
+        return value.__floordiv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rfloordiv__(self, other):
+        value = self.value
+        return value.__rfloordiv__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __divmod__(self, other):
+        value = self.value
+        return value.__divmod__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rdivmod__(self, other):
+        value = self.value
+        return value.__rdivmod__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __mod__(self, other):
+        value = self.value
+        return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rmod__(self, other):
+        value = self.value
+        return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __pow__(self, other):
+        value = self.value
+        return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rpow__(self, other):
+        value = self.value
+        return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __matmul__(self, other):
+        value = self.value
+        return value.__matmul__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rmatmul__(self, other):
+        value = self.value
+        return value.__rmatmul__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __and__(self, other):
+        value = self.value
+        return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rand__(self, other):
+        value = self.value
+        return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __or__(self, other):
+        value = self.value
+        return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __ror__(self, other):
+        value = self.value
+        return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __xor__(self, other):
+        value = self.value
+        return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __rxor__(self, other):
+        value = self.value
+        return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+    def __lshift__(self, other):
+        value = self.value
+        return value.__lshift__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rlshift__(self, other):
+        value = self.value
+        return value.__rlshift__(
+            self._convert_to_tensor(other, dtype=self.dtype)
+        )
+
+    def __rshift__(self, other):
+        value = self.value
+        return value.__rshift__(
+            self._convert_to_tensor(other, dtype=value.dtype)
+        )
+
+    def __rrshift__(self, other):
+        value = self.value
+        return value.__rrshift__(
+            self._convert_to_tensor(other, dtype=self.dtype)
+        )
+
+    def __round__(self, ndigits=None):
+        value = self.value
+        return value.__round__(ndigits)
+
+"""
+
+""""
+TODO add test for the following lines in def standardize_dtype(dtype):
+    
+ if dtype not in ALLOWED_DTYPES:
+!
+        raise ValueError(f"Invalid dtype: {dtype}")
+
+"""
+
+
+""" TODO add test for the following lines in def standardize_shape(shape):
+    if config.backend() == "jax" and str(e) == "b":
+!
+            # JAX2TF tracing represents `None` dimensions as `b`
+            continue
+        if not isinstance(e, int):
+!
+            raise ValueError(
+                f"Cannot convert '{shape}' to a shape. "
+                f"Found invalid entry '{e}'. "
+            )
+        if e < 0:
+            raise ValueError(
+                f"Cannot convert '{shape}' to a shape. "
+                "Negative dimensions are not allowed."
+            )
+    return shape
+
+
+"""
+
+
+""" TODO Add tests for def shape_equal(a_shape, b_shape):
+    #Return whether a_shape == b_shape (allows None entries)#
+    if len(a_shape) != len(b_shape):
+!
+        return False
+
+"""
