@@ -3680,7 +3680,12 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             return
         config = saving_lib.deserialize_keras_object(config)
         self.compile(**config)
-        if hasattr(self, "optimizer") and self.built:
+        if (
+            hasattr(self, "optimizer")
+            # Exempt legacy optimizers.
+            and isinstance(self.optimizer, optimizer.Optimizer)
+            and self.built
+        ):
             # Create optimizer variables.
             self.optimizer.build(self.trainable_variables)
 
