@@ -55,7 +55,7 @@ def manage_venv_installs(whl_path):
         + " "
         + BACKEND_REQ[other_backends[1]],
         # Install `.whl` package
-        "pip install " + whl_path + " --force-reinstall --no-dependencies",
+        "pip install " + whl_path,
     ]
     run_commands_venv(install_setup)
 
