@@ -2,7 +2,7 @@ import os
 import re
 import subprocess
 
-from keras_core import backend
+from keras import backend
 
 BACKEND_REQ = {
     "tensorflow": "tensorflow",
@@ -25,7 +25,7 @@ def setup_package():
         build_process.stdout,
     )
     if not match:
-        raise ValueError("Installing Keras Core package unsuccessful. ")
+        raise ValueError("Installing Keras package unsuccessful. ")
         print(build_process.stderr)
     whl_path = match.group()
     return whl_path
@@ -61,7 +61,7 @@ def manage_venv_installs(whl_path):
     run_commands_venv(install_setup)
 
 
-def run_keras_core_flow():
+def run_keras_flow():
     test_script = [
         # Runs the example script
         "python -m pytest integration_tests/basic_full_flow.py",
@@ -94,7 +94,7 @@ def run_commands_venv(commands):
         p.wait()
 
 
-def test_keras_core_imports():
+def test_keras_imports():
     # Ensures packages from all backends are installed.
     # Builds Keras core package and returns package file path.
     whl_path = setup_package()
@@ -108,11 +108,11 @@ def test_keras_core_imports():
 
     # Runs test of basic flow in Keras Core.
     # Tests for backend-specific imports and `model.fit()`.
-    run_keras_core_flow()
+    run_keras_flow()
 
     # Removes virtual environment and associated files
     cleanup()
 
 
 if __name__ == "__main__":
-    test_keras_core_imports()
+    test_keras_imports()
