@@ -1,40 +1,44 @@
 from absl.testing import parameterized
 
-from keras.backend.common import result_dtype
+from keras import backend
+from keras import ops
+from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.backend.torch.core import to_torch_dtype
 from keras.testing import test_case
 
 
 class DtypesTest(test_case.TestCase, parameterized.TestCase):
+    """Dtypes test to verify that the result type matches `jnp.result_type`."""
+
     @parameterized.product(
-        dtype=[
-            "float16",
-            "float32",
-            "float64",
-            "uint8",
-            "uint16",
-            "uint32",
-            "uint64",
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "bfloat16",
-            "bool",
-            # "string",  # not supported
-        ],
-        python_scalar_type=[
-            bool,
-            int,
-            float,
-            # complex,  # not supported
-        ],
+        dtype1=[d for d in ALLOWED_DTYPES if d != "string"],
+        dtype2=[bool, int, float],
     )
-    def test_result_dtype_with_python_scalar_types(
-        self, dtype, python_scalar_type
-    ):
+    def test_result_dtype_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
-        # match `jnp.result_dtype` result
-        out = result_dtype(dtype, python_scalar_type)
-        expected = jnp.result_type(dtype, python_scalar_type).name
+        out = backend.result_dtype(dtype1, dtype2)
+        expected = jnp.result_type(dtype1, dtype2).name
+        self.assertEqual(out, expected)
+
+    @parameterized.product(
+        # TODO: uint64, int64 and float64 are not supported by JAX by default
+        dtype1=[d for d in ALLOWED_DTYPES if d != "string" and "64" not in d],
+        dtype2=[d for d in ALLOWED_DTYPES if d != "string" and "64" not in d],
+    )
+    def test_result_dtype_with_tensor(self, dtype1, dtype2):
+        # TODO: torch doesn't have `uint16` and `uint32` dtypes
+        if backend.backend() == "torch":
+            dtype1 = str(to_torch_dtype(dtype1)).split(".")[-1]
+            dtype2 = str(to_torch_dtype(dtype2)).split(".")[-1]
+
+        import jax.numpy as jnp
+
+        x1 = ops.ones((1,), dtype=dtype1)
+        x2 = ops.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+
+        out = backend.result_dtype(x1.dtype, x2.dtype)
+        expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
