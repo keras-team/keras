@@ -13,7 +13,7 @@ from keras.testing import test_case
 
 
 class VariableInitializationTest(test_case.TestCase):
-    """tests for lines unders KerasVariable __init__ method"""
+    """Tests for KerasVariable.__init__()"""
 
     def test_deferred_initialization(self):
         """Tests deferred initialization of variables."""
@@ -73,7 +73,8 @@ class VariableInitializationTest(test_case.TestCase):
 
 
 class VariablePropertiesTest(test_case.TestCase):
-    """tests for lines unders def _deferred_initialize and _maybe_autocast"""
+    """Tests for KerasVariable._deferred_initialize
+    KerasVariable._maybe_autocast"""
 
     def test_deferred_assignment(self):
         """Tests deferred assignment to variables."""
@@ -190,7 +191,8 @@ class VariablePropertiesTest(test_case.TestCase):
 
 
 class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
-    """tests for lines unders def numpy() def value() and def assign()"""
+    """tests for KerasVariable.numpy(), KerasVariable.value()
+    and KerasVariable.assign()"""
 
     def test_variable_numpy(self):
         """Test retrieving the value of a variable as a numpy array."""
@@ -236,7 +238,7 @@ class VariableNumpyValueAndAssignmentTest(test_case.TestCase):
 
 
 class VariableDtypeShapeNdimRepr(test_case.TestCase):
-    """tests for lines unders def dtype, shape, ndim, __repr__"""
+    """tests for dtype, shape, ndim, __repr__"""
 
     def test_variable_dtype(self):
         """Test retrieving the dtype of a variable."""
