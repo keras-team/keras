@@ -462,204 +462,195 @@ class VariableOperationsTest(test_case.TestCase):
         self.assertAllClose(result, np.array([2, 4, 8]))
 
 
-"""TODO add test for the following lines 
- def __bool__(self):
-        raise TypeError("A Keras Variable cannot be used as a boolean.")
+# TODO add test for the following lines
+#  def __bool__(self):
+#         raise TypeError("A Keras Variable cannot be used as a boolean.")
 
-    def __neg__(self):
-        return self.value.__neg__()
+#     def __neg__(self):
+#         return self.value.__neg__()
 
-    def __pos__(self):
-        return self.value.__pos__()
+#     def __pos__(self):
+#         return self.value.__pos__()
 
-    def __abs__(self):
-        return self.value.__abs__()
+#     def __abs__(self):
+#         return self.value.__abs__()
 
-    def __invert__(self):
-        return self.value.__invert__()
+#     def __invert__(self):
+#         return self.value.__invert__()
 
-          def __lt__(self, other):
-        value = self.value
-        return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
+#           def __lt__(self, other):
+#         value = self.value
+#         return value.__lt__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __le__(self, other):
-        value = self.value
-        return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
+#     def __le__(self, other):
+#         value = self.value
+#         return value.__le__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __gt__(self, other):
-        value = self.value
-        return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
+#     def __gt__(self, other):
+#         value = self.value
+#         return value.__gt__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __ge__(self, other):
-        value = self.value
-        return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
+#     def __ge__(self, other):
+#         value = self.value
+#         return value.__ge__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __radd__(self, other):
-        value = self.value
-        return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
-
-
-    def __rsub__(self, other):
-        value = self.value
-        return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
+#     def __radd__(self, other):
+#         value = self.value
+#         return value.__radd__(self._convert_to_tensor(other, dtype=value.dtype))
 
 
-    def __div__(self, other):
-        value = self.value
-        return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rdiv__(self, other):
-        value = self.value
-        return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
-
-         def __rtruediv__(self, other):
-        value = self.value
-        return value.__rtruediv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __floordiv__(self, other):
-        value = self.value
-        return value.__floordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rfloordiv__(self, other):
-        value = self.value
-        return value.__rfloordiv__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __divmod__(self, other):
-        value = self.value
-        return value.__divmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rdivmod__(self, other):
-        value = self.value
-        return value.__rdivmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __mod__(self, other):
-        value = self.value
-        return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rmod__(self, other):
-        value = self.value
-        return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __pow__(self, other):
-        value = self.value
-        return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rpow__(self, other):
-        value = self.value
-        return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __matmul__(self, other):
-        value = self.value
-        return value.__matmul__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rmatmul__(self, other):
-        value = self.value
-        return value.__rmatmul__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __and__(self, other):
-        value = self.value
-        return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rand__(self, other):
-        value = self.value
-        return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __or__(self, other):
-        value = self.value
-        return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __ror__(self, other):
-        value = self.value
-        return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __xor__(self, other):
-        value = self.value
-        return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __rxor__(self, other):
-        value = self.value
-        return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __lshift__(self, other):
-        value = self.value
-        return value.__lshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rlshift__(self, other):
-        value = self.value
-        return value.__rlshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __rshift__(self, other):
-        value = self.value
-        return value.__rshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rrshift__(self, other):
-        value = self.value
-        return value.__rrshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __round__(self, ndigits=None):
-        value = self.value
-        return value.__round__(ndigits)
-
-"""
-
-""""
-TODO add test for the following lines in def standardize_dtype(dtype):
-    
- if dtype not in ALLOWED_DTYPES:
-!
-        raise ValueError(f"Invalid dtype: {dtype}")
-
-"""
+#     def __rsub__(self, other):
+#         value = self.value
+#         return value.__rsub__(self._convert_to_tensor(other, dtype=value.dtype))
 
 
-""" TODO add test for the following lines in def standardize_shape(shape):
-    if config.backend() == "jax" and str(e) == "b":
-!
-            # JAX2TF tracing represents `None` dimensions as `b`
-            continue
-        if not isinstance(e, int):
-!
-            raise ValueError(
-                f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}'. "
-            )
-        if e < 0:
-            raise ValueError(
-                f"Cannot convert '{shape}' to a shape. "
-                "Negative dimensions are not allowed."
-            )
-    return shape
+#     def __div__(self, other):
+#         value = self.value
+#         return value.__div__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __rdiv__(self, other):
+#         value = self.value
+#         return value.__rdiv__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#          def __rtruediv__(self, other):
+#         value = self.value
+#         return value.__rtruediv__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __floordiv__(self, other):
+#         value = self.value
+#         return value.__floordiv__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __rfloordiv__(self, other):
+#         value = self.value
+#         return value.__rfloordiv__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __divmod__(self, other):
+#         value = self.value
+#         return value.__divmod__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __rdivmod__(self, other):
+#         value = self.value
+#         return value.__rdivmod__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __mod__(self, other):
+#         value = self.value
+#         return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __rmod__(self, other):
+#         value = self.value
+#         return value.__rmod__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __pow__(self, other):
+#         value = self.value
+#         return value.__pow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __rpow__(self, other):
+#         value = self.value
+#         return value.__rpow__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __matmul__(self, other):
+#         value = self.value
+#         return value.__matmul__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __rmatmul__(self, other):
+#         value = self.value
+#         return value.__rmatmul__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __and__(self, other):
+#         value = self.value
+#         return value.__and__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __rand__(self, other):
+#         value = self.value
+#         return value.__rand__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __or__(self, other):
+#         value = self.value
+#         return value.__or__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __ror__(self, other):
+#         value = self.value
+#         return value.__ror__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __xor__(self, other):
+#         value = self.value
+#         return value.__xor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __rxor__(self, other):
+#         value = self.value
+#         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
+
+#     def __lshift__(self, other):
+#         value = self.value
+#         return value.__lshift__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __rlshift__(self, other):
+#         value = self.value
+#         return value.__rlshift__(
+#             self._convert_to_tensor(other, dtype=self.dtype)
+#         )
+
+#     def __rshift__(self, other):
+#         value = self.value
+#         return value.__rshift__(
+#             self._convert_to_tensor(other, dtype=value.dtype)
+#         )
+
+#     def __rrshift__(self, other):
+#         value = self.value
+#         return value.__rrshift__(
+#             self._convert_to_tensor(other, dtype=self.dtype)
+#         )
+
+#     def __round__(self, ndigits=None):
+#         value = self.value
+#         return value.__round__(ndigits)
 
 
-"""
+# TODO add test for the following lines in def standardize_dtype(dtype):
+#  if dtype not in ALLOWED_DTYPES:
+# !
+#         raise ValueError(f"Invalid dtype: {dtype}")
+
+# """
 
 
-""" TODO Add tests for def shape_equal(a_shape, b_shape):
-    #Return whether a_shape == b_shape (allows None entries)#
-    if len(a_shape) != len(b_shape):
-!
-        return False
+# """ TODO add test for the following lines in def standardize_shape(shape):
+#     if config.backend() == "jax" and str(e) == "b":
+# !
+#             # JAX2TF tracing represents `None` dimensions as `b`
+#             continue
+#         if not isinstance(e, int):
+# !
+#             raise ValueError(
+#                 f"Cannot convert '{shape}' to a shape. "
+#                 f"Found invalid entry '{e}'. "
+#             )
+#         if e < 0:
+#             raise ValueError(
+#                 f"Cannot convert '{shape}' to a shape. "
+#                 "Negative dimensions are not allowed."
+#             )
+#     return shape
 
-"""
+# """ TODO Add tests for def shape_equal(a_shape, b_shape):
+#     #Return whether a_shape == b_shape (allows None entries)#
+#     if len(a_shape) != len(b_shape):
+# !
+#         return False
