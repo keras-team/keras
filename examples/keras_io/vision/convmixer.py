@@ -33,8 +33,8 @@ the CIFAR-10 dataset.
 ## Imports
 """
 
-from keras_core import layers
-import keras_core as keras
+from keras import layers
+import keras as keras
 
 import matplotlib.pyplot as plt
 from tensorflow import data as tf_data
