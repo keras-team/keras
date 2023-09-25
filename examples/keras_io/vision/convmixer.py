@@ -90,13 +90,16 @@ Note that, it's ok to use **TF APIs for data I/O and preprocessing** with other 
 image_size = 32
 auto = tf.data.AUTOTUNE
 
-data_augmentation = tf.keras.Sequential(
-    [
-        tf.keras.layers.RandomCrop(image_size, image_size),
-        tf.keras.layers.RandomFlip("horizontal"),
-    ],
-    name="data_augmentation",
-)
+augmentation_layers = [
+    keras.layers.RandomCrop(image_size, image_size),
+    keras.layers.RandomFlip("horizontal")
+]
+
+
+def augment_images(images):
+    for layer in augmentation_layers:
+        images = layer(images, training=True)
+    return images
 
 
 def make_datasets(images, labels, is_train=False):
@@ -106,7 +109,7 @@ def make_datasets(images, labels, is_train=False):
     dataset = dataset.batch(batch_size)
     if is_train:
         dataset = dataset.map(
-            lambda x, y: (data_augmentation(x), y), num_parallel_calls=auto
+            lambda x, y: (augment_images(x), y), num_parallel_calls=auto
         )
     return dataset.prefetch(auto)
 
