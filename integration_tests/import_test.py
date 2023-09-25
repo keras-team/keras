@@ -33,9 +33,8 @@ def setup_package():
 
 def create_virtualenv():
     env_setup = [
-        # Create and activate virtual environment
+        # Create virtual environment
         "python3 -m venv test_env",
-        # "source ./test_env/bin/activate",
     ]
     os.environ["PATH"] = (
         "/test_env/bin/" + os.pathsep + os.environ.get("PATH", "")
