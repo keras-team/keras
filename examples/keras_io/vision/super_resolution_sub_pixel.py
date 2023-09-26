@@ -1,23 +1,21 @@
 """
 Title: Image Super-Resolution using an Efficient Sub-Pixel CNN
 Author: [Xingyu Long](https://github.com/xingyu-long)
-Converted to Keras 3 by: [Md Awsfalur Rahman](https://awsaf49.github.io)
 Date created: 2020/07/28
 Last modified: 2020/08/27
 Description: Implementing Super-Resolution using Efficient sub-pixel model on BSDS500.
+Accelerator: GPU
 """
+
 """
 ## Introduction
 
 ESPCN (Efficient Sub-Pixel CNN), proposed by [Shi, 2016](https://arxiv.org/abs/1609.05158)
-is a model that reconstructs a high-resolution version of an image given a low-resolution
-version.
+is a model that reconstructs a high-resolution version of an image given a low-resolution version.
 It leverages efficient "sub-pixel convolution" layers, which learns an array of
 image upscaling filters.
 
-In this code example, we will implement the model from the paper and train it on a small
-dataset,
-[BSDS500](https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/resources.html).
+In this code example, we will implement the model from the paper and train it on a small dataset,
 [BSDS500](https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/resources.html).
 """
 
@@ -25,20 +23,18 @@ dataset,
 ## Setup
 """
 
-import os
-os.environ["KERAS_BACKEND"] = "jax"
-
-import keras as keras
-from keras import layers
-from keras import ops
-from keras.utils import load_img
-from keras.utils import array_to_img
-from keras.utils import img_to_array
-from keras.preprocessing import image_dataset_from_directory
 import tensorflow as tf
 
+import os
 import math
 import numpy as np
+
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.utils import load_img
+from tensorflow.keras.utils import array_to_img
+from tensorflow.keras.utils import img_to_array
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 from IPython.display import display
 
@@ -50,8 +46,7 @@ from IPython.display import display
 We use the built-in `keras.utils.get_file` utility to retrieve the dataset.
 """
 
-dataset_url =
-"http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/BSR/BSR_bsds500.tgz"
+dataset_url = "http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/BSR/BSR_bsds500.tgz"
 data_dir = keras.utils.get_file(origin=dataset_url, fname="BSR", untar=True)
 root_dir = os.path.join(data_dir, "BSDS500/data")
 
@@ -140,6 +135,7 @@ For the target data (high-resolution images), we just crop the image
 and retrieve the `y` channel.
 """
 
+
 # Use TF Ops to process.
 def process_input(input, input_size, upscale_factor):
     input = tf.image.rgb_to_yuv(input)
@@ -184,29 +180,10 @@ It achieves better performance even though we train the model for fewer epochs.
 """
 
 
-class DepthToSpace(layers.Layer):
-    def __init__(self, block_size):
-        super(DepthToSpace, self).__init__()
-        self.block_size = block_size
-
-    def call(self, input):
-        batch, height, width, depth = ops.shape(input)
-        depth = depth // (self.block_size**2)
-
-        x = ops.reshape(
-            input, [batch, height, width, self.block_size, self.block_size, depth]
-        )
-        x = ops.transpose(x, [0, 1, 3, 2, 4, 5])
-        x = ops.reshape(
-            x, [batch, height * self.block_size, width * self.block_size, depth]
-        )
-        return x
-
-
 def get_model(upscale_factor=3, channels=1):
     conv_args = {
         "activation": "relu",
-        "kernel_initializer": "orthogonal",
+        "kernel_initializer": "Orthogonal",
         "padding": "same",
     }
     inputs = keras.Input(shape=(None, None, channels))
@@ -214,7 +191,7 @@ def get_model(upscale_factor=3, channels=1):
     x = layers.Conv2D(64, 3, **conv_args)(x)
     x = layers.Conv2D(32, 3, **conv_args)(x)
     x = layers.Conv2D(channels * (upscale_factor**2), 3, **conv_args)(x)
-    outputs = DepthToSpace(upscale_factor)(x)
+    outputs = tf.nn.depth_to_space(x, upscale_factor)
 
     return keras.Model(inputs, outputs)
 
@@ -336,11 +313,11 @@ Define `ModelCheckpoint` and `EarlyStopping` callbacks.
 
 early_stopping_callback = keras.callbacks.EarlyStopping(monitor="loss", patience=10)
 
-checkpoint_filepath = "/tmp/checkpoint.keras"
+checkpoint_filepath = "/tmp/checkpoint"
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,
-    save_weights_only=False,
+    save_weights_only=True,
     monitor="loss",
     mode="min",
     save_best_only=True,
