@@ -206,7 +206,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         shape_with_negative = shape + (-1,)
         with self.assertRaisesRegex(
             ValueError,
-            "Cannot convert .* to a shape. Negative dimensions are not allowed.",
+            "Cannot convert .* to a shape. Negative dimensions are not",
         ):
             _ = standardize_shape(shape_with_negative)
 
@@ -216,6 +216,19 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
         ):
             standardize_shape([3, 4, "a"])
+
+    def test_standardize_shape_with_negative_entry(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
+        ):
+            standardize_shape([3, 4, -5])
+
+    def test_standardize_shape_with_valid_not_tuple(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4, 5]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5))
 
 
 @pytest.mark.skipif(
@@ -253,5 +266,11 @@ class TestStandardizeShapeWithOutTorch(test_case.TestCase):
     def test_standardize_shape_with_out_torch_valid(self):
         """Tests a valid shape."""
         shape_valid = (3, 4, 5)
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5))
+
+    def test_standardize_shape_with_out_torch_valid_not_tuple(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4, 5]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
