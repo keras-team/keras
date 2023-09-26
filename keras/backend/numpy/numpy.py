@@ -34,13 +34,11 @@ def max(x, axis=None, keepdims=False, initial=None):
     return np.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
-def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def ones(shape, dtype="float32"):
     return np.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def zeros(shape, dtype="float32"):
     return np.zeros(shape, dtype=dtype)
 
 
@@ -136,6 +134,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
+    dtype = dtype or config.floatx()
     return np.array(x, dtype=dtype)
 
 
@@ -252,8 +251,7 @@ def dot(x, y):
     return np.dot(x, y)
 
 
-def empty(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def empty(shape, dtype="float32"):
     return np.empty(shape, dtype=dtype)
 
 
@@ -304,8 +302,7 @@ def hstack(xs):
     return np.hstack(xs)
 
 
-def identity(n, dtype=None):
-    dtype = dtype or config.floatx()
+def identity(n, dtype="float32"):
     return np.identity(n, dtype=dtype)
 
 
@@ -341,7 +338,6 @@ def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    dtype = dtype or config.floatx()
     return np.linspace(
         start,
         stop,
@@ -386,7 +382,6 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    dtype = dtype or config.floatx()
     return np.logspace(
         start,
         stop,
@@ -561,8 +556,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+def tri(N, M=None, k=0, dtype="float32"):
     return np.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -637,8 +631,7 @@ def sum(x, axis=None, keepdims=False):
     return np.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+def eye(N, M=None, k=0, dtype="float32"):
     return np.eye(N, M=M, k=k, dtype=dtype)
 
 

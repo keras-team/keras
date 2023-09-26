@@ -196,13 +196,11 @@ def max(x, axis=None, keepdims=False, initial=None):
     return tfnp.max(x, axis=axis, keepdims=keepdims)
 
 
-def ones(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def ones(shape, dtype="float32"):
     return tf.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def zeros(shape, dtype="float32"):
     return tf.zeros(shape, dtype=dtype)
 
 
@@ -405,8 +403,7 @@ def dot(x, y):
     return tfnp.dot(x, y)
 
 
-def empty(shape, dtype=None):
-    dtype = dtype or config.floatx()
+def empty(shape, dtype="float32"):
     return tfnp.empty(shape, dtype=dtype)
 
 
@@ -437,7 +434,6 @@ def floor(x):
 
 
 def full(shape, fill_value, dtype=None):
-    dtype = dtype or config.floatx()
     return tfnp.full(shape, fill_value, dtype=dtype)
 
 
@@ -457,8 +453,7 @@ def hstack(xs):
     return tfnp.hstack(xs)
 
 
-def identity(n, dtype=None):
-    dtype = dtype or config.floatx()
+def identity(n, dtype="float32"):
     return tfnp.identity(n, dtype=dtype)
 
 
@@ -493,7 +488,6 @@ def less_equal(x1, x2):
 def linspace(
     start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
 ):
-    dtype = dtype or config.floatx()
     return tfnp.linspace(
         start,
         stop,
@@ -538,7 +532,6 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    dtype = dtype or config.floatx()
     return tfnp.logspace(
         start,
         stop,
@@ -783,8 +776,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+def tri(N, M=None, k=0, dtype="float32"):
     return tfnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -871,8 +863,7 @@ def sum(x, axis=None, keepdims=False):
     return tfnp.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype=None):
-    dtype = dtype or config.floatx()
+def eye(N, M=None, k=0, dtype="float32"):
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
 
 
