@@ -4,6 +4,13 @@ from keras.utils import tracking
 
 
 class KerasAutoTrackable(tf.__internal__.tracking.AutoTrackable):
+    """Manages dependencies on other objects with Keras tracking.
+
+    Similar to TF AutoTrackable, but disabling tracking is based
+    on tracking within Keras.
+
+    This serves as an interface between Keras tracking and TF tracking.
+    """
     def __setattr__(self, name, value):
         """Support self.foo = trackable syntax."""
         try:
@@ -18,13 +25,20 @@ class KerasAutoTrackable(tf.__internal__.tracking.AutoTrackable):
                 trackable=self, value=value, name=name)
         super().__setattr__(name, value)
 
-    # def _no_dependency(self, value):
-    #     """Override to allow TrackableBase to disable dependency tracking."""
-    #     with tracking.DotNotTrackScope():
-    #         return value
 
 
 def sticky_attribute_assignment(trackable, name, value):
+    """Adds dependencies, called from __setattr__.
+
+    Args:
+        trackable: The object to add dependencies to (generally the one having
+        an attribute assigned).
+        name: The attribute name being assigned.
+        value: The value being assigned. Not necessarily a trackable object.
+
+    Returns:
+        The value which should be stored in the attribute.
+    """
     if isinstance(value, tracking.TrackedList):
         value = list(value)
     if isinstance(value, tracking.TrackedDict):
