@@ -46,7 +46,6 @@ from keras.trainers.data_adapters import generator_data_adapter
 from keras.trainers.data_adapters import py_dataset_adapter
 from keras.trainers.data_adapters import tf_dataset_adapter
 from keras.trainers.data_adapters import torch_data_adapter
-from keras.utils.module_utils import tensorflow as tf
 
 
 class EpochIterator:
@@ -76,7 +75,7 @@ class EpochIterator:
                 batch_size=batch_size,
                 steps=steps_per_epoch,
             )
-        elif tf.available and isinstance(x, tf.data.Dataset):
+        elif is_tf_dataset(x):
             self.data_adapter = tf_dataset_adapter.TFDatasetAdapter(
                 x, class_weight=class_weight
             )
@@ -170,18 +169,13 @@ class EpochIterator:
                 if self._insufficient_data:
                     break
 
-                if tf.available:
-                    errors = (StopIteration, tf.errors.OutOfRangeError)
-                else:
-                    errors = (StopIteration,)
-
                 try:
                     data = next(self._current_iterator)
                     buffer.append(data)
                     if len(buffer) == self.steps_per_execution:
                         yield step - len(buffer) + 1, buffer
                         buffer = []
-                except errors:
+                except (StopIteration,):
                     warnings.warn(
                         "Your input ran out of data; interrupting epoch. "
                         "Make sure that your dataset or generator can generate "
@@ -223,6 +217,16 @@ def raise_unsupported_arg(arg_name, arg_description, input_type):
         f"should not be passed. Instead, {arg_description} should "
         f"be included as part of the {input_type}."
     )
+
+
+def is_tf_dataset(x):
+    if hasattr(x, "__class__"):
+        for parent in x.__class__.__mro__:
+            if parent.__name__ == "DatasetV2" and str(
+                parent.__module__
+            ).startswith("tensorflow.python.types.data"):
+                return True
+    return False
 
 
 def is_torch_dataloader(x):
