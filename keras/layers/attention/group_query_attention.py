@@ -10,9 +10,9 @@ class GroupedQueryAttention(Layer):
 
     This is an implementation of grouped-query attention introduced by
     [Ainslie et al., 2023](https://arxiv.org/abs/2305.13245). Here
-    `num_kv_heads` denotes number of groups, setting `num_kv_heads` to 1 is
-    equivalent to multi-query attention, and when `num_kv_heads` is equal to
-    `num_q_heads` it is equivalent to multi-head attention.
+    `num_key_value_heads` denotes number of groups, setting `num_key_value_heads` to 1 is
+    equivalent to multi-query attention, and when `num_key_value_heads` is equal to
+    `num_query_heads` it is equivalent to multi-head attention.
 
     This layer first projects `query`, `key`, and `value` tensors. Then, `key`
     and `value` are repeated to match the number of heads of `query`.
@@ -24,8 +24,8 @@ class GroupedQueryAttention(Layer):
 
     Args:
         head_dim: Size of each attention head.
-        num_q_heads: Number of query attention heads.
-        num_kv_heads: Number of key and value attention heads.
+        num_query_heads: Number of query attention heads.
+        num_key_value_heads: Number of key and value attention heads.
         use_bias: Boolean, whether the dense layers use bias vectors/matrices.
 
     Call arguments:
@@ -57,13 +57,13 @@ class GroupedQueryAttention(Layer):
     """
 
     def __init__(
-        self, head_dim, num_q_heads, num_kv_heads, use_bias=False, **kwargs
+        self, head_dim, num_query_heads, num_key_value_heads, use_bias=False, **kwargs
     ):
         super().__init__(**kwargs)
         self.head_dim = head_dim
-        self.num_q_heads = num_q_heads
-        self.num_kv_heads = num_kv_heads
-        self.num_repeats = num_q_heads // num_kv_heads
+        self.num_query_heads = num_query_heads
+        self.num_key_value_heads = num_key_value_heads
+        self.num_repeats = num_query_heads // num_key_value_heads
         self.use_bias = use_bias
 
     def build(
@@ -75,21 +75,21 @@ class GroupedQueryAttention(Layer):
         key_shape = value_shape if key_shape is None else key_shape
         self.dim = query_shape[-1]
         self._query_dense = Dense(
-            self.num_q_heads * self.head_dim,
+            self.num_query_heads * self.head_dim,
             use_bias=self.use_bias,
             name="query",
         )
         self._query_dense.build(query_shape)
 
         self._key_dense = Dense(
-            self.num_kv_heads * self.head_dim,
+            self.num_key_value_heads * self.head_dim,
             use_bias=self.use_bias,
             name="key",
         )
         self._key_dense.build(key_shape)
 
         self._value_dense = Dense(
-            self.num_kv_heads * self.head_dim,
+            self.num_key_value_heads * self.head_dim,
             use_bias=self.use_bias,
             name="value",
         )
@@ -123,13 +123,13 @@ class GroupedQueryAttention(Layer):
         value = self._value_dense(value)
 
         query = ops.reshape(
-            query, (B, T, self.num_q_heads, self.head_dim)
+            query, (B, T, self.num_query_heads, self.head_dim)
         )  # (B, T, H_q, h_dim)
         key = ops.reshape(
-            key, (B, S, self.num_kv_heads, self.head_dim)
+            key, (B, S, self.num_key_value_heads, self.head_dim)
         )  # (B, S, H_kv, h_dim)
         value = ops.reshape(
-            value, (B, S, self.num_kv_heads, self.head_dim)
+            value, (B, S, self.num_key_value_heads, self.head_dim)
         )  # (B, S, H_kv, h_dim)
 
         key = ops.repeat(key, self.num_repeats, axis=2)  # (B, S, H_q, h_dim)
@@ -145,7 +145,7 @@ class GroupedQueryAttention(Layer):
 
         output = ops.transpose(output, axes=(0, 2, 1, 3))  # (B, T, H_q, h_dim)
         output = ops.reshape(
-            output, (B, T, self.num_q_heads * self.head_dim)
+            output, (B, T, self.num_query_heads * self.head_dim)
         )  # (B, T, H_q * h_dim)
         output = self._output_dense(output)  # (B, T, dim)
 
@@ -167,8 +167,8 @@ class GroupedQueryAttention(Layer):
     def get_config(self):
         config = {
             "head_dim": self.head_dim,
-            "num_q_heads": self.num_q_heads,
-            "num_kv_heads": self.num_kv_heads,
+            "num_query_heads": self.num_query_heads,
+            "num_key_value_heads": self.num_key_value_heads,
             "use_bias": self.use_bias,
         }
         base_config = super().get_config()
