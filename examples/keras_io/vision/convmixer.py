@@ -1,7 +1,7 @@
 """
 Title: Image classification with ConvMixer
 Author: [Sayak Paul](https://twitter.com/RisingSayak)
-Converted to Keras 3: [Md Awsafur Rahman](https://awsaf49.github.io)
+Converted to Keras 3 by: [Md Awsafur Rahman](https://awsaf49.github.io)
 Date created: 2021/10/12
 Last modified: 2021/10/12
 Description: An all-convolutional network applied to patches of images.
