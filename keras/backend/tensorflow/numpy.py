@@ -8,6 +8,7 @@ from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.tensorflow.core import convert_to_tensor
 
 
@@ -196,11 +197,13 @@ def max(x, axis=None, keepdims=False, initial=None):
     return tfnp.max(x, axis=axis, keepdims=keepdims)
 
 
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
+    dtype = dtypes.result_type(dtype)
     return tf.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
+    dtype = dtypes.result_type(dtype)
     return tf.zeros(shape, dtype=dtype)
 
 
@@ -403,7 +406,8 @@ def dot(x, y):
     return tfnp.dot(x, y)
 
 
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
+    dtype = dtypes.result_type(dtype)
     return tfnp.empty(shape, dtype=dtype)
 
 
@@ -453,7 +457,8 @@ def hstack(xs):
     return tfnp.hstack(xs)
 
 
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
+    dtype = dtypes.result_type(dtype)
     return tfnp.identity(n, dtype=dtype)
 
 
@@ -776,7 +781,10 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
+    # match JAX behavior
+    # https://github.com/google/jax/blob/main/jax/_src/numpy/lax_numpy.py#L2709
+    dtype = dtypes.result_type(dtype or "float32")
     return tfnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -863,7 +871,8 @@ def sum(x, axis=None, keepdims=False):
     return tfnp.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
+    dtype = dtypes.result_type(dtype)
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
 
 

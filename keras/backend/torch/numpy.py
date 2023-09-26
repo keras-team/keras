@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
@@ -76,15 +77,15 @@ def max(x, axis=None, keepdims=False, initial=None):
     return result
 
 
-def ones(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def ones(shape, dtype=None):
+    dtype = to_torch_dtype(dtypes.result_type(dtype))
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
-def zeros(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def zeros(shape, dtype=None):
+    dtype = to_torch_dtype(dtypes.result_type(dtype))
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -386,8 +387,8 @@ def dot(x, y):
     return torch.matmul(x, y)
 
 
-def empty(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def empty(shape, dtype=None):
+    dtype = to_torch_dtype(dtypes.result_type(dtype))
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -457,9 +458,9 @@ def hstack(xs):
     return torch.hstack(xs)
 
 
-def identity(n, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
-    return torch.eye(n, dtype=dtype)
+def identity(n, dtype=None):
+    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    return torch.eye(n, dtype=dtype, device=get_device())
 
 
 def imag(x):
@@ -933,8 +934,10 @@ def trace(x, offset=None, axis1=None, axis2=None):
     return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def tri(N, M=None, k=0, dtype=None):
+    # match JAX behavior
+    # https://github.com/google/jax/blob/main/jax/_src/numpy/lax_numpy.py#L2709
+    dtype = to_torch_dtype(dtypes.result_type(dtype or "float32"))
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -1037,8 +1040,8 @@ def sum(x, axis=None, keepdims=False):
     return torch.sum(x)
 
 
-def eye(N, M=None, k=None, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def eye(N, M=None, k=None, dtype=None):
+    dtype = to_torch_dtype(dtypes.result_type(dtype))
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:
