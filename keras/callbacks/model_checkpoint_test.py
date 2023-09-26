@@ -25,7 +25,7 @@ INPUT_DIM = 3
 NUM_HIDDEN = 5
 BATCH_SIZE = 5
 
-# test commit 7
+# test commit 8
 
 
 class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
