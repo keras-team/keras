@@ -253,13 +253,7 @@ def _lattice_result_type(*args):
     if out_weak_type:
         out_dtype = _resolve_weak_type(out_dtype)
     precision = backend.floatx()[-2:]
-    if out_dtype == "int64" and backend.backend() == "tensorflow":
-        # tf.Variable of type int32 are always placed on a host, and can not be
-        # placed on a GPU. As a workaround, int64 can be used.
-        # https://www.tensorflow.org/xla/known_issues#tfvariable_on_a_different_device
-        return out_dtype
-    else:
-        return _canonicalize_dtype_by_precision(out_dtype, precision)
+    return _canonicalize_dtype_by_precision(out_dtype, precision)
 
 
 @keras_export("keras.backend.result_dtype")
@@ -270,10 +264,7 @@ def result_type(*dtypes):
     and the resulting dtype is determined by the least upper bound of the type
     promotion lattice.
 
-    Note: This function attempts to match the result of `jnp.result_dtype`. The
-    biggest difference is that we don't canonicalize `"int64"` when using
-    tensorflow backend due to a known issue:
-    [tfvariable_on_a_different_device](https://www.tensorflow.org/xla/known_issues#tfvariable_on_a_different_device)
+    Note: This function attempts to match the result of `jnp.result_dtype`.
 
     Args:
         dtypes: Input dtypes.

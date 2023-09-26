@@ -19,20 +19,11 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     else:
         ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
 
-    def canonicalize_tf(self, dtype):
-        # TODO: canonicalize "int64" once the following issue resolved:
-        # https://www.tensorflow.org/xla/known_issues#tfvariable_on_a_different_device
-        return (
-            "int32"
-            if backend.backend() == "tensorflow" and dtype == "int64"
-            else dtype
-        )
-
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
     def test_result_dtype_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
-        out = self.canonicalize_tf(backend.result_type(dtype1, dtype2))
+        out = backend.result_type(dtype1, dtype2)
         expected = jnp.result_type(dtype1, dtype2).name
         self.assertEqual(out, expected)
 
@@ -45,7 +36,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
 
-        out = self.canonicalize_tf(backend.result_type(x1.dtype, x2.dtype))
+        out = backend.result_type(x1.dtype, x2.dtype)
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
 
