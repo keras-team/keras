@@ -65,9 +65,9 @@ pip install keras-cv --upgrade --quiet
 """
 
 import keras_cv
-from keras_cv.backend import keras
+import keras
 import matplotlib.pyplot as plt
-from keras_cv.backend import ops
+from keras import ops
 import numpy as np
 import math
 from PIL import Image
