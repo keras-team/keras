@@ -36,6 +36,7 @@ class ModelCheckpointTest(testing.TestCase):
         def get_model():
             model = Sequential(
                 [
+                    layers.Input(shape=(INPUT_DIM,)),
                     layers.Dense(NUM_HIDDEN, activation="relu"),
                     layers.Dense(NUM_CLASSES, activation="softmax"),
                 ]
