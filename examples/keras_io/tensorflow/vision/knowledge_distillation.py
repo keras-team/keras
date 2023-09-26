@@ -42,8 +42,8 @@ import numpy as np
 """
 ## Construct `Distiller()` class
 
-The custom `Distiller()` class, overrides the `Model` methods `train_step`, `test_step`,
-and `compile()`. In order to use the distiller, we need:
+The custom `Distiller()` class, overrides the `Model` methods `compile`, `compute_loss`,
+and `call`. In order to use the distiller, we need:
 
 - A trained teacher model
 - A student model to train
@@ -53,14 +53,9 @@ soft student predictions and the soft teacher labels
 - An `alpha` factor to weight the student and distillation loss
 - An optimizer for the student and (optional) metrics to evaluate performance
 
-In the `train_step` method, we perform a forward pass of both the teacher and student,
-calculate the loss with weighting of the `student_loss` and `distillation_loss` by
-`alpha` and
-`1 - alpha`, respectively, and perform the backward pass. Note: only the student weights
-are updated,
-and therefore we only calculate the gradients for the student weights.
-
-In the `test_step` method, we evaluate the student model on the provided dataset.
+In the `compute_loss` method, we perform a forward pass of both the teacher and student,
+calculate the loss with weighting of the `student_loss` and `distillation_loss` by `alpha`
+and `1 - alpha`, respectively. Note: only the student weights are updated.
 """
 
 
@@ -98,67 +93,22 @@ class Distiller(keras.Model):
         self.alpha = alpha
         self.temperature = temperature
 
-    def train_step(self, data):
-        # Unpack data
-        x, y = data
+    def compute_loss(
+        self, x=None, y=None, y_pred=None, sample_weight=None, allow_empty=False
+    ):
+        teacher_pred = self.teacher(x, training=False)
+        student_loss = self.student_loss_fn(y, y_pred)
 
-        # Forward pass of teacher
-        teacher_predictions = self.teacher(x, training=False)
+        distillation_loss = self.distillation_loss_fn(
+            ops.softmax(teacher_pred / self.temperature, axis=1),
+            ops.softmax(y_pred / self.temperature, axis=1),
+        ) * (self.temperature**2)
 
-        with tf.GradientTape() as tape:
-            # Forward pass of student
-            student_predictions = self.student(x, training=True)
+        loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss
+        return loss
 
-            # Compute losses
-            student_loss = self.student_loss_fn(y, student_predictions)
-
-            # Compute scaled distillation loss from https://arxiv.org/abs/1503.02531
-            # The magnitudes of the gradients produced by the soft targets scale
-            # as 1/T^2, multiply them by T^2 when using both hard and soft targets.
-            distillation_loss = (
-                self.distillation_loss_fn(
-                    ops.softmax(teacher_predictions / self.temperature, axis=1),
-                    ops.softmax(student_predictions / self.temperature, axis=1),
-                )
-                * self.temperature**2
-            )
-
-            loss = self.alpha * student_loss + (1 - self.alpha) * distillation_loss
-
-        # Compute gradients
-        trainable_vars = self.student.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-
-        # Update weights
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
-
-        # Update the metrics configured in `compile()`.
-        self.compiled_metrics.update_state(y, student_predictions)
-
-        # Return a dict of performance
-        results = {m.name: m.result() for m in self.metrics}
-        results.update(
-            {"student_loss": student_loss, "distillation_loss": distillation_loss}
-        )
-        return results
-
-    def test_step(self, data):
-        # Unpack the data
-        x, y = data
-
-        # Compute predictions
-        y_prediction = self.student(x, training=False)
-
-        # Calculate the loss
-        student_loss = self.student_loss_fn(y, y_prediction)
-
-        # Update the metrics.
-        self.compiled_metrics.update_state(y, y_prediction)
-
-        # Return a dict of performance
-        results = {m.name: m.result() for m in self.metrics}
-        results.update({"student_loss": student_loss})
-        return results
+    def call(self, x):
+        return self.student(x)
 
 
 """
