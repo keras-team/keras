@@ -20,7 +20,7 @@ except ImportError:
 
 TRAIN_SAMPLES = 10
 TEST_SAMPLES = 10
-NUM_CLASSES = 4
+NUM_CLASSES = 2
 INPUT_DIM = 3
 NUM_HIDDEN = 5
 BATCH_SIZE = 5
@@ -36,7 +36,6 @@ class ModelCheckpointTest(testing.TestCase):
         def get_model():
             model = Sequential(
                 [
-                    layers.Input(shape=(INPUT_DIM,)),
                     layers.Dense(NUM_HIDDEN, activation="relu"),
                     layers.Dense(NUM_CLASSES, activation="softmax"),
                 ]
@@ -55,6 +54,7 @@ class ModelCheckpointTest(testing.TestCase):
         # automatic directory creation.
         filepath = os.path.join(temp_dir, "subdir", "checkpoint.keras")
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+            random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
             input_shape=(INPUT_DIM,),
@@ -450,7 +450,7 @@ class ModelCheckpointTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_loading(self):
         def get_model():
-            inputs = layers.Input(shape=(INPUT_DIM,))
+            inputs = layers.Input(shape=(INPUT_DIM,), batch_size=2)
             x = layers.Dense(NUM_HIDDEN, activation="relu")(inputs)
             outputs = layers.Dense(NUM_CLASSES, activation="softmax")(x)
             functional_model = models.Model(inputs, outputs)
@@ -462,6 +462,7 @@ class ModelCheckpointTest(testing.TestCase):
             return functional_model
 
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+            random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
             input_shape=(INPUT_DIM,),
