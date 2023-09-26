@@ -58,8 +58,11 @@ def run_namex_conversion():
 
 def create_legacy_directory():
     # Make keras/_tf_keras/ by copying keras/
-    tf_keras_dirpath = os.path.join(package, "_tf_keras")
+    tf_keras_dirpath_parent = os.path.join(package, "_tf_keras")
+    tf_keras_dirpath = os.path.join(tf_keras_dirpath_parent, "keras")
     os.makedirs(tf_keras_dirpath)
+    with open(os.path.join(tf_keras_dirpath_parent, "__init__.py"), "w") as f:
+        f.write("")
     with open(os.path.join(package, "__init__.py")) as f:
         init_file = f.read()
         init_file = init_file.replace(

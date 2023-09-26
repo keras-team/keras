@@ -31,6 +31,13 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                 reference_variable, name=name
             )
 
+    def stateless_apply(self, optimizer_variables, grads, trainable_variables):
+        # This is mainly due to the interaction with tf.distribute.Strategy,
+        # which requires tf.Variable as the inputs for most of its APIs.
+        raise ValueError(
+            "stateless_apply is not supported by the TF based optimizer."
+        )
+
     def _var_key(self, variable):
         if isinstance(variable, backend.Variable):
             variable = variable.value  # Convert to tf.Variable
@@ -58,6 +65,8 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
                     variable.assign(variable - variable * wd * lr)
 
             for variable in variables:
+                if isinstance(variable, backend.Variable):
+                    variable = variable.value  # Convert to tf.Variable
                 distribution.extended.update(
                     variable, weight_decay_fn, group=False
                 )
@@ -79,6 +88,13 @@ class TFOptimizer(base_optimizer.BaseOptimizer):
         self, distribution, grads_and_vars, **kwargs
     ):
         """`apply_gradients` using a `DistributionStrategy`."""
+
+        unwrapped_grads_and_vars = []
+        for g, v in grads_and_vars:
+            if isinstance(v, backend.Variable):
+                v = v.value
+            unwrapped_grads_and_vars.append((g, v))
+        grads_and_vars = unwrapped_grads_and_vars
 
         def apply_grad_to_update_var(var, grad):
             learning_rate = self._get_current_learning_rate()
