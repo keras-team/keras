@@ -20,7 +20,7 @@ except ImportError:
 
 TRAIN_SAMPLES = 10
 TEST_SAMPLES = 10
-NUM_CLASSES = 2
+NUM_CLASSES = 4
 INPUT_DIM = 3
 NUM_HIDDEN = 5
 BATCH_SIZE = 5
@@ -449,7 +449,7 @@ class ModelCheckpointTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_loading(self):
         def get_model():
-            inputs = layers.Input(shape=(INPUT_DIM,), batch_size=2)
+            inputs = layers.Input(shape=(INPUT_DIM,))
             x = layers.Dense(NUM_HIDDEN, activation="relu")(inputs)
             outputs = layers.Dense(NUM_CLASSES, activation="softmax")(x)
             functional_model = models.Model(inputs, outputs)
