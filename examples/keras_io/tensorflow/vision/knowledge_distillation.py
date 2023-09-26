@@ -1,10 +1,11 @@
 """
 Title: Knowledge Distillation
 Author: [Kenneth Borup](https://twitter.com/Kennethborup)
-Converted to Keras 3: [Md Awsafur Rahman](https://awsaf49.github.io)
+Converted to Keras 3 by: [Md Awsafur Rahman](https://awsaf49.github.io)
 Date created: 2020/09/01
 Last modified: 2020/09/01
 Description: Implementation of classical Knowledge Distillation.
+Accelerator: GPU
 """
 """
 ## Introduction to Knowledge Distillation
