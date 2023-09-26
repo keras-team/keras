@@ -79,7 +79,7 @@ class VariablesTest(test_case.TestCase):
             KerasVariable(initializer=initializers.RandomNormal(), name=12345)
 
         # Test when name contains a '/'
-        with self.assertRaisesRegex(ValueError, "cannot contain character `/`"):
+        with self.assertRaisesRegex(ValueError, "contain character `/`"):
             KerasVariable(
                 initializer=initializers.RandomNormal(), name="invalid/name"
             )
@@ -195,7 +195,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             ValueError,
             "Cannot convert .* to a shape. Found invalid entry 'invalid'.",
         ):
-            standardized_shape = standardize_shape(shape_with_str)
+            _ = standardize_shape(shape_with_str)
 
     def test_standardize_shape_with_torch_Size_with_negative_value(self):
         """Tests shape with a negative value appended."""
@@ -208,7 +208,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             ValueError,
             "Cannot convert .* to a shape. Negative dimensions are not allowed.",
         ):
-            standardized_shape = standardize_shape(shape_with_negative)
+            _ = standardize_shape(shape_with_negative)
 
     def test_standardize_shape_with_non_integer_entry(self):
         with self.assertRaisesRegex(
@@ -216,3 +216,42 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
         ):
             standardize_shape([3, 4, "a"])
+
+
+@pytest.mark.skipif(
+    backend.backend() == "torch",
+    reason="Tests for standardize_shape with others backend",
+)
+class TestStandardizeShapeWithOutTorch(test_case.TestCase):
+    def test_standardize_shape_with_out_torch_negative_value(self):
+        """Tests shape with a negative value."""
+        shape_with_negative_value = (3, 4, -5)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
+        ):
+            _ = standardize_shape(shape_with_negative_value)
+
+    def test_standardize_shape_with_out_torch_string(self):
+        """Tests shape with a string value."""
+        shape_with_string = (3, 4, "5")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid entry '5'.",
+        ):
+            _ = standardize_shape(shape_with_string)
+
+    def test_standardize_shape_with_out_torch_float(self):
+        """Tests shape with a float value."""
+        shape_with_float = (3, 4, 5.0)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid entry '5.0'.",
+        ):
+            _ = standardize_shape(shape_with_float)
+
+    def test_standardize_shape_with_out_torch_valid(self):
+        """Tests a valid shape."""
+        shape_valid = (3, 4, 5)
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5))
