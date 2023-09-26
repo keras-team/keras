@@ -3883,6 +3883,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             for x in ALLOWED_DTYPES
             if x not in ["string", "uint64"]
         ] + [None]
+    elif backend.backend() == "tensorflow":
+        # TODO: canonicalize "int64" once the following issue resolved:
+        # https://www.tensorflow.org/xla/known_issues#tfvariable_on_a_different_device
+        ALL_DTYPES = [
+            x for x in ALLOWED_DTYPES if x not in ["string", "int64"]
+        ] + [None]
     else:
         ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
 
