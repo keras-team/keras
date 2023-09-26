@@ -501,3 +501,158 @@ def map_coordinates(
         fill_mode,
         fill_value,
     )
+
+
+class PadToBoundingBox(Operation):
+    def __init__(
+        self,
+        offset_height,
+        offset_width,
+        target_height,
+        target_width,
+        check_dims=True,
+    ):
+        super().__init__()
+        self.offset_height = offset_height
+        self.offset_width = offset_width
+        self.target_height = target_height
+        self.target_width = target_width
+        self.check_dims = check_dims
+
+    def call(self, image):
+        return _pad_to_bounding_box(
+            image,
+            self.offset_height,
+            self.offset_width,
+            self.target_height,
+            self.target_width,
+            self.check_dims,
+        )
+
+    def compute_output_spec(self, image):
+        out_shape = (
+            image.shape[0],
+            self.target_height,
+            self.target_width,
+            image.shape[-1],
+        )
+        if len(image.shape) == 3:
+            out_shape = out_shape[1:]
+        return KerasTensor(
+            shape=out_shape,
+            dtype=image.dtype,
+        )
+
+
+def _pad_to_bounding_box(
+    image, offset_height, offset_width, target_height, target_width, check_dims
+):
+    image = backend.convert_to_tensor(image)
+    is_batch = True
+    image_shape = image.shape
+    if len(image_shape) == 3:
+        is_batch = False
+        image = backend.numpy.expand_dims(image, 0)
+    elif len(image_shape) != 4:
+        raise ValueError(
+            "'image' (shape %s) must have either 3 or 4 dimensions."
+            % image_shape
+        )
+
+    batch, height, width, depth = image.shape
+    after_padding_width = target_width - offset_width - width
+    after_padding_height = target_height - offset_height - height
+
+    if check_dims:
+        if not offset_height >= 0:
+            raise ValueError("offset_height must be >= 0")
+        if not offset_width >= 0:
+            raise ValueError("offset_width must be >= 0")
+        if not after_padding_width >= 0:
+            raise ValueError("width must be <= target - offset")
+        if not after_padding_height >= 0:
+            raise ValueError("height must be <= target - offset")
+
+    paddings = backend.numpy.reshape(
+        backend.numpy.stack(
+            [
+                0,
+                0,
+                offset_height,
+                after_padding_height,
+                offset_width,
+                after_padding_width,
+                0,
+                0,
+            ]
+        ),
+        [4, 2],
+    )
+    padded = backend.numpy.pad(image, paddings)
+
+    padded_shape = [batch, target_height, target_width, depth]
+    padded = backend.numpy.reshape(padded, padded_shape)
+
+    if not is_batch:
+        padded = backend.numpy.squeeze(padded, axis=[0])
+    return padded
+
+
+@keras_export("keras.ops.image.pad_to_bounding_box")
+def pad_to_bounding_box(
+    image,
+    offset_height,
+    offset_width,
+    target_height,
+    target_width,
+    check_dims=True,
+):
+    """Pad `image` with zeros to the specified `height` and `width`.
+
+    Args:
+        image: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D
+            Tensor of shape `[height, width, channels]`.
+        offset_height: Number of rows of zeros to add on top.
+        offset_width: Number of columns of zeros to add on the left.
+        target_height: Height of output image.
+        target_width: Width of output image.
+        check_dims: If True, assert that dimensions are non-negative and in
+            range. In multi-GPU distributed settings, assertions can cause
+            program slowdown. Setting this parameter to `False` avoids this,
+            resulting in faster speed in some situations, with the tradeoff
+            being that some error checking is not happening.
+
+    Returns:
+        If `image` was 4-D, a 4-D float Tensor of shape
+            `[batch, target_height, target_width, channels]`
+        If `image` was 3-D, a 3-D float Tensor of shape
+            `[target_height, target_width, channels]`
+
+    Example:
+
+    >>> image = np.random.random((15, 25, 3))
+    >>> padded_image = keras.ops.image.pad_to_bounding_box(image, 2, 3, 20, 30)
+    >>> padded_image.shape
+    (20, 30, 3)
+
+    >>> batch_images = np.random.random((2, 15, 25, 3))
+    >>> padded_batch = keras.ops.image.pad_to_bounding_box(
+    ...     batch_images, 2, 3, 20, 30
+    ... )
+    >>> padded_batch.shape
+    (2, 20, 30, 3)
+"""
+
+    if any_symbolic_tensors((image,)):
+        return PadToBoundingBox(
+            offset_height, offset_width, target_height, target_width, check_dims
+        ).symbolic_call(image)
+
+    return _pad_to_bounding_box(
+        image,
+        offset_height,
+        offset_width,
+        target_height,
+        target_width,
+        check_dims,
+    )
