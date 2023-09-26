@@ -130,6 +130,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         ):
             _ = standardize_shape(shape_with_negative_value)
 
+    # TODO
     # def test_standardize_shape_with_torch_Size_containing_string(self):
     #     """Tests shape with a string value."""
     #     shape_with_string = (3, 4, "5")
@@ -139,6 +140,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
     #     ):
     #         _ = standardize_shape(shape_with_string)
 
+    # TODO
     # def test_standardize_shape_with_torch_Size_containing_float(self):
     #     """Tests shape with a float value."""
     #     shape_with_float = (3, 4, 5.0)
@@ -208,6 +210,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, ())
 
+    # TODO
     # def test_standardize_shape_with_torch_Size_with_invalid_dtype(self):
     #     """Tests shape with an invalid dtype."""
     #     import torch
@@ -234,6 +237,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         ):
             _ = standardize_shape(shape_with_negative)
 
+    # TODO
     # def test_standardize_shape_with_non_integer_entry(self):
     #     with self.assertRaisesRegex(
     #         ValueError,
