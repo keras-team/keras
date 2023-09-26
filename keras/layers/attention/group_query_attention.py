@@ -10,9 +10,10 @@ class GroupedQueryAttention(Layer):
 
     This is an implementation of grouped-query attention introduced by
     [Ainslie et al., 2023](https://arxiv.org/abs/2305.13245). Here
-    `num_key_value_heads` denotes number of groups, setting `num_key_value_heads` to 1 is
-    equivalent to multi-query attention, and when `num_key_value_heads` is equal to
-    `num_query_heads` it is equivalent to multi-head attention.
+    `num_key_value_heads` denotes number of groups, setting
+    `num_key_value_heads` to 1 is equivalent to multi-query attention, and
+    when `num_key_value_heads` is equal to `num_query_heads` it is equivalent
+    to multi-head attention.
 
     This layer first projects `query`, `key`, and `value` tensors. Then, `key`
     and `value` are repeated to match the number of heads of `query`.
@@ -29,18 +30,21 @@ class GroupedQueryAttention(Layer):
         use_bias: Boolean, whether the dense layers use bias vectors/matrices.
 
     Call arguments:
-        query: Query tensor of shape `(B, T, dim)`, where `B` is batch size,
-            `T` is the target sequence length, and dim is feature dimension.
-        value: Value tensor of shape `(B, S, dim)`, where `B` is batch size,
-            `S` is the source sequence length, and dim is feature dimension.
-        key: Optional key tensor of shape `(B, S, dim)`. If not given, will
-            use `value` for both `key` and `value`, which is most common
-            case.
-        mask: A boolean mask of shape `(B, T, S)`, that prevents attention to
-            certain positions. The boolean mask specifies which query elements
-            can attend to which key elements, where 1 indicates attention and
-            0 indicates no attention. Broadcasting can happen for the missing
-            batch dimensions and the head dimension.
+        query: Query tensor of shape `(batch_dim, target_seq_len, feature_dim)`,
+            where `batch_dim` is batch size, `target_seq_len` is the length of
+            target sequence, and `feature_dim` is dimension of feature.
+        value: Value tensor of shape `(batch_dim, source_seq_len, feature_dim)`,
+            where `batch_dim` is batch size, `source_seq_len` is the length of
+            source sequence, and `feature_dim` is dimension of feature.
+        key: Optional key tensor of shape
+            `(batch_dim, source_seq_len, feature_dim)`. If not given, will use
+            `value` for both `key` and `value`, which is most common case.
+        mask: A boolean mask of shape
+            `(batch_dim, target_seq_len, source_seq_len)`, that prevents
+            attention to certain positions. The boolean mask specifies which
+            query elements can attend to which key elements, where 1 indicates
+            attention and 0 indicates no attention. Broadcasting can happen for
+            the missing batch dimensions and the head dimension.
         return_attention_scores: A boolean to indicate whether the output
             should be `(attention_output, attention_scores)` if `True`, or
             `attention_output` if `False`. Defaults to `False`.
@@ -50,14 +54,20 @@ class GroupedQueryAttention(Layer):
             layer/model or `False` (inference) if there is no parent layer.
 
     Returns:
-        attention_output: Result of the computation, of shape `(B, T, dim)`,
-            where `T` is for target sequence shapes and `dim` is the query
-            input last dim.
+        attention_output: Result of the computation, of shape
+            `(batch_dim, target_seq_len, feature_dim)`, where `target_seq_len`
+            is for target sequence length and `feature_dim` is the query input
+            last dim.
         attention_scores: (Optional) attention coefficients.
     """
 
     def __init__(
-        self, head_dim, num_query_heads, num_key_value_heads, use_bias=False, **kwargs
+        self,
+        head_dim,
+        num_query_heads,
+        num_key_value_heads,
+        use_bias=False,
+        **kwargs
     ):
         super().__init__(**kwargs)
         self.head_dim = head_dim
@@ -73,7 +83,7 @@ class GroupedQueryAttention(Layer):
         key_shape=None,
     ):
         key_shape = value_shape if key_shape is None else key_shape
-        self.dim = query_shape[-1]
+        self.feature_dim = query_shape[-1]
         self._query_dense = Dense(
             self.num_query_heads * self.head_dim,
             use_bias=self.use_bias,
@@ -96,7 +106,7 @@ class GroupedQueryAttention(Layer):
         self._value_dense.build(value_shape)
 
         self._output_dense = Dense(
-            self.dim, use_bias=self.use_bias, name="attention_output"
+            self.feature_dim, use_bias=self.use_bias, name="attention_output"
         )
         output_dense_input_shape = list(
             self._query_dense.compute_output_shape(query_shape)
@@ -115,39 +125,69 @@ class GroupedQueryAttention(Layer):
     ):
         if key is None:
             key = value
-        B, T, _ = ops.shape(query)  # (B, T, dim)
-        _, S, _ = ops.shape(value)  # (B, S, dim)
+        batch_dim, target_seq_len, _ = ops.shape(
+            query
+        )  # (batch_dim, target_seq_len, feature_dim)
+        _, source_seq_len, _ = ops.shape(
+            value
+        )  # (batch_dim, source_seq_len, feature_dim)
 
         query = self._query_dense(query)
         key = self._key_dense(key)
         value = self._value_dense(value)
 
         query = ops.reshape(
-            query, (B, T, self.num_query_heads, self.head_dim)
-        )  # (B, T, H_q, h_dim)
+            query,
+            (batch_dim, target_seq_len, self.num_query_heads, self.head_dim),
+        )  # (batch_dim, target_seq_len, query_heads, head_dim)
         key = ops.reshape(
-            key, (B, S, self.num_key_value_heads, self.head_dim)
-        )  # (B, S, H_kv, h_dim)
+            key,
+            (
+                batch_dim,
+                source_seq_len,
+                self.num_key_value_heads,
+                self.head_dim,
+            ),
+        )  # (batch_dim, source_seq_len, key_value_heads, head_dim)
         value = ops.reshape(
-            value, (B, S, self.num_key_value_heads, self.head_dim)
-        )  # (B, S, H_kv, h_dim)
+            value,
+            (
+                batch_dim,
+                source_seq_len,
+                self.num_key_value_heads,
+                self.head_dim,
+            ),
+        )  # (batch_dim, source_seq_len, key_value_heads, head_dim)
 
-        key = ops.repeat(key, self.num_repeats, axis=2)  # (B, S, H_q, h_dim)
+        key = ops.repeat(
+            key, self.num_repeats, axis=2
+        )  # (batch_dim, source_seq_len, query_heads, head_dim)
         value = ops.repeat(
             value, self.num_repeats, axis=2
-        )  # (B, S, H_q, h_dim)
+        )  # (batch_dim, source_seq_len, query_heads, head_dim)
 
-        query = ops.transpose(query, axes=(0, 2, 1, 3))  # (B, H_q, T, h_dim)
-        key = ops.transpose(key, axes=(0, 2, 3, 1))  # (B, H_q, h_dim, S)
-        value = ops.transpose(value, axes=(0, 2, 1, 3))  # (B, H_q, S, h_dim)
+        query = ops.transpose(
+            query, axes=(0, 2, 1, 3)
+        )  # (batch_dim, query_heads, target_seq_len, head_dim)
+        key = ops.transpose(
+            key, axes=(0, 2, 3, 1)
+        )  # (batch_dim, query_heads, head_dim, source_seq_len)
+        value = ops.transpose(
+            value, axes=(0, 2, 1, 3)
+        )  # (batch_dim, query_heads, source_seq_len, head_dim)
 
         output, scores = self._compute_attention(query, key, value, mask=mask)
 
-        output = ops.transpose(output, axes=(0, 2, 1, 3))  # (B, T, H_q, h_dim)
+        output = ops.transpose(
+            output, axes=(0, 2, 1, 3)
+        )  # (batch_dim, target_seq_len, query_heads, head_dim)
         output = ops.reshape(
-            output, (B, T, self.num_query_heads * self.head_dim)
-        )  # (B, T, H_q * h_dim)
-        output = self._output_dense(output)  # (B, T, dim)
+            output,
+            (batch_dim, target_seq_len, self.num_query_heads * self.head_dim),
+        )  # (batch_dim, target_seq_len, query_heads * head_dim)
+        output = self._output_dense(
+            output
+        )  # (batch_dim, target_seq_len, feature_dim)
 
         if return_attention_scores:
             return output, scores
@@ -158,10 +198,14 @@ class GroupedQueryAttention(Layer):
             query,
             1.0 / ops.sqrt(ops.cast(self.head_dim, query.dtype)),
         )
-        scores = ops.matmul(query, key)  # (B, H_q, T, S)
+        scores = ops.matmul(
+            query, key
+        )  # (batch_dim, query_heads, target_seq_len, source_seq_len)
         if mask is not None:
             scores = scores + mask
-        output = ops.matmul(scores, value)  # (B, H_q, T, h_dim)
+        output = ops.matmul(
+            scores, value
+        )  # (batch_dim, query_heads, target_seq_len, head_dim)
         return output, scores
 
     def get_config(self):
