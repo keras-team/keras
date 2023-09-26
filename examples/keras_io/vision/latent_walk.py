@@ -65,9 +65,9 @@ pip install keras-cv --upgrade --quiet
 """
 
 import keras_cv
-from keras_cv.backend import keras
+from tensorflow import keras
 import matplotlib.pyplot as plt
-from keras_cv.backend import ops
+import tensorflow as tf
 import numpy as np
 import math
 from PIL import Image
@@ -96,10 +96,10 @@ prompt_1 = "A watercolor painting of a Golden Retriever at the beach"
 prompt_2 = "A still life DSLR photo of a bowl of fruit"
 interpolation_steps = 5
 
-encoding_1 = ops.squeeze(model.encode_text(prompt_1))
-encoding_2 = ops.squeeze(model.encode_text(prompt_2))
+encoding_1 = tf.squeeze(model.encode_text(prompt_1))
+encoding_2 = tf.squeeze(model.encode_text(prompt_2))
 
-interpolated_encodings = ops.linspace(encoding_1, encoding_2, interpolation_steps)
+interpolated_encodings = tf.linspace(encoding_1, encoding_2, interpolation_steps)
 
 # Show the size of the latent manifold
 print(f"Encoding shape: {encoding_1.shape}")
@@ -111,7 +111,7 @@ keep the diffusion noise constant between images.
 """
 
 seed = 12345
-noise = keras.random.normal((512 // 8, 512 // 8, 4), seed=seed)
+noise = tf.random.normal((512 // 8, 512 // 8, 4), seed=seed)
 
 images = model.generate_image(
     interpolated_encodings,
@@ -174,8 +174,8 @@ interpolation_steps = 150
 batch_size = 3
 batches = interpolation_steps // batch_size
 
-interpolated_encodings = ops.linspace(encoding_1, encoding_2, interpolation_steps)
-batched_encodings = ops.split(interpolated_encodings, batches)
+interpolated_encodings = tf.linspace(encoding_1, encoding_2, interpolation_steps)
+batched_encodings = tf.split(interpolated_encodings, batches)
 
 images = []
 for batch in range(batches):
@@ -210,20 +210,20 @@ interpolation_steps = 6
 batch_size = 3
 batches = (interpolation_steps**2) // batch_size
 
-encoding_1 = ops.squeeze(model.encode_text(prompt_1))
-encoding_2 = ops.squeeze(model.encode_text(prompt_2))
-encoding_3 = ops.squeeze(model.encode_text(prompt_3))
-encoding_4 = ops.squeeze(model.encode_text(prompt_4))
+encoding_1 = tf.squeeze(model.encode_text(prompt_1))
+encoding_2 = tf.squeeze(model.encode_text(prompt_2))
+encoding_3 = tf.squeeze(model.encode_text(prompt_3))
+encoding_4 = tf.squeeze(model.encode_text(prompt_4))
 
-interpolated_encodings = ops.linspace(
-    ops.linspace(encoding_1, encoding_2, interpolation_steps),
-    ops.linspace(encoding_3, encoding_4, interpolation_steps),
+interpolated_encodings = tf.linspace(
+    tf.linspace(encoding_1, encoding_2, interpolation_steps),
+    tf.linspace(encoding_3, encoding_4, interpolation_steps),
     interpolation_steps,
 )
-interpolated_encodings = ops.reshape(
+interpolated_encodings = tf.reshape(
     interpolated_encodings, (interpolation_steps**2, 77, 768)
 )
-batched_encodings = ops.split(interpolated_encodings, batches)
+batched_encodings = tf.split(interpolated_encodings, batches)
 
 images = []
 for batch in range(batches):
@@ -293,18 +293,18 @@ batch_size = 3
 batches = walk_steps // batch_size
 step_size = 0.005
 
-encoding = ops.squeeze(
+encoding = tf.squeeze(
     model.encode_text("The Eiffel Tower in the style of starry night")
 )
 # Note that (77, 768) is the shape of the text encoding.
-delta = ops.ones_like(encoding) * step_size
+delta = tf.ones_like(encoding) * step_size
 
 walked_encodings = []
 for step_index in range(walk_steps):
     walked_encodings.append(encoding)
     encoding += delta
-walked_encodings = ops.stack(walked_encodings)
-batched_encodings = ops.split(walked_encodings, batches)
+walked_encodings = tf.stack(walked_encodings)
+batched_encodings = tf.split(walked_encodings, batches)
 
 images = []
 for batch in range(batches):
@@ -342,20 +342,20 @@ we began our walk, so we get a "loopable" result!
 """
 
 prompt = "An oil paintings of cows in a field next to a windmill in Holland"
-encoding = ops.squeeze(model.encode_text(prompt))
+encoding = tf.squeeze(model.encode_text(prompt))
 walk_steps = 150
 batch_size = 3
 batches = walk_steps // batch_size
 
-walk_noise_x = keras.random.normal(noise.shape, dtype="float64")
-walk_noise_y = keras.random.normal(noise.shape, dtype="float64")
+walk_noise_x = tf.random.normal(noise.shape, dtype=tf.float64)
+walk_noise_y = tf.random.normal(noise.shape, dtype=tf.float64)
 
-walk_scale_x = ops.cos(ops.linspace(0, 2, walk_steps) * math.pi)
-walk_scale_y = ops.sin(ops.linspace(0, 2, walk_steps) * math.pi)
-noise_x = ops.tensordot(walk_scale_x, walk_noise_x, axes=0)
-noise_y = ops.tensordot(walk_scale_y, walk_noise_y, axes=0)
-noise = ops.add(noise_x, noise_y)
-batched_noise = ops.split(noise, batches)
+walk_scale_x = tf.cos(tf.linspace(0, 2, walk_steps) * math.pi)
+walk_scale_y = tf.sin(tf.linspace(0, 2, walk_steps) * math.pi)
+noise_x = tf.tensordot(walk_scale_x, walk_noise_x, axes=0)
+noise_y = tf.tensordot(walk_scale_y, walk_noise_y, axes=0)
+noise = tf.add(noise_x, noise_y)
+batched_noise = tf.split(noise, batches)
 
 images = []
 for batch in range(batches):
