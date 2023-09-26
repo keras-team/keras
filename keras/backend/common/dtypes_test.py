@@ -8,30 +8,36 @@ from keras.testing import test_case
 
 
 class DtypesTest(test_case.TestCase, parameterized.TestCase):
-    """Dtypes test to verify that the result type matches `jnp.result_type`."""
+    """Test the dtype to verify that the behavior matches JAX."""
 
-    @parameterized.product(
-        dtype1=[d for d in ALLOWED_DTYPES if d != "string"],
-        dtype2=[bool, int, float],
-    )
+    if backend.backend() == "torch":
+        ALL_DTYPES = [
+            str(to_torch_dtype(x)).split(".")[-1]
+            for x in ALLOWED_DTYPES
+            if x not in ["string", "uint64"]
+        ] + [None]
+    else:
+        ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
+
+    def canonicalize_tf(self, dtype):
+        # TODO: canonicalize "int64" once the following issue resolved:
+        # https://www.tensorflow.org/xla/known_issues#tfvariable_on_a_different_device
+        return (
+            "int32"
+            if backend.backend() == "tensorflow" and dtype == "int64"
+            else dtype
+        )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
     def test_result_dtype_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
-        out = backend.result_type(dtype1, dtype2)
+        out = self.canonicalize_tf(backend.result_type(dtype1, dtype2))
         expected = jnp.result_type(dtype1, dtype2).name
         self.assertEqual(out, expected)
 
-    @parameterized.product(
-        # TODO: uint64, int64 and float64 are not supported by JAX by default
-        dtype1=[d for d in ALLOWED_DTYPES if d != "string" and "64" not in d],
-        dtype2=[d for d in ALLOWED_DTYPES if d != "string" and "64" not in d],
-    )
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
     def test_result_dtype_with_tensor(self, dtype1, dtype2):
-        # TODO: torch doesn't have `uint16` and `uint32` dtypes
-        if backend.backend() == "torch":
-            dtype1 = str(to_torch_dtype(dtype1)).split(".")[-1]
-            dtype2 = str(to_torch_dtype(dtype2)).split(".")[-1]
-
         import jax.numpy as jnp
 
         x1 = ops.ones((1,), dtype=dtype1)
@@ -39,7 +45,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
 
-        out = backend.result_type(x1.dtype, x2.dtype)
+        out = self.canonicalize_tf(backend.result_type(x1.dtype, x2.dtype))
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
 
