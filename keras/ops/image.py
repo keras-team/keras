@@ -640,8 +640,7 @@ def pad_to_bounding_box(
     ...     batch_images, 2, 3, 20, 30
     ... )
     >>> padded_batch.shape
-    (2, 20, 30, 3)
-"""
+    (2, 20, 30, 3)"""
 
     if any_symbolic_tensors((image,)):
         return PadToBoundingBox(
