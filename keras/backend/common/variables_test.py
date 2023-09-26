@@ -101,18 +101,6 @@ class VariablesTest(test_case.TestCase):
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    # TODO
-    # (3.9,torch) FAILED keras/backend/common/variables_test.py
-    # ::VariablesTest::test_standardize_shape_with_non_integer_entry:
-    #  - AssertionError "Cannot convert '\(3, 4, 'a'\)' to a shape.
-    # " does not match "invalid literal for int() with base 10: 'a'"
-    # def test_standardize_shape_with_non_integer_entry(self):
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
-    #     ):
-    #         standardize_shape([3, 4, "a"])
-
     def test_standardize_shape_with_negative_entry(self):
         with self.assertRaisesRegex(
             ValueError,
@@ -183,6 +171,36 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         shape = tensor.size()
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (10,))
+
+    def test_standardize_shape_with_torch_Size_with_valid_1_dimension(self):
+        """Tests a valid shape."""
+        shape_valid = [3]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3,))
+
+    def test_standardize_shape_with_torch_Size_with_valid_2_dimension(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4))
+
+    def test_standardize_shape_with_torch_Size_with_valid_3_dimension(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4, 5]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5))
+
+    def test_standardize_shape_with_torch_Size_with_valid_4_dimension(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4, 5, 6]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5, 6))
+
+    def test_standardize_shape_with_torch_Size_with_valid_5_dimension(self):
+        """Tests a valid shape."""
+        shape_valid = [3, 4, 5, 6, 7]
+        standardized_shape = standardize_shape(shape_valid)
+        self.assertEqual(standardized_shape, (3, 4, 5, 6, 7))
 
     def test_standardize_shape_with_torch_Size_with_invalid_dtype(self):
         """Tests shape with an invalid dtype."""
