@@ -17,7 +17,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     def test_result_dtype_with_python_scalar_types(self, dtype1, dtype2):
         import jax.numpy as jnp
 
-        out = backend.result_dtype(dtype1, dtype2)
+        out = backend.result_type(dtype1, dtype2)
         expected = jnp.result_type(dtype1, dtype2).name
         self.assertEqual(out, expected)
 
@@ -39,6 +39,11 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
 
-        out = backend.result_dtype(x1.dtype, x2.dtype)
+        out = backend.result_type(x1.dtype, x2.dtype)
         expected = jnp.result_type(x1_jax, x2_jax).name
         self.assertEqual(out, expected)
+
+    def test_result_dtype_with_none(self):
+        import jax.numpy as jnp
+
+        self.assertEqual(backend.result_type(None), jnp.result_type(None).name)

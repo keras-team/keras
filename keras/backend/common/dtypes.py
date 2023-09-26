@@ -131,7 +131,7 @@ def _least_upper_bound(*nodes):
         raise ValueError(
             f"Internal Type Promotion error: {nodes} do not have a unique "
             f"least upper bound on the specified lattice; options are {LUB}. "
-            "This is an unexpected error in Keras Core's internal logic; "
+            "This is an unexpected error in Keras's internal logic; "
             "please report it to the maintainers."
         )
 
@@ -244,10 +244,9 @@ def _lattice_result_type(*args):
         )
         out_weak_type = True
     else:
-        nodes = []
-        for d, w in zip(dtypes, weak_types):
-            nodes.append(_respect_weak_type(d, w))
-        out_dtype = _least_upper_bound(*nodes)
+        out_dtype = _least_upper_bound(
+            *{_respect_weak_type(d, w) for d, w in zip(dtypes, weak_types)}
+        )
         out_weak_type = any(out_dtype is t for t in WEAK_TYPES)
 
     out_weak_type = (out_dtype != "bool") and out_weak_type
@@ -259,7 +258,7 @@ def _lattice_result_type(*args):
 
 
 @keras_export("keras.backend.result_dtype")
-def result_dtype(*tensors_and_dtypes):
+def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
 
     In general, each argument is first parsed by `backend.standardize_dtype`,
@@ -269,7 +268,7 @@ def result_dtype(*tensors_and_dtypes):
     Note: This function attempts to match the result of `jnp.result_dtype`.
 
     Args:
-        tensors_and_dtypes: Input arguments.
+        dtypes: Input dtypes.
 
     Returns:
         The result dtype.
@@ -282,16 +281,14 @@ def result_dtype(*tensors_and_dtypes):
 
     >>> x = keras.ops.ones((1,), dtype="int32")
     >>> y = keras.ops.ones((1,), dtype="float32")
+    >>> keras.backend.result_dtype(x.dtype, y.dtype)
     "float32"
     """
-    if len(tensors_and_dtypes) == 0:
+    if len(dtypes) == 0:
         raise ValueError(
-            "Invalid `tensors_and_dtypes`. At least one tensor or dtype is "
-            f"required. Received: tensors_and_dtypes={tensors_and_dtypes}"
+            "Invalid `dtypes`. At least one dtype is required. "
+            f"Received: dtypes={dtypes}"
         )
     return _lattice_result_type(
-        *(
-            backend.floatx() if arg is None else arg
-            for arg in tensors_and_dtypes
-        )
+        *(backend.floatx() if arg is None else arg for arg in dtypes)
     )
