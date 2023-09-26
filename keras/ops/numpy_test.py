@@ -3895,7 +3895,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Ones()([2, 3], dtype=dtype).dtype),
+            standardize_dtype(
+                knp.Ones().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
             standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype),
         )
 
@@ -3908,7 +3910,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Zeros()([2, 3], dtype=dtype).dtype),
+            standardize_dtype(
+                knp.Zeros().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
         )
 
@@ -3921,7 +3925,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Empty()([2, 3], dtype=dtype).dtype),
+            standardize_dtype(
+                knp.Empty().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
             standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
         )
 
@@ -3940,7 +3946,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.identity(3, dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Identity()(3, dtype=dtype).dtype),
+            standardize_dtype(
+                knp.Identity().symbolic_call(3, dtype=dtype).dtype
+            ),
             standardize_dtype(jnp.identity(3, dtype=dtype).dtype),
         )
 
@@ -3959,7 +3967,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.tri(3, dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Tri()(3, dtype=dtype).dtype),
+            standardize_dtype(knp.Tri().symbolic_call(3, dtype=dtype).dtype),
             standardize_dtype(jnp.tri(3, dtype=dtype).dtype),
         )
 
@@ -3978,7 +3986,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.eye(3, dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Eye()(3, dtype=dtype).dtype),
+            standardize_dtype(knp.Eye().symbolic_call(3, dtype=dtype).dtype),
             standardize_dtype(jnp.eye(3, dtype=dtype).dtype),
         )
 
@@ -3987,6 +3995,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Eye()(3, 4, 1, dtype=dtype).dtype),
+            standardize_dtype(
+                knp.Eye().symbolic_call(3, 4, 1, dtype=dtype).dtype
+            ),
             standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype),
         )

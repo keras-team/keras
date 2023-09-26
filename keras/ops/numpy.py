@@ -4889,7 +4889,7 @@ class Tri(Operation):
         if M is None:
             M = N
         # match JAX behavior
-        dtype = dtype or "float32"
+        dtype = dtypes.result_type(dtype or "float32")
         return KerasTensor((N, M), dtype=dtype)
 
 
