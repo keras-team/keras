@@ -59,8 +59,10 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test)
-        y_train = numerical_utils.to_categorical(y_train)
+        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
+        y_train = numerical_utils.to_categorical(
+            y_train, num_classes=NUM_CLASSES
+        )
 
         # Case 1
         monitor = "val_loss"
@@ -466,8 +468,10 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test)
-        y_train = numerical_utils.to_categorical(y_train)
+        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
+        y_train = numerical_utils.to_categorical(
+            y_train, num_classes=NUM_CLASSES
+        )
 
         # Model Checkpoint load model (default)
         model = get_model()
@@ -572,8 +576,10 @@ class ModelCheckpointTestWithRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test)
-        y_train = numerical_utils.to_categorical(y_train)
+        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
+        y_train = numerical_utils.to_categorical(
+            y_train, num_classes=NUM_CLASSES
+        )
 
         # Case 1
         monitor = "val_loss"
@@ -962,7 +968,7 @@ class ModelCheckpointTestWithRandomSeed(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_loading(self):
         def get_model():
-            inputs = layers.Input(shape=(INPUT_DIM,), batch_size=2)
+            inputs = layers.Input(shape=(INPUT_DIM,), batch_size=5)
             x = layers.Dense(NUM_HIDDEN, activation="relu")(inputs)
             outputs = layers.Dense(NUM_CLASSES, activation="softmax")(x)
             functional_model = models.Model(inputs, outputs)
@@ -980,8 +986,10 @@ class ModelCheckpointTestWithRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test)
-        y_train = numerical_utils.to_categorical(y_train)
+        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
+        y_train = numerical_utils.to_categorical(
+            y_train, num_classes=NUM_CLASSES
+        )
 
         # Model Checkpoint load model (default)
         model = get_model()
