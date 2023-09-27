@@ -225,8 +225,10 @@ def _canonicalize_dtype_by_precision(dtype, precision="32"):
         )
 
 
-def _lattice_result_type(*args):
+def _lattice_result_type(*args, pre_canonicalize):
     dtypes, weak_types = zip(*(_dtype_and_weaktype(arg) for arg in args))
+    if pre_canonicalize:
+        dtypes = [_canonicalize_dtype_by_precision(dtype) for dtype in dtypes]
     if len(dtypes) == 1:
         out_dtype = dtypes[0]
         out_weak_type = weak_types[0]
@@ -256,18 +258,21 @@ def _lattice_result_type(*args):
     return _canonicalize_dtype_by_precision(out_dtype, precision)
 
 
-@keras_export("keras.backend.result_dtype")
-def result_type(*dtypes):
+@keras_export("keras.backend.result_type")
+def result_type(*dtypes, pre_canonicalize=False):
     """Returns the type from applying the Keras type promotion rules.
 
     In general, each argument is first parsed by `backend.standardize_dtype`,
     and the resulting dtype is determined by the least upper bound of the type
     promotion lattice.
 
-    Note: This function attempts to match the result of `jnp.result_dtype`.
+    Note: This function attempts to match the result of `jnp.result_type`.
 
     Args:
         dtypes: Input dtypes.
+        pre_canonicalize: Whether to pre-canonicalize the dtypes before applying
+            type promotion rules. This option is useful to align the behavior
+            with JAX. Defaults to `False`.
 
     Returns:
         The result dtype.
@@ -275,12 +280,12 @@ def result_type(*dtypes):
     Examples:
 
     >>> x = keras.ops.ones((1,), dtype="bfloat16")
-    >>> keras.backend.result_dtype(x.dtype, int)
+    >>> keras.backend.result_type(x.dtype, int)
     "bfloat16"
 
     >>> x = keras.ops.ones((1,), dtype="int32")
     >>> y = keras.ops.ones((1,), dtype="float32")
-    >>> keras.backend.result_dtype(x.dtype, y.dtype)
+    >>> keras.backend.result_type(x.dtype, y.dtype)
     "float32"
     """
     if len(dtypes) == 0:
@@ -289,5 +294,6 @@ def result_type(*dtypes):
             f"Received: dtypes={dtypes}"
         )
     return _lattice_result_type(
-        *(backend.floatx() if arg is None else arg for arg in dtypes)
+        *(backend.floatx() if arg is None else arg for arg in dtypes),
+        pre_canonicalize=pre_canonicalize,
     )
