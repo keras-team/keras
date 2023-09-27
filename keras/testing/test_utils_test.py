@@ -26,7 +26,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertTrue(np.all(y_test >= 0))
 
     def test_edge_cases_for_zero_samples(self):
-        """Tests edge cases when train_samples or test_samples is zero."""
+        """Tests edge cases when train_samples or test_samples is zero"""
         x_train, _, x_test, _ = test_utils.get_test_data(
             0, self.test_samples, self.input_shape, self.num_classes
         )
