@@ -541,8 +541,9 @@ class TorchTrainer(base_trainer.Trainer):
 
 class TorchEpochIterator(epoch_iterator.EpochIterator):
     def _get_iterator(self, return_type="auto"):
-        if return_type != "auto":
-            return super()._get_iterator(return_type)
-
-        if isinstance(self.data_adapter, data_adapters.TorchDataLoaderAdapter):
+        if return_type == "auto" and isinstance(
+            self.data_adapter, data_adapters.TorchDataLoaderAdapter
+        ):
             return self.data_adapter.get_torch_dataloader()
+
+        return super()._get_iterator(return_type)

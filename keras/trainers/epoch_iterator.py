@@ -72,7 +72,7 @@ class EpochIterator:
         self._num_batches = self.data_adapter.num_batches
 
     def _get_iterator(self, return_type="auto"):
-        if return_type not in ("np", "tf"):
+        if return_type not in ("np", "tf", "auto"):
             raise ValueError(
                 "Argument `return_type` must be one of `{'np', 'tf', 'auto'}`. "
                 f"Received instead: return_type={return_type}"
