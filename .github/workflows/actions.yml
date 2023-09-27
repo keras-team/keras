@@ -64,14 +64,14 @@ jobs:
           fail_ci_if_error: true
       - name: Test integrations
         run: |
-          python integration_tests/distribute_training_test.py
           python integration_tests/import_test.py
-          python integration_tests/numerical_test.py
       - name: Test backend-specific integrations
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: |
+          python integration_tests/tf_distribute_training_test.py
         if: ${{ matrix.backend == 'torch'}}
         run: |
-          python integration_tests/layer_in_torch_workflow.py
-          python integration_tests/torch_backend_keras_workflow.py
+          pytest integration_tests/torch_workflow_test.py
       - name: Test with pytest
         run: |
           pytest keras --ignore keras/applications --cov=keras
