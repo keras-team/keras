@@ -4,18 +4,20 @@ import numpy as np
 def get_test_data(
     train_samples, test_samples, input_shape, num_classes, random_seed=None
 ):
-    """
-    Generates synthetic test data for training a model, ensuring balanced class distribution in train/test split.
+    """Generates synthetic test data for training a model,
+    ensuring balanced class distribution in train/test split.
 
     Args:
         train_samples (int): Number of training samples.
         test_samples (int): Number of testing samples.
         input_shape (tuple): Shape of the input data.
         num_classes (int): Number of classes for the data and targets.
-        random_seed (int, optional): Random seed for data generation. Defaults to None.
+        random_seed (int, optional): Random seed for data generation.
+                                    Defaults to None.
 
     Returns:
-        tuple: Four numpy arrays representing training data, training labels, test data, and test labels.
+        tuple: Four numpy arrays representing training data,
+               training labels, test data, and test labels.
     """
     np.random.seed(random_seed)
 
@@ -69,7 +71,8 @@ def get_test_data(
 #     if random_seed is not None:
 #         np.random.seed(random_seed)
 #     num_sample = train_samples + test_samples
-#     templates = 2 * num_classes * np.random.random((num_classes,) + input_shape)
+#     templates = (2 * num_classes *
+#             np.random.random((num_classes,) + input_shape))
 #     y = np.random.randint(0, num_classes, size=(num_sample,))
 #     x = np.zeros((num_sample,) + input_shape, dtype=np.float32)
 #     for i in range(num_sample):
