@@ -327,8 +327,8 @@ class ModelParallel(Distribution):
     # will be split across 4 devices. Any other variable that doesn't
     # match any key in the layout map will be fully replicated.
     layout_map = LayoutMap(device_mesh)
-    layout_map['.*dense.*kernel'] = TensorLayout([None, 'model'])
-    layout_map['.*dense.*bias'] = TensorLayout(['model'])
+    layout_map['.*dense.*kernel'] = [None, 'model']
+    layout_map['.*dense.*bias'] = ['model']
     layout_map['.*conv2d.*kernel'] = TensorLayout([None, None, None, 'model'])
     layout_map['.*conv2d.*bias'] = TensorLayout(['model'])
 
@@ -410,12 +410,15 @@ class LayoutMap(collections.abc.MutableMapping):
     In the normal case, the key to query is usually the `variable.path`, which
     is the idenifier of the variable.
 
+    As shortcut, tuple or list of axis names are also allowed when inserting
+    as value, and will be converted to TensorLayout.
+
     ```python
     layout_map = LayoutMap(device_mesh=None)
-    layout_map['.*dense.*kernel'] = layout_2d
-    layout_map['.*dense.*bias'] = layout_1d
-    layout_map['.*conv2d.*kernel'] = layout_4d
-    layout_map['.*conv2d.*bias'] = layout_1d
+    layout_map['.*dense.*kernel'] = [None, 'model']         # layout_2d
+    layout_map['.*dense.*bias'] = ['model']                 # layout_1d
+    layout_map['.*conv2d.*kernel'] = TensorLayout([None, None, None, 'model'])
+    layout_map['.*conv2d.*bias'] = TensorLayout(['model'])  # layout_1d
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
