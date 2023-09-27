@@ -62,6 +62,23 @@ jobs:
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
           fail_ci_if_error: true
+      - name: Test integrations
+        run: |
+          python distribute_training_test.py
+          python import_test.py
+          python model_visualization_test.py
+          python numerical_test.py
+        with:
+          env_vars: PYTHON,KERAS_BACKEND
+          fail_ci_if_error: true
+      - name: Test backend-specific integrations
+        if: ${{ matrix.backend == 'torch'}}
+        run: |
+          python layer_in_torch_workflow.py
+          python torch_backend_keras_workflow.py
+        with:
+          env_vars: PYTHON,KERAS_BACKEND
+          fail_ci_if_error: true
       - name: Test with pytest
         run: |
           pytest keras --ignore keras/applications --cov=keras
