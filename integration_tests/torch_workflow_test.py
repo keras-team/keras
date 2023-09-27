@@ -15,6 +15,7 @@ class Net(torch.nn.Module):
         x = self.fc1(x)
         return x
 
+
 class TorchWorkflowTest(testing.TestCase):
     def test_keras_layer_in_nn_module(self):
         net = Net()
@@ -25,10 +26,10 @@ class TorchWorkflowTest(testing.TestCase):
         # Test KerasVariables are added as nn.Parameter.
         self.assertLen(list(net.parameters()), 2)
 
-        optimizer = torch.optim.SGD(net.parameters(), lr=1e-3)
-
         # Test using KerasVariable as a torch tensor for torch ops.
         kernel = net.fc1.kernel
         transposed_kernel = torch.transpose(kernel, 0, 1)
         self.assertIsInstance(kernel, KerasVariable)
-        self.assertIsInstance(torch.mul(kernel, transposed_kernel), torch.Tensor)
+        self.assertIsInstance(
+            torch.mul(kernel, transposed_kernel), torch.Tensor
+        )
