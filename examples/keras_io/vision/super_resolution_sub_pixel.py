@@ -5,6 +5,7 @@ Converted to Keras 3 by: [Md Awsfalur Rahman](https://awsaf49.github.io)
 Date created: 2020/07/28
 Last modified: 2020/08/27
 Description: Implementing Super-Resolution using Efficient sub-pixel model on BSDS500.
+Accelerator: GPU
 """
 """
 ## Introduction
