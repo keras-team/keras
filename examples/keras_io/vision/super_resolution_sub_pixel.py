@@ -184,7 +184,7 @@ It achieves better performance even though we train the model for fewer epochs.
 
 class DepthToSpace(layers.Layer):
     def __init__(self, block_size):
-        super(DepthToSpace, self).__init__()
+        super().__init__()
         self.block_size = block_size
 
     def call(self, input):
