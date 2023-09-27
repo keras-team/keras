@@ -111,3 +111,36 @@ class GetTestDataTest(test_case.TestCase):
         self.assertEqual(
             x_train_3d.shape, (self.train_samples,) + input_shape_3d
         )
+
+    def test_all_classes_represented(self):
+        """Ensure all classes are represented in the data."""
+        _, y_train, _, y_test = test_utils.get_test_data(
+            self.train_samples,
+            self.test_samples,
+            self.input_shape,
+            self.num_classes,
+        )
+        self.assertEqual(len(np.unique(y_train)), self.num_classes)
+        self.assertEqual(len(np.unique(y_test)), self.num_classes)
+
+    def test_data_type(self):
+        """Validate the type of the generated data."""
+        x_train, _, x_test, _ = test_utils.get_test_data(
+            self.train_samples,
+            self.test_samples,
+            self.input_shape,
+            self.num_classes,
+        )
+        self.assertEqual(x_train.dtype, np.float32)
+        self.assertEqual(x_test.dtype, np.float32)
+
+    def test_label_type(self):
+        """Validate the type of the generated labels."""
+        _, y_train, _, y_test = test_utils.get_test_data(
+            self.train_samples,
+            self.test_samples,
+            self.input_shape,
+            self.num_classes,
+        )
+        self.assertEqual(y_train.dtype, np.int64)
+        self.assertEqual(y_test.dtype, np.int64)
