@@ -26,9 +26,6 @@ dataset,
 ## Setup
 """
 
-import os
-os.environ["KERAS_BACKEND"] = "jax"
-
 import keras as keras
 from keras import layers
 from keras import ops
