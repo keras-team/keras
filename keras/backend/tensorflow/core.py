@@ -194,6 +194,19 @@ def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
+def scan(f,
+         init,
+         xs,
+         length=None,
+         reverse=False,
+         unroll=1):
+    return tf.scan(
+    f,
+    xs,
+    initializer=init,
+    reverse=reverse)
+
+
 def while_loop(
     cond,
     body,

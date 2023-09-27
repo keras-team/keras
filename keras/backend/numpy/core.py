@@ -204,6 +204,26 @@ def while_loop(
     return loop_vars
 
 
+def scan(f,
+         init,
+         xs,
+         length=None,
+         reverse=False,
+         unroll=1):
+    if xs is None:
+        xs = [None] * length
+    carry = init
+    ys = []
+    if reverse:
+        xs.reverse()
+    for x in xs:
+        carry, y = f(carry, x)
+        ys.append(y)
+    if reverse:
+        ys.reverse()
+    return carry, np.stack(ys)
+
+
 def fori_loop(lower, upper, body_fun, init_val):
     val = init_val
     for i in range(lower, upper):

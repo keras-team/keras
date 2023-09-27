@@ -215,6 +215,17 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
+
+    def test_scan(self):
+        x = [0,1,2,3,4,5,6]
+        x_target = [1, 2, 3, 4, 5, 6, 7]
+        def f(carry,x):
+            x +=carry
+            return carry,x
+        carr , y = core.scan(f,1,x)
+        self.assertEqual(x_target, y)
+
+
     def test_while_loop(self):
         def cond(x, y):
             return x[0, 0] < 10

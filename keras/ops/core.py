@@ -204,6 +204,16 @@ def slice_update(inputs, start_indices, updates):
     return backend.core.slice_update(inputs, start_indices, updates)
 
 
+@keras_export("keras.ops.scan")
+def scan(f,
+         init,
+         xs,
+         length=None,
+         reverse=False,
+         unroll=1):
+    return backend.core.scan(f,init,xs,length,reverse,unroll)
+
+
 class WhileLoop(Operation):
     def __init__(self, cond, body, maximum_iterations):
         super().__init__()
