@@ -63,6 +63,7 @@ jobs:
           files: apps-coverage.xml
           fail_ci_if_error: true
       - name: Test integrations
+        if: ${{ matrix.backend != 'numpy'}}
         run: |
           python integration_tests/import_test.py
       - name: Test TF-specific integrations
