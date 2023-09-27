@@ -26,7 +26,7 @@ NUM_HIDDEN = 5
 BATCH_SIZE = 5
 
 
-class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
+class ModelCheckpointTestWithOutNumClassesIntoCategorical(testing.TestCase):
     @pytest.mark.skipif(
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
@@ -59,10 +59,8 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
-        y_train = numerical_utils.to_categorical(
-            y_train, num_classes=NUM_CLASSES
-        )
+        y_test = numerical_utils.to_categorical(y_test)
+        y_train = numerical_utils.to_categorical(y_train)
 
         # Case 1
         monitor = "val_loss"
@@ -468,10 +466,8 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             input_shape=(INPUT_DIM,),
             num_classes=NUM_CLASSES,
         )
-        y_test = numerical_utils.to_categorical(y_test, num_classes=NUM_CLASSES)
-        y_train = numerical_utils.to_categorical(
-            y_train, num_classes=NUM_CLASSES
-        )
+        y_test = numerical_utils.to_categorical(y_test)
+        y_train = numerical_utils.to_categorical(y_train)
 
         # Model Checkpoint load model (default)
         model = get_model()
@@ -542,7 +538,7 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             self.assertAllClose(ref_w, w)
 
 
-class ModelCheckpointTestWithRandomSeed(testing.TestCase):
+class ModelCheckpointTestWithNumClassesIntoCategorical(testing.TestCase):
     @pytest.mark.skipif(
         h5py is None,
         reason="`h5py` is a required dependency for `ModelCheckpoint` tests.",
