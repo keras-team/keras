@@ -52,7 +52,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
         from jax._src.dtypes import _canonicalize_dtype
 
-        out = backend.result_type(dtype1, dtype2)
+        out = backend.result_type(dtype1, dtype2, pre_canonicalize=True)
         expected = jnp.result_type(
             _canonicalize_dtype(False, True, dtype1),
             _canonicalize_dtype(False, True, dtype2),

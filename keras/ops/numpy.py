@@ -305,7 +305,9 @@ class Add(Operation):
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
         output_dtype = dtypes.result_type(
-            x1.dtype, x2.dtype, pre_canonicalize=True
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            pre_canonicalize=True,
         )
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
