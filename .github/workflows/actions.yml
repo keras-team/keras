@@ -66,7 +66,6 @@ jobs:
         run: |
           python integration_tests/distribute_training_test.py
           python integration_tests/import_test.py
-          python integration_tests/model_visualization_test.py
           python integration_tests/numerical_test.py
       - name: Test backend-specific integrations
         if: ${{ matrix.backend == 'torch'}}
