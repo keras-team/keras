@@ -1,6 +1,5 @@
 import torch
 
-import keras
 from keras import layers
 from keras import testing
 from keras.backend.common import KerasVariable
