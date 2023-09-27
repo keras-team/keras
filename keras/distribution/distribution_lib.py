@@ -130,7 +130,7 @@ class TensorLayout:
     """
 
     def __init__(self, axes, device_mesh=None):
-        self._axes = axes
+        self._axes = list(axes)
         self._device_mesh = device_mesh
         self._validate_axes()
 
@@ -459,12 +459,23 @@ class LayoutMap(collections.abc.MutableMapping):
         return None
 
     def __setitem__(self, key, layout):
+        """Insert TensorLayout to the LayoutMap.
+
+        Args:
+            key: String key for the TensorLayout.
+            layout: The TensorLayout. As a shortcut, tuple or list of string
+                and None are also acceptiable, and will be converted to
+                TensorLayout.
+        """
         if key in self._layout_map:
             raise ValueError(
                 f"{key} already exist in the LayoutMap with "
                 f"value {self._layout_map[key]}. Please make sure to "
                 "not use duplicated keys."
             )
+        if isinstance(layout, (tuple, list)):
+            layout = TensorLayout(axes=layout, device_mesh=None)
+
         if not isinstance(layout, TensorLayout):
             raise ValueError(
                 f"{layout} should be a TensorLayout type, got {type(layout)}"
@@ -489,6 +500,9 @@ class LayoutMap(collections.abc.MutableMapping):
     def _maybe_populate_device_mesh(self, layout):
         if layout.device_mesh is None and self.device_mesh is not None:
             layout.device_mesh = self.device_mesh
+
+
+LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
 @keras_export("keras.distribution.distribution")

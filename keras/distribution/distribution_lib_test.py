@@ -260,10 +260,12 @@ class LayoutMapTest(testing.TestCase):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map["dense/kernel"] = self.sharded_2d
         layout_map["dense/bias"] = self.sharded_1d
+        # Test for adding list/tuple as shortcut for TensorLayout
+        layout_map["conv/bias"] = ("model",)
 
         # Make there are two items in the map, and we access them via the
         # underlying container at layout_map._layout_map
-        self.assertLen(layout_map, 2)
+        self.assertLen(layout_map, 3)
 
         kernel_layout = layout_map["dense/kernel"]
         self.assertEqual(kernel_layout.axes, [None, "model"])
@@ -273,11 +275,15 @@ class LayoutMapTest(testing.TestCase):
         self.assertEqual(bias_layout.axes, ["model"])
         self.assertIs(bias_layout.device_mesh, self.device_mesh)
 
+        conv_bias_layout = layout_map["conv/bias"]
+        self.assertEqual(conv_bias_layout.axes, ["model"])
+        self.assertIs(bias_layout.device_mesh, self.device_mesh)
+
         with self.assertRaisesRegex(ValueError, "dense/kernel already exist"):
             layout_map["dense/kernel"] = self.sharded_2d
 
         with self.assertRaisesRegex(ValueError, "should be a TensorLayout"):
-            layout_map["conv.kernel"] = [1, 2, 3]
+            layout_map["conv.kernel"] = {"a": "b"}
 
     def test_get(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
