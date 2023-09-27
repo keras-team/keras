@@ -26,7 +26,11 @@ def get_test_data(
         x[i] = templates[y[i]] + np.random.normal(
             loc=0, scale=1.0, size=input_shape
         )
-    return (
-        (x[:train_samples], y[:train_samples]),
-        (x[train_samples:], y[train_samples:]),
+    x_train, y_train, x_test, y_test = (
+        x[:train_samples],
+        y[:train_samples],
+        x[train_samples:],
+        y[train_samples:],
     )
+
+    return (x_train, y_train, x_test, y_test)

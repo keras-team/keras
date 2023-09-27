@@ -25,8 +25,6 @@ INPUT_DIM = 3
 NUM_HIDDEN = 5
 BATCH_SIZE = 5
 
-# test commit 11
-
 
 class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
     @pytest.mark.skipif(
@@ -55,7 +53,7 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
         # Save model to a subdir inside the temp_dir so we can test
         # automatic directory creation.
         filepath = os.path.join(temp_dir, "subdir", "checkpoint.keras")
-        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+        x_train, y_train, x_test, y_test = test_utils.get_test_data(
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
             input_shape=(INPUT_DIM,),
@@ -462,7 +460,7 @@ class ModelCheckpointTestWithOutRandomSeed(testing.TestCase):
             )
             return functional_model
 
-        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+        x_train, y_train, x_test, y_test = test_utils.get_test_data(
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
             input_shape=(INPUT_DIM,),
@@ -567,7 +565,7 @@ class ModelCheckpointTestWithRandomSeed(testing.TestCase):
         # Save model to a subdir inside the temp_dir so we can test
         # automatic directory creation.
         filepath = os.path.join(temp_dir, "subdir", "checkpoint.keras")
-        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+        x_train, y_train, x_test, y_test = test_utils.get_test_data(
             random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
@@ -975,7 +973,7 @@ class ModelCheckpointTestWithRandomSeed(testing.TestCase):
             )
             return functional_model
 
-        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
+        x_train, y_train, x_test, y_test = test_utils.get_test_data(
             random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
