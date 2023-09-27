@@ -329,8 +329,8 @@ class ModelParallel(Distribution):
     layout_map = LayoutMap(device_mesh)
     layout_map['.*dense.*kernel'] = [None, 'model']
     layout_map['.*dense.*bias'] = ['model']
-    layout_map['.*conv2d.*kernel'] = TensorLayout([None, None, None, 'model'])
-    layout_map['.*conv2d.*bias'] = TensorLayout(['model'])
+    layout_map['.*conv2d.*kernel'] = [None, None, None, 'model']
+    layout_map['.*conv2d.*bias'] = ['model']
 
     distribution = ModelParallel(device_mesh=device_mesh,
                                  layout_map=layout_map,
