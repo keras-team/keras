@@ -33,7 +33,7 @@ from keras.utils import load_img
 from keras.utils import array_to_img
 from keras.utils import img_to_array
 from keras.preprocessing import image_dataset_from_directory
-import tensorflow as tf
+import tensorflow as tf  #  only for data preprocessing
 
 import math
 import numpy as np
