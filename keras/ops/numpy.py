@@ -304,10 +304,15 @@ class Add(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            x1.dtype, x2.dtype, pre_canonicalize=True
+        )
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])

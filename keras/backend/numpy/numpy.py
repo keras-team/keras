@@ -3,9 +3,15 @@ import numpy as np
 from keras.backend import config
 from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
+from keras.backend.numpy.core import convert_to_tensor
 
 
 def add(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, pre_canonicalize=True)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.add(x1, x2)
 
 

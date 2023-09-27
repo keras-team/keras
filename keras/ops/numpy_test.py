@@ -3886,6 +3886,23 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     else:
         ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
 
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_add(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        self.assertEqual(
+            standardize_dtype(knp.add(x1, x2).dtype),
+            standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
+            standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
+        )
+
     @parameterized.parameters(ALL_DTYPES)
     def test_ones(self, dtype):
         import jax.numpy as jnp
