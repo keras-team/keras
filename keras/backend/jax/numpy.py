@@ -6,6 +6,8 @@ from keras.backend.jax.core import convert_to_tensor
 
 
 def add(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return jnp.add(x1, x2)
 
 

@@ -28,10 +28,7 @@ class Variable(
 
     def _initialize(self, value):
         self._value = tf.Variable(
-            tf.cast(value, self._dtype),
-            dtype=self._dtype,
-            trainable=self.trainable,
-            name=self.name,
+            value, dtype=self._dtype, trainable=self.trainable, name=self.name
         )
 
     def _direct_assign(self, value):
