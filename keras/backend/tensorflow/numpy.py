@@ -8,10 +8,17 @@ from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 
 from keras.backend import config
+from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
 from keras.backend.tensorflow.core import convert_to_tensor
 
 
 def add(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
         return tf.sparse.add(x1, x2)
     return tfnp.add(x1, x2)
@@ -196,11 +203,13 @@ def max(x, axis=None, keepdims=False, initial=None):
     return tfnp.max(x, axis=axis, keepdims=keepdims)
 
 
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return tf.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return tf.zeros(shape, dtype=dtype)
 
 
@@ -240,12 +249,13 @@ def arange(start, stop=None, step=1, dtype=None):
     # tfnp.arange has trouble with dynamic Tensors in compiled function.
     # tf.range does not.
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return tf.range(start, stop, delta=step, dtype=dtype)
 
 
@@ -403,7 +413,8 @@ def dot(x, y):
     return tfnp.dot(x, y)
 
 
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return tfnp.empty(shape, dtype=dtype)
 
 
@@ -453,7 +464,8 @@ def hstack(xs):
     return tfnp.hstack(xs)
 
 
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
+    dtype = dtype or config.floatx()
     return tfnp.identity(n, dtype=dtype)
 
 
@@ -776,7 +788,8 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return tfnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return tfnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -822,9 +835,16 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    if tf.as_dtype(x.dtype).is_integer:
-        x = tf.cast(x, dtype=config.floatx())
-    return tfnp.sqrt(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: Use tfnp.sqrt. Currently, tfnp.sqrt will aggressively upcast to
+    # float64 if the input is bfloat16. This behavior mismatches with JAX.
+    return tf.sqrt(x)
 
 
 def squeeze(x, axis=None):
@@ -863,7 +883,8 @@ def sum(x, axis=None, keepdims=False):
     return tfnp.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return tfnp.eye(N, M=M, k=k, dtype=dtype)
 
 

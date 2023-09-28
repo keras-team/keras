@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
 
@@ -70,11 +71,13 @@ def max(x, axis=None, keepdims=False, initial=None):
     return jnp.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.zeros(shape, dtype=dtype)
 
 
@@ -114,12 +117,13 @@ def append(
 
 def arange(start, stop=None, step=1, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return jnp.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -253,7 +257,8 @@ def dot(x, y):
     return jnp.dot(x, y)
 
 
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.empty(shape, dtype=dtype)
 
 
@@ -307,7 +312,8 @@ def hstack(xs):
     return jnp.hstack(xs)
 
 
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.identity(n, dtype=dtype)
 
 
@@ -573,7 +579,8 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return jnp.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -652,7 +659,8 @@ def sum(x, axis=None, keepdims=False):
     return jnp.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return jnp.eye(N, M=M, k=k, dtype=dtype)
 
 

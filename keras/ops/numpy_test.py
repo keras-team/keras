@@ -7,6 +7,8 @@ from keras import backend
 from keras import testing
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
+from keras.backend.common.variables import ALLOWED_DTYPES
+from keras.backend.torch.core import to_torch_dtype
 from keras.ops import numpy as knp
 
 # TODO: remove reliance on this (or alternatively, turn it on by default).
@@ -3872,3 +3874,211 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Tri()(3), np.tri(3))
         self.assertAllClose(knp.Tri()(3, 4), np.tri(3, 4))
         self.assertAllClose(knp.Tri()(3, 4, 1), np.tri(3, 4, 1))
+
+
+class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
+    """Test the dtype to verify that the behavior matches JAX."""
+
+    if backend.backend() == "torch":
+        # TODO: torch doesn't support uint64.
+        ALL_DTYPES = [
+            str(to_torch_dtype(x)).split(".")[-1]
+            for x in ALLOWED_DTYPES
+            if x not in ["string", "uint64"]
+        ] + [None]
+    else:
+        # TODO: Using uint64 will lead to weak type promotion (`float`),
+        # resulting in different behavior between JAX and Keras. Currently, we
+        # are skipping the test for uint64
+        ALL_DTYPES = [
+            x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        ] + [None]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_add(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        self.assertEqual(
+            standardize_dtype(knp.add(x1, x2).dtype),
+            standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
+            standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_ones(self, dtype):
+        import jax.numpy as jnp
+
+        self.assertEqual(
+            standardize_dtype(knp.ones([2, 3], dtype=dtype).dtype),
+            standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Ones().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
+            standardize_dtype(jnp.ones([2, 3], dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_zeros(self, dtype):
+        import jax.numpy as jnp
+
+        self.assertEqual(
+            standardize_dtype(knp.zeros([2, 3], dtype=dtype).dtype),
+            standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Zeros().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
+            standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(
+        (10, None, 1, None),
+        (0, 10, 1, None),
+        (0, 10, 0.5, None),
+        (10.0, None, 1, None),
+        (0, 10.0, 1, None),
+        (0.0, 10, 1, None),
+        (10, None, 1, "float32"),
+        (10, None, 1, "int32"),
+    )
+    def test_arange(self, start, stop, step, dtype):
+        import jax.numpy as jnp
+
+        self.assertEqual(
+            standardize_dtype(knp.arange(start, stop, step, dtype).dtype),
+            standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Arange().symbolic_call(start, stop, step, dtype).dtype
+            ),
+            standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_empty(self, dtype):
+        import jax.numpy as jnp
+
+        self.assertEqual(
+            standardize_dtype(knp.empty([2, 3], dtype=dtype).dtype),
+            standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Empty().symbolic_call([2, 3], dtype=dtype).dtype
+            ),
+            standardize_dtype(jnp.empty([2, 3], dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_identity(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bfloat16":
+                self.skipTest(
+                    "identity with dtype=bfloat16 is not supported for torch"
+                )
+
+        self.assertEqual(
+            standardize_dtype(knp.identity(3, dtype=dtype).dtype),
+            standardize_dtype(jnp.identity(3, dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Identity().symbolic_call(3, dtype=dtype).dtype
+            ),
+            standardize_dtype(jnp.identity(3, dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_tri(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bfloat16":
+                self.skipTest(
+                    "tri with dtype=bfloat16 is not supported for torch"
+                )
+
+        self.assertEqual(
+            standardize_dtype(knp.tri(3, dtype=dtype).dtype),
+            standardize_dtype(jnp.tri(3, dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Tri().symbolic_call(3, dtype=dtype).dtype),
+            standardize_dtype(jnp.tri(3, dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_sqrt(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "float16":
+                self.skipTest(
+                    "sqrt with dtype=float16 is not supported for torch"
+                )
+
+        x1 = knp.ones((1,), dtype=dtype)
+        x1_jax = jnp.ones((1,), dtype=dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.sqrt(x1).dtype),
+            standardize_dtype(jnp.sqrt(x1_jax).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Sqrt().symbolic_call(x1).dtype),
+            standardize_dtype(jnp.sqrt(x1_jax).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_eye(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bfloat16":
+                self.skipTest(
+                    "eye with dtype=bfloat16 is not supported for torch"
+                )
+
+        self.assertEqual(
+            standardize_dtype(knp.eye(3, dtype=dtype).dtype),
+            standardize_dtype(jnp.eye(3, dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Eye().symbolic_call(3, dtype=dtype).dtype),
+            standardize_dtype(jnp.eye(3, dtype=dtype).dtype),
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.eye(3, 4, 1, dtype=dtype).dtype),
+            standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Eye().symbolic_call(3, 4, 1, dtype=dtype).dtype
+            ),
+            standardize_dtype(jnp.eye(3, 4, 1, dtype=dtype).dtype),
+        )

@@ -147,6 +147,7 @@ from keras import backend
 from keras.api_export import keras_export
 from keras.backend import KerasTensor
 from keras.backend import any_symbolic_tensors
+from keras.backend.common import dtypes
 from keras.ops import operation_utils
 from keras.ops.operation import Operation
 from keras.ops.operation_utils import reduce_shape
@@ -303,10 +304,16 @@ class Add(Operation):
         x1_shape = getattr(x1, "shape", [])
         x2_shape = getattr(x2, "shape", [])
         output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
 
 
 @keras_export(["keras.ops.add", "keras.ops.numpy.add"])
@@ -662,7 +669,15 @@ class Arange(Operation):
     def compute_output_spec(self, start, stop=None, step=1, dtype=None):
         if stop is None:
             start, stop = 0, start
-        output_shape = [np.ceil((stop - start) / step).astype(int)]
+        output_shape = [int(np.ceil((stop - start) / step))]
+        if dtype is None:
+            dtypes_to_resolve = [
+                getattr(start, "dtype", type(start)),
+                getattr(step, "dtype", type(step)),
+            ]
+            if stop is not None:
+                dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
@@ -2302,15 +2317,16 @@ def einsum(subscripts, *operands):
 
 
 class Empty(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.empty(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.empty", "keras.ops.numpy.empty"])
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
     """Return a tensor of given shape and type filled with uninitialized data.
 
     Args:
@@ -2728,15 +2744,16 @@ def hstack(xs):
 
 
 class Identity(Operation):
-    def call(self, n, dtype="float32"):
+    def call(self, n, dtype=None):
         return backend.numpy.identity(n, dtype=dtype)
 
-    def compute_output_spec(self, n, dtype="float32"):
+    def compute_output_spec(self, n, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor([n, n], dtype=dtype)
 
 
 @keras_export(["keras.ops.identity", "keras.ops.numpy.identity"])
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
     """Return the identity tensor.
 
     The identity tensor is a square tensor with ones on the main diagonal and
@@ -4879,17 +4896,18 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 class Tri(Operation):
-    def call(self, N, M=None, k=0, dtype="float32"):
+    def call(self, N, M=None, k=0, dtype=None):
         return backend.numpy.tri(N, M=M, k=k, dtype=dtype)
 
-    def compute_output_spec(self, N, M=None, k=0, dtype="float32"):
+    def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
+        dtype = dtype or backend.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
 @keras_export(["keras.ops.tri", "keras.ops.numpy.tri"])
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
     """Return a tensor with ones at and below a diagonal and zeros elsewhere.
 
     Args:
@@ -5269,7 +5287,12 @@ class Sqrt(Operation):
         return backend.numpy.sqrt(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = (
+            "float64"
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.sqrt", "keras.ops.numpy.sqrt"])
@@ -5481,15 +5504,16 @@ def sum(x, axis=None, keepdims=False):
 
 
 class Zeros(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.zeros(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.zeros", "keras.ops.numpy.zeros"])
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with zeros.
 
     Args:
@@ -5503,15 +5527,16 @@ def zeros(shape, dtype="float32"):
 
 
 class Ones(Operation):
-    def call(self, shape, dtype="float32"):
+    def call(self, shape, dtype=None):
         return backend.numpy.ones(shape, dtype=dtype)
 
-    def compute_output_spec(self, shape, dtype="float32"):
+    def compute_output_spec(self, shape, dtype=None):
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ones", "keras.ops.numpy.ones"])
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
     """Return a new tensor of given shape and type, filled with ones.
 
     Args:
@@ -5525,17 +5550,18 @@ def ones(shape, dtype="float32"):
 
 
 class Eye(Operation):
-    def call(self, N, M=None, k=0, dtype="float32"):
+    def call(self, N, M=None, k=0, dtype=None):
         return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
-    def compute_output_spec(self, N, M=None, k=0, dtype="float32"):
+    def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
+        dtype = dtype or backend.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
 @keras_export(["keras.ops.eye", "keras.ops.numpy.eye"])
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
     """Return a 2-D tensor with ones on the diagonal and zeros elsewhere.
 
     Args:
