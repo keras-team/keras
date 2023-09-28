@@ -82,14 +82,14 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
 def zeros(shape, dtype=None):
-    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -392,7 +392,7 @@ def dot(x, y):
 
 
 def empty(shape, dtype=None):
-    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -463,7 +463,7 @@ def hstack(xs):
 
 
 def identity(n, dtype=None):
-    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    dtype = to_torch_dtype(dtype or config.floatx())
     return torch.eye(n, dtype=dtype, device=get_device())
 
 
@@ -939,9 +939,7 @@ def trace(x, offset=None, axis1=None, axis2=None):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    # match JAX behavior
-    # https://github.com/google/jax/blob/main/jax/_src/numpy/lax_numpy.py#L2709
-    dtype = to_torch_dtype(dtypes.result_type(dtype or "float32"))
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -1045,7 +1043,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=None, dtype=None):
-    dtype = to_torch_dtype(dtypes.result_type(dtype))
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:

@@ -75,12 +75,12 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 
 def ones(shape, dtype=None):
-    dtype = dtypes.result_type(dtype)
+    dtype = dtype or config.floatx()
     return jnp.ones(shape, dtype=dtype)
 
 
 def zeros(shape, dtype=None):
-    dtype = dtypes.result_type(dtype)
+    dtype = dtype or config.floatx()
     return jnp.zeros(shape, dtype=dtype)
 
 
@@ -260,7 +260,7 @@ def dot(x, y):
 
 
 def empty(shape, dtype=None):
-    dtype = dtypes.result_type(dtype)
+    dtype = dtype or config.floatx()
     return jnp.empty(shape, dtype=dtype)
 
 
@@ -315,7 +315,7 @@ def hstack(xs):
 
 
 def identity(n, dtype=None):
-    dtype = dtypes.result_type(dtype)
+    dtype = dtype or config.floatx()
     return jnp.identity(n, dtype=dtype)
 
 
@@ -582,9 +582,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 
 def tri(N, M=None, k=0, dtype=None):
-    # match JAX behavior
-    # https://github.com/google/jax/blob/main/jax/_src/numpy/lax_numpy.py#L2709
-    dtype = dtypes.result_type(dtype or "float32")
+    dtype = dtype or config.floatx()
     return jnp.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -664,7 +662,7 @@ def sum(x, axis=None, keepdims=False):
 
 
 def eye(N, M=None, k=0, dtype=None):
-    dtype = dtypes.result_type(dtype)
+    dtype = dtype or config.floatx()
     return jnp.eye(N, M=M, k=k, dtype=dtype)
 
 
