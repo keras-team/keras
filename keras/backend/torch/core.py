@@ -113,6 +113,16 @@ class Variable(KerasVariable):
             )
         return value
 
+    @property
+    def trainable(self):
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
+        if self._value is not None:
+            self._value.requires_grad = value
+
     def __eq__(self, other):
         try:
             return super().__eq__(other)
