@@ -20,7 +20,7 @@ pip install keras-core
 
 2. Install backend package(s).
 
-To use keras-core, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
+To use `keras-core`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`.
 Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
 as well as `tf.data` pipelines.
 
