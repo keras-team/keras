@@ -2,7 +2,6 @@ import numpy as np
 import torch
 
 from keras.backend import config
-from keras.backend.common import dtypes
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
@@ -20,9 +19,6 @@ TORCH_INT_TYPES = (
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = cast(x1, dtype)
-    x2 = cast(x2, dtype)
     return torch.add(x1, x2)
 
 
