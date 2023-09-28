@@ -320,7 +320,8 @@ def obtain_input_shape(
     """
     if weights != "imagenet" and input_shape and len(input_shape) == 3:
         if data_format == "channels_first":
-            if input_shape[0] not in {1, 3}:
+            correct_channel_axis = 1 if len(input_shape) == 4 else 0
+            if input_shape[correct_channel_axis] not in {1, 3}:
                 warnings.warn(
                     "This model usually expects 1 or 3 input channels. "
                     "However, it was passed an input_shape "
