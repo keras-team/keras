@@ -3952,6 +3952,30 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
         )
 
+    @parameterized.parameters(
+        (10, None, 1, None),
+        (0, 10, 1, None),
+        (0, 10, 0.5, None),
+        (10.0, None, 1, None),
+        (0, 10.0, 1, None),
+        (0.0, 10, 1, None),
+        (10, None, 1, "float32"),
+        (10, None, 1, "int32"),
+    )
+    def test_arange(self, start, stop, step, dtype):
+        import jax.numpy as jnp
+
+        self.assertEqual(
+            standardize_dtype(knp.arange(start, stop, step, dtype).dtype),
+            standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Arange().symbolic_call(start, stop, step, dtype).dtype
+            ),
+            standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
+        )
+
     @parameterized.parameters(ALL_DTYPES)
     def test_empty(self, dtype):
         import jax.numpy as jnp

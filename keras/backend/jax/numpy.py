@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
 
@@ -116,12 +117,13 @@ def append(
 
 def arange(start, stop=None, step=1, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return jnp.arange(start, stop, step=step, dtype=dtype)
 
 

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
@@ -163,12 +164,13 @@ def append(
 
 def arange(start, stop=None, step=1, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
     if stop is None:
         return torch.arange(end=start, dtype=dtype, device=get_device())
