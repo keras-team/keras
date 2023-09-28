@@ -40,13 +40,10 @@ def sticky_attribute_assignment(trackable, name, value):
     Returns:
         The value which should be stored in the attribute.
     """
-    if isinstance(value, tracking.TrackedList):
-        value = list(value)
-    if isinstance(value, tracking.TrackedDict):
-        value = dict(value)
-    if isinstance(value, tracking.TrackedSet):
-        value = set(value)
-    value = tf.__internal__.tracking.wrap(value)
+    if isinstance(
+        value, (tracking.TrackedList, tracking.TrackedDict, tracking.TrackedSet)
+    ) and hasattr(trackable, "_tracked"):
+        trackable._tracked.append(name)
     if not tracking.is_tracking_enabled():
         return value
     if isinstance(value, tf.__internal__.tracking.Trackable):
