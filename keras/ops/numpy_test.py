@@ -4035,6 +4035,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_sqrt(self, dtype):
         import jax.numpy as jnp
 
+        if backend.backend() == "torch":
+            if dtype == "float16":
+                self.skipTest(
+                    "sqrt with dtype=float16 is not supported for torch"
+                )
+
         x1 = knp.ones((1,), dtype=dtype)
         x1_jax = jnp.ones((1,), dtype=dtype)
 
