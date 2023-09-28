@@ -85,10 +85,15 @@ MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet"]
 
 # Add names for `named_parameters`, and add each data format for each model
 test_parameters = [
-    ('{}_{}'.format(model[0].__name__, image_data_format), *model, image_data_format)
+    (
+        "{}_{}".format(model[0].__name__, image_data_format),
+        *model,
+        image_data_format,
+    )
     for image_data_format in ["channels_first", "channels_last"]
     for model in MODEL_LIST
 ]
+
 
 def _get_elephant(target_size):
     # For models that don't include a Flatten step,
@@ -122,17 +127,27 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
     def tearDownClass(cls):
         backend.set_image_data_format(cls.original_image_data_format)
 
-    def skip_if_invalid_image_data_format_for_model(self, app, image_data_format):
+    def skip_if_invalid_image_data_format_for_model(
+        self, app, image_data_format
+    ):
         does_not_support_channels_first = any(
-            [unsupported_name.lower() in app.__name__.lower() for unsupported_name in
-             MODELS_UNSUPPORTED_CHANNELS_FIRST])
-        if image_data_format == "channels_first" and does_not_support_channels_first:
+            [
+                unsupported_name.lower() in app.__name__.lower()
+                for unsupported_name in MODELS_UNSUPPORTED_CHANNELS_FIRST
+            ]
+        )
+        if (
+            image_data_format == "channels_first"
+            and does_not_support_channels_first
+        ):
             self.skipTest(
                 "{} does not support channels first".format(app.__name__)
             )
 
     @parameterized.named_parameters(test_parameters)
-    def test_application_notop_variable_input_channels(self, app, last_dim, _, image_data_format):
+    def test_application_notop_variable_input_channels(
+        self, app, last_dim, _, image_data_format
+    ):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
@@ -193,7 +208,9 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
 
     @parameterized.named_parameters(test_parameters)
-    def test_application_notop_custom_input_shape(self, app, last_dim, _, image_data_format):
+    def test_application_notop_custom_input_shape(
+        self, app, last_dim, _, image_data_format
+    ):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
