@@ -616,10 +616,13 @@ def square(x):
 
 
 def sqrt(x):
-    dtype = None
-    if hasattr(x, "dtype"):
-        if standardize_dtype(x.dtype).startswith("int"):
-            dtype = config.floatx()
+    x = convert_to_tensor(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
     return np.sqrt(x, dtype=dtype)
 
 

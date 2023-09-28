@@ -8,6 +8,7 @@ from tensorflow.experimental import numpy as tfnp
 from tensorflow.python.ops.linalg.sparse import sparse_csr_matrix_ops
 
 from keras.backend import config
+from keras.backend import standardize_dtype
 from keras.backend.common import dtypes
 from keras.backend.tensorflow.core import convert_to_tensor
 
@@ -834,9 +835,16 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
-    if tf.as_dtype(x.dtype).is_integer:
-        x = tf.cast(x, dtype=config.floatx())
-    return tfnp.sqrt(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = tf.cast(x, dtype)
+    # TODO: Use tfnp.sqrt. Currently, tfnp.sqrt will aggressively upcast to
+    # float64 if the input is bfloat16. This behavior mismatches with JAX.
+    return tf.sqrt(x)
 
 
 def squeeze(x, axis=None):

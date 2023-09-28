@@ -5287,7 +5287,12 @@ class Sqrt(Operation):
         return backend.numpy.sqrt(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = (
+            "float64"
+            if backend.standardize_dtype(x.dtype) == "int64"
+            else dtypes.result_type(x.dtype, float)
+        )
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.sqrt", "keras.ops.numpy.sqrt"])

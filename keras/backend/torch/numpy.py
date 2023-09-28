@@ -1000,6 +1000,9 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    if x.dtype == torch.int64:
+        x = cast(x, "float64")
     return torch.sqrt(x)
 
 

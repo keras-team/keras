@@ -4032,6 +4032,22 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         )
 
     @parameterized.parameters(ALL_DTYPES)
+    def test_sqrt(self, dtype):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype)
+        x1_jax = jnp.ones((1,), dtype=dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.sqrt(x1).dtype),
+            standardize_dtype(jnp.sqrt(x1_jax).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Sqrt().symbolic_call(x1).dtype),
+            standardize_dtype(jnp.sqrt(x1_jax).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
     def test_eye(self, dtype):
         import jax.numpy as jnp
 
