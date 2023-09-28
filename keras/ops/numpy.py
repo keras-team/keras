@@ -2313,7 +2313,7 @@ class Empty(Operation):
         return backend.numpy.empty(shape, dtype=dtype)
 
     def compute_output_spec(self, shape, dtype=None):
-        dtype = dtypes.result_type(dtype)
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -2740,7 +2740,7 @@ class Identity(Operation):
         return backend.numpy.identity(n, dtype=dtype)
 
     def compute_output_spec(self, n, dtype=None):
-        dtype = dtypes.result_type(dtype)
+        dtype = dtype or backend.floatx()
         return KerasTensor([n, n], dtype=dtype)
 
 
@@ -4894,8 +4894,7 @@ class Tri(Operation):
     def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
-        # match JAX behavior
-        dtype = dtypes.result_type(dtype or "float32")
+        dtype = dtype or backend.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
@@ -5496,7 +5495,7 @@ class Zeros(Operation):
         return backend.numpy.zeros(shape, dtype=dtype)
 
     def compute_output_spec(self, shape, dtype=None):
-        dtype = dtypes.result_type(dtype)
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -5519,7 +5518,7 @@ class Ones(Operation):
         return backend.numpy.ones(shape, dtype=dtype)
 
     def compute_output_spec(self, shape, dtype=None):
-        dtype = dtypes.result_type(dtype)
+        dtype = dtype or backend.floatx()
         return KerasTensor(shape, dtype=dtype)
 
 
@@ -5544,7 +5543,7 @@ class Eye(Operation):
     def compute_output_spec(self, N, M=None, k=0, dtype=None):
         if M is None:
             M = N
-        dtype = dtypes.result_type(dtype)
+        dtype = dtype or backend.floatx()
         return KerasTensor((N, M), dtype=dtype)
 
 
