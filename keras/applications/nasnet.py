@@ -161,10 +161,6 @@ def NASNet(
             'to follow the "channels_last" data format.',
             stacklevel=2,
         )
-        backend.set_image_data_format("channels_last")
-        old_data_format = "channels_first"
-    else:
-        old_data_format = None
 
     if input_tensor is None:
         img_input = layers.Input(shape=input_shape)
@@ -304,9 +300,6 @@ def NASNet(
             )
     elif weights is not None:
         model.load_weights(weights)
-
-    if old_data_format:
-        backend.set_image_data_format(old_data_format)
 
     return model
 

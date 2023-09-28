@@ -81,9 +81,14 @@ MODEL_LIST = [
     (resnet_v2.ResNet101V2, 2048, resnet_v2),
     (resnet_v2.ResNet152V2, 2048, resnet_v2),
 ]
-# Add names for `named_parameters`.
-MODEL_LIST = [(e[0].__name__, *e) for e in MODEL_LIST]
+MODELS_UNSUPPORTED_CHANNELS_FIRST = ["ConvNeXt", "DenseNet", "NASNet"]
 
+# Add names for `named_parameters`, and add each data format for each model
+test_parameters = [
+    ('{}_{}'.format(model[0].__name__, image_data_format), *model, image_data_format)
+    for image_data_format in ["channels_first", "channels_last"]
+    for model in MODEL_LIST
+]
 
 def _get_elephant(target_size):
     # For models that don't include a Flatten step,
@@ -109,44 +114,73 @@ def _get_elephant(target_size):
 )
 @pytest.mark.requires_trainable_backend
 class ApplicationsTest(testing.TestCase, parameterized.TestCase):
-    @parameterized.named_parameters(MODEL_LIST)
-    def test_application_notop_variable_input_channels(self, app, last_dim, _):
+    @classmethod
+    def setUpClass(cls):
+        cls.original_image_data_format = backend.image_data_format()
+
+    @classmethod
+    def tearDownClass(cls):
+        backend.set_image_data_format(cls.original_image_data_format)
+
+    def skip_if_invalid_image_data_format_for_model(self, app, image_data_format):
+        does_not_support_channels_first = any(
+            [unsupported_name.lower() in app.__name__.lower() for unsupported_name in
+             MODELS_UNSUPPORTED_CHANNELS_FIRST])
+        if image_data_format == "channels_first" and does_not_support_channels_first:
+            self.skipTest(
+                "{} does not support channels first".format(app.__name__)
+            )
+
+    @parameterized.named_parameters(test_parameters)
+    def test_application_notop_variable_input_channels(self, app, last_dim, _, image_data_format):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
             )
+        self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
+        backend.set_image_data_format(image_data_format)
 
         # Test compatibility with 1 channel
-        if backend.image_data_format() == "channels_first":
+        if image_data_format == "channels_first":
             input_shape = (1, None, None)
+            correct_output_shape = [None, last_dim, None, None]
         else:
             input_shape = (None, None, 1)
+            correct_output_shape = [None, None, None, last_dim]
+
         model = app(weights=None, include_top=False, input_shape=input_shape)
         output_shape = list(model.outputs[0].shape)
-        self.assertEqual(output_shape, [None, None, None, last_dim])
+        self.assertEqual(output_shape, correct_output_shape)
 
         # Test compatibility with 4 channels
-        if backend.image_data_format() == "channels_first":
+        if image_data_format == "channels_first":
             input_shape = (4, None, None)
         else:
             input_shape = (None, None, 4)
         model = app(weights=None, include_top=False, input_shape=input_shape)
         output_shape = list(model.outputs[0].shape)
-        self.assertEqual(output_shape, [None, None, None, last_dim])
+        self.assertEqual(output_shape, correct_output_shape)
 
-    @parameterized.named_parameters(MODEL_LIST)
+    @parameterized.named_parameters(test_parameters)
     @pytest.mark.skipif(PIL is None, reason="Requires PIL.")
-    def test_application_base(self, app, _, app_module):
+    def test_application_base(self, app, _, app_module, image_data_format):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
             )
+        self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
+        backend.set_image_data_format(image_data_format)
 
         # Can be instantiated with default arguments
         model = app(weights="imagenet")
 
         # Can run a correct inference on a test image
-        x = _get_elephant(model.input_shape[1:3])
+        if image_data_format == "channels_first":
+            shape = model.input_shape[2:4]
+        else:
+            shape = model.input_shape[1:3]
+        x = _get_elephant(shape)
+
         x = app_module.preprocess_input(x)
         preds = model.predict(x)
         names = [p[1] for p in app_module.decode_predictions(preds)[0]]
@@ -158,29 +192,39 @@ class ApplicationsTest(testing.TestCase, parameterized.TestCase):
         reconstructed_model = serialization_lib.deserialize_keras_object(config)
         self.assertEqual(len(model.weights), len(reconstructed_model.weights))
 
-    @parameterized.named_parameters(MODEL_LIST)
-    def test_application_notop_custom_input_shape(self, app, last_dim, _):
+    @parameterized.named_parameters(test_parameters)
+    def test_application_notop_custom_input_shape(self, app, last_dim, _, image_data_format):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
             )
+        self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
+        backend.set_image_data_format(image_data_format)
 
-        model = app(weights=None, include_top=False, input_shape=(123, 123, 3))
+        if image_data_format == "channels_first":
+            input_shape = (3, 123, 123)
+            last_dim_axis = 1
+        else:
+            input_shape = (123, 123, 3)
+            last_dim_axis = -1
+        model = app(weights=None, include_top=False, input_shape=input_shape)
         output_shape = list(model.outputs[0].shape)
-        self.assertEqual(output_shape[-1], last_dim)
+        self.assertEqual(output_shape[last_dim_axis], last_dim)
 
-    @parameterized.named_parameters(MODEL_LIST)
-    def test_application_pooling(self, app, last_dim, _):
+    @parameterized.named_parameters(test_parameters)
+    def test_application_pooling(self, app, last_dim, _, image_data_format):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
                 "NASNetMobile pretrained incorrect with torch backend."
             )
+        self.skip_if_invalid_image_data_format_for_model(app, image_data_format)
+        backend.set_image_data_format(image_data_format)
 
         model = app(weights=None, include_top=False, pooling="max")
         output_shape = list(model.outputs[0].shape)
         self.assertEqual(output_shape, [None, last_dim])
 
-    @parameterized.named_parameters(MODEL_LIST)
+    @parameterized.named_parameters(test_parameters)
     def test_application_classifier_activation(self, app, *_):
         if app == nasnet.NASNetMobile and backend.backend() == "torch":
             self.skipTest(
