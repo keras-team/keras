@@ -209,26 +209,8 @@ BIT64_TO_BIT32_DTYPE = {
 }
 
 
-@functools.lru_cache(maxsize=None)
-def _canonicalize_dtype_by_precision(dtype, precision="32"):
-    """Canonicalize dtype by the precision of `backend.floatx()`."""
-    if precision == "16":
-        return BIT64_TO_BIT16_DTYPE.get(dtype, dtype)
-    elif precision == "32":
-        return BIT64_TO_BIT32_DTYPE.get(dtype, dtype)
-    elif precision == "64":
-        return dtype
-    else:
-        raise ValueError(
-            f"Invalid value for argument `precision`. Expected one of "
-            f"('16', '32', '64'). Received: precision={precision}"
-        )
-
-
-def _lattice_result_type(*args, pre_canonicalize):
+def _lattice_result_type(*args):
     dtypes, weak_types = zip(*(_dtype_and_weaktype(arg) for arg in args))
-    if pre_canonicalize:
-        dtypes = [_canonicalize_dtype_by_precision(dtype) for dtype in dtypes]
     if len(dtypes) == 1:
         out_dtype = dtypes[0]
         out_weak_type = weak_types[0]
@@ -252,14 +234,14 @@ def _lattice_result_type(*args, pre_canonicalize):
         out_weak_type = any(out_dtype is t for t in WEAK_TYPES)
 
     out_weak_type = (out_dtype != "bool") and out_weak_type
-    if out_weak_type:
-        out_dtype = _resolve_weak_type(out_dtype)
     precision = backend.floatx()[-2:]
-    return _canonicalize_dtype_by_precision(out_dtype, precision)
+    if out_weak_type:
+        out_dtype = _resolve_weak_type(out_dtype, precision=precision)
+    return out_dtype
 
 
 @keras_export("keras.backend.result_type")
-def result_type(*dtypes, pre_canonicalize=False):
+def result_type(*dtypes):
     """Returns the type from applying the Keras type promotion rules.
 
     In general, each argument is first parsed by `backend.standardize_dtype`,
@@ -270,9 +252,6 @@ def result_type(*dtypes, pre_canonicalize=False):
 
     Args:
         dtypes: Input dtypes.
-        pre_canonicalize: Whether to pre-canonicalize the dtypes before applying
-            type promotion rules. This option is useful to align the behavior
-            with JAX. Defaults to `False`.
 
     Returns:
         The result dtype.
@@ -295,5 +274,4 @@ def result_type(*dtypes, pre_canonicalize=False):
         )
     return _lattice_result_type(
         *(backend.floatx() if arg is None else arg for arg in dtypes),
-        pre_canonicalize=pre_canonicalize,
     )

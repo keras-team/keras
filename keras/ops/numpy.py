@@ -307,7 +307,6 @@ class Add(Operation):
         output_dtype = dtypes.result_type(
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
-            pre_canonicalize=True,
         )
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)

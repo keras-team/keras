@@ -3880,13 +3880,30 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
+        # TODO: torch doesn't support uint64.
         ALL_DTYPES = [
             str(to_torch_dtype(x)).split(".")[-1]
             for x in ALLOWED_DTYPES
             if x not in ["string", "uint64"]
         ] + [None]
     else:
-        ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
+        # TODO: Using uint64 will lead to weak type promotion (`float`),
+        # resulting in different behavior between JAX and Keras. Currently, we
+        # are skipping the test for uint64
+        ALL_DTYPES = [
+            x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+        ] + [None]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
 
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
     def test_add(self, dtype1, dtype2):

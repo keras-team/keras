@@ -11,6 +11,7 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
     if backend.backend() == "torch":
+        # TODO: torch doesn't support uint64.
         ALL_DTYPES = [
             str(to_torch_dtype(x)).split(".")[-1]
             for x in ALLOWED_DTYPES
@@ -18,6 +19,17 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         ] + [None]
     else:
         ALL_DTYPES = [x for x in ALLOWED_DTYPES if x != "string"] + [None]
+
+    def setUp(self):
+        from jax.experimental import enable_x64
+
+        self.jax_enable_x64 = enable_x64()
+        self.jax_enable_x64.__enter__()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        self.jax_enable_x64.__exit__(None, None, None)
+        return super().tearDown()
 
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=[bool, int, float])
     def test_result_type_with_python_scalar_types(self, dtype1, dtype2):
@@ -44,20 +56,6 @@ class DtypesTest(test_case.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         self.assertEqual(backend.result_type(None), jnp.result_type(None).name)
-
-    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
-    def test_result_type_precanonicalize(
-        self, dtype1=ALL_DTYPES, dtype2=ALL_DTYPES
-    ):
-        import jax.numpy as jnp
-        from jax._src.dtypes import _canonicalize_dtype
-
-        out = backend.result_type(dtype1, dtype2, pre_canonicalize=True)
-        expected = jnp.result_type(
-            _canonicalize_dtype(False, True, dtype1),
-            _canonicalize_dtype(False, True, dtype2),
-        ).name
-        self.assertEqual(out, expected)
 
     def test_result_type_invalid_dtypes(self):
         with self.assertRaisesRegexp(

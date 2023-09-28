@@ -15,7 +15,7 @@ from keras.backend.tensorflow.core import convert_to_tensor
 def add(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(x1.dtype, x2.dtype, pre_canonicalize=True)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
