@@ -62,21 +62,21 @@ class TensorLayoutTest(testing.TestCase):
         )
 
     def test_tensor_layout_creation(self):
-        axes = ["data", None]
+        axes = ("data", None)
         layout = distribution_lib.TensorLayout(axes, self.mesh)
 
         self.assertEqual(layout.device_mesh, self.mesh)
         self.assertEqual(layout.axes, axes)
 
     def test_tensor_layout_validation(self):
-        axes = ["data", "unknown", None]
+        axes = ("data", "unknown", None)
         with self.assertRaisesRegex(
             ValueError, "Invalid axis names for Layout"
         ):
             distribution_lib.TensorLayout(axes, self.mesh)
 
     def test_lazy_device_mesh_injection(self):
-        axes = ["data", None]
+        axes = ("data", None)
         layout = distribution_lib.TensorLayout(axes, None)
 
         self.assertIsNone(layout.device_mesh)
@@ -88,7 +88,7 @@ class TensorLayoutTest(testing.TestCase):
         self.assertEqual(layout.axes, axes)
 
     def test_lazy_device_mesh_validation(self):
-        axes = ["data", "unknown", None]
+        axes = ("data", "unknown", None)
         layout = distribution_lib.TensorLayout(axes, None)
 
         self.assertIsNone(layout.device_mesh)
@@ -180,7 +180,7 @@ class DataParallelDistributionTest(testing.TestCase):
         data = np.arange(16).reshape((4, 2, 2))
         data_layout = distribution.get_data_layout(data.shape)
         self.assertIs(data_layout.device_mesh, self.device_mesh)
-        self.assertEqual(data_layout.axes, ["data", None, None])
+        self.assertEqual(data_layout.axes, ("data", None, None))
 
     def test_get_variable_layout(self):
         distribution = distribution_lib.DataParallel(
@@ -190,7 +190,7 @@ class DataParallelDistributionTest(testing.TestCase):
         variable = backend.Variable(initializer=[1, 2, 3])
         variable_layout = distribution.get_variable_layout(variable)
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
-        self.assertEqual(variable_layout.axes, [None])
+        self.assertEqual(variable_layout.axes, (None,))
 
 
 class ModelParallelDistributionTest(testing.TestCase):
@@ -218,15 +218,15 @@ class ModelParallelDistributionTest(testing.TestCase):
 
         kernel_layout = distribution.get_variable_layout(kernel)
         self.assertIs(kernel_layout.device_mesh, self.device_mesh)
-        self.assertEqual(kernel_layout.axes, [None, "model"])
+        self.assertEqual(kernel_layout.axes, (None, "model"))
 
         bias_layout = distribution.get_variable_layout(bias)
         self.assertIs(bias_layout.device_mesh, self.device_mesh)
-        self.assertEqual(bias_layout.axes, ["model"])
+        self.assertEqual(bias_layout.axes, ("model",))
 
         rng_seed_layout = distribution.get_variable_layout(rng_seed)
         self.assertIs(rng_seed_layout.device_mesh, self.device_mesh)
-        self.assertEqual(rng_seed_layout.axes, [None])
+        self.assertEqual(rng_seed_layout.axes, (None,))
 
     def test_distribute_data(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
@@ -237,7 +237,7 @@ class ModelParallelDistributionTest(testing.TestCase):
         data = np.arange(16).reshape((4, 2, 2))
         data_layout = distribution.get_data_layout(data.shape)
         self.assertIs(data_layout.device_mesh, self.device_mesh)
-        self.assertEqual(data_layout.axes, ["data", None, None])
+        self.assertEqual(data_layout.axes, ("data", None, None))
 
 
 class LayoutMapTest(testing.TestCase):
@@ -260,24 +260,30 @@ class LayoutMapTest(testing.TestCase):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map["dense/kernel"] = self.sharded_2d
         layout_map["dense/bias"] = self.sharded_1d
+        # Test for adding list/tuple as shortcut for TensorLayout
+        layout_map["conv/bias"] = ("model",)
 
         # Make there are two items in the map, and we access them via the
         # underlying container at layout_map._layout_map
-        self.assertLen(layout_map, 2)
+        self.assertLen(layout_map, 3)
 
         kernel_layout = layout_map["dense/kernel"]
-        self.assertEqual(kernel_layout.axes, [None, "model"])
+        self.assertEqual(kernel_layout.axes, (None, "model"))
         self.assertIs(kernel_layout.device_mesh, self.device_mesh)
 
         bias_layout = layout_map["dense/bias"]
-        self.assertEqual(bias_layout.axes, ["model"])
+        self.assertEqual(bias_layout.axes, ("model",))
+        self.assertIs(bias_layout.device_mesh, self.device_mesh)
+
+        conv_bias_layout = layout_map["conv/bias"]
+        self.assertEqual(conv_bias_layout.axes, ("model",))
         self.assertIs(bias_layout.device_mesh, self.device_mesh)
 
         with self.assertRaisesRegex(ValueError, "dense/kernel already exist"):
             layout_map["dense/kernel"] = self.sharded_2d
 
         with self.assertRaisesRegex(ValueError, "should be a TensorLayout"):
-            layout_map["conv.kernel"] = [1, 2, 3]
+            layout_map["conv.kernel"] = ["a", "b"]
 
     def test_get(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)

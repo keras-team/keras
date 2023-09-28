@@ -99,14 +99,16 @@ class Dense(Layer):
                 initializer=self.bias_initializer,
                 regularizer=self.bias_regularizer,
             )
+        else:
+            self.bias = None
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_dim})
         self.built = True
 
     def call(self, inputs):
         x = ops.matmul(inputs, self.kernel)
-        if self.use_bias:
+        if self.bias is not None:
             x = x + self.bias
-        if self.activation:
+        if self.activation is not None:
             x = self.activation(x)
         return x
 

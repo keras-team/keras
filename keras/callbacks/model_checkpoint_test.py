@@ -18,9 +18,9 @@ try:
 except ImportError:
     h5py = None
 
-TRAIN_SAMPLES = 10
-TEST_SAMPLES = 10
-NUM_CLASSES = 2
+TRAIN_SAMPLES = 30
+TEST_SAMPLES = 30
+NUM_CLASSES = 3
 INPUT_DIM = 3
 NUM_HIDDEN = 5
 BATCH_SIZE = 5
@@ -203,7 +203,7 @@ class ModelCheckpointTest(testing.TestCase):
         model.fit(
             x_train,
             y_train,
-            batch_size=2,  # 5 batches / epoch, so should backup every 3 epochs
+            batch_size=6,  # 5 batches / epoch, so should backup every 3 epochs
             validation_data=(x_test, y_test),
             callbacks=cbks,
             epochs=10,
@@ -236,7 +236,7 @@ class ModelCheckpointTest(testing.TestCase):
         model.fit(
             x_train,
             y_train,
-            batch_size=2,
+            batch_size=6,
             validation_data=(x_test, y_test),
             callbacks=cbks,
             epochs=10,
@@ -288,7 +288,7 @@ class ModelCheckpointTest(testing.TestCase):
         model.fit(
             x_train,
             y_train,
-            batch_size=5,
+            batch_size=15,
             validation_data=(x_test, y_test),
             callbacks=cbks,
             epochs=5,
@@ -318,7 +318,7 @@ class ModelCheckpointTest(testing.TestCase):
         model.fit(
             x_train,
             y_train,
-            batch_size=5,
+            batch_size=15,
             validation_data=(x_test, y_test),
             callbacks=cbks,
             epochs=5,

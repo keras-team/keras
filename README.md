@@ -24,6 +24,9 @@ To use keras-core, you should also install the backend of choice: `tensorflow`, 
 Note that `tensorflow` is required for using certain Keras 3 features: certain preprocessing layers
 as well as `tf.data` pipelines.
 
+**Note:** If you are using the `keras-core` package you also need to switch your Keras import.
+Use `import keras_core as keras`. This is a temporary step until the release of Keras 3 on PyPI.
+
 ### Local installation
 
 Keras 3 is compatible with Linux and MacOS systems. To install a local development version:
@@ -61,7 +64,7 @@ In Colab, you can do:
 import os
 os.environ["KERAS_BACKEND"] = "jax"
 
-import keras as keras
+import keras
 ```
 
 **Note:** The backend must be configured before importing `keras`, and the backend cannot be changed after 
@@ -70,8 +73,8 @@ the package has been imported.
 ## Backwards compatibility
 
 Keras 3 is intended to work as a drop-in replacement for `tf.keras` (when using the TensorFlow backend). Just take your
-existing `tf.keras` code, change the `keras` imports to `keras`, make sure that your calls to `model.save()` are using
-the up-to-date `.keras` format, and you're done.
+existing `tf.keras` code, make sure that your calls to `model.save()` are using the up-to-date `.keras` format, and you're
+done.
 
 If your `tf.keras` model does not include custom components, you can start running it on top of JAX or PyTorch immediately.
 

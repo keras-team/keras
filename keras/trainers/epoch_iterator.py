@@ -38,14 +38,9 @@ EpochIterator steps:
 or until there is no data
 
 """
-import types
 import warnings
 
-from keras.trainers.data_adapters import array_data_adapter
-from keras.trainers.data_adapters import generator_data_adapter
-from keras.trainers.data_adapters import py_dataset_adapter
-from keras.trainers.data_adapters import tf_dataset_adapter
-from keras.trainers.data_adapters import torch_data_adapter
+from keras.trainers import data_adapters
 
 
 class EpochIterator:
@@ -65,100 +60,30 @@ class EpochIterator:
         if steps_per_epoch:
             self._current_iterator = None
             self._insufficient_data = False
-        if array_data_adapter.can_convert_arrays((x, y, sample_weight)):
-            self.data_adapter = array_data_adapter.ArrayDataAdapter(
-                x,
-                y,
-                sample_weight=sample_weight,
-                class_weight=class_weight,
-                shuffle=shuffle,
-                batch_size=batch_size,
-                steps=steps_per_epoch,
-            )
-        elif is_tf_dataset(x):
-            self.data_adapter = tf_dataset_adapter.TFDatasetAdapter(
-                x, class_weight=class_weight
-            )
-            # Unsupported args: y, sample_weight, shuffle
-            if y is not None:
-                raise_unsupported_arg("y", "the targets", "tf.data.Dataset")
-            if sample_weight is not None:
-                raise_unsupported_arg(
-                    "sample_weights", "the sample weights", "tf.data.Dataset"
-                )
-            # TODO: should we warn or not?
-            # warnings.warn(
-            #     "`shuffle=True` was passed, but will be ignored since the "
-            #     "data `x` was provided as a tf.data.Dataset. The Dataset is "
-            #     "expected to already be shuffled "
-            #     "(via `.shuffle(tf.data.AUTOTUNE)`)"
-            # )
-        elif isinstance(x, py_dataset_adapter.PyDataset):
-            self.data_adapter = py_dataset_adapter.PyDatasetAdapter(
-                x, class_weight=class_weight, shuffle=shuffle
-            )
-            if y is not None:
-                raise_unsupported_arg("y", "the targets", "PyDataset")
-            if sample_weight is not None:
-                raise_unsupported_arg(
-                    "sample_weights", "the sample weights", "PyDataset"
-                )
-        elif is_torch_dataloader(x):
-            self.data_adapter = torch_data_adapter.TorchDataLoaderAdapter(x)
-            if y is not None:
-                raise_unsupported_arg("y", "the targets", "torch DataLoader")
-            if sample_weight is not None:
-                raise_unsupported_arg(
-                    "sample_weights", "the sample weights", "torch DataLoader"
-                )
-            if class_weight is not None:
-                raise ValueError(
-                    "Argument `class_weight` is not supported for torch "
-                    f"DataLoader inputs. Received: class_weight={class_weight}"
-                )
-            # TODO: should we warn or not?
-            # warnings.warn(
-            #     "`shuffle=True` was passed, but will be ignored since the "
-            #     "data `x` was provided as a torch DataLoader. The DataLoader "
-            #     "is expected to already be shuffled."
-            # )
-        elif isinstance(x, types.GeneratorType):
-            self.data_adapter = generator_data_adapter.GeneratorDataAdapter(x)
-            if y is not None:
-                raise_unsupported_arg("y", "the targets", "PyDataset")
-            if sample_weight is not None:
-                raise_unsupported_arg(
-                    "sample_weights", "the sample weights", "PyDataset"
-                )
-            if class_weight is not None:
-                raise ValueError(
-                    "Argument `class_weight` is not supported for Python "
-                    f"generator inputs. Received: class_weight={class_weight}"
-                )
-            if shuffle:
-                raise ValueError(
-                    "Argument `shuffle` is not supported for Python generator "
-                    f"inputs. Received: shuffle={shuffle}"
-                )
-        else:
-            raise ValueError(
-                f"Unrecognized data type: x={x} (of type {type(x)})"
-            )
+        self.data_adapter = data_adapters.get_data_adapter(
+            x=x,
+            y=y,
+            sample_weight=sample_weight,
+            batch_size=batch_size,
+            steps_per_epoch=steps_per_epoch,
+            shuffle=shuffle,
+            class_weight=class_weight,
+        )
         self._num_batches = self.data_adapter.num_batches
 
-    def _get_iterator(self, return_type):
-        if return_type not in ("np", "tf"):
+    def _get_iterator(self, return_type="auto"):
+        if return_type not in ("np", "tf", "auto"):
             raise ValueError(
-                "Argument `return_type` must be one of `{'np', 'tf'}`. "
+                "Argument `return_type` must be one of `{'np', 'tf', 'auto'}`. "
                 f"Received instead: return_type={return_type}"
             )
-        if return_type == "np":
-            iterator = self.data_adapter.get_numpy_iterator()
-        else:
+        if return_type == "tf":
             iterator = self.data_adapter.get_tf_dataset()
+        else:
+            iterator = self.data_adapter.get_numpy_iterator()
         return iterator
 
-    def enumerate_epoch(self, return_type="np"):
+    def enumerate_epoch(self, return_type="auto"):
         buffer = []
         if self.steps_per_epoch:
             if not self._current_iterator:
@@ -209,31 +134,3 @@ class EpochIterator:
         # Either copied from the data_adapter, or
         # inferred at the end of an iteration.
         return self._num_batches
-
-
-def raise_unsupported_arg(arg_name, arg_description, input_type):
-    raise ValueError(
-        f"When providing `x` as a {input_type}, `{arg_name}` "
-        f"should not be passed. Instead, {arg_description} should "
-        f"be included as part of the {input_type}."
-    )
-
-
-def is_tf_dataset(x):
-    if hasattr(x, "__class__"):
-        for parent in x.__class__.__mro__:
-            if parent.__name__ == "DatasetV2" and str(
-                parent.__module__
-            ).startswith("tensorflow.python.types.data"):
-                return True
-    return False
-
-
-def is_torch_dataloader(x):
-    if hasattr(x, "__class__"):
-        for parent in x.__class__.__mro__:
-            if parent.__name__ == "DataLoader" and str(
-                parent.__module__
-            ).startswith("torch.utils.data"):
-                return True
-    return False
