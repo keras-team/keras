@@ -57,7 +57,12 @@ class Flatten(Layer):
         non_batch_dims = input_shape[1:]
         if len(non_batch_dims) == 0:
             flattened_dim = 1
-        elif None in non_batch_dims:
+        elif any(d is None for d in non_batch_dims):
+            # NB: we cannot use the shorter `None in non_batch_dims` here b/c
+            # torchdynamo errors when calling `__contains__` op with
+            # a constant (in this case `None`) operand since it assumes
+            # that the elements in the collection are also `ConstantVariable`s
+            # but tensor shapes can be `SymNodeVariable`s (e.g. `SymInt`)
             flattened_dim = None
         else:
             flattened_dim = math.prod(non_batch_dims)

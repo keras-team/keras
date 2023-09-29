@@ -102,12 +102,7 @@ class TorchTrainer(base_trainer.Trainer):
             return self.train_step(data)
 
         if self.jit_compile:
-            raise ValueError(
-                "`jit_compile` is not yet enabled for the PyTorch backend."
-            )
-            # Temporarily disabled torch compile due to failed unit tests.
-            # TODO: Uncomment the following line when unit tests passes.
-            # self.train_function = torch.compile(one_step_on_data)
+            self.train_function = torch.compile(one_step_on_data)
         else:
             self.train_function = one_step_on_data
 
@@ -127,7 +122,10 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.test_step(data)
 
-        self.test_function = one_step_on_data
+        if self.jit_compile:
+            self.test_function = torch.compile(one_step_on_data)
+        else:
+            self.test_function = one_step_on_data
 
     def make_predict_function(self, force=False):
         if self.predict_function is not None and not force:
@@ -145,7 +143,10 @@ class TorchTrainer(base_trainer.Trainer):
             with torch.no_grad():
                 return self.predict_step(data)
 
-        self.predict_function = one_step_on_data
+        if self.jit_compile:
+            self.predict_function = torch.compile(one_step_on_data)
+        else:
+            self.predict_function = one_step_on_data
 
     def _symbolic_build(self, data_batch):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())

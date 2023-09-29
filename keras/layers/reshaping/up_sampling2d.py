@@ -1,5 +1,3 @@
-import numpy as np
-
 from keras import backend
 from keras import ops
 from keras.api_export import keras_export
@@ -149,10 +147,6 @@ class UpSampling2D(Layer):
         else:
             raise ValueError(f"Invalid `data_format` argument: {data_format}")
 
-        new_shape = x.shape[rows : cols + 1]
-        new_shape *= np.array([height_factor, width_factor])
-        new_shape = new_shape.tolist()
-
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 2, 3, 1])
         # https://github.com/keras-team/keras/issues/294
@@ -161,6 +155,17 @@ class UpSampling2D(Layer):
             x = ops.repeat(x, height_factor, axis=1)
             x = ops.repeat(x, width_factor, axis=2)
         else:
+            # multiply the height and width factor on each dim
+            # by hand (versus using element-wise multiplication
+            # by np.array([height_factor, width_factor]) then
+            # list-ifying the tensor by calling `.tolist()`)
+            # since when running under torchdynamo, `new_shape`
+            # will be traced as a symbolic variable (specifically
+            # a `FakeTensor`) which does not have a `tolist()` method.
+            new_shape = (
+                x.shape[rows] * height_factor,
+                x.shape[cols] * width_factor,
+            )
             x = ops.image.resize(x, new_shape, interpolation=interpolation)
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 3, 1, 2])

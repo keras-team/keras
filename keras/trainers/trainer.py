@@ -104,7 +104,7 @@ class Trainer:
                  and to set it to `True` when debugging.
             steps_per_execution: Int. The number of batches to run
                 during each a single compiled function call. Running multiple
-                batches inside a single a single compiled function call can
+                batches inside a single compiled function call can
                 greatly improve performance on TPUs or small models with a large
                 Python overhead. At most, one full epoch will be run each
                 execution. If a number larger than the size of the epoch is
@@ -115,9 +115,12 @@ class Trainer:
                 each compiled function execution).
                 Not supported with the PyTorch backend.
             jit_compile: Bool or `"auto"`. Whether to use XLA compilation when
-                compiling a model. Not supported with the PyTorch backend.
-                If `"auto"`, XLA compilation will be enabled if the
-                the model supports it, and disabled otherwise.
+                compiling a model. For `jax` and `tensorflow` backends,
+                `jit_compile="auto"` enables XLA compilation if the model
+                supports it, and disabled otherwise.
+                For `torch` backend, `"auto"` will default to eager
+                execution and `jit_compile=True` will run with `torch.compile`
+                with the `"inductor"` backend.
             auto_scale_loss: Bool. If `True` and the model dtype policy is
                 `"mixed_float16"`, the passed optimizer will be automatically
                 wrapped in a `LossScaleOptimizer`, which will dynamically
@@ -162,12 +165,7 @@ class Trainer:
                 "cannot also be True. Disabling `jit_compile`.",
                 stacklevel=2,
             )
-        if jit_compile and backend.backend() == "torch":
-            warnings.warn(
-                "`jit_compile` is not yet enabled for the PyTorch backend. "
-                "Proceeding with `jit_compile=False`."
-            )
-            jit_compile = False
+
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
@@ -194,7 +192,10 @@ class Trainer:
     def jit_compile(self):
         if self._jit_compile is None:
             # Value was never set. Resolve it now.
-            jit_compile = model_supports_jit(self)
+            # torch always runs in eager unless jit_compile is explicitly set
+            jit_compile = (
+                model_supports_jit(self) and backend.backend() != "torch"
+            )
             self._jit_compile = jit_compile
         return self._jit_compile
 
@@ -866,11 +867,11 @@ class Trainer:
 
 
 def resolve_auto_jit_compile(model):
+    if backend.backend() == "torch":
+        # jit_compile = "auto" with the pytorch backend defaults to eager
+        return False
+
     if model_supports_jit(model):
-        if backend.backend() == "torch":
-            # Torch defaults to eager mode
-            # until torch compile is reliable
-            return False
         return True
     return False
 
