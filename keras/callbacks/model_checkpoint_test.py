@@ -53,7 +53,7 @@ class ModelCheckpointTest(testing.TestCase):
         # Save model to a subdir inside the temp_dir so we can test
         # automatic directory creation.
         filepath = os.path.join(temp_dir, "subdir", "checkpoint.keras")
-        x_train, y_train, x_test, y_test = test_utils.get_test_data(
+        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
@@ -463,7 +463,7 @@ class ModelCheckpointTest(testing.TestCase):
             )
             return functional_model
 
-        x_train, y_train, x_test, y_test = test_utils.get_test_data(
+        (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             random_seed=42,
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,

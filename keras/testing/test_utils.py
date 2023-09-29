@@ -4,21 +4,17 @@ import numpy as np
 def get_test_data(
     train_samples, test_samples, input_shape, num_classes, random_seed=None
 ):
-    """Generates synthetic test data for training a model,
-    ensuring balanced class distribution in train/test split
-    using stratified sampling.
+    """Generates balanced, stratified synthetic data to train a model on.
 
     Args:
-        train_samples (int): Number of training samples.
-        test_samples (int): Number of testing samples.
-        input_shape (tuple): Shape of the input data.
-        num_classes (int): Number of classes for the data and targets.
-        random_seed (int, optional): Random seed for data generation.
-                                    Defaults to None.
+        train_samples: Integer, how many training samples to generate.
+        test_samples: Integer, how many test samples to generate.
+        input_shape: Tuple of integers, shape of the inputs.
+        num_classes: Integer, number of classes for the data and targets.
+        random_seed: Integer, random seed used by Numpy to generate data.
 
     Returns:
-        tuple: Four numpy arrays representing training data,
-               training labels, test data, and test labels.
+        A tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
     """
     np.random.seed(random_seed)
 
@@ -29,7 +25,7 @@ def get_test_data(
     samples_per_class = total_samples // num_classes
     y = np.array(
         [i for i in range(num_classes) for _ in range(samples_per_class)],
-        dtype=np.int64,  # Ensure integer datatype as np.int64
+        dtype=np.int32,
     )
 
     # Generate extra samples in a deterministic manner
@@ -78,4 +74,4 @@ def get_test_data(
     x_train, y_train = x_train[train_indices], y_train[train_indices]
     x_test, y_test = x_test[test_indices], y_test[test_indices]
 
-    return x_train, y_train, x_test, y_test
+    return (x_train, y_train), (x_test, y_test)
