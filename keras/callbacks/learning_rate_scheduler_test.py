@@ -12,7 +12,7 @@ from keras.utils import numerical_utils
 
 class LearningRateSchedulerTest(testing.TestCase):
     def setUp(self):
-        (x_train, y_train), (_, _) = test_utils.get_test_data(
+        (x_train, y_train), _ = test_utils.get_test_data(
             train_samples=10,
             test_samples=10,
             input_shape=(3,),
