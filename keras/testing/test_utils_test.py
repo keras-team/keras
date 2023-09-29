@@ -142,7 +142,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertEqual(x_test.dtype, np.float32)
 
     def test_label_type(self):
-        """Validate the type of the generated labels."""
+        """Validate label type of the generated labels."""
         (_, y_train), (_, y_test) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
