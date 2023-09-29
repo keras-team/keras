@@ -3407,9 +3407,6 @@ def matmul(x1, x2):
     """
     if any_symbolic_tensors((x1, x2)):
         return Matmul().symbolic_call(x1, x2)
-    # The below conversion works around an outstanding JAX bug.
-    x1 = backend.convert_to_tensor(x1)
-    x2 = backend.convert_to_tensor(x2)
     return backend.numpy.matmul(x1, x2)
 
 
