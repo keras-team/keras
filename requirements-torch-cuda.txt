@@ -1,0 +1,12 @@
+# Tensorflow cpu-only version (needed for testing).
+tf-nightly
+
+# Torch with cuda support.
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.1.0
+torchvision==0.16.0
+
+# Jax cpu-only version (needed for testing).
+jax[cpu]
+
+-r requirements-common.txt
