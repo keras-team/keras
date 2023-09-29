@@ -4,7 +4,7 @@ import numpy as np
 def get_test_data(
     train_samples, test_samples, input_shape, num_classes, random_seed=None
 ):
-    """Generates balanced, stratified synthetic data to train a model on.
+    """Generates balanced, stratified synthetic test data to train a model on.
 
     Args:
         train_samples: Integer, how many training samples to generate.
