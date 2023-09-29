@@ -19,7 +19,7 @@ ARRAY_TYPES = (np.ndarray,)
 if backend.backend() == "tensorflow":
     from keras.utils.module_utils import tensorflow as tf
 
-    ARRAY_TYPES = ARRAY_TYPES + (np.ndarray, tf.RaggedTensor)
+    ARRAY_TYPES = ARRAY_TYPES + (tf.Tensor, tf.RaggedTensor)
 if pandas:
     ARRAY_TYPES = ARRAY_TYPES + (pandas.Series, pandas.DataFrame)
 
@@ -164,8 +164,8 @@ def train_validation_split(arrays, validation_split):
     if unsplitable:
         raise ValueError(
             "Argument `validation_split` is only supported "
-            "for tensors or NumPy "
-            "arrays. Found incompatible type in the input: {unsplitable}"
+            "for tensors or NumPy arrays."
+            f"Found incompatible type in the input: {unsplitable}"
         )
 
     if all(t is None for t in flat_arrays):
