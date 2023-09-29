@@ -12,6 +12,7 @@ class GetTestDataTest(test_case.TestCase):
         self.num_classes = 10
 
     def test_labels_within_range(self):
+        """Check if labels are within valid range."""
         (_, y_train), (_, y_test) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -24,6 +25,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertTrue(np.all(y_test >= 0))
 
     def test_edge_cases_for_zero_samples(self):
+        """Test when train or test samples are zero."""
         (x_train, _), (x_test, _) = test_utils.get_test_data(
             0, self.test_samples, self.input_shape, self.num_classes
         )
@@ -35,6 +37,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertEqual(len(x_test), 0)
 
     def test_get_test_data_returns_correct_number_of_samples(self):
+        """Check if returned samples count is correct."""
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -47,6 +50,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertEqual(len(y_test), self.test_samples)
 
     def test_get_test_data_returns_correct_shape_of_data(self):
+        """Check if returned data shape is correct."""
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -61,6 +65,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertEqual(y_test.shape, (self.test_samples,))
 
     def test_get_test_data_returns_different_data_for_different_seeds(self):
+        """Test variability with different seeds."""
         (x_train_1, y_train_1), (x_test_1, y_test_1) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -81,6 +86,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertFalse(np.array_equal(y_test_1, y_test_2))
 
     def test_get_test_data_returns_consistent_data_for_same_seed(self):
+        """Test consistency with the same seed."""
         (x_train_1, y_train_1), (x_test_1, y_test_1) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -101,6 +107,7 @@ class GetTestDataTest(test_case.TestCase):
         self.assertTrue(np.array_equal(y_test_1, y_test_2))
 
     def test_input_shape_variations(self):
+        """Check function for different input shapes."""
         input_shape_3d = (28, 28, 3)
         (x_train_3d, _), (_, _) = test_utils.get_test_data(
             self.train_samples,
@@ -154,8 +161,7 @@ class ClassDistributionTests(test_case.TestCase):
         self.num_classes = 10
 
     def test_equal_class_distribution(self):
-        """Ensure each class has nearly equal
-        instances in train and test sets."""
+        """Verify equal class distribution in train and test sets."""
         (_, y_train), (_, y_test) = test_utils.get_test_data(
             self.train_samples,
             self.test_samples,
@@ -173,8 +179,7 @@ class ClassDistributionTests(test_case.TestCase):
         )
 
     def test_uneven_samples_class_distribution(self):
-        """Check class distribution when number of samples
-        isn't a multiple of number of classes."""
+        """Check class distribution with uneven samples."""
         train_samples = 103
         test_samples = 52
         (_, y_train), (_, y_test) = test_utils.get_test_data(
