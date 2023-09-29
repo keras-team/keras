@@ -89,6 +89,21 @@ class VariablePropertiesTest(test_case.TestCase):
         out = scope.get_current_value(v)
         self.assertAllClose(out, np.ones((2, 2)))
 
+    def test_trainable_setter(self):
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+        )
+        self.assertTrue(v.trainable)
+        v.trainable = False
+        self.assertFalse(v.trainable)
+
+        if backend.backend() == "torch":
+            v.trainable = True
+            self.assertTrue(v._value.requires_grad)
+            v.trainable = False
+            self.assertFalse(v._value.requires_grad)
+
     def test_autocasting(self):
         """Tests autocasting of float variables."""
         v = backend.Variable(

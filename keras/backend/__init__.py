@@ -6,6 +6,7 @@ if backend() == "torch":
     # upon import.
     import torch
 
+from keras.backend.common.dtypes import result_type
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.keras_tensor import any_symbolic_tensors
 from keras.backend.common.keras_tensor import is_keras_tensor

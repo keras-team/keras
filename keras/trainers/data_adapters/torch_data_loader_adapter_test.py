@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from keras import backend
 from keras import testing
-from keras.trainers.data_adapters.torch_data_adapter import (
+from keras.trainers.data_adapters.torch_data_loader_adapter import (
     TorchDataLoaderAdapter,
 )
 

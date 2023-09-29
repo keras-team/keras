@@ -64,4 +64,30 @@ class DropoutRNNCellTest(testing.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_non_trainable_variables=1,
             supports_masking=True,
+            run_mixed_precision_check=False,
         )
+
+        # manually set dtype to mixed_float16 to run mixed precision check
+        run_mixed_precision_check = True
+        if backend.backend() == "torch":
+            import torch
+
+            run_mixed_precision_check = torch.cuda.is_available()
+        if run_mixed_precision_check:
+            self.run_layer_test(
+                layers.RNN,
+                init_kwargs={
+                    "cell": RNNCellWithDropout(
+                        5, seed=1337, dtype="mixed_float16"
+                    ),
+                    "dtype": "mixed_float16",
+                },
+                input_shape=(3, 2, 4),
+                call_kwargs={"training": True},
+                expected_output_shape=(3, 5),
+                expected_num_trainable_weights=2,
+                expected_num_non_trainable_weights=0,
+                expected_num_non_trainable_variables=1,
+                supports_masking=True,
+                run_mixed_precision_check=False,
+            )

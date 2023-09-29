@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from keras.backend import config
+from keras.backend.common import dtypes
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
@@ -17,7 +18,8 @@ TORCH_INT_TYPES = (
 
 
 def add(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return torch.add(x1, x2)
 
 
@@ -76,15 +78,15 @@ def max(x, axis=None, keepdims=False, initial=None):
     return result
 
 
-def ones(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def ones(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.ones(size=shape, dtype=dtype, device=get_device())
 
 
-def zeros(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def zeros(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
     return torch.zeros(size=shape, dtype=dtype, device=get_device())
@@ -162,12 +164,13 @@ def append(
 
 def arange(start, stop=None, step=1, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     dtype = to_torch_dtype(dtype)
     if stop is None:
         return torch.arange(end=start, dtype=dtype, device=get_device())
@@ -386,8 +389,8 @@ def dot(x, y):
     return torch.matmul(x, y)
 
 
-def empty(shape, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def empty(shape, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
@@ -457,9 +460,9 @@ def hstack(xs):
     return torch.hstack(xs)
 
 
-def identity(n, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
-    return torch.eye(n, dtype=dtype)
+def identity(n, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
+    return torch.eye(n, dtype=dtype, device=get_device())
 
 
 def imag(x):
@@ -933,8 +936,8 @@ def trace(x, offset=None, axis1=None, axis2=None):
     return torch.sum(torch.diagonal(x, offset, axis1, axis2), dim=-1)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def tri(N, M=None, k=0, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = M or N
     x = torch.ones((N, M), dtype=dtype, device=get_device())
     return torch.tril(x, diagonal=k)
@@ -997,6 +1000,9 @@ def square(x):
 
 def sqrt(x):
     x = convert_to_tensor(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    if x.dtype == torch.int64:
+        x = cast(x, "float64")
     return torch.sqrt(x)
 
 
@@ -1037,8 +1043,8 @@ def sum(x, axis=None, keepdims=False):
     return torch.sum(x)
 
 
-def eye(N, M=None, k=None, dtype="float32"):
-    dtype = to_torch_dtype(dtype)
+def eye(N, M=None, k=None, dtype=None):
+    dtype = to_torch_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
     if k == 0:

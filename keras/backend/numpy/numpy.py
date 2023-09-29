@@ -2,9 +2,16 @@ import numpy as np
 
 from keras.backend import config
 from keras.backend import standardize_dtype
+from keras.backend.common import dtypes
+from keras.backend.numpy.core import convert_to_tensor
 
 
 def add(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
     return np.add(x1, x2)
 
 
@@ -34,11 +41,13 @@ def max(x, axis=None, keepdims=False, initial=None):
     return np.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 
-def ones(shape, dtype="float32"):
+def ones(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.ones(shape, dtype=dtype)
 
 
-def zeros(shape, dtype="float32"):
+def zeros(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.zeros(shape, dtype=dtype)
 
 
@@ -81,12 +90,13 @@ def append(
 
 def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        if hasattr(start, "dtype"):
-            dtype = start.dtype
-        elif isinstance(start, int):
-            dtype = "int32"
-        else:
-            dtype = config.floatx()
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(step, "dtype", type(step)),
+        ]
+        if stop is not None:
+            dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        dtype = dtypes.result_type(*dtypes_to_resolve)
     return np.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -134,7 +144,6 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    dtype = dtype or config.floatx()
     return np.array(x, dtype=dtype)
 
 
@@ -251,7 +260,8 @@ def dot(x, y):
     return np.dot(x, y)
 
 
-def empty(shape, dtype="float32"):
+def empty(shape, dtype=None):
+    dtype = dtype or config.floatx()
     return np.empty(shape, dtype=dtype)
 
 
@@ -302,7 +312,8 @@ def hstack(xs):
     return np.hstack(xs)
 
 
-def identity(n, dtype="float32"):
+def identity(n, dtype=None):
+    dtype = dtype or config.floatx()
     return np.identity(n, dtype=dtype)
 
 
@@ -556,7 +567,8 @@ def trace(x, offset=0, axis1=0, axis2=1):
     return np.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
-def tri(N, M=None, k=0, dtype="float32"):
+def tri(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return np.tri(N, M=M, k=k, dtype=dtype)
 
 
@@ -604,10 +616,13 @@ def square(x):
 
 
 def sqrt(x):
-    dtype = None
-    if hasattr(x, "dtype"):
-        if standardize_dtype(x.dtype).startswith("int"):
-            dtype = config.floatx()
+    x = convert_to_tensor(x)
+    # upcast to float64 for int64 which matches JAX's behavior
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) == "int64"
+        else dtypes.result_type(x.dtype, float)
+    )
     return np.sqrt(x, dtype=dtype)
 
 
@@ -631,7 +646,8 @@ def sum(x, axis=None, keepdims=False):
     return np.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=0, dtype="float32"):
+def eye(N, M=None, k=0, dtype=None):
+    dtype = dtype or config.floatx()
     return np.eye(N, M=M, k=k, dtype=dtype)
 
 

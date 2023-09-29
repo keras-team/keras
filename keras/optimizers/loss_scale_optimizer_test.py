@@ -11,10 +11,12 @@ from keras.optimizers.sgd import SGD
 class LossScaleOptimizerTest(testing.TestCase, parameterized.TestCase):
     def _skip_test_for_stateless(self, stateless):
         if not stateless and backend.backend() == "jax":
-            self.skipTest("LossScaleOptimizer must use stateless_apply on jax.")
+            self.skipTest(
+                "LossScaleOptimizer must use stateless_apply with JAX."
+            )
         if stateless and backend.backend() == "tensorflow":
             self.skipTest(
-                "stateless_apply is not supported by the tf based optimizer"
+                "stateless_apply is not supported with the TF backend."
             )
 
     def test_config(self):
