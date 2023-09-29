@@ -451,12 +451,6 @@ class ModelCheckpointTest(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_model_checkpoint_loading(self):
-        # TODO This test sometimes FAILED for Torch and Jax
-        # keras/callbacks/model_checkpoint_test.py::ModelCheckpointTest
-        # test_model_checkpoint_loading - ValueError:
-        # Arguments target and output must have the same shape.
-        # Received:target.shape=torch.Size([5, 1]),
-        # output.shape=torch.Size([5, 2])
         def get_model():
             inputs = layers.Input(shape=(INPUT_DIM,), batch_size=5)
             x = layers.Dense(NUM_HIDDEN, activation="relu")(inputs)
