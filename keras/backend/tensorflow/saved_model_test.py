@@ -178,3 +178,71 @@ class SavedModelTest(testing.TestCase):
         restored_model = tf.saved_model.load(path)
         output = restored_model.call(*inp)
         self.assertAllClose(expected, output, rtol=1e-4, atol=1e-4)
+
+    def test_list_trackable_children_tracking(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class CustomLayerList(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.sublayers = [
+                    layers.Dense(2),
+                    layers.Dense(2),
+                ]
+
+            def call(self, inputs):
+                x = inputs
+                for sublayer in self.sublayers:
+                    x = sublayer(x)
+                return x
+
+        inputs = layers.Input(shape=(1,))
+        outputs = CustomLayerList()(inputs)
+        model = models.Model(inputs, outputs)
+
+        inp = np.array([[1.0]])
+        expected = model(inp)
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        self.assertAllClose(
+            expected,
+            restored_model.signatures["serving_default"](
+                tf.convert_to_tensor(inp, dtype=tf.float32)
+            )["output_0"],
+            rtol=1e-4,
+            atol=1e-4,
+        )
+
+    def test_dict_trackable_children_tracking(self):
+        @object_registration.register_keras_serializable(package="my_package")
+        class CustomLayerDict(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.sublayers = {
+                    "first_layer": layers.Dense(2),
+                    "second_layer": layers.Dense(2),
+                }
+
+            def call(self, inputs):
+                x = inputs
+                for key, sublayer in self.sublayers.items():
+                    x = sublayer(x)
+                return x
+
+        inputs = layers.Input(shape=(1,))
+        outputs = CustomLayerDict()(inputs)
+        model = models.Model(inputs, outputs)
+
+        inp = np.array([[1.0]])
+        expected = model(inp)
+        path = os.path.join(self.get_temp_dir(), "my_keras_model")
+        tf.saved_model.save(model, path)
+        restored_model = tf.saved_model.load(path)
+        self.assertAllClose(
+            expected,
+            restored_model.signatures["serving_default"](
+                tf.convert_to_tensor(inp, dtype=tf.float32)
+            )["output_0"],
+            rtol=1e-4,
+            atol=1e-4,
+        )
