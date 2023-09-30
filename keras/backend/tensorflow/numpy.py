@@ -61,6 +61,9 @@ def subtract(x1, x2):
 
 
 def matmul(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
     def with_combined_batch_dimensions(a, b, fn_3d):
         batch_shape = (
             b.shape[:-2] if isinstance(b, tf.SparseTensor) else a.shape[:-2]
