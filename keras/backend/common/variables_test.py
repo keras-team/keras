@@ -735,7 +735,7 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     reason="Tests for standardize_shape with Torch backend",
 )
 class TestStandardizeShapeWithTorch(test_case.TestCase):
-    def test_standardize_shape_with_torch_Size_containing_negative_value(self):
+    def test_standardize_shape_with_torch_size_containing_negative_value(self):
         """Tests shape with a negative value."""
         shape_with_negative_value = (3, 4, -5)
         with self.assertRaisesRegex(
@@ -764,13 +764,13 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
     #     ):
     #         _ = standardize_shape(shape_with_float)
 
-    def test_standardize_shape_with_torch_Size_valid(self):
+    def test_standardize_shape_with_torch_size_valid(self):
         """Tests a valid shape."""
         shape_valid = (3, 4, 5)
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    def test_standardize_shape_with_torch_Size_multidimensional(self):
+    def test_standardize_shape_with_torch_size_multidimensional(self):
         """Tests shape of a multi-dimensional tensor."""
         import torch
 
@@ -779,7 +779,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    def test_standardize_shape_with_torch_Size_single_dimension(self):
+    def test_standardize_shape_with_torch_size_single_dimension(self):
         """Tests shape of a single-dimensional tensor."""
         import torch
 
@@ -788,19 +788,19 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (10,))
 
-    def test_standardize_shape_with_torch_Size_with_valid_1_dimension(self):
+    def test_standardize_shape_with_torch_size_with_valid_1_dimension(self):
         """Tests a valid shape."""
         shape_valid = [3]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3,))
 
-    def test_standardize_shape_with_torch_Size_with_valid_2_dimension(self):
+    def test_standardize_shape_with_torch_size_with_valid_2_dimension(self):
         """Tests a valid shape."""
         shape_valid = [3, 4]
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4))
 
-    def test_standardize_shape_with_torch_Size_with_valid_3_dimension(self):
+    def test_standardize_shape_with_torch_size_with_valid_3_dimension(self):
         """Tests a valid shape."""
         shape_valid = [3, 4, 5]
         standardized_shape = standardize_shape(shape_valid)
@@ -820,7 +820,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
     #     ):
     #         _ = standardize_shape(shape_with_str)
 
-    def test_standardize_shape_with_torch_Size_with_negative_value(self):
+    def test_standardize_shape_with_torch_size_with_negative_value(self):
         """Tests shape with a negative value appended."""
         import torch
 
