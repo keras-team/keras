@@ -194,17 +194,22 @@ def slice_update(inputs, start_indices, updates):
     return dynamic_update_slice(inputs, updates, start_indices)
 
 
-def scan(f,
-         init,
-         xs,
-         length=None,
-         reverse=False,
-         unroll=1):
-    return tf.scan(
-    f,
-    xs,
-    initializer=init,
-    reverse=reverse)
+def scan(f, init, xs, length=None, reverse=False, unroll=1):
+
+    if xs is None:
+        xs = [None] * length
+    if reverse:
+        np.flip(xs)
+
+    init = (init, np.array(0,dtype=init.dtype))
+
+    carry,ys = tf.scan(f, xs, initializer=init)
+
+    ys = ys.numpy()
+    if reverse:
+        np.flip(ys)
+
+    return carry.numpy()[-1], ys
 
 
 def while_loop(

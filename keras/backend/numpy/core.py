@@ -204,12 +204,8 @@ def while_loop(
     return loop_vars
 
 
-def scan(f,
-         init,
-         xs,
-         length=None,
-         reverse=False,
-         unroll=1):
+def scan(f, init, xs, length=None, reverse=False, unroll=1):
+    print('here numpy')
     if xs is None:
         xs = [None] * length
     carry = init

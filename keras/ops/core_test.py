@@ -10,6 +10,7 @@ from keras import optimizers
 from keras import testing
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.ops import core
+import jax
 
 
 class CoreOpsStaticShapeTest(testing.TestCase):
@@ -215,15 +216,65 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         outputs = core.slice_update(inputs, start_indices, updates)
         self.assertAllClose(outputs[1:3, 1:3, 2:4, 2:4], np.zeros([2, 2, 2, 2]))
 
-
     def test_scan(self):
-        x = [0,1,2,3,4,5,6]
-        x_target = [1, 2, 3, 4, 5, 6, 7]
-        def f(carry,x):
-            x +=carry
-            return carry,x
-        carr , y = core.scan(f,1,x)
-        self.assertEqual(x_target, y)
+        def f(carry, x):
+            if type(carry) is list or type(carry) is tuple:
+                x += carry[0]
+            else:
+                print(x)
+                print('carry',carry)
+                x += carry
+
+
+            return carry, x
+
+
+        init_carr = np.array(1)
+        xs = np.array([0, 1, 2, 3, 4, 5, 6])
+
+        carry_op, ys_op = core.scan(f, init_carr, xs, length=len(xs), reverse=False)
+        carry_jax, ys_jax = jax.lax.scan(f, init_carr, xs, length=len(xs), reverse=False)
+
+        ys_op = ys_op.tolist()
+        ys_jax = ys_jax.tolist()
+
+        self.assertEqual(carry_op, carry_jax)
+        self.assertListEqual(ys_op, ys_jax)
+
+        init_carr = np.array(1.1)
+        xs = np.array([0.1, 1.2, 2.3, 3.4, 4.5, 5.6, 6.7])
+
+        carry_op, ys_op = core.scan(f, init_carr, xs, length=len(xs), reverse=True)
+        carry_jax, ys_jax = jax.lax.scan(f, init_carr, xs, length=len(xs), reverse=True)
+
+        self.assertEqual(carry_op, carry_jax)
+        self.assertEqual(ys_op, ys_jax)
+
+        init_carr = np.array('a')
+        xs = np.array(['q', 'w', 'e', 'r', 't', 'y', 'u'])
+
+        carry_op, ys_op = core.scan(f, init_carr, xs, length=len(xs), reverse=False)
+        carry_jax, ys_jax = jax.lax.scan(f, init_carr, xs, length=len(xs), reverse=False)
+
+        self.assertEqual(carry_op, carry_jax)
+        self.assertEqual(ys_op, ys_jax)
+
+        def f(carry, x):
+            if x is None:
+                x = 1
+            x += carry
+            return carry, x
+
+
+        init_carr = np.array(1)
+        xs = None
+
+        carry_op, ys_op = core.scan(f, init_carr, xs, length=25, reverse=False)
+        carry_jax, ys_jax = jax.lax.scan(f, init_carr, xs, length=25, reverse=False)
+
+        self.assertEqual(carry_op, carry_jax)
+        self.assertEqual(ys_op, ys_jax)
+
 
 
     def test_while_loop(self):

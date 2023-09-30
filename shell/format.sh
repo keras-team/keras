@@ -1,5 +1,5 @@
 #!/bin/bash
-set -Eeuo pipefail
+set -Eeu pipefail
 
 base_dir=$(dirname $(dirname $0))
 

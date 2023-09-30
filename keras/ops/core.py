@@ -168,6 +168,13 @@ class SliceUpdate(Operation):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
 
 
+class Scan(Operation):
+    def call(f, init, xs, length, reverse, unroll):
+        return backend.core.scan(f, init, xs, length, reverse, unroll)
+
+    def compute_output_spec(self, f, init, xs, length, reverse, unroll):
+        return KerasTensor(xs.shape, dtype=xs.dtype)
+
 @keras_export("keras.ops.slice_update")
 def slice_update(inputs, start_indices, updates):
     """Update an input by slicing in a tensor of updated values.
@@ -205,13 +212,43 @@ def slice_update(inputs, start_indices, updates):
 
 
 @keras_export("keras.ops.scan")
-def scan(f,
-         init,
-         xs,
-         length=None,
-         reverse=False,
-         unroll=1):
-    return backend.core.scan(f,init,xs,length,reverse,unroll)
+def scan(f, init, xs, length=None, reverse=False, unroll=1):
+    """Scan a function over leading array axes while carrying along state.
+
+    At a high level, this operation does
+    carry, y = f(carry, x) and adds the y value to an array which is
+    returned at the end along with the last carry.The x is taken from
+    the array of xs. The initial state of the carry can be set by using
+    the init argument.In the case of None argument for xs a None  array
+    will be initialized by using the length argument like this
+    xs = [None]*length.Example:
+
+    ```python
+    def f(carry, x):
+        x += 1
+        carry = x
+        return carry, x
+
+    inputs = keras.ops.scan(f, 1, [0,1,2,3,4,5,6,7,8,9], length=None, reverse=False, unroll=1)
+    ```
+
+    Args:
+        f: The function that will be used to scan over the array xs.
+        init: The initial state of the carry argument for the scan function.
+        xs: The array that will be scanned over.
+        length: The length of the None xs array in the case of None xs argument.
+        reverse: If set to true the xs will be reversed at the start and
+        the ys array will be reversed at the end.
+        unroll: Optional positive int specifying, in the underlying operation of
+         the scan primitive, how many scan iterations to unroll within a single
+         iteration of a loop(Supported only on jax backend).
+
+    Returns:
+        A scanned array and a carry element.
+    """
+    if any_symbolic_tensors((init, xs)):
+        return SliceUpdate().symbolic_call(f, init, xs, length, reverse, unroll)
+    return backend.core.scan(f, init, xs, length, reverse, unroll)
 
 
 class WhileLoop(Operation):
