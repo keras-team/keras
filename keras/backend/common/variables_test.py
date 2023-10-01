@@ -694,27 +694,27 @@ class VariableBinaryOperationsTest(test_case.TestCase):
 
 @pytest.mark.skipif(
     backend.backend() != "torch",
-    reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
+    reason="Avoid Torch RuntimeError",
 )
-# tensorflow.python.framework.errors_impl.InvalidArgumentError:
-# Value for attr 'T' of float is not in the list of allowed values:
-# int8, int16, int32, int64, uint8, uint16, uint32, uint64
 class TestVariableInvertWithTorch(test_case.TestCase):
     def test_variable_invert(self):
         """Test inversion operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="float32")
         result = ~v1
         self.assertAllClose(result, np.array([-2, -3, -4]))
 
 
 @pytest.mark.skipif(
     backend.backend() == "torch",
-    reason="Avoid Torch RuntimeError",
+    reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
 )
 class TestVariableInvertWithOutTorch(test_case.TestCase):
     def test_variable_invert(self):
+        # tensorflow.python.framework.errors_impl.InvalidArgumentError:
+        # Value for attr 'T' of float is not in the list of allowed values:
+        # int8, int16, int32, int64, uint8, uint16, uint32, uint64
         """Test inversion operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="float32")
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
         result = ~v1
         self.assertAllClose(result, np.array([-2, -3, -4]))
 
@@ -819,7 +819,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             ValueError,
             # "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
             # TODO ask is it ok to have different error message for torch
-            "invalid literal for int() with base 10",
+            "invalid literal for int\(\) with base 10: 'a'",
         ):
             standardize_shape([3, 4, "a"])
 
