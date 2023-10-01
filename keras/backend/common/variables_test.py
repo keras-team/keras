@@ -456,13 +456,6 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 < v2
         self.assertAllClose(result, np.array([False, False, False]))
 
-    def test_variable_le(self):
-        """Test le operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        result = v1 <= v2
-        self.assertAllClose(result, np.array([True, True, True]))
-
     def test_variable_gt(self):
         """Test gt operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -762,6 +755,13 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
         result = v2 ^ v1
         self.assertAllClose(result, np.array([0, 1, 1]))
+
+    def test_variable_le(self):
+        """Test le operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 <= v2
+        self.assertAllClose(result, np.array([True, True, True]))
 
 
 @pytest.mark.skipif(
