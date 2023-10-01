@@ -570,7 +570,7 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 / 2
         self.assertAllClose(result, np.array([2, 4, 8]))
 
-    def test_variable_rtruediv(self):
+    def test_variable_truediv(self):
         """Test rtruediv operation on a variable"""
         v1 = backend.Variable(initializer=np.array([4, 8, 16]))
         result = v1 / 2
@@ -711,6 +711,7 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     reason="requires_grad= False for torch",
 )
 class TorchTestsThatRequiresGradFalse(test_case.TestCase):
+    """Tests that require requires_grad=False."""
     def test_variable_invert_for_all_bool(self):
         """Test inversion operation on a variable."""
         v1 = backend.Variable(
