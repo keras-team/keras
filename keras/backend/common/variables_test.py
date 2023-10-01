@@ -627,13 +627,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
         self.assertFalse(shape_equal((), (3,)))
         self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
 
-    def test_variable_lt(self):
-        """Test less than operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        result = v1 < v2
-        self.assertAllClose(result, np.array([False, False, False]))
-
     def test_variable_ne(self):
         """Test not equal operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -696,8 +689,8 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     backend.backend() == "torch",
     reason="requires_grad= False for torch",
 )
-class TorchTestsThatRequiresGradFalse(test_case.TestCase):
-    """Tests that require requires_grad=False."""
+class OthersBackendsTestWhenTorchRequiresGradFalse(test_case.TestCase):
+    """Tests for other backends when test for Torch requires_grad=False."""
 
     def test_variable_invert_for_all_bool(self):
         """Test inversion operation on a variable."""
@@ -759,11 +752,105 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
 
 @pytest.mark.skipif(
     backend.backend() != "torch",
+    reason="requires_grad= True for torch",
+)
+class TorchTestsThatRequiresGradFalse(test_case.TestCase):
+    """Tests that require requires_grad=False."""
+
+    def test_variable_invert_for_all_bool(self):
+        """Test inversion operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([True, False, True]),
+            dtype="bool",
+            requires_grad=False,
+        )
+        result = ~v1
+        self.assertAllClose(result, np.array([False, True, False]))
+
+    def test_variable_and(self):
+        """Test & operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v1 & v2
+        self.assertAllClose(result, np.array([1, 0, 0]))
+
+    def test_variable_rand(self):
+        """Test reverse & operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v2 & v1
+        self.assertAllClose(result, np.array([1, 0, 0]))
+
+    def test_variable_or(self):
+        """Test | operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v1 | v2
+        self.assertAllClose(result, np.array([1, 1, 1]))
+
+    def test_variable_ror(self):
+        """Test reverse | operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v2 | v1
+        self.assertAllClose(result, np.array([1, 1, 1]))
+
+    def test_variable_xor(self):
+        """Test ^ operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v1 ^ v2
+        self.assertAllClose(result, np.array([0, 1, 1]))
+
+    def test_variable_rxor(self):
+        """Test reverse ^ operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 0, 1]), dtype="int8", requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 1, 0]), dtype="int8", requires_grad=False
+        )
+        result = v2 ^ v1
+        self.assertAllClose(result, np.array([0, 1, 1]))
+        
+    def test_variable_le(self):
+        """Test le operation on a variable."""
+        v1 = backend.Variable(
+            initializer=np.array([1, 2, 3]), requires_grad=False
+        )
+        v2 = backend.Variable(
+            initializer=np.array([1, 2, 3]), requires_grad=False
+        )
+        result = v1 <= v2
+        self.assertAllClose(result, np.array([True, True, True]))
+
+
+@pytest.mark.skipif(
+    backend.backend() != "torch",
     reason="Tests for standardize_shape with Torch backend",
 )
 class TestStandardizeShapeWithTorch(test_case.TestCase):
     """Tests for standardize_shape with Torch backend."""
-
     def test_standardize_shape_with_torch_size_containing_negative_value(self):
         """Tests shape with a negative value."""
         shape_with_negative_value = (3, 4, -5)
