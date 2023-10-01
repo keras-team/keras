@@ -693,7 +693,7 @@ class VariableBinaryOperationsTest(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() == "torch",
+    backend.backend() != "torch",
     reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
 )
 # tensorflow.python.framework.errors_impl.InvalidArgumentError:
@@ -708,8 +708,8 @@ class TestVariableInvertWithTorch(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
-    reason="torch RuntimeError",
+    backend.backend() == "torch",
+    reason="Avoid Torch RuntimeError",
 )
 class TestVariableInvertWithOutTorch(test_case.TestCase):
     def test_variable_invert(self):
@@ -819,7 +819,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             ValueError,
             # "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
             # TODO ask is it ok to have different error message for torch
-            "invalid literal for int() with base 10: 'a'",
+            "invalid literal for int() with base 10",
         ):
             standardize_shape([3, 4, "a"])
 
