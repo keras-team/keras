@@ -173,16 +173,12 @@ class VariablePropertiesTest(test_case.TestCase):
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    # TODO (3.9,torch) FAILED keras/backend/common/variables_test.py
-    # ::VariablesTest::test_standardize_shape_with_non_integer_entry:
-    #  - AssertionError "Cannot convert '\(3, 4, 'a'\)' to a shape.
-    # " does not match "invalid literal for int() with base 10: 'a'"
-    # def test_standardize_shape_with_non_integer_entry(self):
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
-    #     ):
-    #         standardize_shape([3, 4, "a"])
+    def test_standardize_shape_with_non_integer_entry(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
+        ):
+            standardize_shape([3, 4, "a"])
 
     def test_standardize_shape_with_negative_entry(self):
         """Tests standardizing shape with negative entries."""
@@ -324,12 +320,6 @@ class VariableOperationsTest(test_case.TestCase):
         neg_v = -v
         self.assertAllClose(neg_v, np.array([1, -2]))
 
-    def test_variable_pos(self):
-        """Test positive value of a variable."""
-        v = backend.Variable(initializer=np.array([-1, 2]))
-        pos_v = v
-        self.assertAllClose(pos_v, np.array([-1, 2]))
-
     def test_variable_div_numpy_array(self):
         """Test variable divided by numpy array."""
         v = backend.Variable(initializer=np.array([2, 4, 8]))
@@ -350,19 +340,6 @@ class VariableOperationsTest(test_case.TestCase):
         arr = np.array([2, 2, 2])
         rsub_result = arr - v
         self.assertAllClose(rsub_result, np.array([1, 0, -1]))
-
-    def test_variable_rfloordiv(self):
-        """Test numpy array floordiv by variable."""
-        v = backend.Variable(initializer=np.array([3, 4, 6]))
-        result = np.array([9, 12, 18]) // v
-        self.assertAllClose(result, np.array([3, 3, 3]))
-
-    def test_variable_rmatmul(self):
-        """Test numpy array matmul with variable."""
-        v = backend.Variable(initializer=np.array([[2, 3], [4, 5]]))
-        other = np.array([[1, 2], [3, 4]])
-        rmatmul_result = other @ v
-        self.assertAllClose(rmatmul_result, np.array([[10, 13], [22, 29]]))
 
     def test_variable_addition(self):
         """Test addition operation on a variable."""
@@ -399,11 +376,39 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 // v2
         self.assertAllClose(result, np.array([0, 0, 0]))
 
+    def test_variable_rfloordiv(self):
+        """Test numpy array floordiv by variable."""
+        v1 = backend.Variable(initializer=np.array([3, 4, 6]))
+        v2 = backend.Variable(initializer=np.array([9, 12, 18]))
+        result = v2 // v1
+        self.assertAllClose(result, np.array([3, 3, 3]))
+
+    def test_variable_divmod(self):
+        """Test divmod operation on a variable."""
+        x = backend.Variable(initializer=np.array([3, 4, 6]))
+        y = backend.Variable(initializer=np.array([9, 12, 18]))
+        result = (x // y, x % y)
+        self.assertAllClose(result, (np.array([0, 0, 0]), np.array([3, 4, 6])))
+
+    def test_variable_rdivmod(self):
+        """Test reverse divmod operation on a variable."""
+        x = backend.Variable(initializer=np.array([3, 4, 6]))
+        y = backend.Variable(initializer=np.array([9, 12, 18]))
+        result = (y // x, y % x)
+        self.assertAllClose(result, (np.array([3, 3, 3]), np.array([0, 0, 0])))
+
     def test_variable_mod(self):
         """Test mod operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
         v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         result = v1 % v2
+        self.assertAllClose(result, np.array([1, 2, 3]))
+
+    def test_variable_rmod(self):
+        """Test reverse mod operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([4, 5, 6]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v2 % v1
         self.assertAllClose(result, np.array([1, 2, 3]))
 
     def test_variable_pow(self):
@@ -413,12 +418,26 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1**v2
         self.assertAllClose(result, np.array([1, 32, 729]))
 
+    def test_variable_rpow(self):
+        """Test reverse power operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+        result = v2**v1
+        self.assertAllClose(result, np.array([4, 25, 216]))
+
     def test_variable_matmul(self):
         """Test matmul operation on a variable."""
         v1 = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
         v2 = backend.Variable(initializer=np.array([[5, 6], [7, 8]]))
         result = v1 @ v2
         self.assertAllClose(result, np.array([[19, 22], [43, 50]]))
+
+    def test_variable_rmatmul(self):
+        """Test reverse matmul operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([[1, 2], [3, 4]]))
+        v2 = backend.Variable(initializer=np.array([[5, 6], [7, 8]]))
+        result = v2 @ v1
+        self.assertAllClose(result, np.array([[23, 34], [31, 46]]))
 
     def test_variable_ne(self):
         """Test ne operation on a variable."""
@@ -548,11 +567,23 @@ class VariableOperationsTest(test_case.TestCase):
         result = v1 / 2
         self.assertAllClose(result, np.array([2, 4, 8]))
 
-    def test_variable_rtruediv(self):
-        """Test division operation on a variable"""
+    def rtruediv(self):
+        """Test rtruediv operation on a variable"""
         v1 = backend.Variable(initializer=np.array([4, 8, 16]))
         result = v1 / 2
         self.assertAllClose(result, np.array([2, 4, 8]))
+
+    def test_variable_rtruediv(self):
+        """Test rtruediv operation on a variable"""
+        v1 = backend.Variable(initializer=np.array([4, 8, 16]))
+        result = 2 / v1
+        self.assertAllClose(result, np.array([0.5, 0.25, 0.125]))
+
+    def test_variable_invert(self):
+        """Test inversion operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
+        result = ~v1
+        self.assertAllClose(result, np.array([-2, -3, -4]))
 
 
 class VariableBinaryOperationsTest(test_case.TestCase):
@@ -606,6 +637,9 @@ class VariableBinaryOperationsTest(test_case.TestCase):
         self.assertFalse(shape_equal((), (3,)))
         self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
 
+    # def __pos__(self):
+    #     return self.value.__pos__()
+
     # def test_variable_rand(self):
     #     """Test reverse & operation on a variable."""
     #     # TODO
@@ -636,58 +670,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
 
     # def test_variable_rsub(self):
     #     """Test reverse subtraction on a variable."""
-    #     # TODO
-
-    # def test_variable_div(self):
-    #     """Test division on a variable."""
-    #     # TODO
-
-    # def test_variable_rdiv(self):
-    #     """Test reverse division on a variable."""
-    #     # TODO
-
-    # def test_variable_rtruediv(self):
-    #     """Test reverse true division on a variable."""
-    #     # TODO
-
-    # def test_variable_floordiv(self):
-    #     """Test floor division on a variable."""
-    #     # TODO
-
-    # def test_variable_rfloordiv(self):
-    #     """Test reverse floor division on a variable."""
-    #     # TODO
-
-    # def test_variable_divmod(self):
-    #     """Test divmod operation on a variable."""
-    #     # TODO
-
-    # def test_variable_rdivmod(self):
-    #     """Test reverse divmod operation on a variable."""
-    #     # TODO
-
-    # def test_variable_mod(self):
-    #     """Test modulo operation on a variable."""
-    #     # TODO
-
-    # def test_variable_rmod(self):
-    #     """Test reverse modulo operation on a variable."""
-    #     # TODO
-
-    # def test_variable_pow(self):
-    #     """Test power operation on a variable."""
-    #     # TODO
-
-    # def test_variable_rpow(self):
-    #     """Test reverse power operation on a variable."""
-    #     # TODO
-
-    # def test_variable_matmul(self):
-    #     """Test matrix multiplication on a variable."""
-    #     # TODO
-
-    # def test_variable_rmatmul(self):
-    #     """Test reverse matrix multiplication on a variable."""
     #     # TODO
 
     # def test_variable_and(self):
@@ -723,13 +705,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     #     # TODO
 
 
-# """ TODO Add tests for def shape_equal(a_shape, b_shape):
-#     #Return whether a_shape == b_shape (allows None entries)#
-#     if len(a_shape) != len(b_shape):
-# !
-#         return False
-
-
 @pytest.mark.skipif(
     backend.backend() != "torch",
     reason="Tests for standardize_shape with Torch backend",
@@ -744,25 +719,23 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         ):
             _ = standardize_shape(shape_with_negative_value)
 
-    # TODO
-    # def test_standardize_shape_with_torch_Size_containing_string(self):
-    #     """Tests shape with a string value."""
-    #     shape_with_string = (3, 4, "5")
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert .* to a shape. Found invalid entry '5'.",
-    #     ):
-    #         _ = standardize_shape(shape_with_string)
+    def test_standardize_shape_with_torch_size_containing_string(self):
+        """Tests shape with a string value."""
+        shape_with_string = (3, 4, "5")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid entry '5'.",
+        ):
+            _ = standardize_shape(shape_with_string)
 
-    # TODO
-    # def test_standardize_shape_with_torch_Size_containing_float(self):
-    #     """Tests shape with a float value."""
-    #     shape_with_float = (3, 4, 5.0)
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert .* to a shape. Found invalid entry '5.0'.",
-    #     ):
-    #         _ = standardize_shape(shape_with_float)
+    def test_standardize_shape_with_torch_size_containing_float(self):
+        """Tests shape with a float value."""
+        shape_with_float = (3, 4, 5.0)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid entry '5.0'.",
+        ):
+            _ = standardize_shape(shape_with_float)
 
     def test_standardize_shape_with_torch_size_valid(self):
         """Tests a valid shape."""
@@ -806,19 +779,18 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         standardized_shape = standardize_shape(shape_valid)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    # TODO
-    # def test_standardize_shape_with_torch_Size_with_invalid_dtype(self):
-    #     """Tests shape with an invalid dtype."""
-    #     import torch
+    def test_standardize_shape_with_torch_size_with_invalid_dtype(self):
+        """Tests shape with an invalid dtype."""
+        import torch
 
-    #     tensor = torch.randn(3, 4, 5)
-    #     shape = tuple(tensor.size())
-    #     shape_with_str = shape + ("invalid",)
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert .* to a shape. Found invalid entry 'invalid'.",
-    #     ):
-    #         _ = standardize_shape(shape_with_str)
+        tensor = torch.randn(3, 4, 5)
+        shape = tuple(tensor.size())
+        shape_with_str = shape + ("invalid",)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid entry 'invalid'.",
+        ):
+            _ = standardize_shape(shape_with_str)
 
     def test_standardize_shape_with_torch_size_with_negative_value(self):
         """Tests shape with a negative value appended."""
@@ -833,13 +805,12 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         ):
             _ = standardize_shape(shape_with_negative)
 
-    # TODO
-    # def test_standardize_shape_with_non_integer_entry(self):
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
-    #     ):
-    #         standardize_shape([3, 4, "a"])
+    def test_standardize_shape_with_non_integer_entry(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
+        ):
+            standardize_shape([3, 4, "a"])
 
     def test_standardize_shape_with_negative_entry(self):
         with self.assertRaisesRegex(
