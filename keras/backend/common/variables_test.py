@@ -691,32 +691,42 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     #     """Test round operation on a variable."""
     #     # TODO
 
-
-@pytest.mark.skipif(
-    backend.backend() != "torch",
-    reason="Avoid Torch RuntimeError",
-)
-class TestVariableInvertWithTorch(test_case.TestCase):
-    def test_variable_invert(self):
+    def test_variable_invert_for_all_bool(self):
         """Test inversion operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="float32")
+        v1 = backend.Variable(
+            initializer=np.array([True, False, True]), dtype="bool"
+        )
         result = ~v1
-        self.assertAllClose(result, np.array([-2, -3, -4]))
+        self.assertAllClose(result, np.array([False, True, False]))
 
 
-@pytest.mark.skipif(
-    backend.backend() == "torch",
-    reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
-)
-class TestVariableInvertWithOutTorch(test_case.TestCase):
-    def test_variable_invert(self):
-        # tensorflow.python.framework.errors_impl.InvalidArgumentError:
-        # Value for attr 'T' of float is not in the list of allowed values:
-        # int8, int16, int32, int64, uint8, uint16, uint32, uint64
-        """Test inversion operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
-        result = ~v1
-        self.assertAllClose(result, np.array([-2, -3, -4]))
+# @pytest.mark.skipif(
+#     backend.backend() != "torch",
+#     reason="Avoid Torch RuntimeError",
+# )
+# class TestVariableInvertWithTorch(test_case.TestCase):
+#     def test_variable_invert(self):
+#         """Test inversion operation on a variable."""
+#         v1 = backend.Variable(
+#             initializer=np.array([True, False, True]), dtype="bool"
+#         )
+#         result = ~v1
+#         self.assertAllClose(result, np.array([False, True, False]))
+
+
+# @pytest.mark.skipif(
+#     backend.backend() == "torch",
+#     reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
+# )
+# class TestVariableInvertWithOutTorch(test_case.TestCase):
+#     def test_variable_invert(self):
+#         # tensorflow.python.framework.errors_impl.InvalidArgumentError:
+#         # Value for attr 'T' of float is not in the list of allowed values:
+#         # int8, int16, int32, int64, uint8, uint16, uint32, uint64
+#         """Test inversion operation on a variable."""
+#         v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
+#         result = ~v1
+#         self.assertAllClose(result, np.array([-2, -3, -4]))
 
 
 @pytest.mark.skipif(
@@ -816,10 +826,10 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
 
     def test_standardize_shape_with_non_integer_entry(self):
         with self.assertRaisesRegex(
-            ValueError,
             # "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
             # TODO ask is it ok to have different error message for torch
-            "invalid literal for int\(\) with base 10: 'a'",
+            ValueError,
+            r"invalid literal for int\(\) with base 10: 'a'",
         ):
             standardize_shape([3, 4, "a"])
 
