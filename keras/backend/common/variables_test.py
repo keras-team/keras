@@ -330,6 +330,13 @@ class VariableOperationsTest(test_case.TestCase):
         rdiv_result = arr / v
         self.assertAllClose(rdiv_result, np.array([8, 8, 8]))
 
+    def test_variable_sub_numpy_array(self):
+        """Test numpy array minus variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([2, 2, 2]))
+        sub_result = v1 - v2
+        self.assertAllClose(sub_result, np.array([-1, 0, 1]))
+
     def test_variable_rsub_numpy_array(self):
         """Test numpy array minus variable."""
         v = backend.Variable(initializer=np.array([1, 2, 3]))
@@ -627,72 +634,115 @@ class VariableBinaryOperationsTest(test_case.TestCase):
         self.assertFalse(shape_equal((), (3,)))
         self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
 
-    # def __pos__(self):
-    #     return self.value.__pos__()
+    def test_variable_and(self):
+        """Test & operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v1 & v2
+        self.assertAllClose(result, np.array([1, 0, 0]))
 
-    # def test_variable_rand(self):
-    #     """Test reverse & operation on a variable."""
-    #     # TODO
+    def test_variable_rand(self):
+        """Test reverse & operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v2 & v1
+        self.assertAllClose(result, np.array([1, 0, 0]))
 
-    # def test_variable_or(self):
-    #     """Test | operation on a variable."""
-    #     # TODO
+    def test_variable_or(self):
+        """Test | operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v1 | v2
+        self.assertAllClose(result, np.array([1, 1, 1]))
 
-    # def test_variable_rxor(self):
-    #     """Test reverse ^ operation on a variable."""
-    #     # TODO
+    def test_variable_ror(self):
+        """Test reverse | operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v2 | v1
+        self.assertAllClose(result, np.array([1, 1, 1]))
+
+    def test_variable_xor(self):
+        """Test ^ operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v1 ^ v2
+        self.assertAllClose(result, np.array([0, 1, 1]))
+
+    def test_variable_rxor(self):
+        """Test reverse ^ operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 0, 1]), dtype="int8")
+        v2 = backend.Variable(initializer=np.array([1, 1, 0]), dtype="int8")
+        result = v2 ^ v1
+        self.assertAllClose(result, np.array([0, 1, 1]))
 
     # def test_variable_le(self):
     #     """Test less than or equal operation on a variable."""
     #     # TODO
 
-    # def test_variable_gt(self):
-    #     """Test greater than operation on a variable."""
-    #     # TODO
+    def test_variable_lt(self):
+        """Test less than operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 < v2
+        self.assertAllClose(result, np.array([False, False, False]))
 
-    # def test_variable_ge(self):
-    #     """Test greater than or equal operation on a variable."""
-    #     # TODO
+    def test_variable_ne(self):
+        """Test not equal operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 != v2
+        self.assertAllClose(result, np.array([False, False, False]))
 
-    # def test_variable_radd(self):
-    #     """Test reverse addition on a variable."""
-    #     # TODO
+    def test_variable_eq(self):
+        """Test equal operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 == v2
+        self.assertAllClose(result, np.array([True, True, True]))
 
-    # def test_variable_rsub(self):
-    #     """Test reverse subtraction on a variable."""
-    #     # TODO
+    def test_variable_gt(self):
+        """Test greater than operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 > v2
+        self.assertAllClose(result, np.array([False, False, False]))
 
-    # def test_variable_and(self):
-    #     """Test & operation on a variable."""
-    #     # TODO
+    def test_variable_ge(self):
+        """Test greater than or equal operation on a variable."""
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+        result = v1 >= v2
+        self.assertAllClose(result, np.array([True, True, True]))
 
-    # def test_variable_ror(self):
-    #     """Test reverse | operation on a variable."""
-    #     # TODO
-
-    # def test_variable_xor(self):
-    #     """Test ^ operation on a variable."""
-    #     # TODO
-
+    # TODO
     # def test_variable_lshift(self):
     #     """Test left shift operation on a variable."""
-    #     # TODO
+    #     v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
+    #     v2 = backend.Variable(initializer=np.array([1, 1, 1]), dtype="int8")
+    #     result = v1.__lshift__(v2)
+    #     self.assertAllClose(result, np.array([2, 4, 6]))
 
     # def test_variable_rlshift(self):
     #     """Test reverse left shift operation on a variable."""
-    #     # TODO
+    #     v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
+    #     v2 = backend.Variable(initializer=np.array([1, 1, 1]), dtype="int8")
+    #     result = v2.__lshift__(v1)
+    #     self.assertAllClose(result, np.array([2, 4, 6]))
 
     # def test_variable_rshift(self):
     #     """Test right shift operation on a variable."""
-    #     # TODO
+    #     v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
+    #     v2 = backend.Variable(initializer=np.array([1, 1, 1]), dtype="int8")
+    #     result = v1 >> v2
+    #     self.assertAllClose(result, np.array([0, 1, 1]))
 
     # def test_variable_rrshift(self):
     #     """Test reverse right shift operation on a variable."""
-    #     # TODO
-
-    # def test_variable_round(self):
-    #     """Test round operation on a variable."""
-    #     # TODO
+    #     v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
+    #     v2 = backend.Variable(initializer=np.array([1, 1, 1]), dtype="int8")
+    #     result = v2 >> v1
+    #     self.assertAllClose(result, np.array([0, 0, 0]))
 
     @pytest.mark.skipif(
         backend.backend() == "torch",
