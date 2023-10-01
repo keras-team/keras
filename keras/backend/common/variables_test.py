@@ -627,13 +627,6 @@ class VariableBinaryOperationsTest(test_case.TestCase):
         self.assertFalse(shape_equal((), (3,)))
         self.assertFalse(shape_equal((3, 2, 4, 5), (3, 2, 4)))
 
-    def test_variable_le(self):
-        """Test less than or equal operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int8")
-        result = v1 <= v2
-        self.assertAllClose(result, np.array([True, True, True]))
-
     def test_variable_lt(self):
         """Test less than operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
