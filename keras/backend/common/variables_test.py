@@ -91,6 +91,7 @@ class VariablePropertiesTest(test_case.TestCase):
         self.assertAllClose(out, np.ones((2, 2)))
 
     def test_trainable_setter(self):
+        """Tests the trainable setter."""
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
             shape=(2, 2),
@@ -299,6 +300,8 @@ class VariableDtypeShapeNdimRepr(test_case.TestCase):
 
 
 class VariableOperationsTest(test_case.TestCase):
+    """Tests for operations on KerasVariable."""
+
     def test_variable_as_boolean(self):
         """Test converting a variable to boolean."""
         v = backend.Variable(initializer=np.ones((2, 2)))
@@ -709,6 +712,8 @@ class VariableBinaryOperationsTest(test_case.TestCase):
     reason="Tests for standardize_shape with Torch backend",
 )
 class TestStandardizeShapeWithTorch(test_case.TestCase):
+    """Tests for standardize_shape with Torch backend."""
+
     def test_standardize_shape_with_torch_size_containing_negative_value(self):
         """Tests shape with a negative value."""
         shape_with_negative_value = (3, 4, -5)
@@ -800,6 +805,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             _ = standardize_shape(shape_with_negative)
 
     def test_standardize_shape_with_non_integer_entry(self):
+        """Tests shape with a non-integer value."""
         with self.assertRaisesRegex(
             # "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
             # TODO ask is it ok to have different error message for torch
@@ -809,6 +815,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             standardize_shape([3, 4, "a"])
 
     def test_standardize_shape_with_negative_entry(self):
+        """Tests shape with a negative value."""
         with self.assertRaisesRegex(
             ValueError,
             "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
@@ -827,6 +834,8 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
     reason="Tests for standardize_shape with others backend",
 )
 class TestStandardizeShapeWithOutTorch(test_case.TestCase):
+    """Tests for standardize_shape with others backend."""
+
     def test_standardize_shape_with_out_torch_negative_value(self):
         """Tests shape with a negative value."""
         shape_with_negative_value = (3, 4, -5)
