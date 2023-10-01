@@ -757,9 +757,9 @@ class OthersBackendsTestWhenTorchRequiresGradFalse(test_case.TestCase):
 class TorchTestsThatRequiresGradFalse(test_case.TestCase):
     """Tests that require requires_grad=False."""
 
-    import torch
-
     def test_variable_invert_for_all_bool(self):
+        import torch
+
         """Test inversion operation on a variable."""
         v1 = torch.tensor(
             [True, False, True], dtype=torch.bool, requires_grad=False
@@ -768,6 +768,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([False, True, False]))
 
     def test_variable_and(self):
+        import torch
+
         """Test & operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -775,6 +777,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([1, 0, 0]))
 
     def test_variable_rand(self):
+        import torch
+
         """Test reverse & operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -782,6 +786,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([1, 0, 0]))
 
     def test_variable_or(self):
+        import torch
+
         """Test | operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -789,6 +795,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([1, 1, 1]))
 
     def test_variable_ror(self):
+        import torch
+
         """Test reverse | operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -796,6 +804,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([1, 1, 1]))
 
     def test_variable_xor(self):
+        import torch
+
         """Test ^ operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -803,6 +813,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([0, 1, 1]))
 
     def test_variable_rxor(self):
+        import torch
+
         """Test reverse ^ operation on a variable."""
         v1 = torch.tensor([1, 0, 1], dtype=torch.int8, requires_grad=False)
         v2 = torch.tensor([1, 1, 0], dtype=torch.int8, requires_grad=False)
@@ -810,6 +822,8 @@ class TorchTestsThatRequiresGradFalse(test_case.TestCase):
         self.assertAllClose(result.numpy(), np.array([0, 1, 1]))
 
     def test_variable_le(self):
+        import torch
+
         """Test le operation on a variable."""
         v1 = torch.tensor([1, 2, 3], dtype=torch.float32, requires_grad=False)
         v2 = torch.tensor([1, 2, 3], dtype=torch.float32, requires_grad=False)
