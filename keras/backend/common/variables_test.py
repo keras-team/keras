@@ -712,6 +712,7 @@ class VariableBinaryOperationsTest(test_case.TestCase):
 )
 class TorchTestsThatRequiresGradFalse(test_case.TestCase):
     """Tests that require requires_grad=False."""
+
     def test_variable_invert_for_all_bool(self):
         """Test inversion operation on a variable."""
         v1 = backend.Variable(
