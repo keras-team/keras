@@ -693,13 +693,13 @@ class VariableBinaryOperationsTest(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
+    backend.backend() == "torch",
     reason="tensorflow.python.framework.errors_impl.InvalidArgumentError",
 )
 # tensorflow.python.framework.errors_impl.InvalidArgumentError:
 # Value for attr 'T' of float is not in the list of allowed values:
 # int8, int16, int32, int64, uint8, uint16, uint32, uint64
-class TestVariableInvertWithOutTorch(test_case.TestCase):
+class TestVariableInvertWithTorch(test_case.TestCase):
     def test_variable_invert(self):
         """Test inversion operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="int32")
@@ -708,10 +708,10 @@ class TestVariableInvertWithOutTorch(test_case.TestCase):
 
 
 @pytest.mark.skipif(
-    backend.backend() == "torch",
+    backend.backend() != "torch",
     reason="torch RuntimeError",
 )
-class TestVariableInvertWithTorch(test_case.TestCase):
+class TestVariableInvertWithOutTorch(test_case.TestCase):
     def test_variable_invert(self):
         """Test inversion operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]), dtype="float32")
