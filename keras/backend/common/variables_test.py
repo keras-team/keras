@@ -315,7 +315,7 @@ class VariableOperationsTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
         self.assertAllClose(v.__neg__(), np.array([1, -2]))
 
-    # TODO FAILED AttributeError: 'ResourceVariable'
+    # FAILED AttributeError: 'ResourceVariable'
     #  object has no attribute '__pos__'. Did you mean: '__pow__'?
     # def test__pos__(self):
     #     """Test unary plus on a variable."""
