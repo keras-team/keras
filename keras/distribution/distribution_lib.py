@@ -14,6 +14,7 @@ import warnings
 import numpy as np
 
 from keras.api_export import keras_export
+from keras.backend import KerasTensor
 from keras.backend import distribution_lib
 from keras.backend.common import global_state
 
@@ -211,7 +212,7 @@ class Distribution:
 
         Args:
             path: a string path for the correspoding tensor.
-        
+
         return:
             The `TensorLayout` for the intermediate tensor, which can be used
             by `backend.relayout()` to reshard the tensor. Could also return
@@ -531,18 +532,22 @@ LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 @keras_export("keras.distribution.relayout")
 def relayout(value, tensor_layout):
     """Change the layout of a Tensor value in the jit function execution.
-    
-    Note that this will only work within the jitted function. To change the 
-    layout of a value eagerly, please use 
+
+    Note that this might not work outside of the jitted function for certain
+    backend. To change the layout of a value eagerly, please use
     `backend.distribution_lib.distribute_value`.
 
     Args:
         value: a Tensor to change the layout.
         tensor_layout: TensorLayout to be applied on the value.
-    
+
     Returns:
         a new value with the specified tensor layout.
     """
+    if isinstance(value, KerasTensor):
+        # keras tensor is only used for building functional model, and can't be
+        # used to alter layout/sharding.
+        return value
     return distribution_lib.relayout(value, tensor_layout)
 
 
