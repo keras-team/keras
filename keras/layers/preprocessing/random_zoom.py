@@ -227,8 +227,12 @@ class RandomZoom(TFDataLayer):
         #      [0 0 1]]
         # where the last entry is implicit.
         # zoom matrices are always float32.
-        x_offset = ((float(image_width) - 1.0) / 2.0) * (1.0 - zooms[:, 0:1])
-        y_offset = ((float(image_height) - 1.0) / 2.0) * (1.0 - zooms[:, 1:])
+        x_offset = ((self.backend.cast(image_width, "float32") - 1.0) / 2.0) * (
+            1.0 - zooms[:, 0:1]
+        )
+        y_offset = (
+            (self.backend.cast(image_height, "float32") - 1.0) / 2.0
+        ) * (1.0 - zooms[:, 1:])
         return self.backend.numpy.concatenate(
             [
                 zooms[:, 0:1],

@@ -4,6 +4,7 @@ from tensorflow import data as tf_data
 
 from keras import backend
 from keras import layers
+from keras import models
 from keras import testing
 
 
@@ -108,3 +109,14 @@ class RandomZoomTest(testing.TestCase, parameterized.TestCase):
         for output in ds.take(1):
             output = output.numpy()
         self.assertAllClose(expected_output, output)
+
+    def test_dynamic_shape(self):
+        inputs = layers.Input((None, None, 3))
+        outputs = layers.RandomZoom(
+            height_factor=(0.5, 0.5),
+            width_factor=(0.8, 0.8),
+            interpolation="nearest",
+            fill_mode="constant",
+        )(inputs)
+        model = models.Model(inputs, outputs)
+        model.predict(np.random.random((1, 6, 6, 3)))
