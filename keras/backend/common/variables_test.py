@@ -327,8 +327,8 @@ class VariableOperationsTest(test_case.TestCase):
         """Test numpy array divided by variable."""
         v = backend.Variable(initializer=np.array([2, 4, 8]))
         arr = np.array([16, 32, 64])
-        rdiv_result = arr / v
-        self.assertAllClose(rdiv_result, np.array([8, 8, 8]))
+        rdiv_result = v / arr
+        self.assertAllClose(rdiv_result, np.array([0.125, 0.125, 0.125]))
 
     def test_variable_sub_numpy_array(self):
         """Test numpy array minus variable."""
@@ -546,10 +546,10 @@ class VariableOperationsTest(test_case.TestCase):
 
     def test_variable_rsub(self):
         """Test subtraction operation on a variable."""
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v1 = backend.Variable(initializer=np.array([4, 5, 6]))
+        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         result = v2 - v1
-        self.assertAllClose(result, np.array([-3, -3, -3]))
+        self.assertAllClose(result, np.array([3, 3, 3]))
 
     def test_variable_rmul(self):
         """Test multiplication operation on a variable."""
