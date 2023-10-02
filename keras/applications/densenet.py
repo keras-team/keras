@@ -180,6 +180,12 @@ def DenseNet(
     Returns:
         A model instance.
     """
+    if backend.image_data_format() == "channels_first":
+        raise ValueError(
+            "DenseNet does not support the `channels_first` image data "
+            "format. Switch to `channels_last` by editing your local "
+            "config file at ~/.keras/keras.json"
+        )
     if not (weights in {"imagenet", None} or file_utils.exists(weights)):
         raise ValueError(
             "The `weights` argument should be either "

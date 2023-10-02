@@ -10,6 +10,8 @@ from keras import optimizers as optimizers_module
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.torch.core import is_tensor
+from keras.trainers import data_adapters
+from keras.trainers import epoch_iterator
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
@@ -259,7 +261,7 @@ class TorchTrainer(base_trainer.Trainer):
         )
         if needs_building:
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -288,7 +290,7 @@ class TorchTrainer(base_trainer.Trainer):
             # do training behavior in case the user did not use `self.training`
             # when implementing a custom layer with torch layers.
             self.train()
-            for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for step, data in epoch_iterator.enumerate_epoch():
                 # Callbacks
                 callbacks.on_train_batch_begin(step)
 
@@ -384,7 +386,7 @@ class TorchTrainer(base_trainer.Trainer):
 
         if not all(layer.built for layer in self._flatten_layers()):
             # Build the model on one batch of data.
-            for _, data in epoch_iterator.enumerate_epoch(return_type="np"):
+            for _, data in epoch_iterator.enumerate_epoch():
                 data_batch = data[0]
                 self._symbolic_build(data_batch)
                 break
@@ -408,7 +410,7 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = None
         self.reset_metrics()
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_test_batch_begin(step)
             logs = self.test_function(data)
             callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
@@ -424,7 +426,7 @@ class TorchTrainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
-        epoch_iterator = EpochIterator(
+        epoch_iterator = TorchEpochIterator(
             x=x,
             batch_size=batch_size,
             steps_per_epoch=steps,
@@ -465,7 +467,7 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_predict_function()
         callbacks.on_predict_begin()
         outputs = None
-        for step, data in epoch_iterator.enumerate_epoch(return_type="np"):
+        for step, data in epoch_iterator.enumerate_epoch():
             callbacks.on_predict_batch_begin(step)
             batch_outputs = self.predict_function(data)
             outputs = append_to_outputs(batch_outputs, outputs)
@@ -535,3 +537,13 @@ class TorchTrainer(base_trainer.Trainer):
             backend.convert_to_numpy, batch_outputs
         )
         return batch_outputs
+
+
+class TorchEpochIterator(epoch_iterator.EpochIterator):
+    def _get_iterator(self, return_type="auto"):
+        if return_type == "auto" and isinstance(
+            self.data_adapter, data_adapters.TorchDataLoaderAdapter
+        ):
+            return self.data_adapter.get_torch_dataloader()
+
+        return super()._get_iterator(return_type)

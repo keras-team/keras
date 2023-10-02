@@ -1,13 +1,16 @@
 import tensorflow as tf
 
+from keras.backend.tensorflow.trackable import KerasAutoTrackable
 from keras.utils import tf_utils
+from keras.utils import tracking
 
 
-class TFLayer(tf.__internal__.tracking.AutoTrackable):
+class TFLayer(KerasAutoTrackable):
     def __init__(self, *args, **kwargs):
         # Export-related attributes
         self._saved_model_inputs_spec = None
         self._saved_model_arg_spec = None
+        self._tracked = []
 
     @tf.__internal__.tracking.no_automatic_dependency_tracking
     def _set_save_spec(self, inputs, args=None, kwargs=None):
@@ -57,6 +60,15 @@ class TFLayer(tf.__internal__.tracking.AutoTrackable):
             self.train_function = train_function
             self.test_function = test_function
             self.predict_function = predict_function
+
+            for tracked_attr in self._tracked:
+                tracked_item = getattr(self, tracked_attr)
+                if isinstance(tracked_item, tracking.TrackedList):
+                    children[tracked_attr] = list(tracked_item)
+                if isinstance(tracked_item, tracking.TrackedDict):
+                    children[tracked_attr] = dict(tracked_item)
+                if isinstance(tracked_item, tracking.TrackedSet):
+                    children[tracked_attr] = list(tracked_item)
 
         return children
 

@@ -30,7 +30,7 @@ class KerasVariable:
         self._dtype = dtype
         self._shape = None
         self._initializer = None
-        self.trainable = trainable
+        self._trainable = trainable
         if callable(initializer):
             if shape is None:
                 raise ValueError(
@@ -150,6 +150,14 @@ class KerasVariable:
     @property
     def ndim(self):
         return self._ndim
+
+    @property
+    def trainable(self):
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
 
     def __repr__(self):
         return (

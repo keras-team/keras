@@ -62,7 +62,7 @@ def create_legacy_directory():
     tf_keras_dirpath = os.path.join(tf_keras_dirpath_parent, "keras")
     os.makedirs(tf_keras_dirpath)
     with open(os.path.join(tf_keras_dirpath_parent, "__init__.py"), "w") as f:
-        f.write("")
+        f.write("from keras._tf_keras import keras\n")
     with open(os.path.join(package, "__init__.py")) as f:
         init_file = f.read()
         init_file = init_file.replace(
@@ -86,7 +86,7 @@ def create_legacy_directory():
                 ignore=ignore_files,
             )
 
-    # Copy keras/_legacy/ file contents to keras/_tf_keras/
+    # Copy keras/_legacy/ file contents to keras/_tf_keras/keras
     legacy_submodules = [
         path[:-3]
         for path in os.listdir(os.path.join(package, "src", "legacy"))
@@ -102,7 +102,7 @@ def create_legacy_directory():
         for fname in fnames:
             if fname.endswith(".py"):
                 legacy_fpath = os.path.join(root, fname)
-                tf_keras_root = root.replace("/_legacy", "/_tf_keras")
+                tf_keras_root = root.replace("/_legacy", "/_tf_keras/keras")
                 core_api_fpath = os.path.join(
                     root.replace("/_legacy", ""), fname
                 )
@@ -112,7 +112,7 @@ def create_legacy_directory():
                 with open(legacy_fpath) as f:
                     legacy_contents = f.read()
                     legacy_contents = legacy_contents.replace(
-                        "keras._legacy", "keras._tf_keras"
+                        "keras._legacy", "keras._tf_keras.keras"
                     )
                 if os.path.exists(core_api_fpath):
                     with open(core_api_fpath) as f:
@@ -127,7 +127,7 @@ def create_legacy_directory():
                         )
                         core_api_contents = core_api_contents.replace(
                             f"keras.{legacy_submodule}",
-                            f"keras._tf_keras.{legacy_submodule}",
+                            f"keras._tf_keras.keras.{legacy_submodule}",
                         )
                     legacy_contents = core_api_contents + "\n" + legacy_contents
                 with open(tf_keras_fpath, "w") as f:
