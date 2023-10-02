@@ -153,6 +153,16 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    else:
+        # TODO: should we upcast to int64 if the actual reaulting dtype is
+        # int64? Currently we follow the type rules of JAX.
+        dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
 
@@ -169,8 +179,8 @@ def bincount(x, weights=None, minlength=0):
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
-        return np.stack(bincounts)
-    return np.bincount(x, weights, minlength)
+        return np.stack(bincounts).astype(dtype)
+    return np.bincount(x, weights, minlength).astype(dtype)
 
 
 def broadcast_to(x, shape):

@@ -3886,6 +3886,11 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             for x in ALLOWED_DTYPES
             if x not in ["string", "uint64"]
         ] + [None]
+        INT_DTYPES = [
+            str(to_torch_dtype(x)).split(".")[-1]
+            for x in ALLOWED_DTYPES
+            if "int" in x and x != "uint64"
+        ]
     else:
         # TODO: Using uint64 will lead to weak type promotion (`float`),
         # resulting in different behavior between JAX and Keras. Currently, we
@@ -3893,6 +3898,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         ALL_DTYPES = [
             x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
         ] + [None]
+        INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -3920,6 +3926,68 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
             standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
+        )
+
+    @parameterized.parameters(INT_DTYPES)
+    def test_bincount(self, dtype):
+        import jax.numpy as jnp
+
+        x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype=dtype)
+        minlength = 3
+        self.assertEqual(
+            standardize_dtype(
+                knp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+            standardize_dtype(
+                jnp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Bincount(weights=weights, minlength=minlength)
+                .symbolic_call(x)
+                .dtype
+            ),
+            standardize_dtype(
+                jnp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+        )
+
+        # test float32 weights
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype="float32")
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x, weights=weights).dtype),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Bincount(weights=weights).symbolic_call(x).dtype
+            ),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+
+        # test float16 weights
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype="float16")
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x, weights=weights).dtype),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Bincount(weights=weights).symbolic_call(x).dtype
+            ),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+
+        # test weights=None
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x).dtype),
+            standardize_dtype(jnp.bincount(x).dtype),
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Bincount().symbolic_call(x).dtype),
+            standardize_dtype(jnp.bincount(x).dtype),
         )
 
     @parameterized.parameters(ALL_DTYPES)

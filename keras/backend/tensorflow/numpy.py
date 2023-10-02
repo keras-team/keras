@@ -24,9 +24,29 @@ def add(x1, x2):
     return tfnp.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=None):
-    if minlength is not None:
+def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if standardize_dtype(x.dtype) not in ["int32", "int64"]:
         x = tf.cast(x, tf.int32)
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        if standardize_dtype(weights.dtype) not in [
+            "int32",
+            "int64",
+            "float32",
+            "float64",
+        ]:
+            if "int" in standardize_dtype(weights.dtype):
+                weights = tf.cast(weights, tf.int32)
+            else:
+                weights = tf.cast(weights, tf.float32)
+    else:
+        # TODO: should we upcast to int64 if the actual reaulting dtype is
+        # int64? Currently we follow the type rules of JAX.
+        dtype = "int32"
     if isinstance(x, tf.SparseTensor):
         result = tf.sparse.bincount(
             x,
@@ -34,6 +54,7 @@ def bincount(x, weights=None, minlength=None):
             minlength=minlength,
             axis=-1,
         )
+        result = tf.cast(result, dtype)
         if x.shape.rank == 1:
             output_shape = (minlength,)
         else:
@@ -44,7 +65,10 @@ def bincount(x, weights=None, minlength=None):
             values=result.values,
             dense_shape=output_shape,
         )
-    return tf.math.bincount(x, weights=weights, minlength=minlength, axis=-1)
+    return tf.cast(
+        tf.math.bincount(x, weights=weights, minlength=minlength, axis=-1),
+        dtype,
+    )
 
 
 def einsum(subscripts, *operands, **kwargs):

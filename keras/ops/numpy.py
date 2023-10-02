@@ -1244,8 +1244,14 @@ class Bincount(Operation):
         )
 
     def compute_output_spec(self, x):
-        out_shape = backend.numpy.amax(x) + 1
-        return KerasTensor(out_shape, dtype=x.dtype)
+        dtypes_to_resolve = [x.dtype]
+        if self.weights is not None:
+            weights = backend.convert_to_tensor(self.weights)
+            dtypes_to_resolve.append(weights.dtype)
+            dtype = dtypes.result_type(*dtypes_to_resolve)
+        else:
+            dtype = "int32"
+        return KerasTensor(list(x.shape[:-1]) + [None], dtype=dtype)
 
 
 @keras_export(["keras.ops.bincount", "keras.ops.numpy.bincount"])
