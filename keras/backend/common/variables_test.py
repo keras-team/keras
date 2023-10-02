@@ -315,7 +315,7 @@ class VariableOperationsTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
         self.assertAllClose(v.__neg__(), np.array([1, -2]))
 
-    # TODO AttributeError: 'ResourceVariable'
+    # TODO FAILED AttributeError: 'ResourceVariable'
     #  object has no attribute '__pos__'. Did you mean: '__pow__'?
     # def test__pos__(self):
     #     """Test unary plus on a variable."""
@@ -564,7 +564,7 @@ class VariableOperationsTest(test_case.TestCase):
         )
         self.assertAllClose(v1.__rxor__(v2), np.array([False, True]))
 
-    #TODO FAILED  AttributeError:
+    # TODO FAILED  AttributeError:
     # 'ResourceVariable' object has no attribute
     #  '__round__'. Did you mean: '__rand__'?
     # def test__round__(self):
@@ -705,32 +705,6 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
             "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
         ):
             _ = standardize_shape(shape_with_negative_value)
-
-    # TODO FAILED keras/backend/common/variables_test.py::
-    # TestStandardizeShapeWithTorch::
-    # test_standardize_shape_with_torch_size_containing_string
-    # - AssertionError: ValueError not raised
-    # def test_standardize_shape_with_torch_size_containing_string(self):
-    #     """Tests shape with a string value."""
-    #     shape_with_string = (3, 4, "5")
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert .* to a shape. Found invalid entry '5'.",
-    #     ):
-    #         _ = standardize_shape(shape_with_string)
-
-    # TODO FAILED keras/backend/common/variables_test.py::
-    # TestStandardizeShapeWithTorch::
-    # test_standardize_shape_with_torch_size_containing_string
-    # - AssertionError: ValueError not raised
-    # def test_standardize_shape_with_torch_size_containing_float(self):
-    #     """Tests shape with a float value."""
-    #     shape_with_float = (3, 4, 5.0)
-    #     with self.assertRaisesRegex(
-    #         ValueError,
-    #         "Cannot convert .* to a shape. Found invalid entry '5.0'.",
-    #     ):
-    #         _ = standardize_shape(shape_with_float)
 
     def test_standardize_shape_with_torch_size_valid(self):
         """Tests a valid shape."""
