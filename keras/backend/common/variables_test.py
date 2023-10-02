@@ -406,8 +406,6 @@ class VariableOperationsTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         self.assertAllClose(v1.__rmul__(v2), np.array([4, 10, 18]))
 
-    # In Python 3, `__div__` from Python 2
-    #  was replaced with `__truediv__` for true division.
     # FAILED test__div__ - AttributeError:
     # 'numpy.ndarray' object has no attribute '__div__'
     # def test__div__(self):
@@ -448,7 +446,7 @@ class VariableOperationsTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([1, 2, 3]))
         self.assertAllClose(v1.__rfloordiv__(v2), np.array([-1, 0, 0]))
 
-    # TODO AttributeError: 'ResourceVariable' object has no attribute
+    # FAILED AttributeError: 'ResourceVariable' object has no attribute
     #  '__divmod__'. Did you mean: '__div__'?
     # def test__divmod__(self):
     #     """Test divmod operation on a variable."""
@@ -458,7 +456,7 @@ class VariableOperationsTest(test_case.TestCase):
     #         v1.__divmod__(v2), (np.array([3, 3, 3]), np.array([0, 0, 0]))
     #     )
 
-    # TODO AttributeError: 'ResourceVariable' object has no attribute
+    # FAILED AttributeError: 'ResourceVariable' object has no attribute
     #  '__rdivmod__'. Did you mean: '__rdiv__'?
     # def test__rdivmod__(self):
     #     """Test reverse divmod operation on a variable."""
@@ -564,7 +562,7 @@ class VariableOperationsTest(test_case.TestCase):
         )
         self.assertAllClose(v1.__rxor__(v2), np.array([False, True]))
 
-    # TODO FAILED  AttributeError:
+    # FAILED  AttributeError:
     # 'ResourceVariable' object has no attribute
     #  '__round__'. Did you mean: '__rand__'?
     # def test__round__(self):
@@ -575,7 +573,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     value = self.value
     #     return value.__round__(ndigits)
 
-    # TODO FAILED AttributeError:
+    # FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__lshift__'
     # def test__lshift__(self):
     #     """Test left shift operation on a variable."""
@@ -587,7 +585,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__lshift__(v2), np.array([2, 8, 24]))
 
-    # TODO FAILED AttributeError:
+    # FAILED AttributeError:
     #  'ResourceVariable' object has no attribute '__rlshift__'
     # def test__rlshift__(self):
     #     """Test reverse left shift operation on a variable."""
@@ -599,7 +597,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__rlshift__(v2), np.array([2, 8, 24]))
 
-    # TODO FAILED AttributeError:
+    # FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__rrshift__'
     # def test__rshift__(self):
     #     """Test right shift operation on a variable."""
@@ -611,7 +609,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__rshift__(v2), np.array([0, 0, 0]))
 
-    # TODO FAILED AttributeError:
+    # FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__rshift__'
     # def test__rrshift__(self):
     #     """Test reverse right shift operation on a variable."""
@@ -764,8 +762,7 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
     def test_standardize_shape_with_non_integer_entry(self):
         """Tests shape with a non-integer value."""
         with self.assertRaisesRegex(
-            # "Cannot convert '\\(3, 4, 'a'\\)' to a shape. Found invalid",
-            # TODO ask is it ok to have different error message for torch
+            # different error message for torch
             ValueError,
             r"invalid literal for int\(\) with base 10: 'a'",
         ):
