@@ -92,6 +92,11 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    # TODO: GPU and XLA only support float types
+    input_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, input_dtype)
+    x2 = tf.cast(x2, input_dtype)
 
     def with_combined_batch_dimensions(a, b, fn_3d):
         batch_shape = (
@@ -150,26 +155,29 @@ def matmul(x1, x2):
     x2_sparse = isinstance(x2, tf.SparseTensor)
     if x1_sparse and x2_sparse:
         if x1.shape.rank <= 3:
-            return sparse_sparse_matmul(x1, x2)
+            result = sparse_sparse_matmul(x1, x2)
         else:
-            return with_combined_batch_dimensions(x1, x2, sparse_sparse_matmul)
+            result = with_combined_batch_dimensions(
+                x1, x2, sparse_sparse_matmul
+            )
     elif x1_sparse or x2_sparse:
         # Sparse * dense or dense * sparse
         sparse_rank = x1.shape.rank if x1_sparse else x2.shape.rank
 
         # Special case: embedding_lookup_sparse for sparse * dense and rank 2
         if x1_sparse and sparse_rank == 2:
-            return embedding_lookup_sparse_dense_matmul(x1, x2)
+            result = embedding_lookup_sparse_dense_matmul(x1, x2)
         elif sparse_rank == 2:
-            return tf.sparse.sparse_dense_matmul(x1, x2)
+            result = tf.sparse.sparse_dense_matmul(x1, x2)
         elif sparse_rank == 3:
-            return sparse_dense_matmul_3d(x1, x2)
+            result = sparse_dense_matmul_3d(x1, x2)
         else:
-            return with_combined_batch_dimensions(
+            result = with_combined_batch_dimensions(
                 x1, x2, sparse_dense_matmul_3d
             )
-
-    return tfnp.matmul(x1, x2)
+    else:
+        result = tfnp.matmul(x1, x2)
+    return tf.cast(result, result_dtype)
 
 
 def multiply(x1, x2):

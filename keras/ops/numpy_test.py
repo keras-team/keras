@@ -3879,26 +3879,17 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
+    # TODO: Using uint64 will lead to weak type promotion (`float`),
+    # resulting in different behavior between JAX and Keras. Currently, we
+    # are skipping the test for uint64
+    ALL_DTYPES = [
+        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+    ] + [None]
+    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint64.
-        ALL_DTYPES = [
-            str(to_torch_dtype(x)).split(".")[-1]
-            for x in ALLOWED_DTYPES
-            if x not in ["string", "uint64"]
-        ] + [None]
-        INT_DTYPES = [
-            str(to_torch_dtype(x)).split(".")[-1]
-            for x in ALLOWED_DTYPES
-            if "int" in x and x != "uint64"
-        ]
-    else:
-        # TODO: Using uint64 will lead to weak type promotion (`float`),
-        # resulting in different behavior between JAX and Keras. Currently, we
-        # are skipping the test for uint64
-        ALL_DTYPES = [
-            x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
-        ] + [None]
-        INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+        ALL_DTYPES = [str(to_torch_dtype(x)).split(".")[-1] for x in ALL_DTYPES]
+        INT_DTYPES = [str(to_torch_dtype(x)).split(".")[-1] for x in INT_DTYPES]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -4004,6 +3995,29 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(
             knp.Subtract().symbolic_call(x1, x2).dtype,
             standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype),
+        )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_matmul(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype1 == "float16" or dtype2 == "float16":
+                self.skipTest("matmul does not support float16 in torch")
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("matmul does not support bool in torch")
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        self.assertEqual(
+            standardize_dtype(knp.matmul(x1, x2).dtype),
+            standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype),
+        )
+        self.assertEqual(
+            knp.Matmul().symbolic_call(x1, x2).dtype,
+            standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype),
         )
 
     @parameterized.parameters(ALL_DTYPES)
