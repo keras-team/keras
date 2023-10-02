@@ -23,9 +23,7 @@ def subtract(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = x1.astype(dtype)
-    x2 = x2.astype(dtype)
-    return np.subtract(x1, x2)
+    return np.subtract(x1, x2).astype(dtype)
 
 
 def matmul(x1, x2):
@@ -36,7 +34,10 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    return np.multiply(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.multiply(x1, x2).astype(dtype)
 
 
 def mean(x, axis=None, keepdims=False):

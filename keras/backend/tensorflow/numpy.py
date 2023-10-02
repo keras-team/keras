@@ -181,6 +181,11 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor):
         if isinstance(x2, tf.SparseTensor):
             ones_like_int8 = functools.partial(tf.ones_like, dtype=tf.int8)

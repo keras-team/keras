@@ -51,7 +51,8 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return torch.multiply(x1, x2)
 
 

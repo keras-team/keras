@@ -4020,6 +4020,23 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype),
         )
 
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_multiply(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        self.assertEqual(
+            standardize_dtype(knp.multiply(x1, x2).dtype),
+            standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype),
+        )
+        self.assertEqual(
+            knp.Multiply().symbolic_call(x1, x2).dtype,
+            standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype),
+        )
+
     @parameterized.parameters(ALL_DTYPES)
     def test_ones(self, dtype):
         import jax.numpy as jnp
