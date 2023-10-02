@@ -3988,13 +3988,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype)
         self.assertEqual(
-            standardize_dtype(knp.subtract(x1, x2).dtype),
-            standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype),
+            standardize_dtype(knp.subtract(x1, x2).dtype), expected_dtype
         )
         self.assertEqual(
-            knp.Subtract().symbolic_call(x1, x2).dtype,
-            standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype),
+            knp.Subtract().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
@@ -4011,13 +4010,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype)
         self.assertEqual(
-            standardize_dtype(knp.matmul(x1, x2).dtype),
-            standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype),
+            standardize_dtype(knp.matmul(x1, x2).dtype), expected_dtype
         )
         self.assertEqual(
-            knp.Matmul().symbolic_call(x1, x2).dtype,
-            standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype),
+            knp.Matmul().symbolic_call(x1, x2).dtype, expected_dtype
         )
 
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
@@ -4028,14 +4026,33 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x2 = knp.ones((1,), dtype=dtype2)
         x1_jax = jnp.ones((1,), dtype=dtype1)
         x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype)
         self.assertEqual(
-            standardize_dtype(knp.multiply(x1, x2).dtype),
-            standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype),
+            standardize_dtype(knp.multiply(x1, x2).dtype), expected_dtype
         )
         self.assertEqual(
-            knp.Multiply().symbolic_call(x1, x2).dtype,
-            standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype),
+            knp.Multiply().symbolic_call(x1, x2).dtype, expected_dtype
         )
+
+    @parameterized.product(dtype=ALL_DTYPES)
+    def test_mean(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.mean(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.mean(x).dtype), expected_dtype)
+        self.assertEqual(knp.Mean().symbolic_call(x).dtype, expected_dtype)
+
+    @parameterized.product(dtype=ALL_DTYPES)
+    def test_max(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.max(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.max(x).dtype), expected_dtype)
+        self.assertEqual(knp.Max().symbolic_call(x).dtype, expected_dtype)
 
     @parameterized.parameters(ALL_DTYPES)
     def test_ones(self, dtype):

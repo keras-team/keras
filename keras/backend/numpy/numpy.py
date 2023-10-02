@@ -42,7 +42,15 @@ def multiply(x1, x2):
 
 def mean(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.mean(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+    else:
+        result_dtype = ori_dtype
+    x = x.astype(compute_dtype)
+    return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):

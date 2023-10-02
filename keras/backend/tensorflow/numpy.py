@@ -93,10 +93,10 @@ def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     # TODO: GPU and XLA only support float types
-    input_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    compute_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    x1 = tf.cast(x1, input_dtype)
-    x2 = tf.cast(x2, input_dtype)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
 
     def with_combined_batch_dimensions(a, b, fn_3d):
         batch_shape = (
@@ -224,7 +224,16 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    return tfnp.mean(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+    else:
+        result_dtype = ori_dtype
+    x = tf.cast(x, compute_dtype)
+    result = tfnp.mean(x, axis=axis, keepdims=keepdims)
+    return tf.cast(result, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):

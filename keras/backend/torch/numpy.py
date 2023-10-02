@@ -63,9 +63,15 @@ def mean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
-    # Conversion to float necessary for `torch.mean`
-    x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
-    return torch.mean(x, axis=axis, keepdims=keepdims)
+    ori_dtype = standardize_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+    else:
+        result_dtype = ori_dtype
+    x = cast(x, compute_dtype)
+    result = torch.mean(x, axis=axis, keepdims=keepdims)
+    return cast(result, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):

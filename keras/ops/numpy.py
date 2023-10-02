@@ -5419,9 +5419,15 @@ class Mean(Operation):
         return backend.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        ori_dtype = backend.standardize_dtype(x.dtype)
+        compute_dtype = dtypes.result_type(x.dtype, "float32")
+        if "int" in ori_dtype or ori_dtype == "bool":
+            result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+        else:
+            result_dtype = ori_dtype
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=result_dtype,
         )
 
 
