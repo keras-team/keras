@@ -44,8 +44,6 @@ def bincount(x, weights=None, minlength=0):
             else:
                 weights = tf.cast(weights, tf.float32)
     else:
-        # TODO: should we upcast to int64 if the actual reaulting dtype is
-        # int64? Currently we follow the type rules of JAX.
         dtype = "int32"
     if isinstance(x, tf.SparseTensor):
         result = tf.sparse.bincount(

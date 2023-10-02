@@ -177,8 +177,6 @@ def bincount(x, weights=None, minlength=0):
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
-        # TODO: should we upcast to int64 if the actual reaulting dtype is
-        # int64? Currently we follow the type rules of JAX.
         dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
