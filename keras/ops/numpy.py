@@ -5422,7 +5422,7 @@ class Mean(Operation):
         ori_dtype = backend.standardize_dtype(x.dtype)
         compute_dtype = dtypes.result_type(x.dtype, "float32")
         if "int" in ori_dtype or ori_dtype == "bool":
-            result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+            result_dtype = compute_dtype
         else:
             result_dtype = ori_dtype
         return KerasTensor(

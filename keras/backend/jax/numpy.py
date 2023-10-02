@@ -64,7 +64,7 @@ def mean(x, axis=None, keepdims=False):
     # correctly, so we compute with float32 and cast back to the original type.
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = "float64" if ori_dtype == "int64" else compute_dtype
+        result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
     outputs = jnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)

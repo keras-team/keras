@@ -4041,6 +4041,8 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
         expected_dtype = standardize_dtype(jnp.mean(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = "float32"
         self.assertEqual(standardize_dtype(knp.mean(x).dtype), expected_dtype)
         self.assertEqual(knp.Mean().symbolic_call(x).dtype, expected_dtype)
 
