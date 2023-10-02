@@ -564,7 +564,18 @@ class VariableOperationsTest(test_case.TestCase):
         )
         self.assertAllClose(v1.__rxor__(v2), np.array([False, True]))
 
-    # TDDO AttributeError:
+    #TODO FAILED  AttributeError:
+    # 'ResourceVariable' object has no attribute
+    #  '__round__'. Did you mean: '__rand__'?
+    # def test__round__(self):
+    #     """Test round operation on a variable."""
+    #     v = backend.Variable(initializer=np.array([1.2, 2.5, 3.6]))
+    #     self.assertAllClose(v.__round__(), np.array([1, 2, 4]))
+
+    #     value = self.value
+    #     return value.__round__(ndigits)
+
+    # TODO FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__lshift__'
     # def test__lshift__(self):
     #     """Test left shift operation on a variable."""
@@ -576,7 +587,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__lshift__(v2), np.array([2, 8, 24]))
 
-    # TODO AttributeError:
+    # TODO FAILED AttributeError:
     #  'ResourceVariable' object has no attribute '__rlshift__'
     # def test__rlshift__(self):
     #     """Test reverse left shift operation on a variable."""
@@ -588,7 +599,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__rlshift__(v2), np.array([2, 8, 24]))
 
-    # TODO  AttributeError:
+    # TODO FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__rrshift__'
     # def test__rshift__(self):
     #     """Test right shift operation on a variable."""
@@ -600,7 +611,7 @@ class VariableOperationsTest(test_case.TestCase):
     #     )
     #     self.assertAllClose(v1.__rshift__(v2), np.array([0, 0, 0]))
 
-    # TODO  AttributeError:
+    # TODO FAILED AttributeError:
     # 'ResourceVariable' object has no attribute '__rshift__'
     # def test__rrshift__(self):
     #     """Test reverse right shift operation on a variable."""
@@ -611,10 +622,6 @@ class VariableOperationsTest(test_case.TestCase):
     #         initializer=np.array([1, 2, 3]), dtype="int32", trainable=False
     #     )
     #     self.assertAllClose(v1.__rrshift__(v2), np.array([0, 0, 0]))
-
-    # def __round__(self, ndigits=None):
-    #     value = self.value
-    #     return value.__round__(ndigits)
 
     def test_variable_pow(self):
         """Test pow operation on a variable."""
