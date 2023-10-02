@@ -394,7 +394,6 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
         inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
-        original_layout = inputs.sharding
         target_layout = jax.sharding.NamedSharding(
             jax_mesh, jax.sharding.PartitionSpec("batch", None)
         )
