@@ -315,7 +315,8 @@ class VariableOperationsTest(test_case.TestCase):
         v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
         self.assertAllClose(v.__neg__(), np.array([1, -2]))
 
-    # TODO AttributeError: 'ResourceVariable' object has no attribute '__pos__'. Did you mean: '__pow__'?
+    # TODO AttributeError: 'ResourceVariable'
+    #  object has no attribute '__pos__'. Did you mean: '__pow__'?
     # def test__pos__(self):
     #     """Test unary plus on a variable."""
     #     v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
@@ -405,17 +406,23 @@ class VariableOperationsTest(test_case.TestCase):
         v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         self.assertAllClose(v1.__rmul__(v2), np.array([4, 10, 18]))
 
-    def test__div__(self):
-        """Test division operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([1, 2, 3]))
-        v2 = backend.Variable(initializer=np.array([4, 5, 6]))
-        self.assertAllClose(v1.__div__(v2), np.array([0.25, 0.4, 0.5]))
+    # In Python 3, `__div__` from Python 2
+    #  was replaced with `__truediv__` for true division.
+    # FAILED test__div__ - AttributeError:
+    # 'numpy.ndarray' object has no attribute '__div__'
+    # def test__div__(self):
+    #     """Test division operation on a variable."""
+    #     v1 = backend.Variable(initializer=np.array([1, 2, 3]))
+    #     v2 = backend.Variable(initializer=np.array([4, 5, 6]))
+    #     self.assertAllClose(v1.__div__(v2), np.array([0.25, 0.4, 0.5]))
 
-    def test__rdiv__(self):
-        """Test reverse division operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([4, 5, 6]))
-        v2 = backend.Variable(initializer=np.array([1, 2, 3]))
-        self.assertAllClose(v1.__rdiv__(v2), np.array([0.25, 0.4, 0.5]))
+    # FAILED test__rdiv__ - AttributeError:
+    #  'numpy.ndarray' object has no attribute '__rdiv__'
+    # def test__rdiv__(self):
+    #     """Test reverse division operation on a variable."""
+    #     v1 = backend.Variable(initializer=np.array([4, 5, 6]))
+    #     v2 = backend.Variable(initializer=np.array([1, 2, 3]))
+    #     self.assertAllClose(v1.__rdiv__(v2), np.array([0.25, 0.4, 0.5]))
 
     def test__truediv__(self):
         """Test true division operation on a variable."""
