@@ -3944,11 +3944,9 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
         )
         self.assertEqual(
-            standardize_dtype(
-                knp.Bincount(weights=weights, minlength=minlength)
-                .symbolic_call(x)
-                .dtype
-            ),
+            knp.Bincount(weights=weights, minlength=minlength)
+            .symbolic_call(x)
+            .dtype,
             standardize_dtype(
                 jnp.bincount(x, weights=weights, minlength=minlength).dtype
             ),
@@ -3961,9 +3959,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.bincount(x, weights=weights).dtype),
         )
         self.assertEqual(
-            standardize_dtype(
-                knp.Bincount(weights=weights).symbolic_call(x).dtype
-            ),
+            knp.Bincount(weights=weights).symbolic_call(x).dtype,
             standardize_dtype(jnp.bincount(x, weights=weights).dtype),
         )
 
@@ -3974,9 +3970,7 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.bincount(x, weights=weights).dtype),
         )
         self.assertEqual(
-            standardize_dtype(
-                knp.Bincount(weights=weights).symbolic_call(x).dtype
-            ),
+            knp.Bincount(weights=weights).symbolic_call(x).dtype,
             standardize_dtype(jnp.bincount(x, weights=weights).dtype),
         )
 
@@ -3986,8 +3980,30 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.bincount(x).dtype),
         )
         self.assertEqual(
-            standardize_dtype(knp.Bincount().symbolic_call(x).dtype),
+            knp.Bincount().symbolic_call(x).dtype,
             standardize_dtype(jnp.bincount(x).dtype),
+        )
+
+    # TODO: test_einsum
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_subtract(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if dtype1 == "bool" and dtype2 == "bool":
+            self.skipTest("subtract does not support bool substraction")
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        self.assertEqual(
+            standardize_dtype(knp.subtract(x1, x2).dtype),
+            standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype),
+        )
+        self.assertEqual(
+            knp.Subtract().symbolic_call(x1, x2).dtype,
+            standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype),
         )
 
     @parameterized.parameters(ALL_DTYPES)

@@ -31,7 +31,13 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # torch doesn't support bool substraction
+    if standardize_dtype(x1.dtype) == "bool":
+        x1 = cast(x1, standardize_dtype(x2.dtype))
+    if standardize_dtype(x2.dtype) == "bool":
+        x2 = cast(x2, standardize_dtype(x1.dtype))
     return torch.subtract(x1, x2)
 
 

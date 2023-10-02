@@ -76,6 +76,11 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
         if isinstance(x2, tf.SparseTensor):
             return tf.sparse.add(x1, tf.sparse.map_values(tf.negative, x2))
