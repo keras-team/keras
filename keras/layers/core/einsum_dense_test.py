@@ -304,7 +304,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
     # test_analyze_einsum_string_full_output_shape_with_ellipses_on_right
     # - AssertionError: [2, 3, 5, 4] != (2, 3, 5) : Expected (2, 3, 5),
     # but got [2, 3, 5, 4]
-    
+
     # FAILED keras/layers/core/einsum_dense_test.py::
     # EinsumDenseTest::
     # test_analyze_einsum_string_kernel_shape_with_ellipses_on_right
@@ -406,6 +406,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(tuple(full_output_shape), expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_left(self):
+            """Test the _analyze_einsum_string with ellipses on the left."""
             equation = "...ab,bc->...ac"
             bias_axes = "c"
             input_shape = (10, 10, 3)
@@ -426,6 +427,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_right_multiple_dims(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,bc->ac01"
             bias_axes = "c"
             input_shape = (2, 3, 4, 5)
@@ -446,6 +448,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_no_bias(self):
+            """Test the _analyze_einsum_string with no bias."""
             equation = "ab,bc->ac"
             bias_axes = None
             input_shape = (2, 3)
@@ -466,6 +469,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_simple_dense(self):
+            """Test the _analyze_einsum_string with a simple dense layer."""
             equation = "ab,bc->ac"
             bias_axes = "c"
             input_shape = (5, 6)
@@ -488,6 +492,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_on_left(self):
+            """Test the _analyze_einsum_string with ellipses on the left."""
             equation = "...ab,bc->...ac"
             bias_axes = "c"
             input_shape = (8, 9, 6)
@@ -510,6 +515,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_complex_ellipses_on_right(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,bc->ac0"
             bias_axes = "c"
             input_shape = (3, 5, 7)
@@ -532,6 +538,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_complex_no_ellipses(self):
+            """Test the _analyze_einsum_string with no ellipses."""
             equation = "abc,bd->acd"
             bias_axes = "d"
             input_shape = (4, 5, 6)
@@ -553,6 +560,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_4d_ellipses_on_right(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "abc0,bd->adc0"
             bias_axes = "d"
             input_shape = (3, 5, 4, 6)
@@ -575,6 +583,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_large_output_ellipses_on_right(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,bc->ac0"
             bias_axes = "c"
             input_shape = (5, 7, 6)
@@ -597,6 +606,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_complex_input_ellipses_on_right(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,bc->ac0"
             bias_axes = "c"
             input_shape = (9, 7, 11)
@@ -621,6 +631,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         def test_analyze_einsum_string_single_output_dim_ellipses_on_right(
             self,
         ):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "a0,b->a0"
             bias_axes = "a"
             input_shape = (6, 7)
@@ -643,6 +654,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_on_right_simple_case(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "a0,b->a0"
             bias_axes = None
             input_shape = (3, 5)
@@ -664,6 +676,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_on_right_multiple_dims(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,cd->ab0"
             bias_axes = None
             input_shape = (4, 5, 6)
@@ -685,6 +698,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_on_right_diff_dims(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "ab0,cd->ad0"
             bias_axes = None
             input_shape = (3, 4, 5)
@@ -706,6 +720,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
             self.assertEqual(full_output_shape, expected_full_output_shape)
 
         def test_analyze_einsum_string_ellipses_on_right_single_dim(self):
+            """Test the _analyze_einsum_string with ellipses on the right."""
             equation = "a0,b->a0"
             bias_axes = None
             input_shape = (4, 5)
