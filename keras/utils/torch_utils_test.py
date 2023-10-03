@@ -1,7 +1,7 @@
 import os
 
-import pytest
 import numpy as np
+import pytest
 import torch
 from absl.testing import parameterized
 
@@ -16,6 +16,7 @@ from keras.utils.torch_utils import TorchModuleWrapper
 class Classifier(models.Model):
     def __init__(self, use_batch_norm=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.use_batch_norm = use_batch_norm
         modules = [torch.nn.Linear(2, 4)]
         if use_batch_norm:
             modules.append(torch.nn.BatchNorm1d(4))
@@ -25,6 +26,11 @@ class Classifier(models.Model):
 
     def call(self, x):
         return self.fc2(self.fc(x))
+
+    def get_config(self):
+        config = super().get_config()
+        config["use_batch_norm"] = self.use_batch_norm
+        return config
 
 
 class ClassifierWithNoSpecialCasing(models.Model):
@@ -36,14 +42,14 @@ class ClassifierWithNoSpecialCasing(models.Model):
     def call(self, x):
         return self.fc2(self.fc(x))
 
+
 @pytest.mark.skipif(
     backend.backend() != "torch", reason="Requires torch backend"
 )
 class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
-
     @parameterized.parameters(
-        {'use_batch_norm': False},
-        {'use_batch_norm': True},
+        {"use_batch_norm": False},
+        {"use_batch_norm": True},
     )
     def test_basic_usage(self, use_batch_norm):
         model = Classifier(use_batch_norm)
@@ -52,10 +58,12 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
         fc_trainable_count = 2
         if use_batch_norm:
             fc_trainable_count += 2
-            self.assertEqual(len(model.fc.trainable_weights), fc_trainable_count)
+            self.assertEqual(
+                len(model.fc.trainable_weights), fc_trainable_count
+            )
         model(np.random.random((3, 2)))
         self.assertEqual(len(model._layers), 2)
-        self.assertEqual(len(model.trainable_weights), fc_trainable_count+2)
+        self.assertEqual(len(model.trainable_weights), fc_trainable_count + 2)
         model.compile(optimizer="sgd", loss="mse")
         model.fit(np.random.random((3, 2)), np.random.random((3, 1)))
 
@@ -72,8 +80,8 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
         model.fit(np.random.random((3, 2)), np.random.random((3, 2)))
 
     @parameterized.parameters(
-        {'use_batch_norm': False},
-        {'use_batch_norm': True},
+        {"use_batch_norm": False},
+        {"use_batch_norm": True},
     )
     def test_load_weights(self, use_batch_norm):
         # Test loading weights
@@ -82,7 +90,6 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
         model.compile(optimizer="sgd", loss="mse")
         x, y = np.random.random((3, 2)), np.random.random((3, 1))
         x_test, y_test = np.random.random((3, 2)), np.random.random((3, 1))
-        ref_loss1 = model.evaluate(x_test, y_test)
         model.fit(x, y)
         ref_loss = model.evaluate(x_test, y_test)
         model.save_weights(temp_filepath)
@@ -97,8 +104,8 @@ class TorchUtilsTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(ref_loss, loss, atol=1e-5)
 
     @parameterized.parameters(
-        {'use_batch_norm': False},
-        {'use_batch_norm': True},
+        {"use_batch_norm": False},
+        {"use_batch_norm": True},
     )
     def test_serialize_model(self, use_batch_norm):
         # Test loading saved model

@@ -1,5 +1,7 @@
 from keras.api_export import keras_export
 from keras.layers import Layer
+from keras.ops import convert_to_numpy
+from keras.ops import convert_to_tensor
 
 
 @keras_export("keras.layers.TorchModuleWrapper")
@@ -69,7 +71,13 @@ class TorchModuleWrapper(Layer):
     ```
     """
 
-    def __init__(self, module, name=None):
+    def __init__(self, module, name="torch_module_wrapper"):
+        if name is None:
+            raise ValueError(
+                "The `name` argument is required for `TorchModuleWrapper`. "
+                "This helps save the `torch` state dictionary with an unique "
+                "name that's consistent during saving and loading of model."
+            )
         super().__init__(name=name)
         import torch.nn as nn
 
@@ -104,3 +112,37 @@ class TorchModuleWrapper(Layer):
 
     def call(self, *args, **kwargs):
         return self.module.forward(*args, **kwargs)
+
+    def save_own_variables(self, store):
+        """Saves model's state from `state_dict`.
+        `model.parameters` excludes some of model's state like
+        `BatchNorm` mean and variance. So, use `state_dict` to obtain
+        all of model's state.
+        """
+        state_dict = self.module.state_dict()
+        # Save all layer's state keys
+        store[self.name + "._keys"] = list(state_dict.keys())
+        for key in state_dict.keys():
+            store[self.name + "." + key] = convert_to_numpy(state_dict[key])
+
+    def load_own_variables(self, store):
+        """Loads model's state via `state_dict`.
+        """
+        keys_name = self.name + "._keys"
+        if keys_name not in store:
+            raise ValueError(
+                f"Weights file is missing state for {self.name} layer."
+            )
+        state_dict = {}
+        for key in store[keys_name]:
+            if isinstance(key, bytes):
+                key = key.decode()
+            try:
+                state_dict[key] = convert_to_tensor(
+                    store[self.name + "." + key]
+                )
+            except KeyError:
+                raise ValueError(
+                    f"Weights file is missing state for {self.name}.{key}"
+                )
+        self.module.load_state_dict(state_dict)
