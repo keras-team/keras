@@ -70,8 +70,9 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
-    x = cast(x, compute_dtype)
-    result = torch.mean(x, axis=axis, keepdims=keepdims)
+    result = torch.mean(
+        x, axis=axis, keepdims=keepdims, dtype=to_torch_dtype(compute_dtype)
+    )
     return cast(result, result_dtype)
 
 
