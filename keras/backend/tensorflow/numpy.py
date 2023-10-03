@@ -231,8 +231,7 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = compute_dtype
     else:
         result_dtype = ori_dtype
-    x = tf.cast(x, compute_dtype)
-    result = tfnp.mean(x, axis=axis, keepdims=keepdims)
+    result = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
     return tf.cast(result, result_dtype)
 
 
