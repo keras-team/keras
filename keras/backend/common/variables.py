@@ -336,30 +336,6 @@ class KerasVariable:
         value = self.value
         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
 
-    def __lshift__(self, other):
-        value = self.value
-        return value.__lshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rlshift__(self, other):
-        value = self.value
-        return value.__rlshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
-    def __rshift__(self, other):
-        value = self.value
-        return value.__rshift__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rrshift__(self, other):
-        value = self.value
-        return value.__rrshift__(
-            self._convert_to_tensor(other, dtype=self.dtype)
-        )
-
     def __round__(self, ndigits=None):
         value = self.value
         return value.__round__(ndigits)
