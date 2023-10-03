@@ -44,12 +44,10 @@ def mean(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
     if "int" in ori_dtype or ori_dtype == "bool":
-        result_dtype = compute_dtype
+        result_dtype = dtypes.result_type(x.dtype, "float32")
     else:
         result_dtype = ori_dtype
-    x = x.astype(compute_dtype)
     return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
 
 

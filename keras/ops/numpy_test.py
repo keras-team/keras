@@ -2660,6 +2660,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
+        # test overflow
+        x = np.array([[65500, 65500, 65500]], dtype="float16")
+        self.assertAllClose(knp.mean(x), np.mean(x))
+
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
         self.assertAllClose(knp.all(x), np.all(x))

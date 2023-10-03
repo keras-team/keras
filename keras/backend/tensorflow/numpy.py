@@ -225,6 +225,8 @@ def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
+    # `tfnp.mean` does not handle low precision (e.g., float16) overflow
+    # correctly, so we compute with float32 and cast back to the original type.
     if "int" in ori_dtype or ori_dtype == "bool":
         result_dtype = compute_dtype
     else:
