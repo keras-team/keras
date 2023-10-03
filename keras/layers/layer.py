@@ -816,9 +816,12 @@ class Layer(BackendLayer, Operation):
                 distribution = distribution_lib.distribution()
                 if distribution is not None:
                     current_layer_path = current_path()
+                    current_layer_path += "/output"
                     layout = distribution.get_tensor_layout(current_layer_path)
                     if layout:
-                        outputs = distribution_lib.relayout(outputs, layout)
+                        outputs = distribution_lib.with_layout_constraint(
+                            outputs, layout
+                        )
 
                 if not self.built:
                     self.built = True

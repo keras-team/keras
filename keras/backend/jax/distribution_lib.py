@@ -43,7 +43,7 @@ def distribute_value(value, tensor_layout):
     return jax.device_put(value, tensor_layout)
 
 
-def relayout(value, tensor_layout):
+def with_layout_constraint(value, tensor_layout):
     """Change the layout of the value"""
     if not isinstance(tensor_layout, jax.sharding.Sharding):
         tensor_layout = _to_jax_layout(tensor_layout)

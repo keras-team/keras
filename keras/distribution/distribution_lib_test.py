@@ -388,7 +388,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
 
-    def test_relayout(self):
+    def test_with_layout_constraint(self):
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
         )
@@ -400,7 +400,9 @@ class JaxDistributionLibTest(testing.TestCase):
 
         @functools.partial(jax.jit, static_argnames="target_layout")
         def test_function(inputs, target_layout):
-            return distribution_lib.relayout(inputs, target_layout)
+            return distribution_lib.with_layout_constraint(
+                inputs, target_layout
+            )
 
         result = test_function(inputs, target_layout)
         # Note that the returned tensor has a different sharding implementation
@@ -409,7 +411,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
         # Test without jit
-        result = distribution_lib.relayout(inputs, target_layout)
+        result = distribution_lib.with_layout_constraint(inputs, target_layout)
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_to_jax_mesh(self):
@@ -563,7 +565,7 @@ class JaxDistributionLibTest(testing.TestCase):
         layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
         # Force the dense layer output to be batch parallel only, and not
         # sharded on model dimension.
-        layout_map[".*dense"] = ("batch", None)
+        layout_map[".*dense.*output"] = ("batch", None)
 
         distribution = distribution_lib.ModelParallel(
             device_mesh, layout_map, batch_dim_name="batch"

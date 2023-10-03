@@ -529,8 +529,8 @@ class LayoutMap(collections.abc.MutableMapping):
 LayoutMap.get.__doc__ = LayoutMap.__getitem__.__doc__
 
 
-@keras_export("keras.distribution.relayout")
-def relayout(value, tensor_layout):
+@keras_export("keras.distribution.with_layout_constraint")
+def with_layout_constraint(value, tensor_layout):
     """Change the layout of a Tensor value in the jit function execution.
 
     Note that this might not work outside of the jitted function for certain
@@ -548,7 +548,7 @@ def relayout(value, tensor_layout):
         # keras tensor is only used for building functional model, and can't be
         # used to alter layout/sharding.
         return value
-    return distribution_lib.relayout(value, tensor_layout)
+    return distribution_lib.with_layout_constraint(value, tensor_layout)
 
 
 @keras_export("keras.distribution.distribution")
