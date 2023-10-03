@@ -3,6 +3,7 @@ import types
 import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
+from tensorflow.experimental import dtensor
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -10,6 +11,7 @@ from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.name_scope import name_scope as base_name_scope
 from keras.backend.common.stateless_scope import StatelessScope
+from keras.backend.tensorflow import distribution_lib
 from keras.utils.naming import auto_name
 
 SUPPORTS_SPARSE_TENSORS = True
@@ -27,15 +29,42 @@ class Variable(
         return self.value.handle
 
     def _initialize(self, value):
-        self._value = tf.Variable(
-            value, dtype=self._dtype, trainable=self.trainable, name=self.name
-        )
+        value = self._convert_to_tensor(value, self._dtype)
+        self._shape = value.shape
+
+        distribution = global_state.get_global_attribute("distribution")
+        if distribution is not None:
+            self._layout = distribution_lib._to_dtensor_layout(
+                distribution.get_variable_layout(self)
+            )
+            self._value = distribution_lib.distribute_variable(value, self._layout)
+
+        else:
+            self._layout = None
+            self._value = tf.Variable(
+                value, dtype=self._dtype, trainable=self.trainable, name=self.name
+            )
 
     def _direct_assign(self, value):
+        value = tf.cast(value, self._value.dtype)
+
+        if self._layout:
+            value = self._convert_to_dtensor(value, self._layout)
+
         self._value.assign(tf.cast(value, self._value.dtype))
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
+
+    def _convert_to_dtensor(self, value, tensor_layout):
+        replicated_tensor = dtensor.copy_to_mesh(
+            value,
+            layout=dtensor.Layout.replicated(
+                tensor_layout.mesh, rank=tensor_layout.rank
+            ),
+        )
+
+        return dtensor.relayout(replicated_tensor, tensor_layout)
 
     def numpy(self):  # noqa: F811
         return self.value.numpy()

@@ -142,6 +142,10 @@ class TensorLayout:
     def device_mesh(self):
         return self._device_mesh
 
+    @property
+    def rank(self):
+        return len(self._axes)
+
     @device_mesh.setter
     def device_mesh(self, device_mesh):
         if self._device_mesh is not None:

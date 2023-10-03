@@ -35,9 +35,21 @@ def list_devices(device_type=None):
     ]
 
 
-def distribute_value(value, tensor_layout):
-    # TODO
-    pass
+def distribute_variable(value, tensor_layout):
+    """Create a distributed the variable wiht value based on the layout.
+
+    Args:
+        value: Initial value that need to be distributed.
+        tensor_layout: `TensorLayout` for the distribution information, or a
+            `tf.dtensor.Layout` instance.
+
+    Returns:
+        dtensor.DVariable.
+    """
+    if not isinstance(tensor_layout, dtensor.Layout):
+        tensor_layout = _to_dtensor_layout(tensor_layout)
+
+    return dtensor.DVariable(initial_value=value, layout=tensor_layout)
 
 
 def _to_dtensor_mesh(device_mesh):
