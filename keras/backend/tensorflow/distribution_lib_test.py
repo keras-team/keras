@@ -8,7 +8,6 @@ from tensorflow.python.eager import context
 
 from keras import backend
 from keras import layers
-from keras import models
 from keras import testing
 from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib

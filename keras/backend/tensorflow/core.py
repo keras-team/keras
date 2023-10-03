@@ -37,12 +37,17 @@ class Variable(
             self._layout = distribution_lib._to_dtensor_layout(
                 distribution.get_variable_layout(self)
             )
-            self._value = distribution_lib.distribute_variable(value, self._layout)
+            self._value = distribution_lib.distribute_variable(
+                value, self._layout
+            )
 
         else:
             self._layout = None
             self._value = tf.Variable(
-                value, dtype=self._dtype, trainable=self.trainable, name=self.name
+                value,
+                dtype=self._dtype,
+                trainable=self.trainable,
+                name=self.name,
             )
 
     def _direct_assign(self, value):
