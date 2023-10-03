@@ -8,7 +8,6 @@ from keras import testing
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
-from keras.backend.torch.core import to_torch_dtype
 from keras.ops import numpy as knp
 
 # TODO: remove reliance on this (or alternatively, turn it on by default).
@@ -3892,8 +3891,13 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
 
     if backend.backend() == "torch":
-        ALL_DTYPES = [str(to_torch_dtype(x)).split(".")[-1] for x in ALL_DTYPES]
-        INT_DTYPES = [str(to_torch_dtype(x)).split(".")[-1] for x in INT_DTYPES]
+        # TODO: torch doesn't support uint16, uint32 and uint64
+        ALL_DTYPES = [
+            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
 
     def setUp(self):
         from jax.experimental import enable_x64
