@@ -1244,8 +1244,14 @@ class Bincount(Operation):
         )
 
     def compute_output_spec(self, x):
-        out_shape = backend.numpy.amax(x) + 1
-        return KerasTensor(out_shape, dtype=x.dtype)
+        dtypes_to_resolve = [x.dtype]
+        if self.weights is not None:
+            weights = backend.convert_to_tensor(self.weights)
+            dtypes_to_resolve.append(weights.dtype)
+            dtype = dtypes.result_type(*dtypes_to_resolve)
+        else:
+            dtype = "int32"
+        return KerasTensor(list(x.shape[:-1]) + [None], dtype=dtype)
 
 
 @keras_export(["keras.ops.bincount", "keras.ops.numpy.bincount"])
@@ -3382,7 +3388,11 @@ class Matmul(Operation):
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.matmul", "keras.ops.numpy.matmul"])
@@ -5103,7 +5113,11 @@ class Subtract(Operation):
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse and x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.subtract", "keras.ops.numpy.subtract"])
@@ -5133,7 +5147,11 @@ class Multiply(Operation):
         x1_sparse = getattr(x1, "sparse", True)
         x2_sparse = getattr(x2, "sparse", True)
         output_sparse = x1_sparse or x2_sparse
-        return KerasTensor(output_shape, dtype=x1.dtype, sparse=output_sparse)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        return KerasTensor(output_shape, dtype=dtype, sparse=output_sparse)
 
 
 @keras_export(["keras.ops.multiply", "keras.ops.numpy.multiply"])
@@ -5401,9 +5419,15 @@ class Mean(Operation):
         return backend.numpy.mean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
+        ori_dtype = backend.standardize_dtype(x.dtype)
+        compute_dtype = dtypes.result_type(x.dtype, "float32")
+        if "int" in ori_dtype or ori_dtype == "bool":
+            result_dtype = compute_dtype
+        else:
+            result_dtype = ori_dtype
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
-            dtype=x.dtype,
+            dtype=result_dtype,
         )
 
 

@@ -2,6 +2,7 @@ import jax.numpy as jnp
 
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.variables import standardize_dtype
 from keras.backend.jax.core import cast
 from keras.backend.jax.core import convert_to_tensor
 
@@ -57,17 +58,21 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
     # `jnp.mean` does not handle low precision (e.g., float16) overflow
     # correctly, so we compute with float32 and cast back to the original type.
-    outputs = jnp.mean(x, axis=axis, keepdims=keepdims, dtype=jnp.float32)
-    dtype = getattr(x, "dtype", None)
-    if hasattr(dtype, "name") and "float" in dtype.name:
-        return cast(outputs, dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = compute_dtype
     else:
-        return cast(outputs, config.floatx())
+        result_dtype = ori_dtype
+    outputs = jnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
+    return cast(outputs, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
     return jnp.max(x, axis=axis, keepdims=keepdims, initial=initial)
 
 

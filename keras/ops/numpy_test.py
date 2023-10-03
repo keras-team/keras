@@ -8,7 +8,6 @@ from keras import testing
 from keras.backend.common import standardize_dtype
 from keras.backend.common.keras_tensor import KerasTensor
 from keras.backend.common.variables import ALLOWED_DTYPES
-from keras.backend.torch.core import to_torch_dtype
 from keras.ops import numpy as knp
 
 # TODO: remove reliance on this (or alternatively, turn it on by default).
@@ -2660,6 +2659,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
             np.mean(x, axis=1, keepdims=True),
         )
 
+        # test overflow
+        x = np.array([65504, 65504, 65504], dtype="float16")
+        self.assertAllClose(knp.mean(x), np.mean(x))
+
     def test_all(self):
         x = np.array([[True, False, True], [True, True, True]])
         self.assertAllClose(knp.all(x), np.all(x))
@@ -3879,20 +3882,22 @@ class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):
 class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     """Test the dtype to verify that the behavior matches JAX."""
 
+    # TODO: Using uint64 will lead to weak type promotion (`float`),
+    # resulting in different behavior between JAX and Keras. Currently, we
+    # are skipping the test for uint64
+    ALL_DTYPES = [
+        x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
+    ] + [None]
+    INT_DTYPES = [x for x in ALLOWED_DTYPES if "int" in x and x != "uint64"]
+
     if backend.backend() == "torch":
-        # TODO: torch doesn't support uint64.
+        # TODO: torch doesn't support uint16, uint32 and uint64
         ALL_DTYPES = [
-            str(to_torch_dtype(x)).split(".")[-1]
-            for x in ALLOWED_DTYPES
-            if x not in ["string", "uint64"]
-        ] + [None]
-    else:
-        # TODO: Using uint64 will lead to weak type promotion (`float`),
-        # resulting in different behavior between JAX and Keras. Currently, we
-        # are skipping the test for uint64
-        ALL_DTYPES = [
-            x for x in ALLOWED_DTYPES if x not in ["string", "uint64"]
-        ] + [None]
+            x for x in ALL_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
+        INT_DTYPES = [
+            x for x in INT_DTYPES if x not in ["uint16", "uint32", "uint64"]
+        ]
 
     def setUp(self):
         from jax.experimental import enable_x64
@@ -3921,6 +3926,143 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(knp.Add().symbolic_call(x1, x2).dtype),
             standardize_dtype(jnp.add(x1_jax, x2_jax).dtype),
         )
+
+    @parameterized.parameters(INT_DTYPES)
+    def test_bincount(self, dtype):
+        import jax.numpy as jnp
+
+        x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype=dtype)
+        minlength = 3
+        self.assertEqual(
+            standardize_dtype(
+                knp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+            standardize_dtype(
+                jnp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+        )
+        self.assertEqual(
+            knp.Bincount(weights=weights, minlength=minlength)
+            .symbolic_call(x)
+            .dtype,
+            standardize_dtype(
+                jnp.bincount(x, weights=weights, minlength=minlength).dtype
+            ),
+        )
+
+        # test float32 weights
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype="float32")
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x, weights=weights).dtype),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+        self.assertEqual(
+            knp.Bincount(weights=weights).symbolic_call(x).dtype,
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+
+        # test float16 weights
+        weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype="float16")
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x, weights=weights).dtype),
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+        self.assertEqual(
+            knp.Bincount(weights=weights).symbolic_call(x).dtype,
+            standardize_dtype(jnp.bincount(x, weights=weights).dtype),
+        )
+
+        # test weights=None
+        self.assertEqual(
+            standardize_dtype(knp.bincount(x).dtype),
+            standardize_dtype(jnp.bincount(x).dtype),
+        )
+        self.assertEqual(
+            knp.Bincount().symbolic_call(x).dtype,
+            standardize_dtype(jnp.bincount(x).dtype),
+        )
+
+    # TODO: test_einsum
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_subtract(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if dtype1 == "bool" and dtype2 == "bool":
+            self.skipTest("subtract does not support bool substraction")
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.subtract(x1_jax, x2_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.subtract(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Subtract().symbolic_call(x1, x2).dtype, expected_dtype
+        )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_matmul(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype1 == "float16" or dtype2 == "float16":
+                self.skipTest("matmul does not support float16 in torch")
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("matmul does not support bool in torch")
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.matmul(x1_jax, x2_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.matmul(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Matmul().symbolic_call(x1, x2).dtype, expected_dtype
+        )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_multiply(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        x1 = knp.ones((1,), dtype=dtype1)
+        x2 = knp.ones((1,), dtype=dtype2)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.multiply(x1_jax, x2_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.multiply(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            knp.Multiply().symbolic_call(x1, x2).dtype, expected_dtype
+        )
+
+    @parameterized.product(dtype=ALL_DTYPES)
+    def test_mean(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.mean(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = "float32"
+        self.assertEqual(standardize_dtype(knp.mean(x).dtype), expected_dtype)
+        self.assertEqual(knp.Mean().symbolic_call(x).dtype, expected_dtype)
+
+    @parameterized.product(dtype=ALL_DTYPES)
+    def test_max(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.max(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.max(x).dtype), expected_dtype)
+        self.assertEqual(knp.Max().symbolic_call(x).dtype, expected_dtype)
 
     @parameterized.parameters(ALL_DTYPES)
     def test_ones(self, dtype):

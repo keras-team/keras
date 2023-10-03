@@ -24,9 +24,27 @@ def add(x1, x2):
     return tfnp.add(x1, x2)
 
 
-def bincount(x, weights=None, minlength=None):
-    if minlength is not None:
+def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if standardize_dtype(x.dtype) not in ["int32", "int64"]:
         x = tf.cast(x, tf.int32)
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        if standardize_dtype(weights.dtype) not in [
+            "int32",
+            "int64",
+            "float32",
+            "float64",
+        ]:
+            if "int" in standardize_dtype(weights.dtype):
+                weights = tf.cast(weights, tf.int32)
+            else:
+                weights = tf.cast(weights, tf.float32)
+    else:
+        dtype = "int32"
     if isinstance(x, tf.SparseTensor):
         result = tf.sparse.bincount(
             x,
@@ -34,6 +52,7 @@ def bincount(x, weights=None, minlength=None):
             minlength=minlength,
             axis=-1,
         )
+        result = tf.cast(result, dtype)
         if x.shape.rank == 1:
             output_shape = (minlength,)
         else:
@@ -44,7 +63,10 @@ def bincount(x, weights=None, minlength=None):
             values=result.values,
             dense_shape=output_shape,
         )
-    return tf.math.bincount(x, weights=weights, minlength=minlength, axis=-1)
+    return tf.cast(
+        tf.math.bincount(x, weights=weights, minlength=minlength, axis=-1),
+        dtype,
+    )
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -52,6 +74,11 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor) or isinstance(x2, tf.SparseTensor):
         if isinstance(x2, tf.SparseTensor):
             return tf.sparse.add(x1, tf.sparse.map_values(tf.negative, x2))
@@ -63,6 +90,11 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    # TODO: GPU and XLA only support float types
+    compute_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
 
     def with_combined_batch_dimensions(a, b, fn_3d):
         batch_shape = (
@@ -121,29 +153,37 @@ def matmul(x1, x2):
     x2_sparse = isinstance(x2, tf.SparseTensor)
     if x1_sparse and x2_sparse:
         if x1.shape.rank <= 3:
-            return sparse_sparse_matmul(x1, x2)
+            result = sparse_sparse_matmul(x1, x2)
         else:
-            return with_combined_batch_dimensions(x1, x2, sparse_sparse_matmul)
+            result = with_combined_batch_dimensions(
+                x1, x2, sparse_sparse_matmul
+            )
     elif x1_sparse or x2_sparse:
         # Sparse * dense or dense * sparse
         sparse_rank = x1.shape.rank if x1_sparse else x2.shape.rank
 
         # Special case: embedding_lookup_sparse for sparse * dense and rank 2
         if x1_sparse and sparse_rank == 2:
-            return embedding_lookup_sparse_dense_matmul(x1, x2)
+            result = embedding_lookup_sparse_dense_matmul(x1, x2)
         elif sparse_rank == 2:
-            return tf.sparse.sparse_dense_matmul(x1, x2)
+            result = tf.sparse.sparse_dense_matmul(x1, x2)
         elif sparse_rank == 3:
-            return sparse_dense_matmul_3d(x1, x2)
+            result = sparse_dense_matmul_3d(x1, x2)
         else:
-            return with_combined_batch_dimensions(
+            result = with_combined_batch_dimensions(
                 x1, x2, sparse_dense_matmul_3d
             )
-
-    return tfnp.matmul(x1, x2)
+    else:
+        result = tfnp.matmul(x1, x2)
+    return tf.cast(result, result_dtype)
 
 
 def multiply(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
     if isinstance(x1, tf.SparseTensor):
         if isinstance(x2, tf.SparseTensor):
             ones_like_int8 = functools.partial(tf.ones_like, dtype=tf.int8)
@@ -182,7 +222,17 @@ def multiply(x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    return tfnp.mean(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    # `tfnp.mean` does not handle low precision (e.g., float16) overflow
+    # correctly, so we compute with float32 and cast back to the original type.
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = compute_dtype
+    else:
+        result_dtype = ori_dtype
+    result = tfnp.mean(x, axis=axis, keepdims=keepdims, dtype=compute_dtype)
+    return tf.cast(result, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
