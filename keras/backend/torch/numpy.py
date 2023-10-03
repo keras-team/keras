@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 
+from keras.backend import KerasTensor
 from keras.backend import config
 from keras.backend.common import dtypes
+from keras.backend.common.variables import standardize_dtype
 from keras.backend.torch.core import cast
 from keras.backend.torch.core import convert_to_tensor
 from keras.backend.torch.core import get_device
@@ -29,17 +31,28 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # TODO: torch doesn't support bool substraction
+    if standardize_dtype(x1.dtype) == "bool":
+        x1 = cast(x1, standardize_dtype(x2.dtype))
+    if standardize_dtype(x2.dtype) == "bool":
+        x2 = cast(x2, standardize_dtype(x1.dtype))
     return torch.subtract(x1, x2)
 
 
 def matmul(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = cast(x1, dtype)
+    x2 = cast(x2, dtype)
     return torch.matmul(x1, x2)
 
 
 def multiply(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
     return torch.multiply(x1, x2)
 
 
@@ -50,9 +63,17 @@ def mean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
-    # Conversion to float necessary for `torch.mean`
-    x = cast(x, "float32") if x.dtype in TORCH_INT_TYPES else x
-    return torch.mean(x, axis=axis, keepdims=keepdims)
+    ori_dtype = standardize_dtype(x.dtype)
+    # torch.mean only supports floating point inputs
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = compute_dtype
+    else:
+        result_dtype = ori_dtype
+    result = torch.mean(
+        x, axis=axis, keepdims=keepdims, dtype=to_torch_dtype(compute_dtype)
+    )
+    return cast(result, result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -255,9 +276,14 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0):
-    x = convert_to_tensor(x, dtype=int)
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
     if weights is not None:
         weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    else:
+        dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
 
@@ -274,8 +300,8 @@ def bincount(x, weights=None, minlength=0):
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
-        return torch.stack(bincounts)
-    return torch.bincount(x, weights, minlength)
+        return cast(torch.stack(bincounts), dtype)
+    return cast(torch.bincount(x, weights, minlength), dtype)
 
 
 def broadcast_to(x, shape):
@@ -772,12 +798,6 @@ def repeat(x, repeats, axis=None):
     x = convert_to_tensor(x)
 
     if get_device() == "meta":
-        # Import upper level modules locally to avoid circular imports
-        # TODO: Refactor the upper level modules to avoid these imports.
-        from keras.backend import KerasTensor
-        from keras.backend import standardize_dtype
-        from keras.ops.numpy import repeat
-
         x = KerasTensor(x.shape, standardize_dtype(x.dtype))
         outputs = repeat(x, repeats, axis=axis)
 
