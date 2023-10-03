@@ -2660,7 +2660,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
         # test overflow
-        x = np.array([[65500, 65500, 65500]], dtype="float16")
+        x = np.array([65504, 65504, 65504], dtype="float16")
         self.assertAllClose(knp.mean(x), np.mean(x))
 
     def test_all(self):
