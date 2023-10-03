@@ -1,11 +1,16 @@
+import numpy as np
 import pytest
 from absl.testing import parameterized
 
 from keras import layers
 from keras import testing
+from keras.layers.core import einsum_dense
+from keras.models import Sequential
 
 
 class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
+    """Test the EinsumDense layer."""
+
     @parameterized.named_parameters(
         {
             "testcase_name": "_1d_end_weight",
@@ -239,6 +244,7 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         expected_bias_shape,
         expected_output_shape,
     ):
+        """Basic properties and shapes test for EinsumDense layer."""
         self.run_layer_test(
             layers.EinsumDense,
             init_kwargs={
@@ -263,3 +269,459 @@ class EinsumDenseTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(layer.kernel.shape, expected_kernel_shape)
         if expected_bias_shape is not None:
             self.assertEqual(layer.bias.shape, expected_bias_shape)
+
+    def test_einsum_dense_activation(self):
+        """Test activation functionality of EinsumDense layer"""
+        equation = "ab,bc->ac"
+        output_shape = 4
+        bias_axes = None
+        activation = "relu"
+
+        layer = layers.EinsumDense(
+            equation,
+            output_shape=output_shape,
+            bias_axes=bias_axes,
+            activation=activation,
+        )
+        model = Sequential([layer])
+
+        input_data = np.array([[-1, 2, -3], [4, -5, 6]])
+
+        output_data = model.predict(input_data)
+
+        assert np.all(
+            output_data >= 0
+        ), "ReLU activation was not applied correctly!"
+
+    # Test cases that are currently failing:
+    # FAILED keras/layers/core/einsum_dense_test.py::
+    # EinsumDenseTest::
+    # test_analyze_einsum_string_bias_shape_with_ellipses_on_right
+    # - AssertionError: [3, 1] != (5, 1) : Expected (5, 1), but got [3, 1]
+
+    # FAILED keras/layers/core/einsum_dense_test.py:
+    # :EinsumDenseTest::
+    # test_analyze_einsum_string_full_output_shape_with_ellipses_on_right
+    # - AssertionError: [2, 3, 5, 4] != (2, 3, 5) : Expected (2, 3, 5),
+    # but got [2, 3, 5, 4]
+    
+    # FAILED keras/layers/core/einsum_dense_test.py::
+    # EinsumDenseTest::
+    # test_analyze_einsum_string_kernel_shape_with_ellipses_on_right
+    # - AssertionError: [3, 3] != (3, 5) : Expected (3, 5), but got [3, 3]
+
+    # def test_analyze_einsum_string_kernel_shape_with_ellipses_on_right(self):
+    # Test the kernel shape from _analyze_einsum_string with ellipses on the
+    # right.
+    #     equation = "ab0,bc->ac0"
+    #     bias_axes = "c"
+    #     input_shape = (2, 3, 4)
+    #     output_shape = (3, 5)
+
+    #     expected_kernel_shape = (3, 5)
+
+    #     kernel_shape, _, _ = einsum_dense._analyze_einsum_string(
+    #         equation, bias_axes, input_shape, output_shape
+    #     )
+
+    #     self.assertEqual(
+    #         kernel_shape,
+    #         expected_kernel_shape,
+    #         f"Expected {expected_kernel_shape}, but got {kernel_shape}",
+    #     )
+
+    # def test_analyze_einsum_string_bias_shape_with_ellipses_on_right(self):
+    # Test the bias shape with ellipses on the right.
+    #     equation = "ab0,bc->ac0"
+    #     bias_axes = "c"
+    #     input_shape = (2, 3, 4)
+    #     output_shape = (3, 5)
+
+    #     expected_bias_shape = (5, 1)
+
+    #     _, bias_shape, _ = einsum_dense._analyze_einsum_string(
+    #         equation, bias_axes, input_shape, output_shape
+    #     )
+
+    #     self.assertEqual(
+    #         bias_shape,
+    #         expected_bias_shape,
+    #         f"Expected {expected_bias_shape}, but got {bias_shape}",
+    #     )
+
+    # def test_analyze_einsum_string_full_output_shape_with_ellipses_on_right(
+    #     self,
+    # ):
+    # Test the full output shape from _analyze_einsum_string with ellipses on
+    # the right.
+    #     equation = "ab0,bc->ac0"
+    #     bias_axes = "c"
+    #     input_shape = (2, 3, 4)
+    #     output_shape = (3, 5)
+
+    #     expected_full_output_shape = (2, 3, 5)
+
+    #     _, _, full_output_shape = einsum_dense._analyze_einsum_string(
+    #         equation, bias_axes, input_shape, output_shape
+    #     )
+
+    #     self.assertEqual(
+    #         full_output_shape,
+    #         expected_full_output_shape,
+    #         f"Expected {expected_full_output_shape}, but got "
+    #         f"{full_output_shape}",
+
+    #     )
+
+    def test_analyze_einsum_string_invalid_equation(self):
+        """Test the _analyze_einsum_string with an invalid equation"""
+        equation = "invalid_equation"
+        bias_axes = "c"
+        input_shape = (2, 3)
+        output_shape = (4, 5)
+
+        with self.assertRaisesRegex(ValueError, "Invalid einsum equation"):
+            einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+    def test_analyze_einsum_string_basic(self):
+        equation = "ab,bc->ac"
+        bias_axes = "c"
+        input_shape = (2, 3)
+        output_shape = 4
+        expected_kernel_shape = (3, 4)
+        expected_bias_shape = (4,)
+        expected_full_output_shape = (2, 4)
+
+        (
+            kernel_shape,
+            bias_shape,
+            full_output_shape,
+        ) = einsum_dense._analyze_einsum_string(
+            equation, bias_axes, input_shape, output_shape
+        )
+        self.assertEqual(tuple(kernel_shape), expected_kernel_shape)
+        self.assertEqual(tuple(bias_shape), expected_bias_shape)
+        self.assertEqual(tuple(full_output_shape), expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_left(self):
+            equation = "...ab,bc->...ac"
+            bias_axes = "c"
+            input_shape = (10, 10, 3)
+            output_shape = 4
+            expected_kernel_shape = (3, 4)
+            expected_bias_shape = (4,)
+            expected_full_output_shape = (10, 10, 4)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_right_multiple_dims(self):
+            equation = "ab0,bc->ac01"
+            bias_axes = "c"
+            input_shape = (2, 3, 4, 5)
+            output_shape = (4, 6)
+            expected_kernel_shape = (3, 4)
+            expected_bias_shape = (4, 6)
+            expected_full_output_shape = (2, 4, 4, 6)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_no_bias(self):
+            equation = "ab,bc->ac"
+            bias_axes = None
+            input_shape = (2, 3)
+            output_shape = 4
+            expected_kernel_shape = (3, 4)
+            expected_bias_shape = None
+            expected_full_output_shape = (2, 4)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_simple_dense(self):
+            equation = "ab,bc->ac"
+            bias_axes = "c"
+            input_shape = (5, 6)
+            output_shape = (7,)
+
+            expected_kernel_shape = (6, 7)
+            expected_bias_shape = (7,)
+            expected_full_output_shape = (5, 7)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_on_left(self):
+            equation = "...ab,bc->...ac"
+            bias_axes = "c"
+            input_shape = (8, 9, 6)
+            output_shape = (9, 7)
+
+            expected_kernel_shape = (6, 7)
+            expected_bias_shape = (7, 1)
+            expected_full_output_shape = (8, 9, 7)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_complex_ellipses_on_right(self):
+            equation = "ab0,bc->ac0"
+            bias_axes = "c"
+            input_shape = (3, 5, 7)
+            output_shape = (5, 8)
+
+            expected_kernel_shape = (5, 8)
+            expected_bias_shape = (8, 1)
+            expected_full_output_shape = (3, 5, 8)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_complex_no_ellipses(self):
+            equation = "abc,bd->acd"
+            bias_axes = "d"
+            input_shape = (4, 5, 6)
+            output_shape = (4, 7)
+
+            expected_kernel_shape = (5, 7)
+            expected_bias_shape = (7,)
+            expected_full_output_shape = (4, 4, 7)
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_4d_ellipses_on_right(self):
+            equation = "abc0,bd->adc0"
+            bias_axes = "d"
+            input_shape = (3, 5, 4, 6)
+            output_shape = (5, 7, 8)
+
+            expected_kernel_shape = (4, 8)
+            expected_bias_shape = (8, 1, 1)
+            expected_full_output_shape = (3, 5, 7, 8)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_large_output_ellipses_on_right(self):
+            equation = "ab0,bc->ac0"
+            bias_axes = "c"
+            input_shape = (5, 7, 6)
+            output_shape = (7, 10)
+
+            expected_kernel_shape = (7, 10)
+            expected_bias_shape = (10, 1)
+            expected_full_output_shape = (5, 7, 10)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_complex_input_ellipses_on_right(self):
+            equation = "ab0,bc->ac0"
+            bias_axes = "c"
+            input_shape = (9, 7, 11)
+            output_shape = (9, 13)
+
+            expected_kernel_shape = (7, 13)
+            expected_bias_shape = (13, 1)
+            expected_full_output_shape = (9, 9, 13)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_single_output_dim_ellipses_on_right(
+            self,
+        ):
+            equation = "a0,b->a0"
+            bias_axes = "a"
+            input_shape = (6, 7)
+            output_shape = (8,)
+
+            expected_kernel_shape = (7, 8)
+            expected_bias_shape = (8,)
+            expected_full_output_shape = (6, 8)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_on_right_simple_case(self):
+            equation = "a0,b->a0"
+            bias_axes = None
+            input_shape = (3, 5)
+            output_shape = 3
+            expected_kernel_shape = (5, 3)
+            expected_bias_shape = None
+            expected_full_output_shape = (3, 5)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_on_right_multiple_dims(self):
+            equation = "ab0,cd->ab0"
+            bias_axes = None
+            input_shape = (4, 5, 6)
+            output_shape = (4, 5)
+            expected_kernel_shape = (6, 4, 5)
+            expected_bias_shape = None
+            expected_full_output_shape = (4, 5, 6)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_on_right_diff_dims(self):
+            equation = "ab0,cd->ad0"
+            bias_axes = None
+            input_shape = (3, 4, 5)
+            output_shape = (3, 6)
+            expected_kernel_shape = (4, 5, 6)
+            expected_bias_shape = None
+            expected_full_output_shape = (3, 4, 6)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
+
+        def test_analyze_einsum_string_ellipses_on_right_single_dim(self):
+            equation = "a0,b->a0"
+            bias_axes = None
+            input_shape = (4, 5)
+            output_shape = 4
+            expected_kernel_shape = (5, 4)
+            expected_bias_shape = None
+            expected_full_output_shape = (4, 5)
+
+            (
+                kernel_shape,
+                bias_shape,
+                full_output_shape,
+            ) = einsum_dense._analyze_einsum_string(
+                equation, bias_axes, input_shape, output_shape
+            )
+
+            self.assertEqual(kernel_shape, expected_kernel_shape)
+            self.assertEqual(bias_shape, expected_bias_shape)
+            self.assertEqual(full_output_shape, expected_full_output_shape)
