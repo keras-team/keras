@@ -126,8 +126,7 @@ class TorchModuleWrapper(Layer):
             store[self.name + "." + key] = convert_to_numpy(state_dict[key])
 
     def load_own_variables(self, store):
-        """Loads model's state via `state_dict`.
-        """
+        """Loads model's state via `state_dict`."""
         keys_name = self.name + "._keys"
         if keys_name not in store:
             raise ValueError(
