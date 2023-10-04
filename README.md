@@ -1,6 +1,3 @@
-[![](https://github.com/keras-team/keras/workflows/Tests/badge.svg?branch=master)](https://github.com/keras-team/keras/actions?query=workflow%3ATests+branch%3Amaster)
-[![](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
-
 # Keras 3: A new multi-backend Keras
 
 Keras 3 is a new multi-backend implementation of the Keras API, with support for TensorFlow, JAX, and PyTorch.

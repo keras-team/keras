@@ -20,20 +20,35 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    return np.subtract(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.subtract(x1, x2).astype(dtype)
 
 
 def matmul(x1, x2):
-    return np.matmul(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.matmul(x1, x2).astype(dtype)
 
 
 def multiply(x1, x2):
-    return np.multiply(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return np.multiply(x1, x2).astype(dtype)
 
 
 def mean(x, axis=None, keepdims=False):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.mean(x, axis=axis, keepdims=keepdims)
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        result_dtype = dtypes.result_type(x.dtype, "float32")
+    else:
+        result_dtype = ori_dtype
+    return np.mean(x, axis=axis, keepdims=keepdims).astype(result_dtype)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
@@ -153,6 +168,14 @@ def average(x, axis=None, weights=None):
 
 
 def bincount(x, weights=None, minlength=0):
+    x = convert_to_tensor(x)
+    dtypes_to_resolve = [x.dtype]
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+        dtypes_to_resolve.append(weights.dtype)
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    else:
+        dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
 
@@ -169,8 +192,8 @@ def bincount(x, weights=None, minlength=0):
 
             bincounts = list(map(bincount_fn, zip(x, weights)))
 
-        return np.stack(bincounts)
-    return np.bincount(x, weights, minlength)
+        return np.stack(bincounts).astype(dtype)
+    return np.bincount(x, weights, minlength).astype(dtype)
 
 
 def broadcast_to(x, shape):
