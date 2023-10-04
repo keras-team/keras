@@ -54,22 +54,12 @@ class Variable(
         value = tf.cast(value, self._value.dtype)
 
         if self._layout:
-            value = self._convert_to_dtensor(value, self._layout)
+            value = convert_to_dtensor(value, self._layout)
 
         self._value.assign(tf.cast(value, self._value.dtype))
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
-
-    def _convert_to_dtensor(self, value, tensor_layout):
-        replicated_tensor = dtensor.copy_to_mesh(
-            value,
-            layout=dtensor.Layout.replicated(
-                tensor_layout.mesh, rank=tensor_layout.rank
-            ),
-        )
-
-        return dtensor.relayout(replicated_tensor, tensor_layout)
 
     def numpy(self):  # noqa: F811
         return self.value.numpy()
@@ -123,6 +113,17 @@ def convert_to_tensor(x, dtype=None, sparse=True):
         return tf.cast(x, dtype=dtype)
     else:
         return x
+
+
+def convert_to_dtensor(value, tensor_layout):
+    replicated_tensor = dtensor.copy_to_mesh(
+        value,
+        layout=dtensor.Layout.replicated(
+            tensor_layout.mesh, rank=tensor_layout.rank
+        ),
+    )
+
+    return dtensor.relayout(replicated_tensor, tensor_layout)
 
 
 def convert_to_numpy(x):
