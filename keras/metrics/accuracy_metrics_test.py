@@ -99,7 +99,8 @@ class BinaryAccuracyTest(testing.TestCase):
         result_2 = bin_acc_obj_2.result()
 
         # Higher threshold must result in lower measured accuracy.
-        np.testing.assert_array_less(result_2, result_1)
+        self.assertAllClose(result_1, 1.0)
+        self.assertAllClose(result_2, 0.75)
 
     def test_invalid_threshold(self):
         self.assertRaisesRegex(
