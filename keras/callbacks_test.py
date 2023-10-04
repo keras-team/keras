@@ -283,7 +283,7 @@ class CallbackCountsTest(test_combinations.TestCase):
         )
 
 
-class KerasCallbacksTest(test_combinations.TestCase):
+class KerasCallbacksTest(test_combinations.TestCase, parameterized.TestCase):
     def _get_model(self, input_shape=None, additional_metrics=None):
         additional_metrics = additional_metrics or []
         layers = [
@@ -886,8 +886,12 @@ class KerasCallbacksTest(test_combinations.TestCase):
             self.assertGreater(float(val_loss[0]), 0.0)
 
     @test_combinations.run_with_all_model_types
-    def test_ModelCheckpoint(self):
-        if h5py is None:
+    @parameterized.named_parameters(
+        ("h5", ".h5"),
+        ("keras", ".keras"),
+    )
+    def test_ModelCheckpoint(self, save_format):
+        if save_format == ".h5" and h5py is None:
             return  # Skip test if models cannot be saved.
 
         model_type = test_utils.get_model_type()
@@ -915,7 +919,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         # Save model to a subdir inside the temp_dir so we can test
         # automatic directory creation.
-        filepath = os.path.join(temp_dir, "subdir", "checkpoint.h5")
+        filepath = os.path.join(temp_dir, "subdir", "checkpoint" + save_format)
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             train_samples=TRAIN_SAMPLES,
             test_samples=TEST_SAMPLES,
@@ -1040,7 +1044,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         period = 2
         mode = "auto"
 
-        filepath = os.path.join(temp_dir, "checkpoint.{epoch:02d}.h5")
+        filepath = os.path.join(
+            temp_dir, "checkpoint.{epoch:02d}" + save_format
+        )
         cbks = [
             keras.callbacks.ModelCheckpoint(
                 filepath,
@@ -1077,7 +1083,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         # Case 7: `ModelCheckpoint` with a combination of `save_freq` and
         # `period`.  Though `period` is deprecated, we're testing it for
         # backward-compatibility.
-        filepath = os.path.join(temp_dir, "checkpoint.epoch{epoch:02d}.h5")
+        filepath = os.path.join(
+            temp_dir, "checkpoint.epoch{epoch:02d}" + save_format
+        )
         cbks = [
             keras.callbacks.ModelCheckpoint(
                 filepath,
@@ -1109,7 +1117,9 @@ class KerasCallbacksTest(test_combinations.TestCase):
         os.remove(filepath.format(epoch=10))
 
         # Case 8: `ModelCheckpoint` with an integer `save_freq`
-        filepath = os.path.join(temp_dir, "checkpoint.epoch{epoch:02d}.h5")
+        filepath = os.path.join(
+            temp_dir, "checkpoint.epoch{epoch:02d}" + save_format
+        )
         cbks = [
             keras.callbacks.ModelCheckpoint(
                 filepath,
@@ -1169,24 +1179,31 @@ class KerasCallbacksTest(test_combinations.TestCase):
         )
 
         # Case 10: `ModelCheckpoint` with valid and invalid `options` argument.
-        with self.assertRaisesRegex(TypeError, "tf.train.CheckpointOptions"):
-            keras.callbacks.ModelCheckpoint(
-                filepath,
-                monitor=monitor,
-                save_best_only=save_best_only,
-                save_weights_only=True,
-                mode=mode,
-                options=tf.saved_model.SaveOptions(),
-            )
-        with self.assertRaisesRegex(TypeError, "tf.saved_model.SaveOptions"):
-            keras.callbacks.ModelCheckpoint(
-                filepath,
-                monitor=monitor,
-                save_best_only=save_best_only,
-                save_weights_only=False,
-                mode=mode,
-                options=tf.train.CheckpointOptions(),
-            )
+        if save_format == ".h5":
+            with self.assertRaisesRegex(
+                TypeError, "tf.train.CheckpointOptions"
+            ):
+                keras.callbacks.ModelCheckpoint(
+                    filepath,
+                    monitor=monitor,
+                    save_best_only=save_best_only,
+                    save_weights_only=True,
+                    mode=mode,
+                    options=tf.saved_model.SaveOptions(),
+                )
+
+            with self.assertRaisesRegex(
+                TypeError, "tf.saved_model.SaveOptions"
+            ):
+                keras.callbacks.ModelCheckpoint(
+                    filepath,
+                    monitor=monitor,
+                    save_best_only=save_best_only,
+                    save_weights_only=False,
+                    mode=mode,
+                    options=tf.train.CheckpointOptions(),
+                )
+
         keras.callbacks.ModelCheckpoint(
             filepath,
             monitor=monitor,
@@ -1206,7 +1223,8 @@ class KerasCallbacksTest(test_combinations.TestCase):
 
         # Case 11: `ModelCheckpoint` save model with batch number in filename.
         filepath = os.path.join(
-            temp_dir, "checkpoint.epoch{epoch:02d}batch{batch:02d}.h5"
+            temp_dir,
+            "checkpoint.epoch{epoch:02d}batch{batch:02d}" + save_format,
         )
         cbks = [
             keras.callbacks.ModelCheckpoint(
@@ -1261,7 +1279,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
         monitor = "val_acc"
         initial_value_threshold = 0
         save_best_only = True
-        filepath = os.path.join(temp_dir, "checkpoint.h5")
+        filepath = os.path.join(temp_dir, "checkpoint" + save_format)
         cbks = [
             keras.callbacks.ModelCheckpoint(
                 filepath,
@@ -1389,7 +1407,7 @@ class KerasCallbacksTest(test_combinations.TestCase):
         self.assertIn("saved_model.pb", os.listdir(filepath))
 
     @test_utils.run_v2_only
-    def test_ModelCheckpoint_subclass_KerasV3_save_weights_false(self):
+    def test_ModelCheckpoint_subclass_KerasV3(self):
         model = test_utils.get_small_subclass_mlp(NUM_HIDDEN, NUM_CLASSES)
         model.compile(
             loss="categorical_crossentropy",
