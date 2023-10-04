@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 
 from keras import testing
@@ -80,7 +82,7 @@ class BinaryAccuracyTest(testing.TestCase):
         bin_acc_obj.update_state(y_true, y_pred, sample_weight=sample_weight)
         result = bin_acc_obj.result()
         self.assertAllClose(result, 0.5, atol=1e-3)
-    
+
     def test_threshold(self):
         bin_acc_obj_1 = accuracy_metrics.BinaryAccuracy(
             name="binary_accuracy", dtype="float32", threshold=0.3
@@ -90,23 +92,29 @@ class BinaryAccuracyTest(testing.TestCase):
         )
         y_true = np.array([[1], [1], [0], [0]])
         y_pred = np.array([[0.98], [0.5], [0.1], [0.2]])
-        
+
         bin_acc_obj_1.update_state(y_true, y_pred)
         bin_acc_obj_2.update_state(y_true, y_pred)
         result_1 = bin_acc_obj_1.result()
         result_2 = bin_acc_obj_2.result()
-        
+
         # Higher threshold must result in lower measured accuracy.
         np.testing.assert_array_less(result_2, result_1)
-    
+
     def test_invalid_threshold(self):
-        self.assertRaises(
+        self.assertRaisesRegex(
             ValueError,
-            lambda: accuracy_metrics.BinaryAccuracy(threshold=-0.5)
+            re.compile(
+                r"Invalid value for argument `threshold`\. Expected a value in internal \(0, 1\). Received: threshold=-0.5"
+            ),
+            lambda: accuracy_metrics.BinaryAccuracy(threshold=-0.5),
         )
-        self.assertRaises(
+        self.assertRaisesRegex(
             ValueError,
-            lambda: accuracy_metrics.BinaryAccuracy(threshold=1.5)
+            re.compile(
+                r"Invalid value for argument `threshold`\. Expected a value in internal \(0, 1\). Received: threshold=1.5"
+            ),
+            lambda: accuracy_metrics.BinaryAccuracy(threshold=1.5),
         )
 
 
