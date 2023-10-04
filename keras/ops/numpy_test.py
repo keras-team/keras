@@ -4102,14 +4102,6 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             expected_dtype,
         )
 
-    # TODO: test_arccos
-    # TODO: test_arccosh
-    # TODO: test_arcsin
-    # TODO: test_arcsinh
-    # TODO: test_arctan
-    # TODO: test_arctan2
-    # TODO: test_arctanh
-
     @parameterized.parameters(ALL_DTYPES)
     def test_argmax(self, dtype):
         import jax.numpy as jnp
@@ -4186,6 +4178,29 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
         )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_dot(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if backend.backend() == "tensorflow":
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("dot does not support bool in tensorflow")
+        if backend.backend() == "torch":
+            if "float16" in [dtype1, dtype2]:
+                self.skipTest("dot does not support float16 in torch")
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("dot does not support bool in torch")
+
+        x1 = knp.ones((2, 3, 4), dtype=dtype1)
+        x2 = knp.ones((4, 3), dtype=dtype2)
+        x1_jax = jnp.ones((2, 3, 4), dtype=dtype1)
+        x2_jax = jnp.ones((4, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.dot(x1_jax, x2_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.dot(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
     @parameterized.parameters(ALL_DTYPES)
     def test_empty(self, dtype):

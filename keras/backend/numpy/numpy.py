@@ -280,6 +280,11 @@ def digitize(x, bins):
 
 
 def dot(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.dot(x, y)
 
 

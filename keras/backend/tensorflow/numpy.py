@@ -467,7 +467,14 @@ def digitize(x, bins):
 
 
 def dot(x, y):
-    return tfnp.dot(x, y)
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    result_dtype = dtypes.result_type(x.dtype, y.dtype)
+    # GPU only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
+    x = tf.cast(x, compute_dtype)
+    y = tf.cast(y, compute_dtype)
+    return tf.cast(tfnp.dot(x, y), dtype=result_dtype)
 
 
 def empty(shape, dtype=None):

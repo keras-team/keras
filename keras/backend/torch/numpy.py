@@ -412,7 +412,11 @@ def digitize(x, bins):
 
 
 def dot(x, y):
-    x, y = convert_to_tensor(x), convert_to_tensor(y)
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    result_dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = cast(x, result_dtype)
+    y = cast(y, result_dtype)
     if x.ndim == 0 or y.ndim == 0:
         return torch.multiply(x, y)
     return torch.matmul(x, y)
