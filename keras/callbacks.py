@@ -1546,18 +1546,9 @@ class ModelCheckpoint(Callback):
                                     f"saving model to {filepath}"
                                 )
                             self.best = current
-                            if self.save_weights_only:
-                                self.model.save_weights(
-                                    filepath,
-                                    overwrite=True,
-                                    options=self._options,
-                                )
-                            else:
-                                self.model.save(
-                                    filepath,
-                                    overwrite=True,
-                                    options=self._options,
-                                )
+
+                            # Handles saving and corresponding options
+                            self._save_handler(filepath)
                         else:
                             if self.verbose > 0:
                                 io_utils.print_msg(
@@ -1570,16 +1561,9 @@ class ModelCheckpoint(Callback):
                         io_utils.print_msg(
                             f"\nEpoch {epoch + 1}: saving model to {filepath}"
                         )
-                    if self.save_weights_only:
-                        self.model.save_weights(
-                            filepath, overwrite=True, options=self._options
-                        )
-                    elif filepath.endswith(".keras"):
-                        self.model.save(filepath, overwrite=True)
-                    else:
-                        self.model.save(
-                            filepath, overwrite=True, options=self._options
-                        )
+
+                    # Handles saving and corresponding options
+                    self._save_handler(filepath)
 
                 self._maybe_remove_file()
             except IsADirectoryError:  # h5py 3.x
@@ -1599,6 +1583,29 @@ class ModelCheckpoint(Callback):
                     )
                 # Re-throw the error for any other causes.
                 raise e
+
+    def _save_handler(self, filepath):
+        if self.save_weights_only:
+            if filepath.endswith(".weights.h5"):
+                self.model.save_weights(
+                    filepath,
+                    overwrite=True,
+                )
+            else:
+                self.model.save_weights(
+                    filepath,
+                    overwrite=True,
+                    options=self._options,
+                )
+        else:
+            if filepath.endswith(".keras"):
+                self.model.save(filepath, overwrite=True)
+            else:
+                self.model.save(
+                    filepath,
+                    overwrite=True,
+                    options=self._options,
+                )
 
     def _get_file_path(self, epoch, batch, logs):
         """Returns the file path for checkpoint."""
