@@ -120,6 +120,9 @@ def zeros_like(x, dtype=None):
 
 
 def absolute(x):
+    # bool are always non-negative
+    if standardize_dtype(x.dtype) == "bool":
+        return x
     return abs(x)
 
 
@@ -237,12 +240,12 @@ def arctanh(x):
 
 def argmax(x, axis=None):
     x = convert_to_tensor(x)
-    return torch.argmax(x, dim=axis)
+    return cast(torch.argmax(x, dim=axis), dtype="int32")
 
 
 def argmin(x, axis=None):
     x = convert_to_tensor(x)
-    return torch.argmin(x, dim=axis)
+    return cast(torch.argmin(x, dim=axis), dtype="int32")
 
 
 def argsort(x, axis=-1):
@@ -250,7 +253,7 @@ def argsort(x, axis=-1):
     if axis is None:
         axis = -1
         x = x.reshape(-1)
-    return torch.argsort(x, dim=axis, stable=True)
+    return cast(torch.argsort(x, dim=axis, stable=True), dtype="int32")
 
 
 def array(x, dtype=None):

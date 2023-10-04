@@ -267,6 +267,10 @@ def zeros(shape, dtype=None):
 
 
 def absolute(x):
+    # uintx and bool are always non-negative
+    dtype = standardize_dtype(x.dtype)
+    if "uint" in dtype or dtype == "bool":
+        return x
     return tfnp.absolute(x)
 
 
@@ -341,15 +345,15 @@ def arctanh(x):
 
 
 def argmax(x, axis=None):
-    return tfnp.argmax(x, axis=axis)
+    return tf.cast(tfnp.argmax(x, axis=axis), dtype="int32")
 
 
 def argmin(x, axis=None):
-    return tfnp.argmin(x, axis=axis)
+    return tf.cast(tfnp.argmin(x, axis=axis), dtype="int32")
 
 
 def argsort(x, axis=-1):
-    return tfnp.argsort(x, axis=axis)
+    return tf.cast(tfnp.argsort(x, axis=axis), dtype="int32")
 
 
 def array(x, dtype=None):

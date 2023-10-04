@@ -145,17 +145,17 @@ def arctanh(x):
 
 def argmax(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmax(x, axis=axis)
+    return np.argmax(x, axis=axis).astype("int32")
 
 
 def argmin(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmin(x, axis=axis)
+    return np.argmin(x, axis=axis).astype("int32")
 
 
 def argsort(x, axis=-1):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argsort(x, axis=axis)
+    return np.argsort(x, axis=axis).astype("int32")
 
 
 def array(x, dtype=None):

@@ -2922,22 +2922,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Argmin()(x), np.argmin(x))
         self.assertAllClose(knp.Argmin(axis=1)(x), np.argmin(x, axis=1))
 
-    # TODO: fix and reenable
-    def DISABLED_test_argsort(self):
+    def test_argsort(self):
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.argsort(x), np.argsort(x))
         self.assertAllClose(knp.argsort(x, axis=1), np.argsort(x, axis=1))
-        self.assertAllClose(
-            knp.argsort(x, axis=None),
-            np.argsort(x, axis=None),
-        )
+        self.assertAllClose(knp.argsort(x, axis=None), np.argsort(x, axis=None))
 
         self.assertAllClose(knp.Argsort()(x), np.argsort(x))
         self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
-        self.assertAllClose(
-            knp.Argsort(axis=None)(x),
-            np.argsort(x, axis=None),
-        )
+        self.assertAllClose(knp.Argsort(axis=None)(x), np.argsort(x, axis=None))
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -4092,6 +4085,82 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
                 knp.Zeros().symbolic_call([2, 3], dtype=dtype).dtype
             ),
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_absolute(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.absolute(x_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.absolute(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Absolute().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    # TODO: test_arccos
+    # TODO: test_arccosh
+    # TODO: test_arcsin
+    # TODO: test_arcsinh
+    # TODO: test_arctan
+    # TODO: test_arctan2
+    # TODO: test_arctanh
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argmax(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bool":
+                self.skipTest(f"argmax does not support {dtype} in torch")
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argmax(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.argmax(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Argmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argmin(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bool":
+                self.skipTest(f"argmin does not support {dtype} in torch")
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argmin(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.argmin(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Argmin().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argsort(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "tensorflow":
+            if dtype == "bool":
+                self.skipTest(f"argsort does not support {dtype} in tensorflow")
+
+        x = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argsort(x_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.argsort(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Argsort().symbolic_call(x).dtype),
+            expected_dtype,
         )
 
     @parameterized.parameters(
