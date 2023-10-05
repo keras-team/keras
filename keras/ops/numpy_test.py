@@ -2926,22 +2926,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         self.assertAllClose(knp.Argmin()(x), np.argmin(x))
         self.assertAllClose(knp.Argmin(axis=1)(x), np.argmin(x, axis=1))
 
-    # TODO: fix and reenable
-    def DISABLED_test_argsort(self):
+    def test_argsort(self):
         x = np.array([[1, 2, 3], [4, 5, 6]])
         self.assertAllClose(knp.argsort(x), np.argsort(x))
         self.assertAllClose(knp.argsort(x, axis=1), np.argsort(x, axis=1))
-        self.assertAllClose(
-            knp.argsort(x, axis=None),
-            np.argsort(x, axis=None),
-        )
+        self.assertAllClose(knp.argsort(x, axis=None), np.argsort(x, axis=None))
 
         self.assertAllClose(knp.Argsort()(x), np.argsort(x))
         self.assertAllClose(knp.Argsort(axis=1)(x), np.argsort(x, axis=1))
-        self.assertAllClose(
-            knp.Argsort(axis=None)(x),
-            np.argsort(x, axis=None),
-        )
+        self.assertAllClose(knp.Argsort(axis=None)(x), np.argsort(x, axis=None))
 
     def test_array(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -2979,6 +2972,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase, parameterized.TestCase):
         )
 
     def test_bincount(self):
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if tf.test.is_gpu_available():
+                self.skipTest("bincount does not work in tensorflow gpu")
+
         x = np.array([1, 1, 2, 3, 2, 4, 4, 5])
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2])
         minlength = 3
@@ -3935,6 +3934,12 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
     def test_bincount(self, dtype):
         import jax.numpy as jnp
 
+        if backend.backend() == "tensorflow":
+            import tensorflow as tf
+
+            if tf.test.is_gpu_available():
+                self.skipTest("bincount does not work in tensorflow gpu")
+
         x = np.array([1, 1, 2, 3, 2, 4, 4, 5], dtype=dtype)
         weights = np.array([0, 0, 3, 2, 1, 1, 4, 2], dtype=dtype)
         minlength = 3
@@ -4013,10 +4018,16 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
         import jax.numpy as jnp
 
         if backend.backend() == "torch":
+            import torch
+
             if dtype1 == "float16" or dtype2 == "float16":
                 self.skipTest("matmul does not support float16 in torch")
             if dtype1 == "bool" and dtype2 == "bool":
                 self.skipTest("matmul does not support bool in torch")
+            if torch.cuda.is_available():
+                dtype = backend.result_type(dtype1, dtype2)
+                if "int" in dtype:
+                    self.skipTest(f"dot does not support {dtype} in torch gpu")
 
         x1 = knp.ones((1,), dtype=dtype1)
         x2 = knp.ones((1,), dtype=dtype2)
@@ -4098,6 +4109,83 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.zeros([2, 3], dtype=dtype).dtype),
         )
 
+    @parameterized.parameters(ALL_DTYPES)
+    def test_absolute(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.absolute(x_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.absolute(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Absolute().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argmax(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bool":
+                self.skipTest(f"argmax does not support {dtype} in torch")
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argmax(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.argmax(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Argmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argmin(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            if dtype == "bool":
+                self.skipTest(f"argmin does not support {dtype} in torch")
+
+        x = knp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [3, 2, 1]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argmin(x_jax).dtype)
+        self.assertEqual(standardize_dtype(knp.argmin(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Argmin().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_argsort(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "tensorflow":
+            if dtype == "bool":
+                self.skipTest(f"argsort does not support {dtype} in tensorflow")
+
+        if backend.backend() == "torch":
+            import torch
+
+            if torch.cuda.is_available():
+                if dtype in ["bool", "int64"]:
+                    self.skipTest(
+                        f"argsort does not support {dtype} in torch gpu"
+                    )
+
+        x = knp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        x_jax = jnp.array([[1, 2, 3], [4, 5, 6]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.argsort(x_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.argsort(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Argsort().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.parameters(
         (10, None, 1, None),
         (0, 10, 1, None),
@@ -4121,6 +4209,83 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             ),
             standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
         )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_ceil(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            import torch
+
+            if dtype is None:
+                # TODO: knp.array returns float32 instead of float64 when dtype
+                # is None in torch
+                dtype = "float64"
+            if not torch.cuda.is_available() and dtype == "float16":
+                self.skipTest(f"ceil does not support {dtype} in torch cpu")
+            if dtype == "bool":
+                self.skipTest(f"ceil does not support {dtype} in torch")
+
+        x = knp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
+        x_jax = jnp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.ceil(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+        self.assertEqual(standardize_dtype(knp.ceil(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Ceil().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_clip(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            import torch
+
+            if not torch.cuda.is_available() and dtype == "float16":
+                self.skipTest(f"clip does not support {dtype} in torch cpu")
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.clip(x_jax, -2, 2).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.clip(x, -2, 2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Clip(-2, 2).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
+    def test_dot(self, dtype1, dtype2):
+        import jax.numpy as jnp
+
+        if backend.backend() == "tensorflow":
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("dot does not support bool in tensorflow")
+        if backend.backend() == "torch":
+            import torch
+
+            if "float16" in [dtype1, dtype2]:
+                self.skipTest("dot does not support float16 in torch")
+            if dtype1 == "bool" and dtype2 == "bool":
+                self.skipTest("dot does not support bool in torch")
+            if torch.cuda.is_available():
+                dtype = backend.result_type(dtype1, dtype2)
+                if "int" in dtype:
+                    self.skipTest(f"dot does not support {dtype} in torch gpu")
+
+        x1 = knp.ones((2, 3, 4), dtype=dtype1)
+        x2 = knp.ones((4, 3), dtype=dtype2)
+        x1_jax = jnp.ones((2, 3, 4), dtype=dtype1)
+        x2_jax = jnp.ones((4, 3), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.dot(x1_jax, x2_jax).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.dot(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
 
     @parameterized.parameters(ALL_DTYPES)
     def test_empty(self, dtype):

@@ -185,7 +185,12 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    return jnp.ceil(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return cast(jnp.ceil(x), dtype)
 
 
 def clip(x, x_min, x_max):
