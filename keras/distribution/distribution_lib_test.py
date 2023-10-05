@@ -388,7 +388,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
         self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
 
-    def test_with_layout_constraint(self):
+    def test_distribute_tensor(self):
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
         )
@@ -400,9 +400,7 @@ class JaxDistributionLibTest(testing.TestCase):
 
         @functools.partial(jax.jit, static_argnames="target_layout")
         def test_function(inputs, target_layout):
-            return distribution_lib.with_layout_constraint(
-                inputs, target_layout
-            )
+            return distribution_lib.distribute_tensor(inputs, target_layout)
 
         result = test_function(inputs, target_layout)
         # Note that the returned tensor has a different sharding implementation
@@ -411,7 +409,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
         # Test without jit
-        result = distribution_lib.with_layout_constraint(inputs, target_layout)
+        result = distribution_lib.distribute_tensor(inputs, target_layout)
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
     def test_to_jax_mesh(self):

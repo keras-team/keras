@@ -819,7 +819,7 @@ class Layer(BackendLayer, Operation):
                     current_layer_path += "/output"
                     layout = distribution.get_tensor_layout(current_layer_path)
                     if layout:
-                        outputs = distribution_lib.with_layout_constraint(
+                        outputs = distribution_lib.distribute_tensor(
                             outputs, layout
                         )
 
