@@ -1343,7 +1343,11 @@ class Ceil(Operation):
         return backend.numpy.ceil(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ceil", "keras.ops.numpy.ceil"])
@@ -1357,7 +1361,7 @@ def ceil(x):
         x: Input tensor.
 
     Returns:
-        The ceiling of each element in `x`.
+        The ceiling of each element in `x`, with float dtype.
     """
     if any_symbolic_tensors((x,)):
         return Ceil().symbolic_call(x)
@@ -1374,7 +1378,10 @@ class Clip(Operation):
         return backend.numpy.clip(x, self.x_min, self.x_max)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype == "bool":
+            dtype = "int64"
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.clip", "keras.ops.numpy.clip"])
@@ -2001,10 +2008,14 @@ class Dot(Operation):
     def compute_output_spec(self, x1, x2):
         x1_shape = list(getattr(x1, "shape", []))
         x2_shape = list(getattr(x2, "shape", []))
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
         if x1_shape == [] or x2_shape == []:
             return multiply(x1, x2)
         if len(x1_shape) == 1 and len(x2_shape) == 1:
-            return KerasTensor([], dtype=x1.dtype)
+            return KerasTensor([], dtype=dtype)
         if len(x2_shape) == 1:
             if x1_shape[-1] != x2_shape[0]:
                 raise ValueError(
@@ -2012,7 +2023,7 @@ class Dot(Operation):
                     "`x1` is N-d array while `x2` is 1-D, but receive shape "
                     f"`x1.shape={x1.shape}` and x2.shape=`{x2.shape}`."
                 )
-            return KerasTensor(x1_shape[:-1], dtype=x1.dtype)
+            return KerasTensor(x1_shape[:-1], dtype=dtype)
 
         if (
             x1_shape[-1] is None
@@ -2021,7 +2032,7 @@ class Dot(Operation):
         ):
             del x1_shape[-1]
             del x2_shape[-2]
-            return KerasTensor(x1_shape + x2_shape, dtype=x1.dtype)
+            return KerasTensor(x1_shape + x2_shape, dtype=dtype)
 
         raise ValueError(
             "Shape must match on the last axis of `x1` and second last "

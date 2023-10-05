@@ -145,17 +145,17 @@ def arctanh(x):
 
 def argmax(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmax(x, axis=axis)
+    return np.argmax(x, axis=axis).astype("int32")
 
 
 def argmin(x, axis=None):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argmin(x, axis=axis)
+    return np.argmin(x, axis=axis).astype("int32")
 
 
 def argsort(x, axis=-1):
     axis = tuple(axis) if isinstance(axis, list) else axis
-    return np.argsort(x, axis=axis)
+    return np.argsort(x, axis=axis).astype("int32")
 
 
 def array(x, dtype=None):
@@ -201,11 +201,19 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    return np.ceil(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return np.ceil(x).astype(dtype)
 
 
 def clip(x, x_min, x_max):
-    return np.clip(x, x_min, x_max)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        dtype = "int64"
+    return np.clip(x, x_min, x_max).astype(dtype)
 
 
 def concatenate(xs, axis=0):
@@ -280,6 +288,11 @@ def digitize(x, bins):
 
 
 def dot(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    dtype = dtypes.result_type(x.dtype, y.dtype)
+    x = x.astype(dtype)
+    y = y.astype(dtype)
     return np.dot(x, y)
 
 

@@ -151,6 +151,7 @@ class UpSampling2D(Layer):
 
         new_shape = x.shape[rows : cols + 1]
         new_shape *= np.array([height_factor, width_factor])
+        new_shape = new_shape.tolist()
 
         if data_format == "channels_first":
             x = ops.transpose(x, [0, 2, 3, 1])
