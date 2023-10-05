@@ -95,3 +95,27 @@ def get(identifier):
     if isinstance(obj, Optimizer):
         return obj
     raise ValueError(f"Could not interpret optimizer identifier: {identifier}")
+
+
+# We will add this temporarily so that tensorflow packages that depend on
+# estimators will continue to import (there are a large number). Note that
+# Keras 3 will not work with the estimators API.
+@keras_export(
+    [
+        "keras.optimizers.legacy.Adagrad",
+        "keras.optimizers.legacy.Adam",
+        "keras.optimizers.legacy.Ftrl",
+        "keras.optimizers.legacy.RMSprop",
+        "keras.optimizers.legacy.SGD",
+        "keras.optimizers.legacy.Optimizer",
+    ]
+)
+class LegacyOptimizerWarning:
+    def __init__(self, *args, **kwargs):
+        raise ImportError(
+            "`keras.optimizers.legacy` is not supported in Keras 3. When using "
+            "`tf.keras`, to continue using a `tf.keras.optimizers.legacy` "
+            "optimizer, you can install the `tf_keras` package (Keras 2) and "
+            "set the environment variable `TF_USE_LEGACY_KERAS=True` to "
+            "configure TensorFlow to use `tf_keras` when accessing `tf.keras`."
+        )
