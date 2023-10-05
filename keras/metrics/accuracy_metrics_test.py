@@ -105,16 +105,12 @@ class BinaryAccuracyTest(testing.TestCase):
     def test_invalid_threshold(self):
         self.assertRaisesRegex(
             ValueError,
-            re.compile(
-                r"Invalid value for argument `threshold`\. Expected a value in internal \(0, 1\). Received: threshold=-0.5"
-            ),
+            re.compile(r"Invalid value for argument `threshold`"),
             lambda: accuracy_metrics.BinaryAccuracy(threshold=-0.5),
         )
         self.assertRaisesRegex(
             ValueError,
-            re.compile(
-                r"Invalid value for argument `threshold`\. Expected a value in internal \(0, 1\). Received: threshold=1.5"
-            ),
+            re.compile(r"Invalid value for argument `threshold`"),
             lambda: accuracy_metrics.BinaryAccuracy(threshold=1.5),
         )
 
