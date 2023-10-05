@@ -327,10 +327,10 @@ class ModelParallel(Distribution):
     # will be split across 4 devices. Any other variable that doesn't
     # match any key in the layout map will be fully replicated.
     layout_map = LayoutMap(device_mesh)
-    layout_map['.*dense.*kernel'] = (None, 'model')
-    layout_map['.*dense.*bias'] = ('model',)
-    layout_map['.*conv2d.*kernel'] = (None, None, None, 'model')
-    layout_map['.*conv2d.*bias'] = ('model',)
+    layout_map['dense.*kernel'] = (None, 'model')
+    layout_map['dense.*bias'] = ('model',)
+    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['conv2d.*bias'] = ('model',)
 
     distribution = ModelParallel(device_mesh=device_mesh,
                                  layout_map=layout_map,
@@ -415,10 +415,10 @@ class LayoutMap(collections.abc.MutableMapping):
 
     ```python
     layout_map = LayoutMap(device_mesh=None)
-    layout_map['.*dense.*kernel'] = (None, 'model')         # layout_2d
-    layout_map['.*dense.*bias'] = ('model',)                # layout_1d
-    layout_map['.*conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
-    layout_map['.*conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
+    layout_map['dense.*kernel'] = (None, 'model')         # layout_2d
+    layout_map['dense.*bias'] = ('model',)                # layout_1d
+    layout_map['conv2d.*kernel'] = TensorLayout((None, None, None, 'model'))
+    layout_map['conv2d.*bias'] = TensorLayout(('model',))  # layout_1d
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
@@ -443,22 +443,35 @@ class LayoutMap(collections.abc.MutableMapping):
         """Retrieves the corresponding layout by the string key.
 
         When there isn't an exact match, all the existing keys in the layout map
-        will be treated as a regex and map against the input key again. The
-        first match will be returned, based on the key insertion order. Returns
-        `None` if there isn't any match found.
+        will be treated as a regex and map against the input key again. When
+        there are multiple matches for the regex, an ValueError will be raised.
+        Returns `None` if there isn't any match found.
 
         Args:
             key: String key to query a layout.
 
         Returns:
             Corresponding layout based on the query.
+
+        Raises:
+            ValueError when multiple keys are matched if the keys are treated
+            as regex.
         """
         if key in self._layout_map:
             return self._layout_map[key]
 
+        matching_key = []
         for k in self._layout_map:
-            if re.match(k, key):
-                return self._layout_map[k]
+            if re.search(k, key):
+                matching_key.append(k)
+        if len(matching_key) > 1:
+            raise ValueError(
+                f"The input {key} has matched to multiple layout "
+                f"rule: {matching_key}. Please make sure the "
+                "key only match to one rule."
+            )
+        elif len(matching_key) == 1:
+            return self._layout_map[matching_key[0]]
         return None
 
     def __setitem__(self, key, layout):
