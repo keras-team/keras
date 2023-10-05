@@ -3,7 +3,6 @@ import types
 import numpy as np
 import tensorflow as tf
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
-from tensorflow.experimental import dtensor
 
 from keras.backend.common import KerasVariable
 from keras.backend.common import global_state
@@ -54,7 +53,7 @@ class Variable(
         value = tf.cast(value, self._value.dtype)
 
         if self._layout:
-            value = convert_to_dtensor(value, self._layout)
+            value = distribution_lib.distribute_tensor(value, self._layout)
 
         self._value.assign(tf.cast(value, self._value.dtype))
 
@@ -113,17 +112,6 @@ def convert_to_tensor(x, dtype=None, sparse=True):
         return tf.cast(x, dtype=dtype)
     else:
         return x
-
-
-def convert_to_dtensor(value, tensor_layout):
-    replicated_tensor = dtensor.copy_to_mesh(
-        value,
-        layout=dtensor.Layout.replicated(
-            tensor_layout.mesh, rank=tensor_layout.rank
-        ),
-    )
-
-    return dtensor.relayout(replicated_tensor, tensor_layout)
 
 
 def convert_to_numpy(x):

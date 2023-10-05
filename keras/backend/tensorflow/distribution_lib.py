@@ -36,8 +36,24 @@ def list_devices(device_type=None):
 
 
 def distribute_tensor(value, tensor_layout):
-    # TODO: Finish distributed Tensor implementation.
-    pass
+    """Distribute the Tensor based on the layout.
+
+    Args:
+        value: Initial value that need to be distributed.
+        tensor_layout: `TensorLayout` for the distribution information, or a
+            `tf.dtensor.Layout` instance.
+
+    Returns:
+        DTensor.
+    """
+    replicated_tensor = dtensor.copy_to_mesh(
+        value,
+        layout=dtensor.Layout.replicated(
+            tensor_layout.mesh, rank=tensor_layout.rank
+        ),
+    )
+
+    return dtensor.relayout(replicated_tensor, tensor_layout)
 
 
 def distribute_variable(value, tensor_layout):
