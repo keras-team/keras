@@ -184,7 +184,7 @@ class KerasVariable:
         return self.value.__neg__()
 
     def __pos__(self):
-        return self.value.__pos__()
+        return self.value
 
     def __abs__(self):
         return self.value.__abs__()
@@ -272,18 +272,6 @@ class KerasVariable:
             self._convert_to_tensor(other, dtype=value.dtype)
         )
 
-    def __divmod__(self, other):
-        value = self.value
-        return value.__divmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
-    def __rdivmod__(self, other):
-        value = self.value
-        return value.__rdivmod__(
-            self._convert_to_tensor(other, dtype=value.dtype)
-        )
-
     def __mod__(self, other):
         value = self.value
         return value.__mod__(self._convert_to_tensor(other, dtype=value.dtype))
@@ -335,10 +323,6 @@ class KerasVariable:
     def __rxor__(self, other):
         value = self.value
         return value.__rxor__(self._convert_to_tensor(other, dtype=value.dtype))
-
-    def __round__(self, ndigits=None):
-        value = self.value
-        return value.__round__(ndigits)
 
 
 def register_uninitialized_variable(variable):

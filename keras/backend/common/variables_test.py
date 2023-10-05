@@ -519,59 +519,22 @@ class VariableOperationsTest(test_case.TestCase):
         )
         self.assertAllClose(v1.__rxor__(v2), np.array([False, True]))
 
-    # FAILED AttributeError: 'ResourceVariable'
-    #  object has no attribute '__pos__'. Did you mean: '__pow__'?
     def test__pos__(self):
         """Test unary plus on a variable."""
         v = backend.Variable(initializer=np.array([-1, 2]), trainable=False)
         self.assertAllClose(v.__pos__(), np.array([-1, 2]))
 
-    # FAILED test__div__ - AttributeError:
-    # 'numpy.ndarray' object has no attribute '__div__'
     def test__div__(self):
         """Test division operation on a variable."""
         v1 = backend.Variable(initializer=np.array([1, 2, 3]))
         v2 = backend.Variable(initializer=np.array([4, 5, 6]))
         self.assertAllClose(v1.__div__(v2), np.array([0.25, 0.4, 0.5]))
 
-    # FAILED test__rdiv__ - AttributeError:
-    #  'numpy.ndarray' object has no attribute '__rdiv__'
     def test__rdiv__(self):
         """Test reverse division operation on a variable."""
         v1 = backend.Variable(initializer=np.array([4, 5, 6]))
         v2 = backend.Variable(initializer=np.array([1, 2, 3]))
         self.assertAllClose(v1.__rdiv__(v2), np.array([0.25, 0.4, 0.5]))
-
-    # FAILED AttributeError: 'ResourceVariable' object has no attribute
-    #  '__divmod__'. Did you mean: '__div__'?
-    def test__divmod__(self):
-        """Test divmod operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([9, 9, 9]))
-        v2 = backend.Variable(initializer=np.array([3, 3, 3]))
-        self.assertAllClose(
-            v1.__divmod__(v2), (np.array([3, 3, 3]), np.array([0, 0, 0]))
-        )
-
-    # FAILED AttributeError: 'ResourceVariable' object has no attribute
-    #  '__rdivmod__'. Did you mean: '__rdiv__'?
-    def test__rdivmod__(self):
-        """Test reverse divmod operation on a variable."""
-        v1 = backend.Variable(initializer=np.array([9, 9, 9]))
-        v2 = backend.Variable(initializer=np.array([3, 3, 3]))
-        self.assertAllClose(
-            v1.__rdivmod__(v2), (np.array([3, 3, 3]), np.array([0, 0, 0]))
-        )
-
-    # FAILED  AttributeError:
-    # 'ResourceVariable' object has no attribute
-    #  '__round__'. Did you mean: '__rand__'?
-    def test__round__(self):
-        """Test round operation on a variable."""
-        v = backend.Variable(initializer=np.array([1.2, 2.5, 3.6]))
-        self.assertAllClose(v.__round__(), np.array([1, 2, 4]))
-
-        value = self.value
-        return value.__round__(ndigits)
 
     def test_variable_pow(self):
         """Test pow operation on a variable."""
