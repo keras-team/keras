@@ -2511,6 +2511,10 @@ class NumpyTwoInputOpsCorretnessTest(testing.TestCase, parameterized.TestCase):
             knp.Tensordot(axes=([0, 1], [2, 3]))(x, y),
             np.tensordot(x, y, axes=([0, 1], [2, 3])),
         )
+        self.assertAllClose(
+            knp.Tensordot(axes=[0, 2])(x, y),
+            np.tensordot(x, y, axes=[0, 2]),
+        )
 
     def test_vdot(self):
         x = np.array([1.0, 2.0, 3.0])

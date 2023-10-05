@@ -936,6 +936,14 @@ def tensordot(x1, x2, axes=2):
     # Conversion to long necessary for `torch.tensordot`
     x1 = cast(x1, "int64") if x1.dtype in TORCH_INT_TYPES else x1
     x2 = cast(x2, "int64") if x2.dtype in TORCH_INT_TYPES else x2
+    # torch only handles dims=((0,), (1,)), numpy accepts axes=(0, 1).
+    if isinstance(axes, (list, tuple)):
+        first, second = axes
+        if not isinstance(first, (list, tuple)):
+            first = (first,)
+        if not isinstance(second, (list, tuple)):
+            second = (second,)
+        axes = (first, second)
     return torch.tensordot(x1, x2, dims=axes)
 
 
