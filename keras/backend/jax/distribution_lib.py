@@ -40,7 +40,20 @@ def distribute_value(value, tensor_layout):
     """
     if not isinstance(tensor_layout, jax.sharding.Sharding):
         tensor_layout = _to_jax_layout(tensor_layout)
-    return jax.device_put(value, tensor_layout)
+    if tensor_layout.is_fully_addressable:
+        return jax.device_put(value, tensor_layout)
+    else:
+        # Need to only distribute the value to local addressible devices, and
+        # repack them back into global format.
+        mapping = tensor_layout.addressable_devices_indices_map(value.shape)
+        local_values = [
+            jax.device_put(value[index], device=d)
+            for d, index in mapping.items()
+        ]
+        global_value = jax.make_array_from_single_device_arrays(
+            value.shape, tensor_layout, local_values
+        )
+        return global_value
 
 
 def _to_jax_device(device_id):
