@@ -1361,7 +1361,7 @@ def ceil(x):
         x: Input tensor.
 
     Returns:
-        The ceiling of each element in `x`.
+        The ceiling of each element in `x`, with float dtype.
     """
     if any_symbolic_tensors((x,)):
         return Ceil().symbolic_call(x)
