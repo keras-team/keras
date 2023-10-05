@@ -123,10 +123,5 @@ class TorchModuleWrapper(Layer):
         for key in store.keys():
             if isinstance(key, bytes):
                 key = key.decode()
-            try:
-                state_dict[key] = convert_to_tensor(store[key])
-            except KeyError:
-                raise ValueError(
-                    f"Weights file is missing state for {self.name}.{key}"
-                )
+            state_dict[key] = convert_to_tensor(store[key])
         self.module.load_state_dict(state_dict)
