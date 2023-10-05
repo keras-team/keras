@@ -201,11 +201,19 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    return np.ceil(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return np.ceil(x).astype(dtype)
 
 
 def clip(x, x_min, x_max):
-    return np.clip(x, x_min, x_max)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        dtype = "int64"
+    return np.clip(x, x_min, x_max).astype(dtype)
 
 
 def concatenate(xs, axis=0):

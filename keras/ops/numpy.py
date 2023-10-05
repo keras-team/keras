@@ -1343,7 +1343,11 @@ class Ceil(Operation):
         return backend.numpy.ceil(x)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.ceil", "keras.ops.numpy.ceil"])
@@ -1374,7 +1378,10 @@ class Clip(Operation):
         return backend.numpy.clip(x, self.x_min, self.x_max)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype == "bool":
+            dtype = "int64"
+        return KerasTensor(x.shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.clip", "keras.ops.numpy.clip"])

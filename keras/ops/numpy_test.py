@@ -4179,6 +4179,54 @@ class NumpyDtypeTest(testing.TestCase, parameterized.TestCase):
             standardize_dtype(jnp.arange(start, stop, step, dtype).dtype),
         )
 
+    @parameterized.parameters(ALL_DTYPES)
+    def test_ceil(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            import torch
+
+            if dtype is None:
+                # TODO: knp.array returns float32 instead of float64 when dtype
+                # is None in torch
+                dtype = "float64"
+            if not torch.cuda.is_available() and dtype == "float16":
+                self.skipTest(f"ceil does not support {dtype} in torch cpu")
+            if dtype == "bool":
+                self.skipTest(f"ceil does not support {dtype} in torch")
+
+        x = knp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
+        x_jax = jnp.array([[1.2, 2.1, 2.5], [2.4, 11.9, 5.5]], dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.ceil(x_jax).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+        self.assertEqual(standardize_dtype(knp.ceil(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Ceil().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.parameters(ALL_DTYPES)
+    def test_clip(self, dtype):
+        import jax.numpy as jnp
+
+        if backend.backend() == "torch":
+            import torch
+
+            if not torch.cuda.is_available() and dtype == "float16":
+                self.skipTest(f"clip does not support {dtype} in torch cpu")
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.clip(x_jax, -2, 2).dtype)
+        self.assertEqual(
+            standardize_dtype(knp.clip(x, -2, 2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Clip(-2, 2).symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.product(dtype1=ALL_DTYPES, dtype2=ALL_DTYPES)
     def test_dot(self, dtype1, dtype2):
         import jax.numpy as jnp

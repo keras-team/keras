@@ -374,11 +374,19 @@ def broadcast_to(x, shape):
 
 
 def ceil(x):
-    return tfnp.ceil(x)
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return tf.cast(tfnp.ceil(x), dtype=dtype)
 
 
 def clip(x, x_min, x_max):
-    return tfnp.clip(x, x_min, x_max)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        dtype = "int64"
+    return tf.cast(tfnp.clip(x, x_min, x_max), dtype=dtype)
 
 
 def concatenate(xs, axis=0):

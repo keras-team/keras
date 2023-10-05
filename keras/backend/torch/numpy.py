@@ -314,13 +314,21 @@ def broadcast_to(x, shape):
 
 def ceil(x):
     x = convert_to_tensor(x)
-    return torch.ceil(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    return cast(torch.ceil(x), dtype=dtype)
 
 
 def clip(x, x_min, x_max):
     x = convert_to_tensor(x)
-    x_min, x_max = convert_to_tensor(x_min), convert_to_tensor(x_max)
-    return torch.clip(x, min=x_min, max=x_max)
+    x_min = convert_to_tensor(x_min)
+    x_max = convert_to_tensor(x_max)
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "bool":
+        dtype = "int64"
+    return cast(torch.clip(x, min=x_min, max=x_max), dtype=dtype)
 
 
 def concatenate(xs, axis=0):
