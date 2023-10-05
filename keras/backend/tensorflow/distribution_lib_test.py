@@ -8,6 +8,7 @@ from tensorflow.python.eager import context
 
 from keras import backend
 from keras import layers
+from keras import models
 from keras import testing
 from keras.backend import distribution_lib as backend_dlib
 from keras.distribution import distribution_lib
@@ -116,3 +117,98 @@ class TensorflowDistributionLibTest(testing.TestCase):
             dtensor.fetch_layout(dense_layer.bias._value).sharding_specs,
             ["model"],
         )
+
+    def test_e2e_data_parallel_model(self):
+        distribution = distribution_lib.DataParallel(
+            devices=backend_dlib.list_devices()
+        )
+
+        with distribution.scope():
+            inputs = layers.Input(shape=[28, 28, 1])
+            y = layers.Flatten()(inputs)
+            y = layers.Dense(units=200, use_bias=False, activation="relu")(y)
+            y = layers.Dropout(0.4)(y)
+            y = layers.Dense(units=10, activation="softmax")(y)
+            model = models.Model(inputs=inputs, outputs=y)
+
+        # Make sure all the weights are properly sharded.
+        for weight in model.weights:
+            self.assertTrue(
+                dtensor.fetch_layout(weight._value).is_fully_replicated
+            )
+
+        inputs = np.random.normal(size=(32, 28, 28, 1))
+        labels = np.random.normal(size=(32, 10))
+
+        validation_inputs = np.random.normal(size=(32, 28, 28, 1))
+        validation_labels = np.random.normal(size=(32, 10))
+
+        with distribution.scope():
+            # Training
+            model.compile(loss="mse", optimizer="SGD")
+            model.fit(inputs, labels)
+
+            # Validation
+            model.evaluate(validation_inputs, validation_labels)
+
+            # Prediction
+            predictions = model.predict(inputs)
+            self.assertEqual(predictions.shape, (32, 10))
+
+    def test_e2e_model_parallel_model(self):
+        shape = (4, 2)
+        axis_names = ["batch", "model"]
+        device_mesh = distribution_lib.DeviceMesh(
+            shape, axis_names, backend_dlib.list_devices()
+        )
+
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
+            [None, "model"]
+        )
+        layout_map[".*dense.*bias"] = distribution_lib.TensorLayout(["model"])
+
+        distribution = distribution_lib.ModelParallel(
+            device_mesh, layout_map, batch_dim_name="batch"
+        )
+        with distribution.scope():
+            inputs = layers.Input(shape=[28, 28, 1])
+            y = layers.Flatten()(inputs)
+            y = layers.Dense(units=200, use_bias=False, activation="relu")(y)
+            y = layers.Dropout(0.4)(y)
+            y = layers.Dense(units=10, activation="softmax")(y)
+            model = models.Model(inputs=inputs, outputs=y)
+
+        for weight in model.weights:
+            if "kernel" in weight.name:
+                self.assertEqual(
+                    dtensor.fetch_layout(weight._value).sharding_specs,
+                    [dtensor.UNSHARDED, "model"],
+                )
+            elif "bias" in weight.name:
+                self.assertEqual(
+                    dtensor.fetch_layout(weight._value).sharding_specs,
+                    ["model"],
+                )
+            else:
+                self.assertTrue(
+                    dtensor.fetch_layout(weight._value).is_fully_replicated
+                )
+
+        inputs = np.random.normal(size=(32, 28, 28, 1))
+        labels = np.random.normal(size=(32, 10))
+
+        validation_inputs = np.random.normal(size=(32, 28, 28, 1))
+        validation_labels = np.random.normal(size=(32, 10))
+
+        with distribution.scope():
+            # Training
+            model.compile(loss="mse", optimizer="SGD")
+            model.fit(inputs, labels)
+
+            # Validation
+            model.evaluate(validation_inputs, validation_labels)
+
+            # Prediction
+            predictions = model.predict(inputs)
+            self.assertEqual(predictions.shape, (32, 10))

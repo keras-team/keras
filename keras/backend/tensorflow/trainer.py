@@ -5,11 +5,14 @@ import numpy as np
 import tensorflow as tf
 import tree
 from packaging.version import Version
+from tensorflow.experimental import dtensor
 from tensorflow.python.eager import context as tf_context
 
 from keras import callbacks as callbacks_module
 from keras import metrics as metrics_module
 from keras import optimizers as optimizers_module
+from keras.backend import distribution_lib as tf_distribution_lib
+from keras.distribution import distribution_lib
 from keras.trainers import trainer as base_trainer
 from keras.trainers.data_adapters import data_adapter_utils
 from keras.trainers.epoch_iterator import EpochIterator
@@ -48,7 +51,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self._distribute_reduction_method = value
 
     def train_step(self, data):
-        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        x, y, sample_weight = data
 
         # Forward pass
         with tf.GradientTape() as tape:
@@ -76,7 +79,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def test_step(self, data):
-        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        x, y, sample_weight = data
+
         if self._call_has_training_arg:
             y_pred = self(x, training=False)
         else:
@@ -88,11 +92,10 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
-        x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False)
+            y_pred = self(data, training=False)
         else:
-            y_pred = self(x)
+            y_pred = self(data)
         return y_pred
 
     def make_train_function(self, force=False):
@@ -111,9 +114,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(one_step_on_data, **kwargs)
 
         @tf.autograph.experimental.do_not_convert
-        def one_step_on_iterator(iterator):
+        def one_step_on_iterator(data):
             """Runs a single training step given a Dataset iterator."""
-            data = next(iterator)
             outputs = self.distribute_strategy.run(
                 one_step_on_data, args=(data,)
             )
@@ -125,9 +127,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return outputs
 
         @tf.autograph.experimental.do_not_convert
-        def multi_step_on_iterator(iterator):
+        def multi_step_on_iterator(data):
             for _ in range(self.steps_per_execution):
-                outputs = one_step_on_iterator(iterator)
+                outputs = one_step_on_iterator(data)
             return outputs
 
         if self.steps_per_execution > 1:
@@ -159,9 +161,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
             one_step_on_data = tf.function(one_step_on_data, **kwargs)
 
         @tf.autograph.experimental.do_not_convert
-        def one_step_on_iterator(iterator):
+        def one_step_on_iterator(data):
             """Runs a single test step given a Dataset iterator."""
-            data = next(iterator)
             outputs = self.distribute_strategy.run(
                 one_step_on_data, args=(data,)
             )
@@ -173,9 +174,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             return outputs
 
         @tf.autograph.experimental.do_not_convert
-        def multi_step_on_iterator(iterator):
+        def multi_step_on_iterator(data):
             for _ in range(self.steps_per_execution):
-                outputs = one_step_on_iterator(iterator)
+                outputs = one_step_on_iterator(data)
             return outputs
 
         if self.steps_per_execution > 1:
@@ -319,7 +320,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
             with epoch_iterator.catch_stop_iteration():
                 for step, iterator in epoch_iterator.enumerate_epoch():
                     callbacks.on_train_batch_begin(step)
-                    logs = self.train_function(iterator)
+
+                    data = data_adapter_utils.unpack_x_y_sample_weight(
+                        next(iterator)
+                    )
+                    data = self._distribute_data(data)
+                    logs = self.train_function(data)
+
                     callbacks.on_train_batch_end(
                         step, self._pythonify_logs(logs)
                     )
@@ -428,7 +435,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator.enumerate_epoch():
                 callbacks.on_test_batch_begin(step)
-                logs = self.test_function(iterator)
+
+                data = data_adapter_utils.unpack_x_y_sample_weight(
+                    next(iterator)
+                )
+                data = self._distribute_data(data)
+                logs = self.test_function(data)
+
                 callbacks.on_test_batch_end(step, self._pythonify_logs(logs))
         logs = self.get_metrics_result()
         callbacks.on_test_end(logs)
@@ -502,9 +515,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
         with epoch_iterator.catch_stop_iteration():
             for step, iterator in epoch_iterator.enumerate_epoch():
                 callbacks.on_predict_batch_begin(step)
+
                 data = get_data(iterator)
+                data = self._distribute_data(data)
                 batch_outputs = self.predict_function(data)
                 outputs = append_to_outputs(batch_outputs, outputs)
+
                 callbacks.on_predict_batch_end(step, {"outputs": batch_outputs})
         callbacks.on_predict_end()
         outputs = tree.map_structure_up_to(
@@ -616,6 +632,22 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return self.compute_loss(
             x=None, y=y, y_pred=y_pred, sample_weight=sample_weight
         )
+
+    def _distribute_data(self, data):
+        distribution = distribution_lib.distribution()
+
+        if distribution:
+
+            def distribute_single_value(value):
+                if value is not None:
+                    layout = distribution.get_data_layout(value.shape)
+                    return tf_distribution_lib.distribute_tensor(value, layout)
+                else:
+                    return value
+
+            data = tf.nest.map_structure(distribute_single_value, data)
+
+        return data
 
 
 class TFEpochIterator(EpochIterator):
@@ -853,6 +885,16 @@ def _is_tpu_strategy_class(clz):
 def convert_to_np_if_not_ragged(x):
     if isinstance(x, tf.RaggedTensor):
         return x
+
+    if dtensor.is_dtensor(x):
+        layout = dtensor.fetch_layout(x)
+        x = dtensor.relayout(
+            x,
+            layout=dtensor.Layout.replicated(
+                mesh=layout.mesh, rank=layout.rank
+            ),
+        )
+
     return x.numpy()
 
 

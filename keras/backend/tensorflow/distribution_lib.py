@@ -36,7 +36,7 @@ def list_devices(device_type=None):
 
 
 def distribute_tensor(value, tensor_layout):
-    """Distribute the Tensor based on the layout.
+    """Distribute the tensor based on the layout.
 
     Args:
         value: Initial value that need to be distributed.
@@ -46,6 +46,9 @@ def distribute_tensor(value, tensor_layout):
     Returns:
         DTensor.
     """
+    if not isinstance(tensor_layout, dtensor.Layout):
+        tensor_layout = _to_dtensor_layout(tensor_layout)
+
     replicated_tensor = dtensor.copy_to_mesh(
         value,
         layout=dtensor.Layout.replicated(

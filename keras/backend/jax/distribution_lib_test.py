@@ -129,9 +129,20 @@ class JaxDistributionLibTest(testing.TestCase):
         inputs = np.random.normal(size=(32, 28, 28, 1))
         labels = np.random.normal(size=(32, 10))
 
+        validation_inputs = np.random.normal(size=(32, 28, 28, 1))
+        validation_labels = np.random.normal(size=(32, 10))
+
         with distribution.scope():
-            model.compile(loss="mse")
+            # Training
+            model.compile(loss="mse", optimizer="SGD")
             model.fit(inputs, labels)
+
+            # Validation
+            model.evaluate(validation_inputs, validation_labels)
+
+            # Prediction
+            predictions = model.predict(inputs)
+            self.assertEqual(predictions.shape, (32, 10))
 
     def test_e2e_model_parallel_model(self):
         shape = (4, 2)
@@ -168,6 +179,17 @@ class JaxDistributionLibTest(testing.TestCase):
         inputs = np.random.normal(size=(32, 28, 28, 1))
         labels = np.random.normal(size=(32, 10))
 
+        validation_inputs = np.random.normal(size=(32, 28, 28, 1))
+        validation_labels = np.random.normal(size=(32, 10))
+
         with distribution.scope():
-            model.compile(loss="mse")
+            # Training
+            model.compile(loss="mse", optimizer="SGD")
             model.fit(inputs, labels)
+
+            # Validation
+            model.evaluate(validation_inputs, validation_labels)
+
+            # Prediction
+            predictions = model.predict(inputs)
+            self.assertEqual(predictions.shape, (32, 10))
