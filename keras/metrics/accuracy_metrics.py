@@ -113,11 +113,22 @@ class BinaryAccuracy(reduction_metrics.MeanMetricWrapper):
     ```
     """
 
-    def __init__(self, name="binary_accuracy", dtype=None):
-        super().__init__(fn=binary_accuracy, name=name, dtype=dtype)
+    def __init__(self, name="binary_accuracy", dtype=None, threshold=0.5):
+        if threshold is not None and (threshold <= 0 or threshold >= 1):
+            raise ValueError(
+                f"Invalid value for argument `threshold`. Expected a value in internal (0, 1). Received: threshold={threshold}"
+            )
+        super().__init__(
+            fn=binary_accuracy, name=name, dtype=dtype, threshold=threshold
+        )
+        self.threshold = threshold
 
     def get_config(self):
-        return {"name": self.name, "dtype": self.dtype}
+        return {
+            "name": self.name,
+            "dtype": self.dtype,
+            "threshold": self.threshold,
+        }
 
 
 @keras_export("keras.metrics.categorical_accuracy")
